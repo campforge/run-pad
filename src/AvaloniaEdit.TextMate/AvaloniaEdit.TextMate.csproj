@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net7.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <PackageDescription>TextMate integration for AvaloniaEdit.</PackageDescription>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvaloniaEdit\AvaloniaEdit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.0.0" />
+    <PackageReference Include="TextMateSharp" Version="1.0.56" />
+    <PackageReference Include="TextMateSharp.Grammars" Version="1.0.56" />
+  </ItemGroup>
+
+</Project>
