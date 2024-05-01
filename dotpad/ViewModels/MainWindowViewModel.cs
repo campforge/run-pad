@@ -1,47 +1,39 @@
-﻿using DynamicData;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
+using DotPad.Build;
+using System.Collections.Generic;
+using System.Linq;
+using DotPad.Models;
 
+namespace dotpad.ViewModels;
 
-namespace dotpad.ViewModels
+public class MainWindowViewModel : ViewModelBase
 {
-	public class MainWindowViewModel : ViewModelBase
+	public string Greeting => "Welcome to Avalonia!";
+
+	public ObservableCollection<Node> Nodes { get; }
+
+	public List<ExecutionPlatform> DotnetPlatforms { get; }
+
+	public string? SelectedDotnetPlatforms { get; set; }
+
+	public MainWindowViewModel()
 	{
-#pragma warning disable CA1822 // Mark members as static
-		public string Greeting => "Welcome to Avalonia!";
-#pragma warning restore CA1822 // Mark members as static
 
-		public ObservableCollection<Node> Nodes { get; }
-
-		public MainWindowViewModel() {
+		var sdks = new DotnetSdksService();
+		var list = sdks.GetSdkInfos().ToList();
+		DotnetPlatforms = list;
+		SelectedDotnetPlatforms = list.FirstOrDefault()?.Description;
 
 
-			Nodes = new ObservableCollection<Node>
+		Nodes = new ObservableCollection<Node>
+		{
+			new Node("Animals", new ObservableCollection<Node>
 			{
-				new Node("Animals", new ObservableCollection<Node>
+				new Node("Mammals", new ObservableCollection<Node>
 				{
-					new Node("Mammals", new ObservableCollection<Node>
-					{
-						new Node("Lion"), new Node("Cat"), new Node("Zebra")
-					})
+					new Node("Lion"), new Node("Cat"), new Node("Zebra")
 				})
-			};
-		}
+			})
+		};
 	}
-	public class Node
-	{
-		public ObservableCollection<Node>? SubNodes { get; }
-		public string Title { get; }
-
-		public Node(string title)
-		{
-			Title = title;
-		}
-
-		public Node(string title, ObservableCollection<Node> subNodes)
-		{
-			Title = title;
-			SubNodes = subNodes;
-		}
-	}
-
 }
