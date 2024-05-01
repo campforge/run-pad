@@ -3,46 +3,15 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text;
+using DotPad.Build.Events;
+using DotPad.Build.Models;
 
 namespace DotPad.Build;
 
-public sealed class CSharpReferenseService
-{
-    public CSharpReferenseService() { }
-    public string[] GetDefault()
-    {
-        var refPaths = new[] {
-                typeof(object).GetTypeInfo().Assembly.Location,
-                typeof(Console).GetTypeInfo().Assembly.Location,
-                Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll")
-            };
-
-        return refPaths;
-    }
-}
-
-public delegate void ExecutionReceivedEventHandler(object sender, ExecutionReceivedEventArgs e);
-
-public class ExecutionReceivedEventArgs : EventArgs
-{
-    private readonly string? _data;
-
-    public ExecutionReceivedEventArgs(string? data)
-    {
-        _data = data;
-    }
-
-    public string? Data
-    {
-        get { return _data; }
-    }
-}
-
 public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposable
 {
-    private bool _IsRun = false;
+    private readonly bool _IsRun = false;
     public bool IsRun => _IsRun;
     const string libName = "DotPadQuery";
     private string _binaryOutput;
@@ -56,7 +25,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
     public CSharpExecutionHostService(
         string root,
         ExecutionPlatform executionPlatform
-        )
+    )
     {
         string direcroryName = Path.GetRandomFileName();
 
@@ -81,18 +50,18 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         SyntaxTree syntaxTree,
         string[] refPaths,
         CancellationToken cancellationToken
-        )
+    )
     {
         var references = refPaths.Select(r => MetadataReference.CreateFromFile(r)).ToArray();
 
         var task = Task.Run(() =>
         {
             var compilation = CSharpCompilation
-            .Create(Guid.NewGuid().ToString(),
-                syntaxTrees: new[] { syntaxTree },
-                references: references,
-                options: new CSharpCompilationOptions(OutputKind.ConsoleApplication)
-            );
+                .Create(Guid.NewGuid().ToString(),
+                    syntaxTrees: new[] { syntaxTree },
+                    references: references,
+                    options: new CSharpCompilationOptions(OutputKind.ConsoleApplication)
+                );
 
             var json = @"
 			{
@@ -109,7 +78,8 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
 			}";
 
             File.WriteAllText(_configOutput, json);
-            File.Copy(@"E:\Projects2\DotPad\DotPad.Runtime\bin\Debug\net7.0\DotPad.Runtime.dll", Path.Combine(_outputDir, "DotPad.Runtime.dll"), true);
+            File.Copy(@"E:\Projects2\DotPad\DotPad.Runtime\bin\Debug\net7.0\DotPad.Runtime.dll",
+                Path.Combine(_outputDir, "DotPad.Runtime.dll"), true);
 
             return compilation.Emit(
                 _binaryOutput,
@@ -145,7 +115,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
 
         StringBuilder errors = new StringBuilder();
         var locker = new object();
-        process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs errorArgs)
+        process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs errorArgs)
         {
             if (errorArgs.Data != null)
             {
@@ -191,7 +161,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         string code,
         string[] refPaths,
         CancellationToken cancellationToken
-        )
+    )
     {
         var syntaxTree = BuildSyntaxTree(code);
 
@@ -207,6 +177,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
             {
                 Console.Error.WriteLine("\t{0}: {1}", diagnostic.Id, diagnostic.GetMessage());
             }
+
             return;
         }
 
@@ -233,6 +204,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
             {
                 break;
             }
+
             DataReceived.Invoke(this, new ExecutionReceivedEventArgs(line));
         }
     }

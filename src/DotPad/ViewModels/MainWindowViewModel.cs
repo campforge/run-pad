@@ -2,6 +2,7 @@
 using DotPad.Build;
 using System.Collections.Generic;
 using System.Linq;
+using DotPad.Build.Models;
 using DotPad.Models;
 
 namespace dotpad.ViewModels;

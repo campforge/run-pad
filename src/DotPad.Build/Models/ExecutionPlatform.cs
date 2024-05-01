@@ -1,6 +1,6 @@
 ﻿using NuGet.Versioning;
 
-namespace DotPad.Build
+namespace DotPad.Build.Models
 {
     public class ExecutionPlatform
     {

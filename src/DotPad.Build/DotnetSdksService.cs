@@ -1,12 +1,12 @@
-﻿using NuGet.Versioning;
-using RoslynPad.UI.SDK;
+﻿using DotPad.Build.Models;
+using DotPad.Build.Sdk;
+using NuGet.Versioning;
 
 namespace DotPad.Build
 {
     public sealed class DotnetSdksService
     {
-        private Lazy<ListSdks> _listSdks = new(() => new ListSdks());
-
+        private readonly Lazy<ListSdks> _listSdks = new(() => new ListSdks());
 
         public IReadOnlyList<ExecutionPlatform> GetSdkInfos()
         {
