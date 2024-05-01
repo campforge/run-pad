@@ -28,7 +28,7 @@ namespace RoslynCompileSample
 		internal static string LoadHtmlFile(string fileName)
 		{
 
-			return @"<div class=""widget"">
+			return @"<div class=""widget"" color=""#fff"">
 					  <h1>Widget Buttons</h1>
 					  <button>A button element</button>
  

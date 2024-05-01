@@ -10,15 +10,16 @@ using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
-using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 
 using TextMateSharp.Grammars;
 using AvaloniaEdit.Snippets;
-using Snippet = AvaloniaEdit.Snippets.Snippet;
 using AvaloniaEdit;
 using AvaloniaEdit.Demo.Resources;
 using TheArtOfDev.HtmlRenderer.Avalonia;
+using dotpad.ViewModels;
+using DotPad;
+using DotPad.ViewModels;
 
 namespace dotpad.Views
 {
@@ -28,15 +29,10 @@ namespace dotpad.Views
 	public partial class MainWindow : Window
 	{
 		private readonly TextEditor _textEditor;
-		private FoldingManager _foldingManager;
 		private readonly Installation _textMateInstallation;
 		private CompletionWindow _completionWindow;
 		private OverloadInsightWindow _insightWindow;
-		private Button _addControlButton;
-		private Button _clearControlButton;
-		private Button _changeThemeButton;
-		private Button _insertSnippetButton;
-		private ComboBox _syntaxModeCombo;
+
 		private TextBlock _statusTextBlock;
 		private ElementGenerator _generator = new ElementGenerator();
 		private RegistryOptions _registryOptions;
@@ -49,83 +45,66 @@ namespace dotpad.Views
 
 			// htmlPanel
 			_htmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
-
-			_htmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-
-			//_htmlPanel.LoadComplete += (sender, args) => _htmlPanel.ScrollToElement("C4");
-			_htmlPanel.Text = ResourceLoader.LoadHtmlFile("");
-
-		   // textEditor
-		   _textEditor = this.FindControl<TextEditor>("Editor");
-			_textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
-			_textEditor.Background = Brushes.Transparent;
-			_textEditor.ShowLineNumbers = true;
-			_textEditor.ContextMenu = new ContextMenu
+			if (_htmlPanel != null)
 			{
-				ItemsSource = new List<MenuItem>
+				_htmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+				_htmlPanel.Text = ResourceLoader.LoadHtmlFile("");
+				_htmlPanel.Background = Brush.Parse("#000");
+			}
+			// textEditor
+			_textEditor = this.FindControl<TextEditor>("Editor");
+			if (_textEditor != null)
+			{
+				_textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
+				_textEditor.Background = Brushes.Transparent;
+				_textEditor.ShowLineNumbers = true;
+				_textEditor.ContextMenu = new ContextMenu
+				{
+					ItemsSource = new List<MenuItem>
 				{
 					new MenuItem { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
 					new MenuItem { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
 					new MenuItem { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
 				}
-			};
+				};
 
-			_textEditor.TextArea.Background = this.Background;
-			_textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
-			_textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
-			_textEditor.Options.AllowToggleOverstrikeMode = true;
-			_textEditor.Options.ShowBoxForControlCharacters = true;
-			_textEditor.Options.ColumnRulerPositions = new List<int>() { 80, 100 };
-			//_textEditor.TextArea.IndentationStrategy = ;
+				_textEditor.TextArea.Background = this.Background;
+				_textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
+				_textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
+				_textEditor.Options.AllowToggleOverstrikeMode = true;
+				_textEditor.Options.ShowBoxForControlCharacters = true;
+				_textEditor.Options.ColumnRulerPositions = new List<int>() { 80, 100 };
+				//_textEditor.TextArea.IndentationStrategy = new Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
+				_textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
+				_textEditor.TextArea.RightClickMovesCaret = true;
 
 
-				//new Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
-			_textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
-			_textEditor.TextArea.RightClickMovesCaret = true;
+				_textEditor.TextArea.TextView.ElementGenerators.Add(_generator);
 
-			_addControlButton = this.FindControl<Button>("addControlBtn");
-			_addControlButton.Click += AddControlButton_Click;
+				_registryOptions = new RegistryOptions(
+					(ThemeName)_currentTheme);
 
-			_clearControlButton = this.FindControl<Button>("clearControlBtn");
-			_clearControlButton.Click += ClearControlButton_Click;
+				_textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
+				var csharpLanguage = _registryOptions.GetLanguageByExtension(".cs");
 
-			_changeThemeButton = this.FindControl<Button>("changeThemeBtn");
-			_changeThemeButton.Click += ChangeThemeButton_Click;
+				string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
 
-			_insertSnippetButton = this.FindControl<Button>("insertSnippetBtn");
-			_insertSnippetButton.Click += InsertSnippetButton_Click;
+				_textEditor.Document = new TextDocument(
+					"// AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+					ResourceLoader.LoadSampleFile(scopeName));
+				_textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
+				_textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
+				_textEditor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
 
-			_textEditor.TextArea.TextView.ElementGenerators.Add(_generator);
+				_statusTextBlock = this.Find<TextBlock>("StatusText");
 
-			_registryOptions = new RegistryOptions(
-				(ThemeName)_currentTheme);
-
-			_textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
-
-			Language csharpLanguage = _registryOptions.GetLanguageByExtension(".cs");
-
-			_syntaxModeCombo = this.FindControl<ComboBox>("syntaxModeCombo");
-			_syntaxModeCombo.ItemsSource = _registryOptions.GetAvailableLanguages();
-			_syntaxModeCombo.SelectedItem = csharpLanguage;
-			_syntaxModeCombo.SelectionChanged += SyntaxModeCombo_SelectionChanged;
-
-			string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
-
-			_textEditor.Document = new TextDocument(
-				"// AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
-				ResourceLoader.LoadSampleFile(scopeName));
-			_textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
-			_textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
-			_textEditor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
-
-			_statusTextBlock = this.Find<TextBlock>("StatusText");
-
-			this.AddHandler(PointerWheelChangedEvent, (o, i) =>
-			{
-				if (i.KeyModifiers != KeyModifiers.Control) return;
-				if (i.Delta.Y > 0) _textEditor.FontSize++;
-				else _textEditor.FontSize = _textEditor.FontSize > 1 ? _textEditor.FontSize - 1 : 1;
-			}, RoutingStrategies.Bubble, true);
+				this.AddHandler(PointerWheelChangedEvent, (o, i) =>
+				{
+					if (i.KeyModifiers != KeyModifiers.Control) return;
+					if (i.Delta.Y > 0) _textEditor.FontSize++;
+					else _textEditor.FontSize = _textEditor.FontSize > 1 ? _textEditor.FontSize - 1 : 1;
+				}, RoutingStrategies.Bubble, true);
+			}
 		}
 
 		private void Caret_PositionChanged(object sender, EventArgs e)
@@ -142,51 +121,20 @@ namespace dotpad.Views
 			_textMateInstallation.Dispose();
 		}
 
-		private void SyntaxModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			RemoveUnderlineAndStrikethroughTransformer();
-
-			Language language = (Language)_syntaxModeCombo.SelectedItem;
-
-			if (_foldingManager != null)
-			{
-				_foldingManager.Clear();
-				FoldingManager.Uninstall(_foldingManager);
-			}
-
-			string scopeName = _registryOptions.GetScopeByLanguageId(language.Id);
-
-			_textMateInstallation.SetGrammar(null);
-			_textEditor.Document = new TextDocument(ResourceLoader.LoadSampleFile(scopeName));
-			_textMateInstallation.SetGrammar(scopeName);
-
-			if (language.Id == "xml")
-			{
-				_foldingManager = FoldingManager.Install(_textEditor.TextArea);
-
-				var strategy = new XmlFoldingStrategy();
-				strategy.UpdateFoldings(_foldingManager, _textEditor.Document);
-				return;
-			}
-		}
-
-		private void RemoveUnderlineAndStrikethroughTransformer()
-		{
-			for (int i = _textEditor.TextArea.TextView.LineTransformers.Count - 1; i >= 0; i--)
-			{
-				if (_textEditor.TextArea.TextView.LineTransformers[i] is UnderlineAndStrikeThroughTransformer)
-				{
-					_textEditor.TextArea.TextView.LineTransformers.RemoveAt(i);
-				}
-			}
-		}
-
 		private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
 		{
 			_currentTheme = (_currentTheme + 1) % Enum.GetNames(typeof(ThemeName)).Length;
 
-			_textMateInstallation.SetTheme(_registryOptions.LoadTheme(
-				(ThemeName)_currentTheme));
+			_textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
+		}
+
+		private void RunButton_Click(object sender, RoutedEventArgs e)
+		{
+			var model = this.DataContext as MainWindowViewModel;
+
+			//var executionService = new CSharpExecutionService("");
+
+			//executionService.ExecuteAsync(_textEditor.Text);
 		}
 
 		private void InitializeComponent()
@@ -199,6 +147,15 @@ namespace dotpad.Views
 			_generator.controls.Add(new Pair(_textEditor.CaretOffset, new Button() { Content = "Click me", Cursor = Cursor.Default }));
 			_textEditor.TextArea.TextView.Redraw();
 		}
+
+		private void Preferences_Click(object sender, RoutedEventArgs e)
+		{
+			var ownerWindow = this;
+			var window = new PreferencesWindow();
+			window.DataContext = new PreferencesWindowViewModel();
+			window.ShowDialog(ownerWindow);
+		}
+
 
 		private void ClearControlButton_Click(object sender, RoutedEventArgs e)
 		{
@@ -225,6 +182,8 @@ namespace dotpad.Views
 			// We still want to insert the character that was typed.
 		}
 
+
+
 		private void textEditor_TextArea_TextEntered(object sender, TextInputEventArgs e)
 		{
 			if (e.Text == ".")
@@ -236,18 +195,7 @@ namespace dotpad.Views
 				var data = _completionWindow.CompletionList.CompletionData;
 				data.Add(new MyCompletionData("Item1"));
 				data.Add(new MyCompletionData("Item2"));
-				data.Add(new MyCompletionData("Item3"));
-				data.Add(new MyCompletionData("Item4"));
-				data.Add(new MyCompletionData("Item5"));
-				data.Add(new MyCompletionData("Item6"));
-				data.Add(new MyCompletionData("Item7"));
-				data.Add(new MyCompletionData("Item8"));
-				data.Add(new MyCompletionData("Item9"));
-				data.Add(new MyCompletionData("Item10"));
-				data.Add(new MyCompletionData("Item11"));
-				data.Add(new MyCompletionData("Item12"));
-				data.Add(new MyCompletionData("Item13"));
-
+		
 
 				_completionWindow.Show();
 			}
@@ -419,28 +367,5 @@ namespace dotpad.Views
 			}
 		}
 
-		private void InsertSnippetButton_Click(object sender, RoutedEventArgs e)
-		{
-			var className = new SnippetReplaceableTextElement { Text = "Name" };
-			var snippet = new Snippet
-			{
-				Elements =
-				{
-					new SnippetTextElement { Text = "public class " },
-					className,
-					new SnippetTextElement
-					{
-						Text = "\n{\n    public "
-					},
-					new SnippetBoundElement { TargetElement = className },
-					new SnippetTextElement { Text = "()\n    {\n        " },
-					new SnippetCaretElement(),
-					new SnippetTextElement { Text = "\n    }\n}" }
-				}
-			};
-
-			snippet.Insert(_textEditor.TextArea);
-			_textEditor.Focus();
-		}
 	}
 }
