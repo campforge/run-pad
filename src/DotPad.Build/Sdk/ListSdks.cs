@@ -1,8 +1,7 @@
 ﻿using System.Collections;
-using DotPad.Build.Sdk;
-using RoslynPad.Build.SDK.Models;
+using DotPad.Build.Sdk.Models;
 
-namespace RoslynPad.UI.SDK
+namespace DotPad.Build.Sdk
 {
     public class ListSdks : IEnumerable<SdkInfoModel>
     {
