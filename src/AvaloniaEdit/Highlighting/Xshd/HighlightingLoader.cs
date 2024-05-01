@@ -44,7 +44,7 @@ namespace AvaloniaEdit.Highlighting.Xshd
                 reader.MoveToContent();
                 //if (reader.NamespaceURI == V2Loader.Namespace)
                 //{
-                    return V2Loader.LoadDefinition(reader, skipValidation);
+                return V2Loader.LoadDefinition(reader, skipValidation);
                 //}
                 //else
                 //{

@@ -164,7 +164,7 @@ namespace AvaloniaEdit.Utils
                         stream.Position = 0;
                         return new StreamReader(stream);
                     default:
-                        return AutoDetect(stream, (byte) firstByte, (byte) secondByte, defaultEncoding);
+                        return AutoDetect(stream, (byte)firstByte, (byte)secondByte, defaultEncoding);
                 }
             }
             return new StreamReader(stream, defaultEncoding);

@@ -91,24 +91,24 @@ namespace AvaloniaEdit.CodeCompletion
 
             var item = CompletionList.SelectedItem;
             var description = item?.Description;
-            
-    
+
+
             if (description != null && Host is Control placementTarget && CompletionList.CurrentList != null)
             {
                 _toolTipContent.Content = description;
 
                 double yOffset = 0;
                 var selectedIndex = CompletionList.ListBox.SelectedIndex;
-                    
+
                 var itemContainer = CompletionList.ListBox.ContainerFromIndex(selectedIndex);
-                    
+
                 if (itemContainer != null)
                 {
                     _toolTip.Placement = PlacementMode.RightEdgeAlignedTop;
                     var position = itemContainer.TranslatePoint(new Point(0, 0), placementTarget);
                     if (position.HasValue) yOffset = position.Value.Y;
                 }
-                else 
+                else
                 {
                     //When scrolling down the container is not always ready
                     //If that happens we align the tooltip at the bottom or top
@@ -121,7 +121,7 @@ namespace AvaloniaEdit.CodeCompletion
                         _toolTip.Placement = PlacementMode.RightEdgeAlignedTop;
                     }
                 }
-                   
+
                 _toolTip.Offset = new Point(2, yOffset);
                 _toolTip.PlacementTarget = placementTarget;
                 _toolTip.IsOpen = true;

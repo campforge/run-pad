@@ -151,18 +151,20 @@ namespace AvaloniaEdit.Folding
                     }
                 } while (foundOverlappingFolding);
 
-				string title = foldingSection.Title;
-				if (string.IsNullOrEmpty(title))
-					title = "...";
-				var p = new VisualLineElementTextRunProperties(CurrentContext.GlobalTextRunProperties);
-				p.SetForegroundBrush(TextBrush);
-				var textFormatter = TextFormatterFactory.Create(CurrentContext.TextView);
-				var text = FormattedTextElement.PrepareText(textFormatter, title, p);
-				return new FoldingLineElement(foldingSection, text, foldedUntil - offset, TextBrush);
-			} else {
-				return null;
-			}
-		}
+                string title = foldingSection.Title;
+                if (string.IsNullOrEmpty(title))
+                    title = "...";
+                var p = new VisualLineElementTextRunProperties(CurrentContext.GlobalTextRunProperties);
+                p.SetForegroundBrush(TextBrush);
+                var textFormatter = TextFormatterFactory.Create(CurrentContext.TextView);
+                var text = FormattedTextElement.PrepareText(textFormatter, title, p);
+                return new FoldingLineElement(foldingSection, text, foldedUntil - offset, TextBrush);
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         private sealed class FoldingLineElement : FormattedTextElement
         {
@@ -175,10 +177,10 @@ namespace AvaloniaEdit.Folding
                 _textBrush = textBrush;
             }
 
-			public override TextRun CreateTextRun(int startVisualColumn, ITextRunConstructionContext context)
-			{
-				return new FoldingLineTextRun(this, this.TextRunProperties, _textBrush);
-			}
+            public override TextRun CreateTextRun(int startVisualColumn, ITextRunConstructionContext context)
+            {
+                return new FoldingLineTextRun(this, this.TextRunProperties, _textBrush);
+            }
 
             //DOUBLETAP
             protected internal override void OnPointerPressed(PointerPressedEventArgs e)

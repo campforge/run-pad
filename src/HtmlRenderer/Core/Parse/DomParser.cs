@@ -898,12 +898,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
 
         internal static void AssignCssProps(CssBox key, Dictionary<string, string> value)
         {
-           // throw new NotImplementedException();
+            // throw new NotImplementedException();
         }
 
         internal static void AssignCssProps(CssBox textElm, IDictionary<string, string> properties)
         {
-          //  throw new NotImplementedException();
+            //  throw new NotImplementedException();
         }
 
         #endregion

@@ -20,85 +20,101 @@ using System;
 
 namespace AvaloniaEdit.Document
 {
-	/// <summary>
-	/// A TextAnchorNode is placed in the TextAnchorTree.
-	/// It describes a section of text with a text anchor at the end of the section.
-	/// A weak reference is used to refer to the TextAnchor. (to save memory, we derive from WeakReference instead of referencing it)
-	/// </summary>
-	internal sealed class TextAnchorNode : WeakReference
-	{
-		internal TextAnchorNode Left { get; set; }
-	    internal TextAnchorNode Right { get; set; }
+    /// <summary>
+    /// A TextAnchorNode is placed in the TextAnchorTree.
+    /// It describes a section of text with a text anchor at the end of the section.
+    /// A weak reference is used to refer to the TextAnchor. (to save memory, we derive from WeakReference instead of referencing it)
+    /// </summary>
+    internal sealed class TextAnchorNode : WeakReference
+    {
+        internal TextAnchorNode Left { get; set; }
+        internal TextAnchorNode Right { get; set; }
         internal TextAnchorNode Parent { get; set; }
         internal bool Color { get; set; }
         internal int Length { get; set; }
         internal int TotalLength { get; set; } // totalLength = length + left.totalLength + right.totalLength
 
         public TextAnchorNode(TextAnchor anchor) : base(anchor)
-		{
-		}
-		
-		internal TextAnchorNode LeftMost {
-			get {
-				TextAnchorNode node = this;
-				while (node.Left != null)
-					node = node.Left;
-				return node;
-			}
-		}
-		
-		internal TextAnchorNode RightMost {
-			get {
-				TextAnchorNode node = this;
-				while (node.Right != null)
-					node = node.Right;
-				return node;
-			}
-		}
-		
-		/// <summary>
-		/// Gets the inorder successor of the node.
-		/// </summary>
-		internal TextAnchorNode Successor {
-			get {
-				if (Right != null) {
-					return Right.LeftMost;
-				} else {
-					TextAnchorNode node = this;
-					TextAnchorNode oldNode;
-					do {
-						oldNode = node;
-						node = node.Parent;
-						// go up until we are coming out of a left subtree
-					} while (node != null && node.Right == oldNode);
-					return node;
-				}
-			}
-		}
-		
-		/// <summary>
-		/// Gets the inorder predecessor of the node.
-		/// </summary>
-		internal TextAnchorNode Predecessor {
-			get {
-				if (Left != null) {
-					return Left.RightMost;
-				} else {
-					TextAnchorNode node = this;
-					TextAnchorNode oldNode;
-					do {
-						oldNode = node;
-						node = node.Parent;
-						// go up until we are coming out of a right subtree
-					} while (node != null && node.Left == oldNode);
-					return node;
-				}
-			}
-		}
-		
-		public override string ToString()
-		{
-			return "[TextAnchorNode Length=" + Length + " TotalLength=" + TotalLength + " Target=" + Target + "]";
-		}
-	}
+        {
+        }
+
+        internal TextAnchorNode LeftMost
+        {
+            get
+            {
+                TextAnchorNode node = this;
+                while (node.Left != null)
+                    node = node.Left;
+                return node;
+            }
+        }
+
+        internal TextAnchorNode RightMost
+        {
+            get
+            {
+                TextAnchorNode node = this;
+                while (node.Right != null)
+                    node = node.Right;
+                return node;
+            }
+        }
+
+        /// <summary>
+        /// Gets the inorder successor of the node.
+        /// </summary>
+        internal TextAnchorNode Successor
+        {
+            get
+            {
+                if (Right != null)
+                {
+                    return Right.LeftMost;
+                }
+                else
+                {
+                    TextAnchorNode node = this;
+                    TextAnchorNode oldNode;
+                    do
+                    {
+                        oldNode = node;
+                        node = node.Parent;
+                        // go up until we are coming out of a left subtree
+                    } while (node != null && node.Right == oldNode);
+                    return node;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the inorder predecessor of the node.
+        /// </summary>
+        internal TextAnchorNode Predecessor
+        {
+            get
+            {
+                if (Left != null)
+                {
+                    return Left.RightMost;
+                }
+                else
+                {
+                    TextAnchorNode node = this;
+                    TextAnchorNode oldNode;
+                    do
+                    {
+                        oldNode = node;
+                        node = node.Parent;
+                        // go up until we are coming out of a right subtree
+                    } while (node != null && node.Left == oldNode);
+                    return node;
+                }
+            }
+        }
+
+        public override string ToString()
+        {
+            return "[TextAnchorNode Length=" + Length + " TotalLength=" + TotalLength + " Target=" + Target + "]";
+        }
+    }
 }

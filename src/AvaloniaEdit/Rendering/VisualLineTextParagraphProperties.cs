@@ -22,25 +22,25 @@ using Avalonia.Media.TextFormatting;
 
 namespace AvaloniaEdit.Rendering
 {
-	sealed class VisualLineTextParagraphProperties : TextParagraphProperties
-	{
-		internal TextRunProperties defaultTextRunProperties;
-		internal TextWrapping textWrapping;
-		internal double tabSize;
-		internal double indent;
-		internal bool firstLineInParagraph;
+    sealed class VisualLineTextParagraphProperties : TextParagraphProperties
+    {
+        internal TextRunProperties defaultTextRunProperties;
+        internal TextWrapping textWrapping;
+        internal double tabSize;
+        internal double indent;
+        internal bool firstLineInParagraph;
 
-		public override double DefaultIncrementalTab => tabSize;
+        public override double DefaultIncrementalTab => tabSize;
 
-		public override FlowDirection FlowDirection => FlowDirection.LeftToRight;
-		public override TextAlignment TextAlignment => TextAlignment.Left;
-		public override double LineHeight => DefaultTextRunProperties.FontRenderingEmSize * 1.35;
-		public override bool FirstLineInParagraph => firstLineInParagraph;
-		public override TextRunProperties DefaultTextRunProperties => defaultTextRunProperties;
+        public override FlowDirection FlowDirection => FlowDirection.LeftToRight;
+        public override TextAlignment TextAlignment => TextAlignment.Left;
+        public override double LineHeight => DefaultTextRunProperties.FontRenderingEmSize * 1.35;
+        public override bool FirstLineInParagraph => firstLineInParagraph;
+        public override TextRunProperties DefaultTextRunProperties => defaultTextRunProperties;
 
-		public override TextWrapping TextWrapping => textWrapping;
+        public override TextWrapping TextWrapping => textWrapping;
 
-		//public override TextMarkerProperties TextMarkerProperties { get { return null; } }
-		public override double Indent => indent;
-	}
+        //public override TextMarkerProperties TextMarkerProperties { get { return null; } }
+        public override double Indent => indent;
+    }
 }

@@ -20,30 +20,30 @@ using System;
 
 namespace AvaloniaEdit.Highlighting
 {
-	/// <summary>
-	/// Indicates that the highlighting definition that was tried to load was invalid.
-	/// </summary>
-	public class HighlightingDefinitionInvalidException : Exception
-	{
-		/// <summary>
-		/// Creates a new HighlightingDefinitionInvalidException instance.
-		/// </summary>
-		public HighlightingDefinitionInvalidException()
-		{
-		}
-		
-		/// <summary>
-		/// Creates a new HighlightingDefinitionInvalidException instance.
-		/// </summary>
-		public HighlightingDefinitionInvalidException(string message) : base(message)
-		{
-		}
-		
-		/// <summary>
-		/// Creates a new HighlightingDefinitionInvalidException instance.
-		/// </summary>
-		public HighlightingDefinitionInvalidException(string message, Exception innerException) : base(message, innerException)
-		{
-		}
-	}
+    /// <summary>
+    /// Indicates that the highlighting definition that was tried to load was invalid.
+    /// </summary>
+    public class HighlightingDefinitionInvalidException : Exception
+    {
+        /// <summary>
+        /// Creates a new HighlightingDefinitionInvalidException instance.
+        /// </summary>
+        public HighlightingDefinitionInvalidException()
+        {
+        }
+
+        /// <summary>
+        /// Creates a new HighlightingDefinitionInvalidException instance.
+        /// </summary>
+        public HighlightingDefinitionInvalidException(string message) : base(message)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new HighlightingDefinitionInvalidException instance.
+        /// </summary>
+        public HighlightingDefinitionInvalidException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
 }

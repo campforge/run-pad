@@ -383,7 +383,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         {
             ArgChecker.AssertArgNotNull(parent, "parent");
             ArgChecker.AssertArgNotNull(e, "e");
-            
+
             _htmlContainerInt.HandleMouseDown(new ControlAdapter(_avaloniaAdapter, parent), Utils.Convert(e.GetPosition(parent)));
         }
 

@@ -39,7 +39,7 @@ namespace AvaloniaEdit.Rendering
         /// <summary>
         /// Routed event that should navigate to uri when the link is clicked.
         /// </summary>
-        public static RoutedEvent<OpenUriRoutedEventArgs> OpenUriEvent { get; } = RoutedEvent.Register<VisualLineText,OpenUriRoutedEventArgs>(nameof(OpenUriEvent), RoutingStrategies.Bubble);
+        public static RoutedEvent<OpenUriRoutedEventArgs> OpenUriEvent { get; } = RoutedEvent.Register<VisualLineText, OpenUriRoutedEventArgs>(nameof(OpenUriEvent), RoutingStrategies.Bubble);
 
         /// <summary>
         /// Gets/Sets the URL that is navigated to when the link is clicked.
@@ -67,15 +67,15 @@ namespace AvaloniaEdit.Rendering
             RequireControlModifierForClick = true;
         }
 
-		/// <inheritdoc/>
-		public override TextRun CreateTextRun(int startVisualColumn, ITextRunConstructionContext context)
-		{
-			this.TextRunProperties.SetForegroundBrush(context.TextView.LinkTextForegroundBrush);
-			this.TextRunProperties.SetBackgroundBrush(context.TextView.LinkTextBackgroundBrush);
-			if (context.TextView.LinkTextUnderline)
-				this.TextRunProperties.SetTextDecorations(TextDecorations.Underline);
-			return base.CreateTextRun(startVisualColumn, context);
-		}
+        /// <inheritdoc/>
+        public override TextRun CreateTextRun(int startVisualColumn, ITextRunConstructionContext context)
+        {
+            this.TextRunProperties.SetForegroundBrush(context.TextView.LinkTextForegroundBrush);
+            this.TextRunProperties.SetBackgroundBrush(context.TextView.LinkTextBackgroundBrush);
+            if (context.TextView.LinkTextUnderline)
+                this.TextRunProperties.SetTextDecorations(TextDecorations.Underline);
+            return base.CreateTextRun(startVisualColumn, context);
+        }
 
         /// <summary>
         /// Gets whether the link is currently clickable.
@@ -96,7 +96,7 @@ namespace AvaloniaEdit.Rendering
         {
             if (LinkIsClickable(e.KeyModifiers))
             {
-                if(e.Source is InputElement inputElement)
+                if (e.Source is InputElement inputElement)
                 {
                     inputElement.Cursor = new Cursor(StandardCursorType.Hand);
                 }
@@ -111,7 +111,7 @@ namespace AvaloniaEdit.Rendering
             {
                 var eventArgs = new OpenUriRoutedEventArgs(NavigateUri) { RoutedEvent = OpenUriEvent };
 
-                if(e.Source is Interactive interactive)
+                if (e.Source is Interactive interactive)
                 {
                     interactive.RaiseEvent(eventArgs);
                 }

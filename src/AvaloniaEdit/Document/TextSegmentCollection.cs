@@ -97,7 +97,7 @@ namespace AvaloniaEdit.Document
         }
         #endregion
 
-        public void Disconnect (TextDocument textDocument)
+        public void Disconnect(TextDocument textDocument)
         {
             if (_isConnectedToDocument)
             {

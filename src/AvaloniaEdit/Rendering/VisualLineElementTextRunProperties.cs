@@ -25,105 +25,105 @@ using AvaloniaEdit.Utils;
 
 namespace AvaloniaEdit.Rendering
 {
-	/// <summary>
-	/// <see cref="TextRunProperties"/> implementation that allows changing the properties.
-	/// A <see cref="VisualLineElementTextRunProperties"/> instance usually is assigned to a single
-	/// <see cref="VisualLineElement"/>.
-	/// </summary>
-	public class VisualLineElementTextRunProperties : TextRunProperties, ICloneable
-	{
-		private IBrush _backgroundBrush;
-		private BaselineAlignment _baselineAlignment;
+    /// <summary>
+    /// <see cref="TextRunProperties"/> implementation that allows changing the properties.
+    /// A <see cref="VisualLineElementTextRunProperties"/> instance usually is assigned to a single
+    /// <see cref="VisualLineElement"/>.
+    /// </summary>
+    public class VisualLineElementTextRunProperties : TextRunProperties, ICloneable
+    {
+        private IBrush _backgroundBrush;
+        private BaselineAlignment _baselineAlignment;
 
-		private CultureInfo _cultureInfo;
-		//double fontHintingEmSize;
-		private double _fontRenderingEmSize;
-		private IBrush _foregroundBrush;
-		private Typeface _typeface;
+        private CultureInfo _cultureInfo;
+        //double fontHintingEmSize;
+        private double _fontRenderingEmSize;
+        private IBrush _foregroundBrush;
+        private Typeface _typeface;
 
-		private TextDecorationCollection _textDecorations;
-		//TextEffectCollection textEffects;
-		//TextRunTypographyProperties typographyProperties;
-		//NumberSubstitution numberSubstitution;
+        private TextDecorationCollection _textDecorations;
+        //TextEffectCollection textEffects;
+        //TextRunTypographyProperties typographyProperties;
+        //NumberSubstitution numberSubstitution;
 
-		/// <summary>
-		/// Creates a new VisualLineElementTextRunProperties instance that copies its values
-		/// from the specified <paramref name="textRunProperties"/>.
-		/// For the <see cref="TextDecorations"/> and <see cref="TextEffects"/> collections, deep copies
-		/// are created if those collections are not frozen.
-		/// </summary>
-		public VisualLineElementTextRunProperties(TextRunProperties textRunProperties)
-		{
-			if (textRunProperties == null)
-				throw new ArgumentNullException(nameof(textRunProperties));
-			
-			_backgroundBrush = textRunProperties.BackgroundBrush;
-			_baselineAlignment = textRunProperties.BaselineAlignment;
-			_cultureInfo = textRunProperties.CultureInfo;
-			//fontHintingEmSize = textRunProperties.FontHintingEmSize;
-			_fontRenderingEmSize = textRunProperties.FontRenderingEmSize;
-			_foregroundBrush = textRunProperties.ForegroundBrush;
-			_typeface = textRunProperties.Typeface;
-			_textDecorations = textRunProperties.TextDecorations;
-			
-			/*if (textDecorations != null && !textDecorations.IsFrozen) {
+        /// <summary>
+        /// Creates a new VisualLineElementTextRunProperties instance that copies its values
+        /// from the specified <paramref name="textRunProperties"/>.
+        /// For the <see cref="TextDecorations"/> and <see cref="TextEffects"/> collections, deep copies
+        /// are created if those collections are not frozen.
+        /// </summary>
+        public VisualLineElementTextRunProperties(TextRunProperties textRunProperties)
+        {
+            if (textRunProperties == null)
+                throw new ArgumentNullException(nameof(textRunProperties));
+
+            _backgroundBrush = textRunProperties.BackgroundBrush;
+            _baselineAlignment = textRunProperties.BaselineAlignment;
+            _cultureInfo = textRunProperties.CultureInfo;
+            //fontHintingEmSize = textRunProperties.FontHintingEmSize;
+            _fontRenderingEmSize = textRunProperties.FontRenderingEmSize;
+            _foregroundBrush = textRunProperties.ForegroundBrush;
+            _typeface = textRunProperties.Typeface;
+            _textDecorations = textRunProperties.TextDecorations;
+
+            /*if (textDecorations != null && !textDecorations.IsFrozen) {
 				textDecorations = textDecorations.Clone();
 			}*/
-			/*textEffects = textRunProperties.TextEffects;
+            /*textEffects = textRunProperties.TextEffects;
 			if (textEffects != null && !textEffects.IsFrozen) {
 				textEffects = textEffects.Clone();
 			}
 			typographyProperties = textRunProperties.TypographyProperties;
 			numberSubstitution = textRunProperties.NumberSubstitution;*/
-		}
+        }
 
-		/// <summary>
-		/// Creates a copy of this instance.
-		/// </summary>
-		public virtual VisualLineElementTextRunProperties Clone()
-		{
-			return new VisualLineElementTextRunProperties(this);
-		}
+        /// <summary>
+        /// Creates a copy of this instance.
+        /// </summary>
+        public virtual VisualLineElementTextRunProperties Clone()
+        {
+            return new VisualLineElementTextRunProperties(this);
+        }
 
-		object ICloneable.Clone()
-		{
-			return Clone();
-		}
+        object ICloneable.Clone()
+        {
+            return Clone();
+        }
 
-		/// <inheritdoc/>
-		public override IBrush BackgroundBrush => _backgroundBrush;
+        /// <inheritdoc/>
+        public override IBrush BackgroundBrush => _backgroundBrush;
 
-		/// <summary>
-		/// Sets the <see cref="BackgroundBrush"/>.
-		/// </summary>
-		public void SetBackgroundBrush(IBrush value)
-		{
-			_backgroundBrush = value?.ToImmutable();
-		}
+        /// <summary>
+        /// Sets the <see cref="BackgroundBrush"/>.
+        /// </summary>
+        public void SetBackgroundBrush(IBrush value)
+        {
+            _backgroundBrush = value?.ToImmutable();
+        }
 
-		/// <inheritdoc/>
-		public override BaselineAlignment BaselineAlignment => _baselineAlignment;
+        /// <inheritdoc/>
+        public override BaselineAlignment BaselineAlignment => _baselineAlignment;
 
-		/// <summary>
-		/// Sets the <see cref="BaselineAlignment"/>.
-		/// </summary>
-		public void SetBaselineAlignment(BaselineAlignment value)
-		{
-			_baselineAlignment = value;
-		}
+        /// <summary>
+        /// Sets the <see cref="BaselineAlignment"/>.
+        /// </summary>
+        public void SetBaselineAlignment(BaselineAlignment value)
+        {
+            _baselineAlignment = value;
+        }
 
-		/// <inheritdoc/>
-		public override CultureInfo CultureInfo => _cultureInfo;
+        /// <inheritdoc/>
+        public override CultureInfo CultureInfo => _cultureInfo;
 
-		/// <summary>
-		/// Sets the <see cref="CultureInfo"/>.
-		/// </summary>
-		public void SetCultureInfo(CultureInfo value)
-		{
-			_cultureInfo = value ?? throw new ArgumentNullException(nameof(value));
-		}
-		
-		/*public override double FontHintingEmSize {
+        /// <summary>
+        /// Sets the <see cref="CultureInfo"/>.
+        /// </summary>
+        public void SetCultureInfo(CultureInfo value)
+        {
+            _cultureInfo = value ?? throw new ArgumentNullException(nameof(value));
+        }
+
+        /*public override double FontHintingEmSize {
 			get { return fontHintingEmSize; }
 		}
 
@@ -135,61 +135,61 @@ namespace AvaloniaEdit.Rendering
 			fontHintingEmSize = value;
 		}*/
 
-		/// <inheritdoc/>
-		public override double FontRenderingEmSize => _fontRenderingEmSize;
+        /// <inheritdoc/>
+        public override double FontRenderingEmSize => _fontRenderingEmSize;
 
-		/// <summary>
-		/// Sets the <see cref="FontRenderingEmSize"/>.
-		/// </summary>
-		public void SetFontRenderingEmSize(double value)
-		{
-			_fontRenderingEmSize = value;
-		}
+        /// <summary>
+        /// Sets the <see cref="FontRenderingEmSize"/>.
+        /// </summary>
+        public void SetFontRenderingEmSize(double value)
+        {
+            _fontRenderingEmSize = value;
+        }
 
-		/// <inheritdoc/>
-		public override IBrush ForegroundBrush => _foregroundBrush;
+        /// <inheritdoc/>
+        public override IBrush ForegroundBrush => _foregroundBrush;
 
-		/// <summary>
-		/// Sets the <see cref="ForegroundBrush"/>.
-		/// </summary>
-		public void SetForegroundBrush(IBrush value)
-		{
-			_foregroundBrush = value?.ToImmutable();
-		}
+        /// <summary>
+        /// Sets the <see cref="ForegroundBrush"/>.
+        /// </summary>
+        public void SetForegroundBrush(IBrush value)
+        {
+            _foregroundBrush = value?.ToImmutable();
+        }
 
-		/// <inheritdoc/>
-		public override Typeface Typeface => _typeface;
+        /// <inheritdoc/>
+        public override Typeface Typeface => _typeface;
 
-		/// <summary>
-		/// Sets the <see cref="Typeface"/>.
-		/// </summary>
-		public void SetTypeface(Typeface value)
-		{
-			_typeface = value;
-		}
+        /// <summary>
+        /// Sets the <see cref="Typeface"/>.
+        /// </summary>
+        public void SetTypeface(Typeface value)
+        {
+            _typeface = value;
+        }
 
-		/// <summary>
-		/// Gets the text decorations. The value may be null, a frozen <see cref="TextDecorationCollection"/>
-		/// or an unfrozen <see cref="TextDecorationCollection"/>.
-		/// If the value is an unfrozen <see cref="TextDecorationCollection"/>, you may assume that the
-		/// collection instance is only used for this <see cref="TextRunProperties"/> instance and it is safe
-		/// to add <see cref="TextDecoration"/>s.
-		/// </summary>
-		public override TextDecorationCollection TextDecorations => _textDecorations;
+        /// <summary>
+        /// Gets the text decorations. The value may be null, a frozen <see cref="TextDecorationCollection"/>
+        /// or an unfrozen <see cref="TextDecorationCollection"/>.
+        /// If the value is an unfrozen <see cref="TextDecorationCollection"/>, you may assume that the
+        /// collection instance is only used for this <see cref="TextRunProperties"/> instance and it is safe
+        /// to add <see cref="TextDecoration"/>s.
+        /// </summary>
+        public override TextDecorationCollection TextDecorations => _textDecorations;
 
-		/// <summary>
-		/// Sets the <see cref="TextDecorations"/>.
-		/// </summary>
-		public void SetTextDecorations(TextDecorationCollection value)
-		{
-			ExtensionMethods.CheckIsFrozen(value);
-			if (_textDecorations == null)
-				_textDecorations = value;
-			else
-				_textDecorations = new TextDecorationCollection(_textDecorations.Union(value));
-		}
+        /// <summary>
+        /// Sets the <see cref="TextDecorations"/>.
+        /// </summary>
+        public void SetTextDecorations(TextDecorationCollection value)
+        {
+            ExtensionMethods.CheckIsFrozen(value);
+            if (_textDecorations == null)
+                _textDecorations = value;
+            else
+                _textDecorations = new TextDecorationCollection(_textDecorations.Union(value));
+        }
 
-		/*
+        /*
 		/// <summary>
 		/// Gets the text effects. The value may be null, a frozen <see cref="TextEffectCollection"/>
 		/// or an unfrozen <see cref="TextEffectCollection"/>.
@@ -240,5 +240,5 @@ namespace AvaloniaEdit.Rendering
 			numberSubstitution = value;
 		}
 		*/
-	}
+    }
 }

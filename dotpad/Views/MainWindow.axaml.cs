@@ -23,349 +23,349 @@ using DotPad.ViewModels;
 
 namespace dotpad.Views
 {
-	using static AvaloniaEdit.TextMate.TextMate;
-	using Pair = KeyValuePair<int, Control>;
+    using static AvaloniaEdit.TextMate.TextMate;
+    using Pair = KeyValuePair<int, Control>;
 
-	public partial class MainWindow : Window
-	{
-		private readonly TextEditor _textEditor;
-		private readonly Installation _textMateInstallation;
-		private CompletionWindow _completionWindow;
-		private OverloadInsightWindow _insightWindow;
+    public partial class MainWindow : Window
+    {
+        private readonly TextEditor _textEditor;
+        private readonly Installation _textMateInstallation;
+        private CompletionWindow _completionWindow;
+        private OverloadInsightWindow _insightWindow;
 
-		private TextBlock _statusTextBlock;
-		private ElementGenerator _generator = new ElementGenerator();
-		private RegistryOptions _registryOptions;
-		private int _currentTheme = (int)ThemeName.DarkPlus;
+        private TextBlock _statusTextBlock;
+        private ElementGenerator _generator = new ElementGenerator();
+        private RegistryOptions _registryOptions;
+        private int _currentTheme = (int)ThemeName.DarkPlus;
 
-		public MainWindow()
-		{
+        public MainWindow()
+        {
 
-			InitializeComponent();
+            InitializeComponent();
 
-			// htmlPanel
-			_htmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
-			if (_htmlPanel != null)
-			{
-				_htmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-				_htmlPanel.Text = ResourceLoader.LoadHtmlFile("");
-				_htmlPanel.Background = Brush.Parse("#000");
-			}
-			// textEditor
-			_textEditor = this.FindControl<TextEditor>("Editor");
-			if (_textEditor != null)
-			{
-				_textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
-				_textEditor.Background = Brushes.Transparent;
-				_textEditor.ShowLineNumbers = true;
-				_textEditor.ContextMenu = new ContextMenu
-				{
-					ItemsSource = new List<MenuItem>
-				{
-					new MenuItem { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
-					new MenuItem { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
-					new MenuItem { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
-				}
-				};
+            // htmlPanel
+            _htmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
+            if (_htmlPanel != null)
+            {
+                _htmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+                _htmlPanel.Text = ResourceLoader.LoadHtmlFile("");
+                _htmlPanel.Background = Brush.Parse("#000");
+            }
+            // textEditor
+            _textEditor = this.FindControl<TextEditor>("Editor");
+            if (_textEditor != null)
+            {
+                _textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
+                _textEditor.Background = Brushes.Transparent;
+                _textEditor.ShowLineNumbers = true;
+                _textEditor.ContextMenu = new ContextMenu
+                {
+                    ItemsSource = new List<MenuItem>
+                {
+                    new MenuItem { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
+                    new MenuItem { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
+                    new MenuItem { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
+                }
+                };
 
-				_textEditor.TextArea.Background = this.Background;
-				_textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
-				_textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
-				_textEditor.Options.AllowToggleOverstrikeMode = true;
-				_textEditor.Options.ShowBoxForControlCharacters = true;
-				_textEditor.Options.ColumnRulerPositions = new List<int>() { 80, 100 };
-				//_textEditor.TextArea.IndentationStrategy = new Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
-				_textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
-				_textEditor.TextArea.RightClickMovesCaret = true;
-
-
-				_textEditor.TextArea.TextView.ElementGenerators.Add(_generator);
-
-				_registryOptions = new RegistryOptions(
-					(ThemeName)_currentTheme);
-
-				_textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
-				var csharpLanguage = _registryOptions.GetLanguageByExtension(".cs");
-
-				string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
-
-				_textEditor.Document = new TextDocument(
-					"// AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
-					ResourceLoader.LoadSampleFile(scopeName));
-				_textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
-				_textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
-				_textEditor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
-
-				_statusTextBlock = this.Find<TextBlock>("StatusText");
-
-				this.AddHandler(PointerWheelChangedEvent, (o, i) =>
-				{
-					if (i.KeyModifiers != KeyModifiers.Control) return;
-					if (i.Delta.Y > 0) _textEditor.FontSize++;
-					else _textEditor.FontSize = _textEditor.FontSize > 1 ? _textEditor.FontSize - 1 : 1;
-				}, RoutingStrategies.Bubble, true);
-			}
-		}
-
-		private void Caret_PositionChanged(object sender, EventArgs e)
-		{
-			_statusTextBlock.Text = string.Format("Line {0} Column {1}",
-				_textEditor.TextArea.Caret.Line,
-				_textEditor.TextArea.Caret.Column);
-		}
-
-		protected override void OnClosed(EventArgs e)
-		{
-			base.OnClosed(e);
-
-			_textMateInstallation.Dispose();
-		}
-
-		private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
-		{
-			_currentTheme = (_currentTheme + 1) % Enum.GetNames(typeof(ThemeName)).Length;
-
-			_textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
-		}
-
-		private void RunButton_Click(object sender, RoutedEventArgs e)
-		{
-			var model = this.DataContext as MainWindowViewModel;
-
-			//var executionService = new CSharpExecutionService("");
-
-			//executionService.ExecuteAsync(_textEditor.Text);
-		}
-
-		private void InitializeComponent()
-		{
-			AvaloniaXamlLoader.Load(this);
-		}
-
-		private void AddControlButton_Click(object sender, RoutedEventArgs e)
-		{
-			_generator.controls.Add(new Pair(_textEditor.CaretOffset, new Button() { Content = "Click me", Cursor = Cursor.Default }));
-			_textEditor.TextArea.TextView.Redraw();
-		}
-
-		private void Preferences_Click(object sender, RoutedEventArgs e)
-		{
-			var ownerWindow = this;
-			var window = new PreferencesWindow();
-			window.DataContext = new PreferencesWindowViewModel();
-			window.ShowDialog(ownerWindow);
-		}
+                _textEditor.TextArea.Background = this.Background;
+                _textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
+                _textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
+                _textEditor.Options.AllowToggleOverstrikeMode = true;
+                _textEditor.Options.ShowBoxForControlCharacters = true;
+                _textEditor.Options.ColumnRulerPositions = new List<int>() { 80, 100 };
+                //_textEditor.TextArea.IndentationStrategy = new Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
+                _textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
+                _textEditor.TextArea.RightClickMovesCaret = true;
 
 
-		private void ClearControlButton_Click(object sender, RoutedEventArgs e)
-		{
-			//TODO: delete elements using back key
-			_generator.controls.Clear();
-			_textEditor.TextArea.TextView.Redraw();
-		}
+                _textEditor.TextArea.TextView.ElementGenerators.Add(_generator);
 
-		private void textEditor_TextArea_TextEntering(object sender, TextInputEventArgs e)
-		{
-			if (e.Text.Length > 0 && _completionWindow != null)
-			{
-				if (!char.IsLetterOrDigit(e.Text[0]))
-				{
-					// Whenever a non-letter is typed while the completion window is open,
-					// insert the currently selected element.
-					_completionWindow.CompletionList.RequestInsertion(e);
-				}
-			}
+                _registryOptions = new RegistryOptions(
+                    (ThemeName)_currentTheme);
 
-			_insightWindow?.Hide();
+                _textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
+                var csharpLanguage = _registryOptions.GetLanguageByExtension(".cs");
 
-			// Do not set e.Handled=true.
-			// We still want to insert the character that was typed.
-		}
+                string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
+
+                _textEditor.Document = new TextDocument(
+                    "// AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+                    ResourceLoader.LoadSampleFile(scopeName));
+                _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
+                _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
+                _textEditor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
+
+                _statusTextBlock = this.Find<TextBlock>("StatusText");
+
+                this.AddHandler(PointerWheelChangedEvent, (o, i) =>
+                {
+                    if (i.KeyModifiers != KeyModifiers.Control) return;
+                    if (i.Delta.Y > 0) _textEditor.FontSize++;
+                    else _textEditor.FontSize = _textEditor.FontSize > 1 ? _textEditor.FontSize - 1 : 1;
+                }, RoutingStrategies.Bubble, true);
+            }
+        }
+
+        private void Caret_PositionChanged(object sender, EventArgs e)
+        {
+            _statusTextBlock.Text = string.Format("Line {0} Column {1}",
+                _textEditor.TextArea.Caret.Line,
+                _textEditor.TextArea.Caret.Column);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+
+            _textMateInstallation.Dispose();
+        }
+
+        private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
+        {
+            _currentTheme = (_currentTheme + 1) % Enum.GetNames(typeof(ThemeName)).Length;
+
+            _textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
+        }
+
+        private void RunButton_Click(object sender, RoutedEventArgs e)
+        {
+            var model = this.DataContext as MainWindowViewModel;
+
+            //var executionService = new CSharpExecutionService("");
+
+            //executionService.ExecuteAsync(_textEditor.Text);
+        }
+
+        private void InitializeComponent()
+        {
+            AvaloniaXamlLoader.Load(this);
+        }
+
+        private void AddControlButton_Click(object sender, RoutedEventArgs e)
+        {
+            _generator.controls.Add(new Pair(_textEditor.CaretOffset, new Button() { Content = "Click me", Cursor = Cursor.Default }));
+            _textEditor.TextArea.TextView.Redraw();
+        }
+
+        private void Preferences_Click(object sender, RoutedEventArgs e)
+        {
+            var ownerWindow = this;
+            var window = new PreferencesWindow();
+            window.DataContext = new PreferencesWindowViewModel();
+            window.ShowDialog(ownerWindow);
+        }
+
+
+        private void ClearControlButton_Click(object sender, RoutedEventArgs e)
+        {
+            //TODO: delete elements using back key
+            _generator.controls.Clear();
+            _textEditor.TextArea.TextView.Redraw();
+        }
+
+        private void textEditor_TextArea_TextEntering(object sender, TextInputEventArgs e)
+        {
+            if (e.Text.Length > 0 && _completionWindow != null)
+            {
+                if (!char.IsLetterOrDigit(e.Text[0]))
+                {
+                    // Whenever a non-letter is typed while the completion window is open,
+                    // insert the currently selected element.
+                    _completionWindow.CompletionList.RequestInsertion(e);
+                }
+            }
+
+            _insightWindow?.Hide();
+
+            // Do not set e.Handled=true.
+            // We still want to insert the character that was typed.
+        }
 
 
 
-		private void textEditor_TextArea_TextEntered(object sender, TextInputEventArgs e)
-		{
-			if (e.Text == ".")
-			{
+        private void textEditor_TextArea_TextEntered(object sender, TextInputEventArgs e)
+        {
+            if (e.Text == ".")
+            {
 
-				_completionWindow = new CompletionWindow(_textEditor.TextArea);
-				_completionWindow.Closed += (o, args) => _completionWindow = null;
+                _completionWindow = new CompletionWindow(_textEditor.TextArea);
+                _completionWindow.Closed += (o, args) => _completionWindow = null;
 
-				var data = _completionWindow.CompletionList.CompletionData;
-				data.Add(new MyCompletionData("Item1"));
-				data.Add(new MyCompletionData("Item2"));
-		
+                var data = _completionWindow.CompletionList.CompletionData;
+                data.Add(new MyCompletionData("Item1"));
+                data.Add(new MyCompletionData("Item2"));
 
-				_completionWindow.Show();
-			}
-			else if (e.Text == "(")
-			{
-				_insightWindow = new OverloadInsightWindow(_textEditor.TextArea);
-				_insightWindow.Closed += (o, args) => _insightWindow = null;
 
-				_insightWindow.Provider = new MyOverloadProvider(new[]
-				{
-					("Method1(int, string)", "Method1 description"),
-					("Method2(int)", "Method2 description"),
-					("Method3(string)", "Method3 description"),
-				});
+                _completionWindow.Show();
+            }
+            else if (e.Text == "(")
+            {
+                _insightWindow = new OverloadInsightWindow(_textEditor.TextArea);
+                _insightWindow.Closed += (o, args) => _insightWindow = null;
 
-				_insightWindow.Show();
-			}
-		}
+                _insightWindow.Provider = new MyOverloadProvider(new[]
+                {
+                    ("Method1(int, string)", "Method1 description"),
+                    ("Method2(int)", "Method2 description"),
+                    ("Method3(string)", "Method3 description"),
+                });
 
-		class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
-		{
-			protected override void ColorizeLine(DocumentLine line)
-			{
-				if (line.LineNumber == 2)
-				{
-					string lineText = this.CurrentContext.Document.GetText(line);
+                _insightWindow.Show();
+            }
+        }
 
-					int indexOfUnderline = lineText.IndexOf("underline");
-					int indexOfStrikeThrough = lineText.IndexOf("strikethrough");
+        class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
+        {
+            protected override void ColorizeLine(DocumentLine line)
+            {
+                if (line.LineNumber == 2)
+                {
+                    string lineText = this.CurrentContext.Document.GetText(line);
 
-					if (indexOfUnderline != -1)
-					{
-						ChangeLinePart(
-							line.Offset + indexOfUnderline,
-							line.Offset + indexOfUnderline + "underline".Length,
-							visualLine =>
-							{
-								if (visualLine.TextRunProperties.TextDecorations != null)
-								{
-									var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Underline[0] };
+                    int indexOfUnderline = lineText.IndexOf("underline");
+                    int indexOfStrikeThrough = lineText.IndexOf("strikethrough");
 
-									visualLine.TextRunProperties.SetTextDecorations(textDecorations);
-								}
-								else
-								{
-									visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Underline);
-								}
-							}
-						);
-					}
+                    if (indexOfUnderline != -1)
+                    {
+                        ChangeLinePart(
+                            line.Offset + indexOfUnderline,
+                            line.Offset + indexOfUnderline + "underline".Length,
+                            visualLine =>
+                            {
+                                if (visualLine.TextRunProperties.TextDecorations != null)
+                                {
+                                    var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Underline[0] };
 
-					if (indexOfStrikeThrough != -1)
-					{
-						ChangeLinePart(
-							line.Offset + indexOfStrikeThrough,
-							line.Offset + indexOfStrikeThrough + "strikethrough".Length,
-							visualLine =>
-							{
-								if (visualLine.TextRunProperties.TextDecorations != null)
-								{
-									var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Strikethrough[0] };
+                                    visualLine.TextRunProperties.SetTextDecorations(textDecorations);
+                                }
+                                else
+                                {
+                                    visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Underline);
+                                }
+                            }
+                        );
+                    }
 
-									visualLine.TextRunProperties.SetTextDecorations(textDecorations);
-								}
-								else
-								{
-									visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Strikethrough);
-								}
-							}
-						);
-					}
-				}
-			}
-		}
+                    if (indexOfStrikeThrough != -1)
+                    {
+                        ChangeLinePart(
+                            line.Offset + indexOfStrikeThrough,
+                            line.Offset + indexOfStrikeThrough + "strikethrough".Length,
+                            visualLine =>
+                            {
+                                if (visualLine.TextRunProperties.TextDecorations != null)
+                                {
+                                    var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Strikethrough[0] };
 
-		private class MyOverloadProvider : IOverloadProvider
-		{
-			private readonly IList<(string header, string content)> _items;
-			private int _selectedIndex;
+                                    visualLine.TextRunProperties.SetTextDecorations(textDecorations);
+                                }
+                                else
+                                {
+                                    visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Strikethrough);
+                                }
+                            }
+                        );
+                    }
+                }
+            }
+        }
 
-			public MyOverloadProvider(IList<(string header, string content)> items)
-			{
-				_items = items;
-				SelectedIndex = 0;
-			}
+        private class MyOverloadProvider : IOverloadProvider
+        {
+            private readonly IList<(string header, string content)> _items;
+            private int _selectedIndex;
 
-			public int SelectedIndex
-			{
-				get => _selectedIndex;
-				set
-				{
-					_selectedIndex = value;
-					OnPropertyChanged();
-					OnPropertyChanged(nameof(CurrentHeader));
-					OnPropertyChanged(nameof(CurrentContent));
-				}
-			}
+            public MyOverloadProvider(IList<(string header, string content)> items)
+            {
+                _items = items;
+                SelectedIndex = 0;
+            }
 
-			public int Count => _items.Count;
-			public string CurrentIndexText => $"{SelectedIndex + 1} of {Count}";
-			public object CurrentHeader => _items[SelectedIndex].header;
-			public object CurrentContent => _items[SelectedIndex].content;
+            public int SelectedIndex
+            {
+                get => _selectedIndex;
+                set
+                {
+                    _selectedIndex = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentHeader));
+                    OnPropertyChanged(nameof(CurrentContent));
+                }
+            }
 
-			public event PropertyChangedEventHandler PropertyChanged;
+            public int Count => _items.Count;
+            public string CurrentIndexText => $"{SelectedIndex + 1} of {Count}";
+            public object CurrentHeader => _items[SelectedIndex].header;
+            public object CurrentContent => _items[SelectedIndex].content;
 
-			private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-			{
-				PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-			}
-		}
+            public event PropertyChangedEventHandler PropertyChanged;
 
-		public class MyCompletionData : ICompletionData
-		{
-			public MyCompletionData(string text)
-			{
-				Text = text;
-			}
+            private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
 
-			public IImage Image => null;
+        public class MyCompletionData : ICompletionData
+        {
+            public MyCompletionData(string text)
+            {
+                Text = text;
+            }
 
-			public string Text { get; }
+            public IImage Image => null;
 
-			// Use this property if you want to show a fancy UIElement in the list.
-			public object Content => Text;
+            public string Text { get; }
 
-			public object Description => "Description for " + Text;
+            // Use this property if you want to show a fancy UIElement in the list.
+            public object Content => Text;
 
-			public double Priority { get; } = 0;
+            public object Description => "Description for " + Text;
 
-			public void Complete(TextArea textArea, ISegment completionSegment,
-				EventArgs insertionRequestEventArgs)
-			{
-				textArea.Document.Replace(completionSegment, Text);
-			}
-		}
+            public double Priority { get; } = 0;
 
-		class ElementGenerator : VisualLineElementGenerator, IComparer<Pair>
-		{
-			public List<Pair> controls = new List<Pair>();
+            public void Complete(TextArea textArea, ISegment completionSegment,
+                EventArgs insertionRequestEventArgs)
+            {
+                textArea.Document.Replace(completionSegment, Text);
+            }
+        }
 
-			/// <summary>
-			/// Gets the first interested offset using binary search
-			/// </summary>
-			/// <returns>The first interested offset.</returns>
-			/// <param name="startOffset">Start offset.</param>
-			public override int GetFirstInterestedOffset(int startOffset)
-			{
-				int pos = controls.BinarySearch(new Pair(startOffset, null), this);
-				if (pos < 0)
-					pos = ~pos;
-				if (pos < controls.Count)
-					return controls[pos].Key;
-				else
-					return -1;
-			}
+        class ElementGenerator : VisualLineElementGenerator, IComparer<Pair>
+        {
+            public List<Pair> controls = new List<Pair>();
 
-			public override VisualLineElement ConstructElement(int offset)
-			{
-				int pos = controls.BinarySearch(new Pair(offset, null), this);
-				if (pos >= 0)
-					return new InlineObjectElement(0, controls[pos].Value);
-				else
-					return null;
-			}
+            /// <summary>
+            /// Gets the first interested offset using binary search
+            /// </summary>
+            /// <returns>The first interested offset.</returns>
+            /// <param name="startOffset">Start offset.</param>
+            public override int GetFirstInterestedOffset(int startOffset)
+            {
+                int pos = controls.BinarySearch(new Pair(startOffset, null), this);
+                if (pos < 0)
+                    pos = ~pos;
+                if (pos < controls.Count)
+                    return controls[pos].Key;
+                else
+                    return -1;
+            }
 
-			int IComparer<Pair>.Compare(Pair x, Pair y)
-			{
-				return x.Key.CompareTo(y.Key);
-			}
-		}
+            public override VisualLineElement ConstructElement(int offset)
+            {
+                int pos = controls.BinarySearch(new Pair(offset, null), this);
+                if (pos >= 0)
+                    return new InlineObjectElement(0, controls[pos].Value);
+                else
+                    return null;
+            }
 
-	}
+            int IComparer<Pair>.Compare(Pair x, Pair y)
+            {
+                return x.Key.CompareTo(y.Key);
+            }
+        }
+
+    }
 }

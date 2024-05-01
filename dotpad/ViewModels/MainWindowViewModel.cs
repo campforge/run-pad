@@ -8,32 +8,32 @@ namespace dotpad.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-	public string Greeting => "Welcome to Avalonia!";
+    public string Greeting => "Welcome to Avalonia!";
 
-	public ObservableCollection<Node> Nodes { get; }
+    public ObservableCollection<Node> Nodes { get; }
 
-	public List<ExecutionPlatform> DotnetPlatforms { get; }
+    public List<ExecutionPlatform> DotnetPlatforms { get; }
 
-	public string? SelectedDotnetPlatforms { get; set; }
+    public string? SelectedDotnetPlatforms { get; set; }
 
-	public MainWindowViewModel()
-	{
+    public MainWindowViewModel()
+    {
 
-		var sdks = new DotnetSdksService();
-		var list = sdks.GetSdkInfos().ToList();
-		DotnetPlatforms = list;
-		SelectedDotnetPlatforms = list.FirstOrDefault()?.Description;
+        var sdks = new DotnetSdksService();
+        var list = sdks.GetSdkInfos().ToList();
+        DotnetPlatforms = list;
+        SelectedDotnetPlatforms = list.FirstOrDefault()?.Description;
 
 
-		Nodes = new ObservableCollection<Node>
-		{
-			new Node("Animals", new ObservableCollection<Node>
-			{
-				new Node("Mammals", new ObservableCollection<Node>
-				{
-					new Node("Lion"), new Node("Cat"), new Node("Zebra")
-				})
-			})
-		};
-	}
+        Nodes = new ObservableCollection<Node>
+        {
+            new Node("Animals", new ObservableCollection<Node>
+            {
+                new Node("Mammals", new ObservableCollection<Node>
+                {
+                    new Node("Lion"), new Node("Cat"), new Node("Zebra")
+                })
+            })
+        };
+    }
 }

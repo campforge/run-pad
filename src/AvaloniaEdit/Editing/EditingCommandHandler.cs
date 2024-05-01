@@ -61,7 +61,7 @@ namespace AvaloniaEdit.Editing
         }
 
         static EditingCommandHandler()
-        {            
+        {
             AddBinding(EditingCommands.Delete, KeyModifiers.None, Key.Delete, OnDelete(CaretMovementType.CharRight));
             AddBinding(EditingCommands.DeleteNextWord, KeyModifiers.Control, Key.Delete,
                 OnDelete(CaretMovementType.WordRight));
@@ -440,7 +440,7 @@ namespace AvaloniaEdit.Editing
             ISegment wholeLine = new SimpleSegment(line.Offset, line.TotalLength);
             var text = textArea.Document.GetText(wholeLine);
             // Ignore empty line copy
-            if(string.IsNullOrEmpty(text)) return false;
+            if (string.IsNullOrEmpty(text)) return false;
             // Ensure we use the appropriate newline sequence for the OS
             text = TextUtilities.NormalizeNewLines(text, Environment.NewLine);
 

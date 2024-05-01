@@ -43,7 +43,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
         }
 
         private ItemCollection Items => ((ItemCollection)_contextMenu.Items);
-        
+
         public override int ItemsCount
         {
             get { return Items.Count; }
@@ -62,7 +62,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             var item = new MenuItem();
             item.Header = text;
             item.IsEnabled = enabled;
-            item.Click += (sender, args) => onClick(sender, args); 
+            item.Click += (sender, args) => onClick(sender, args);
             Items.Add(item);
         }
 

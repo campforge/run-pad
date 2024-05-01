@@ -92,7 +92,7 @@ namespace AvaloniaEdit.Utils
             return Math.Max(Math.Min(value, maximum), minimum);
         }
         #endregion
-        
+
         #region CreateTypeface
         /// <summary>
         /// Creates typeface from the framework element.

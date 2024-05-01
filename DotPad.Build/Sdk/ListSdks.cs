@@ -6,7 +6,7 @@ using RoslynPad.Build.SDK.Models;
 
 namespace RoslynPad.UI.SDK
 {
-    public class ListSdks: IEnumerable<SdkInfoModel>
+    public class ListSdks : IEnumerable<SdkInfoModel>
     {
         private const string ListSdksCommand = "dotnet --list-sdks";
         private readonly List<SdkInfoModel> _list;
