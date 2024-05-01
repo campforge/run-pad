@@ -142,7 +142,8 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
         /// </summary>
         public bool IsBrElement
         {
-            get {
+            get
+            {
                 return _htmltag != null && _htmltag.Name.Equals("br", StringComparison.InvariantCultureIgnoreCase);
             }
         }
@@ -305,7 +306,7 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 return true;
             }
         }
-        
+
         /// <summary>
         /// Gets the line-boxes of this box (if block box)
         /// </summary>

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DotPad.ViewModels
 {
-	internal class PreferencesWindowViewModel
-	{
-	}
+    internal class PreferencesWindowViewModel
+    {
+    }
 }

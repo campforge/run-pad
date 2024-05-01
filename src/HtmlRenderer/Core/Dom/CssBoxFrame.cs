@@ -545,7 +545,7 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                     new RPoint(left + 2 * size.Width / 3f + 1, top + size.Height / 2f)
                 };
                 g.DrawPolygon(g.GetSolidBrush(RColor.White), points);
-                
+
                 g.ReturnPreviousSmoothingMode(prevMode);
             }
         }

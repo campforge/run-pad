@@ -51,7 +51,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         {
             BackgroundProperty.OverrideDefaultValue<HtmlPanel>(Brushes.Transparent);
         }
-        
+
         /// <summary>
         /// Creates a new HtmlPanel and sets a basic css for it's styling.
         /// </summary>

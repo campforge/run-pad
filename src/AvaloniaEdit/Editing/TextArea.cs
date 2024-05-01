@@ -1201,7 +1201,7 @@ namespace AvaloniaEdit.Editing
                 set
                 {
                     if (_textArea == null) return;
-                    var selection =  _textArea.Selection;
+                    var selection = _textArea.Selection;
                     if (selection.StartPosition.Line == 0) return;
 
                     _textArea.Selection = selection.StartSelectionOrSetEndpoint(

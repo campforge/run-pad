@@ -21,12 +21,12 @@ namespace AvaloniaEdit.Utils
             public static readonly BusyLock Failed = new BusyLock(null);
 
             private readonly List<object> _objectList;
-			
+
             internal BusyLock(List<object> objectList)
             {
                 _objectList = objectList;
             }
-			
+
             public bool Success => _objectList != null;
 
             public void Dispose()
@@ -34,9 +34,9 @@ namespace AvaloniaEdit.Utils
                 _objectList?.RemoveAt(_objectList.Count - 1);
             }
         }
-		
+
         [ThreadStatic] private static List<object> _activeObjects;
-		
+
         public static BusyLock Enter(object obj)
         {
             var activeObjects = _activeObjects ?? (_activeObjects = new List<object>());

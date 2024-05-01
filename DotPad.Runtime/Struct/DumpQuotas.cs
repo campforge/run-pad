@@ -27,10 +27,10 @@ namespace DotPad.Runtime.Struct
 
         [Pure]
         internal DumpQuotas StepDown() =>
-            new DumpQuotas (MaxDepth - 1, MaxExpandedDepth - 1, MaxEnumerableLength, MaxStringLength);
+            new DumpQuotas(MaxDepth - 1, MaxExpandedDepth - 1, MaxEnumerableLength, MaxStringLength);
 
         [Pure]
         internal DumpQuotas WithMaxDepth(int maxDepth) =>
-			new DumpQuotas (maxDepth, MaxExpandedDepth, MaxEnumerableLength, MaxStringLength);
+            new DumpQuotas(maxDepth, MaxExpandedDepth, MaxEnumerableLength, MaxStringLength);
     }
 }

@@ -92,7 +92,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             geometry.Geometry1 = new RectangleGeometry(Utils.Convert(_clipStack.Peek()));
             geometry.Geometry2 = new RectangleGeometry(Utils.Convert(rect));
             geometry.GeometryCombineMode = GeometryCombineMode.Exclude;
-            
+
             _clipStack.Push(_clipStack.Peek());
             _clipStackInt.Push(_g.PushGeometryClip(geometry));
         }
@@ -140,7 +140,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             var formattedLine = TextFormatter.Current.FormatLine(
                 new CustomTextSource(str.AsMemory(), fontAdapter.TextRunProperties),
                 0, double.MaxValue, fontAdapter.TextParagraphProperties);
-            
+
             return new RSize(formattedLine.WidthIncludingTrailingWhitespace, formattedLine.Height);
         }
 
@@ -174,7 +174,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 
             return new BrushAdapter(brush.ToImmutable());
         }
-        
+
         public override RGraphicsPath GetGraphicsPath()
         {
             return new GraphicsPathAdapter();
@@ -186,7 +186,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                 _g.Dispose();
         }
 
-    
+
         #region Delegate graphics methods
 
         public override void DrawLine(RPen pen, double x1, double y1, double x2, double y2)
@@ -210,7 +210,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 
             _g.DrawLine(((PenAdapter)pen).CreatePen(), new Point(x1, y1), new Point(x2, y2));
         }
-        
+
         public override void DrawRectangle(RPen pen, double x, double y, double width, double height)
         {
             var adj = pen.Width;
@@ -219,17 +219,17 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                 x += .5;
                 y += .5;
             }
-            _g.DrawRectangle(((PenAdapter) pen).CreatePen(), new Rect(x, y, width, height));
+            _g.DrawRectangle(((PenAdapter)pen).CreatePen(), new Rect(x, y, width, height));
         }
 
         public override void DrawRectangle(RBrush brush, double x, double y, double width, double height)
         {
-            _g.FillRectangle(((BrushAdapter) brush).Brush, new Rect(x, y, width, height));
+            _g.FillRectangle(((BrushAdapter)brush).Brush, new Rect(x, y, width, height));
         }
 
         public override void DrawImage(RImage image, RRect destRect, RRect srcRect)
         {
-            _g.DrawImage(((ImageAdapter) image).Image, Utils.Convert(srcRect), Utils.Convert(destRect));
+            _g.DrawImage(((ImageAdapter)image).Image, Utils.Convert(srcRect), Utils.Convert(destRect));
         }
 
         public override void DrawImage(RImage image, RRect destRect)
@@ -264,7 +264,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             }
         }
 
-        
+
         internal readonly struct CustomTextSource : ITextSource
         {
             private readonly TextRunProperties _defaultProperties;
@@ -275,7 +275,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                 _text = text;
                 _defaultProperties = defaultProperties;
             }
-            
+
             public TextRun GetTextRun(int textSourceIndex)
             {
                 if (textSourceIndex >= _text.Length)
@@ -286,7 +286,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                 return new TextCharacters(_text, _defaultProperties);
             }
         }
-        
+
         #endregion
     }
 }

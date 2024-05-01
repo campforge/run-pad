@@ -98,7 +98,8 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 {
                     Parse.DomParser.AssignCssProps(textElm, CssBlock.Properties);
                 }
-            } else
+            }
+            else
             {
                 // restore non :hover styles
                 foreach (var textBlock_kvp in _originalBlocks)

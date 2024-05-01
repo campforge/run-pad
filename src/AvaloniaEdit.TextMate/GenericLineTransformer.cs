@@ -35,8 +35,8 @@ namespace AvaloniaEdit.TextMate
             int length,
             IBrush foreground,
             IBrush background,
-            FontStyle fontStyle, 
-            FontWeight fontWeigth, 
+            FontStyle fontStyle,
+            FontWeight fontWeigth,
             bool isUnderline)
         {
             int startOffset = 0;

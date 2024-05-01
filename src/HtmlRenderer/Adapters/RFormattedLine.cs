@@ -4,8 +4,8 @@ namespace TheArtOfDev.HtmlRenderer.Adapters
 {
     public abstract class RFormattedLine
     {
-        public abstract int Length { get; } 
-        
+        public abstract int Length { get; }
+
         public abstract RSize Size { get; }
     }
 }

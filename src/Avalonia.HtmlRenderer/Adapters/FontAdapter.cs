@@ -75,9 +75,9 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
         }
 
         internal TextRunProperties TextRunProperties { get; }
-        
+
         internal TextParagraphProperties TextParagraphProperties { get; }
-        
+
         /// <summary>
         /// the underline win-forms font.
         /// </summary>

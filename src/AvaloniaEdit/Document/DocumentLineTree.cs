@@ -357,7 +357,7 @@ namespace AvaloniaEdit.Document
 
         public DocumentLine InsertLineAfter(DocumentLine line, int totalLength)
         {
-            var newLine = new DocumentLine(_document) {TotalLength = totalLength};
+            var newLine = new DocumentLine(_document) { TotalLength = totalLength };
 
             InsertAfter(line, newLine);
             return newLine;

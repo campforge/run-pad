@@ -3,13 +3,13 @@ using System.Reflection;
 
 namespace AvaloniaEdit.Demo.Resources
 {
-	internal class ResourceLoader
-	{
+    internal class ResourceLoader
+    {
 
-		internal static string LoadSampleFile(string fileName)
-		{
+        internal static string LoadSampleFile(string fileName)
+        {
 
-			return @"  
+            return @"  
 using System;
 using System.Threading;
 namespace RoslynCompileSample
@@ -23,12 +23,12 @@ namespace RoslynCompileSample
         }
     }
 }";
-		}
+        }
 
-		internal static string LoadHtmlFile(string fileName)
-		{
+        internal static string LoadHtmlFile(string fileName)
+        {
 
-			return @"<div class=""widget"" color=""#fff"">
+            return @"<div class=""widget"" color=""#fff"">
 					  <h1>Widget Buttons</h1>
 					  <button>A button element</button>
  
@@ -42,6 +42,6 @@ namespace RoslynCompileSample
 					<input class=""ui-button ui-widget ui-corner-all"" type=""submit"" value=""A submit button"">
  					<a class=""ui-button ui-widget ui-corner-all"" href=""#"">An anchor</a>
   ";
-		}
-	}
+        }
+    }
 }

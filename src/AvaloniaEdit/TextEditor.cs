@@ -76,7 +76,7 @@ namespace AvaloniaEdit
         /// </summary>
         protected TextEditor(TextArea textArea) : this(textArea, new TextDocument())
         {
-            
+
         }
 
         protected TextEditor(TextArea textArea, TextDocument document)
@@ -663,7 +663,7 @@ namespace AvaloniaEdit
         /// </summary>
         public void Delete()
         {
-            if(CanDelete)
+            if (CanDelete)
             {
                 ApplicationCommands.Delete.Execute(null, TextArea);
             }
@@ -842,7 +842,7 @@ namespace AvaloniaEdit
         /// </summary>
         public bool CanRedo
         {
-           get { return ApplicationCommands.Redo.CanExecute(null, TextArea); }
+            get { return ApplicationCommands.Redo.CanExecute(null, TextArea); }
         }
 
         /// <summary>

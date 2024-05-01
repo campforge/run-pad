@@ -81,7 +81,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
 
         #region Dependency properties / routed events
 
-        public static readonly AvaloniaProperty AvoidImagesLateLoadingProperty = 
+        public static readonly AvaloniaProperty AvoidImagesLateLoadingProperty =
             AvaloniaProperty.Register<HtmlControl, bool>(nameof(AvoidImagesLateLoading), defaultValue: false);
         public static readonly AvaloniaProperty IsSelectionEnabledProperty =
             AvaloniaProperty.Register<HtmlControl, bool>(nameof(IsSelectionEnabled), defaultValue: true);
@@ -106,18 +106,18 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         public static readonly AvaloniaProperty PaddingProperty =
             Decorator.PaddingProperty.AddOwner<HtmlControl>();
         public static readonly RoutedEvent LoadCompleteEvent =
-            RoutedEvent.Register<RoutedEventArgs>("LoadComplete",  RoutingStrategies.Bubble, typeof(HtmlControl));
+            RoutedEvent.Register<RoutedEventArgs>("LoadComplete", RoutingStrategies.Bubble, typeof(HtmlControl));
         public static readonly RoutedEvent LinkClickedEvent =
             RoutedEvent.Register<HtmlRendererRoutedEventArgs<HtmlLinkClickedEventArgs>>("LinkClicked", RoutingStrategies.Bubble, typeof(HtmlControl));
-        public static readonly RoutedEvent RenderErrorEvent 
+        public static readonly RoutedEvent RenderErrorEvent
             = RoutedEvent.Register<HtmlRendererRoutedEventArgs<HtmlRenderErrorEventArgs>>("RenderError", RoutingStrategies.Bubble, typeof(HtmlControl));
-        public static readonly RoutedEvent RefreshEvent 
+        public static readonly RoutedEvent RefreshEvent
             = RoutedEvent.Register<HtmlRendererRoutedEventArgs<HtmlRefreshEventArgs>>("Refresh", RoutingStrategies.Bubble, typeof(HtmlControl));
-        public static readonly RoutedEvent StylesheetLoadEvent 
+        public static readonly RoutedEvent StylesheetLoadEvent
             = RoutedEvent.Register<HtmlRendererRoutedEventArgs<HtmlStylesheetLoadEventArgs>>("StylesheetLoad", RoutingStrategies.Bubble, typeof(HtmlControl));
         public static readonly RoutedEvent ImageLoadEvent
             = RoutedEvent.Register<HtmlRendererRoutedEventArgs<HtmlImageLoadEventArgs>>("ImageLoad", RoutingStrategies.Bubble,
-                typeof (HtmlControl));
+                typeof(HtmlControl));
         #endregion
 
         internal PointerEventArgs LastPointerArgs { get; private set; }
@@ -169,7 +169,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         /// Raised when the set html document has been fully loaded.<br/>
         /// Allows manipulation of the html dom, scroll position, etc.
         /// </summary>
-        public event EventHandler<HtmlRendererRoutedEventArgs<EventArgs>>  LoadComplete
+        public event EventHandler<HtmlRendererRoutedEventArgs<EventArgs>> LoadComplete
         {
             add { AddHandler(LoadCompleteEvent, value); }
             remove { RemoveHandler(LoadCompleteEvent, value); }
@@ -283,7 +283,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
 
         public Thickness BorderThickness
         {
-            get { return (Thickness) GetValue(BorderThicknessProperty); }
+            get { return (Thickness)GetValue(BorderThicknessProperty); }
             set { SetValue(BorderThicknessProperty, value); }
         }
 
@@ -301,8 +301,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
 
         public IBrush Background
         {
-            get { return (IBrush) GetValue(BackgroundProperty); }
-            set { SetValue(BackgroundProperty, value);}
+            get { return (IBrush)GetValue(BackgroundProperty); }
+            set { SetValue(BackgroundProperty, value); }
         }
 
         /// <summary>
@@ -367,7 +367,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         /// </summary>
         public override void Render(DrawingContext context)
         {
-            context.FillRectangle(Background,  new Rect(RenderSize));
+            context.FillRectangle(Background, new Rect(RenderSize));
 
             if (BorderThickness != new Thickness(0) && BorderBrush != null)
             {
@@ -387,7 +387,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             if (_htmlContainer != null && htmlWidth > 0 && htmlHeight > 0)
             {
                 using (context.PushClip(new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top,
-                    htmlWidth, (int) htmlHeight)))
+                    htmlWidth, (int)htmlHeight)))
                 {
                     _htmlContainer.Location = new Point(Padding.Left + BorderThickness.Left,
                         Padding.Top + BorderThickness.Top);
@@ -406,7 +406,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
 
         void RaiseRouted<T>(RoutedEvent ev, T arg)
         {
-            var e =new HtmlRendererRoutedEventArgs<T>
+            var e = new HtmlRendererRoutedEventArgs<T>
             {
                 Event = arg,
                 Source = this,

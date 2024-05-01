@@ -37,10 +37,13 @@ namespace AvaloniaEdit.Rendering
 
         #region Properties
 
-        public int Line {
+        public int Line
+        {
             get { return _line; }
-            set {
-                if (_line != value) {
+            set
+            {
+                if (_line != value)
+                {
                     _line = value;
                     _textView.InvalidateLayer(Layer);
                 }
@@ -49,11 +52,13 @@ namespace AvaloniaEdit.Rendering
 
         public KnownLayer Layer => KnownLayer.Background;
 
-        public IBrush BackgroundBrush {
+        public IBrush BackgroundBrush
+        {
             get; set;
         }
 
-        public IPen BorderPen {
+        public IPen BorderPen
+        {
             get; set;
         }
 
@@ -86,7 +91,8 @@ namespace AvaloniaEdit.Rendering
             builder.AddRectangle(textView, new Rect(0, linePosY, textView.Bounds.Width, visualLine.Height));
 
             var geometry = builder.CreateGeometry();
-            if (geometry != null) {
+            if (geometry != null)
+            {
                 drawingContext.DrawGeometry(BackgroundBrush, BorderPen, geometry);
             }
         }

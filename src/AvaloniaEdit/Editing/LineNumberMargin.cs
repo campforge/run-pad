@@ -48,41 +48,43 @@ namespace AvaloniaEdit.Editing
         /// </summary>
         protected double EmSize { get; set; }
 
-		/// <inheritdoc/>
-		protected override Size MeasureOverride(Size availableSize)
-		{
-			Typeface = this.CreateTypeface();
-			EmSize = GetValue(TextBlock.FontSizeProperty);
+        /// <inheritdoc/>
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            Typeface = this.CreateTypeface();
+            EmSize = GetValue(TextBlock.FontSizeProperty);
 
-			var text = TextFormatterFactory.CreateFormattedText(
-				this,
-				new string('9', MaxLineNumberLength),
-				Typeface,
-				EmSize,
-				GetValue(TextBlock.ForegroundProperty)
-			);
-			return new Size(text.Width, 0);
-		}
-        
-		public override void Render(DrawingContext drawingContext)
-		{
-			var textView = TextView;
-			var renderSize = Bounds.Size;
-            
-			if (textView is {VisualLinesValid: true}) {
-				var foreground = GetValue(TextBlock.ForegroundProperty);
-				foreach (var line in textView.VisualLines) {
-					var lineNumber = line.FirstDocumentLine.LineNumber;
-					var text = TextFormatterFactory.CreateFormattedText(
-						this,
-						lineNumber.ToString(CultureInfo.CurrentCulture),
-						Typeface, EmSize, foreground
-					);
-					var y = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.TextTop);
-					drawingContext.DrawText(text, new Point(renderSize.Width - text.Width, y - textView.VerticalOffset));
-				}
-			}
-		}
+            var text = TextFormatterFactory.CreateFormattedText(
+                this,
+                new string('9', MaxLineNumberLength),
+                Typeface,
+                EmSize,
+                GetValue(TextBlock.ForegroundProperty)
+            );
+            return new Size(text.Width, 0);
+        }
+
+        public override void Render(DrawingContext drawingContext)
+        {
+            var textView = TextView;
+            var renderSize = Bounds.Size;
+
+            if (textView is { VisualLinesValid: true })
+            {
+                var foreground = GetValue(TextBlock.ForegroundProperty);
+                foreach (var line in textView.VisualLines)
+                {
+                    var lineNumber = line.FirstDocumentLine.LineNumber;
+                    var text = TextFormatterFactory.CreateFormattedText(
+                        this,
+                        lineNumber.ToString(CultureInfo.CurrentCulture),
+                        Typeface, EmSize, foreground
+                    );
+                    var y = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.TextTop);
+                    drawingContext.DrawText(text, new Point(renderSize.Width - text.Width, y - textView.VerticalOffset));
+                }
+            }
+        }
 
         /// <inheritdoc/>
 		protected override void OnTextViewChanged(TextView oldTextView, TextView newTextView)

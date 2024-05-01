@@ -162,7 +162,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 
             var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                FileTypeChoices = new []
+                FileTypeChoices = new[]
                 {
                     FilePickerFileTypes.ImagePng
                 },
@@ -180,7 +180,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 #else
             var stream = await file.OpenWriteAsync();
 #endif
-            
+
             ((ImageAdapter)image).Image.Save(stream);
 
             await stream.FlushAsync();
@@ -235,7 +235,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                    ?? (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow
                    ?? TopLevel.GetTopLevel((Application.Current?.ApplicationLifetime as ISingleViewApplicationLifetime)?.MainView);
         }
-        
+
         #endregion
     }
 }

@@ -214,10 +214,10 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
         }
 
         private string _string;
-        public string AsString => _string = _string ?? Text.ToString(); 
-        
+        public string AsString => _string = _string ?? Text.ToString();
+
         public RFormattedLine Line { get; set; }
-        
+
         /// <summary>
         /// is the word is currently selected
         /// </summary>
