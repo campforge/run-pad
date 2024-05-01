@@ -11,7 +11,6 @@
 // "The Art of War"
 
 using System;
-using TheArtOfDev.HtmlRenderer.Adapters;
 
 namespace TheArtOfDev.HtmlRenderer.Core.Dom
 {

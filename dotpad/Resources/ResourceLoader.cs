@@ -1,7 +1,4 @@
-﻿using System.IO;
-using System.Reflection;
-
-namespace AvaloniaEdit.Demo.Resources
+﻿namespace AvaloniaEdit.Demo.Resources
 {
     internal class ResourceLoader
     {

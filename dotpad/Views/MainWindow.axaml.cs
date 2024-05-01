@@ -13,7 +13,6 @@ using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
 using TextMateSharp.Grammars;
-using AvaloniaEdit.Snippets;
 using AvaloniaEdit;
 using AvaloniaEdit.Demo.Resources;
 using TheArtOfDev.HtmlRenderer.Avalonia;
