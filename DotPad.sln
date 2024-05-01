@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad", "dotpad\DotPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad", "src\DotPad\DotPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaEdit", "src\AvaloniaEdit\AvaloniaEdit.csproj", "{B90B1EE2-E5ED-4611-9AE2-921145497D32}"
 EndProject
@@ -21,9 +21,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{1B8000
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{C1B0D98C-2014-459B-96B5-1DFD7E9483A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Runtime", "DotPad.Runtime\DotPad.Runtime.csproj", "{2FAB6401-03E6-42D6-9A04-3D6CA38E2FEB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Runtime", "src\DotPad.Runtime\DotPad.Runtime.csproj", "{2FAB6401-03E6-42D6-9A04-3D6CA38E2FEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Build", "DotPad.Build\DotPad.Build.csproj", "{3545DA49-3BFA-45CB-8C58-ADBE511F6366}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Build", "src\DotPad.Build\DotPad.Build.csproj", "{3545DA49-3BFA-45CB-8C58-ADBE511F6366}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
