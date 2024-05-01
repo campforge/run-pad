@@ -14,7 +14,6 @@ using System.Globalization;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 
 namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 {

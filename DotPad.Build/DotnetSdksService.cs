@@ -1,6 +1,5 @@
 ﻿using NuGet.Versioning;
 using RoslynPad.UI.SDK;
-using System.Xml.Linq;
 
 namespace DotPad.Build
 {

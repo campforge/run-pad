@@ -21,9 +21,7 @@ using Avalonia;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Media;
 
 namespace AvaloniaEdit.CodeCompletion
 {

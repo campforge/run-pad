@@ -1,5 +1,4 @@
 ﻿using NuGet.Versioning;
-using System;
 
 namespace DotPad.Build
 {

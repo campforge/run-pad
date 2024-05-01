@@ -11,7 +11,6 @@
 // "The Art of War"
 
 using System;
-using System.Collections.Generic;
 using Avalonia.Controls;
 using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
