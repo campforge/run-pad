@@ -3,15 +3,13 @@
              x:Class="dotpad.App"
              xmlns:local="using:dotpad"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
-
-
-	<Application.DataTemplates>
-        <local:ViewLocator/>
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    <Application.DataTemplates>
+        <local:ViewLocator />
     </Application.DataTemplates>
-  
+
     <Application.Styles>
-			<FluentTheme />
-			<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+        <FluentTheme />
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     </Application.Styles>
 </Application>

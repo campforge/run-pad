@@ -5,5 +5,5 @@
         mc:Ignorable="d" d:DesignWidth="450" d:DesignHeight="450"
         x:Class="DotPad.PreferencesWindow"
         Title="Preferences">
-  Welcome to Avalonia!
+    Welcome to Avalonia!
 </Window>
