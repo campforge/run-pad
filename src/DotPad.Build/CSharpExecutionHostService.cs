@@ -11,19 +11,23 @@ namespace DotPad.Build;
 
 public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposable
 {
-    private readonly bool _IsRun = false;
-    public bool IsRun => _IsRun;
-    const string libName = "DotPadQuery";
-    private string _binaryOutput;
-    private string _pbbOutput;
-    private string _configOutput;
-    private string _outputDir;
-    private ExecutionPlatform _executionPlatform;
+    const string LibName = "DotPadQuery";
 
-    public event ExecutionReceivedEventHandler DataReceived;
+    private readonly string _binaryOutput;
+    private readonly string _pbbOutput;
+    private readonly string _configOutput;
+    private readonly string _outputDir;
+    private readonly string _runtimeLib;
+    private readonly ExecutionPlatform _executionPlatform;
+
+    private bool _isRun;
+    public bool IsRun => _isRun;
+
+    public event ExecutionReceivedEventHandler? DataReceived;
 
     public CSharpExecutionHostService(
         string root,
+        string runtimeLib,
         ExecutionPlatform executionPlatform
     )
     {
@@ -32,11 +36,11 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         _outputDir = Path.Combine(root, direcroryName);
         Directory.CreateDirectory(_outputDir);
 
-        _binaryOutput = Path.Combine(_outputDir, $"{libName}.dll");
-        _pbbOutput = Path.Combine(_outputDir, $"{libName}.pdb");
-        _configOutput = Path.Combine(_outputDir, $"{libName}.runtimeconfig.json");
+        _binaryOutput = Path.Combine(_outputDir, $"{LibName}.dll");
+        _pbbOutput = Path.Combine(_outputDir, $"{LibName}.pdb");
+        _configOutput = Path.Combine(_outputDir, $"{LibName}.runtimeconfig.json");
         _executionPlatform = executionPlatform;
-
+        _runtimeLib = runtimeLib;
     }
 
     private SyntaxTree BuildSyntaxTree(string code)
@@ -63,23 +67,11 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
                     options: new CSharpCompilationOptions(OutputKind.ConsoleApplication)
                 );
 
-            var json = @"
-			{
-			  ""runtimeOptions"": {
-				""tfm"": """ + _executionPlatform.TargetFrameworkMoniker + @""",
-				""framework"": {
-				  ""name"": ""Microsoft.NETCore.App"",
-				  ""version"": """ + $"{_executionPlatform.Version.Major}.{_executionPlatform.Version.Minor}.0" + @"""
-				},
-				""configProperties"": {
-				  ""System.Runtime.InteropServices.BuiltInComInterop.IsSupported"": true
-				}
-			  }
-			}";
+            var json = CreateConfig();
 
             File.WriteAllText(_configOutput, json);
-            File.Copy(@"E:\Projects2\DotPad\DotPad.Runtime\bin\Debug\net7.0\DotPad.Runtime.dll",
-                Path.Combine(_outputDir, "DotPad.Runtime.dll"), true);
+            File.Copy(_runtimeLib,
+                Path.Combine(_outputDir, Path.GetFileName(_runtimeLib)), true);
 
             return compilation.Emit(
                 _binaryOutput,
@@ -90,11 +82,30 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         return await task;
     }
 
+    private string CreateConfig()
+    {
+        var json = @"
+    {
+        ""runtimeOptions"": {
+        ""tfm"": """ + _executionPlatform.TargetFrameworkMoniker + @""",
+        ""framework"": {
+          ""name"": ""Microsoft.NETCore.App"",
+          ""version"": """ + $"{_executionPlatform.Version.Major}.{_executionPlatform.Version.Minor}.0" + @"""
+        },
+        ""configProperties"": {
+              ""System.Runtime.InteropServices.BuiltInComInterop.IsSupported"": true
+            }
+        }
+    }";
+        return json;
+    }
+
 
     private async Task RunProcessAsync(CancellationToken cancellationToken)
     {
         var pid = Environment.ProcessId;
-        using var process = new Process { StartInfo = GetProcessStartInfo(_binaryOutput) };
+        using var process = new Process();
+        process.StartInfo = GetProcessStartInfo(_binaryOutput);
 
         using var _ = cancellationToken.Register(() =>
         {
@@ -163,6 +174,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         CancellationToken cancellationToken
     )
     {
+        _isRun = true;
         var syntaxTree = BuildSyntaxTree(code);
 
         var result = await Compilation(syntaxTree, refPaths, cancellationToken);
@@ -182,6 +194,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         }
 
         await RunProcessAsync(cancellationToken);
+        _isRun = false;
     }
 
     public async Task Terminate()
@@ -205,7 +218,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
                 break;
             }
 
-            DataReceived.Invoke(this, new ExecutionReceivedEventArgs(line));
+            DataReceived?.Invoke(this, new ExecutionReceivedEventArgs(line));
         }
     }
 }

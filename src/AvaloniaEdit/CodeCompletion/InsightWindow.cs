@@ -19,63 +19,62 @@
 using System;
 using AvaloniaEdit.Editing;
 
-namespace AvaloniaEdit.CodeCompletion
+namespace AvaloniaEdit.CodeCompletion;
+
+/// <summary>
+/// A popup-like window that is attached to a text segment.
+/// </summary>
+public class InsightWindow : CompletionWindowBase
 {
     /// <summary>
-    /// A popup-like window that is attached to a text segment.
+    /// Creates a new InsightWindow.
     /// </summary>
-    public class InsightWindow : CompletionWindowBase
+    public InsightWindow(TextArea textArea) : base(textArea)
     {
-        /// <summary>
-        /// Creates a new InsightWindow.
-        /// </summary>
-        public InsightWindow(TextArea textArea) : base(textArea)
+        CloseAutomatically = true;
+        AttachEvents();
+        Initialize();
+    }
+
+    private void Initialize()
+    {
+        // TODO: working area
+        //var caret = this.TextArea.Caret.CalculateCaretRectangle();
+        //var pointOnScreen = this.TextArea.TextView.PointToScreen(caret.Location - this.TextArea.TextView.ScrollOffset);
+        //Rect workingArea = System.Windows.Forms.Screen.FromPoint(pointOnScreen.ToSystemDrawing()).WorkingArea.ToWpf().TransformFromDevice(this);
+        //MaxHeight = workingArea.Height;
+        //MaxWidth = Math.Min(workingArea.Width, Math.Max(1000, workingArea.Width * 0.6));
+    }
+
+    /// <summary>
+    /// Gets/Sets whether the insight window should close automatically.
+    /// The default value is true.
+    /// </summary>
+    public bool CloseAutomatically { get; set; }
+
+    /// <inheritdoc/>
+    protected override bool CloseOnFocusLost => CloseAutomatically;
+
+    private void AttachEvents()
+    {
+        TextArea.Caret.PositionChanged += CaretPositionChanged;
+    }
+
+    /// <inheritdoc/>
+    protected override void DetachEvents()
+    {
+        TextArea.Caret.PositionChanged -= CaretPositionChanged;
+        base.DetachEvents();
+    }
+
+    private void CaretPositionChanged(object sender, EventArgs e)
+    {
+        if (CloseAutomatically)
         {
-            CloseAutomatically = true;
-            AttachEvents();
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            // TODO: working area
-            //var caret = this.TextArea.Caret.CalculateCaretRectangle();
-            //var pointOnScreen = this.TextArea.TextView.PointToScreen(caret.Location - this.TextArea.TextView.ScrollOffset);
-            //Rect workingArea = System.Windows.Forms.Screen.FromPoint(pointOnScreen.ToSystemDrawing()).WorkingArea.ToWpf().TransformFromDevice(this);
-            //MaxHeight = workingArea.Height;
-            //MaxWidth = Math.Min(workingArea.Width, Math.Max(1000, workingArea.Width * 0.6));
-        }
-
-        /// <summary>
-        /// Gets/Sets whether the insight window should close automatically.
-        /// The default value is true.
-        /// </summary>
-        public bool CloseAutomatically { get; set; }
-
-        /// <inheritdoc/>
-        protected override bool CloseOnFocusLost => CloseAutomatically;
-
-        private void AttachEvents()
-        {
-            TextArea.Caret.PositionChanged += CaretPositionChanged;
-        }
-
-        /// <inheritdoc/>
-        protected override void DetachEvents()
-        {
-            TextArea.Caret.PositionChanged -= CaretPositionChanged;
-            base.DetachEvents();
-        }
-
-        private void CaretPositionChanged(object sender, EventArgs e)
-        {
-            if (CloseAutomatically)
+            var offset = TextArea.Caret.Offset;
+            if (offset < StartOffset || offset > EndOffset)
             {
-                var offset = TextArea.Caret.Offset;
-                if (offset < StartOffset || offset > EndOffset)
-                {
-                    Hide();
-                }
+                Hide();
             }
         }
     }

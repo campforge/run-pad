@@ -16,14 +16,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+/// <summary>
+/// Provides immutable empty list instances.
+/// </summary>
+internal static class Empty<T>
 {
-    /// <summary>
-    /// Provides immutable empty list instances.
-    /// </summary>
-    internal static class Empty<T>
-    {
-        public static readonly T[] Array = new T[0];
-        //public static readonly ReadOnlyCollection<T> ReadOnlyCollection = new ReadOnlyCollection<T>(Array);
-    }
+    public static readonly T[] Array = new T[0];
+    //public static readonly ReadOnlyCollection<T> ReadOnlyCollection = new ReadOnlyCollection<T>(Array);
 }

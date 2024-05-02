@@ -16,65 +16,65 @@ using TheArtOfDev.HtmlRenderer.Core.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Parse;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// CSS boxes that have ":hover" selector on them.
+/// </summary>
+internal sealed class HoverBoxBlock
 {
     /// <summary>
-    /// CSS boxes that have ":hover" selector on them.
+    /// the box that has :hover css on
     /// </summary>
-    internal sealed class HoverBoxBlock
+    private readonly CssBox _cssBox;
+
+    /// <summary>
+    /// the :hover style block data
+    /// </summary>
+    private readonly CssBlock _cssBlock;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public HoverBoxBlock(CssBox cssBox, CssBlock cssBlock)
     {
-        /// <summary>
-        /// the box that has :hover css on
-        /// </summary>
-        private readonly CssBox _cssBox;
-
-        /// <summary>
-        /// the :hover style block data
-        /// </summary>
-        private readonly CssBlock _cssBlock;
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public HoverBoxBlock(CssBox cssBox, CssBlock cssBlock)
-        {
             _cssBox = cssBox;
             _cssBlock = cssBlock;
         }
 
-        /// <summary>
-        /// the box that has :hover css on
-        /// </summary>
-        public CssBox CssBox
-        {
-            get { return _cssBox; }
-        }
+    /// <summary>
+    /// the box that has :hover css on
+    /// </summary>
+    public CssBox CssBox
+    {
+        get { return _cssBox; }
+    }
 
-        /// <summary>
-        /// the :hover style block data
-        /// </summary>
-        public CssBlock CssBlock
-        {
-            get { return _cssBlock; }
-        }
+    /// <summary>
+    /// the :hover style block data
+    /// </summary>
+    public CssBlock CssBlock
+    {
+        get { return _cssBlock; }
+    }
 
-        /// <summary>
-        /// Used to determine if :hover is active or not and set in
-        /// </summary>
-        private bool _isHovering;
+    /// <summary>
+    /// Used to determine if :hover is active or not and set in
+    /// </summary>
+    private bool _isHovering;
 
-        /// <summary>
-        /// A lookup of all text element style properties before :hover style is applied and used to restore styling after hover
-        /// </summary>
-        private Dictionary<CssBox, Dictionary<string, string>> _originalBlocks = [];
+    /// <summary>
+    /// A lookup of all text element style properties before :hover style is applied and used to restore styling after hover
+    /// </summary>
+    private Dictionary<CssBox, Dictionary<string, string>> _originalBlocks = [];
 
-        /// <summary>
-        /// Toggles hover styling 
-        /// </summary>
-        /// <param name="isHovering">Whether to apply or remove :hover style</param>
-        /// <returns>returns true if state changed</returns>
-        public bool SetIsHovering(bool isHovering)
-        {
+    /// <summary>
+    /// Toggles hover styling 
+    /// </summary>
+    /// <param name="isHovering">Whether to apply or remove :hover style</param>
+    /// <returns>returns true if state changed</returns>
+    public bool SetIsHovering(bool isHovering)
+    {
             if (_isHovering == isHovering)
             {
                 // no change
@@ -110,13 +110,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return true;
         }
 
-        /// <summary>
-        /// Helper method that populates <paramref name="textElms"/> with all self and descending TextElements from <paramref name="elm"/>
-        /// </summary>
-        /// <param name="elm">Box to search</param>
-        /// <param name="textElms">A list to add found anon text element boxes</param>
-        private void FindTextElements(CssBox elm, List<CssBox> textElms)
-        {
+    /// <summary>
+    /// Helper method that populates <paramref name="textElms"/> with all self and descending TextElements from <paramref name="elm"/>
+    /// </summary>
+    /// <param name="elm">Box to search</param>
+    /// <param name="textElms">A list to add found anon text element boxes</param>
+    private void FindTextElements(CssBox elm, List<CssBox> textElms)
+    {
             if (elm.HtmlTag == null)
             {
                 textElms.Add(elm);
@@ -126,5 +126,4 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 FindTextElements(celm, textElms);
             }
         }
-    }
 }

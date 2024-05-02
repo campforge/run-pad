@@ -20,43 +20,43 @@ using TheArtOfDev.HtmlRenderer.Core.Utils;
 using Point = Avalonia.Point;
 using Size = Avalonia.Size;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia
+namespace TheArtOfDev.HtmlRenderer.Avalonia;
+
+/// <summary>
+/// Provides HTML rendering using the text property.<br/>
+/// Avalonia control that will render html content in it's client rectangle.<br/>
+/// If the layout of the html resulted in its content beyond the client bounds of the panel it will show scrollbars (horizontal/vertical) allowing to scroll the content.<br/>
+/// The control will handle mouse and keyboard events on it to support html text selection, copy-paste and mouse clicks.<br/>
+/// </summary>
+/// <remarks>
+/// See <see cref="HtmlControl"/> for more info.
+/// </remarks>
+public class HtmlPanel : HtmlControl
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Provides HTML rendering using the text property.<br/>
-    /// Avalonia control that will render html content in it's client rectangle.<br/>
-    /// If the layout of the html resulted in its content beyond the client bounds of the panel it will show scrollbars (horizontal/vertical) allowing to scroll the content.<br/>
-    /// The control will handle mouse and keyboard events on it to support html text selection, copy-paste and mouse clicks.<br/>
+    /// the vertical scroll bar for the control to scroll to html content out of view
     /// </summary>
-    /// <remarks>
-    /// See <see cref="HtmlControl"/> for more info.
-    /// </remarks>
-    public class HtmlPanel : HtmlControl
+    protected ScrollBar _verticalScrollBar;
+
+    /// <summary>
+    /// the horizontal scroll bar for the control to scroll to html content out of view
+    /// </summary>
+    protected ScrollBar _horizontalScrollBar;
+
+    #endregion
+
+    static HtmlPanel()
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// the vertical scroll bar for the control to scroll to html content out of view
-        /// </summary>
-        protected ScrollBar _verticalScrollBar;
-
-        /// <summary>
-        /// the horizontal scroll bar for the control to scroll to html content out of view
-        /// </summary>
-        protected ScrollBar _horizontalScrollBar;
-
-        #endregion
-
-        static HtmlPanel()
-        {
             BackgroundProperty.OverrideDefaultValue<HtmlPanel>(Brushes.Transparent);
         }
 
-        /// <summary>
-        /// Creates a new HtmlPanel and sets a basic css for it's styling.
-        /// </summary>
-        public HtmlPanel()
-        {
+    /// <summary>
+    /// Creates a new HtmlPanel and sets a basic css for it's styling.
+    /// </summary>
+    public HtmlPanel()
+    {
             _verticalScrollBar = new ScrollBar();
             _verticalScrollBar.Orientation = Orientation.Vertical;
             _verticalScrollBar.Width = 18;
@@ -74,14 +74,14 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             _htmlContainer.ScrollChange += OnScrollChange;
         }
 
-        /// <summary>
-        /// Adjust the scrollbar of the panel on html element by the given id.<br/>
-        /// The top of the html element rectangle will be at the top of the panel, if there
-        /// is not enough height to scroll to the top the scroll will be at maximum.<br/>
-        /// </summary>
-        /// <param name="elementId">the id of the element to scroll to</param>
-        public virtual void ScrollToElement(string elementId)
-        {
+    /// <summary>
+    /// Adjust the scrollbar of the panel on html element by the given id.<br/>
+    /// The top of the html element rectangle will be at the top of the panel, if there
+    /// is not enough height to scroll to the top the scroll will be at maximum.<br/>
+    /// </summary>
+    /// <param name="elementId">the id of the element to scroll to</param>
+    public virtual void ScrollToElement(string elementId)
+    {
             ArgChecker.AssertArgNotNullOrEmpty(elementId, "elementId");
 
             if (_htmlContainer != null)
@@ -99,13 +99,13 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Perform the layout of the html in the control.
-        /// </summary>
-        protected override Size MeasureOverride(Size constraint)
-        {
+    /// <summary>
+    /// Perform the layout of the html in the control.
+    /// </summary>
+    protected override Size MeasureOverride(Size constraint)
+    {
             Size size = PerformHtmlLayout(constraint);
 
             // to handle if scrollbar is appearing or disappearing
@@ -136,11 +136,11 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             return constraint;
         }
 
-        /// <summary>
-        /// After measurement arrange the scrollbars of the panel.
-        /// </summary>
-        protected override Size ArrangeOverride(Size bounds)
-        {
+    /// <summary>
+    /// After measurement arrange the scrollbars of the panel.
+    /// </summary>
+    protected override Size ArrangeOverride(Size bounds)
+    {
             var scrollHeight = HtmlHeight(bounds) + Padding.Top + Padding.Bottom;
             scrollHeight = scrollHeight > 1 ? scrollHeight : 1;
             var scrollWidth = HtmlWidth(bounds) + Padding.Left + Padding.Right;
@@ -173,11 +173,11 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             return bounds;
         }
 
-        /// <summary>
-        /// Perform html container layout by the current panel client size.
-        /// </summary>
-        protected Size PerformHtmlLayout(Size constraint)
-        {
+    /// <summary>
+    /// Perform html container layout by the current panel client size.
+    /// </summary>
+    protected Size PerformHtmlLayout(Size constraint)
+    {
             if (_htmlContainer != null)
             {
                 _htmlContainer.MaxSize = new Size(HtmlWidth(constraint), 0);
@@ -187,20 +187,20 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             return default;
         }
 
-        /// <summary>
-        /// Handle mouse up to set focus on the control. 
-        /// </summary>
-        protected override void OnPointerReleased(PointerReleasedEventArgs e)
-        {
+    /// <summary>
+    /// Handle mouse up to set focus on the control. 
+    /// </summary>
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
             base.OnPointerReleased(e);
             Focus();
         }
 
-        /// <summary>
-        /// Handle mouse wheel for scrolling.
-        /// </summary>
-        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
-        {
+    /// <summary>
+    /// Handle mouse wheel for scrolling.
+    /// </summary>
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
             base.OnPointerWheelChanged(e);
             if (_verticalScrollBar.Visibility == ScrollBarVisibility.Visible)
             {
@@ -210,11 +210,11 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             }
         }
 
-        /// <summary>
-        /// Handle key down event for selection, copy and scrollbars handling.
-        /// </summary>
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
+    /// <summary>
+    /// Handle key down event for selection, copy and scrollbars handling.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
             base.OnKeyDown(e);
 
             if (_verticalScrollBar.Visibility == ScrollBarVisibility.Visible)
@@ -274,55 +274,55 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             }
         }
 
-        /// <summary>
-        /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
-        /// </summary>
-        protected override double HtmlWidth(Size size)
-        {
+    /// <summary>
+    /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
+    /// </summary>
+    protected override double HtmlWidth(Size size)
+    {
             var width = base.HtmlWidth(size) - (_verticalScrollBar.Visibility == ScrollBarVisibility.Visible ? _verticalScrollBar.Width : 0);
             return width > 1 ? width : 1;
         }
 
-        /// <summary>
-        /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
-        /// </summary>
-        protected override double HtmlHeight(Size size)
-        {
+    /// <summary>
+    /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
+    /// </summary>
+    protected override double HtmlHeight(Size size)
+    {
             var height = base.HtmlHeight(size) - (_horizontalScrollBar.Visibility == ScrollBarVisibility.Visible ? _horizontalScrollBar.Height : 0);
             return height > 1 ? height : 1;
         }
 
-        /// <summary>
-        /// On HTML container scroll change request scroll to the requested location.
-        /// </summary>
-        private void OnScrollChange(object sender, HtmlScrollEventArgs e)
-        {
+    /// <summary>
+    /// On HTML container scroll change request scroll to the requested location.
+    /// </summary>
+    private void OnScrollChange(object sender, HtmlScrollEventArgs e)
+    {
             ScrollToPoint(e.X, e.Y);
         }
 
-        /// <summary>
-        /// Set the control scroll offset to the given values.
-        /// </summary>
-        private void ScrollToPoint(double x, double y)
-        {
+    /// <summary>
+    /// Set the control scroll offset to the given values.
+    /// </summary>
+    private void ScrollToPoint(double x, double y)
+    {
             _horizontalScrollBar.Value = x;
             _verticalScrollBar.Value = y;
             UpdateScrollOffsets();
         }
 
-        /// <summary>
-        /// On scrollbar scroll update the scroll offsets and invalidate.
-        /// </summary>
-        private void OnScrollBarScroll(object sender, ScrollEventArgs e)
-        {
+    /// <summary>
+    /// On scrollbar scroll update the scroll offsets and invalidate.
+    /// </summary>
+    private void OnScrollBarScroll(object sender, ScrollEventArgs e)
+    {
             UpdateScrollOffsets();
         }
 
-        /// <summary>
-        /// Update the scroll offset of the HTML container and invalidate visual to re-render.
-        /// </summary>
-        private void UpdateScrollOffsets()
-        {
+    /// <summary>
+    /// Update the scroll offset of the HTML container and invalidate visual to re-render.
+    /// </summary>
+    private void UpdateScrollOffsets()
+    {
             var newScrollOffset = new Point(-_horizontalScrollBar.Value, -_verticalScrollBar.Value);
             if (!newScrollOffset.Equals(_htmlContainer.ScrollOffset))
             {
@@ -331,8 +331,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             }
         }
 
-        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs e)
-        {
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs e)
+    {
             base.OnPropertyChanged(e);
 
             // On text property change reset the scrollbars to zero.
@@ -342,6 +342,5 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia
             }
         }
 
-        #endregion
-    }
+    #endregion
 }

@@ -17,40 +17,40 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Dom;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Parse
+namespace TheArtOfDev.HtmlRenderer.Core.Parse;
+
+/// <summary>
+/// Parse CSS properties values like numbers, Urls, etc.
+/// </summary>
+internal sealed class CssValueParser
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Parse CSS properties values like numbers, Urls, etc.
+    /// 
     /// </summary>
-    internal sealed class CssValueParser
+    private readonly RAdapter _adapter;
+
+    #endregion
+
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public CssValueParser(RAdapter adapter)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private readonly RAdapter _adapter;
-
-        #endregion
-
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public CssValueParser(RAdapter adapter)
-        {
             ArgChecker.AssertArgNotNull(adapter, "global");
 
             _adapter = adapter;
         }
 
-        /// <summary>
-        /// Check if the given substring is a valid double number.
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>true - valid double number, false - otherwise</returns>
-        public static bool IsFloat(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Check if the given substring is a valid double number.
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>true - valid double number, false - otherwise</returns>
+    public static bool IsFloat(string str, int idx, int length)
+    {
             if (length < 1)
                 return false;
 
@@ -71,13 +71,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return true;
         }
 
-        /// <summary>
-        /// Check if the given substring is a valid double number.
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>true - valid int number, false - otherwise</returns>
-        public static bool IsInt(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Check if the given substring is a valid double number.
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>true - valid int number, false - otherwise</returns>
+    public static bool IsInt(string str, int idx, int length)
+    {
             if (length < 1)
                 return false;
 
@@ -89,13 +89,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return true;
         }
 
-        /// <summary>
-        /// Check if the given string is a valid length value.
-        /// </summary>
-        /// <param name="value">the string value to check</param>
-        /// <returns>true - valid, false - invalid</returns>
-        public static bool IsValidLength(string value)
-        {
+    /// <summary>
+    /// Check if the given string is a valid length value.
+    /// </summary>
+    /// <param name="value">the string value to check</param>
+    /// <returns>true - valid, false - invalid</returns>
+    public static bool IsValidLength(string value)
+    {
             if (value.Length > 1)
             {
                 string number = string.Empty;
@@ -113,14 +113,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return false;
         }
 
-        /// <summary>
-        /// Evals a number and returns it. If number is a percentage, it will be multiplied by <see cref="hundredPercent"/>
-        /// </summary>
-        /// <param name="number">Number to be parsed</param>
-        /// <param name="hundredPercent">Number that represents the 100% if parsed number is a percentage</param>
-        /// <returns>Parsed number. Zero if error while parsing.</returns>
-        public static double ParseNumber(string number, double hundredPercent)
-        {
+    /// <summary>
+    /// Evals a number and returns it. If number is a percentage, it will be multiplied by <see cref="hundredPercent"/>
+    /// </summary>
+    /// <param name="number">Number to be parsed</param>
+    /// <param name="hundredPercent">Number that represents the 100% if parsed number is a percentage</param>
+    /// <returns>Parsed number. Zero if error while parsing.</returns>
+    public static double ParseNumber(string number, double hundredPercent)
+    {
             if (string.IsNullOrEmpty(number))
             {
                 return 0f;
@@ -146,44 +146,44 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return result;
         }
 
-        /// <summary>
-        /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
-        /// </summary>
-        /// <param name="length">Specified length</param>
-        /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
-        /// <param name="fontAdjust">if the length is in pixels and the length is font related it needs to use 72/96 factor</param>
-        /// <param name="box"></param>
-        /// <returns>the parsed length value with adjustments</returns>
-        public static double ParseLength(string length, double hundredPercent, CssBoxProperties box, bool fontAdjust = false)
-        {
+    /// <summary>
+    /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
+    /// </summary>
+    /// <param name="length">Specified length</param>
+    /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
+    /// <param name="fontAdjust">if the length is in pixels and the length is font related it needs to use 72/96 factor</param>
+    /// <param name="box"></param>
+    /// <returns>the parsed length value with adjustments</returns>
+    public static double ParseLength(string length, double hundredPercent, CssBoxProperties box, bool fontAdjust = false)
+    {
             return ParseLength(length, hundredPercent, box.GetEmHeight(), null, fontAdjust, false);
         }
 
-        /// <summary>
-        /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
-        /// </summary>
-        /// <param name="length">Specified length</param>
-        /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
-        /// <param name="box"></param>
-        /// <param name="defaultUnit"></param>
-        /// <returns>the parsed length value with adjustments</returns>
-        public static double ParseLength(string length, double hundredPercent, CssBoxProperties box, string defaultUnit)
-        {
+    /// <summary>
+    /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
+    /// </summary>
+    /// <param name="length">Specified length</param>
+    /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
+    /// <param name="box"></param>
+    /// <param name="defaultUnit"></param>
+    /// <returns>the parsed length value with adjustments</returns>
+    public static double ParseLength(string length, double hundredPercent, CssBoxProperties box, string defaultUnit)
+    {
             return ParseLength(length, hundredPercent, box.GetEmHeight(), defaultUnit, false, false);
         }
 
-        /// <summary>
-        /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
-        /// </summary>
-        /// <param name="length">Specified length</param>
-        /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
-        /// <param name="emFactor"></param>
-        /// <param name="defaultUnit"></param>
-        /// <param name="fontAdjust">if the length is in pixels and the length is font related it needs to use 72/96 factor</param>
-        /// <param name="returnPoints">Allows the return double to be in points. If false, result will be pixels</param>
-        /// <returns>the parsed length value with adjustments</returns>
-        public static double ParseLength(string length, double hundredPercent, double emFactor, string defaultUnit, bool fontAdjust, bool returnPoints)
-        {
+    /// <summary>
+    /// Parses a length. Lengths are followed by an unit identifier (e.g. 10px, 3.1em)
+    /// </summary>
+    /// <param name="length">Specified length</param>
+    /// <param name="hundredPercent">Equivalent to 100 percent when length is percentage</param>
+    /// <param name="emFactor"></param>
+    /// <param name="defaultUnit"></param>
+    /// <param name="fontAdjust">if the length is in pixels and the length is font related it needs to use 72/96 factor</param>
+    /// <param name="returnPoints">Allows the return double to be in points. If false, result will be pixels</param>
+    /// <returns>the parsed length value with adjustments</returns>
+    public static double ParseLength(string length, double hundredPercent, double emFactor, string defaultUnit, bool fontAdjust, bool returnPoints)
+    {
             //Return zero if no length specified, zero specified
             if (string.IsNullOrEmpty(length) || length == "0")
                 return 0f;
@@ -243,11 +243,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return factor * ParseNumber(number, hundredPercent);
         }
 
-        /// <summary>
-        /// Get the unit to use for the length, use default if no unit found in length string.
-        /// </summary>
-        private static string GetUnit(string length, string defaultUnit, out bool hasUnit)
-        {
+    /// <summary>
+    /// Get the unit to use for the length, use default if no unit found in length string.
+    /// </summary>
+    private static string GetUnit(string length, string defaultUnit, out bool hasUnit)
+    {
             var unit = length.Length >= 3 ? length.Substring(length.Length - 2, 2) : string.Empty;
             switch (unit)
             {
@@ -269,39 +269,39 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return unit;
         }
 
-        /// <summary>
-        /// Check if the given color string value is valid.
-        /// </summary>
-        /// <param name="colorValue">color string value to parse</param>
-        /// <returns>true - valid, false - invalid</returns>
-        public bool IsColorValid(string colorValue)
-        {
+    /// <summary>
+    /// Check if the given color string value is valid.
+    /// </summary>
+    /// <param name="colorValue">color string value to parse</param>
+    /// <returns>true - valid, false - invalid</returns>
+    public bool IsColorValid(string colorValue)
+    {
             RColor color;
             return TryGetColor(colorValue, 0, colorValue.Length, out color);
         }
 
-        /// <summary>
-        /// Parses a color value in CSS style; e.g. #ff0000, red, rgb(255,0,0), rgb(100%, 0, 0)
-        /// </summary>
-        /// <param name="colorValue">color string value to parse</param>
-        /// <returns>Color value</returns>
-        public RColor GetActualColor(string colorValue)
-        {
+    /// <summary>
+    /// Parses a color value in CSS style; e.g. #ff0000, red, rgb(255,0,0), rgb(100%, 0, 0)
+    /// </summary>
+    /// <param name="colorValue">color string value to parse</param>
+    /// <returns>Color value</returns>
+    public RColor GetActualColor(string colorValue)
+    {
             RColor color;
             TryGetColor(colorValue, 0, colorValue.Length, out color);
             return color;
         }
 
-        /// <summary>
-        /// Parses a color value in CSS style; e.g. #ff0000, RED, RGB(255,0,0), RGB(100%, 0, 0)
-        /// </summary>
-        /// <param name="str">color substring value to parse</param>
-        /// <param name="idx">substring start idx </param>
-        /// <param name="length">substring length</param>
-        /// <param name="color">return the parsed color</param>
-        /// <returns>true - valid color, false - otherwise</returns>
-        public bool TryGetColor(string str, int idx, int length, out RColor color)
-        {
+    /// <summary>
+    /// Parses a color value in CSS style; e.g. #ff0000, RED, RGB(255,0,0), RGB(100%, 0, 0)
+    /// </summary>
+    /// <param name="str">color substring value to parse</param>
+    /// <param name="idx">substring start idx </param>
+    /// <param name="length">substring length</param>
+    /// <param name="color">return the parsed color</param>
+    /// <returns>true - valid color, false - otherwise</returns>
+    public bool TryGetColor(string str, int idx, int length, out RColor color)
+    {
             try
             {
                 if (!string.IsNullOrEmpty(str))
@@ -330,14 +330,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return false;
         }
 
-        /// <summary>
-        /// Parses a border value in CSS style; e.g. 1px, 1, thin, thick, medium
-        /// </summary>
-        /// <param name="borderValue"></param>
-        /// <param name="b"></param>
-        /// <returns></returns>
-        public static double GetActualBorderWidth(string borderValue, CssBoxProperties b)
-        {
+    /// <summary>
+    /// Parses a border value in CSS style; e.g. 1px, 1, thin, thick, medium
+    /// </summary>
+    /// <param name="borderValue"></param>
+    /// <param name="b"></param>
+    /// <returns></returns>
+    public static double GetActualBorderWidth(string borderValue, CssBoxProperties b)
+    {
             if (string.IsNullOrEmpty(borderValue))
             {
                 return GetActualBorderWidth(CssConstants.Medium, b);
@@ -357,14 +357,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Get color by parsing given hex value color string (#A28B34).
-        /// </summary>
-        /// <returns>true - valid color, false - otherwise</returns>
-        private static bool GetColorByHex(string str, int idx, int length, out RColor color)
-        {
+    /// <summary>
+    /// Get color by parsing given hex value color string (#A28B34).
+    /// </summary>
+    /// <returns>true - valid color, false - otherwise</returns>
+    private static bool GetColorByHex(string str, int idx, int length, out RColor color)
+    {
             int r = -1;
             int g = -1;
             int b = -1;
@@ -392,12 +392,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return false;
         }
 
-        /// <summary>
-        /// Get color by parsing given RGB value color string (RGB(255,180,90))
-        /// </summary>
-        /// <returns>true - valid color, false - otherwise</returns>
-        private static bool GetColorByRgb(string str, int idx, int length, out RColor color)
-        {
+    /// <summary>
+    /// Get color by parsing given RGB value color string (RGB(255,180,90))
+    /// </summary>
+    /// <returns>true - valid color, false - otherwise</returns>
+    private static bool GetColorByRgb(string str, int idx, int length, out RColor color)
+    {
             int r = -1;
             int g = -1;
             int b = -1;
@@ -425,12 +425,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return false;
         }
 
-        /// <summary>
-        /// Get color by parsing given RGBA value color string (RGBA(255,180,90,180))
-        /// </summary>
-        /// <returns>true - valid color, false - otherwise</returns>
-        private static bool GetColorByRgba(string str, int idx, int length, out RColor color)
-        {
+    /// <summary>
+    /// Get color by parsing given RGBA value color string (RGBA(255,180,90,180))
+    /// </summary>
+    /// <returns>true - valid color, false - otherwise</returns>
+    private static bool GetColorByRgba(string str, int idx, int length, out RColor color)
+    {
             int r = -1;
             int g = -1;
             int b = -1;
@@ -464,26 +464,26 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return false;
         }
 
-        /// <summary>
-        /// Get color by given name, including .NET name.
-        /// </summary>
-        /// <returns>true - valid color, false - otherwise</returns>
-        private bool GetColorByName(string str, int idx, int length, out RColor color)
-        {
+    /// <summary>
+    /// Get color by given name, including .NET name.
+    /// </summary>
+    /// <returns>true - valid color, false - otherwise</returns>
+    private bool GetColorByName(string str, int idx, int length, out RColor color)
+    {
             color = _adapter.GetColor(str.Substring(idx, length));
             return color.A > 0;
         }
 
-        /// <summary>
-        /// Parse the given decimal number string to positive int value.<br/>
-        /// Start at given <paramref name="startIdx"/>, ignore whitespaces and take
-        /// as many digits as possible to parse to int.
-        /// </summary>
-        /// <param name="str">the string to parse</param>
-        /// <param name="startIdx">the index to start parsing at</param>
-        /// <returns>parsed int or 0</returns>
-        private static int ParseIntAtIndex(string str, ref int startIdx)
-        {
+    /// <summary>
+    /// Parse the given decimal number string to positive int value.<br/>
+    /// Start at given <paramref name="startIdx"/>, ignore whitespaces and take
+    /// as many digits as possible to parse to int.
+    /// </summary>
+    /// <param name="str">the string to parse</param>
+    /// <param name="startIdx">the index to start parsing at</param>
+    /// <returns>parsed int or 0</returns>
+    private static int ParseIntAtIndex(string str, ref int startIdx)
+    {
             int len = 0;
             while (char.IsWhiteSpace(str, startIdx))
                 startIdx++;
@@ -494,13 +494,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return val;
         }
 
-        /// <summary>
-        /// Parse the given decimal number string to positive int value.
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>int value, -1 if not valid</returns>
-        private static int ParseInt(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Parse the given decimal number string to positive int value.
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>int value, -1 if not valid</returns>
+    private static int ParseInt(string str, int idx, int length)
+    {
             if (length < 1)
                 return -1;
 
@@ -516,13 +516,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return num;
         }
 
-        /// <summary>
-        /// Parse the given hex number string to positive int value.
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>int value, -1 if not valid</returns>
-        private static int ParseHexInt(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Parse the given hex number string to positive int value.
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>int value, -1 if not valid</returns>
+    private static int ParseHexInt(string str, int idx, int length)
+    {
             if (length < 1)
                 return -1;
 
@@ -538,6 +538,5 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return num;
         }
 
-        #endregion
-    }
+    #endregion
 }

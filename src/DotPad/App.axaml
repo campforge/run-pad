@@ -1,9 +1,9 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="dotpad.App"
-             xmlns:local="using:dotpad"
-             RequestedThemeVariant="Default">
-    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             x:Class="DotPad.App"
+             xmlns:local="using:DotPad"
+             RequestedThemeVariant="Dark">
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options Default. -->
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>

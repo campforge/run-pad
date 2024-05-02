@@ -10,17 +10,16 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace TheArtOfDev.HtmlRenderer.Adapters
+namespace TheArtOfDev.HtmlRenderer.Adapters;
+
+/// <summary>
+/// Adapter for platform specific font family object - define the available font families to use.<br/>
+/// Required for custom fonts handling: fonts that are not installed on the system.
+/// </summary>
+public abstract class RFontFamily
 {
     /// <summary>
-    /// Adapter for platform specific font family object - define the available font families to use.<br/>
-    /// Required for custom fonts handling: fonts that are not installed on the system.
+    /// Gets the name of this Font Family.
     /// </summary>
-    public abstract class RFontFamily
-    {
-        /// <summary>
-        /// Gets the name of this Font Family.
-        /// </summary>
-        public abstract string Name { get; }
-    }
+    public abstract string Name { get; }
 }

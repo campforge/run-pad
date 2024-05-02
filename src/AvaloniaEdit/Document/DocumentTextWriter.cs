@@ -20,59 +20,58 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace AvaloniaEdit.Document
+namespace AvaloniaEdit.Document;
+
+/// <summary>
+/// A TextWriter implementation that directly inserts into a document.
+/// </summary>
+public class DocumentTextWriter : TextWriter
 {
+    private readonly IDocument _document;
+
     /// <summary>
-    /// A TextWriter implementation that directly inserts into a document.
+    /// Creates a new DocumentTextWriter that inserts into document, starting at insertionOffset.
     /// </summary>
-    public class DocumentTextWriter : TextWriter
+    public DocumentTextWriter(IDocument document, int insertionOffset)
     {
-        private readonly IDocument _document;
-
-        /// <summary>
-        /// Creates a new DocumentTextWriter that inserts into document, starting at insertionOffset.
-        /// </summary>
-        public DocumentTextWriter(IDocument document, int insertionOffset)
+        InsertionOffset = insertionOffset;
+        _document = document ?? throw new ArgumentNullException(nameof(document));
+        var line = document.GetLineByOffset(insertionOffset);
+        if (line.DelimiterLength == 0)
+            line = line.PreviousLine;
+        if (line != null)
         {
-            InsertionOffset = insertionOffset;
-            _document = document ?? throw new ArgumentNullException(nameof(document));
-            var line = document.GetLineByOffset(insertionOffset);
-            if (line.DelimiterLength == 0)
-                line = line.PreviousLine;
-            if (line != null)
-            {
-                // ReSharper disable once VirtualMemberCallInConstructor
-                NewLine = document.GetText(line.EndOffset, line.DelimiterLength);
-            }
+            // ReSharper disable once VirtualMemberCallInConstructor
+            NewLine = document.GetText(line.EndOffset, line.DelimiterLength);
         }
-
-        /// <summary>
-        /// Gets/Sets the current insertion offset.
-        /// </summary>
-        public int InsertionOffset { get; set; }
-
-        /// <inheritdoc/>
-        public override void Write(char value)
-        {
-            _document.Insert(InsertionOffset, value.ToString());
-            InsertionOffset++;
-        }
-
-        /// <inheritdoc/>
-        public override void Write(char[] buffer, int index, int count)
-        {
-            _document.Insert(InsertionOffset, new string(buffer, index, count));
-            InsertionOffset += count;
-        }
-
-        /// <inheritdoc/>
-        public override void Write(string value)
-        {
-            _document.Insert(InsertionOffset, value);
-            InsertionOffset += value.Length;
-        }
-
-        /// <inheritdoc/>
-        public override Encoding Encoding => Encoding.UTF8;
     }
+
+    /// <summary>
+    /// Gets/Sets the current insertion offset.
+    /// </summary>
+    public int InsertionOffset { get; set; }
+
+    /// <inheritdoc/>
+    public override void Write(char value)
+    {
+        _document.Insert(InsertionOffset, value.ToString());
+        InsertionOffset++;
+    }
+
+    /// <inheritdoc/>
+    public override void Write(char[] buffer, int index, int count)
+    {
+        _document.Insert(InsertionOffset, new string(buffer, index, count));
+        InsertionOffset += count;
+    }
+
+    /// <inheritdoc/>
+    public override void Write(string value)
+    {
+        _document.Insert(InsertionOffset, value);
+        InsertionOffset += value.Length;
+    }
+
+    /// <inheritdoc/>
+    public override Encoding Encoding => Encoding.UTF8;
 }

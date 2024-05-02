@@ -15,108 +15,107 @@ using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using TheArtOfDev.HtmlRenderer.Adapters;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
+namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia Font.
+/// </summary>
+internal sealed class FontAdapter : RFont
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Adapter for Avalonia Font.
+    /// the underline win-forms font.
     /// </summary>
-    internal sealed class FontAdapter : RFont
+    private readonly Typeface _font;
+
+    /// <summary>
+    /// The glyph font for the font
+    /// </summary>
+    private readonly IGlyphTypeface _glyphTypeface;
+
+    /// <summary>
+    /// the size of the font
+    /// </summary>
+    private readonly double _size;
+
+    /// <summary>
+    /// the vertical offset of the font underline location from the top of the font.
+    /// </summary>
+    private readonly double _underlineOffset = -1;
+
+    /// <summary>
+    /// Cached font height.
+    /// </summary>
+    private readonly double _height = -1;
+
+    /// <summary>
+    /// Cached font whitespace width.
+    /// </summary>
+    private double _whitespaceWidth = -1;
+
+    #endregion
+
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public FontAdapter(Typeface font, double size)
     {
-        #region Fields and Consts
+        _font = font;
+        _size = size;
+        FontManager.Current.TryGetGlyphTypeface(font, out _glyphTypeface);
+        var emHeight = _glyphTypeface.Metrics.DesignEmHeight;
+        _height = 96d / 72d * (_size / emHeight) * _glyphTypeface.Metrics.LineSpacing;
+        _underlineOffset = 96d / 72d * (_size / emHeight) * (_glyphTypeface.Metrics.LineSpacing + _glyphTypeface.Metrics.UnderlinePosition);
 
-        /// <summary>
-        /// the underline win-forms font.
-        /// </summary>
-        private readonly Typeface _font;
+        TextRunProperties = new GenericTextRunProperties(font, 96d / 72d * size, null, null, null, BaselineAlignment.Baseline, CultureInfo.CurrentCulture);
+        TextParagraphProperties = new GenericTextParagraphProperties(TextRunProperties, textWrap: TextWrapping.Wrap);
+    }
 
-        /// <summary>
-        /// The glyph font for the font
-        /// </summary>
-        private readonly IGlyphTypeface _glyphTypeface;
+    internal TextRunProperties TextRunProperties { get; }
 
-        /// <summary>
-        /// the size of the font
-        /// </summary>
-        private readonly double _size;
+    internal TextParagraphProperties TextParagraphProperties { get; }
 
-        /// <summary>
-        /// the vertical offset of the font underline location from the top of the font.
-        /// </summary>
-        private readonly double _underlineOffset = -1;
+    /// <summary>
+    /// the underline win-forms font.
+    /// </summary>
+    public Typeface Font
+    {
+        get { return _font; }
+    }
 
-        /// <summary>
-        /// Cached font height.
-        /// </summary>
-        private readonly double _height = -1;
+    public IGlyphTypeface GlyphTypeface
+    {
+        get { return _glyphTypeface; }
+    }
 
-        /// <summary>
-        /// Cached font whitespace width.
-        /// </summary>
-        private double _whitespaceWidth = -1;
+    public override double Size
+    {
+        get { return _size; }
+    }
 
-        #endregion
+    public override double UnderlineOffset
+    {
+        get { return _underlineOffset; }
+    }
 
+    public override double Height
+    {
+        get { return _height; }
+    }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public FontAdapter(Typeface font, double size)
+    public override double LeftPadding
+    {
+        get { return _height / 6f; }
+    }
+
+    public override double GetWhitespaceWidth(RGraphics graphics)
+    {
+        if (_whitespaceWidth < 0)
         {
-            _font = font;
-            _size = size;
-            FontManager.Current.TryGetGlyphTypeface(font, out _glyphTypeface);
-            var emHeight = _glyphTypeface.Metrics.DesignEmHeight;
-            _height = 96d / 72d * (_size / emHeight) * _glyphTypeface.Metrics.LineSpacing;
-            _underlineOffset = 96d / 72d * (_size / emHeight) * (_glyphTypeface.Metrics.LineSpacing + _glyphTypeface.Metrics.UnderlinePosition);
-
-            TextRunProperties = new GenericTextRunProperties(font, 96d / 72d * size, null, null, null, BaselineAlignment.Baseline, CultureInfo.CurrentCulture);
-            TextParagraphProperties = new GenericTextParagraphProperties(TextRunProperties, textWrap: TextWrapping.Wrap);
+            _whitespaceWidth = graphics.MeasureString(" ", this).Width;
         }
-
-        internal TextRunProperties TextRunProperties { get; }
-
-        internal TextParagraphProperties TextParagraphProperties { get; }
-
-        /// <summary>
-        /// the underline win-forms font.
-        /// </summary>
-        public Typeface Font
-        {
-            get { return _font; }
-        }
-
-        public IGlyphTypeface GlyphTypeface
-        {
-            get { return _glyphTypeface; }
-        }
-
-        public override double Size
-        {
-            get { return _size; }
-        }
-
-        public override double UnderlineOffset
-        {
-            get { return _underlineOffset; }
-        }
-
-        public override double Height
-        {
-            get { return _height; }
-        }
-
-        public override double LeftPadding
-        {
-            get { return _height / 6f; }
-        }
-
-        public override double GetWhitespaceWidth(RGraphics graphics)
-        {
-            if (_whitespaceWidth < 0)
-            {
-                _whitespaceWidth = graphics.MeasureString(" ", this).Width;
-            }
-            return _whitespaceWidth;
-        }
+        return _whitespaceWidth;
     }
 }

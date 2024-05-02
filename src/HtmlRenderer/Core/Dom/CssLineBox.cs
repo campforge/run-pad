@@ -15,32 +15,32 @@ using System.Collections.Generic;
 using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// Represents a line of text.
+/// </summary>
+/// <remarks>
+/// To learn more about line-boxes see CSS spec:
+/// http://www.w3.org/TR/CSS21/visuren.html
+/// </remarks>
+internal sealed class CssLineBox
 {
+    #region Fields and Consts
+
+    private readonly List<CssRect> _words;
+    private readonly CssBox _ownerBox;
+    private readonly Dictionary<CssBox, RRect> _rects;
+    private readonly List<CssBox> _relatedBoxes;
+
+    #endregion
+
+
     /// <summary>
-    /// Represents a line of text.
+    /// Creates a new LineBox
     /// </summary>
-    /// <remarks>
-    /// To learn more about line-boxes see CSS spec:
-    /// http://www.w3.org/TR/CSS21/visuren.html
-    /// </remarks>
-    internal sealed class CssLineBox
+    public CssLineBox(CssBox ownerBox)
     {
-        #region Fields and Consts
-
-        private readonly List<CssRect> _words;
-        private readonly CssBox _ownerBox;
-        private readonly Dictionary<CssBox, RRect> _rects;
-        private readonly List<CssBox> _relatedBoxes;
-
-        #endregion
-
-
-        /// <summary>
-        /// Creates a new LineBox
-        /// </summary>
-        public CssLineBox(CssBox ownerBox)
-        {
             _rects = new Dictionary<CssBox, RRect>();
             _relatedBoxes = new List<CssBox>();
             _words = new List<CssRect>();
@@ -48,46 +48,46 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             _ownerBox.LineBoxes.Add(this);
         }
 
-        /// <summary>
-        /// Gets a list of boxes related with the linebox. 
-        /// To know the words of the box inside this linebox, use the <see cref="WordsOf"/> method.
-        /// </summary>
-        public List<CssBox> RelatedBoxes
-        {
-            get { return _relatedBoxes; }
-        }
+    /// <summary>
+    /// Gets a list of boxes related with the linebox. 
+    /// To know the words of the box inside this linebox, use the <see cref="WordsOf"/> method.
+    /// </summary>
+    public List<CssBox> RelatedBoxes
+    {
+        get { return _relatedBoxes; }
+    }
 
-        /// <summary>
-        /// Gets the words inside the linebox
-        /// </summary>
-        public List<CssRect> Words
-        {
-            get { return _words; }
-        }
+    /// <summary>
+    /// Gets the words inside the linebox
+    /// </summary>
+    public List<CssRect> Words
+    {
+        get { return _words; }
+    }
 
-        /// <summary>
-        /// Gets the owner box
-        /// </summary>
-        public CssBox OwnerBox
-        {
-            get { return _ownerBox; }
-        }
+    /// <summary>
+    /// Gets the owner box
+    /// </summary>
+    public CssBox OwnerBox
+    {
+        get { return _ownerBox; }
+    }
 
-        /// <summary>
-        /// Gets a List of rectangles that are to be painted on this linebox
-        /// </summary>
-        public Dictionary<CssBox, RRect> Rectangles
-        {
-            get { return _rects; }
-        }
+    /// <summary>
+    /// Gets a List of rectangles that are to be painted on this linebox
+    /// </summary>
+    public Dictionary<CssBox, RRect> Rectangles
+    {
+        get { return _rects; }
+    }
 
-        /// <summary>
-        /// Get the height of this box line (the max height of all the words)
-        /// </summary>
-        public double LineHeight
+    /// <summary>
+    /// Get the height of this box line (the max height of all the words)
+    /// </summary>
+    public double LineHeight
+    {
+        get
         {
-            get
-            {
                 double height = 0;
                 foreach (var rect in _rects)
                 {
@@ -95,15 +95,15 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 }
                 return height;
             }
-        }
+    }
 
-        /// <summary>
-        /// Get the bottom of this box line (the max bottom of all the words)
-        /// </summary>
-        public double LineBottom
+    /// <summary>
+    /// Get the bottom of this box line (the max bottom of all the words)
+    /// </summary>
+    public double LineBottom
+    {
+        get
         {
-            get
-            {
                 double bottom = 0;
                 foreach (var rect in _rects)
                 {
@@ -111,14 +111,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 }
                 return bottom;
             }
-        }
+    }
 
-        /// <summary>
-        /// Lets the linebox add the word an its box to their lists if necessary.
-        /// </summary>
-        /// <param name="word"></param>
-        internal void ReportExistanceOf(CssRect word)
-        {
+    /// <summary>
+    /// Lets the linebox add the word an its box to their lists if necessary.
+    /// </summary>
+    /// <param name="word"></param>
+    internal void ReportExistanceOf(CssRect word)
+    {
             if (!Words.Contains(word))
             {
                 Words.Add(word);
@@ -130,13 +130,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Return the words of the specified box that live in this linebox
-        /// </summary>
-        /// <param name="box"></param>
-        /// <returns></returns>
-        internal List<CssRect> WordsOf(CssBox box)
-        {
+    /// <summary>
+    /// Return the words of the specified box that live in this linebox
+    /// </summary>
+    /// <param name="box"></param>
+    /// <returns></returns>
+    internal List<CssRect> WordsOf(CssBox box)
+    {
             List<CssRect> r = new List<CssRect>();
 
             foreach (CssRect word in Words)
@@ -146,16 +146,16 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return r;
         }
 
-        /// <summary>
-        /// Updates the specified rectangle of the specified box.
-        /// </summary>
-        /// <param name="box"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <param name="r"></param>
-        /// <param name="b"></param>
-        internal void UpdateRectangle(CssBox box, double x, double y, double r, double b)
-        {
+    /// <summary>
+    /// Updates the specified rectangle of the specified box.
+    /// </summary>
+    /// <param name="box"></param>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="r"></param>
+    /// <param name="b"></param>
+    internal void UpdateRectangle(CssBox box, double x, double y, double r, double b)
+    {
             double leftspacing = box.ActualBorderLeftWidth + box.ActualPaddingLeft;
             double rightspacing = box.ActualBorderRightWidth + box.ActualPaddingRight;
             double topspacing = box.ActualBorderTopWidth + box.ActualPaddingTop;
@@ -191,25 +191,25 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Copies the rectangles to their specified box
-        /// </summary>
-        internal void AssignRectanglesToBoxes()
-        {
+    /// <summary>
+    /// Copies the rectangles to their specified box
+    /// </summary>
+    internal void AssignRectanglesToBoxes()
+    {
             foreach (CssBox b in Rectangles.Keys)
             {
                 b.Rectangles.Add(this, Rectangles[b]);
             }
         }
 
-        /// <summary>
-        /// Sets the baseline of the words of the specified box to certain height
-        /// </summary>
-        /// <param name="g">Device info</param>
-        /// <param name="b">box to check words</param>
-        /// <param name="baseline">baseline</param>
-        internal void SetBaseLine(RGraphics g, CssBox b, double baseline)
-        {
+    /// <summary>
+    /// Sets the baseline of the words of the specified box to certain height
+    /// </summary>
+    /// <param name="g">Device info</param>
+    /// <param name="b">box to check words</param>
+    /// <param name="baseline">baseline</param>
+    internal void SetBaseLine(RGraphics g, CssBox b, double baseline)
+    {
             //TODO: Aqui me quede, checar poniendo "by the" con un font-size de 3em
             List<CssRect> ws = WordsOf(b);
 
@@ -257,14 +257,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Check if the given word is the last selected word in the line.<br/>
-        /// It can either be the last word in the line or the next word has no selection.
-        /// </summary>
-        /// <param name="word">the word to check</param>
-        /// <returns></returns>
-        public bool IsLastSelectedWord(CssRect word)
-        {
+    /// <summary>
+    /// Check if the given word is the last selected word in the line.<br/>
+    /// It can either be the last word in the line or the next word has no selection.
+    /// </summary>
+    /// <param name="word">the word to check</param>
+    /// <returns></returns>
+    public bool IsLastSelectedWord(CssRect word)
+    {
             for (int i = 0; i < _words.Count - 1; i++)
             {
                 if (_words[i] == word)
@@ -276,12 +276,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return true;
         }
 
-        /// <summary>
-        /// Returns the words of the linebox
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
+    /// <summary>
+    /// Returns the words of the linebox
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString()
+    {
             string[] ws = new string[Words.Count];
             for (int i = 0; i < ws.Length; i++)
             {
@@ -289,5 +289,4 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
             return string.Join(" ", ws);
         }
-    }
 }

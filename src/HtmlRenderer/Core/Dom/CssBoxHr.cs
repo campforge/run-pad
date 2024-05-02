@@ -16,31 +16,31 @@ using TheArtOfDev.HtmlRenderer.Core.Handlers;
 using TheArtOfDev.HtmlRenderer.Core.Parse;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// CSS box for hr element.
+/// </summary>
+internal sealed class CssBoxHr : CssBox
 {
     /// <summary>
-    /// CSS box for hr element.
+    /// Init.
     /// </summary>
-    internal sealed class CssBoxHr : CssBox
+    /// <param name="parent">the parent box of this box</param>
+    /// <param name="tag">the html tag data of this box</param>
+    public CssBoxHr(CssBox parent, HtmlTag tag)
+        : base(parent, tag)
     {
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="parent">the parent box of this box</param>
-        /// <param name="tag">the html tag data of this box</param>
-        public CssBoxHr(CssBox parent, HtmlTag tag)
-            : base(parent, tag)
-        {
             Display = CssConstants.Block;
         }
 
-        /// <summary>
-        /// Measures the bounds of box and children, recursively.<br/>
-        /// Performs layout of the DOM structure creating lines by set bounds restrictions.
-        /// </summary>
-        /// <param name="g">Device context to use</param>
-        protected override void PerformLayoutImp(RGraphics g)
-        {
+    /// <summary>
+    /// Measures the bounds of box and children, recursively.<br/>
+    /// Performs layout of the DOM structure creating lines by set bounds restrictions.
+    /// </summary>
+    /// <param name="g">Device context to use</param>
+    protected override void PerformLayoutImp(RGraphics g)
+    {
             if (Display == CssConstants.None)
                 return;
 
@@ -89,12 +89,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             ActualBottom = Location.Y + ActualPaddingTop + ActualPaddingBottom + height;
         }
 
-        /// <summary>
-        /// Paints the fragment
-        /// </summary>
-        /// <param name="g">the device to draw to</param>
-        protected override void PaintImp(RGraphics g)
-        {
+    /// <summary>
+    /// Paints the fragment
+    /// </summary>
+    /// <param name="g">the device to draw to</param>
+    protected override void PaintImp(RGraphics g)
+    {
             var offset = (HtmlContainer != null && !IsFixed) ? HtmlContainer.ScrollOffset : RPoint.Empty;
             var rect = new RRect(Bounds.X + offset.X, Bounds.Y + offset.Y, Bounds.Width, Bounds.Height);
 
@@ -118,5 +118,4 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 BordersDrawHandler.DrawBorder(Border.Bottom, g, this, b4, rect);
             }
         }
-    }
 }

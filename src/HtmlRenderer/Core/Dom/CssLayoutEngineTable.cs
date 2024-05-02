@@ -18,72 +18,72 @@ using TheArtOfDev.HtmlRenderer.Core.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Parse;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// Layout engine for tables executing the complex layout of tables with rows/columns/headers/etc.
+/// </summary>
+internal sealed class CssLayoutEngineTable
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Layout engine for tables executing the complex layout of tables with rows/columns/headers/etc.
+    /// the main box of the table
     /// </summary>
-    internal sealed class CssLayoutEngineTable
+    private readonly CssBox _tableBox;
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private CssBox _caption;
+
+    private CssBox _headerBox;
+
+    private CssBox _footerBox;
+
+    /// <summary>
+    /// collection of all rows boxes
+    /// </summary>
+    private readonly List<CssBox> _bodyrows = new List<CssBox>();
+
+    /// <summary>
+    /// collection of all columns boxes
+    /// </summary>
+    private readonly List<CssBox> _columns = new List<CssBox>();
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private readonly List<CssBox> _allRows = new List<CssBox>();
+
+    private int _columnCount;
+
+    private bool _widthSpecified;
+
+    private double[] _columnWidths;
+
+    private double[] _columnMinWidths;
+
+    #endregion
+
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    /// <param name="tableBox"></param>
+    private CssLayoutEngineTable(CssBox tableBox)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// the main box of the table
-        /// </summary>
-        private readonly CssBox _tableBox;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private CssBox _caption;
-
-        private CssBox _headerBox;
-
-        private CssBox _footerBox;
-
-        /// <summary>
-        /// collection of all rows boxes
-        /// </summary>
-        private readonly List<CssBox> _bodyrows = new List<CssBox>();
-
-        /// <summary>
-        /// collection of all columns boxes
-        /// </summary>
-        private readonly List<CssBox> _columns = new List<CssBox>();
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private readonly List<CssBox> _allRows = new List<CssBox>();
-
-        private int _columnCount;
-
-        private bool _widthSpecified;
-
-        private double[] _columnWidths;
-
-        private double[] _columnMinWidths;
-
-        #endregion
-
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="tableBox"></param>
-        private CssLayoutEngineTable(CssBox tableBox)
-        {
             _tableBox = tableBox;
         }
 
-        /// <summary>
-        /// Get the table cells spacing for all the cells in the table.<br/>
-        /// Used to calculate the spacing the table has in addition to regular padding and borders.
-        /// </summary>
-        /// <param name="tableBox">the table box to calculate the spacing for</param>
-        /// <returns>the calculated spacing</returns>
-        public static double GetTableSpacing(CssBox tableBox)
-        {
+    /// <summary>
+    /// Get the table cells spacing for all the cells in the table.<br/>
+    /// Used to calculate the spacing the table has in addition to regular padding and borders.
+    /// </summary>
+    /// <param name="tableBox">the table box to calculate the spacing for</param>
+    /// <returns>the calculated spacing</returns>
+    public static double GetTableSpacing(CssBox tableBox)
+    {
             int count = 0;
             int columns = 0;
             foreach (var box in tableBox.Boxes)
@@ -116,13 +116,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return (columns + 1) * GetHorizontalSpacing(tableBox);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="g"></param>
-        /// <param name="tableBox"> </param>
-        public static void PerformLayout(RGraphics g, CssBox tableBox)
-        {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="g"></param>
+    /// <param name="tableBox"> </param>
+    public static void PerformLayout(RGraphics g, CssBox tableBox)
+    {
             ArgChecker.AssertArgNotNull(g, "g");
             ArgChecker.AssertArgNotNull(tableBox, "tableBox");
 
@@ -138,21 +138,20 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
         }
 
 
-        #region Private Methods
+    #region Private Methods
 
-        /// <summary>
-        /// Analyzes the Table and assigns values to this CssTable object.
-        /// To be called from the constructor
-        /// </summary>
-        private void Layout(RGraphics g)
-        {
+    /// <summary>
+    /// Analyzes the Table and assigns values to this CssTable object.
+    /// To be called from the constructor
+    /// </summary>
+    private void Layout(RGraphics g)
+    {
             MeasureWords(_tableBox, g);
 
             // get the table boxes into the proper fields
             AssignBoxKinds();
 
-            // Insert EmptyBoxes for vertical cell spanning. 
-            InsertEmptyBoxes();
+            // Insert EmptyBoxes for vertical cell spanning.      InsertEmptyBoxes();
 
             // Determine Row and Column Count, and ColumnWidths
             var availCellSpace = CalculateCountAndWidth();
@@ -172,11 +171,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             LayoutCells(g);
         }
 
-        /// <summary>
-        /// Get the table boxes into the proper fields.
-        /// </summary>
-        private void AssignBoxKinds()
-        {
+    /// <summary>
+    /// Get the table boxes into the proper fields.
+    /// </summary>
+    private void AssignBoxKinds()
+    {
             foreach (var box in _tableBox.Boxes)
             {
                 switch (box.Display)
@@ -241,11 +240,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 _allRows.AddRange(_footerBox.Boxes);
         }
 
-        /// <summary>
-        /// Insert EmptyBoxes for vertical cell spanning.
-        /// </summary>
-        private void InsertEmptyBoxes()
-        {
+    /// <summary>
+    /// Insert EmptyBoxes for vertical cell spanning.
+    /// </summary>
+    private void InsertEmptyBoxes()
+    {
             if (!_tableBox._tableFixed)
             {
                 int currow = 0;
@@ -284,12 +283,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Determine Row and Column Count, and ColumnWidths
-        /// </summary>
-        /// <returns></returns>
-        private double CalculateCountAndWidth()
-        {
+    /// <summary>
+    /// Determine Row and Column Count, and ColumnWidths
+    /// </summary>
+    /// <returns></returns>
+    private double CalculateCountAndWidth()
+    {
             //Columns
             if (_columns.Count > 0)
             {
@@ -358,12 +357,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return availCellSpace;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="availCellSpace"></param>
-        private void DetermineMissingColumnWidths(double availCellSpace)
-        {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="availCellSpace"></param>
+    private void DetermineMissingColumnWidths(double availCellSpace)
+    {
             double occupedSpace = 0f;
             if (_widthSpecified) //If a width was specified,
             {
@@ -469,12 +468,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// While table width is larger than it should, and width is reductable.<br/>
-        /// If table max width is limited by we need to lower the columns width even if it will result in clipping<br/>
-        /// </summary>
-        private void EnforceMaximumSize()
-        {
+    /// <summary>
+    /// While table width is larger than it should, and width is reductable.<br/>
+    /// If table max width is limited by we need to lower the columns width even if it will result in clipping<br/>
+    /// </summary>
+    private void EnforceMaximumSize()
+    {
             int curCol = 0;
             var widthSum = GetWidthSum();
             while (widthSum > GetAvailableTableWidth() && CanReduceWidth())
@@ -573,11 +572,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Check for minimum sizes (increment widths if necessary)
-        /// </summary>
-        private void EnforceMinimumSize()
-        {
+    /// <summary>
+    /// Check for minimum sizes (increment widths if necessary)
+    /// </summary>
+    private void EnforceMinimumSize()
+    {
             foreach (CssBox row in _allRows)
             {
                 foreach (CssBox cell in row.Boxes)
@@ -600,12 +599,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Layout the cells by the calculated table layout
-        /// </summary>
-        /// <param name="g"></param>
-        private void LayoutCells(RGraphics g)
-        {
+    /// <summary>
+    /// Layout the cells by the calculated table layout
+    /// </summary>
+    /// <param name="g"></param>
+    private void LayoutCells(RGraphics g)
+    {
             double startx = Math.Max(_tableBox.ClientLeft + GetHorizontalSpacing(), 0);
             double starty = Math.Max(_tableBox.ClientTop + GetVerticalSpacing(), 0);
             double cury = starty;
@@ -710,11 +709,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             _tableBox.ActualBottom = Math.Max(maxBottom, starty) + GetVerticalSpacing() + _tableBox.ActualBorderBottomWidth;
         }
 
-        /// <summary>
-        /// Gets the spanned width of a cell (With of all columns it spans minus one).
-        /// </summary>
-        private double GetSpannedMinWidth(CssBox row, CssBox cell, int realcolindex, int colspan)
-        {
+    /// <summary>
+    /// Gets the spanned width of a cell (With of all columns it spans minus one).
+    /// </summary>
+    private double GetSpannedMinWidth(CssBox row, CssBox cell, int realcolindex, int colspan)
+    {
             double w = 0f;
             for (int i = realcolindex; i < row.Boxes.Count || i < realcolindex + colspan - 1; i++)
             {
@@ -724,14 +723,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return w;
         }
 
-        /// <summary>
-        /// Gets the cell column index checking its position and other cells colspans
-        /// </summary>
-        /// <param name="row"></param>
-        /// <param name="cell"></param>
-        /// <returns></returns>
-        private static int GetCellRealColumnIndex(CssBox row, CssBox cell)
-        {
+    /// <summary>
+    /// Gets the cell column index checking its position and other cells colspans
+    /// </summary>
+    /// <param name="row"></param>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    private static int GetCellRealColumnIndex(CssBox row, CssBox cell)
+    {
             int i = 0;
 
             foreach (CssBox b in row.Boxes)
@@ -744,14 +743,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return i;
         }
 
-        /// <summary>
-        /// Gets the cells width, taking colspan and being in the specified column
-        /// </summary>
-        /// <param name="column"></param>
-        /// <param name="b"></param>
-        /// <returns></returns>
-        private double GetCellWidth(int column, CssBox b)
-        {
+    /// <summary>
+    /// Gets the cells width, taking colspan and being in the specified column
+    /// </summary>
+    /// <param name="column"></param>
+    /// <param name="b"></param>
+    /// <returns></returns>
+    private double GetCellWidth(int column, CssBox b)
+    {
             double colspan = Convert.ToSingle(GetColSpan(b));
             double sum = 0f;
 
@@ -769,12 +768,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return sum; // -b.ActualBorderLeftWidth - b.ActualBorderRightWidth - b.ActualPaddingRight - b.ActualPaddingLeft;
         }
 
-        /// <summary>
-        /// Gets the colspan of the specified box
-        /// </summary>
-        /// <param name="b"></param>
-        private static int GetColSpan(CssBox b)
-        {
+    /// <summary>
+    /// Gets the colspan of the specified box
+    /// </summary>
+    /// <param name="b"></param>
+    private static int GetColSpan(CssBox b)
+    {
             string att = b.GetAttribute("colspan", "1");
             int colspan;
 
@@ -786,12 +785,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return colspan;
         }
 
-        /// <summary>
-        /// Gets the rowspan of the specified box
-        /// </summary>
-        /// <param name="b"></param>
-        private static int GetRowSpan(CssBox b)
-        {
+    /// <summary>
+    /// Gets the rowspan of the specified box
+    /// </summary>
+    /// <param name="b"></param>
+    private static int GetRowSpan(CssBox b)
+    {
             string att = b.GetAttribute("rowspan", "1");
             int rowspan;
 
@@ -803,13 +802,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return rowspan;
         }
 
-        /// <summary>
-        /// Recursively measures words inside the box
-        /// </summary>
-        /// <param name="box">the box to measure</param>
-        /// <param name="g">Device to use</param>
-        private static void MeasureWords(CssBox box, RGraphics g)
-        {
+    /// <summary>
+    /// Recursively measures words inside the box
+    /// </summary>
+    /// <param name="box">the box to measure</param>
+    /// <param name="g">Device to use</param>
+    private static void MeasureWords(CssBox box, RGraphics g)
+    {
             if (box != null)
             {
                 foreach (var childBox in box.Boxes)
@@ -820,13 +819,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Tells if the columns widths can be reduced,
-        /// by checking the minimum widths of all cells
-        /// </summary>
-        /// <returns></returns>
-        private bool CanReduceWidth()
-        {
+    /// <summary>
+    /// Tells if the columns widths can be reduced,
+    /// by checking the minimum widths of all cells
+    /// </summary>
+    /// <returns></returns>
+    private bool CanReduceWidth()
+    {
             for (int i = 0; i < _columnWidths.Length; i++)
             {
                 if (CanReduceWidth(i))
@@ -838,30 +837,30 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return false;
         }
 
-        /// <summary>
-        /// Tells if the specified column can be reduced,
-        /// by checking its minimum width
-        /// </summary>
-        /// <param name="columnIndex"></param>
-        /// <returns></returns>
-        private bool CanReduceWidth(int columnIndex)
-        {
+    /// <summary>
+    /// Tells if the specified column can be reduced,
+    /// by checking its minimum width
+    /// </summary>
+    /// <param name="columnIndex"></param>
+    /// <returns></returns>
+    private bool CanReduceWidth(int columnIndex)
+    {
             if (_columnWidths.Length >= columnIndex || GetColumnMinWidths().Length >= columnIndex)
                 return false;
             return _columnWidths[columnIndex] > GetColumnMinWidths()[columnIndex];
         }
 
-        /// <summary>
-        /// Gets the available width for the whole table.
-        /// It also sets the value of WidthSpecified
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>
-        /// The table's width can be larger than the result of this method, because of the minimum 
-        /// size that individual boxes.
-        /// </remarks>
-        private double GetAvailableTableWidth()
-        {
+    /// <summary>
+    /// Gets the available width for the whole table.
+    /// It also sets the value of WidthSpecified
+    /// </summary>
+    /// <returns></returns>
+    /// <remarks>
+    /// The table's width can be larger than the result of this method, because of the minimum 
+    /// size that individual boxes.
+    /// </remarks>
+    private double GetAvailableTableWidth()
+    {
             CssLength tblen = new CssLength(_tableBox.Width);
 
             if (tblen.Number > 0)
@@ -875,17 +874,17 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Gets the available width for the whole table.
-        /// It also sets the value of WidthSpecified
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>
-        /// The table's width can be larger than the result of this method, because of the minimum 
-        /// size that individual boxes.
-        /// </remarks>
-        private double GetMaxTableWidth()
-        {
+    /// <summary>
+    /// Gets the available width for the whole table.
+    /// It also sets the value of WidthSpecified
+    /// </summary>
+    /// <returns></returns>
+    /// <remarks>
+    /// The table's width can be larger than the result of this method, because of the minimum 
+    /// size that individual boxes.
+    /// </remarks>
+    private double GetMaxTableWidth()
+    {
             var tblen = new CssLength(_tableBox.MaxWidth);
             if (tblen.Number > 0)
             {
@@ -898,16 +897,16 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Calculate the min and max width for each column of the table by the content in all rows.<br/>
-        /// the min width possible without clipping content<br/>
-        /// the max width the cell content can take without wrapping<br/>
-        /// </summary>
-        /// <param name="onlyNans">if to measure only columns that have no calculated width</param>
-        /// <param name="minFullWidths">return the min width for each column - the min width possible without clipping content</param>
-        /// <param name="maxFullWidths">return the max width for each column - the max width the cell content can take without wrapping</param>
-        private void GetColumnsMinMaxWidthByContent(bool onlyNans, out double[] minFullWidths, out double[] maxFullWidths)
-        {
+    /// <summary>
+    /// Calculate the min and max width for each column of the table by the content in all rows.<br/>
+    /// the min width possible without clipping content<br/>
+    /// the max width the cell content can take without wrapping<br/>
+    /// </summary>
+    /// <param name="onlyNans">if to measure only columns that have no calculated width</param>
+    /// <param name="minFullWidths">return the min width for each column - the min width possible without clipping content</param>
+    /// <param name="maxFullWidths">return the max width for each column - the max width the cell content can take without wrapping</param>
+    private void GetColumnsMinMaxWidthByContent(bool onlyNans, out double[] minFullWidths, out double[] maxFullWidths)
+    {
             maxFullWidths = new double[_columnWidths.Length];
             minFullWidths = new double[_columnWidths.Length];
 
@@ -936,24 +935,24 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        /// <summary>
-        /// Gets the width available for cells
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>
-        /// It takes away the cell-spacing from <see cref="GetAvailableTableWidth"/>
-        /// </remarks>
-        private double GetAvailableCellWidth()
-        {
+    /// <summary>
+    /// Gets the width available for cells
+    /// </summary>
+    /// <returns></returns>
+    /// <remarks>
+    /// It takes away the cell-spacing from <see cref="GetAvailableTableWidth"/>
+    /// </remarks>
+    private double GetAvailableCellWidth()
+    {
             return GetAvailableTableWidth() - GetHorizontalSpacing() * (_columnCount + 1) - _tableBox.ActualBorderLeftWidth - _tableBox.ActualBorderRightWidth;
         }
 
-        /// <summary>
-        /// Gets the current sum of column widths
-        /// </summary>
-        /// <returns></returns>
-        private double GetWidthSum()
-        {
+    /// <summary>
+    /// Gets the current sum of column widths
+    /// </summary>
+    /// <returns></returns>
+    private double GetWidthSum()
+    {
             double f = 0f;
 
             foreach (double t in _columnWidths)
@@ -973,22 +972,22 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return f;
         }
 
-        /// <summary>
-        /// Gets the span attribute of the tag of the specified box
-        /// </summary>
-        /// <param name="b"></param>
-        private static int GetSpan(CssBox b)
-        {
+    /// <summary>
+    /// Gets the span attribute of the tag of the specified box
+    /// </summary>
+    /// <param name="b"></param>
+    private static int GetSpan(CssBox b)
+    {
             double f = CssValueParser.ParseNumber(b.GetAttribute("span"), 1);
 
             return Math.Max(1, Convert.ToInt32(f));
         }
 
-        /// <summary>
-        /// Gets the minimum width of each column
-        /// </summary>
-        private double[] GetColumnMinWidths()
-        {
+    /// <summary>
+    /// Gets the minimum width of each column
+    /// </summary>
+    private double[] GetColumnMinWidths()
+    {
             if (_columnMinWidths == null)
             {
                 _columnMinWidths = new double[_columnWidths.Length];
@@ -1010,30 +1009,29 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return _columnMinWidths;
         }
 
-        /// <summary>
-        /// Gets the actual horizontal spacing of the table
-        /// </summary>
-        private double GetHorizontalSpacing()
-        {
+    /// <summary>
+    /// Gets the actual horizontal spacing of the table
+    /// </summary>
+    private double GetHorizontalSpacing()
+    {
             return _tableBox.BorderCollapse == CssConstants.Collapse ? -1f : _tableBox.ActualBorderSpacingHorizontal;
         }
 
-        /// <summary>
-        /// Gets the actual horizontal spacing of the table
-        /// </summary>
-        private static double GetHorizontalSpacing(CssBox box)
-        {
+    /// <summary>
+    /// Gets the actual horizontal spacing of the table
+    /// </summary>
+    private static double GetHorizontalSpacing(CssBox box)
+    {
             return box.BorderCollapse == CssConstants.Collapse ? -1f : box.ActualBorderSpacingHorizontal;
         }
 
-        /// <summary>
-        /// Gets the actual vertical spacing of the table
-        /// </summary>
-        private double GetVerticalSpacing()
-        {
+    /// <summary>
+    /// Gets the actual vertical spacing of the table
+    /// </summary>
+    private double GetVerticalSpacing()
+    {
             return _tableBox.BorderCollapse == CssConstants.Collapse ? -1f : _tableBox.ActualBorderSpacingVertical;
         }
 
-        #endregion
-    }
+    #endregion
 }

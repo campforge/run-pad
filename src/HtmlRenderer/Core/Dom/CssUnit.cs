@@ -10,24 +10,23 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// Represents the possible units of the CSS lengths
+/// </summary>
+/// <remarks>
+/// http://www.w3.org/TR/CSS21/syndata.html#length-units
+/// </remarks>
+internal enum CssUnit
 {
-    /// <summary>
-    /// Represents the possible units of the CSS lengths
-    /// </summary>
-    /// <remarks>
-    /// http://www.w3.org/TR/CSS21/syndata.html#length-units
-    /// </remarks>
-    internal enum CssUnit
-    {
-        None,
-        Ems,
-        Pixels,
-        Ex,
-        Inches,
-        Centimeters,
-        Milimeters,
-        Points,
-        Picas
-    }
+    None,
+    Ems,
+    Pixels,
+    Ex,
+    Inches,
+    Centimeters,
+    Milimeters,
+    Points,
+    Picas
 }

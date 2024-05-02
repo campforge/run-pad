@@ -21,149 +21,148 @@ using System.Collections.Generic;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Editing
+namespace AvaloniaEdit.Editing;
+
+/// <summary>
+/// A simple selection.
+/// </summary>
+public sealed class SimpleSelection : Selection
 {
+    private readonly TextViewPosition _start;
+    private readonly TextViewPosition _end;
+    private readonly int _startOffset;
+    private readonly int _endOffset;
+
     /// <summary>
-    /// A simple selection.
+    /// Creates a new SimpleSelection instance.
     /// </summary>
-    public sealed class SimpleSelection : Selection
+    internal SimpleSelection(TextArea textArea, TextViewPosition start, TextViewPosition end)
+        : base(textArea)
     {
-        private readonly TextViewPosition _start;
-        private readonly TextViewPosition _end;
-        private readonly int _startOffset;
-        private readonly int _endOffset;
+        _start = start;
+        _end = end;
+        _startOffset = textArea.Document.GetOffset(start.Location);
+        _endOffset = textArea.Document.GetOffset(end.Location);
+    }
 
-        /// <summary>
-        /// Creates a new SimpleSelection instance.
-        /// </summary>
-        internal SimpleSelection(TextArea textArea, TextViewPosition start, TextViewPosition end)
-            : base(textArea)
+    /// <inheritdoc/>
+    public override IEnumerable<SelectionSegment> Segments => ExtensionMethods.Sequence(new SelectionSegment(_startOffset, _start.VisualColumn, _endOffset, _end.VisualColumn));
+
+    /// <inheritdoc/>
+    public override ISegment SurroundingSegment => new SelectionSegment(_startOffset, _endOffset);
+
+    /// <inheritdoc/>
+    public override void ReplaceSelectionWithText(string newText)
+    {
+        if (newText == null)
+            throw new ArgumentNullException(nameof(newText));
+        using (TextArea.Document.RunUpdate())
         {
-            _start = start;
-            _end = end;
-            _startOffset = textArea.Document.GetOffset(start.Location);
-            _endOffset = textArea.Document.GetOffset(end.Location);
-        }
-
-        /// <inheritdoc/>
-        public override IEnumerable<SelectionSegment> Segments => ExtensionMethods.Sequence(new SelectionSegment(_startOffset, _start.VisualColumn, _endOffset, _end.VisualColumn));
-
-        /// <inheritdoc/>
-        public override ISegment SurroundingSegment => new SelectionSegment(_startOffset, _endOffset);
-
-        /// <inheritdoc/>
-        public override void ReplaceSelectionWithText(string newText)
-        {
-            if (newText == null)
-                throw new ArgumentNullException(nameof(newText));
-            using (TextArea.Document.RunUpdate())
+            var segmentsToDelete = TextArea.GetDeletableSegments(SurroundingSegment);
+            for (var i = segmentsToDelete.Length - 1; i >= 0; i--)
             {
-                var segmentsToDelete = TextArea.GetDeletableSegments(SurroundingSegment);
-                for (var i = segmentsToDelete.Length - 1; i >= 0; i--)
+                if (i == segmentsToDelete.Length - 1)
                 {
-                    if (i == segmentsToDelete.Length - 1)
+                    if (segmentsToDelete[i].Offset == SurroundingSegment.Offset && segmentsToDelete[i].Length == SurroundingSegment.Length)
                     {
-                        if (segmentsToDelete[i].Offset == SurroundingSegment.Offset && segmentsToDelete[i].Length == SurroundingSegment.Length)
-                        {
-                            newText = AddSpacesIfRequired(newText, _start, _end);
-                        }
-                        if (string.IsNullOrEmpty(newText))
-                        {
-                            // place caret at the beginning of the selection
-                            // ReSharper disable once ImpureMethodCallOnReadonlyValueField
-                            TextArea.Caret.Position = _start.CompareTo(_end) <= 0 ? _start : _end;
-                        }
-                        else
-                        {
-                            // place caret so that it ends up behind the new text
-                            TextArea.Caret.Offset = segmentsToDelete[i].EndOffset;
-                        }
-                        TextArea.Document.Replace(segmentsToDelete[i], newText);
+                        newText = AddSpacesIfRequired(newText, _start, _end);
+                    }
+                    if (string.IsNullOrEmpty(newText))
+                    {
+                        // place caret at the beginning of the selection
+                        // ReSharper disable once ImpureMethodCallOnReadonlyValueField
+                        TextArea.Caret.Position = _start.CompareTo(_end) <= 0 ? _start : _end;
                     }
                     else
                     {
-                        TextArea.Document.Remove(segmentsToDelete[i]);
+                        // place caret so that it ends up behind the new text
+                        TextArea.Caret.Offset = segmentsToDelete[i].EndOffset;
                     }
+                    TextArea.Document.Replace(segmentsToDelete[i], newText);
                 }
-                if (segmentsToDelete.Length != 0)
+                else
                 {
-                    TextArea.ClearSelection();
+                    TextArea.Document.Remove(segmentsToDelete[i]);
                 }
             }
-        }
-
-        public override TextViewPosition StartPosition => _start;
-
-        public override TextViewPosition EndPosition => _end;
-
-        /// <inheritdoc/>
-        public override Selection UpdateOnDocumentChange(DocumentChangeEventArgs e)
-        {
-            if (e == null)
-                throw new ArgumentNullException(nameof(e));
-            int newStartOffset, newEndOffset;
-            if (_startOffset <= _endOffset)
+            if (segmentsToDelete.Length != 0)
             {
-                newStartOffset = e.GetNewOffset(_startOffset);
-                newEndOffset = Math.Max(newStartOffset, e.GetNewOffset(_endOffset, AnchorMovementType.BeforeInsertion));
-            }
-            else
-            {
-                newEndOffset = e.GetNewOffset(_endOffset);
-                newStartOffset = Math.Max(newEndOffset, e.GetNewOffset(_startOffset, AnchorMovementType.BeforeInsertion));
-            }
-            return Create(
-                TextArea,
-                new TextViewPosition(TextArea.Document.GetLocation(newStartOffset), _start.VisualColumn),
-                new TextViewPosition(TextArea.Document.GetLocation(newEndOffset), _end.VisualColumn)
-            );
-        }
-
-        /// <inheritdoc/>
-        public override bool IsEmpty => _startOffset == _endOffset && _start.VisualColumn == _end.VisualColumn;
-
-        /// <inheritdoc/>
-        public override int Length => Math.Abs(_endOffset - _startOffset);
-
-        /// <inheritdoc/>
-        public override Selection SetEndpoint(TextViewPosition endPosition)
-        {
-            return Create(TextArea, _start, endPosition);
-        }
-
-        public override Selection StartSelectionOrSetEndpoint(TextViewPosition startPosition, TextViewPosition endPosition)
-        {
-            var document = TextArea.Document;
-            if (document == null)
-                throw ThrowUtil.NoDocumentAssigned();
-            return Create(TextArea, _start, endPosition);
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return _startOffset * 27811 + _endOffset + TextArea.GetHashCode();
+                TextArea.ClearSelection();
             }
         }
+    }
 
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            var other = obj as SimpleSelection;
-            if (other == null) return false;
-            // ReSharper disable ImpureMethodCallOnReadonlyValueField
-            return _start.Equals(other._start) && _end.Equals(other._end)
-                && _startOffset == other._startOffset && _endOffset == other._endOffset
-                && TextArea == other.TextArea;
-            // ReSharper restore ImpureMethodCallOnReadonlyValueField
-        }
+    public override TextViewPosition StartPosition => _start;
 
-        /// <inheritdoc/>
-        public override string ToString()
+    public override TextViewPosition EndPosition => _end;
+
+    /// <inheritdoc/>
+    public override Selection UpdateOnDocumentChange(DocumentChangeEventArgs e)
+    {
+        if (e == null)
+            throw new ArgumentNullException(nameof(e));
+        int newStartOffset, newEndOffset;
+        if (_startOffset <= _endOffset)
         {
-            return "[SimpleSelection Start=" + _start + " End=" + _end + "]";
+            newStartOffset = e.GetNewOffset(_startOffset);
+            newEndOffset = Math.Max(newStartOffset, e.GetNewOffset(_endOffset, AnchorMovementType.BeforeInsertion));
         }
+        else
+        {
+            newEndOffset = e.GetNewOffset(_endOffset);
+            newStartOffset = Math.Max(newEndOffset, e.GetNewOffset(_startOffset, AnchorMovementType.BeforeInsertion));
+        }
+        return Create(
+            TextArea,
+            new TextViewPosition(TextArea.Document.GetLocation(newStartOffset), _start.VisualColumn),
+            new TextViewPosition(TextArea.Document.GetLocation(newEndOffset), _end.VisualColumn)
+        );
+    }
+
+    /// <inheritdoc/>
+    public override bool IsEmpty => _startOffset == _endOffset && _start.VisualColumn == _end.VisualColumn;
+
+    /// <inheritdoc/>
+    public override int Length => Math.Abs(_endOffset - _startOffset);
+
+    /// <inheritdoc/>
+    public override Selection SetEndpoint(TextViewPosition endPosition)
+    {
+        return Create(TextArea, _start, endPosition);
+    }
+
+    public override Selection StartSelectionOrSetEndpoint(TextViewPosition startPosition, TextViewPosition endPosition)
+    {
+        var document = TextArea.Document;
+        if (document == null)
+            throw ThrowUtil.NoDocumentAssigned();
+        return Create(TextArea, _start, endPosition);
+    }
+
+    /// <inheritdoc/>
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            return _startOffset * 27811 + _endOffset + TextArea.GetHashCode();
+        }
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(object obj)
+    {
+        var other = obj as SimpleSelection;
+        if (other == null) return false;
+        // ReSharper disable ImpureMethodCallOnReadonlyValueField
+        return _start.Equals(other._start) && _end.Equals(other._end)
+                                           && _startOffset == other._startOffset && _endOffset == other._endOffset
+                                           && TextArea == other.TextArea;
+        // ReSharper restore ImpureMethodCallOnReadonlyValueField
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return "[SimpleSelection Start=" + _start + " End=" + _end + "]";
     }
 }

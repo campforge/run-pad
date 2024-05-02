@@ -21,109 +21,108 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+/// <summary>
+/// TextReader implementation that reads text from a rope.
+/// </summary>
+public sealed class RopeTextReader : TextReader
 {
+    private readonly Stack<RopeNode<char>> _stack = new Stack<RopeNode<char>>();
+    private RopeNode<char> _currentNode;
+    private int _indexInsideNode;
+
     /// <summary>
-    /// TextReader implementation that reads text from a rope.
+    /// Creates a new RopeTextReader.
+    /// Internally, this method creates a Clone of the rope; so the text reader will always read through the old
+    /// version of the rope if it is modified. <seealso cref="Rope{T}.Clone()"/>
     /// </summary>
-    public sealed class RopeTextReader : TextReader
+    public RopeTextReader(Rope<char> rope)
     {
-        private readonly Stack<RopeNode<char>> _stack = new Stack<RopeNode<char>>();
-        private RopeNode<char> _currentNode;
-        private int _indexInsideNode;
+        if (rope == null)
+            throw new ArgumentNullException(nameof(rope));
 
-        /// <summary>
-        /// Creates a new RopeTextReader.
-        /// Internally, this method creates a Clone of the rope; so the text reader will always read through the old
-        /// version of the rope if it is modified. <seealso cref="Rope{T}.Clone()"/>
-        /// </summary>
-        public RopeTextReader(Rope<char> rope)
+        // We force the user to iterate through a clone of the rope to keep the API contract of RopeTextReader simple
+        // (what happens when a rope is modified while iterating through it?)
+        rope.Root.Publish();
+
+        // special case for the empty rope:
+        // leave currentNode initialized to null (RopeTextReader doesn't support empty nodes)
+        if (rope.Length != 0)
         {
-            if (rope == null)
-                throw new ArgumentNullException(nameof(rope));
-
-            // We force the user to iterate through a clone of the rope to keep the API contract of RopeTextReader simple
-            // (what happens when a rope is modified while iterating through it?)
-            rope.Root.Publish();
-
-            // special case for the empty rope:
-            // leave currentNode initialized to null (RopeTextReader doesn't support empty nodes)
-            if (rope.Length != 0)
-            {
-                _currentNode = rope.Root;
-                GoToLeftMostLeaf();
-            }
+            _currentNode = rope.Root;
+            GoToLeftMostLeaf();
         }
+    }
 
-        private void GoToLeftMostLeaf()
+    private void GoToLeftMostLeaf()
+    {
+        while (_currentNode.Contents == null)
         {
-            while (_currentNode.Contents == null)
+            if (_currentNode.Height == 0)
             {
-                if (_currentNode.Height == 0)
-                {
-                    // this is a function node - move to its contained rope
-                    _currentNode = _currentNode.GetContentNode();
-                    continue;
-                }
-                Debug.Assert(_currentNode.Right != null);
-                _stack.Push(_currentNode.Right);
-                _currentNode = _currentNode.Left;
+                // this is a function node - move to its contained rope
+                _currentNode = _currentNode.GetContentNode();
+                continue;
             }
-            Debug.Assert(_currentNode.Height == 0);
+            Debug.Assert(_currentNode.Right != null);
+            _stack.Push(_currentNode.Right);
+            _currentNode = _currentNode.Left;
         }
+        Debug.Assert(_currentNode.Height == 0);
+    }
 
-        /// <inheritdoc/>
-        public override int Peek()
+    /// <inheritdoc/>
+    public override int Peek()
+    {
+        if (_currentNode == null)
+            return -1;
+        return _currentNode.Contents[_indexInsideNode];
+    }
+
+    /// <inheritdoc/>
+    public override int Read()
+    {
+        if (_currentNode == null)
+            return -1;
+        char result = _currentNode.Contents[_indexInsideNode++];
+        if (_indexInsideNode >= _currentNode.Length)
+            GoToNextNode();
+        return result;
+    }
+
+    private void GoToNextNode()
+    {
+        if (_stack.Count == 0)
         {
-            if (_currentNode == null)
-                return -1;
-            return _currentNode.Contents[_indexInsideNode];
+            _currentNode = null;
         }
-
-        /// <inheritdoc/>
-        public override int Read()
+        else
         {
-            if (_currentNode == null)
-                return -1;
-            char result = _currentNode.Contents[_indexInsideNode++];
-            if (_indexInsideNode >= _currentNode.Length)
-                GoToNextNode();
-            return result;
+            _indexInsideNode = 0;
+            _currentNode = _stack.Pop();
+            GoToLeftMostLeaf();
         }
+    }
 
-        private void GoToNextNode()
+    /// <inheritdoc/>
+    public override int Read(char[] buffer, int index, int count)
+    {
+        if (_currentNode == null)
+            return 0;
+        int amountInCurrentNode = _currentNode.Length - _indexInsideNode;
+        if (count < amountInCurrentNode)
         {
-            if (_stack.Count == 0)
-            {
-                _currentNode = null;
-            }
-            else
-            {
-                _indexInsideNode = 0;
-                _currentNode = _stack.Pop();
-                GoToLeftMostLeaf();
-            }
+            Array.Copy(_currentNode.Contents, _indexInsideNode, buffer, index, count);
+            _indexInsideNode += count;
+            return count;
         }
-
-        /// <inheritdoc/>
-        public override int Read(char[] buffer, int index, int count)
+        else
         {
-            if (_currentNode == null)
-                return 0;
-            int amountInCurrentNode = _currentNode.Length - _indexInsideNode;
-            if (count < amountInCurrentNode)
-            {
-                Array.Copy(_currentNode.Contents, _indexInsideNode, buffer, index, count);
-                _indexInsideNode += count;
-                return count;
-            }
-            else
-            {
-                // read to end of current node
-                Array.Copy(_currentNode.Contents, _indexInsideNode, buffer, index, amountInCurrentNode);
-                GoToNextNode();
-                return amountInCurrentNode;
-            }
+            // read to end of current node
+            Array.Copy(_currentNode.Contents, _indexInsideNode, buffer, index, amountInCurrentNode);
+            GoToNextNode();
+            return amountInCurrentNode;
         }
     }
 }

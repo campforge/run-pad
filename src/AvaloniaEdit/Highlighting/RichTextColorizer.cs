@@ -20,34 +20,33 @@ using System;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace AvaloniaEdit.Highlighting
+namespace AvaloniaEdit.Highlighting;
+
+/// <summary>
+/// A colorizer that applies the highlighting from a <see cref="RichTextModel"/> to the editor.
+/// </summary>
+public class RichTextColorizer : DocumentColorizingTransformer
 {
+    private readonly RichTextModel _richTextModel;
+
     /// <summary>
-    /// A colorizer that applies the highlighting from a <see cref="RichTextModel"/> to the editor.
+    /// Creates a new RichTextColorizer instance.
     /// </summary>
-    public class RichTextColorizer : DocumentColorizingTransformer
+    public RichTextColorizer(RichTextModel richTextModel)
     {
-        private readonly RichTextModel _richTextModel;
+        _richTextModel = richTextModel ?? throw new ArgumentNullException(nameof(richTextModel));
+    }
 
-        /// <summary>
-        /// Creates a new RichTextColorizer instance.
-        /// </summary>
-        public RichTextColorizer(RichTextModel richTextModel)
+    /// <inheritdoc/>
+    protected override void ColorizeLine(DocumentLine line)
+    {
+        var sections = _richTextModel.GetHighlightedSections(line.Offset, line.Length);
+        foreach (var section in sections)
         {
-            _richTextModel = richTextModel ?? throw new ArgumentNullException(nameof(richTextModel));
-        }
-
-        /// <inheritdoc/>
-        protected override void ColorizeLine(DocumentLine line)
-        {
-            var sections = _richTextModel.GetHighlightedSections(line.Offset, line.Length);
-            foreach (var section in sections)
-            {
-                if (HighlightingColorizer.IsEmptyColor(section.Color))
-                    continue;
-                ChangeLinePart(section.Offset, section.Offset + section.Length,
-                               visualLineElement => HighlightingColorizer.ApplyColorToElement(visualLineElement, section.Color, CurrentContext));
-            }
+            if (HighlightingColorizer.IsEmptyColor(section.Color))
+                continue;
+            ChangeLinePart(section.Offset, section.Offset + section.Length,
+                visualLineElement => HighlightingColorizer.ApplyColorToElement(visualLineElement, section.Color, CurrentContext));
         }
     }
 }

@@ -18,34 +18,33 @@
 
 using AvaloniaEdit.Document;
 
-namespace AvaloniaEdit.Highlighting
+namespace AvaloniaEdit.Highlighting;
+
+/// <summary>
+/// A text section with syntax highlighting information.
+/// </summary>
+public class HighlightedSection : ISegment
 {
     /// <summary>
-    /// A text section with syntax highlighting information.
+    /// Gets/sets the document offset of the section.
     /// </summary>
-    public class HighlightedSection : ISegment
+    public int Offset { get; set; }
+
+    /// <summary>
+    /// Gets/sets the length of the section.
+    /// </summary>
+    public int Length { get; set; }
+
+    int ISegment.EndOffset => Offset + Length;
+
+    /// <summary>
+    /// Gets the highlighting color associated with the highlighted section.
+    /// </summary>
+    public HighlightingColor Color { get; set; }
+
+    /// <inheritdoc/>
+    public override string ToString()
     {
-        /// <summary>
-        /// Gets/sets the document offset of the section.
-        /// </summary>
-        public int Offset { get; set; }
-
-        /// <summary>
-        /// Gets/sets the length of the section.
-        /// </summary>
-        public int Length { get; set; }
-
-        int ISegment.EndOffset => Offset + Length;
-
-        /// <summary>
-        /// Gets the highlighting color associated with the highlighted section.
-        /// </summary>
-        public HighlightingColor Color { get; set; }
-
-        /// <inheritdoc/>
-        public override string ToString()
-        {
-            return $"[HighlightedSection ({Offset}-{Offset + Length})={Color}]";
-        }
+        return $"[HighlightedSection ({Offset}-{Offset + Length})={Color}]";
     }
 }

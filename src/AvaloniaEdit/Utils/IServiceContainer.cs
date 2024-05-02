@@ -1,61 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+public interface IServiceContainer : IServiceProvider
 {
-    public interface IServiceContainer : IServiceProvider
-    {
-        void AddService(Type serviceType, object serviceInstance);
+    void AddService(Type serviceType, object serviceInstance);
 
-        void RemoveService(Type serviceType);
+    void RemoveService(Type serviceType);
+}
+
+public static class ServiceExtensions
+{
+    public static T GetService<T>(this IServiceProvider provider) where T : class
+    {
+        return provider.GetService(typeof(T)) as T;
     }
 
-    public static class ServiceExtensions
+    public static void AddService<T>(this IServiceContainer container, T serviceInstance)
     {
-        public static T GetService<T>(this IServiceProvider provider) where T : class
-        {
-            return provider.GetService(typeof(T)) as T;
-        }
+        if (container == null) throw new ArgumentNullException(nameof(container));
 
-        public static void AddService<T>(this IServiceContainer container, T serviceInstance)
-        {
-            if (container == null) throw new ArgumentNullException(nameof(container));
-
-            container.AddService(typeof(T), serviceInstance);
-        }
-
-        public static void RemoveService<T>(this IServiceContainer container)
-        {
-            if (container == null) throw new ArgumentNullException(nameof(container));
-
-            container.RemoveService(typeof(T));
-        }
+        container.AddService(typeof(T), serviceInstance);
     }
 
-    internal class ServiceContainer : IServiceContainer
+    public static void RemoveService<T>(this IServiceContainer container)
     {
-        private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
+        if (container == null) throw new ArgumentNullException(nameof(container));
 
-        public ServiceContainer()
-        {
-            _services.Add(typeof(IServiceProvider), this);
-            _services.Add(typeof(IServiceContainer), this);
-        }
+        container.RemoveService(typeof(T));
+    }
+}
 
-        public object GetService(Type serviceType)
-        {
-            _services.TryGetValue(serviceType, out var service);
-            return service;
-        }
+internal class ServiceContainer : IServiceContainer
+{
+    private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
 
-        public void AddService(Type serviceType, object serviceInstance)
-        {
-            _services[serviceType] = serviceInstance;
-        }
+    public ServiceContainer()
+    {
+        _services.Add(typeof(IServiceProvider), this);
+        _services.Add(typeof(IServiceContainer), this);
+    }
 
-        public void RemoveService(Type serviceType)
-        {
-            _services.Remove(serviceType);
-        }
+    public object GetService(Type serviceType)
+    {
+        _services.TryGetValue(serviceType, out var service);
+        return service;
+    }
+
+    public void AddService(Type serviceType, object serviceInstance)
+    {
+        _services[serviceType] = serviceInstance;
+    }
+
+    public void RemoveService(Type serviceType)
+    {
+        _services.Remove(serviceType);
     }
 }

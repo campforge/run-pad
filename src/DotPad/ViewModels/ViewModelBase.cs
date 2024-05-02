@@ -1,8 +1,7 @@
 ﻿using ReactiveUI;
 
-namespace dotpad.ViewModels
+namespace DotPad.ViewModels;
+
+public class ViewModelBase : ReactiveObject
 {
-    public class ViewModelBase : ReactiveObject
-    {
-    }
 }

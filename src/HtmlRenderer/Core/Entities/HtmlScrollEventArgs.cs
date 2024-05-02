@@ -13,47 +13,46 @@
 using System;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Entities
+namespace TheArtOfDev.HtmlRenderer.Core.Entities;
+
+/// <summary>
+/// Raised when Html Renderer request scroll to specific location.<br/>
+/// This can occur on document anchor click.
+/// </summary>
+public sealed class HtmlScrollEventArgs : EventArgs
 {
     /// <summary>
-    /// Raised when Html Renderer request scroll to specific location.<br/>
-    /// This can occur on document anchor click.
+    /// the location to scroll to
     /// </summary>
-    public sealed class HtmlScrollEventArgs : EventArgs
+    private readonly RPoint _location;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    /// <param name="location">the location to scroll to</param>
+    public HtmlScrollEventArgs(RPoint location)
     {
-        /// <summary>
-        /// the location to scroll to
-        /// </summary>
-        private readonly RPoint _location;
+        _location = location;
+    }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="location">the location to scroll to</param>
-        public HtmlScrollEventArgs(RPoint location)
-        {
-            _location = location;
-        }
+    /// <summary>
+    /// the x location to scroll to
+    /// </summary>
+    public double X
+    {
+        get { return _location.X; }
+    }
 
-        /// <summary>
-        /// the x location to scroll to
-        /// </summary>
-        public double X
-        {
-            get { return _location.X; }
-        }
+    /// <summary>
+    /// the x location to scroll to
+    /// </summary>
+    public double Y
+    {
+        get { return _location.Y; }
+    }
 
-        /// <summary>
-        /// the x location to scroll to
-        /// </summary>
-        public double Y
-        {
-            get { return _location.Y; }
-        }
-
-        public override string ToString()
-        {
-            return string.Format("Location: {0}", _location);
-        }
+    public override string ToString()
+    {
+        return string.Format("Location: {0}", _location);
     }
 }

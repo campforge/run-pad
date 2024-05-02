@@ -18,15 +18,14 @@
 
 using System.ComponentModel;
 
-namespace AvaloniaEdit.Utils
-{
-    /// <summary>
-    /// WeakEventManager for INotifyPropertyChanged.PropertyChanged.
-    /// </summary>
-    internal sealed class PropertyChangedWeakEventManager : WeakEventManagerBase<PropertyChangedWeakEventManager, INotifyPropertyChanged, PropertyChangedEventHandler, PropertyChangedEventArgs>
-    {
-        protected override void StartListening(INotifyPropertyChanged source) => source.PropertyChanged += DeliverEvent;
+namespace AvaloniaEdit.Utils;
 
-        protected override void StopListening(INotifyPropertyChanged source) => source.PropertyChanged -= DeliverEvent;
-    }
+/// <summary>
+/// WeakEventManager for INotifyPropertyChanged.PropertyChanged.
+/// </summary>
+internal sealed class PropertyChangedWeakEventManager : WeakEventManagerBase<PropertyChangedWeakEventManager, INotifyPropertyChanged, PropertyChangedEventHandler, PropertyChangedEventArgs>
+{
+    protected override void StartListening(INotifyPropertyChanged source) => source.PropertyChanged += DeliverEvent;
+
+    protected override void StopListening(INotifyPropertyChanged source) => source.PropertyChanged -= DeliverEvent;
 }

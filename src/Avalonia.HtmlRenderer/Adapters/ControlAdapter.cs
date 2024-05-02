@@ -17,90 +17,89 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
+namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia Control for core.
+/// </summary>
+internal sealed class ControlAdapter : RControl
 {
+    private readonly AvaloniaAdapter _avaloniaAdapter;
+
     /// <summary>
-    /// Adapter for Avalonia Control for core.
+    /// the underline Avalonia control.
     /// </summary>
-    internal sealed class ControlAdapter : RControl
+    private readonly Control _control;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public ControlAdapter(AvaloniaAdapter avaloniaAdapter, Control control)
+        : base(avaloniaAdapter)
     {
-        private readonly AvaloniaAdapter _avaloniaAdapter;
+        ArgChecker.AssertArgNotNull(control, "control");
 
-        /// <summary>
-        /// the underline Avalonia control.
-        /// </summary>
-        private readonly Control _control;
+        _avaloniaAdapter = avaloniaAdapter;
+        _control = control;
+    }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public ControlAdapter(AvaloniaAdapter avaloniaAdapter, Control control)
-            : base(avaloniaAdapter)
+    /// <summary>
+    /// Get the underline Avalonia control
+    /// </summary>
+    public Control Control
+    {
+        get { return _control; }
+    }
+
+    public override RPoint MouseLocation
+    {
+        get { return Utils.Convert((_control as HtmlControl)?.LastPointerArgs?.GetPosition(null) ?? default); }
+    }
+
+    public override bool LeftMouseButton
+    {
+        get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsLeftButtonPressed ?? false; }
+    }
+
+    public override bool RightMouseButton
+    {
+        get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsRightButtonPressed ?? false; }
+    }
+
+    public override void SetCursorDefault()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Arrow);
+    }
+
+    public override void SetCursorHand()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Hand);
+    }
+
+    public override void SetCursorIBeam()
+    {
+        _control.Cursor = new Cursor(StandardCursorType.Ibeam);
+    }
+
+    public override void DoDragDropCopy(object dragDropData)
+    {
+        var args = (_control as HtmlControl)?.LastPointerArgs;
+        if (args != null)
         {
-            ArgChecker.AssertArgNotNull(control, "control");
-
-            _avaloniaAdapter = avaloniaAdapter;
-            _control = control;
+            DragDrop.DoDragDrop(args, (IDataObject)dragDropData, DragDropEffects.Copy);
         }
+    }
 
-        /// <summary>
-        /// Get the underline Avalonia control
-        /// </summary>
-        public Control Control
+    public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
+    {
+        using (var g = new GraphicsAdapter(_avaloniaAdapter))
         {
-            get { return _control; }
+            g.MeasureString(str, font, maxWidth, out charFit, out charFitWidth);
         }
+    }
 
-        public override RPoint MouseLocation
-        {
-            get { return Utils.Convert((_control as HtmlControl)?.LastPointerArgs?.GetPosition(null) ?? default); }
-        }
-
-        public override bool LeftMouseButton
-        {
-            get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsLeftButtonPressed ?? false; }
-        }
-
-        public override bool RightMouseButton
-        {
-            get { return (_control as HtmlControl)?.LastPointerArgs?.GetCurrentPoint(null).Properties.IsRightButtonPressed ?? false; }
-        }
-
-        public override void SetCursorDefault()
-        {
-            _control.Cursor = new Cursor(StandardCursorType.Arrow);
-        }
-
-        public override void SetCursorHand()
-        {
-            _control.Cursor = new Cursor(StandardCursorType.Hand);
-        }
-
-        public override void SetCursorIBeam()
-        {
-            _control.Cursor = new Cursor(StandardCursorType.Ibeam);
-        }
-
-        public override void DoDragDropCopy(object dragDropData)
-        {
-            var args = (_control as HtmlControl)?.LastPointerArgs;
-            if (args != null)
-            {
-                DragDrop.DoDragDrop(args, (IDataObject)dragDropData, DragDropEffects.Copy);
-            }
-        }
-
-        public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
-        {
-            using (var g = new GraphicsAdapter(_avaloniaAdapter))
-            {
-                g.MeasureString(str, font, maxWidth, out charFit, out charFitWidth);
-            }
-        }
-
-        public override void Invalidate()
-        {
-            _control.InvalidateVisual();
-        }
+    public override void Invalidate()
+    {
+        _control.InvalidateVisual();
     }
 }

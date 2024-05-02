@@ -16,59 +16,59 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Handlers;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// CSS box for image element.
+/// </summary>
+internal sealed class CssBoxImage : CssBox
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// CSS box for image element.
+    /// the image word of this image box
     /// </summary>
-    internal sealed class CssBoxImage : CssBox
+    private readonly CssRectImage _imageWord;
+
+    /// <summary>
+    /// handler used for image loading by source
+    /// </summary>
+    private ImageLoadHandler _imageLoadHandler;
+
+    /// <summary>
+    /// is image load is finished, used to know if no image is found
+    /// </summary>
+    private bool _imageLoadingComplete;
+
+    #endregion
+
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    /// <param name="parent">the parent box of this box</param>
+    /// <param name="tag">the html tag data of this box</param>
+    public CssBoxImage(CssBox parent, HtmlTag tag)
+        : base(parent, tag)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// the image word of this image box
-        /// </summary>
-        private readonly CssRectImage _imageWord;
-
-        /// <summary>
-        /// handler used for image loading by source
-        /// </summary>
-        private ImageLoadHandler _imageLoadHandler;
-
-        /// <summary>
-        /// is image load is finished, used to know if no image is found
-        /// </summary>
-        private bool _imageLoadingComplete;
-
-        #endregion
-
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="parent">the parent box of this box</param>
-        /// <param name="tag">the html tag data of this box</param>
-        public CssBoxImage(CssBox parent, HtmlTag tag)
-            : base(parent, tag)
-        {
             _imageWord = new CssRectImage(this);
             Words.Add(_imageWord);
         }
 
-        /// <summary>
-        /// Get the image of this image box.
-        /// </summary>
-        public RImage Image
-        {
-            get { return _imageWord.Image; }
-        }
+    /// <summary>
+    /// Get the image of this image box.
+    /// </summary>
+    public RImage Image
+    {
+        get { return _imageWord.Image; }
+    }
 
-        /// <summary>
-        /// Paints the fragment
-        /// </summary>
-        /// <param name="g">the device to draw to</param>
-        protected override void PaintImp(RGraphics g)
-        {
+    /// <summary>
+    /// Paints the fragment
+    /// </summary>
+    /// <param name="g">the device to draw to</param>
+    protected override void PaintImp(RGraphics g)
+    {
             // load image if it is in visible rectangle
             if (_imageLoadHandler == null)
             {
@@ -131,12 +131,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
                 g.PopClip();
         }
 
-        /// <summary>
-        /// Assigns words its width and height
-        /// </summary>
-        /// <param name="g">the device to use</param>
-        internal override void MeasureWordsSize(RGraphics g)
-        {
+    /// <summary>
+    /// Assigns words its width and height
+    /// </summary>
+    /// <param name="g">the device to use</param>
+    internal override void MeasureWordsSize(RGraphics g)
+    {
             if (!_wordsSizeMeasured)
             {
                 if (_imageLoadHandler == null && (HtmlContainer.AvoidAsyncImagesLoading || HtmlContainer.AvoidImagesLateLoading))
@@ -156,36 +156,36 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             CssLayoutEngine.MeasureImageSize(_imageWord);
         }
 
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        public override void Dispose()
-        {
+    /// <summary>
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    /// </summary>
+    public override void Dispose()
+    {
             if (_imageLoadHandler != null)
                 _imageLoadHandler.Dispose();
             base.Dispose();
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Set error image border on the image box.
-        /// </summary>
-        private void SetErrorBorder()
-        {
+    /// <summary>
+    /// Set error image border on the image box.
+    /// </summary>
+    private void SetErrorBorder()
+    {
             SetAllBorders(CssConstants.Solid, "2px", "#A0A0A0");
             BorderRightColor = BorderBottomColor = "#E3E3E3";
         }
 
-        /// <summary>
-        /// On image load process is complete with image or without update the image box.
-        /// </summary>
-        /// <param name="image">the image loaded or null if failed</param>
-        /// <param name="rectangle">the source rectangle to draw in the image (empty - draw everything)</param>
-        /// <param name="async">is the callback was called async to load image call</param>
-        private void OnLoadImageComplete(RImage image, RRect rectangle, bool async)
-        {
+    /// <summary>
+    /// On image load process is complete with image or without update the image box.
+    /// </summary>
+    /// <param name="image">the image loaded or null if failed</param>
+    /// <param name="rectangle">the source rectangle to draw in the image (empty - draw everything)</param>
+    /// <param name="async">is the callback was called async to load image call</param>
+    private void OnLoadImageComplete(RImage image, RRect rectangle, bool async)
+    {
             _imageWord.Image = image;
             _imageWord.ImageRectangle = rectangle;
             _imageLoadingComplete = true;
@@ -205,6 +205,5 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        #endregion
-    }
+    #endregion
 }

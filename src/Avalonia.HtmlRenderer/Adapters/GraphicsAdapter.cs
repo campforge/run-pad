@@ -21,70 +21,70 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
+namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia Graphics.
+/// </summary>
+internal sealed class GraphicsAdapter : RGraphics
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Adapter for Avalonia Graphics.
+    /// The wrapped Avalonia graphics object
     /// </summary>
-    internal sealed class GraphicsAdapter : RGraphics
+    private readonly DrawingContext _g;
+
+    /// <summary>
+    /// if to release the graphics object on dispose
+    /// </summary>
+    private readonly bool _releaseGraphics;
+    private readonly RRect _whiteSpaceSize;
+
+    #endregion
+
+    private readonly Stack<DrawingContext.PushedState> _clipStackInt = new Stack<DrawingContext.PushedState>();
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    /// <param name="adapter">Avalonia adapter.</param>
+    /// <param name="g">the Avalonia graphics object to use</param>
+    /// <param name="initialClip">the initial clip of the graphics</param>
+    /// <param name="releaseGraphics">optional: if to release the graphics object on dispose (default - false)</param>
+    public GraphicsAdapter(AvaloniaAdapter adapter, DrawingContext g, RRect initialClip, bool releaseGraphics = false)
+        : base(adapter, initialClip)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// The wrapped Avalonia graphics object
-        /// </summary>
-        private readonly DrawingContext _g;
-
-        /// <summary>
-        /// if to release the graphics object on dispose
-        /// </summary>
-        private readonly bool _releaseGraphics;
-        private readonly RRect _whiteSpaceSize;
-
-        #endregion
-
-        private readonly Stack<DrawingContext.PushedState> _clipStackInt = new Stack<DrawingContext.PushedState>();
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="adapter">Avalonia adapter.</param>
-        /// <param name="g">the Avalonia graphics object to use</param>
-        /// <param name="initialClip">the initial clip of the graphics</param>
-        /// <param name="releaseGraphics">optional: if to release the graphics object on dispose (default - false)</param>
-        public GraphicsAdapter(AvaloniaAdapter adapter, DrawingContext g, RRect initialClip, bool releaseGraphics = false)
-            : base(adapter, initialClip)
-        {
             ArgChecker.AssertArgNotNull(g, "g");
 
             _g = g;
             _releaseGraphics = releaseGraphics;
         }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public GraphicsAdapter(AvaloniaAdapter adapter)
-            : base(adapter, RRect.Empty)
-        {
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public GraphicsAdapter(AvaloniaAdapter adapter)
+        : base(adapter, RRect.Empty)
+    {
             _g = null;
             _releaseGraphics = false;
         }
 
-        public override void PopClip()
-        {
+    public override void PopClip()
+    {
             _clipStackInt.Pop().Dispose();
             _clipStack.Pop();
         }
 
-        public override void PushClip(RRect rect)
-        {
+    public override void PushClip(RRect rect)
+    {
             _clipStackInt.Push(_g.PushClip(Utils.Convert(rect)));
             _clipStack.Push(rect);
         }
 
-        public override void PushClipExclude(RRect rect)
-        {
+    public override void PushClipExclude(RRect rect)
+    {
             var geometry = new CombinedGeometry();
             geometry.Geometry1 = new RectangleGeometry(Utils.Convert(_clipStack.Peek()));
             geometry.Geometry2 = new RectangleGeometry(Utils.Convert(rect));
@@ -94,16 +94,16 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             _clipStackInt.Push(_g.PushGeometryClip(geometry));
         }
 
-        public override Object SetAntiAliasSmoothingMode()
-        {
+    public override Object SetAntiAliasSmoothingMode()
+    {
             return null;
         }
 
-        public override void ReturnPreviousSmoothingMode(Object prevMode)
-        { }
+    public override void ReturnPreviousSmoothingMode(Object prevMode)
+    { }
 
-        public override RFormattedLine FormatLine(ReadOnlyMemory<char> memory, RFont font)
-        {
+    public override RFormattedLine FormatLine(ReadOnlyMemory<char> memory, RFont font)
+    {
             var fontAdapter = (FontAdapter)font;
             var formattedLine = TextFormatter.Current.FormatLine(
                 new CustomTextSource(memory, fontAdapter.TextRunProperties),
@@ -111,8 +111,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             return new FormattedLineAdapter(formattedLine);
         }
 
-        public override void DrawFormattedLine(RFormattedLine line, RColor color, RPoint point, RSize size, bool rtl)
-        {
+    public override void DrawFormattedLine(RFormattedLine line, RColor color, RPoint point, RSize size, bool rtl)
+    {
             var colorConv = ((BrushAdapter)_adapter.GetSolidBrush(color)).Brush;
             var lineConv = (FormattedLineAdapter)line;
 
@@ -131,8 +131,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             }
         }
 
-        public override RSize MeasureString(string str, RFont font)
-        {
+    public override RSize MeasureString(string str, RFont font)
+    {
             var fontAdapter = (FontAdapter)font;
             var formattedLine = TextFormatter.Current.FormatLine(
                 new CustomTextSource(str.AsMemory(), fontAdapter.TextRunProperties),
@@ -141,8 +141,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             return new RSize(formattedLine.WidthIncludingTrailingWhitespace, formattedLine.Height);
         }
 
-        public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
-        {
+    public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
+    {
             var fontAdapter = (FontAdapter)font;
             var formattedLine = TextFormatter.Current.FormatLine(
                 new CustomTextSource(str.AsMemory(), fontAdapter.TextRunProperties),
@@ -152,8 +152,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             charFitWidth = formattedLine.WidthIncludingTrailingWhitespace;
         }
 
-        public override void DrawString(string str, RFont font, RColor color, RPoint point, RSize size, bool rtl)
-        {
+    public override void DrawString(string str, RFont font, RColor color, RPoint point, RSize size, bool rtl)
+    {
             var colorConv = ((BrushAdapter)_adapter.GetSolidBrush(color)).Brush;
 
             var formattedText = new FormattedText(str, CultureInfo.CurrentCulture, rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight, ((FontAdapter)font).Font, 96d / 72d * font.Size, colorConv);
@@ -161,8 +161,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             _g.DrawText(formattedText, Utils.ConvertRound(point));
         }
 
-        public override RBrush GetTextureBrush(RImage image, RRect dstRect, RPoint translateTransformLocation)
-        {
+    public override RBrush GetTextureBrush(RImage image, RRect dstRect, RPoint translateTransformLocation)
+    {
             var brush = new ImageBrush(((ImageAdapter)image).Image);
             brush.Stretch = Stretch.None;
             brush.TileMode = TileMode.Tile;
@@ -172,22 +172,22 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             return new BrushAdapter(brush.ToImmutable());
         }
 
-        public override RGraphicsPath GetGraphicsPath()
-        {
+    public override RGraphicsPath GetGraphicsPath()
+    {
             return new GraphicsPathAdapter();
         }
 
-        public override void Dispose()
-        {
+    public override void Dispose()
+    {
             if (_releaseGraphics)
                 _g.Dispose();
         }
 
 
-        #region Delegate graphics methods
+    #region Delegate graphics methods
 
-        public override void DrawLine(RPen pen, double x1, double y1, double x2, double y2)
-        {
+    public override void DrawLine(RPen pen, double x1, double y1, double x2, double y2)
+    {
             x1 = (int)x1;
             x2 = (int)x2;
             y1 = (int)y1;
@@ -208,8 +208,8 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             _g.DrawLine(((PenAdapter)pen).CreatePen(), new Point(x1, y1), new Point(x2, y2));
         }
 
-        public override void DrawRectangle(RPen pen, double x, double y, double width, double height)
-        {
+    public override void DrawRectangle(RPen pen, double x, double y, double width, double height)
+    {
             var adj = pen.Width;
             if (Math.Abs(adj % 2 - 1) < .1)
             {
@@ -219,33 +219,33 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
             _g.DrawRectangle(((PenAdapter)pen).CreatePen(), new Rect(x, y, width, height));
         }
 
-        public override void DrawRectangle(RBrush brush, double x, double y, double width, double height)
-        {
+    public override void DrawRectangle(RBrush brush, double x, double y, double width, double height)
+    {
             _g.FillRectangle(((BrushAdapter)brush).Brush, new Rect(x, y, width, height));
         }
 
-        public override void DrawImage(RImage image, RRect destRect, RRect srcRect)
-        {
+    public override void DrawImage(RImage image, RRect destRect, RRect srcRect)
+    {
             _g.DrawImage(((ImageAdapter)image).Image, Utils.Convert(srcRect), Utils.Convert(destRect));
         }
 
-        public override void DrawImage(RImage image, RRect destRect)
-        {
+    public override void DrawImage(RImage image, RRect destRect)
+    {
             _g.DrawImage(((ImageAdapter)image).Image, Utils.ConvertRound(destRect));
         }
 
-        public override void DrawPath(RPen pen, RGraphicsPath path)
-        {
+    public override void DrawPath(RPen pen, RGraphicsPath path)
+    {
             _g.DrawGeometry(null, ((PenAdapter)pen).CreatePen(), ((GraphicsPathAdapter)path).GetClosedGeometry());
         }
 
-        public override void DrawPath(RBrush brush, RGraphicsPath path)
-        {
+    public override void DrawPath(RBrush brush, RGraphicsPath path)
+    {
             _g.DrawGeometry(((BrushAdapter)brush).Brush, null, ((GraphicsPathAdapter)path).GetClosedGeometry());
         }
 
-        public override void DrawPolygon(RBrush brush, RPoint[] points)
-        {
+    public override void DrawPolygon(RBrush brush, RPoint[] points)
+    {
             if (points != null && points.Length > 0)
             {
                 var g = new StreamGeometry();
@@ -262,19 +262,19 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
         }
 
 
-        internal readonly struct CustomTextSource : ITextSource
-        {
-            private readonly TextRunProperties _defaultProperties;
-            private readonly ReadOnlyMemory<char> _text;
+    internal readonly struct CustomTextSource : ITextSource
+    {
+        private readonly TextRunProperties _defaultProperties;
+        private readonly ReadOnlyMemory<char> _text;
 
-            public CustomTextSource(ReadOnlyMemory<char> text, TextRunProperties defaultProperties)
-            {
+        public CustomTextSource(ReadOnlyMemory<char> text, TextRunProperties defaultProperties)
+        {
                 _text = text;
                 _defaultProperties = defaultProperties;
             }
 
-            public TextRun GetTextRun(int textSourceIndex)
-            {
+        public TextRun GetTextRun(int textSourceIndex)
+        {
                 if (textSourceIndex >= _text.Length)
                 {
                     return new TextEndOfParagraph();
@@ -282,8 +282,7 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
 
                 return new TextCharacters(_text, _defaultProperties);
             }
-        }
-
-        #endregion
     }
+
+    #endregion
 }

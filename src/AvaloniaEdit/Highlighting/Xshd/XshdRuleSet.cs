@@ -19,45 +19,44 @@
 using System.Collections.Generic;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Highlighting.Xshd
+namespace AvaloniaEdit.Highlighting.Xshd;
+
+/// <summary>
+/// A rule set in a XSHD file.
+/// </summary>
+public class XshdRuleSet : XshdElement
 {
     /// <summary>
-    /// A rule set in a XSHD file.
+    /// Gets/Sets the name of the rule set.
     /// </summary>
-    public class XshdRuleSet : XshdElement
+    public string Name { get; set; }
+
+    /// <summary>
+    /// Gets/sets whether the case is ignored in expressions inside this rule set.
+    /// </summary>
+    public bool? IgnoreCase { get; set; }
+
+    private readonly NullSafeCollection<XshdElement> _elements = new NullSafeCollection<XshdElement>();
+
+    /// <summary>
+    /// Gets the collection of elements.
+    /// </summary>
+    public IList<XshdElement> Elements => _elements;
+
+    /// <summary>
+    /// Applies the visitor to all elements.
+    /// </summary>
+    public void AcceptElements(IXshdVisitor visitor)
     {
-        /// <summary>
-        /// Gets/Sets the name of the rule set.
-        /// </summary>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// Gets/sets whether the case is ignored in expressions inside this rule set.
-        /// </summary>
-        public bool? IgnoreCase { get; set; }
-
-        private readonly NullSafeCollection<XshdElement> _elements = new NullSafeCollection<XshdElement>();
-
-        /// <summary>
-        /// Gets the collection of elements.
-        /// </summary>
-        public IList<XshdElement> Elements => _elements;
-
-        /// <summary>
-        /// Applies the visitor to all elements.
-        /// </summary>
-        public void AcceptElements(IXshdVisitor visitor)
+        foreach (XshdElement element in Elements)
         {
-            foreach (XshdElement element in Elements)
-            {
-                element.AcceptVisitor(visitor);
-            }
+            element.AcceptVisitor(visitor);
         }
+    }
 
-        /// <inheritdoc/>
-        public override object AcceptVisitor(IXshdVisitor visitor)
-        {
-            return visitor.VisitRuleSet(this);
-        }
+    /// <inheritdoc/>
+    public override object AcceptVisitor(IXshdVisitor visitor)
+    {
+        return visitor.VisitRuleSet(this);
     }
 }

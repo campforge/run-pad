@@ -1,62 +1,61 @@
 ﻿using System.Collections;
 using DotPad.Build.Sdk.Models;
 
-namespace DotPad.Build.Sdk
+namespace DotPad.Build.Sdk;
+
+public class ListSdks : IEnumerable<SdkInfoModel>
 {
-    public class ListSdks : IEnumerable<SdkInfoModel>
+    private const string ListSdksCommand = "dotnet --list-sdks";
+    private readonly List<SdkInfoModel> _list;
+    public ListSdks()
     {
-        private const string ListSdksCommand = "dotnet --list-sdks";
-        private readonly List<SdkInfoModel> _list;
-        public ListSdks()
+        _list = Init().ToList();
+    }
+
+    public IEnumerator<SdkInfoModel> GetEnumerator() => _list.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => _list.GetEnumerator();
+
+    private IEnumerable<SdkInfoModel> Init()
+    {
+        var list = Utils.Shell(ListSdksCommand);
+
+        foreach (var item in list)
         {
-            _list = Init().ToList();
-        }
+            string name = "";
+            var line = item.Trim(' ');
+            var spaseIndex = 0;
 
-        public IEnumerator<SdkInfoModel> GetEnumerator() => _list.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => _list.GetEnumerator();
-
-        private IEnumerable<SdkInfoModel> Init()
-        {
-            var list = Utils.Shell(ListSdksCommand);
-
-            foreach (var item in list)
+            for (; spaseIndex < line.Length; spaseIndex++)
             {
-                string name = "";
-                var line = item.Trim(' ');
-                var spaseIndex = 0;
-
-                for (; spaseIndex < line.Length; spaseIndex++)
+                if (line[spaseIndex] == ' ')
                 {
-                    if (line[spaseIndex] == ' ')
-                    {
-                        name = line.Substring(0, spaseIndex);
-                        break;
-                    }
+                    name = line.Substring(0, spaseIndex);
+                    break;
                 }
-
-                var startBrackedIndex = spaseIndex + 1;
-                for (; startBrackedIndex < line.Length; startBrackedIndex++)
-                {
-                    if (line[startBrackedIndex] == '[')
-                    {
-                        break;
-                    }
-                }
-                var endBrackedIndex = line.Length;
-                for (; endBrackedIndex < line.Length; endBrackedIndex--)
-                {
-                    if (line[endBrackedIndex] == ']')
-                    {
-                        break;
-                    }
-                }
-
-                var path = line.Substring(startBrackedIndex + 1, endBrackedIndex - startBrackedIndex - 2);
-
-                yield return new SdkInfoModel(name, path);
             }
 
+            var startBrackedIndex = spaseIndex + 1;
+            for (; startBrackedIndex < line.Length; startBrackedIndex++)
+            {
+                if (line[startBrackedIndex] == '[')
+                {
+                    break;
+                }
+            }
+            var endBrackedIndex = line.Length;
+            for (; endBrackedIndex < line.Length; endBrackedIndex--)
+            {
+                if (line[endBrackedIndex] == ']')
+                {
+                    break;
+                }
+            }
+
+            var path = line.Substring(startBrackedIndex + 1, endBrackedIndex - startBrackedIndex - 2);
+
+            yield return new SdkInfoModel(name, path);
         }
 
     }
+
 }

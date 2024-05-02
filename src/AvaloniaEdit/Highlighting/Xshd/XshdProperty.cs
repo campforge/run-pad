@@ -16,28 +16,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-namespace AvaloniaEdit.Highlighting.Xshd
+namespace AvaloniaEdit.Highlighting.Xshd;
+
+/// <summary>
+/// A property in an Xshd file.
+/// </summary>
+public class XshdProperty : XshdElement
 {
     /// <summary>
-    /// A property in an Xshd file.
+    /// Gets/sets the name.
     /// </summary>
-    public class XshdProperty : XshdElement
+    public string Name { get; set; }
+
+    /// <summary>
+    /// Gets/sets the value.
+    /// </summary>
+    public string Value { get; set; }
+
+    /// <inheritdoc/>
+    public override object AcceptVisitor(IXshdVisitor visitor)
     {
-        /// <summary>
-        /// Gets/sets the name.
-        /// </summary>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// Gets/sets the value.
-        /// </summary>
-        public string Value { get; set; }
-
-        /// <inheritdoc/>
-        public override object AcceptVisitor(IXshdVisitor visitor)
-        {
-            return null;
-            //			return visitor.VisitProperty(this);
-        }
+        return null;
+        //			return visitor.VisitProperty(this);
     }
 }

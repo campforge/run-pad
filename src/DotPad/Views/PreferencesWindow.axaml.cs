@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace DotPad;
+namespace DotPad.Views;
 
 public partial class PreferencesWindow : Window
 {

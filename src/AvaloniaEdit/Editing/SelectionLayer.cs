@@ -20,51 +20,50 @@ using System;
 using AvaloniaEdit.Rendering;
 using Avalonia.Media;
 
-namespace AvaloniaEdit.Editing
+namespace AvaloniaEdit.Editing;
+
+internal sealed class SelectionLayer : Layer
 {
-    internal sealed class SelectionLayer : Layer
+    private readonly TextArea _textArea;
+
+    public SelectionLayer(TextArea textArea) : base(textArea.TextView, KnownLayer.Selection)
     {
-        private readonly TextArea _textArea;
+        IsHitTestVisible = false;
 
-        public SelectionLayer(TextArea textArea) : base(textArea.TextView, KnownLayer.Selection)
+        _textArea = textArea;
+
+        TextViewWeakEventManager.VisualLinesChanged.AddHandler(TextView, ReceiveWeakEvent);
+        TextViewWeakEventManager.ScrollOffsetChanged.AddHandler(TextView, ReceiveWeakEvent);
+    }
+
+    private void ReceiveWeakEvent(object sender, EventArgs e)
+    {
+        InvalidateVisual();
+    }
+
+    public override void Render(DrawingContext drawingContext)
+    {
+        base.Render(drawingContext);
+
+        var selectionBorder = _textArea.SelectionBorder;
+
+        var geoBuilder = new BackgroundGeometryBuilder
         {
-            IsHitTestVisible = false;
+            AlignToWholePixels = true,
+            BorderThickness = selectionBorder?.Thickness ?? 0,
+            ExtendToFullWidthAtLineEnd = _textArea.Selection.EnableVirtualSpace,
+            CornerRadius = _textArea.SelectionCornerRadius
+        };
 
-            _textArea = textArea;
-
-            TextViewWeakEventManager.VisualLinesChanged.AddHandler(TextView, ReceiveWeakEvent);
-            TextViewWeakEventManager.ScrollOffsetChanged.AddHandler(TextView, ReceiveWeakEvent);
+        foreach (var segment in _textArea.Selection.Segments)
+        {
+            geoBuilder.AddSegment(TextView, segment);
         }
 
-        private void ReceiveWeakEvent(object sender, EventArgs e)
+        var geometry = geoBuilder.CreateGeometry();
+        if (geometry != null)
         {
-            InvalidateVisual();
-        }
-
-        public override void Render(DrawingContext drawingContext)
-        {
-            base.Render(drawingContext);
-
-            var selectionBorder = _textArea.SelectionBorder;
-
-            var geoBuilder = new BackgroundGeometryBuilder
-            {
-                AlignToWholePixels = true,
-                BorderThickness = selectionBorder?.Thickness ?? 0,
-                ExtendToFullWidthAtLineEnd = _textArea.Selection.EnableVirtualSpace,
-                CornerRadius = _textArea.SelectionCornerRadius
-            };
-
-            foreach (var segment in _textArea.Selection.Segments)
-            {
-                geoBuilder.AddSegment(TextView, segment);
-            }
-
-            var geometry = geoBuilder.CreateGeometry();
-            if (geometry != null)
-            {
-                drawingContext.DrawGeometry(_textArea.SelectionBrush, selectionBorder, geometry);
-            }
+            drawingContext.DrawGeometry(_textArea.SelectionBrush, selectionBorder, geometry);
         }
     }
 }

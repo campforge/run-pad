@@ -20,63 +20,62 @@ using System;
 using System.Diagnostics;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Document
+namespace AvaloniaEdit.Document;
+
+/// <summary>
+/// This class stacks the last x operations from the undostack and makes
+/// one undo/redo operation from it.
+/// </summary>
+internal sealed class UndoOperationGroup : IUndoableOperationWithContext
 {
-    /// <summary>
-    /// This class stacks the last x operations from the undostack and makes
-    /// one undo/redo operation from it.
-    /// </summary>
-    internal sealed class UndoOperationGroup : IUndoableOperationWithContext
+    private readonly IUndoableOperation[] _undolist;
+
+    public UndoOperationGroup(Deque<IUndoableOperation> stack, int numops)
     {
-        private readonly IUndoableOperation[] _undolist;
-
-        public UndoOperationGroup(Deque<IUndoableOperation> stack, int numops)
+        if (stack == null)
         {
-            if (stack == null)
-            {
-                throw new ArgumentNullException(nameof(stack));
-            }
-
-            Debug.Assert(numops > 0, "UndoOperationGroup : numops should be > 0");
-            Debug.Assert(numops <= stack.Count);
-
-            _undolist = new IUndoableOperation[numops];
-            for (var i = 0; i < numops; ++i)
-            {
-                _undolist[i] = stack.PopBack();
-            }
+            throw new ArgumentNullException(nameof(stack));
         }
 
-        public void Undo()
-        {
-            foreach (var t in _undolist)
-            {
-                t.Undo();
-            }
-        }
+        Debug.Assert(numops > 0, "UndoOperationGroup : numops should be > 0");
+        Debug.Assert(numops <= stack.Count);
 
-        public void Undo(UndoStack stack)
+        _undolist = new IUndoableOperation[numops];
+        for (var i = 0; i < numops; ++i)
         {
-            foreach (var t in _undolist)
-            {
-                stack.RunUndo(t);
-            }
+            _undolist[i] = stack.PopBack();
         }
+    }
 
-        public void Redo()
+    public void Undo()
+    {
+        foreach (var t in _undolist)
         {
-            for (var i = _undolist.Length - 1; i >= 0; --i)
-            {
-                _undolist[i].Redo();
-            }
+            t.Undo();
         }
+    }
 
-        public void Redo(UndoStack stack)
+    public void Undo(UndoStack stack)
+    {
+        foreach (var t in _undolist)
         {
-            for (var i = _undolist.Length - 1; i >= 0; --i)
-            {
-                stack.RunRedo(_undolist[i]);
-            }
+            stack.RunUndo(t);
+        }
+    }
+
+    public void Redo()
+    {
+        for (var i = _undolist.Length - 1; i >= 0; --i)
+        {
+            _undolist[i].Redo();
+        }
+    }
+
+    public void Redo(UndoStack stack)
+    {
+        for (var i = _undolist.Length - 1; i >= 0; --i)
+        {
+            stack.RunRedo(_undolist[i]);
         }
     }
 }

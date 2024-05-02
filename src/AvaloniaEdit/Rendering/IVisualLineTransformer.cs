@@ -18,16 +18,15 @@
 
 using System.Collections.Generic;
 
-namespace AvaloniaEdit.Rendering
+namespace AvaloniaEdit.Rendering;
+
+/// <summary>
+/// Allows transforming visual line elements.
+/// </summary>
+public interface IVisualLineTransformer
 {
     /// <summary>
-    /// Allows transforming visual line elements.
+    /// Applies the transformation to the specified list of visual line elements.
     /// </summary>
-    public interface IVisualLineTransformer
-    {
-        /// <summary>
-        /// Applies the transformation to the specified list of visual line elements.
-        /// </summary>
-        void Transform(ITextRunConstructionContext context, IList<VisualLineElement> elements);
-    }
+    void Transform(ITextRunConstructionContext context, IList<VisualLineElement> elements);
 }

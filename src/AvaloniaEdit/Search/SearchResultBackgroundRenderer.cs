@@ -22,60 +22,59 @@ using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace AvaloniaEdit.Search
+namespace AvaloniaEdit.Search;
+
+internal class SearchResultBackgroundRenderer : IBackgroundRenderer
 {
-    internal class SearchResultBackgroundRenderer : IBackgroundRenderer
+    public TextSegmentCollection<SearchResult> CurrentResults { get; } = new TextSegmentCollection<SearchResult>();
+
+    public KnownLayer Layer => KnownLayer.Background;
+
+    public SearchResultBackgroundRenderer(IBrush brush)
     {
-        public TextSegmentCollection<SearchResult> CurrentResults { get; } = new TextSegmentCollection<SearchResult>();
+        _markerBrush = brush;
+    }
 
-        public KnownLayer Layer => KnownLayer.Background;
+    private IBrush _markerBrush;
 
-        public SearchResultBackgroundRenderer(IBrush brush)
+    public IBrush MarkerBrush
+    {
+        get => _markerBrush;
+        set
         {
-            _markerBrush = brush;
+            _markerBrush = value;
         }
+    }
 
-        private IBrush _markerBrush;
+    public void Draw(TextView textView, DrawingContext drawingContext)
+    {
+        if (textView == null)
+            throw new ArgumentNullException(nameof(textView));
+        if (drawingContext == null)
+            throw new ArgumentNullException(nameof(drawingContext));
 
-        public IBrush MarkerBrush
+        if (CurrentResults == null || !textView.VisualLinesValid)
+            return;
+
+        var visualLines = textView.VisualLines;
+        if (visualLines.Count == 0)
+            return;
+
+        var viewStart = visualLines.First().FirstDocumentLine.Offset;
+        var viewEnd = visualLines.Last().LastDocumentLine.EndOffset;
+
+        foreach (var result in CurrentResults.FindOverlappingSegments(viewStart, viewEnd - viewStart))
         {
-            get => _markerBrush;
-            set
+            var geoBuilder = new BackgroundGeometryBuilder
             {
-                _markerBrush = value;
-            }
-        }
-
-        public void Draw(TextView textView, DrawingContext drawingContext)
-        {
-            if (textView == null)
-                throw new ArgumentNullException(nameof(textView));
-            if (drawingContext == null)
-                throw new ArgumentNullException(nameof(drawingContext));
-
-            if (CurrentResults == null || !textView.VisualLinesValid)
-                return;
-
-            var visualLines = textView.VisualLines;
-            if (visualLines.Count == 0)
-                return;
-
-            var viewStart = visualLines.First().FirstDocumentLine.Offset;
-            var viewEnd = visualLines.Last().LastDocumentLine.EndOffset;
-
-            foreach (var result in CurrentResults.FindOverlappingSegments(viewStart, viewEnd - viewStart))
+                AlignToWholePixels = true,
+                CornerRadius = 0
+            };
+            geoBuilder.AddSegment(textView, result);
+            var geometry = geoBuilder.CreateGeometry();
+            if (geometry != null)
             {
-                var geoBuilder = new BackgroundGeometryBuilder
-                {
-                    AlignToWholePixels = true,
-                    CornerRadius = 0
-                };
-                geoBuilder.AddSegment(textView, result);
-                var geometry = geoBuilder.CreateGeometry();
-                if (geometry != null)
-                {
-                    drawingContext.DrawGeometry(_markerBrush, null, geometry);
-                }
+                drawingContext.DrawGeometry(_markerBrush, null, geometry);
             }
         }
     }

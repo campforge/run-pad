@@ -12,18 +12,17 @@
 
 using System;
 
-namespace TheArtOfDev.HtmlRenderer.Adapters.Entities
+namespace TheArtOfDev.HtmlRenderer.Adapters.Entities;
+
+/// <summary>
+/// Specifies style information applied to text.
+/// </summary>
+[Flags]
+public enum RFontStyle
 {
-    /// <summary>
-    /// Specifies style information applied to text.
-    /// </summary>
-    [Flags]
-    public enum RFontStyle
-    {
-        Regular = 0,
-        Bold = 1,
-        Italic = 2,
-        Underline = 4,
-        Strikeout = 8,
-    }
+    Regular = 0,
+    Bold = 1,
+    Italic = 2,
+    Underline = 4,
+    Strikeout = 8,
 }

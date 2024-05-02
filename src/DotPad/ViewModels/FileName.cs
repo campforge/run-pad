@@ -1,6 +1,5 @@
-﻿namespace DotPad.ViewModels
+﻿namespace DotPad.ViewModels;
+
+internal class DocumentViewModel
 {
-    internal class DocumentViewModel
-    {
-    }
 }

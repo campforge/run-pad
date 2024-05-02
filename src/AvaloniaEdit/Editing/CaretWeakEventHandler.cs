@@ -19,22 +19,21 @@
 using System;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Editing
+namespace AvaloniaEdit.Editing;
+
+/// <summary>
+/// Contains classes for handling weak events on the Caret class.
+/// </summary>
+public static class CaretWeakEventManager
 {
     /// <summary>
-    /// Contains classes for handling weak events on the Caret class.
+    /// Handles the Caret.PositionChanged event.
     /// </summary>
-    public static class CaretWeakEventManager
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
+    public sealed class PositionChanged : WeakEventManagerBase<PositionChanged, Caret, EventHandler, EventArgs>
     {
-        /// <summary>
-        /// Handles the Caret.PositionChanged event.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
-        public sealed class PositionChanged : WeakEventManagerBase<PositionChanged, Caret, EventHandler, EventArgs>
-        {
-            protected override void StartListening(Caret source) => source.PositionChanged += DeliverEvent;
+        protected override void StartListening(Caret source) => source.PositionChanged += DeliverEvent;
 
-            protected override void StopListening(Caret source) => source.PositionChanged -= DeliverEvent;
-        }
+        protected override void StopListening(Caret source) => source.PositionChanged -= DeliverEvent;
     }
 }

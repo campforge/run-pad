@@ -18,98 +18,98 @@ using TheArtOfDev.HtmlRenderer.Core.Dom;
 using TheArtOfDev.HtmlRenderer.Core.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers
+namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+
+/// <summary>
+/// Handle context menu.
+/// </summary>
+internal sealed class ContextMenuHandler : IDisposable
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Handle context menu.
+    /// select all text
     /// </summary>
-    internal sealed class ContextMenuHandler : IDisposable
+    private static readonly string _selectAll;
+
+    /// <summary>
+    /// copy selected text
+    /// </summary>
+    private static readonly string _copy;
+
+    /// <summary>
+    /// copy the link source
+    /// </summary>
+    private static readonly string _copyLink;
+
+    /// <summary>
+    /// open link (as left mouse click)
+    /// </summary>
+    private static readonly string _openLink;
+
+    /// <summary>
+    /// copy the source of the image
+    /// </summary>
+    private static readonly string _copyImageLink;
+
+    /// <summary>
+    /// copy image to clipboard
+    /// </summary>
+    private static readonly string _copyImage;
+
+    /// <summary>
+    /// save image to disk
+    /// </summary>
+    private static readonly string _saveImage;
+
+    /// <summary>
+    /// open video in browser
+    /// </summary>
+    private static readonly string _openVideo;
+
+    /// <summary>
+    /// copy video url to browser
+    /// </summary>
+    private static readonly string _copyVideoUrl;
+
+    /// <summary>
+    /// the selection handler linked to the context menu handler
+    /// </summary>
+    private readonly SelectionHandler _selectionHandler;
+
+    /// <summary>
+    /// the html container the handler is on
+    /// </summary>
+    private readonly HtmlContainerInt _htmlContainer;
+
+    /// <summary>
+    /// the last context menu shown
+    /// </summary>
+    private RContextMenu _contextMenu;
+
+    /// <summary>
+    /// the control that the context menu was shown on
+    /// </summary>
+    private RControl _parentControl;
+
+    /// <summary>
+    /// the css rectangle that context menu shown on
+    /// </summary>
+    private CssRect _currentRect;
+
+    /// <summary>
+    /// the css link box that context menu shown on
+    /// </summary>
+    private CssBox _currentLink;
+
+    #endregion
+
+
+    /// <summary>
+    /// Init context menu items strings.
+    /// </summary>
+    static ContextMenuHandler()
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// select all text
-        /// </summary>
-        private static readonly string _selectAll;
-
-        /// <summary>
-        /// copy selected text
-        /// </summary>
-        private static readonly string _copy;
-
-        /// <summary>
-        /// copy the link source
-        /// </summary>
-        private static readonly string _copyLink;
-
-        /// <summary>
-        /// open link (as left mouse click)
-        /// </summary>
-        private static readonly string _openLink;
-
-        /// <summary>
-        /// copy the source of the image
-        /// </summary>
-        private static readonly string _copyImageLink;
-
-        /// <summary>
-        /// copy image to clipboard
-        /// </summary>
-        private static readonly string _copyImage;
-
-        /// <summary>
-        /// save image to disk
-        /// </summary>
-        private static readonly string _saveImage;
-
-        /// <summary>
-        /// open video in browser
-        /// </summary>
-        private static readonly string _openVideo;
-
-        /// <summary>
-        /// copy video url to browser
-        /// </summary>
-        private static readonly string _copyVideoUrl;
-
-        /// <summary>
-        /// the selection handler linked to the context menu handler
-        /// </summary>
-        private readonly SelectionHandler _selectionHandler;
-
-        /// <summary>
-        /// the html container the handler is on
-        /// </summary>
-        private readonly HtmlContainerInt _htmlContainer;
-
-        /// <summary>
-        /// the last context menu shown
-        /// </summary>
-        private RContextMenu _contextMenu;
-
-        /// <summary>
-        /// the control that the context menu was shown on
-        /// </summary>
-        private RControl _parentControl;
-
-        /// <summary>
-        /// the css rectangle that context menu shown on
-        /// </summary>
-        private CssRect _currentRect;
-
-        /// <summary>
-        /// the css link box that context menu shown on
-        /// </summary>
-        private CssBox _currentLink;
-
-        #endregion
-
-
-        /// <summary>
-        /// Init context menu items strings.
-        /// </summary>
-        static ContextMenuHandler()
-        {
             if (CultureInfo.CurrentUICulture.Name.StartsWith("fr", StringComparison.InvariantCultureIgnoreCase))
             {
                 _selectAll = "Tout sélectionner";
@@ -256,13 +256,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        /// <param name="selectionHandler">the selection handler linked to the context menu handler</param>
-        /// <param name="htmlContainer">the html container the handler is on</param>
-        public ContextMenuHandler(SelectionHandler selectionHandler, HtmlContainerInt htmlContainer)
-        {
+    /// <summary>
+    /// Init.
+    /// </summary>
+    /// <param name="selectionHandler">the selection handler linked to the context menu handler</param>
+    /// <param name="htmlContainer">the html container the handler is on</param>
+    public ContextMenuHandler(SelectionHandler selectionHandler, HtmlContainerInt htmlContainer)
+    {
             ArgChecker.AssertArgNotNull(selectionHandler, "selectionHandler");
             ArgChecker.AssertArgNotNull(htmlContainer, "htmlContainer");
 
@@ -270,14 +270,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             _htmlContainer = htmlContainer;
         }
 
-        /// <summary>
-        /// Show context menu clicked on given rectangle.
-        /// </summary>
-        /// <param name="parent">the parent control to show the context menu on</param>
-        /// <param name="rect">the rectangle that was clicked to show context menu</param>
-        /// <param name="link">the link that was clicked to show context menu on</param>
-        public void ShowContextMenu(RControl parent, CssRect rect, CssBox link)
-        {
+    /// <summary>
+    /// Show context menu clicked on given rectangle.
+    /// </summary>
+    /// <param name="parent">the parent control to show the context menu on</param>
+    /// <param name="rect">the rectangle that was clicked to show context menu</param>
+    /// <param name="link">the link that was clicked to show context menu on</param>
+    public void ShowContextMenu(RControl parent, CssRect rect, CssBox link)
+    {
             try
             {
                 DisposeContextMenu();
@@ -336,23 +336,23 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        /// <filterpriority>2</filterpriority>
-        public void Dispose()
-        {
+    /// <summary>
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    /// </summary>
+    /// <filterpriority>2</filterpriority>
+    public void Dispose()
+    {
             DisposeContextMenu();
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Dispose of the last used context menu.
-        /// </summary>
-        private void DisposeContextMenu()
-        {
+    /// <summary>
+    /// Dispose of the last used context menu.
+    /// </summary>
+    private void DisposeContextMenu()
+    {
             try
             {
                 if (_contextMenu != null)
@@ -366,11 +366,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             { }
         }
 
-        /// <summary>
-        /// Handle link click.
-        /// </summary>
-        private void OnOpenLinkClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Handle link click.
+    /// </summary>
+    private void OnOpenLinkClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _currentLink.HtmlContainer.HandleLinkClicked(_parentControl, _parentControl.MouseLocation, _currentLink);
@@ -389,11 +389,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Copy the href of a link to clipboard.
-        /// </summary>
-        private void OnCopyLinkClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Copy the href of a link to clipboard.
+    /// </summary>
+    private void OnCopyLinkClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _htmlContainer.Adapter.SetToClipboard(_currentLink.HrefLink);
@@ -408,11 +408,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Open save as dialog to save the image
-        /// </summary>
-        private void OnSaveImageClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Open save as dialog to save the image
+    /// </summary>
+    private void OnSaveImageClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 var imageSrc = _currentRect.OwnerBox.GetAttribute("src");
@@ -428,11 +428,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Copy the image source to clipboard.
-        /// </summary>
-        private void OnCopyImageLinkClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Copy the image source to clipboard.
+    /// </summary>
+    private void OnCopyImageLinkClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _htmlContainer.Adapter.SetToClipboard(_currentRect.OwnerBox.GetAttribute("src"));
@@ -447,11 +447,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Copy image object to clipboard.
-        /// </summary>
-        private void OnCopyImageClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Copy image object to clipboard.
+    /// </summary>
+    private void OnCopyImageClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _htmlContainer.Adapter.SetToClipboard(_currentRect.Image);
@@ -466,11 +466,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Copy selected text.
-        /// </summary>
-        private void OnCopyClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Copy selected text.
+    /// </summary>
+    private void OnCopyClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _selectionHandler.CopySelectedHtml();
@@ -485,11 +485,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Select all text.
-        /// </summary>
-        private void OnSelectAllClick(object sender, EventArgs eventArgs)
-        {
+    /// <summary>
+    /// Select all text.
+    /// </summary>
+    private void OnSelectAllClick(object sender, EventArgs eventArgs)
+    {
             try
             {
                 _selectionHandler.SelectAll(_parentControl);
@@ -504,6 +504,5 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        #endregion
-    }
+    #endregion
 }

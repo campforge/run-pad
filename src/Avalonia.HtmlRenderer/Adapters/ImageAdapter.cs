@@ -13,47 +13,46 @@
 using Avalonia.Media.Imaging;
 using TheArtOfDev.HtmlRenderer.Adapters;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
+namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia Image object for core.
+/// </summary>
+internal sealed class ImageAdapter : RImage
 {
     /// <summary>
-    /// Adapter for Avalonia Image object for core.
+    /// the underline Avalonia image.
     /// </summary>
-    internal sealed class ImageAdapter : RImage
+    private readonly Bitmap _image;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public ImageAdapter(Bitmap image)
     {
-        /// <summary>
-        /// the underline Avalonia image.
-        /// </summary>
-        private readonly Bitmap _image;
+        _image = image;
+    }
 
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public ImageAdapter(Bitmap image)
-        {
-            _image = image;
-        }
+    /// <summary>
+    /// the underline Avalonia image.
+    /// </summary>
+    public Bitmap Image
+    {
+        get { return _image; }
+    }
 
-        /// <summary>
-        /// the underline Avalonia image.
-        /// </summary>
-        public Bitmap Image
-        {
-            get { return _image; }
-        }
+    public override double Width
+    {
+        get { return _image.PixelSize.Width; }
+    }
 
-        public override double Width
-        {
-            get { return _image.PixelSize.Width; }
-        }
+    public override double Height
+    {
+        get { return _image.PixelSize.Height; }
+    }
 
-        public override double Height
-        {
-            get { return _image.PixelSize.Height; }
-        }
-
-        public override void Dispose()
-        {
-            _image.Dispose();
-        }
+    public override void Dispose()
+    {
+        _image.Dispose();
     }
 }

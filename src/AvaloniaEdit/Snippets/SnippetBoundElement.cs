@@ -19,115 +19,114 @@
 using System;
 using AvaloniaEdit.Document;
 
-namespace AvaloniaEdit.Snippets
+namespace AvaloniaEdit.Snippets;
+
+/// <summary>
+/// An element that binds to a <see cref="SnippetReplaceableTextElement"/> and displays the same text.
+/// </summary>
+public class SnippetBoundElement : SnippetElement
 {
     /// <summary>
-    /// An element that binds to a <see cref="SnippetReplaceableTextElement"/> and displays the same text.
+    /// Gets/Sets the target element.
     /// </summary>
-    public class SnippetBoundElement : SnippetElement
+    public SnippetReplaceableTextElement TargetElement { get; set; }
+
+    /// <summary>
+    /// Converts the text before copying it.
+    /// </summary>
+    public virtual string ConvertText(string input)
     {
-        /// <summary>
-        /// Gets/Sets the target element.
-        /// </summary>
-        public SnippetReplaceableTextElement TargetElement { get; set; }
-
-        /// <summary>
-        /// Converts the text before copying it.
-        /// </summary>
-        public virtual string ConvertText(string input)
-        {
-            return input;
-        }
-
-        /// <inheritdoc/>
-        public override void Insert(InsertionContext context)
-        {
-            if (TargetElement != null)
-            {
-                var start = context.Document.CreateAnchor(context.InsertionPosition);
-                start.MovementType = AnchorMovementType.BeforeInsertion;
-                start.SurviveDeletion = true;
-                var inputText = TargetElement.Text;
-                if (inputText != null)
-                {
-                    context.InsertText(ConvertText(inputText));
-                }
-                var end = context.Document.CreateAnchor(context.InsertionPosition);
-                end.MovementType = AnchorMovementType.BeforeInsertion;
-                end.SurviveDeletion = true;
-                var segment = new AnchorSegment(start, end);
-                context.RegisterActiveElement(this, new BoundActiveElement(context, TargetElement, this, segment));
-            }
-        }
-
-        ///// <inheritdoc/>
-        //public override Inline ToTextRun()
-        //{
-        //	if (TargetElement != null) {
-        //		string inputText = TargetElement.Text;
-        //		if (inputText != null) {
-        //			return new Italic(new Run(ConvertText(inputText)));
-        //		}
-        //	}
-        //	return base.ToTextRun();
-        //}
+        return input;
     }
 
-    internal sealed class BoundActiveElement : IActiveElement
+    /// <inheritdoc/>
+    public override void Insert(InsertionContext context)
     {
-        private readonly InsertionContext _context;
-        private readonly SnippetReplaceableTextElement _targetSnippetElement;
-        private readonly SnippetBoundElement _boundElement;
-        internal IReplaceableActiveElement TargetElement;
-        private AnchorSegment _segment;
-
-        public BoundActiveElement(InsertionContext context, SnippetReplaceableTextElement targetSnippetElement, SnippetBoundElement boundElement, AnchorSegment segment)
+        if (TargetElement != null)
         {
-            _context = context;
-            _targetSnippetElement = targetSnippetElement;
-            _boundElement = boundElement;
-            _segment = segment;
-        }
-
-        public void OnInsertionCompleted()
-        {
-            TargetElement = _context.GetActiveElement(_targetSnippetElement) as IReplaceableActiveElement;
-            if (TargetElement != null)
+            var start = context.Document.CreateAnchor(context.InsertionPosition);
+            start.MovementType = AnchorMovementType.BeforeInsertion;
+            start.SurviveDeletion = true;
+            var inputText = TargetElement.Text;
+            if (inputText != null)
             {
-                TargetElement.TextChanged += targetElement_TextChanged;
+                context.InsertText(ConvertText(inputText));
             }
+            var end = context.Document.CreateAnchor(context.InsertionPosition);
+            end.MovementType = AnchorMovementType.BeforeInsertion;
+            end.SurviveDeletion = true;
+            var segment = new AnchorSegment(start, end);
+            context.RegisterActiveElement(this, new BoundActiveElement(context, TargetElement, this, segment));
         }
+    }
 
-        private void targetElement_TextChanged(object sender, EventArgs e)
+    ///// <inheritdoc/>
+    //public override Inline ToTextRun()
+    //{
+    //	if (TargetElement != null) {
+    //		string inputText = TargetElement.Text;
+    //		if (inputText != null) {
+    //			return new Italic(new Run(ConvertText(inputText)));
+    //		}
+    //	}
+    //	return base.ToTextRun();
+    //}
+}
+
+internal sealed class BoundActiveElement : IActiveElement
+{
+    private readonly InsertionContext _context;
+    private readonly SnippetReplaceableTextElement _targetSnippetElement;
+    private readonly SnippetBoundElement _boundElement;
+    internal IReplaceableActiveElement TargetElement;
+    private AnchorSegment _segment;
+
+    public BoundActiveElement(InsertionContext context, SnippetReplaceableTextElement targetSnippetElement, SnippetBoundElement boundElement, AnchorSegment segment)
+    {
+        _context = context;
+        _targetSnippetElement = targetSnippetElement;
+        _boundElement = boundElement;
+        _segment = segment;
+    }
+
+    public void OnInsertionCompleted()
+    {
+        TargetElement = _context.GetActiveElement(_targetSnippetElement) as IReplaceableActiveElement;
+        if (TargetElement != null)
         {
-            // Don't copy text if the segments overlap (we would get an endless loop).
-            // This can happen if the user deletes the text between the replaceable element and the bound element.
-            if (SimpleSegment.GetOverlap(_segment, TargetElement.Segment) == SimpleSegment.Invalid)
+            TargetElement.TextChanged += targetElement_TextChanged;
+        }
+    }
+
+    private void targetElement_TextChanged(object sender, EventArgs e)
+    {
+        // Don't copy text if the segments overlap (we would get an endless loop).
+        // This can happen if the user deletes the text between the replaceable element and the bound element.
+        if (SimpleSegment.GetOverlap(_segment, TargetElement.Segment) == SimpleSegment.Invalid)
+        {
+            var offset = _segment.Offset;
+            var length = _segment.Length;
+            var text = _boundElement.ConvertText(TargetElement.Text);
+            if (length != text.Length || text != _context.Document.GetText(offset, length))
             {
-                var offset = _segment.Offset;
-                var length = _segment.Length;
-                var text = _boundElement.ConvertText(TargetElement.Text);
-                if (length != text.Length || text != _context.Document.GetText(offset, length))
+                // Call replace only if we're actually changing something.
+                // Without this check, we would generate an empty undo group when the user pressed undo.
+                _context.Document.Replace(offset, length, text);
+                if (length == 0)
                 {
-                    // Call replace only if we're actually changing something.
-                    // Without this check, we would generate an empty undo group when the user pressed undo.
-                    _context.Document.Replace(offset, length, text);
-                    if (length == 0)
-                    {
-                        // replacing an empty anchor segment with text won't enlarge it, so we have to recreate it
-                        _segment = new AnchorSegment(_context.Document, offset, text.Length);
-                    }
+                    // replacing an empty anchor segment with text won't enlarge it, so we have to recreate it
+                    _segment = new AnchorSegment(_context.Document, offset, text.Length);
                 }
             }
         }
-
-        public void Deactivate(SnippetEventArgs e)
-        {
-            TargetElement.TextChanged -= targetElement_TextChanged;
-        }
-
-        public bool IsEditable => false;
-
-        public ISegment Segment => _segment;
     }
+
+    public void Deactivate(SnippetEventArgs e)
+    {
+        TargetElement.TextChanged -= targetElement_TextChanged;
+    }
+
+    public bool IsEditable => false;
+
+    public ISegment Segment => _segment;
 }

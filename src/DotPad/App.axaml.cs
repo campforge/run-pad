@@ -1,22 +1,22 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using dotpad.ViewModels;
-using dotpad.Views;
-using RoslynPad.Resources;
+using DotPad.Resources;
+using DotPad.ViewModels;
+using DotPad.Views;
 
-namespace dotpad
+namespace DotPad;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    public override void Initialize()
     {
-        public override void Initialize()
-        {
             Resources.MergedDictionaries.Add(new Icons());
             AvaloniaXamlLoader.Load(this);
         }
 
-        public override void OnFrameworkInitializationCompleted()
-        {
+    public override void OnFrameworkInitializationCompleted()
+    {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.MainWindow = new MainWindow
@@ -28,5 +28,4 @@ namespace dotpad
             base.OnFrameworkInitializationCompleted();
         }
 
-    }
 }

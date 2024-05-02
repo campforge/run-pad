@@ -22,43 +22,42 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
 
-namespace AvaloniaEdit.Editing
+namespace AvaloniaEdit.Editing;
+
+/// <summary>
+/// Margin for use with the text area.
+/// A vertical dotted line to separate the line numbers from the text view.
+/// </summary>
+public static class DottedLineMargin
 {
+    private static readonly object Tag = new object();
+
     /// <summary>
-    /// Margin for use with the text area.
-    /// A vertical dotted line to separate the line numbers from the text view.
+    /// Creates a vertical dotted line to separate the line numbers from the text view.
     /// </summary>
-    public static class DottedLineMargin
+    public static Control Create()
     {
-        private static readonly object Tag = new object();
-
-        /// <summary>
-        /// Creates a vertical dotted line to separate the line numbers from the text view.
-        /// </summary>
-        public static Control Create()
+        var line = new Line
         {
-            var line = new Line
-            {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(0, 1),
-                StrokeDashArray = new AvaloniaList<double> { 0, 2 },
-                Stretch = Stretch.Fill,
-                StrokeThickness = 1,
-                StrokeLineCap = PenLineCap.Round,
-                Margin = new Thickness(2, 0, 2, 0),
-                Tag = Tag
-            };
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            StrokeDashArray = new AvaloniaList<double> { 0, 2 },
+            Stretch = Stretch.Fill,
+            StrokeThickness = 1,
+            StrokeLineCap = PenLineCap.Round,
+            Margin = new Thickness(2, 0, 2, 0),
+            Tag = Tag
+        };
 
-            return line;
-        }
+        return line;
+    }
 
-        /// <summary>
-        /// Gets whether the specified UIElement is the result of a DottedLineMargin.Create call.
-        /// </summary>
-        public static bool IsDottedLineMargin(Control element)
-        {
-            var l = element as Line;
-            return l != null && l.Tag == Tag;
-        }
+    /// <summary>
+    /// Gets whether the specified UIElement is the result of a DottedLineMargin.Create call.
+    /// </summary>
+    public static bool IsDottedLineMargin(Control element)
+    {
+        var l = element as Line;
+        return l != null && l.Tag == Tag;
     }
 }

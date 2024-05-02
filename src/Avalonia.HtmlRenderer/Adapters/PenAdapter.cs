@@ -15,46 +15,46 @@ using Avalonia.Media.Immutable;
 using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
+namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+
+/// <summary>
+/// Adapter for Avalonia pens objects for core.
+/// </summary>
+internal sealed class PenAdapter : RPen
 {
     /// <summary>
-    /// Adapter for Avalonia pens objects for core.
+    /// The actual Avalonia brush instance.
     /// </summary>
-    internal sealed class PenAdapter : RPen
+    private readonly IImmutableBrush _brush;
+
+    /// <summary>
+    /// the width of the pen
+    /// </summary>
+    private double _width;
+
+    /// <summary>
+    /// the dash style of the pen
+    /// </summary>
+    private IDashStyle _dashStyle = null;
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public PenAdapter(IImmutableBrush brush)
     {
-        /// <summary>
-        /// The actual Avalonia brush instance.
-        /// </summary>
-        private readonly IImmutableBrush _brush;
-
-        /// <summary>
-        /// the width of the pen
-        /// </summary>
-        private double _width;
-
-        /// <summary>
-        /// the dash style of the pen
-        /// </summary>
-        private IDashStyle _dashStyle = null;
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public PenAdapter(IImmutableBrush brush)
-        {
             _brush = brush;
         }
 
-        public override double Width
-        {
-            get { return _width; }
-            set { _width = value; }
-        }
+    public override double Width
+    {
+        get { return _width; }
+        set { _width = value; }
+    }
 
-        public override RDashStyle DashStyle
+    public override RDashStyle DashStyle
+    {
+        set
         {
-            set
-            {
                 switch (value)
                 {
                     case RDashStyle.Dash:
@@ -74,14 +74,13 @@ namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters
                         break;
                 }
             }
-        }
+    }
 
-        /// <summary>
-        /// Create the actual Avalonia pen instance.
-        /// </summary>
-        public IPen CreatePen()
-        {
+    /// <summary>
+    /// Create the actual Avalonia pen instance.
+    /// </summary>
+    public IPen CreatePen()
+    {
             return new ImmutablePen(_brush, _width, (ImmutableDashStyle)_dashStyle);
         }
-    }
 }

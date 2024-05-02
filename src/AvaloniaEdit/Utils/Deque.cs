@@ -19,175 +19,174 @@
 using System;
 using System.Collections.Generic;
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+/// <summary>
+/// Double-ended queue.
+/// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
+internal sealed class Deque<T> : ICollection<T>
 {
-    /// <summary>
-    /// Double-ended queue.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
-    internal sealed class Deque<T> : ICollection<T>
+    private T[] _arr = Empty<T>.Array;
+    private int _head;
+    private int _tail;
+
+    /// <inheritdoc/>
+    public int Count { get; private set; }
+
+    /// <inheritdoc/>
+    public void Clear()
     {
-        private T[] _arr = Empty<T>.Array;
-        private int _head;
-        private int _tail;
+        _arr = Empty<T>.Array;
+        Count = 0;
+        _head = 0;
+        _tail = 0;
+    }
 
-        /// <inheritdoc/>
-        public int Count { get; private set; }
-
-        /// <inheritdoc/>
-        public void Clear()
+    /// <summary>
+    /// Gets/Sets an element inside the deque.
+    /// </summary>
+    public T this[int index]
+    {
+        get
         {
-            _arr = Empty<T>.Array;
-            Count = 0;
-            _head = 0;
-            _tail = 0;
+            ThrowUtil.CheckInRangeInclusive(index, "index", 0, Count - 1);
+            return _arr[(_head + index) % _arr.Length];
         }
-
-        /// <summary>
-        /// Gets/Sets an element inside the deque.
-        /// </summary>
-        public T this[int index]
+        set
         {
-            get
-            {
-                ThrowUtil.CheckInRangeInclusive(index, "index", 0, Count - 1);
-                return _arr[(_head + index) % _arr.Length];
-            }
-            set
-            {
-                ThrowUtil.CheckInRangeInclusive(index, "index", 0, Count - 1);
-                _arr[(_head + index) % _arr.Length] = value;
-            }
+            ThrowUtil.CheckInRangeInclusive(index, "index", 0, Count - 1);
+            _arr[(_head + index) % _arr.Length] = value;
         }
+    }
 
-        /// <summary>
-        /// Adds an element to the end of the deque.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702:CompoundWordsShouldBeCasedCorrectly", MessageId = "PushBack")]
-        public void PushBack(T item)
+    /// <summary>
+    /// Adds an element to the end of the deque.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1702:CompoundWordsShouldBeCasedCorrectly", MessageId = "PushBack")]
+    public void PushBack(T item)
+    {
+        if (Count == _arr.Length)
+            SetCapacity(Math.Max(4, _arr.Length * 2));
+        _arr[_tail++] = item;
+        if (_tail == _arr.Length) _tail = 0;
+        Count++;
+    }
+
+    /// <summary>
+    /// Pops an element from the end of the deque.
+    /// </summary>
+    public T PopBack()
+    {
+        if (Count == 0)
+            throw new InvalidOperationException();
+        if (_tail == 0)
+            _tail = _arr.Length - 1;
+        else
+            _tail--;
+        T val = _arr[_tail];
+        _arr[_tail] = default(T); // allow GC to collect the element
+        Count--;
+        return val;
+    }
+
+    /// <summary>
+    /// Adds an element to the front of the deque.
+    /// </summary>
+    public void PushFront(T item)
+    {
+        if (Count == _arr.Length)
+            SetCapacity(Math.Max(4, _arr.Length * 2));
+        if (_head == 0)
+            _head = _arr.Length - 1;
+        else
+            _head--;
+        _arr[_head] = item;
+        Count++;
+    }
+
+    /// <summary>
+    /// Pops an element from the end of the deque.
+    /// </summary>
+    public T PopFront()
+    {
+        if (Count == 0)
+            throw new InvalidOperationException();
+        T val = _arr[_head];
+        _arr[_head] = default(T); // allow GC to collect the element
+        _head++;
+        if (_head == _arr.Length) _head = 0;
+        Count--;
+        return val;
+    }
+
+    private void SetCapacity(int capacity)
+    {
+        T[] newArr = new T[capacity];
+        CopyTo(newArr, 0);
+        _head = 0;
+        _tail = (Count == capacity) ? 0 : Count;
+        _arr = newArr;
+    }
+
+    /// <inheritdoc/>
+    public IEnumerator<T> GetEnumerator()
+    {
+        if (_head < _tail)
         {
-            if (Count == _arr.Length)
-                SetCapacity(Math.Max(4, _arr.Length * 2));
-            _arr[_tail++] = item;
-            if (_tail == _arr.Length) _tail = 0;
-            Count++;
+            for (int i = _head; i < _tail; i++)
+                yield return _arr[i];
         }
-
-        /// <summary>
-        /// Pops an element from the end of the deque.
-        /// </summary>
-        public T PopBack()
+        else
         {
-            if (Count == 0)
-                throw new InvalidOperationException();
-            if (_tail == 0)
-                _tail = _arr.Length - 1;
-            else
-                _tail--;
-            T val = _arr[_tail];
-            _arr[_tail] = default(T); // allow GC to collect the element
-            Count--;
-            return val;
+            for (int i = _head; i < _arr.Length; i++)
+                yield return _arr[i];
+            for (int i = 0; i < _tail; i++)
+                yield return _arr[i];
         }
+    }
 
-        /// <summary>
-        /// Adds an element to the front of the deque.
-        /// </summary>
-        public void PushFront(T item)
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    bool ICollection<T>.IsReadOnly => false;
+
+    void ICollection<T>.Add(T item)
+    {
+        PushBack(item);
+    }
+
+    /// <inheritdoc/>
+    public bool Contains(T item)
+    {
+        EqualityComparer<T> comparer = EqualityComparer<T>.Default;
+        foreach (T element in this)
+            if (comparer.Equals(item, element))
+                return true;
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public void CopyTo(T[] array, int arrayIndex)
+    {
+        if (array == null)
+            throw new ArgumentNullException(nameof(array));
+        if (_head < _tail)
         {
-            if (Count == _arr.Length)
-                SetCapacity(Math.Max(4, _arr.Length * 2));
-            if (_head == 0)
-                _head = _arr.Length - 1;
-            else
-                _head--;
-            _arr[_head] = item;
-            Count++;
+            Array.Copy(_arr, _head, array, arrayIndex, _tail - _head);
         }
-
-        /// <summary>
-        /// Pops an element from the end of the deque.
-        /// </summary>
-        public T PopFront()
+        else
         {
-            if (Count == 0)
-                throw new InvalidOperationException();
-            T val = _arr[_head];
-            _arr[_head] = default(T); // allow GC to collect the element
-            _head++;
-            if (_head == _arr.Length) _head = 0;
-            Count--;
-            return val;
+            int num1 = _arr.Length - _head;
+            Array.Copy(_arr, _head, array, arrayIndex, num1);
+            Array.Copy(_arr, 0, array, arrayIndex + num1, _tail);
         }
+    }
 
-        private void SetCapacity(int capacity)
-        {
-            T[] newArr = new T[capacity];
-            CopyTo(newArr, 0);
-            _head = 0;
-            _tail = (Count == capacity) ? 0 : Count;
-            _arr = newArr;
-        }
-
-        /// <inheritdoc/>
-        public IEnumerator<T> GetEnumerator()
-        {
-            if (_head < _tail)
-            {
-                for (int i = _head; i < _tail; i++)
-                    yield return _arr[i];
-            }
-            else
-            {
-                for (int i = _head; i < _arr.Length; i++)
-                    yield return _arr[i];
-                for (int i = 0; i < _tail; i++)
-                    yield return _arr[i];
-            }
-        }
-
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        bool ICollection<T>.IsReadOnly => false;
-
-        void ICollection<T>.Add(T item)
-        {
-            PushBack(item);
-        }
-
-        /// <inheritdoc/>
-        public bool Contains(T item)
-        {
-            EqualityComparer<T> comparer = EqualityComparer<T>.Default;
-            foreach (T element in this)
-                if (comparer.Equals(item, element))
-                    return true;
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void CopyTo(T[] array, int arrayIndex)
-        {
-            if (array == null)
-                throw new ArgumentNullException(nameof(array));
-            if (_head < _tail)
-            {
-                Array.Copy(_arr, _head, array, arrayIndex, _tail - _head);
-            }
-            else
-            {
-                int num1 = _arr.Length - _head;
-                Array.Copy(_arr, _head, array, arrayIndex, num1);
-                Array.Copy(_arr, 0, array, arrayIndex + num1, _tail);
-            }
-        }
-
-        bool ICollection<T>.Remove(T item)
-        {
-            throw new NotSupportedException();
-        }
+    bool ICollection<T>.Remove(T item)
+    {
+        throw new NotSupportedException();
     }
 }

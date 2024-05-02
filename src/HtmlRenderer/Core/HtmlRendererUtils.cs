@@ -14,23 +14,23 @@ using System;
 using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Core
+namespace TheArtOfDev.HtmlRenderer.Core;
+
+/// <summary>
+/// General utilities.
+/// </summary>
+public static class HtmlRendererUtils
 {
     /// <summary>
-    /// General utilities.
+    /// Measure the size of the html by performing layout under the given restrictions.
     /// </summary>
-    public static class HtmlRendererUtils
+    /// <param name="g">the graphics to use</param>
+    /// <param name="htmlContainer">the html to calculate the layout for</param>
+    /// <param name="minSize">the minimal size of the rendered html (zero - not limit the width/height)</param>
+    /// <param name="maxSize">the maximum size of the rendered html, if not zero and html cannot be layout within the limit it will be clipped (zero - not limit the width/height)</param>
+    /// <returns>return: the size of the html to be rendered within the min/max limits</returns>
+    public static RSize MeasureHtmlByRestrictions(RGraphics g, HtmlContainerInt htmlContainer, RSize minSize, RSize maxSize)
     {
-        /// <summary>
-        /// Measure the size of the html by performing layout under the given restrictions.
-        /// </summary>
-        /// <param name="g">the graphics to use</param>
-        /// <param name="htmlContainer">the html to calculate the layout for</param>
-        /// <param name="minSize">the minimal size of the rendered html (zero - not limit the width/height)</param>
-        /// <param name="maxSize">the maximum size of the rendered html, if not zero and html cannot be layout within the limit it will be clipped (zero - not limit the width/height)</param>
-        /// <returns>return: the size of the html to be rendered within the min/max limits</returns>
-        public static RSize MeasureHtmlByRestrictions(RGraphics g, HtmlContainerInt htmlContainer, RSize minSize, RSize maxSize)
-        {
             // first layout without size restriction to know html actual size
             htmlContainer.PerformLayout(g);
 
@@ -57,23 +57,23 @@ namespace TheArtOfDev.HtmlRenderer.Core
         }
 
 
-        /// <summary>
-        /// Perform the layout of the html container by given size restrictions returning the final size.<br/>
-        /// The layout can be effected by the HTML content in the <paramref name="htmlContainer"/> if <paramref name="autoSize"/> or
-        /// <paramref name="autoSizeHeightOnly"/> is set to true.<br/>
-        /// Handle minimum and maximum size restrictions.<br/>
-        /// Handle auto size and auto size for height only. if <paramref name="autoSize"/> is true <paramref name="autoSizeHeightOnly"/>
-        /// is ignored.<br/>
-        /// </summary>
-        /// <param name="g">the graphics used for layout</param>
-        /// <param name="htmlContainer">the html container to layout</param>
-        /// <param name="size">the current size</param>
-        /// <param name="minSize">the min size restriction - can be empty for no restriction</param>
-        /// <param name="maxSize">the max size restriction - can be empty for no restriction</param>
-        /// <param name="autoSize">if to modify the size (width and height) by html content layout</param>
-        /// <param name="autoSizeHeightOnly">if to modify the height by html content layout</param>
-        public static RSize Layout(RGraphics g, HtmlContainerInt htmlContainer, RSize size, RSize minSize, RSize maxSize, bool autoSize, bool autoSizeHeightOnly)
-        {
+    /// <summary>
+    /// Perform the layout of the html container by given size restrictions returning the final size.<br/>
+    /// The layout can be effected by the HTML content in the <paramref name="htmlContainer"/> if <paramref name="autoSize"/> or
+    /// <paramref name="autoSizeHeightOnly"/> is set to true.<br/>
+    /// Handle minimum and maximum size restrictions.<br/>
+    /// Handle auto size and auto size for height only. if <paramref name="autoSize"/> is true <paramref name="autoSizeHeightOnly"/>
+    /// is ignored.<br/>
+    /// </summary>
+    /// <param name="g">the graphics used for layout</param>
+    /// <param name="htmlContainer">the html container to layout</param>
+    /// <param name="size">the current size</param>
+    /// <param name="minSize">the min size restriction - can be empty for no restriction</param>
+    /// <param name="maxSize">the max size restriction - can be empty for no restriction</param>
+    /// <param name="autoSize">if to modify the size (width and height) by html content layout</param>
+    /// <param name="autoSizeHeightOnly">if to modify the height by html content layout</param>
+    public static RSize Layout(RGraphics g, HtmlContainerInt htmlContainer, RSize size, RSize minSize, RSize maxSize, bool autoSize, bool autoSizeHeightOnly)
+    {
             if (autoSize)
                 htmlContainer.MaxSize = new RSize(0, 0);
             else if (autoSizeHeightOnly)
@@ -119,5 +119,4 @@ namespace TheArtOfDev.HtmlRenderer.Core
 
             return newSize;
         }
-    }
 }
