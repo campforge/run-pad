@@ -1,6 +1,6 @@
 ﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    x:Class="RoslynPad.Resources.Icons">
+                    x:Class="DotPad.Resources.Icons">
 
     <!-- Source: The Noun Project, icon by Robin Richards -->
     <DrawingImage x:Key="Save">

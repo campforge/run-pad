@@ -16,13 +16,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+internal static class Constants
 {
-    internal static class Constants
-    {
-        /// <summary>
-        /// Multiply with this constant to convert from points to device-independent pixels.
-        /// </summary>
-        public const double PixelPerPoint = 4 / 3.0;
-    }
+    /// <summary>
+    /// Multiply with this constant to convert from points to device-independent pixels.
+    /// </summary>
+    public const double PixelPerPoint = 4 / 3.0;
 }

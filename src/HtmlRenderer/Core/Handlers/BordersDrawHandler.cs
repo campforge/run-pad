@@ -16,33 +16,33 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Dom;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers
+namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+
+/// <summary>
+/// Contains all the complex paint code to paint different style borders.
+/// </summary>
+internal static class BordersDrawHandler
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Contains all the complex paint code to paint different style borders.
+    /// used for all border paint to use the same points and not create new array each time.
     /// </summary>
-    internal static class BordersDrawHandler
+    private static readonly RPoint[] _borderPts = new RPoint[4];
+
+    #endregion
+
+
+    /// <summary>
+    /// Draws all the border of the box with respect to style, width, etc.
+    /// </summary>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="box">the box to draw borders for</param>
+    /// <param name="rect">the bounding rectangle to draw in</param>
+    /// <param name="isFirst">is it the first rectangle of the element</param>
+    /// <param name="isLast">is it the last rectangle of the element</param>
+    public static void DrawBoxBorders(RGraphics g, CssBox box, RRect rect, bool isFirst, bool isLast)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// used for all border paint to use the same points and not create new array each time.
-        /// </summary>
-        private static readonly RPoint[] _borderPts = new RPoint[4];
-
-        #endregion
-
-
-        /// <summary>
-        /// Draws all the border of the box with respect to style, width, etc.
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="box">the box to draw borders for</param>
-        /// <param name="rect">the bounding rectangle to draw in</param>
-        /// <param name="isFirst">is it the first rectangle of the element</param>
-        /// <param name="isLast">is it the last rectangle of the element</param>
-        public static void DrawBoxBorders(RGraphics g, CssBox box, RRect rect, bool isFirst, bool isLast)
-        {
             if (rect.Width > 0 && rect.Height > 0)
             {
                 if (!(string.IsNullOrEmpty(box.BorderTopStyle) || box.BorderTopStyle == CssConstants.None || box.BorderTopStyle == CssConstants.Hidden) && box.ActualBorderTopWidth > 0)
@@ -64,35 +64,35 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Draw simple border.
-        /// </summary>
-        /// <param name="border">Desired border</param>
-        /// <param name="g">the device to draw to</param>
-        /// <param name="box">Box which the border corresponds</param>
-        /// <param name="brush">the brush to use</param>
-        /// <param name="rectangle">the bounding rectangle to draw in</param>
-        /// <returns>Beveled border path, null if there is no rounded corners</returns>
-        public static void DrawBorder(Border border, RGraphics g, CssBox box, RBrush brush, RRect rectangle)
-        {
+    /// <summary>
+    /// Draw simple border.
+    /// </summary>
+    /// <param name="border">Desired border</param>
+    /// <param name="g">the device to draw to</param>
+    /// <param name="box">Box which the border corresponds</param>
+    /// <param name="brush">the brush to use</param>
+    /// <param name="rectangle">the bounding rectangle to draw in</param>
+    /// <returns>Beveled border path, null if there is no rounded corners</returns>
+    public static void DrawBorder(Border border, RGraphics g, CssBox box, RBrush brush, RRect rectangle)
+    {
             SetInOutsetRectanglePoints(border, box, rectangle, true, true);
             g.DrawPolygon(brush, _borderPts);
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Draw specific border (top/bottom/left/right) with the box data (style/width/rounded).<br/>
-        /// </summary>
-        /// <param name="border">desired border to draw</param>
-        /// <param name="box">the box to draw its borders, contain the borders data</param>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="rect">the rectangle the border is enclosing</param>
-        /// <param name="isLineStart">Specifies if the border is for a starting line (no bevel on left)</param>
-        /// <param name="isLineEnd">Specifies if the border is for an ending line (no bevel on right)</param>
-        private static void DrawBorder(Border border, CssBox box, RGraphics g, RRect rect, bool isLineStart, bool isLineEnd)
-        {
+    /// <summary>
+    /// Draw specific border (top/bottom/left/right) with the box data (style/width/rounded).<br/>
+    /// </summary>
+    /// <param name="border">desired border to draw</param>
+    /// <param name="box">the box to draw its borders, contain the borders data</param>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="rect">the rectangle the border is enclosing</param>
+    /// <param name="isLineStart">Specifies if the border is for a starting line (no bevel on left)</param>
+    /// <param name="isLineEnd">Specifies if the border is for an ending line (no bevel on right)</param>
+    private static void DrawBorder(Border border, CssBox box, RGraphics g, RRect rect, bool isLineStart, bool isLineEnd)
+    {
             var style = GetStyle(border, box);
             var color = GetColor(border, box, style);
 
@@ -142,17 +142,17 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Set rectangle for inset/outset border as it need diagonal connection to other borders.
-        /// </summary>
-        /// <param name="border">Desired border</param>
-        /// <param name="b">Box which the border corresponds</param>
-        /// <param name="r">the rectangle the border is enclosing</param>
-        /// <param name="isLineStart">Specifies if the border is for a starting line (no bevel on left)</param>
-        /// <param name="isLineEnd">Specifies if the border is for an ending line (no bevel on right)</param>
-        /// <returns>Beveled border path, null if there is no rounded corners</returns>
-        private static void SetInOutsetRectanglePoints(Border border, CssBox b, RRect r, bool isLineStart, bool isLineEnd)
-        {
+    /// <summary>
+    /// Set rectangle for inset/outset border as it need diagonal connection to other borders.
+    /// </summary>
+    /// <param name="border">Desired border</param>
+    /// <param name="b">Box which the border corresponds</param>
+    /// <param name="r">the rectangle the border is enclosing</param>
+    /// <param name="isLineStart">Specifies if the border is for a starting line (no bevel on left)</param>
+    /// <param name="isLineEnd">Specifies if the border is for an ending line (no bevel on right)</param>
+    /// <returns>Beveled border path, null if there is no rounded corners</returns>
+    private static void SetInOutsetRectanglePoints(Border border, CssBox b, RRect r, bool isLineStart, bool isLineEnd)
+    {
             switch (border)
             {
                 case Border.Top:
@@ -190,18 +190,18 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Makes a border path for rounded borders.<br/>
-        /// To support rounded dotted/dashed borders we need to use arc in the border path.<br/>
-        /// Return null if the border is not rounded.<br/>
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="border">Desired border</param>
-        /// <param name="b">Box which the border corresponds</param>
-        /// <param name="r">the rectangle the border is enclosing</param>
-        /// <returns>Beveled border path, null if there is no rounded corners</returns>
-        private static RGraphicsPath GetRoundedBorderPath(RGraphics g, Border border, CssBox b, RRect r)
-        {
+    /// <summary>
+    /// Makes a border path for rounded borders.<br/>
+    /// To support rounded dotted/dashed borders we need to use arc in the border path.<br/>
+    /// Return null if the border is not rounded.<br/>
+    /// </summary>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="border">Desired border</param>
+    /// <param name="b">Box which the border corresponds</param>
+    /// <param name="r">the rectangle the border is enclosing</param>
+    /// <returns>Beveled border path, null if there is no rounded corners</returns>
+    private static RGraphicsPath GetRoundedBorderPath(RGraphics g, Border border, CssBox b, RRect r)
+    {
             RGraphicsPath path = null;
             switch (border)
             {
@@ -276,11 +276,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             return path;
         }
 
-        /// <summary>
-        /// Get pen to be used for border draw respecting its style.
-        /// </summary>
-        private static RPen GetPen(RGraphics g, string style, RColor color, double width)
-        {
+    /// <summary>
+    /// Get pen to be used for border draw respecting its style.
+    /// </summary>
+    private static RPen GetPen(RGraphics g, string style, RColor color, double width)
+    {
             var p = g.GetPen(color);
             p.Width = width;
             switch (style)
@@ -298,11 +298,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             return p;
         }
 
-        /// <summary>
-        /// Get the border color for the given box border.
-        /// </summary>
-        private static RColor GetColor(Border border, CssBoxProperties box, string style)
-        {
+    /// <summary>
+    /// Get the border color for the given box border.
+    /// </summary>
+    private static RColor GetColor(Border border, CssBoxProperties box, string style)
+    {
             switch (border)
             {
                 case Border.Top:
@@ -318,11 +318,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Get the border width for the given box border.
-        /// </summary>
-        private static double GetWidth(Border border, CssBoxProperties box)
-        {
+    /// <summary>
+    /// Get the border width for the given box border.
+    /// </summary>
+    private static double GetWidth(Border border, CssBoxProperties box)
+    {
             switch (border)
             {
                 case Border.Top:
@@ -338,11 +338,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Get the border style for the given box border.
-        /// </summary>
-        private static string GetStyle(Border border, CssBoxProperties box)
-        {
+    /// <summary>
+    /// Get the border style for the given box border.
+    /// </summary>
+    private static string GetStyle(Border border, CssBoxProperties box)
+    {
             switch (border)
             {
                 case Border.Top:
@@ -358,14 +358,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Makes the specified color darker for inset/outset borders.
-        /// </summary>
-        private static RColor Darken(RColor c)
-        {
+    /// <summary>
+    /// Makes the specified color darker for inset/outset borders.
+    /// </summary>
+    private static RColor Darken(RColor c)
+    {
             return RColor.FromArgb(c.R / 2, c.G / 2, c.B / 2);
         }
 
-        #endregion
-    }
+    #endregion
 }

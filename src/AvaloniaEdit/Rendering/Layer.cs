@@ -20,29 +20,28 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-namespace AvaloniaEdit.Rendering
+namespace AvaloniaEdit.Rendering;
+
+/// <summary>
+/// Base class for known layers.
+/// </summary>
+class Layer : Control
 {
-    /// <summary>
-    /// Base class for known layers.
-    /// </summary>
-    class Layer : Control
+    protected readonly TextView TextView;
+    protected readonly KnownLayer KnownLayer;
+
+    public Layer(TextView textView, KnownLayer knownLayer)
     {
-        protected readonly TextView TextView;
-        protected readonly KnownLayer KnownLayer;
+        Debug.Assert(textView != null);
+        TextView = textView;
+        KnownLayer = knownLayer;
+        Focusable = false;
+        IsHitTestVisible = false;
+    }
 
-        public Layer(TextView textView, KnownLayer knownLayer)
-        {
-            Debug.Assert(textView != null);
-            TextView = textView;
-            KnownLayer = knownLayer;
-            Focusable = false;
-            IsHitTestVisible = false;
-        }
-
-        public override void Render(DrawingContext context)
-        {
-            base.Render(context);
-            TextView.RenderBackground(context, KnownLayer);
-        }
+    public override void Render(DrawingContext context)
+    {
+        base.Render(context);
+        TextView.RenderBackground(context, KnownLayer);
     }
 }

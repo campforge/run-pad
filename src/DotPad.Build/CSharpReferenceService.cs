@@ -2,9 +2,16 @@ using System.Reflection;
 
 namespace DotPad.Build;
 
+// singleton
 public sealed class CSharpReferenceService
 {
     public CSharpReferenceService() { }
+
+    public string GetExtensionReference()
+    {
+        return typeof(ObjectExtensions).GetTypeInfo().Assembly.Location;
+    }
+
     public string[] GetDefault()
     {
         var refPaths = new[] {

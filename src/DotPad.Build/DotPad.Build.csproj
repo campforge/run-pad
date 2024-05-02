@@ -12,4 +12,8 @@
     <PackageReference Include="NuGet.Versioning" Version="6.9.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DotPad.Runtime\DotPad.Runtime.csproj" />
+  </ItemGroup>
+
 </Project>

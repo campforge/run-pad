@@ -10,16 +10,15 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// Border types
+/// </summary>
+internal enum Border
 {
-    /// <summary>
-    /// Border types
-    /// </summary>
-    internal enum Border
-    {
-        Top,
-        Right,
-        Bottom,
-        Left
-    }
+    Top,
+    Right,
+    Bottom,
+    Left
 }

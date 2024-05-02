@@ -19,68 +19,67 @@
 using System;
 using System.Collections.ObjectModel;
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+/// <summary>
+/// A collection where adding and removing items causes a callback.
+/// It is valid for the onAdd callback to throw an exception - this will prevent the new item from
+/// being added to the collection.
+/// </summary>
+internal sealed class ObserveAddRemoveCollection<T> : Collection<T>
 {
+    private readonly Action<T> _onAdd;
+    private readonly Action<T> _onRemove;
+
     /// <summary>
-    /// A collection where adding and removing items causes a callback.
-    /// It is valid for the onAdd callback to throw an exception - this will prevent the new item from
-    /// being added to the collection.
+    /// Creates a new ObserveAddRemoveCollection using the specified callbacks.
     /// </summary>
-    internal sealed class ObserveAddRemoveCollection<T> : Collection<T>
+    public ObserveAddRemoveCollection(Action<T> onAdd, Action<T> onRemove)
     {
-        private readonly Action<T> _onAdd;
-        private readonly Action<T> _onRemove;
+        _onAdd = onAdd ?? throw new ArgumentNullException(nameof(onAdd));
+        _onRemove = onRemove ?? throw new ArgumentNullException(nameof(onRemove));
+    }
 
-        /// <summary>
-        /// Creates a new ObserveAddRemoveCollection using the specified callbacks.
-        /// </summary>
-        public ObserveAddRemoveCollection(Action<T> onAdd, Action<T> onRemove)
+    /// <inheritdoc/>
+    protected override void ClearItems()
+    {
+        if (_onRemove != null)
         {
-            _onAdd = onAdd ?? throw new ArgumentNullException(nameof(onAdd));
-            _onRemove = onRemove ?? throw new ArgumentNullException(nameof(onRemove));
+            foreach (T val in this)
+                _onRemove(val);
         }
+        base.ClearItems();
+    }
 
-        /// <inheritdoc/>
-        protected override void ClearItems()
-        {
-            if (_onRemove != null)
-            {
-                foreach (T val in this)
-                    _onRemove(val);
-            }
-            base.ClearItems();
-        }
+    /// <inheritdoc/>
+    protected override void InsertItem(int index, T item)
+    {
+        _onAdd?.Invoke(item);
+        base.InsertItem(index, item);
+    }
 
-        /// <inheritdoc/>
-        protected override void InsertItem(int index, T item)
+    /// <inheritdoc/>
+    protected override void RemoveItem(int index)
+    {
+        _onRemove?.Invoke(this[index]);
+        base.RemoveItem(index);
+    }
+
+    /// <inheritdoc/>
+    protected override void SetItem(int index, T item)
+    {
+        _onRemove?.Invoke(this[index]);
+        try
         {
             _onAdd?.Invoke(item);
-            base.InsertItem(index, item);
         }
-
-        /// <inheritdoc/>
-        protected override void RemoveItem(int index)
+        catch
         {
-            _onRemove?.Invoke(this[index]);
-            base.RemoveItem(index);
+            // When adding the new item fails, just remove the old one
+            // (we cannot keep the old item since we already successfully called onRemove for it)
+            RemoveAt(index);
+            throw;
         }
-
-        /// <inheritdoc/>
-        protected override void SetItem(int index, T item)
-        {
-            _onRemove?.Invoke(this[index]);
-            try
-            {
-                _onAdd?.Invoke(item);
-            }
-            catch
-            {
-                // When adding the new item fails, just remove the old one
-                // (we cannot keep the old item since we already successfully called onRemove for it)
-                RemoveAt(index);
-                throw;
-            }
-            base.SetItem(index, item);
-        }
+        base.SetItem(index, item);
     }
 }

@@ -1,15 +1,15 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using dotpad.ViewModels;
 using System;
+using DotPad.ViewModels;
 
-namespace dotpad
+namespace DotPad;
+
+public class ViewLocator : IDataTemplate
 {
-    public class ViewLocator : IDataTemplate
-    {
 
-        public Control? Build(object? data)
-        {
+    public Control? Build(object? data)
+    {
             if (data is null)
                 return null;
 
@@ -26,9 +26,8 @@ namespace dotpad
             return new TextBlock { Text = "Not Found: " + name };
         }
 
-        public bool Match(object? data)
-        {
+    public bool Match(object? data)
+    {
             return data is ViewModelBase;
         }
-    }
 }

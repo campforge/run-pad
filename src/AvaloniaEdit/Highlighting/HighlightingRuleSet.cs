@@ -19,41 +19,40 @@
 using System.Collections.Generic;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Highlighting
+namespace AvaloniaEdit.Highlighting;
+
+/// <summary>
+/// A highlighting rule set describes a set of spans that are valid at a given code location.
+/// </summary>
+public class HighlightingRuleSet
 {
     /// <summary>
-    /// A highlighting rule set describes a set of spans that are valid at a given code location.
+    /// Creates a new RuleSet instance.
     /// </summary>
-    public class HighlightingRuleSet
+    public HighlightingRuleSet()
     {
-        /// <summary>
-        /// Creates a new RuleSet instance.
-        /// </summary>
-        public HighlightingRuleSet()
-        {
-            Spans = new NullSafeCollection<HighlightingSpan>();
-            Rules = new NullSafeCollection<HighlightingRule>();
-        }
+        Spans = new NullSafeCollection<HighlightingSpan>();
+        Rules = new NullSafeCollection<HighlightingRule>();
+    }
 
-        /// <summary>
-        /// Gets/Sets the name of the rule set.
-        /// </summary>
-        public string Name { get; set; }
+    /// <summary>
+    /// Gets/Sets the name of the rule set.
+    /// </summary>
+    public string Name { get; set; }
 
-        /// <summary>
-        /// Gets the list of spans.
-        /// </summary>
-        public IList<HighlightingSpan> Spans { get; }
+    /// <summary>
+    /// Gets the list of spans.
+    /// </summary>
+    public IList<HighlightingSpan> Spans { get; }
 
-        /// <summary>
-        /// Gets the list of rules.
-        /// </summary>
-        public IList<HighlightingRule> Rules { get; }
+    /// <summary>
+    /// Gets the list of rules.
+    /// </summary>
+    public IList<HighlightingRule> Rules { get; }
 
-        /// <inheritdoc/>
-        public override string ToString()
-        {
-            return "[" + GetType().Name + " " + Name + "]";
-        }
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return "[" + GetType().Name + " " + Name + "]";
     }
 }

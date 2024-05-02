@@ -3,34 +3,34 @@ using System.Globalization;
 using TheArtOfDev.HtmlRenderer.Core.Parse;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom
+namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+
+/// <summary>
+/// Represents and gets info about a CSS Length
+/// </summary>
+/// <remarks>
+/// http://www.w3.org/TR/CSS21/syndata.html#length-units
+/// </remarks>
+internal sealed class CssLength
 {
+    #region Fields
+
+    private readonly double _number;
+    private readonly bool _isRelative;
+    private readonly CssUnit _unit;
+    private readonly string _length;
+    private readonly bool _isPercentage;
+    private readonly bool _hasError;
+
+    #endregion
+
+
     /// <summary>
-    /// Represents and gets info about a CSS Length
+    /// Creates a new CssLength from a length specified on a CSS style sheet or fragment
     /// </summary>
-    /// <remarks>
-    /// http://www.w3.org/TR/CSS21/syndata.html#length-units
-    /// </remarks>
-    internal sealed class CssLength
+    /// <param name="length">Length as specified in the Style Sheet or style fragment</param>
+    public CssLength(string length)
     {
-        #region Fields
-
-        private readonly double _number;
-        private readonly bool _isRelative;
-        private readonly CssUnit _unit;
-        private readonly string _length;
-        private readonly bool _isPercentage;
-        private readonly bool _hasError;
-
-        #endregion
-
-
-        /// <summary>
-        /// Creates a new CssLength from a length specified on a CSS style sheet or fragment
-        /// </summary>
-        /// <param name="length">Length as specified in the Style Sheet or style fragment</param>
-        public CssLength(string length)
-        {
             _length = length;
             _number = 0f;
             _unit = CssUnit.None;
@@ -104,71 +104,71 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
         }
 
 
-        #region Props
+    #region Props
 
-        /// <summary>
-        /// Gets the number in the length
-        /// </summary>
-        public double Number
-        {
-            get { return _number; }
-        }
+    /// <summary>
+    /// Gets the number in the length
+    /// </summary>
+    public double Number
+    {
+        get { return _number; }
+    }
 
-        /// <summary>
-        /// Gets if the length has some parsing error
-        /// </summary>
-        public bool HasError
-        {
-            get { return _hasError; }
-        }
-
-
-        /// <summary>
-        /// Gets if the length represents a precentage (not actually a length)
-        /// </summary>
-        public bool IsPercentage
-        {
-            get { return _isPercentage; }
-        }
+    /// <summary>
+    /// Gets if the length has some parsing error
+    /// </summary>
+    public bool HasError
+    {
+        get { return _hasError; }
+    }
 
 
-        /// <summary>
-        /// Gets if the length is specified in relative units
-        /// </summary>
-        public bool IsRelative
-        {
-            get { return _isRelative; }
-        }
-
-        /// <summary>
-        /// Gets the unit of the length
-        /// </summary>
-        public CssUnit Unit
-        {
-            get { return _unit; }
-        }
-
-        /// <summary>
-        /// Gets the length as specified in the string
-        /// </summary>
-        public string Length
-        {
-            get { return _length; }
-        }
-
-        #endregion
+    /// <summary>
+    /// Gets if the length represents a precentage (not actually a length)
+    /// </summary>
+    public bool IsPercentage
+    {
+        get { return _isPercentage; }
+    }
 
 
-        #region Methods
+    /// <summary>
+    /// Gets if the length is specified in relative units
+    /// </summary>
+    public bool IsRelative
+    {
+        get { return _isRelative; }
+    }
 
-        /// <summary>
-        /// If length is in Ems, returns its value in points
-        /// </summary>
-        /// <param name="emSize">Em size factor to multiply</param>
-        /// <returns>Points size of this em</returns>
-        /// <exception cref="InvalidOperationException">If length has an error or isn't in ems</exception>
-        public CssLength ConvertEmToPoints(double emSize)
-        {
+    /// <summary>
+    /// Gets the unit of the length
+    /// </summary>
+    public CssUnit Unit
+    {
+        get { return _unit; }
+    }
+
+    /// <summary>
+    /// Gets the length as specified in the string
+    /// </summary>
+    public string Length
+    {
+        get { return _length; }
+    }
+
+    #endregion
+
+
+    #region Methods
+
+    /// <summary>
+    /// If length is in Ems, returns its value in points
+    /// </summary>
+    /// <param name="emSize">Em size factor to multiply</param>
+    /// <returns>Points size of this em</returns>
+    /// <exception cref="InvalidOperationException">If length has an error or isn't in ems</exception>
+    public CssLength ConvertEmToPoints(double emSize)
+    {
             if (HasError)
                 throw new InvalidOperationException("Invalid length");
             if (Unit != CssUnit.Ems)
@@ -177,14 +177,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return new CssLength(string.Format("{0}pt", Convert.ToSingle(Number * emSize).ToString("0.0", NumberFormatInfo.InvariantInfo)));
         }
 
-        /// <summary>
-        /// If length is in Ems, returns its value in pixels
-        /// </summary>
-        /// <param name="pixelFactor">Pixel size factor to multiply</param>
-        /// <returns>Pixels size of this em</returns>
-        /// <exception cref="InvalidOperationException">If length has an error or isn't in ems</exception>
-        public CssLength ConvertEmToPixels(double pixelFactor)
-        {
+    /// <summary>
+    /// If length is in Ems, returns its value in pixels
+    /// </summary>
+    /// <param name="pixelFactor">Pixel size factor to multiply</param>
+    /// <returns>Pixels size of this em</returns>
+    /// <exception cref="InvalidOperationException">If length has an error or isn't in ems</exception>
+    public CssLength ConvertEmToPixels(double pixelFactor)
+    {
             if (HasError)
                 throw new InvalidOperationException("Invalid length");
             if (Unit != CssUnit.Ems)
@@ -193,12 +193,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             return new CssLength(string.Format("{0}px", Convert.ToSingle(Number * pixelFactor).ToString("0.0", NumberFormatInfo.InvariantInfo)));
         }
 
-        /// <summary>
-        /// Returns the length formatted ready for CSS interpreting.
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
+    /// <summary>
+    /// Returns the length formatted ready for CSS interpreting.
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString()
+    {
             if (HasError)
             {
                 return string.Empty;
@@ -245,6 +245,5 @@ namespace TheArtOfDev.HtmlRenderer.Core.Dom
             }
         }
 
-        #endregion
-    }
+    #endregion
 }

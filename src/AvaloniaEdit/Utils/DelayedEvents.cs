@@ -19,46 +19,45 @@
 using System;
 using System.Collections.Generic;
 
-namespace AvaloniaEdit.Utils
+namespace AvaloniaEdit.Utils;
+
+/// <summary>
+/// Maintains a list of delayed events to raise.
+/// </summary>
+internal sealed class DelayedEvents
 {
-    /// <summary>
-    /// Maintains a list of delayed events to raise.
-    /// </summary>
-    internal sealed class DelayedEvents
+    private struct EventCall
     {
-        private struct EventCall
+        private readonly EventHandler _handler;
+        private readonly object _sender;
+        private readonly EventArgs _e;
+
+        public EventCall(EventHandler handler, object sender, EventArgs e)
         {
-            private readonly EventHandler _handler;
-            private readonly object _sender;
-            private readonly EventArgs _e;
-
-            public EventCall(EventHandler handler, object sender, EventArgs e)
-            {
-                _handler = handler;
-                _sender = sender;
-                _e = e;
-            }
-
-            public void Call()
-            {
-                _handler(_sender, _e);
-            }
+            _handler = handler;
+            _sender = sender;
+            _e = e;
         }
 
-        private readonly Queue<EventCall> _eventCalls = new Queue<EventCall>();
-
-        public void DelayedRaise(EventHandler handler, object sender, EventArgs e)
+        public void Call()
         {
-            if (handler != null)
-            {
-                _eventCalls.Enqueue(new EventCall(handler, sender, e));
-            }
+            _handler(_sender, _e);
         }
+    }
 
-        public void RaiseEvents()
+    private readonly Queue<EventCall> _eventCalls = new Queue<EventCall>();
+
+    public void DelayedRaise(EventHandler handler, object sender, EventArgs e)
+    {
+        if (handler != null)
         {
-            while (_eventCalls.Count > 0)
-                _eventCalls.Dequeue().Call();
+            _eventCalls.Enqueue(new EventCall(handler, sender, e));
         }
+    }
+
+    public void RaiseEvents()
+    {
+        while (_eventCalls.Count > 0)
+            _eventCalls.Dequeue().Call();
     }
 }

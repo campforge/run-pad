@@ -18,93 +18,92 @@
 
 using AvaloniaEdit.Document;
 
-namespace AvaloniaEdit.Snippets
+namespace AvaloniaEdit.Snippets;
+
+/// <summary>
+/// Creates a named anchor that can be accessed by other SnippetElements.
+/// </summary>
+public sealed class SnippetAnchorElement : SnippetElement
 {
     /// <summary>
-    /// Creates a named anchor that can be accessed by other SnippetElements.
+    /// Gets or sets the name of the anchor.
     /// </summary>
-    public sealed class SnippetAnchorElement : SnippetElement
+    public string Name { get; }
+
+    /// <summary>
+    /// Creates a SnippetAnchorElement with the supplied name.
+    /// </summary>
+    public SnippetAnchorElement(string name)
     {
-        /// <summary>
-        /// Gets or sets the name of the anchor.
-        /// </summary>
-        public string Name { get; }
+        Name = name;
+    }
 
-        /// <summary>
-        /// Creates a SnippetAnchorElement with the supplied name.
-        /// </summary>
-        public SnippetAnchorElement(string name)
-        {
-            Name = name;
-        }
+    /// <inheritdoc />
+    public override void Insert(InsertionContext context)
+    {
+        var start = context.Document.CreateAnchor(context.InsertionPosition);
+        start.MovementType = AnchorMovementType.BeforeInsertion;
+        start.SurviveDeletion = true;
+        var segment = new AnchorSegment(start, start);
+        context.RegisterActiveElement(this, new AnchorElement(segment, Name, context));
+    }
+}
 
-        /// <inheritdoc />
-        public override void Insert(InsertionContext context)
+/// <summary>
+/// AnchorElement created by SnippetAnchorElement.
+/// </summary>
+public sealed class AnchorElement : IActiveElement
+{
+    /// <inheritdoc />
+    public bool IsEditable => false;
+
+    private AnchorSegment _segment;
+    private readonly InsertionContext _context;
+
+    /// <inheritdoc />
+    public ISegment Segment => _segment;
+
+    /// <summary>
+    /// Creates a new AnchorElement.
+    /// </summary>
+    public AnchorElement(AnchorSegment segment, string name, InsertionContext context)
+    {
+        _segment = segment;
+        _context = context;
+        Name = name;
+    }
+
+    /// <summary>
+    /// Gets or sets the text at the anchor.
+    /// </summary>
+    public string Text
+    {
+        get => _context.Document.GetText(_segment);
+        set
         {
-            var start = context.Document.CreateAnchor(context.InsertionPosition);
-            start.MovementType = AnchorMovementType.BeforeInsertion;
-            start.SurviveDeletion = true;
-            var segment = new AnchorSegment(start, start);
-            context.RegisterActiveElement(this, new AnchorElement(segment, Name, context));
+            var offset = _segment.Offset;
+            var length = _segment.Length;
+            _context.Document.Replace(offset, length, value);
+            if (length == 0)
+            {
+                // replacing an empty anchor segment with text won't enlarge it, so we have to recreate it
+                _segment = new AnchorSegment(_context.Document, offset, value.Length);
+            }
         }
     }
 
     /// <summary>
-    /// AnchorElement created by SnippetAnchorElement.
+    /// Gets or sets the name of the anchor.
     /// </summary>
-    public sealed class AnchorElement : IActiveElement
+    public string Name { get; }
+
+    /// <inheritdoc />
+    public void OnInsertionCompleted()
     {
-        /// <inheritdoc />
-        public bool IsEditable => false;
+    }
 
-        private AnchorSegment _segment;
-        private readonly InsertionContext _context;
-
-        /// <inheritdoc />
-        public ISegment Segment => _segment;
-
-        /// <summary>
-        /// Creates a new AnchorElement.
-        /// </summary>
-        public AnchorElement(AnchorSegment segment, string name, InsertionContext context)
-        {
-            _segment = segment;
-            _context = context;
-            Name = name;
-        }
-
-        /// <summary>
-        /// Gets or sets the text at the anchor.
-        /// </summary>
-        public string Text
-        {
-            get => _context.Document.GetText(_segment);
-            set
-            {
-                var offset = _segment.Offset;
-                var length = _segment.Length;
-                _context.Document.Replace(offset, length, value);
-                if (length == 0)
-                {
-                    // replacing an empty anchor segment with text won't enlarge it, so we have to recreate it
-                    _segment = new AnchorSegment(_context.Document, offset, value.Length);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the name of the anchor.
-        /// </summary>
-        public string Name { get; }
-
-        /// <inheritdoc />
-        public void OnInsertionCompleted()
-        {
-        }
-
-        /// <inheritdoc />
-        public void Deactivate(SnippetEventArgs e)
-        {
-        }
+    /// <inheritdoc />
+    public void Deactivate(SnippetEventArgs e)
+    {
     }
 }

@@ -18,40 +18,39 @@
 
 using System.Text;
 
-namespace AvaloniaEdit.Snippets
+namespace AvaloniaEdit.Snippets;
+
+/// <summary>
+/// Inserts the previously selected text at the selection marker.
+/// </summary>
+public class SnippetSelectionElement : SnippetElement
 {
     /// <summary>
-    /// Inserts the previously selected text at the selection marker.
+    /// Gets/Sets the new indentation of the selected text.
     /// </summary>
-    public class SnippetSelectionElement : SnippetElement
+    public int Indentation { get; set; }
+
+    /// <inheritdoc/>
+    public override void Insert(InsertionContext context)
     {
-        /// <summary>
-        /// Gets/Sets the new indentation of the selected text.
-        /// </summary>
-        public int Indentation { get; set; }
+        var tabString = new StringBuilder();
 
-        /// <inheritdoc/>
-        public override void Insert(InsertionContext context)
+        for (var i = 0; i < Indentation; i++)
         {
-            var tabString = new StringBuilder();
-
-            for (var i = 0; i < Indentation; i++)
-            {
-                tabString.Append(context.Tab);
-            }
-
-            var indent = tabString.ToString();
-
-            var text = context.SelectedText.TrimStart(' ', '\t');
-
-            text = text.Replace(context.LineTerminator,
-                                         context.LineTerminator + indent);
-
-            context.Document.Insert(context.InsertionPosition, text);
-            context.InsertionPosition += text.Length;
-
-            if (string.IsNullOrEmpty(context.SelectedText))
-                SnippetCaretElement.SetCaret(context);
+            tabString.Append(context.Tab);
         }
+
+        var indent = tabString.ToString();
+
+        var text = context.SelectedText.TrimStart(' ', '\t');
+
+        text = text.Replace(context.LineTerminator,
+            context.LineTerminator + indent);
+
+        context.Document.Insert(context.InsertionPosition, text);
+        context.InsertionPosition += text.Length;
+
+        if (string.IsNullOrEmpty(context.SelectedText))
+            SnippetCaretElement.SetCaret(context);
     }
 }

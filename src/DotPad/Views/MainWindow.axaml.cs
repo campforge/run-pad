@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
@@ -14,41 +20,38 @@ using AvaloniaEdit.Rendering;
 
 using TextMateSharp.Grammars;
 using AvaloniaEdit;
-using AvaloniaEdit.Demo.Resources;
+using DotPad.Build;
+using DotPad.Resources;
 using TheArtOfDev.HtmlRenderer.Avalonia;
-using dotpad.ViewModels;
-using DotPad;
 using DotPad.ViewModels;
+using static AvaloniaEdit.TextMate.TextMate;
 
-namespace dotpad.Views
+namespace DotPad.Views;
+
+using Pair = KeyValuePair<int, Control>;
+
+public partial class MainWindow : Window
 {
-    using static AvaloniaEdit.TextMate.TextMate;
-    using Pair = KeyValuePair<int, Control>;
+    private readonly TextEditor _textEditor;
+    private readonly Installation _textMateInstallation;
+    private CompletionWindow _completionWindow;
+    private OverloadInsightWindow _insightWindow;
+    private readonly TextBlock _statusTextBlock;
+    private readonly ElementGenerator _generator = new();
+    private readonly RegistryOptions _registryOptions;
+    private int _currentTheme = (int)ThemeName.DarkPlus;
 
-    public partial class MainWindow : Window
+    public MainWindow()
     {
-        private readonly TextEditor _textEditor;
-        private readonly Installation _textMateInstallation;
-        private CompletionWindow _completionWindow;
-        private OverloadInsightWindow _insightWindow;
-
-        private TextBlock _statusTextBlock;
-        private ElementGenerator _generator = new ElementGenerator();
-        private RegistryOptions _registryOptions;
-        private int _currentTheme = (int)ThemeName.DarkPlus;
-
-        public MainWindow()
-        {
-
             InitializeComponent();
 
             // htmlPanel
-            _htmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
-            if (_htmlPanel != null)
+            HtmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
+            if (HtmlPanel != null)
             {
-                _htmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-                _htmlPanel.Text = ResourceLoader.LoadHtmlFile("");
-                _htmlPanel.Background = Brush.Parse("#000");
+                HtmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+                HtmlPanel.Text = $"\n<div>Init</div>";;
+                //_htmlPanel.Background = Brush.Parse("#000");
             }
             // textEditor
             _textEditor = this.FindControl<TextEditor>("Editor");
@@ -61,9 +64,9 @@ namespace dotpad.Views
                 {
                     ItemsSource = new List<MenuItem>
                 {
-                    new MenuItem { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
-                    new MenuItem { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
-                    new MenuItem { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
+                    new() { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
+                    new() { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
+                    new() { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
                 }
                 };
 
@@ -106,49 +109,93 @@ namespace dotpad.Views
             }
         }
 
-        private void Caret_PositionChanged(object sender, EventArgs e)
-        {
+    private void Caret_PositionChanged(object sender, EventArgs e)
+    {
             _statusTextBlock.Text = string.Format("Line {0} Column {1}",
                 _textEditor.TextArea.Caret.Line,
                 _textEditor.TextArea.Caret.Column);
         }
 
-        protected override void OnClosed(EventArgs e)
-        {
+    protected override void OnClosed(EventArgs e)
+    {
             base.OnClosed(e);
 
             _textMateInstallation.Dispose();
         }
 
-        private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
-        {
+    private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
+    {
             _currentTheme = (_currentTheme + 1) % Enum.GetNames(typeof(ThemeName)).Length;
 
             _textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
         }
 
-        private void RunButton_Click(object sender, RoutedEventArgs e)
+    private void RunButton_Click(object sender, RoutedEventArgs e)
+    {
+        HtmlPanel.Text = string.Empty;
+        var model = DataContext! as MainWindowViewModel;
+        var root = Path.Combine(Path.GetTempPath(), "DotPad");
+        if (!Directory.Exists(root))
+            Directory.CreateDirectory(root);
+        var rs = new CSharpReferenceService();
+        var sdk = model?.DotnetPlatforms.First(i => i.Description == model.SelectedDotnetPlatform);
+        var refs = rs.GetDefault().ToList();
+        var runtimeLib = rs.GetExtensionReference();
+        refs.Add(runtimeLib);
+
+        var cs = new CSharpExecutionHostService(root,
+            runtimeLib,
+            sdk);
+
+
+        var ct = new CancellationToken();
+
+        HtmlPanel.Text += $"\n<div>Execute</div>";
+        var script = _textEditor.Text;
+
+        cs.DataReceived += (sender, args) =>
         {
-            var model = this.DataContext as MainWindowViewModel;
+            Dispatcher.UIThread.Post(() =>
+            {
+                HtmlPanel.Text += $"\n<div>{HttpUtility.HtmlEncode(args.Data)}</div>";
+            });
+        };
 
-            //var executionService = new CSharpExecutionService("");
-
-            //executionService.ExecuteAsync(_textEditor.Text);
-        }
-
-        private void InitializeComponent()
+        Task.Run(async () =>
         {
-            AvaloniaXamlLoader.Load(this);
-        }
 
-        private void AddControlButton_Click(object sender, RoutedEventArgs e)
-        {
+            Dispatcher.UIThread.Post(() => { model!.EnableRunButton = false; });
+            try
+            {
+                await cs.Execute(script, refs.ToArray(), ct);
+            }
+            catch (Exception exception)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    HtmlPanel.Text += $"\n<div>{exception.Message}</div>";
+                });
+            }
+            finally
+            {
+                Dispatcher.UIThread.Post(() => { model!.EnableRunButton = true; });
+            }
+        }, ct);
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    private void AddControlButton_Click(object sender, RoutedEventArgs e)
+    {
             _generator.controls.Add(new Pair(_textEditor.CaretOffset, new Button() { Content = "Click me", Cursor = Cursor.Default }));
             _textEditor.TextArea.TextView.Redraw();
         }
 
-        private void Preferences_Click(object sender, RoutedEventArgs e)
-        {
+    private void Preferences_Click(object sender, RoutedEventArgs e)
+    {
             var ownerWindow = this;
             var window = new PreferencesWindow();
             window.DataContext = new PreferencesWindowViewModel();
@@ -156,15 +203,15 @@ namespace dotpad.Views
         }
 
 
-        private void ClearControlButton_Click(object sender, RoutedEventArgs e)
-        {
+    private void ClearControlButton_Click(object sender, RoutedEventArgs e)
+    {
             //TODO: delete elements using back key
             _generator.controls.Clear();
             _textEditor.TextArea.TextView.Redraw();
         }
 
-        private void textEditor_TextArea_TextEntering(object sender, TextInputEventArgs e)
-        {
+    private void textEditor_TextArea_TextEntering(object sender, TextInputEventArgs e)
+    {
             if (e.Text.Length > 0 && _completionWindow != null)
             {
                 if (!char.IsLetterOrDigit(e.Text[0]))
@@ -183,8 +230,8 @@ namespace dotpad.Views
 
 
 
-        private void textEditor_TextArea_TextEntered(object sender, TextInputEventArgs e)
-        {
+    private void textEditor_TextArea_TextEntered(object sender, TextInputEventArgs e)
+    {
             if (e.Text == ".")
             {
 
@@ -214,10 +261,10 @@ namespace dotpad.Views
             }
         }
 
-        class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
+    class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
+    {
+        protected override void ColorizeLine(DocumentLine line)
         {
-            protected override void ColorizeLine(DocumentLine line)
-            {
                 if (line.LineNumber == 2)
                 {
                     string lineText = this.CurrentContext.Document.GetText(line);
@@ -268,80 +315,80 @@ namespace dotpad.Views
                     }
                 }
             }
-        }
+    }
 
-        private class MyOverloadProvider : IOverloadProvider
+    private class MyOverloadProvider : IOverloadProvider
+    {
+        private readonly IList<(string header, string content)> _items;
+        private int _selectedIndex;
+
+        public MyOverloadProvider(IList<(string header, string content)> items)
         {
-            private readonly IList<(string header, string content)> _items;
-            private int _selectedIndex;
-
-            public MyOverloadProvider(IList<(string header, string content)> items)
-            {
                 _items = items;
                 SelectedIndex = 0;
             }
 
-            public int SelectedIndex
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set
             {
-                get => _selectedIndex;
-                set
-                {
                     _selectedIndex = value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(CurrentHeader));
                     OnPropertyChanged(nameof(CurrentContent));
                 }
-            }
-
-            public int Count => _items.Count;
-            public string CurrentIndexText => $"{SelectedIndex + 1} of {Count}";
-            public object CurrentHeader => _items[SelectedIndex].header;
-            public object CurrentContent => _items[SelectedIndex].content;
-
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-            {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
         }
 
-        public class MyCompletionData : ICompletionData
+        public int Count => _items.Count;
+        public string CurrentIndexText => $"{SelectedIndex + 1} of {Count}";
+        public object CurrentHeader => _items[SelectedIndex].header;
+        public object CurrentContent => _items[SelectedIndex].content;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
-            public MyCompletionData(string text)
-            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+    }
+
+    public class MyCompletionData : ICompletionData
+    {
+        public MyCompletionData(string text)
+        {
                 Text = text;
             }
 
-            public IImage Image => null;
+        public IImage Image => null;
 
-            public string Text { get; }
+        public string Text { get; }
 
-            // Use this property if you want to show a fancy UIElement in the list.
-            public object Content => Text;
+        // Use this property if you want to show a fancy UIElement in the list.
+        public object Content => Text;
 
-            public object Description => "Description for " + Text;
+        public object Description => "Description for " + Text;
 
-            public double Priority { get; } = 0;
+        public double Priority { get; } = 0;
 
-            public void Complete(TextArea textArea, ISegment completionSegment,
-                EventArgs insertionRequestEventArgs)
-            {
+        public void Complete(TextArea textArea, ISegment completionSegment,
+            EventArgs insertionRequestEventArgs)
+        {
                 textArea.Document.Replace(completionSegment, Text);
             }
-        }
+    }
 
-        class ElementGenerator : VisualLineElementGenerator, IComparer<Pair>
+    class ElementGenerator : VisualLineElementGenerator, IComparer<Pair>
+    {
+        public readonly List<Pair> controls = new List<Pair>();
+
+        /// <summary>
+        /// Gets the first interested offset using binary search
+        /// </summary>
+        /// <returns>The first interested offset.</returns>
+        /// <param name="startOffset">Start offset.</param>
+        public override int GetFirstInterestedOffset(int startOffset)
         {
-            public List<Pair> controls = new List<Pair>();
-
-            /// <summary>
-            /// Gets the first interested offset using binary search
-            /// </summary>
-            /// <returns>The first interested offset.</returns>
-            /// <param name="startOffset">Start offset.</param>
-            public override int GetFirstInterestedOffset(int startOffset)
-            {
                 int pos = controls.BinarySearch(new Pair(startOffset, null), this);
                 if (pos < 0)
                     pos = ~pos;
@@ -351,8 +398,8 @@ namespace dotpad.Views
                     return -1;
             }
 
-            public override VisualLineElement ConstructElement(int offset)
-            {
+        public override VisualLineElement ConstructElement(int offset)
+        {
                 int pos = controls.BinarySearch(new Pair(offset, null), this);
                 if (pos >= 0)
                     return new InlineObjectElement(0, controls[pos].Value);
@@ -360,11 +407,10 @@ namespace dotpad.Views
                     return null;
             }
 
-            int IComparer<Pair>.Compare(Pair x, Pair y)
-            {
+        int IComparer<Pair>.Compare(Pair x, Pair y)
+        {
                 return x.Key.CompareTo(y.Key);
             }
-        }
-
     }
+
 }

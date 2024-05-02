@@ -18,22 +18,21 @@
 
 using AvaloniaEdit.Document;
 
-namespace AvaloniaEdit.Indentation
+namespace AvaloniaEdit.Indentation;
+
+/// <summary>
+/// Strategy how the text editor handles indentation when new lines are inserted.
+/// </summary>
+public interface IIndentationStrategy
 {
     /// <summary>
-    /// Strategy how the text editor handles indentation when new lines are inserted.
+    /// Sets the indentation for the specified line.
+    /// Usually this is constructed from the indentation of the previous line.
     /// </summary>
-    public interface IIndentationStrategy
-    {
-        /// <summary>
-        /// Sets the indentation for the specified line.
-        /// Usually this is constructed from the indentation of the previous line.
-        /// </summary>
-        void IndentLine(TextDocument document, DocumentLine line);
+    void IndentLine(TextDocument document, DocumentLine line);
 
-        /// <summary>
-        /// Reindents a set of lines.
-        /// </summary>
-        void IndentLines(TextDocument document, int beginLine, int endLine);
-    }
+    /// <summary>
+    /// Reindents a set of lines.
+    /// </summary>
+    void IndentLines(TextDocument document, int beginLine, int endLine);
 }

@@ -24,134 +24,133 @@ using AvaloniaEdit.Rendering;
 using Avalonia.Controls;
 using AvaloniaEdit.Utils;
 
-namespace AvaloniaEdit.Editing
+namespace AvaloniaEdit.Editing;
+
+/// <summary>
+/// Base class for margins.
+/// Margins don't have to derive from this class, it just helps maintaining a reference to the TextView
+/// and the TextDocument.
+/// AbstractMargin derives from FrameworkElement, so if you don't want to handle visual children and rendering
+/// on your own, choose another base class for your margin!
+/// </summary>
+public abstract class AbstractMargin : Control, ITextViewConnect
 {
-    /// <summary>
-    /// Base class for margins.
-    /// Margins don't have to derive from this class, it just helps maintaining a reference to the TextView
-    /// and the TextDocument.
-    /// AbstractMargin derives from FrameworkElement, so if you don't want to handle visual children and rendering
-    /// on your own, choose another base class for your margin!
-    /// </summary>
-    public abstract class AbstractMargin : Control, ITextViewConnect
+    public AbstractMargin()
     {
-        public AbstractMargin()
+        this.GetPropertyChangedObservable(TextViewProperty).Subscribe(o =>
         {
-            this.GetPropertyChangedObservable(TextViewProperty).Subscribe(o =>
-            {
-                _wasAutoAddedToTextView = false;
-                OnTextViewChanged(o.OldValue as TextView, o.NewValue as TextView);
-            });
+            _wasAutoAddedToTextView = false;
+            OnTextViewChanged(o.OldValue as TextView, o.NewValue as TextView);
+        });
+    }
+
+    /// <summary>
+    /// TextView property.
+    /// </summary>
+    public static readonly StyledProperty<TextView> TextViewProperty =
+        AvaloniaProperty.Register<AbstractMargin, TextView>(nameof(TextView));
+
+    /// <summary>
+    /// Gets/sets the text view for which line numbers are displayed.
+    /// </summary>
+    /// <remarks>Adding a margin to <see cref="TextArea.LeftMargins"/> will automatically set this property to the text area's TextView.</remarks>
+    public TextView TextView
+    {
+        get => GetValue(TextViewProperty);
+        set => SetValue(TextViewProperty, value);
+    }
+
+    // automatically set/unset TextView property using ITextViewConnect
+    private bool _wasAutoAddedToTextView;
+
+    void ITextViewConnect.AddToTextView(TextView textView)
+    {
+        if (TextView == null)
+        {
+            TextView = textView;
+            _wasAutoAddedToTextView = true;
+        }
+        else if (TextView != textView)
+        {
+            throw new InvalidOperationException("This margin belongs to a different TextView.");
+        }
+    }
+
+    void ITextViewConnect.RemoveFromTextView(TextView textView)
+    {
+        if (_wasAutoAddedToTextView && TextView == textView)
+        {
+            TextView = null;
+            Debug.Assert(!_wasAutoAddedToTextView); // setting this.TextView should have unset this flag
+        }
+    }
+
+    /// <summary>
+    /// Gets the document associated with the margin.
+    /// </summary>
+    public TextDocument Document { get; private set; }
+
+    protected TextArea TextArea { get; set; }
+
+    /// <summary>
+    /// Called when the <see cref="TextView"/> is changing.
+    /// </summary>
+    protected virtual void OnTextViewChanged(TextView oldTextView, TextView newTextView)
+    {
+        if (oldTextView != null)
+        {
+            oldTextView.DocumentChanged -= TextViewDocumentChanged;
         }
 
-        /// <summary>
-        /// TextView property.
-        /// </summary>
-        public static readonly StyledProperty<TextView> TextViewProperty =
-            AvaloniaProperty.Register<AbstractMargin, TextView>(nameof(TextView));
-
-        /// <summary>
-        /// Gets/sets the text view for which line numbers are displayed.
-        /// </summary>
-        /// <remarks>Adding a margin to <see cref="TextArea.LeftMargins"/> will automatically set this property to the text area's TextView.</remarks>
-        public TextView TextView
+        if (newTextView != null)
         {
-            get => GetValue(TextViewProperty);
-            set => SetValue(TextViewProperty, value);
+            newTextView.DocumentChanged += TextViewDocumentChanged;
         }
 
-        // automatically set/unset TextView property using ITextViewConnect
-        private bool _wasAutoAddedToTextView;
+        TextViewDocumentChanged(null, null);
 
-        void ITextViewConnect.AddToTextView(TextView textView)
+        if (oldTextView != null)
         {
-            if (TextView == null)
-            {
-                TextView = textView;
-                _wasAutoAddedToTextView = true;
-            }
-            else if (TextView != textView)
-            {
-                throw new InvalidOperationException("This margin belongs to a different TextView.");
-            }
+            oldTextView.VisualLinesChanged -= TextViewVisualLinesChanged;
         }
 
-        void ITextViewConnect.RemoveFromTextView(TextView textView)
+        if (newTextView != null)
         {
-            if (_wasAutoAddedToTextView && TextView == textView)
-            {
-                TextView = null;
-                Debug.Assert(!_wasAutoAddedToTextView); // setting this.TextView should have unset this flag
-            }
+            newTextView.VisualLinesChanged += TextViewVisualLinesChanged;
+
+            // find the text area belonging to the new text view
+            TextArea = newTextView.GetService(typeof(TextArea)) as TextArea;
         }
-
-        /// <summary>
-        /// Gets the document associated with the margin.
-        /// </summary>
-        public TextDocument Document { get; private set; }
-
-        protected TextArea TextArea { get; set; }
-
-        /// <summary>
-        /// Called when the <see cref="TextView"/> is changing.
-        /// </summary>
-        protected virtual void OnTextViewChanged(TextView oldTextView, TextView newTextView)
+        else
         {
-            if (oldTextView != null)
-            {
-                oldTextView.DocumentChanged -= TextViewDocumentChanged;
-            }
-
-            if (newTextView != null)
-            {
-                newTextView.DocumentChanged += TextViewDocumentChanged;
-            }
-
-            TextViewDocumentChanged(null, null);
-
-            if (oldTextView != null)
-            {
-                oldTextView.VisualLinesChanged -= TextViewVisualLinesChanged;
-            }
-
-            if (newTextView != null)
-            {
-                newTextView.VisualLinesChanged += TextViewVisualLinesChanged;
-
-                // find the text area belonging to the new text view
-                TextArea = newTextView.GetService(typeof(TextArea)) as TextArea;
-            }
-            else
-            {
-                TextArea = null;
-            }
+            TextArea = null;
         }
+    }
 
-        /// <summary>
-        /// Called when the attached textviews visual lines change.
-        /// Default behavior is to Invalidate Margins Visual.
-        /// </summary>
-        protected virtual void OnTextViewVisualLinesChanged()
-        {
-            InvalidateVisual();
-        }
+    /// <summary>
+    /// Called when the attached textviews visual lines change.
+    /// Default behavior is to Invalidate Margins Visual.
+    /// </summary>
+    protected virtual void OnTextViewVisualLinesChanged()
+    {
+        InvalidateVisual();
+    }
 
-        private void TextViewVisualLinesChanged(object sender, EventArgs e)
-        {
-            OnTextViewVisualLinesChanged();
-        }
+    private void TextViewVisualLinesChanged(object sender, EventArgs e)
+    {
+        OnTextViewVisualLinesChanged();
+    }
 
-        private void TextViewDocumentChanged(object sender, EventArgs e)
-        {
-            OnDocumentChanged(Document, TextView?.Document);
-        }
+    private void TextViewDocumentChanged(object sender, EventArgs e)
+    {
+        OnDocumentChanged(Document, TextView?.Document);
+    }
 
-        /// <summary>
-        /// Called when the <see cref="Document"/> is changing.
-        /// </summary>
-        protected virtual void OnDocumentChanged(TextDocument oldDocument, TextDocument newDocument)
-        {
-            Document = newDocument;
-        }
+    /// <summary>
+    /// Called when the <see cref="Document"/> is changing.
+    /// </summary>
+    protected virtual void OnDocumentChanged(TextDocument oldDocument, TextDocument newDocument)
+    {
+        Document = newDocument;
     }
 }

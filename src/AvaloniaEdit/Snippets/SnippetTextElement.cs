@@ -16,31 +16,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-namespace AvaloniaEdit.Snippets
+namespace AvaloniaEdit.Snippets;
+
+/// <summary>
+/// Represents a text element in a snippet.
+/// </summary>
+public class SnippetTextElement : SnippetElement
 {
     /// <summary>
-    /// Represents a text element in a snippet.
+    /// The text to be inserted.
     /// </summary>
-    public class SnippetTextElement : SnippetElement
+    public string Text { get; set; }
+
+    /// <inheritdoc/>
+    public override void Insert(InsertionContext context)
     {
-        /// <summary>
-        /// The text to be inserted.
-        /// </summary>
-        public string Text { get; set; }
-
-        /// <inheritdoc/>
-        public override void Insert(InsertionContext context)
+        if (Text != null)
         {
-            if (Text != null)
-            {
-                context.InsertText(Text);
-            }
+            context.InsertText(Text);
         }
-
-        ///// <inheritdoc/>
-        //public override Inline ToTextRun()
-        //{
-        //	return new Run(Text ?? string.Empty);
-        //}
     }
+
+    ///// <inheritdoc/>
+    //public override Inline ToTextRun()
+    //{
+    //	return new Run(Text ?? string.Empty);
+    //}
 }

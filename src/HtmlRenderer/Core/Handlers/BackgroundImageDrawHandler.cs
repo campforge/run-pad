@@ -15,23 +15,23 @@ using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Dom;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers
+namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+
+/// <summary>
+/// Contains all the paint code to paint different background images.
+/// </summary>
+internal static class BackgroundImageDrawHandler
 {
     /// <summary>
-    /// Contains all the paint code to paint different background images.
+    /// Draw the background image of the given box in the given rectangle.<br/>
+    /// Handle background-repeat and background-position values.
     /// </summary>
-    internal static class BackgroundImageDrawHandler
+    /// <param name="g">the device to draw into</param>
+    /// <param name="box">the box to draw its background image</param>
+    /// <param name="imageLoadHandler">the handler that loads image to draw</param>
+    /// <param name="rectangle">the rectangle to draw image in</param>
+    public static void DrawBackgroundImage(RGraphics g, CssBox box, ImageLoadHandler imageLoadHandler, RRect rectangle)
     {
-        /// <summary>
-        /// Draw the background image of the given box in the given rectangle.<br/>
-        /// Handle background-repeat and background-position values.
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="box">the box to draw its background image</param>
-        /// <param name="imageLoadHandler">the handler that loads image to draw</param>
-        /// <param name="rectangle">the rectangle to draw image in</param>
-        public static void DrawBackgroundImage(RGraphics g, CssBox box, ImageLoadHandler imageLoadHandler, RRect rectangle)
-        {
             // image size depends if specific rectangle given in image loader
             var imgSize = new RSize(imageLoadHandler.Rectangle == RRect.Empty ? imageLoadHandler.Image.Width : imageLoadHandler.Rectangle.Width,
                 imageLoadHandler.Rectangle == RRect.Empty ? imageLoadHandler.Image.Height : imageLoadHandler.Rectangle.Height);
@@ -71,17 +71,17 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Get top-left location to start drawing the image at depending on background-position value.
-        /// </summary>
-        /// <param name="backgroundPosition">the background-position value</param>
-        /// <param name="rectangle">the rectangle to position image in</param>
-        /// <param name="imgSize">the size of the image</param>
-        /// <returns>the top-left location</returns>
-        private static RPoint GetLocation(string backgroundPosition, RRect rectangle, RSize imgSize)
-        {
+    /// <summary>
+    /// Get top-left location to start drawing the image at depending on background-position value.
+    /// </summary>
+    /// <param name="backgroundPosition">the background-position value</param>
+    /// <param name="rectangle">the rectangle to position image in</param>
+    /// <param name="imgSize">the size of the image</param>
+    /// <returns>the top-left location</returns>
+    private static RPoint GetLocation(string backgroundPosition, RRect rectangle, RSize imgSize)
+    {
             double left = rectangle.Left;
             if (backgroundPosition.IndexOf("left", StringComparison.OrdinalIgnoreCase) > -1)
             {
@@ -113,12 +113,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             return new RPoint(left, top);
         }
 
-        /// <summary>
-        /// Draw the background image at the required location repeating it over the X axis.<br/>
-        /// Adjust location to left if starting location doesn't include all the range (adjusted to center or right).
-        /// </summary>
-        private static void DrawRepeatX(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
-        {
+    /// <summary>
+    /// Draw the background image at the required location repeating it over the X axis.<br/>
+    /// Adjust location to left if starting location doesn't include all the range (adjusted to center or right).
+    /// </summary>
+    private static void DrawRepeatX(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
+    {
             while (destRect.X > rectangle.X)
                 destRect.X -= imgSize.Width;
 
@@ -128,12 +128,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Draw the background image at the required location repeating it over the Y axis.<br/>
-        /// Adjust location to top if starting location doesn't include all the range (adjusted to center or bottom).
-        /// </summary>
-        private static void DrawRepeatY(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
-        {
+    /// <summary>
+    /// Draw the background image at the required location repeating it over the Y axis.<br/>
+    /// Adjust location to top if starting location doesn't include all the range (adjusted to center or bottom).
+    /// </summary>
+    private static void DrawRepeatY(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
+    {
             while (destRect.Y > rectangle.Y)
                 destRect.Y -= imgSize.Height;
 
@@ -143,12 +143,12 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        /// <summary>
-        /// Draw the background image at the required location repeating it over the X and Y axis.<br/>
-        /// Adjust location to left-top if starting location doesn't include all the range (adjusted to center or bottom/right).
-        /// </summary>
-        private static void DrawRepeat(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
-        {
+    /// <summary>
+    /// Draw the background image at the required location repeating it over the X and Y axis.<br/>
+    /// Adjust location to left-top if starting location doesn't include all the range (adjusted to center or bottom/right).
+    /// </summary>
+    private static void DrawRepeat(RGraphics g, ImageLoadHandler imageLoadHandler, RRect rectangle, RRect srcRect, RRect destRect, RSize imgSize)
+    {
             while (destRect.X > rectangle.X)
                 destRect.X -= imgSize.Width;
             while (destRect.Y > rectangle.Y)
@@ -160,6 +160,5 @@ namespace TheArtOfDev.HtmlRenderer.Core.Handlers
             }
         }
 
-        #endregion
-    }
+    #endregion
 }

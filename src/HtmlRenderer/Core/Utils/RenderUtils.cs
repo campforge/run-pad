@@ -14,33 +14,33 @@ using TheArtOfDev.HtmlRenderer.Adapters;
 using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Dom;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Utils
+namespace TheArtOfDev.HtmlRenderer.Core.Utils;
+
+/// <summary>
+/// Provides some drawing functionality
+/// </summary>
+internal static class RenderUtils
 {
     /// <summary>
-    /// Provides some drawing functionality
+    /// Check if the given color is visible if painted (has alpha and color values)
     /// </summary>
-    internal static class RenderUtils
+    /// <param name="color">the color to check</param>
+    /// <returns>true - visible, false - not visible</returns>
+    public static bool IsColorVisible(RColor color)
     {
-        /// <summary>
-        /// Check if the given color is visible if painted (has alpha and color values)
-        /// </summary>
-        /// <param name="color">the color to check</param>
-        /// <returns>true - visible, false - not visible</returns>
-        public static bool IsColorVisible(RColor color)
-        {
             return color.A > 0;
         }
 
-        /// <summary>
-        /// Clip the region the graphics will draw on by the overflow style of the containing block.<br/>
-        /// Recursively travel up the tree to find containing block that has overflow style set to hidden. if not
-        /// block found there will be no clipping and null will be returned.
-        /// </summary>
-        /// <param name="g">the graphics to clip</param>
-        /// <param name="box">the box that is rendered to get containing blocks</param>
-        /// <returns>true - was clipped, false - not clipped</returns>
-        public static bool ClipGraphicsByOverflow(RGraphics g, CssBox box)
-        {
+    /// <summary>
+    /// Clip the region the graphics will draw on by the overflow style of the containing block.<br/>
+    /// Recursively travel up the tree to find containing block that has overflow style set to hidden. if not
+    /// block found there will be no clipping and null will be returned.
+    /// </summary>
+    /// <param name="g">the graphics to clip</param>
+    /// <param name="box">the box that is rendered to get containing blocks</param>
+    /// <returns>true - was clipped, false - not clipped</returns>
+    public static bool ClipGraphicsByOverflow(RGraphics g, CssBox box)
+    {
             var containingBlock = box.ContainingBlock;
             while (true)
             {
@@ -68,48 +68,48 @@ namespace TheArtOfDev.HtmlRenderer.Core.Utils
             }
         }
 
-        /// <summary>
-        /// Draw image loading icon.
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="htmlContainer"></param>
-        /// <param name="r">the rectangle to draw icon in</param>
-        public static void DrawImageLoadingIcon(RGraphics g, HtmlContainerInt htmlContainer, RRect r)
-        {
+    /// <summary>
+    /// Draw image loading icon.
+    /// </summary>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="htmlContainer"></param>
+    /// <param name="r">the rectangle to draw icon in</param>
+    public static void DrawImageLoadingIcon(RGraphics g, HtmlContainerInt htmlContainer, RRect r)
+    {
             g.DrawRectangle(g.GetPen(RColor.LightGray), r.Left + 3, r.Top + 3, 13, 14);
             var image = htmlContainer.Adapter.GetLoadingImage();
             g.DrawImage(image, new RRect(r.Left + 4, r.Top + 4, image.Width, image.Height));
         }
 
-        /// <summary>
-        /// Draw image failed to load icon.
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="htmlContainer"></param>
-        /// <param name="r">the rectangle to draw icon in</param>
-        public static void DrawImageErrorIcon(RGraphics g, HtmlContainerInt htmlContainer, RRect r)
-        {
+    /// <summary>
+    /// Draw image failed to load icon.
+    /// </summary>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="htmlContainer"></param>
+    /// <param name="r">the rectangle to draw icon in</param>
+    public static void DrawImageErrorIcon(RGraphics g, HtmlContainerInt htmlContainer, RRect r)
+    {
             g.DrawRectangle(g.GetPen(RColor.LightGray), r.Left + 2, r.Top + 2, 15, 15);
             var image = htmlContainer.Adapter.GetLoadingFailedImage();
             g.DrawImage(image, new RRect(r.Left + 3, r.Top + 3, image.Width, image.Height));
         }
 
-        /// <summary>
-        /// Creates a rounded rectangle using the specified corner radius<br/>
-        /// NW-----NE
-        ///  |       |
-        ///  |       |
-        /// SW-----SE
-        /// </summary>
-        /// <param name="g">the device to draw into</param>
-        /// <param name="rect">Rectangle to round</param>
-        /// <param name="nwRadius">Radius of the north east corner</param>
-        /// <param name="neRadius">Radius of the north west corner</param>
-        /// <param name="seRadius">Radius of the south east corner</param>
-        /// <param name="swRadius">Radius of the south west corner</param>
-        /// <returns>GraphicsPath with the lines of the rounded rectangle ready to be painted</returns>
-        public static RGraphicsPath GetRoundRect(RGraphics g, RRect rect, double nwRadius, double neRadius, double seRadius, double swRadius)
-        {
+    /// <summary>
+    /// Creates a rounded rectangle using the specified corner radius<br/>
+    /// NW-----NE
+    ///  |       |
+    ///  |       |
+    /// SW-----SE
+    /// </summary>
+    /// <param name="g">the device to draw into</param>
+    /// <param name="rect">Rectangle to round</param>
+    /// <param name="nwRadius">Radius of the north east corner</param>
+    /// <param name="neRadius">Radius of the north west corner</param>
+    /// <param name="seRadius">Radius of the south east corner</param>
+    /// <param name="swRadius">Radius of the south west corner</param>
+    /// <returns>GraphicsPath with the lines of the rounded rectangle ready to be painted</returns>
+    public static RGraphicsPath GetRoundRect(RGraphics g, RRect rect, double nwRadius, double neRadius, double seRadius, double swRadius)
+    {
             var path = g.GetGraphicsPath();
 
             path.Start(rect.Left + nwRadius, rect.Top);
@@ -136,5 +136,4 @@ namespace TheArtOfDev.HtmlRenderer.Core.Utils
 
             return path;
         }
-    }
 }

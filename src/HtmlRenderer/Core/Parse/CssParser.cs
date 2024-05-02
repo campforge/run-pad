@@ -19,62 +19,62 @@ using TheArtOfDev.HtmlRenderer.Adapters.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Entities;
 using TheArtOfDev.HtmlRenderer.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Parse
+namespace TheArtOfDev.HtmlRenderer.Core.Parse;
+
+/// <summary>
+/// Parser to parse CSS stylesheet source string into CSS objects.
+/// </summary>
+internal sealed class CssParser
 {
+    #region Fields and Consts
+
     /// <summary>
-    /// Parser to parse CSS stylesheet source string into CSS objects.
+    /// split CSS rule
     /// </summary>
-    internal sealed class CssParser
+    private static readonly char[] _cssBlockSplitters = new[] { '}', ';' };
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private readonly RAdapter _adapter;
+
+    /// <summary>
+    /// Utility for value parsing.
+    /// </summary>
+    private readonly CssValueParser _valueParser;
+
+    /// <summary>
+    /// The chars to trim the css class name by
+    /// </summary>
+    private static readonly char[] _cssClassTrimChars = new[] { '\r', '\n', '\t', ' ', '-', '!', '<', '>' };
+
+    #endregion
+
+
+    /// <summary>
+    /// Init.
+    /// </summary>
+    public CssParser(RAdapter adapter)
     {
-        #region Fields and Consts
-
-        /// <summary>
-        /// split CSS rule
-        /// </summary>
-        private static readonly char[] _cssBlockSplitters = new[] { '}', ';' };
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private readonly RAdapter _adapter;
-
-        /// <summary>
-        /// Utility for value parsing.
-        /// </summary>
-        private readonly CssValueParser _valueParser;
-
-        /// <summary>
-        /// The chars to trim the css class name by
-        /// </summary>
-        private static readonly char[] _cssClassTrimChars = new[] { '\r', '\n', '\t', ' ', '-', '!', '<', '>' };
-
-        #endregion
-
-
-        /// <summary>
-        /// Init.
-        /// </summary>
-        public CssParser(RAdapter adapter)
-        {
             ArgChecker.AssertArgNotNull(adapter, "global");
 
             _valueParser = new CssValueParser(adapter);
             _adapter = adapter;
         }
 
-        /// <summary>
-        /// Parse the given stylesheet source to CSS blocks dictionary.<br/>
-        /// The CSS blocks are organized into two level buckets of media type and class name.<br/>
-        /// Root media type are found under 'all' bucket.<br/>
-        /// If <paramref name="combineWithDefault"/> is true the parsed css blocks are added to the 
-        /// default css data (as defined by W3), merged if class name already exists. If false only the data in the given stylesheet is returned.
-        /// </summary>
-        /// <seealso cref="http://www.w3.org/TR/CSS21/sample.html"/>
-        /// <param name="stylesheet">raw css stylesheet to parse</param>
-        /// <param name="combineWithDefault">true - combine the parsed css data with default css data, false - return only the parsed css data</param>
-        /// <returns>the CSS data with parsed CSS objects (never null)</returns>
-        public CssData ParseStyleSheet(string stylesheet, bool combineWithDefault)
-        {
+    /// <summary>
+    /// Parse the given stylesheet source to CSS blocks dictionary.<br/>
+    /// The CSS blocks are organized into two level buckets of media type and class name.<br/>
+    /// Root media type are found under 'all' bucket.<br/>
+    /// If <paramref name="combineWithDefault"/> is true the parsed css blocks are added to the 
+    /// default css data (as defined by W3), merged if class name already exists. If false only the data in the given stylesheet is returned.
+    /// </summary>
+    /// <seealso cref="http://www.w3.org/TR/CSS21/sample.html"/>
+    /// <param name="stylesheet">raw css stylesheet to parse</param>
+    /// <param name="combineWithDefault">true - combine the parsed css data with default css data, false - return only the parsed css data</param>
+    /// <returns>the CSS data with parsed CSS objects (never null)</returns>
+    public CssData ParseStyleSheet(string stylesheet, bool combineWithDefault)
+    {
             var cssData = combineWithDefault ? _adapter.DefaultCssData.Clone() : new CssData();
             if (!string.IsNullOrEmpty(stylesheet))
             {
@@ -83,16 +83,16 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return cssData;
         }
 
-        /// <summary>
-        /// Parse the given stylesheet source to CSS blocks dictionary.<br/>
-        /// The CSS blocks are organized into two level buckets of media type and class name.<br/>
-        /// Root media type are found under 'all' bucket.<br/>
-        /// The parsed css blocks are added to the given css data, merged if class name already exists.
-        /// </summary>
-        /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
-        /// <param name="stylesheet">raw css stylesheet to parse</param>
-        public void ParseStyleSheet(CssData cssData, string stylesheet)
-        {
+    /// <summary>
+    /// Parse the given stylesheet source to CSS blocks dictionary.<br/>
+    /// The CSS blocks are organized into two level buckets of media type and class name.<br/>
+    /// Root media type are found under 'all' bucket.<br/>
+    /// The parsed css blocks are added to the given css data, merged if class name already exists.
+    /// </summary>
+    /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
+    /// <param name="stylesheet">raw css stylesheet to parse</param>
+    public void ParseStyleSheet(CssData cssData, string stylesheet)
+    {
             if (!String.IsNullOrEmpty(stylesheet))
             {
                 stylesheet = RemoveStylesheetComments(stylesheet);
@@ -103,48 +103,48 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse single CSS block source into CSS block instance.
-        /// </summary>
-        /// <param name="className">the name of the css class of the block</param>
-        /// <param name="blockSource">the CSS block to parse</param>
-        /// <returns>the created CSS block instance</returns>
-        public CssBlock ParseCssBlock(string className, string blockSource)
-        {
+    /// <summary>
+    /// Parse single CSS block source into CSS block instance.
+    /// </summary>
+    /// <param name="className">the name of the css class of the block</param>
+    /// <param name="blockSource">the CSS block to parse</param>
+    /// <returns>the created CSS block instance</returns>
+    public CssBlock ParseCssBlock(string className, string blockSource)
+    {
             return ParseCssBlockImp(className, blockSource);
         }
 
-        /// <summary>
-        /// Parse a complex font family css property to check if it contains multiple fonts and if the font exists.<br/>
-        /// returns the font family name to use or 'inherit' if failed.
-        /// </summary>
-        /// <param name="value">the font-family value to parse</param>
-        /// <returns>parsed font-family value</returns>
-        public string ParseFontFamily(string value)
-        {
+    /// <summary>
+    /// Parse a complex font family css property to check if it contains multiple fonts and if the font exists.<br/>
+    /// returns the font family name to use or 'inherit' if failed.
+    /// </summary>
+    /// <param name="value">the font-family value to parse</param>
+    /// <returns>parsed font-family value</returns>
+    public string ParseFontFamily(string value)
+    {
             return ParseFontFamilyProperty(value);
         }
 
-        /// <summary>
-        /// Parses a color value in CSS style; e.g. #ff0000, red, rgb(255,0,0), rgb(100%, 0, 0) 
-        /// </summary>
-        /// <param name="colorStr">color string value to parse</param>
-        /// <returns>color value</returns>
-        public RColor ParseColor(string colorStr)
-        {
+    /// <summary>
+    /// Parses a color value in CSS style; e.g. #ff0000, red, rgb(255,0,0), rgb(100%, 0, 0) 
+    /// </summary>
+    /// <param name="colorStr">color string value to parse</param>
+    /// <returns>color value</returns>
+    public RColor ParseColor(string colorStr)
+    {
             return _valueParser.GetActualColor(colorStr);
         }
 
 
-        #region Private methods
+    #region Private methods
 
-        /// <summary>
-        /// Remove comments from the given stylesheet.
-        /// </summary>
-        /// <param name="stylesheet">the stylesheet to remove comments from</param>
-        /// <returns>stylesheet without comments</returns>
-        private static string RemoveStylesheetComments(string stylesheet)
-        {
+    /// <summary>
+    /// Remove comments from the given stylesheet.
+    /// </summary>
+    /// <param name="stylesheet">the stylesheet to remove comments from</param>
+    /// <returns>stylesheet without comments</returns>
+    private static string RemoveStylesheetComments(string stylesheet)
+    {
             StringBuilder sb = null;
 
             int prevIdx = 0, startIdx = 0;
@@ -172,14 +172,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return sb != null ? sb.ToString() : stylesheet;
         }
 
-        /// <summary>
-        /// Parse given stylesheet for CSS blocks<br/>
-        /// This blocks are added under the "all" keyword.
-        /// </summary>
-        /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
-        /// <param name="stylesheet">the stylesheet to parse</param>
-        private void ParseStyleBlocks(CssData cssData, string stylesheet)
-        {
+    /// <summary>
+    /// Parse given stylesheet for CSS blocks<br/>
+    /// This blocks are added under the "all" keyword.
+    /// </summary>
+    /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
+    /// <param name="stylesheet">the stylesheet to parse</param>
+    private void ParseStyleBlocks(CssData cssData, string stylesheet)
+    {
             var startIdx = 0;
             int endIdx = 0;
             while (startIdx < stylesheet.Length && endIdx > -1)
@@ -219,14 +219,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse given stylesheet for media CSS blocks<br/>
-        /// This blocks are added under the specific media block they are found.
-        /// </summary>
-        /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
-        /// <param name="stylesheet">the stylesheet to parse</param>
-        private void ParseMediaStyleBlocks(CssData cssData, string stylesheet)
-        {
+    /// <summary>
+    /// Parse given stylesheet for media CSS blocks<br/>
+    /// This blocks are added under the specific media block they are found.
+    /// </summary>
+    /// <param name="cssData">the CSS data to fill with parsed CSS objects</param>
+    /// <param name="stylesheet">the stylesheet to parse</param>
+    private void ParseMediaStyleBlocks(CssData cssData, string stylesheet)
+    {
             int startIdx = 0;
             string atrule;
             while ((atrule = RegexParserUtils.GetCssAtRules(stylesheet, ref startIdx)) != null)
@@ -267,15 +267,15 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Feeds the style with a block about the specific media.<br/>
-        /// When no media is specified, "all" will be used.
-        /// </summary>
-        /// <param name="cssData"> </param>
-        /// <param name="block">the CSS block to handle</param>
-        /// <param name="media">optional: the media (default - all)</param>
-        private void FeedStyleBlock(CssData cssData, string block, string media = "all")
-        {
+    /// <summary>
+    /// Feeds the style with a block about the specific media.<br/>
+    /// When no media is specified, "all" will be used.
+    /// </summary>
+    /// <param name="cssData"> </param>
+    /// <param name="block">the CSS block to handle</param>
+    /// <param name="media">optional: the media (default - all)</param>
+    private void FeedStyleBlock(CssData cssData, string block, string media = "all")
+    {
             int startIdx = block.IndexOf("{", StringComparison.Ordinal);
             int endIdx = startIdx > -1 ? block.IndexOf("}", startIdx) : -1;
             if (startIdx > -1 && endIdx > -1)
@@ -298,14 +298,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse single CSS block source into CSS block instance.
-        /// </summary>
-        /// <param name="className">the name of the css class of the block</param>
-        /// <param name="blockSource">the CSS block to parse</param>
-        /// <returns>the created CSS block instance</returns>
-        private CssBlock ParseCssBlockImp(string className, string blockSource)
-        {
+    /// <summary>
+    /// Parse single CSS block source into CSS block instance.
+    /// </summary>
+    /// <param name="className">the name of the css class of the block</param>
+    /// <param name="blockSource">the CSS block to parse</param>
+    /// <returns>the created CSS block instance</returns>
+    private CssBlock ParseCssBlockImp(string className, string blockSource)
+    {
             className = className.ToLower();
             string psedoClass = null;
             var colonIdx = className.IndexOf(":", StringComparison.Ordinal);
@@ -328,14 +328,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return null;
         }
 
-        /// <summary>
-        /// Parse css block selector to support hierarchical selector (p class1 > class2).
-        /// </summary>
-        /// <param name="className">the class selector to parse</param>
-        /// <param name="firstClass">return the main class the css block is on</param>
-        /// <returns>returns the hierarchy of classes or null if single class selector</returns>
-        private static List<CssBlockSelectorItem> ParseCssBlockSelector(string className, out string firstClass)
-        {
+    /// <summary>
+    /// Parse css block selector to support hierarchical selector (p class1 > class2).
+    /// </summary>
+    /// <param name="className">the class selector to parse</param>
+    /// <param name="firstClass">return the main class the css block is on</param>
+    /// <returns>returns the hierarchy of classes or null if single class selector</returns>
+    private static List<CssBlockSelectorItem> ParseCssBlockSelector(string className, out string firstClass)
+    {
             List<CssBlockSelectorItem> selectors = null;
 
             firstClass = null;
@@ -383,13 +383,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return selectors;
         }
 
-        /// <summary>
-        /// Parse the properties of the given css block into a key-value dictionary.
-        /// </summary>
-        /// <param name="blockSource">the raw css block to parse</param>
-        /// <returns>dictionary with parsed css block properties</returns>
-        private Dictionary<string, string> ParseCssBlockProperties(string blockSource)
-        {
+    /// <summary>
+    /// Parse the properties of the given css block into a key-value dictionary.
+    /// </summary>
+    /// <param name="blockSource">the raw css block to parse</param>
+    /// <returns>dictionary with parsed css block properties</returns>
+    private Dictionary<string, string> ParseCssBlockProperties(string blockSource)
+    {
             var properties = new Dictionary<string, string>();
             int startIdx = 0;
             while (startIdx < blockSource.Length)
@@ -425,15 +425,15 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return properties;
         }
 
-        /// <summary>
-        /// Add the given property to the given properties collection, if the property is complex containing
-        /// multiple css properties then parse them and add the inner properties.
-        /// </summary>
-        /// <param name="propName">the name of the css property to add</param>
-        /// <param name="propValue">the value of the css property to add</param>
-        /// <param name="properties">the properties collection to add to</param>
-        private void AddProperty(string propName, string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Add the given property to the given properties collection, if the property is complex containing
+    /// multiple css properties then parse them and add the inner properties.
+    /// </summary>
+    /// <param name="propName">the name of the css property to add</param>
+    /// <param name="propValue">the value of the css property to add</param>
+    /// <param name="properties">the properties collection to add to</param>
+    private void AddProperty(string propName, string propValue, Dictionary<string, string> properties)
+    {
             // remove !important css crap
             propValue = propValue.Replace("!important", string.Empty).Trim();
 
@@ -507,41 +507,41 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse length property to add only valid lengths.
-        /// </summary>
-        /// <param name="propName">the name of the css property to add</param>
-        /// <param name="propValue">the value of the css property to add</param>
-        /// <param name="properties">the properties collection to add to</param>
-        private static void ParseLengthProperty(string propName, string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse length property to add only valid lengths.
+    /// </summary>
+    /// <param name="propName">the name of the css property to add</param>
+    /// <param name="propValue">the value of the css property to add</param>
+    /// <param name="properties">the properties collection to add to</param>
+    private static void ParseLengthProperty(string propName, string propValue, Dictionary<string, string> properties)
+    {
             if (CssValueParser.IsValidLength(propValue) || propValue.Equals(CssConstants.Auto, StringComparison.OrdinalIgnoreCase))
             {
                 properties[propName] = propValue;
             }
         }
 
-        /// <summary>
-        /// Parse color property to add only valid color.
-        /// </summary>
-        /// <param name="propName">the name of the css property to add</param>
-        /// <param name="propValue">the value of the css property to add</param>
-        /// <param name="properties">the properties collection to add to</param>
-        private void ParseColorProperty(string propName, string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse color property to add only valid color.
+    /// </summary>
+    /// <param name="propName">the name of the css property to add</param>
+    /// <param name="propValue">the value of the css property to add</param>
+    /// <param name="properties">the properties collection to add to</param>
+    private void ParseColorProperty(string propName, string propValue, Dictionary<string, string> properties)
+    {
             if (_valueParser.IsColorValid(propValue))
             {
                 properties[propName] = propValue;
             }
         }
 
-        /// <summary>
-        /// Parse a complex font property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private void ParseFontProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex font property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private void ParseFontProperty(string propValue, Dictionary<string, string> properties)
+    {
             int mustBePos;
             string mustBe = RegexParserUtils.Search(RegexParserUtils.CssFontSizeAndLineHeight, propValue, out mustBePos);
 
@@ -589,13 +589,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse</param>
-        /// <returns>parsed value</returns>
-        private static string ParseImageProperty(string propValue)
-        {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse</param>
+    /// <returns>parsed value</returns>
+    private static string ParseImageProperty(string propValue)
+    {
             int startIdx = propValue.IndexOf("url(", StringComparison.InvariantCultureIgnoreCase);
             if (startIdx > -1)
             {
@@ -616,14 +616,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return propValue;
         }
 
-        /// <summary>
-        /// Parse a complex font family css property to check if it contains multiple fonts and if the font exists.<br/>
-        /// returns the font family name to use or 'inherit' if failed.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse</param>
-        /// <returns>parsed font-family value</returns>
-        private string ParseFontFamilyProperty(string propValue)
-        {
+    /// <summary>
+    /// Parse a complex font family css property to check if it contains multiple fonts and if the font exists.<br/>
+    /// returns the font family name to use or 'inherit' if failed.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse</param>
+    /// <returns>parsed font-family value</returns>
+    private string ParseFontFamilyProperty(string propValue)
+    {
             int start = 0;
             while (start > -1 && start < propValue.Length)
             {
@@ -649,14 +649,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return CssConstants.Inherit;
         }
 
-        /// <summary>
-        /// Parse a complex border property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="direction">the left, top, right or bottom direction of the border to parse</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private void ParseBorderProperty(string propValue, string direction, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex border property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="direction">the left, top, right or bottom direction of the border to parse</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private void ParseBorderProperty(string propValue, string direction, Dictionary<string, string> properties)
+    {
             string borderWidth;
             string borderStyle;
             string borderColor;
@@ -682,13 +682,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse a complex margin property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private static void ParseMarginProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex margin property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private static void ParseMarginProperty(string propValue, Dictionary<string, string> properties)
+    {
             string bottom, top, left, right;
             SplitMultiDirectionValues(propValue, out left, out top, out right, out bottom);
 
@@ -702,13 +702,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
                 properties["margin-bottom"] = bottom;
         }
 
-        /// <summary>
-        /// Parse a complex border style property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private static void ParseBorderStyleProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex border style property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private static void ParseBorderStyleProperty(string propValue, Dictionary<string, string> properties)
+    {
             string bottom, top, left, right;
             SplitMultiDirectionValues(propValue, out left, out top, out right, out bottom);
 
@@ -722,13 +722,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
                 properties["border-bottom-style"] = bottom;
         }
 
-        /// <summary>
-        /// Parse a complex border width property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private static void ParseBorderWidthProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex border width property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private static void ParseBorderWidthProperty(string propValue, Dictionary<string, string> properties)
+    {
             string bottom, top, left, right;
             SplitMultiDirectionValues(propValue, out left, out top, out right, out bottom);
 
@@ -742,13 +742,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
                 properties["border-bottom-width"] = bottom;
         }
 
-        /// <summary>
-        /// Parse a complex border color property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private static void ParseBorderColorProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex border color property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private static void ParseBorderColorProperty(string propValue, Dictionary<string, string> properties)
+    {
             string bottom, top, left, right;
             SplitMultiDirectionValues(propValue, out left, out top, out right, out bottom);
 
@@ -762,13 +762,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
                 properties["border-bottom-color"] = bottom;
         }
 
-        /// <summary>
-        /// Parse a complex padding property value that contains multiple css properties into specific css properties.
-        /// </summary>
-        /// <param name="propValue">the value of the property to parse to specific values</param>
-        /// <param name="properties">the properties collection to add the specific properties to</param>
-        private static void ParsePaddingProperty(string propValue, Dictionary<string, string> properties)
-        {
+    /// <summary>
+    /// Parse a complex padding property value that contains multiple css properties into specific css properties.
+    /// </summary>
+    /// <param name="propValue">the value of the property to parse to specific values</param>
+    /// <param name="properties">the properties collection to add the specific properties to</param>
+    private static void ParsePaddingProperty(string propValue, Dictionary<string, string> properties)
+    {
             string bottom, top, left, right;
             SplitMultiDirectionValues(propValue, out left, out top, out right, out bottom);
 
@@ -782,11 +782,11 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
                 properties["padding-bottom"] = bottom;
         }
 
-        /// <summary>
-        /// Split multi direction value into the proper direction values (left, top, right, bottom).
-        /// </summary>
-        private static void SplitMultiDirectionValues(string propValue, out string left, out string top, out string right, out string bottom)
-        {
+    /// <summary>
+    /// Split multi direction value into the proper direction values (left, top, right, bottom).
+    /// </summary>
+    private static void SplitMultiDirectionValues(string propValue, out string left, out string top, out string right, out string bottom)
+    {
             top = null;
             left = null;
             right = null;
@@ -815,14 +815,14 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Split the value by the specified separator; e.g. Useful in values like 'padding:5 4 3 inherit'
-        /// </summary>
-        /// <param name="value">Value to be splitted</param>
-        /// <param name="separator"> </param>
-        /// <returns>Splitted and trimmed values</returns>
-        private static string[] SplitValues(string value, char separator = ' ')
-        {
+    /// <summary>
+    /// Split the value by the specified separator; e.g. Useful in values like 'padding:5 4 3 inherit'
+    /// </summary>
+    /// <param name="value">Value to be splitted</param>
+    /// <param name="separator"> </param>
+    /// <returns>Splitted and trimmed values</returns>
+    private static string[] SplitValues(string value, char separator = ' ')
+    {
             //TODO: CRITICAL! Don't split values on parenthesis (like rgb(0, 0, 0)) or quotes ("strings")
 
             if (!string.IsNullOrEmpty(value))
@@ -846,15 +846,15 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return new string[0];
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="width"> </param>
-        /// <param name="style"></param>
-        /// <param name="color"></param>
-        public void ParseBorder(string value, out string width, out string style, out string color)
-        {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="width"> </param>
+    /// <param name="style"></param>
+    /// <param name="color"></param>
+    public void ParseBorder(string value, out string width, out string style, out string color)
+    {
             width = style = color = null;
             if (!string.IsNullOrEmpty(value))
             {
@@ -873,13 +873,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             }
         }
 
-        /// <summary>
-        /// Parse the given substring to extract border width substring.
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>found border width value or null</returns>
-        private static string ParseBorderWidth(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Parse the given substring to extract border width substring.
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>found border width value or null</returns>
+    private static string ParseBorderWidth(string str, int idx, int length)
+    {
             if ((length > 2 && char.IsDigit(str[idx])) || (length > 3 && str[idx] == '.'))
             {
                 string unit = null;
@@ -918,13 +918,13 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return null;
         }
 
-        /// <summary>
-        /// Parse the given substring to extract border style substring.<br/>
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>found border width value or null</returns>
-        private static string ParseBorderStyle(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Parse the given substring to extract border style substring.<br/>
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>found border width value or null</returns>
+    private static string ParseBorderStyle(string str, int idx, int length)
+    {
             if (CommonUtils.SubStringEquals(str, idx, length, CssConstants.None))
                 return CssConstants.None;
             if (CommonUtils.SubStringEquals(str, idx, length, CssConstants.Solid))
@@ -948,17 +948,16 @@ namespace TheArtOfDev.HtmlRenderer.Core.Parse
             return null;
         }
 
-        /// <summary>
-        /// Parse the given substring to extract border style substring.<br/>
-        /// Assume given substring is not empty and all indexes are valid!<br/>
-        /// </summary>
-        /// <returns>found border width value or null</returns>
-        private string ParseBorderColor(string str, int idx, int length)
-        {
+    /// <summary>
+    /// Parse the given substring to extract border style substring.<br/>
+    /// Assume given substring is not empty and all indexes are valid!<br/>
+    /// </summary>
+    /// <returns>found border width value or null</returns>
+    private string ParseBorderColor(string str, int idx, int length)
+    {
             RColor color;
             return _valueParser.TryGetColor(str, idx, length, out color) ? str.Substring(idx, length) : null;
         }
 
-        #endregion
-    }
+    #endregion
 }

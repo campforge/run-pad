@@ -12,10 +12,9 @@
 
 using Avalonia.Interactivity;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia
+namespace TheArtOfDev.HtmlRenderer.Avalonia;
+
+public class HtmlRendererRoutedEventArgs<T> : RoutedEventArgs
 {
-    public class HtmlRendererRoutedEventArgs<T> : RoutedEventArgs
-    {
-        public T Event { get; set; }
-    }
+    public T Event { get; set; }
 }

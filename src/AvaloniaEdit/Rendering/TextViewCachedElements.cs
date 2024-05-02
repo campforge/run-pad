@@ -19,24 +19,23 @@
 using System.Collections.Generic;
 using Avalonia.Media.TextFormatting;
 
-namespace AvaloniaEdit.Rendering
+namespace AvaloniaEdit.Rendering;
+
+internal sealed class TextViewCachedElements
 {
-    internal sealed class TextViewCachedElements
+    private Dictionary<string, TextLine> _nonPrintableCharacterTexts;
+
+    public TextLine GetTextForNonPrintableCharacter(string text, TextRunProperties properties)
     {
-        private Dictionary<string, TextLine> _nonPrintableCharacterTexts;
+        if (_nonPrintableCharacterTexts == null)
+            _nonPrintableCharacterTexts = new Dictionary<string, TextLine>();
 
-        public TextLine GetTextForNonPrintableCharacter(string text, TextRunProperties properties)
+        TextLine textLine;
+        if (!_nonPrintableCharacterTexts.TryGetValue(text, out textLine))
         {
-            if (_nonPrintableCharacterTexts == null)
-                _nonPrintableCharacterTexts = new Dictionary<string, TextLine>();
-
-            TextLine textLine;
-            if (!_nonPrintableCharacterTexts.TryGetValue(text, out textLine))
-            {
-                textLine = FormattedTextElement.PrepareText(TextFormatter.Current, text, properties);
-                _nonPrintableCharacterTexts[text] = textLine;
-            }
-            return textLine;
+            textLine = FormattedTextElement.PrepareText(TextFormatter.Current, text, properties);
+            _nonPrintableCharacterTexts[text] = textLine;
         }
+        return textLine;
     }
 }

@@ -10,17 +10,17 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace TheArtOfDev.HtmlRenderer.Core
+namespace TheArtOfDev.HtmlRenderer.Core;
+
+internal static class CssDefaults
 {
-    internal static class CssDefaults
-    {
-        /// <summary>
-        /// CSS Specification's Default Style Sheet for HTML 4
-        /// </summary>
-        /// <remarks>
-        /// http://www.w3.org/TR/CSS21/sample.html
-        /// </remarks>
-        public const string DefaultStyleSheet = @"
+    /// <summary>
+    /// CSS Specification's Default Style Sheet for HTML 4
+    /// </summary>
+    /// <remarks>
+    /// http://www.w3.org/TR/CSS21/sample.html
+    /// </remarks>
+    public const string DefaultStyleSheet = @"
         html, address,
         blockquote,
         body, dd, div,
@@ -124,5 +124,4 @@ namespace TheArtOfDev.HtmlRenderer.Core
             padding: 8px; 
             Font: 9pt Tahoma;
         }";
-    }
 }
