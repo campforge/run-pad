@@ -4,11 +4,15 @@ namespace DotPad.Build.Models;
 
 public class ExecutionPlatform
 {
+    /// <summary>
+    /// .Net, VB
+    /// </summary>
     public string Name { get; }
     public string TargetFrameworkMoniker { get; }
     public string Description { get; }
     internal NuGetVersion Version { get; }
 
+    
     internal ExecutionPlatform(
         string name,
         string targetFrameworkMoniker,

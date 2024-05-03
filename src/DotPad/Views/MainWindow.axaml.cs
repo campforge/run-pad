@@ -46,7 +46,7 @@ public partial class MainWindow : Window
             InitializeComponent();
 
             // htmlPanel
-            HtmlPanel = this.FindControl<HtmlPanel>("_htmlPanel");
+            HtmlPanel = this.FindControl<HtmlPanel>("HtmlPanel");
             if (HtmlPanel != null)
             {
                 HtmlPanel.Container.AddFontFamily(new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));

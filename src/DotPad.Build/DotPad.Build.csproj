@@ -9,11 +9,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="3.8.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.0" />
     <PackageReference Include="NuGet.Versioning" Version="6.9.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DotPad.Runtime\DotPad.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ProcessRunners\Models\" />
   </ItemGroup>
 
 </Project>

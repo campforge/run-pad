@@ -5,9 +5,9 @@ using System.Text;
 
 namespace DotPad.Build.Sdk;
 
-internal class CmdResults : IEnumerable<string>, IEnumerable
+internal class CmdResults : IEnumerable<string>
 {
-    private IEnumerable<string> _input;
+    private readonly IEnumerable<string> _input;
 
     public CmdResults(IEnumerable<string> input)
     {
