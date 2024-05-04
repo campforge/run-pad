@@ -19,17 +19,14 @@
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="../HtmlRenderer/Core/Utils/ImageError.png">
+    <EmbeddedResource Include="./External/Core/Utils/ImageError.png">
       <LogicalName>TheArtOfDev.HtmlRenderer.Core.Utils.ImageError.png</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="../HtmlRenderer/Core/Utils/ImageLoad.png">
+    <EmbeddedResource Include="./External/Core/Utils/ImageLoad.png">
       <LogicalName>TheArtOfDev.HtmlRenderer.Core.Utils.ImageLoad.png</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="../HtmlRenderer/Core/**/*.cs" Link="External/Core/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../HtmlRenderer/Adapters/**/*.cs" Link="External/Adapters/%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.0.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
