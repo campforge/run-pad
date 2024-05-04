@@ -93,7 +93,7 @@ internal sealed class VisualLineTextSource : ITextSource, ITextRunConstructionCo
             if (newlineChar == '\r')
                 newlineText = TextView.Options.EndOfLineCRGlyph;
             else if (newlineChar == '\n')
-                newlineText = TextView.Options.EndOfLineLFGlyph;
+                newlineText = TextView.Options.EndOfLineLfGlyph;
             else
                 newlineText = "?";
         }

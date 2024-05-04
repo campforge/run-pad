@@ -6,6 +6,7 @@ using System.Linq;
 using DotPad.Build.Models;
 using DotPad.Models;
 using DynamicData;
+using ReactiveUI;
 
 namespace DotPad.ViewModels;
 
@@ -18,7 +19,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<Node> Nodes { get; }
 
     public List<ExecutionPlatform> DotnetPlatforms { get; }
-    public bool EnableRunButton { get; set; } = true;
+    
+    private bool _enableRunButton = true;
+
+    public bool EnableRunButton
+    {
+        get => _enableRunButton; 
+        set => this.RaiseAndSetIfChanged(ref _enableRunButton, value);
+    }
+    private bool _enableCancelButton = false;
+    public bool EnableCancelButton
+    {
+        get => _enableCancelButton;
+        set => this.RaiseAndSetIfChanged(ref _enableCancelButton, value);
+    }
 
     public string? SelectedDotnetPlatform { get; set; }
 

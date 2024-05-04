@@ -28,9 +28,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DotPad.Build\DotPad.Build.csproj" />
-        <ProjectReference Include="..\Avalonia.HtmlRenderer\Avalonia.HtmlRenderer.csproj" />
-        <ProjectReference Include="..\AvaloniaEdit.TextMate\AvaloniaEdit.TextMate.csproj" />
-        <ProjectReference Include="..\AvaloniaEdit\AvaloniaEdit.csproj" />
+        <ProjectReference Include="..\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
+        <ProjectReference Include="..\DotPad.Avalonia.Edit.TextMate\DotPad.Avalonia.Edit.TextMate.csproj" />
+        <ProjectReference Include="..\DotPad.Avalonia.Edit\DotPad.Avalonia.Edit.csproj" />
     </ItemGroup>
 
     <ItemGroup>

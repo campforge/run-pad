@@ -30,7 +30,7 @@ namespace DotPad.Views;
 
 using Pair = KeyValuePair<int, Control>;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IDisposable
 {
     private readonly TextEditor _textEditor;
     private readonly Installation _textMateInstallation;
@@ -40,6 +40,8 @@ public partial class MainWindow : Window
     private readonly ElementGenerator _generator = new();
     private readonly RegistryOptions _registryOptions;
     private int _currentTheme = (int)ThemeName.DarkPlus;
+
+    private CancellationTokenSource? _runTaskCancellationTokenSource;
 
     public MainWindow()
     {
@@ -92,7 +94,7 @@ public partial class MainWindow : Window
                 string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
 
                 _textEditor.Document = new TextDocument(
-                    "// AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+                    "// DotPad.Avalonia.Edit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
                     ResourceLoader.LoadSampleFile(scopeName));
                 _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
                 _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
@@ -130,57 +132,107 @@ public partial class MainWindow : Window
             _textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
         }
 
+    private MainWindowViewModel GetDataContext()
+    {
+        var model = DataContext as MainWindowViewModel;
+        if (model == null)
+        {
+            throw new NullReferenceException($"{DataContext} is null");
+        }
+
+        return model;
+    }
+
     private void RunButton_Click(object sender, RoutedEventArgs e)
     {
-        HtmlPanel.Text = string.Empty;
-        var model = DataContext! as MainWindowViewModel;
-        var root = Path.Combine(Path.GetTempPath(), "DotPad");
-        if (!Directory.Exists(root))
-            Directory.CreateDirectory(root);
-        var rs = new CSharpReferenceService();
-        var sdk = model?.DotnetPlatforms.First(i => i.Description == model.SelectedDotnetPlatform);
-        var refs = rs.GetDefault().ToList();
-        var runtimeLib = rs.GetExtensionReference();
-        refs.Add(runtimeLib);
+        if (_runTaskCancellationTokenSource is { IsCancellationRequested: false })
+            return;
 
-        var cs = new CSharpExecutionHostService(root,
-            runtimeLib,
-            sdk);
-
-
-        var ct = new CancellationToken();
-
-        HtmlPanel.Text += $"\n<div>Execute</div>";
-        var script = _textEditor.Text;
-
-        cs.DataReceived += (sender, args) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                HtmlPanel.Text += $"\n<div>{HttpUtility.HtmlEncode(args.Data)}</div>";
-            });
-        };
-
+        var model = GetDataContext();
+        model.EnableRunButton = false;
+        model.EnableCancelButton = true;
+        _runTaskCancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _runTaskCancellationTokenSource.Token;
         Task.Run(async () =>
         {
-
-            Dispatcher.UIThread.Post(() => { model!.EnableRunButton = false; });
             try
             {
-                await cs.Execute(script, refs.ToArray(), ct);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(600, cancellationToken);
+                }
             }
             catch (Exception exception)
             {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    HtmlPanel.Text += $"\n<div>{exception.Message}</div>";
-                });
+                Console.WriteLine(exception);
             }
             finally
             {
-                Dispatcher.UIThread.Post(() => { model!.EnableRunButton = true; });
+                Dispatcher.UIThread.Post(() =>
+                {
+                    model.EnableRunButton = true;
+                    model.EnableCancelButton = false;
+                });
             }
-        }, ct);
+        }, cancellationToken);
+    }
+
+    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(_runTaskCancellationTokenSource == null || _runTaskCancellationTokenSource.IsCancellationRequested)
+            return;
+    
+        _runTaskCancellationTokenSource?.Cancel();
+        return;
+        // ;
+        // HtmlPanel.Text = string.Empty;
+        // var root = Path.Combine(Path.GetTempPath(), "DotPad");
+        // if (!Directory.Exists(root))
+        //     Directory.CreateDirectory(root);
+        // var rs = new CSharpReferenceService();
+        // var sdk = model?.DotnetPlatforms.First(i => i.Description == model.SelectedDotnetPlatform);
+        // var refs = rs.GetDefault().ToList();
+        // var runtimeLib = rs.GetExtensionReference();
+        // refs.Add(runtimeLib);
+        //
+        // var cs = new CSharpExecutionHostService(root,
+        //     runtimeLib,
+        //     sdk);
+        //
+        //
+        // var ct = new CancellationToken();
+        //
+        // HtmlPanel.Text += $"\n<div>Execute</div>";
+        // var script = _textEditor.Text;
+        //
+        // cs.DataReceived += (sender, args) =>
+        // {
+        //     Dispatcher.UIThread.Post(() =>
+        //     {
+        //         HtmlPanel.Text += $"\n<div>{HttpUtility.HtmlEncode(args.Data)}</div>";
+        //     });
+        // };
+        //
+        // Task.Run(async () =>
+        // {
+        //
+        //     Dispatcher.UIThread.Post(() => { model!.EnableRunButton = false; });
+        //     try
+        //     {
+        //         await cs.Execute(script, refs.ToArray(), ct);
+        //     }
+        //     catch (Exception exception)
+        //     {
+        //         await Dispatcher.UIThread.InvokeAsync(() =>
+        //         {
+        //             HtmlPanel.Text += $"\n<div>{exception.Message}</div>";
+        //         });
+        //     }
+        //     finally
+        //     {
+        //         Dispatcher.UIThread.Post(() => { model!.EnableRunButton = true; });
+        //     }
+        // }, ct);
     }
 
     private void InitializeComponent()
@@ -413,4 +465,8 @@ public partial class MainWindow : Window
             }
     }
 
+    public void Dispose()
+    {
+        _runTaskCancellationTokenSource?.Cancel();
+    }
 }
