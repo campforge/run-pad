@@ -94,7 +94,7 @@ public partial class MainWindow : Window, IDisposable
                 string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
 
                 _textEditor.Document = new TextDocument(
-                    "// DotPad.Avalonia.Edit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+                    "// DotPad.Avalonia.CodeEditor supports displaying control chars: \a or \b or \v" + Environment.NewLine +
                     ResourceLoader.LoadSampleFile(scopeName));
                 _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
                 _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
