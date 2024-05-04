@@ -97,7 +97,6 @@ public static class AvaloniaEditCommands
     public static RoutedCommand IndentSelection { get; } = new RoutedCommand(nameof(IndentSelection), new KeyGesture(Key.I, KeyModifiers.Control));
 }
 
-
 public static class ApplicationCommands
 {
     private static readonly KeyModifiers PlatformCommandKey = GetPlatformCommandKey();

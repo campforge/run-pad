@@ -23,7 +23,7 @@ namespace AvaloniaEdit.Editing;
 /// <summary>
 /// Wraps exceptions that occur during drag'n'drop.
 /// Exceptions during drag'n'drop might
-/// get swallowed, so AvaloniaEdit catches them and re-throws them later
+/// get swallowed, so DotPad.Avalonia.Edit catches them and re-throws them later
 /// wrapped in a DragDropException.
 /// </summary>
 public class DragDropException : Exception

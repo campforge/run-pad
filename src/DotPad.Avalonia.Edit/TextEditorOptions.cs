@@ -88,14 +88,13 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool ShowSpaces
     {
-        get { return _showSpaces; }
+        get => _showSpaces;
         set
         {
-            if (_showSpaces != value)
-            {
-                _showSpaces = value;
-                OnPropertyChanged(nameof(ShowSpaces));
-            }
+            if (_showSpaces == value)
+                return;
+            _showSpaces = value;
+            OnPropertyChanged(nameof(ShowSpaces));
         }
     }
 
@@ -108,7 +107,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue("\u00B7")]
     public virtual string ShowSpacesGlyph
     {
-        get { return _showSpacesGlyph; }
+        get => _showSpacesGlyph;
         set
         {
             if (_showSpacesGlyph != value)
@@ -128,7 +127,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool ShowTabs
     {
-        get { return _showTabs; }
+        get => _showTabs;
         set
         {
             if (_showTabs != value)
@@ -148,7 +147,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue("\u2192")]
     public virtual string ShowTabsGlyph
     {
-        get { return _showTabsGlyph; }
+        get => _showTabsGlyph;
         set
         {
             if (_showTabsGlyph != value)
@@ -162,13 +161,13 @@ public class TextEditorOptions : INotifyPropertyChanged
     private bool _showEndOfLine;
 
     /// <summary>
-    /// Gets/Sets whether to show EOL char at the end of lines. The glyphs displayed can be set via <see cref="EndOfLineCRLFGlyph" />, <see cref="EndOfLineCRGlyph" /> and <see cref="EndOfLineLFGlyph" />.
+    /// Gets/Sets whether to show EOL char at the end of lines. The glyphs displayed can be set via <see cref="EndOfLineCRLFGlyph" />, <see cref="EndOfLineCRGlyph" /> and <see cref="EndOfLineLfGlyph" />.
     /// </summary>
     /// <remarks>The default value is <c>false</c>.</remarks>
     [DefaultValue(false)]
     public virtual bool ShowEndOfLine
     {
-        get { return _showEndOfLine; }
+        get => _showEndOfLine;
         set
         {
             if (_showEndOfLine != value)
@@ -179,7 +178,7 @@ public class TextEditorOptions : INotifyPropertyChanged
         }
     }
 
-    private string _endOfLineCRLFGlyph = "¶";
+    private string _endOfLineCrlfGlyph = "¶";
 
     /// <summary>
     /// Gets/Sets the char to show for CRLF (\r\n) when ShowEndOfLine option is enabled
@@ -188,12 +187,12 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue("¶")]
     public virtual string EndOfLineCRLFGlyph
     {
-        get { return _endOfLineCRLFGlyph; }
+        get => _endOfLineCrlfGlyph;
         set
         {
-            if (_endOfLineCRLFGlyph != value)
+            if (_endOfLineCrlfGlyph != value)
             {
-                _endOfLineCRLFGlyph = value;
+                _endOfLineCrlfGlyph = value;
                 OnPropertyChanged(nameof(EndOfLineCRLFGlyph));
             }
         }
@@ -208,7 +207,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue("\\r")]
     public virtual string EndOfLineCRGlyph
     {
-        get { return _endOfLineCRGlyph; }
+        get => _endOfLineCRGlyph;
         set
         {
             if (_endOfLineCRGlyph != value)
@@ -219,22 +218,22 @@ public class TextEditorOptions : INotifyPropertyChanged
         }
     }
 
-    private string _endOfLineLFGlyph = "\\n";
+    private string _endOfLineLfGlyph = "\\n";
 
     /// <summary>
     /// Gets/Sets the char to show for LF (\n) when ShowEndOfLine option is enabled
     /// </summary>
     /// <remarks>The default value is <c>\n</c>.</remarks>
     [DefaultValue("\\n")]
-    public virtual string EndOfLineLFGlyph
+    public virtual string EndOfLineLfGlyph
     {
-        get { return _endOfLineLFGlyph; }
+        get => _endOfLineLfGlyph;
         set
         {
-            if (_endOfLineLFGlyph != value)
+            if (_endOfLineLfGlyph != value)
             {
-                _endOfLineLFGlyph = value;
-                OnPropertyChanged(nameof(EndOfLineLFGlyph));
+                _endOfLineLfGlyph = value;
+                OnPropertyChanged(nameof(EndOfLineLfGlyph));
             }
         }
     }
@@ -248,7 +247,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool ShowBoxForControlCharacters
     {
-        get { return _showBoxForControlCharacters; }
+        get => _showBoxForControlCharacters;
         set
         {
             if (_showBoxForControlCharacters != value)
@@ -271,7 +270,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool EnableHyperlinks
     {
-        get { return _enableHyperlinks; }
+        get => _enableHyperlinks;
         set
         {
             if (_enableHyperlinks != value)
@@ -291,7 +290,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool EnableEmailHyperlinks
     {
-        get { return _enableEmailHyperlinks; }
+        get => _enableEmailHyperlinks;
         set
         {
             if (_enableEmailHyperlinks != value)
@@ -312,7 +311,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool RequireControlModifierForHyperlinkClick
     {
-        get { return _requireControlModifierForHyperlinkClick; }
+        get => _requireControlModifierForHyperlinkClick;
         set
         {
             if (_requireControlModifierForHyperlinkClick != value)
@@ -366,7 +365,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool ConvertTabsToSpaces
     {
-        get { return _convertTabsToSpaces; }
+        get => _convertTabsToSpaces;
         set
         {
             if (_convertTabsToSpaces != value)
@@ -411,7 +410,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool CutCopyWholeLine
     {
-        get { return _cutCopyWholeLine; }
+        get => _cutCopyWholeLine;
         set
         {
             if (_cutCopyWholeLine != value)
@@ -431,7 +430,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool AllowScrollBelowDocument
     {
-        get { return _allowScrollBelowDocument; }
+        get => _allowScrollBelowDocument;
         set
         {
             if (_allowScrollBelowDocument != value)
@@ -474,7 +473,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool InheritWordWrapIndentation
     {
-        get { return _inheritWordWrapIndentation; }
+        get => _inheritWordWrapIndentation;
         set
         {
             if (value != _inheritWordWrapIndentation)
@@ -493,7 +492,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public bool EnableRectangularSelection
     {
-        get { return _enableRectangularSelection; }
+        get => _enableRectangularSelection;
         set
         {
             if (_enableRectangularSelection != value)
@@ -512,7 +511,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public bool EnableTextDragDrop
     {
-        get { return _enableTextDragDrop; }
+        get => _enableTextDragDrop;
         set
         {
             if (_enableTextDragDrop != value)
@@ -534,7 +533,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool EnableVirtualSpace
     {
-        get { return _enableVirtualSpace; }
+        get => _enableVirtualSpace;
         set
         {
             if (_enableVirtualSpace != value)
@@ -554,7 +553,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public virtual bool EnableImeSupport
     {
-        get { return _enableImeSupport; }
+        get => _enableImeSupport;
         set
         {
             if (_enableImeSupport != value)
@@ -573,7 +572,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool ShowColumnRulers
     {
-        get { return _showColumnRulers; }
+        get => _showColumnRulers;
         set
         {
             if (_showColumnRulers != value)
@@ -591,7 +590,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     /// </summary>
     public virtual IEnumerable<int> ColumnRulerPositions
     {
-        get { return _columnRulerPositions; }
+        get => _columnRulerPositions;
         set
         {
             if (_columnRulerPositions != value)
@@ -610,7 +609,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public virtual bool HighlightCurrentLine
     {
-        get { return _highlightCurrentLine; }
+        get => _highlightCurrentLine;
         set
         {
             if (_highlightCurrentLine != value)
@@ -629,7 +628,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public bool HideCursorWhileTyping
     {
-        get { return _hideCursorWhileTyping; }
+        get => _hideCursorWhileTyping;
         set
         {
             if (_hideCursorWhileTyping != value)
@@ -648,7 +647,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(false)]
     public bool AllowToggleOverstrikeMode
     {
-        get { return _allowToggleOverstrikeMode; }
+        get => _allowToggleOverstrikeMode;
         set
         {
             if (_allowToggleOverstrikeMode != value)
@@ -667,7 +666,7 @@ public class TextEditorOptions : INotifyPropertyChanged
     [DefaultValue(true)]
     public bool ExtendSelectionOnMouseUp
     {
-        get { return _extendSelectionOnMouseUp; }
+        get => _extendSelectionOnMouseUp;
         set
         {
             if (_extendSelectionOnMouseUp != value)

@@ -4,10 +4,11 @@
     <TargetFrameworks>net7.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <PackageDescription>TextMate integration for AvaloniaEdit.</PackageDescription>
+    <RootNamespace>AvaloniaEdit.TextMate</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AvaloniaEdit\AvaloniaEdit.csproj" />
+    <ProjectReference Include="..\DotPad.Avalonia.Edit\DotPad.Avalonia.Edit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

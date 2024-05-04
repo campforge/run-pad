@@ -19,9 +19,9 @@
 //using System;
 //using System.Collections.Generic;
 //using Avalonia.Media;
-//using AvaloniaEdit.Document;
+//using DotPad.Avalonia.Edit.Document;
 
-//namespace AvaloniaEdit.Highlighting
+//namespace DotPad.Avalonia.Edit.Highlighting
 //{
 //	/// <summary>
 //	/// A RichTextWriter that writes into a document and RichTextModel.

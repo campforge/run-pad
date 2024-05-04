@@ -36,10 +36,8 @@ public class Program
         return @"<div class=""widget"" color=""#fff"">
 					  <h1>Widget Buttons</h1>
 					  <button>A button element</button>
- 
 					  <input type=""submit"" value=""A submit button"">
- 
-					  <a href=""#"">An anchor</a>
+ 					  <a href=""#"">An anchor</a>
 					</div>
 					<h1>CSS Buttons</h1>
 					<button class=""ui-button ui-widget ui-corner-all"">A button element</button>
