@@ -12,10 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+namespace Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a line of text.

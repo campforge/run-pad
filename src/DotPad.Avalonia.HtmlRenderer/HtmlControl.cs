@@ -12,20 +12,17 @@
 
 using System;
 using System.ComponentModel;
-using Avalonia;
 using Avalonia.Controls;
+using Avalonia.HtmlRenderer.External.Core;
+using Avalonia.HtmlRenderer.External.Core.Entities;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Metadata;
 using Avalonia.Threading;
-using TheArtOfDev.HtmlRenderer.Core;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using Point = Avalonia.Point;
-using Size = Avalonia.Size;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia;
+namespace Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>

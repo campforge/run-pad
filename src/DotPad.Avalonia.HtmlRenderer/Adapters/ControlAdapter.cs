@@ -11,13 +11,13 @@
 // "The Art of War"
 
 using Avalonia.Controls;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
+using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Input;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
-using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+namespace Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia Control for core.

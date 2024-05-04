@@ -12,7 +12,7 @@
 
 using System;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Entities;
+namespace Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Raised when an error occurred during html rendering.

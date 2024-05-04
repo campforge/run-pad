@@ -13,7 +13,7 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace HtmlRenderer.Parse;
+namespace Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Collection of regular expressions used when parsing

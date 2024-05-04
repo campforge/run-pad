@@ -1,4 +1,4 @@
-namespace TheArtOfDev.HtmlRenderer.Core.Utils;
+namespace Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Defines HTML strings

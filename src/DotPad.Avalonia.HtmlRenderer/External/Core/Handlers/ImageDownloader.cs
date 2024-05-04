@@ -16,9 +16,9 @@ using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Threading;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+namespace Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// On download file async complete, success or fail.

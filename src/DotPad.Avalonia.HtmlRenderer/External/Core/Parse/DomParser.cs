@@ -13,13 +13,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Dom;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Handlers;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Dom;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Handlers;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Parse;
+namespace Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Handle css DOM tree generation from raw html and stylesheet.

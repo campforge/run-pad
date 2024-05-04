@@ -11,9 +11,9 @@
 // "The Art of War"
 
 using System;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Entities;
+namespace Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Raised when Html Renderer request scroll to specific location.<br/>

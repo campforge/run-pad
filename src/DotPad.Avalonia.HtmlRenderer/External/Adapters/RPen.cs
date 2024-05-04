@@ -10,9 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace TheArtOfDev.HtmlRenderer.Adapters;
+namespace Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific pen objects - used to draw graphics (lines, rectangles and paths) 

@@ -12,7 +12,7 @@
 
 using System;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+namespace Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a word inside an inline box

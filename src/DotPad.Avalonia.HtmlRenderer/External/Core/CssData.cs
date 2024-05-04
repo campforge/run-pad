@@ -12,12 +12,12 @@
 
 using System;
 using System.Collections.Generic;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Parse;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Parse;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core;
+namespace Avalonia.HtmlRenderer.External.Core;
 
 /// <summary>
 /// Holds parsed stylesheet css blocks arranged by media and classes.<br/>

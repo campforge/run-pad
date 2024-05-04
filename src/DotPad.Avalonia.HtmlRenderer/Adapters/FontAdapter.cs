@@ -11,11 +11,11 @@
 // "The Art of War"
 
 using System.Globalization;
+using Avalonia.HtmlRenderer.External.Adapters;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using TheArtOfDev.HtmlRenderer.Adapters;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+namespace Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia Font.

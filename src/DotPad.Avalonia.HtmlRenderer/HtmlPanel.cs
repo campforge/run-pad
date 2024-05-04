@@ -10,17 +10,14 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia;
 using Avalonia.Controls.Primitives;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
-using Point = Avalonia.Point;
-using Size = Avalonia.Size;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia;
+namespace Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>

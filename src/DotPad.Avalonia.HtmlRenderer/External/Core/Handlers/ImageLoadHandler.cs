@@ -15,12 +15,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+namespace Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// Handler for all loading image logic.<br/>

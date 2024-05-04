@@ -12,12 +12,12 @@
 
 using System;
 using System.Globalization;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Dom;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Dom;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Parse;
+namespace Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Parse CSS properties values like numbers, Urls, etc.

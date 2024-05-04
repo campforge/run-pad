@@ -11,13 +11,13 @@
 // "The Art of War"
 
 using System;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Dom;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Dom;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Handlers;
+namespace Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// Handler for text selection in the html.
@@ -601,7 +601,7 @@ internal sealed class SelectionHandler : IDisposable
 
     /// <summary>
     /// Calculate the character index and offset by characters for the given word and given offset.<br/>
-    /// <seealso cref="CalculateWordCharIndexAndOffset(RControl,HtmlRenderer.Core.Dom.CssRect,RPoint,bool)"/>.
+    /// <seealso cref="CalculateWordCharIndexAndOffset(Avalonia.HtmlRenderer.External.Adapters.RControl,Avalonia.HtmlRenderer.External.Core.Dom.CssRect,Avalonia.HtmlRenderer.External.Adapters.Entities.RPoint,bool)"/>.
     /// </summary>
     /// <param name="control">used to create graphics to measure string</param>
     /// <param name="word">the word to calculate its index and offset</param>
