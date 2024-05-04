@@ -5,7 +5,7 @@ VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad", "src\DotPad\DotPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.Edit", "src\DotPad.Avalonia.Edit\DotPad.Avalonia.Edit.csproj", "{B90B1EE2-E5ED-4611-9AE2-921145497D32}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.CodeEditor", "src\DotPad.Avalonia.CodeEditor\DotPad.Avalonia.CodeEditor.csproj", "{B90B1EE2-E5ED-4611-9AE2-921145497D32}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.Edit.TextMate", "src\DotPad.Avalonia.Edit.TextMate\DotPad.Avalonia.Edit.TextMate.csproj", "{C75C7987-F7D6-4851-AF75-7E96CE3EFFC2}"
 EndProject

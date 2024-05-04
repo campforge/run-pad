@@ -24,7 +24,7 @@ namespace AvaloniaEdit.Highlighting;
 
 internal static class Resources
 {
-    private const string Prefix = "DotPad.Avalonia.Edit.Highlighting.Resources.";
+    private const string Prefix = "DotPad.Avalonia.CodeEditor.Highlighting.Resources.";
 
     public static Stream OpenStream(string name)
     {
