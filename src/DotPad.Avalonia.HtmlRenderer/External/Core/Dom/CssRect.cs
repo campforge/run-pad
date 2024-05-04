@@ -11,11 +11,11 @@
 // "The Art of War"
 
 using System;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Handlers;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Handlers;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+namespace Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a word inside an inline box

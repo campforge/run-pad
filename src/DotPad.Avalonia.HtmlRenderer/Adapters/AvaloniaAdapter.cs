@@ -14,20 +14,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using Avalonia.Platform.Storage;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 using Color = Avalonia.Media.Color;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+namespace Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia platform.

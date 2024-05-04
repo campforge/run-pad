@@ -11,16 +11,15 @@
 // "The Art of War"
 
 using System;
-using Avalonia;
+using Avalonia.HtmlRenderer.Adapters;
+using Avalonia.HtmlRenderer.External.Core;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
+using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using TheArtOfDev.HtmlRenderer.Core;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
-using TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
-using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia;
+namespace Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Standalone static class for simple and direct HTML rendering.<br/>

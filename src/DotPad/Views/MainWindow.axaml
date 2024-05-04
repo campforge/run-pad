@@ -1,7 +1,7 @@
 <Window
     xmlns="https://github.com/avaloniaui"
     xmlns:ae="using:AvaloniaEdit"
-    xmlns:av="clr-namespace:TheArtOfDev.HtmlRenderer.Avalonia;assembly=DotPad.Avalonia.HtmlRenderer"
+    xmlns:av="clr-namespace:Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:DotPad.ViewModels"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

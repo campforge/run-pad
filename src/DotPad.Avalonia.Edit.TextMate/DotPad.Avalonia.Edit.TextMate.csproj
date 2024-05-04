@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotPad.Avalonia.CodeEditor\DotPad.Avalonia.CodeEditor.csproj" />
+    <ProjectReference Include="..\DotPad.Avalonia.AvaloniaEdit\DotPad.Avalonia.AvaloniaEdit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

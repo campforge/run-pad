@@ -30,7 +30,7 @@
         <ProjectReference Include="..\DotPad.Build\DotPad.Build.csproj" />
         <ProjectReference Include="..\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
         <ProjectReference Include="..\DotPad.Avalonia.Edit.TextMate\DotPad.Avalonia.Edit.TextMate.csproj" />
-        <ProjectReference Include="..\DotPad.Avalonia.CodeEditor\DotPad.Avalonia.CodeEditor.csproj" />
+        <ProjectReference Include="..\DotPad.Avalonia.AvaloniaEdit\DotPad.Avalonia.AvaloniaEdit.csproj" />
     </ItemGroup>
 
     <ItemGroup>

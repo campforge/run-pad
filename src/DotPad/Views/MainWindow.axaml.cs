@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using Avalonia.Controls;
+using Avalonia.HtmlRenderer;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -20,9 +18,7 @@ using AvaloniaEdit.Rendering;
 
 using TextMateSharp.Grammars;
 using AvaloniaEdit;
-using DotPad.Build;
 using DotPad.Resources;
-using TheArtOfDev.HtmlRenderer.Avalonia;
 using DotPad.ViewModels;
 using static AvaloniaEdit.TextMate.TextMate;
 
@@ -94,7 +90,7 @@ public partial class MainWindow : Window, IDisposable
                 string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
 
                 _textEditor.Document = new TextDocument(
-                    "// DotPad.Avalonia.CodeEditor supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+                    "// DotPad.Avalonia.AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
                     ResourceLoader.LoadSampleFile(scopeName));
                 _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
                 _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());

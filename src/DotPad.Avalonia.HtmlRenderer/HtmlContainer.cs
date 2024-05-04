@@ -12,18 +12,17 @@
 
 using System;
 using System.Collections.Generic;
-using Avalonia;
 using Avalonia.Controls;
+using Avalonia.HtmlRenderer.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core;
+using Avalonia.HtmlRenderer.External.Core.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
+using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Input;
 using Avalonia.Media;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core;
-using TheArtOfDev.HtmlRenderer.Core.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
-using TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
-using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia;
+namespace Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Low level handling of Html Renderer logic, this class is used by <see cref="HtmlParser"/>, 

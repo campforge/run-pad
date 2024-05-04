@@ -13,15 +13,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Avalonia;
+using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia.HtmlRenderer.External.Core.Utils;
+using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using TheArtOfDev.HtmlRenderer.Adapters;
-using TheArtOfDev.HtmlRenderer.Adapters.Entities;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
-using TheArtOfDev.HtmlRenderer.Avalonia.Utilities;
 
-namespace TheArtOfDev.HtmlRenderer.Avalonia.Adapters;
+namespace Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia Graphics.

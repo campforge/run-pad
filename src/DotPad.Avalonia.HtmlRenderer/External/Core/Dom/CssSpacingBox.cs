@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using TheArtOfDev.HtmlRenderer.Core.Utils;
+using Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace TheArtOfDev.HtmlRenderer.Core.Dom;
+namespace Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Used to make space on vertical cell combination

@@ -10,6 +10,6 @@
 
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://DotPad.Avalonia.CodeEditor/Themes/Fluent/AvaloniaEdit.xaml" />
+        <StyleInclude Source="avares://DotPad.Avalonia.AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     </Application.Styles>
 </Application>
