@@ -28,7 +28,7 @@ jobs:
 
     runs-on: windows-latest
 
-     steps:
+    steps:
       - name: 🚚 Checkout latest
         uses: actions/checkout@v4.1.1
 
