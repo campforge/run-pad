@@ -31,6 +31,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4D09A6D7
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Test", "tests\DotPad.Test\DotPad.Test.csproj", "{9D8109E0-E794-4FCB-9EF1-DF04C6F99CFB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Contracts", "src\DotPad.Contracts\DotPad.Contracts.csproj", "{8024F603-76C2-4F53-920D-9C903DBF24F9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,10 @@ Global
 		{9D8109E0-E794-4FCB-9EF1-DF04C6F99CFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D8109E0-E794-4FCB-9EF1-DF04C6F99CFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D8109E0-E794-4FCB-9EF1-DF04C6F99CFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8024F603-76C2-4F53-920D-9C903DBF24F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8024F603-76C2-4F53-920D-9C903DBF24F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8024F603-76C2-4F53-920D-9C903DBF24F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8024F603-76C2-4F53-920D-9C903DBF24F9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -89,6 +95,7 @@ Global
 		{1B80009D-2555-4854-88D7-3A3A2CC51693} = {16258A20-1744-4E9D-A66D-026F85CF9026}
 		{0AE96AD7-BFFE-4E56-809C-BA0B7E83EAAA} = {16258A20-1744-4E9D-A66D-026F85CF9026}
 		{9D8109E0-E794-4FCB-9EF1-DF04C6F99CFB} = {4D09A6D7-118A-446D-B707-6A5C9F74E57F}
+		{8024F603-76C2-4F53-920D-9C903DBF24F9} = {1B80009D-2555-4854-88D7-3A3A2CC51693}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {21803269-54D2-403D-887A-3B75DFF7625B}
