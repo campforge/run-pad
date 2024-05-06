@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Build", "src\DotPad.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Avalonia.Controls", "src\DotPad.Avalonia.Controls\DotPad.Avalonia.Controls.csproj", "{C0AA5EDA-28F3-4E36-87BE-4D8214620E96}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Avalonia.CodeTextEditor", "src\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj", "{1AEC24B5-8898-4AC9-89EB-C778CF3939E7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{C0AA5EDA-28F3-4E36-87BE-4D8214620E96}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C0AA5EDA-28F3-4E36-87BE-4D8214620E96}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C0AA5EDA-28F3-4E36-87BE-4D8214620E96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AEC24B5-8898-4AC9-89EB-C778CF3939E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AEC24B5-8898-4AC9-89EB-C778CF3939E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AEC24B5-8898-4AC9-89EB-C778CF3939E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AEC24B5-8898-4AC9-89EB-C778CF3939E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,6 +74,7 @@ Global
 		{B90B1EE2-E5ED-4611-9AE2-921145497D32} = {C1B0D98C-2014-459B-96B5-1DFD7E9483A7}
 		{C75C7987-F7D6-4851-AF75-7E96CE3EFFC2} = {C1B0D98C-2014-459B-96B5-1DFD7E9483A7}
 		{21D8427E-247D-43EB-83BA-D459513334FF} = {C1B0D98C-2014-459B-96B5-1DFD7E9483A7}
+		{1AEC24B5-8898-4AC9-89EB-C778CF3939E7} = {C1B0D98C-2014-459B-96B5-1DFD7E9483A7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {21803269-54D2-403D-887A-3B75DFF7625B}
