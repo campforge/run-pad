@@ -31,6 +31,7 @@
         <ProjectReference Include="..\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
         <ProjectReference Include="..\DotPad.Avalonia.Edit.TextMate\DotPad.Avalonia.Edit.TextMate.csproj" />
         <ProjectReference Include="..\DotPad.Avalonia.AvaloniaEdit\DotPad.Avalonia.AvaloniaEdit.csproj" />
+        <ProjectReference Include="..\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj" />
     </ItemGroup>
 
     <ItemGroup>

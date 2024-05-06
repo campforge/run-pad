@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.HtmlRenderer;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -15,9 +16,8 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
-
 using TextMateSharp.Grammars;
-using AvaloniaEdit;
+using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Resources;
 using DotPad.ViewModels;
 using static AvaloniaEdit.TextMate.TextMate;
@@ -28,7 +28,7 @@ using Pair = KeyValuePair<int, Control>;
 
 public partial class MainWindow : Window, IDisposable
 {
-    private readonly TextEditor _textEditor;
+    private readonly CodeTextEditor _textEditor;
     private readonly Installation _textMateInstallation;
     private CompletionWindow _completionWindow;
     private OverloadInsightWindow _insightWindow;
@@ -52,21 +52,13 @@ public partial class MainWindow : Window, IDisposable
                 //_htmlPanel.Background = Brush.Parse("#000");
             }
             // textEditor
-            _textEditor = this.FindControl<TextEditor>("Editor");
+            _textEditor = this.FindControl<CodeTextEditor>("Editor");
             if (_textEditor != null)
             {
-                _textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
+                _textEditor.HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
                 _textEditor.Background = Brushes.Transparent;
                 _textEditor.ShowLineNumbers = true;
-                _textEditor.ContextMenu = new ContextMenu
-                {
-                    ItemsSource = new List<MenuItem>
-                {
-                    new() { Header = "Copy", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
-                    new() { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control) },
-                    new() { Header = "Cut", InputGesture = new KeyGesture(Key.X, KeyModifiers.Control) }
-                }
-                };
+                _textEditor.ShowBreakpoints = true;
 
                 _textEditor.TextArea.Background = this.Background;
                 _textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;

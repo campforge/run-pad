@@ -1,4 +1,4 @@
-namespace DotPad.Build.ProcessCompiler;
+namespace DotPad.Build.ProcessCompiler.Resources;
 
 public static class Resources
 {
