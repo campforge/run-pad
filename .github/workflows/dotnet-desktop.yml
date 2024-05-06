@@ -22,10 +22,6 @@ jobs:
       matrix:
         os: [ ubuntu-22.04, windows-2022, macos-12 ]
 
-    strategy:
-      matrix:
-        configuration: [Debug, Release]
-
     steps:
       - name: 🚚 Checkout latest
         uses: actions/checkout@v4.1.1
