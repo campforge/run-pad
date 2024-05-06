@@ -249,7 +249,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     protected override void OnPointerMoved(PointerEventArgs e)
     {
 
-        Console.WriteLine(e.GetPosition(_editor));
+        // Console.WriteLine(e.GetPosition(_editor));
 
         if (UpdateLines(e)) 
             return;

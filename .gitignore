@@ -1,8 +1,8 @@
 /.vs
-*/obj/**
-*/bin/**
-
-src/*/obj/**
-src/*/bin/**
-/.idea/**
+obj
+bin
 *.user
+.idea
+
+
+
