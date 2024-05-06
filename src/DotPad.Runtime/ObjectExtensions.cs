@@ -1,9 +1,10 @@
-﻿
-using System;
+﻿using System;
 using System.Text.Json;
 
 // ReSharper disable once UnusedType.Global
 // ReSharper disable once CheckNamespace
+namespace DotPad.Runtime;
+
 public static class ObjectExtensions
 {
     public static T Dump<T>(this T o, string header = null, int? maxDepth = null)

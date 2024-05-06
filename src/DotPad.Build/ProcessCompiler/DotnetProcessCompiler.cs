@@ -39,7 +39,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         var code = await syntaxTree.GetTextAsync(cancellationToken);
         await File.WriteAllTextAsync(_sourceCodePath, code.ToString(), _encoding, cancellationToken);
         var references = new[] { DotPadRuntimeLib };
-        var projectFile = Resources.GerProjectFile(ExecutionPlatform.TargetFrameworkMoniker, references);
+        var projectFile = Resources.Resources.GerProjectFile(ExecutionPlatform.TargetFrameworkMoniker, references);
 
         await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, cancellationToken);
         var binDirectory = Path.Join(OutputDir, BinDir);
