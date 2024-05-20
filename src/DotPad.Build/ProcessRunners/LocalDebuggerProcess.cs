@@ -8,11 +8,6 @@ namespace DotPad.Build.ProcessRunners;
 
 public class LocalDebuggerExecutionArgs
 {
-    public LocalDebuggerExecutionArgs()
-    {
-        
-    }
-
     public override string ToString()
     {
         return $" --interpreter=vscode";

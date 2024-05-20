@@ -1,6 +1,5 @@
 <Window
     xmlns="https://github.com/avaloniaui"
-    xmlns:ae="using:RoslynPad.Editor"
     xmlns:av="clr-namespace:Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:DotPad.ViewModels"
@@ -29,6 +28,7 @@
         <Style Selector="Button.TopBarComboBox">
             <Setter Property="Padding" Value="0,10,0,0"/>
         </Style>
+        <StyleInclude Source="avares://DotPad.Avalonia.AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     </Window.Styles>
     
     <SplitView IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="300">
@@ -88,25 +88,6 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <!-- <ToggleButton Name="ViewTabs" Content="View tabs" -->
-                                <!--               IsChecked="{Binding #Editor.Options.ShowTabs}" -->
-                                <!--               VerticalAlignment="Stretch" -->
-                                <!--               VerticalContentAlignment="Center" /> -->
-                                <!-- -->
-                                <!-- <ToggleButton Name="ViewSpaces" Content="View spaces" -->
-                                <!--               IsChecked="{Binding #Editor.Options.ShowSpaces}" -->
-                                <!--               VerticalAlignment="Stretch" -->
-                                <!--               VerticalContentAlignment="Center" /> -->
-                                <!-- <ToggleButton Name="ViewEol" Content="View EOL" -->
-                                <!--               IsChecked="{Binding #Editor.Options.ShowEndOfLine}" -->
-                                <!--               VerticalAlignment="Stretch" -->
-                                <!--               VerticalContentAlignment="Center" /> -->
-                                <!-- <ToggleButton Name="ViewColumnRules" Content="View columns rulers" -->
-                                <!--               IsChecked="{Binding #Editor.Options.ShowColumnRulers}" -->
-                                <!--               VerticalAlignment="Stretch" VerticalContentAlignment="Center" /> -->
-                                <!-- <Button Click="ChangeThemeButton_Click" Content="Change theme" -->
-                                <!--         VerticalAlignment="Stretch" -->
-                                <!--         VerticalContentAlignment="Center" /> -->
                             </StackPanel>
                         </StackPanel>
                         <DockPanel Grid.Row="1">
@@ -115,13 +96,14 @@
                                                HorizontalScrollBarVisibility="Auto"
                                                VerticalScrollBarVisibility="Visible"
                                                FontWeight="Light"
-                                               FontSize="14" />
+                                               FontSize="14" 
+                                               />
 
                         </DockPanel>
                     </Grid>
                     <GridSplitter Grid.Row="1" ResizeDirection="Rows" Background="White" />
                     <TabControl Grid.Row="2">
-                        <TabItem Header="Tab 1" FontSize="14">
+                        <TabItem Header="Results" FontSize="14">
                             <av:HtmlPanel x:Name="HtmlPanel" Grid.Column="0" Background="MintCream">
                                 <ToolTip.Tip>
                                     <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
@@ -130,8 +112,8 @@
                                 </ToolTip.Tip>
                             </av:HtmlPanel>
                         </TabItem>
-                        <TabItem Header="Tab 2" FontSize="14">
-                            <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center"
+                        <TabItem Header="Debugger" FontSize="14">
+                            <TextBlock Text="{Binding GreetingDebugger}" HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />
                         </TabItem>
                     </TabControl>
