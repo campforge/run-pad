@@ -20,9 +20,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
     private readonly string _outputDir;
     private readonly string _runtimeLib;
     private readonly string _sourceCodePath;
-    
     private readonly Encoding _encoding = Encoding.UTF8;
-    
     private readonly ExecutionPlatform _executionPlatform;
 
     public event ExecutionReceivedEventHandler? DataReceived;
@@ -174,7 +172,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
                 _runtimeLib,
                 LibName
             );
-        //     new CodeAnalysisProcessCompiler(
+        // using var compiler = new CodeAnalysisProcessCompiler(
         //     _executionPlatform,
         //     executionOptions,
         //     _outputDir,
@@ -183,7 +181,7 @@ public sealed class CSharpExecutionHostService : IExecutionHostService, IDisposa
         // );
 
         var result = await compiler.Compilation(syntaxTree, cancellationToken);
-        
+
         await RunProcessAsync(result.OutputBinaryFile, executionOptions, cancellationToken);
     }
 

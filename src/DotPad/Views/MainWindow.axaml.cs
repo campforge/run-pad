@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.HtmlRenderer;
@@ -18,7 +21,10 @@ using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 using TextMateSharp.Grammars;
 using DotPad.Avalonia.CodeTextEditor;
+using DotPad.Build;
+using DotPad.Models;
 using DotPad.Resources;
+using DotPad.Services;
 using DotPad.ViewModels;
 using static AvaloniaEdit.TextMate.TextMate;
 
@@ -28,21 +34,21 @@ using Pair = KeyValuePair<int, Control>;
 
 public partial class MainWindow : Window, IDisposable
 {
-    private readonly CodeTextEditor _textEditor;
+    private readonly CodeTextEditor? _textEditor;
     private readonly Installation _textMateInstallation;
     private CompletionWindow _completionWindow;
     private OverloadInsightWindow _insightWindow;
     private readonly TextBlock _statusTextBlock;
     private readonly ElementGenerator _generator = new();
     private readonly RegistryOptions _registryOptions;
-    private int _currentTheme = (int)ThemeName.DarkPlus;
-
+    private readonly IThemeService _themeService = ThemeService.GetInstance();
     private CancellationTokenSource? _runTaskCancellationTokenSource;
 
     public MainWindow()
     {
             InitializeComponent();
-
+            
+            _themeService.ThemeChange += ThemeServiceOnThemeChange;
             // htmlPanel
             HtmlPanel = this.FindControl<HtmlPanel>("HtmlPanel");
             if (HtmlPanel != null)
@@ -56,11 +62,9 @@ public partial class MainWindow : Window, IDisposable
             if (_textEditor != null)
             {
                 _textEditor.HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
-                _textEditor.Background = Brushes.Transparent;
                 _textEditor.ShowLineNumbers = true;
                 _textEditor.ShowBreakpoints = true;
 
-                _textEditor.TextArea.Background = this.Background;
                 _textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
                 _textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
                 _textEditor.Options.AllowToggleOverstrikeMode = true;
@@ -73,17 +77,15 @@ public partial class MainWindow : Window, IDisposable
 
                 _textEditor.TextArea.TextView.ElementGenerators.Add(_generator);
 
-                _registryOptions = new RegistryOptions(
-                    (ThemeName)_currentTheme);
+                _registryOptions = new RegistryOptions(_themeService.CurrentTheme.CodeEditorThemeName);
 
                 _textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
                 var csharpLanguage = _registryOptions.GetLanguageByExtension(".cs");
 
                 string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
 
-                _textEditor.Document = new TextDocument(
-                    "// DotPad.Avalonia.AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
-                    ResourceLoader.LoadSampleFile(scopeName));
+                // "// DotPad.Avalonia.AvaloniaEdit supports displaying control chars: \a or \b or \v" + Environment.NewLine +
+                _textEditor.Document = new TextDocument(ResourceLoader.LoadSampleFile(scopeName));
                 _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
                 _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
                 _textEditor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
@@ -99,25 +101,24 @@ public partial class MainWindow : Window, IDisposable
             }
         }
 
+    private void ThemeServiceOnThemeChange(Theme theme)
+    {
+        _textMateInstallation.SetTheme(_registryOptions.LoadTheme(theme.CodeEditorThemeName));
+    }
+
     private void Caret_PositionChanged(object sender, EventArgs e)
     {
+        if (_textEditor != null)
             _statusTextBlock.Text = string.Format("Line {0} Column {1}",
                 _textEditor.TextArea.Caret.Line,
                 _textEditor.TextArea.Caret.Column);
-        }
+    }
 
     protected override void OnClosed(EventArgs e)
     {
             base.OnClosed(e);
 
             _textMateInstallation.Dispose();
-        }
-
-    private void ChangeThemeButton_Click(object sender, RoutedEventArgs e)
-    {
-            _currentTheme = (_currentTheme + 1) % Enum.GetNames(typeof(ThemeName)).Length;
-
-            _textMateInstallation.SetTheme(_registryOptions.LoadTheme((ThemeName)_currentTheme));
         }
 
     private MainWindowViewModel GetDataContext()
@@ -136,32 +137,58 @@ public partial class MainWindow : Window, IDisposable
         if (_runTaskCancellationTokenSource is { IsCancellationRequested: false })
             return;
 
-        var model = GetDataContext();
+        var model = GetDataContext()!;
         model.EnableRunButton = false;
         model.EnableCancelButton = true;
         _runTaskCancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = _runTaskCancellationTokenSource.Token;
+       
+        // ToDo: приблизительный подход
+        HtmlPanel.Text = string.Empty;
+        var root = Path.Combine(Path.GetTempPath(), "DotPad");
+        if (!Directory.Exists(root))
+            Directory.CreateDirectory(root);
+        var rs = new CSharpReferenceService();
+       
+        var sdk = model?.DotnetPlatforms.First(i => i.Description == model.SelectedDotnetPlatform);
+        var refs = rs.GetDefault().ToList();
+        var runtimeLib = rs.GetExtensionReference();
+        refs.Add(runtimeLib);
+        var cs = new CSharpExecutionHostService(root, runtimeLib, sdk);
+        HtmlPanel.Text += $"\n<div>Execute</div>";
+        var script = _textEditor.Text;
+        cs.DataReceived += (sender, args) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                HtmlPanel.Text += $"\n<div>{HttpUtility.HtmlEncode(args.Data)}</div>";
+            });
+        };
+        
         Task.Run(async () =>
         {
             try
             {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    await Task.Delay(600, cancellationToken);
-                }
+                await cs.Execute(script, refs.ToArray(), cancellationToken);
             }
             catch (Exception exception)
             {
-                Console.WriteLine(exception);
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    HtmlPanel.Text += $"\n<div>{exception.Message}</div>";
+                });
             }
             finally
             {
+                _runTaskCancellationTokenSource.Cancel();
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (model == null) return;
                     model.EnableRunButton = true;
                     model.EnableCancelButton = false;
                 });
             }
+         
         }, cancellationToken);
     }
 
@@ -171,56 +198,7 @@ public partial class MainWindow : Window, IDisposable
             return;
     
         _runTaskCancellationTokenSource?.Cancel();
-        return;
-        // ;
-        // HtmlPanel.Text = string.Empty;
-        // var root = Path.Combine(Path.GetTempPath(), "DotPad");
-        // if (!Directory.Exists(root))
-        //     Directory.CreateDirectory(root);
-        // var rs = new CSharpReferenceService();
-        // var sdk = model?.DotnetPlatforms.First(i => i.Description == model.SelectedDotnetPlatform);
-        // var refs = rs.GetDefault().ToList();
-        // var runtimeLib = rs.GetExtensionReference();
-        // refs.Add(runtimeLib);
-        //
-        // var cs = new CSharpExecutionHostService(root,
-        //     runtimeLib,
-        //     sdk);
-        //
-        //
-        // var ct = new CancellationToken();
-        //
-        // HtmlPanel.Text += $"\n<div>Execute</div>";
-        // var script = _textEditor.Text;
-        //
-        // cs.DataReceived += (sender, args) =>
-        // {
-        //     Dispatcher.UIThread.Post(() =>
-        //     {
-        //         HtmlPanel.Text += $"\n<div>{HttpUtility.HtmlEncode(args.Data)}</div>";
-        //     });
-        // };
-        //
-        // Task.Run(async () =>
-        // {
-        //
-        //     Dispatcher.UIThread.Post(() => { model!.EnableRunButton = false; });
-        //     try
-        //     {
-        //         await cs.Execute(script, refs.ToArray(), ct);
-        //     }
-        //     catch (Exception exception)
-        //     {
-        //         await Dispatcher.UIThread.InvokeAsync(() =>
-        //         {
-        //             HtmlPanel.Text += $"\n<div>{exception.Message}</div>";
-        //         });
-        //     }
-        //     finally
-        //     {
-        //         Dispatcher.UIThread.Post(() => { model!.EnableRunButton = true; });
-        //     }
-        // }, ct);
+
     }
 
     private void InitializeComponent()
@@ -237,8 +215,10 @@ public partial class MainWindow : Window, IDisposable
     private void Preferences_Click(object sender, RoutedEventArgs e)
     {
             var ownerWindow = this;
-            var window = new PreferencesWindow();
-            window.DataContext = new PreferencesWindowViewModel();
+            var window = new PreferencesWindow
+            {
+                DataContext = new PreferencesWindowViewModel()
+            };
             window.ShowDialog(ownerWindow);
         }
 

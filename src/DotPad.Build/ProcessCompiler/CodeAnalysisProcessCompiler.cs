@@ -52,28 +52,32 @@ public sealed class CodeAnalysisProcessCompiler : ProcessCompilerBase
     {
 
         var refs = _referenceService.GetDefault().ToList();
+        var outputDotPadRuntimeLib = Path.Combine(OutputDir, Path.GetFileName(DotPadRuntimeLib));
+        // @"C:\src\DotPad\src\DotPad.Runtime\bin\Debug\net7.0\DotPad.Runtime.dll"
+        
         refs.Add(DotPadRuntimeLib);
-        var references = refs.Select(r => MetadataReference.CreateFromFile(r)).ToArray();
     
-        var syntaxRootNode = await syntaxTree.GetRootAsync(cancellationToken) as CSharpSyntaxNode;
-        var encoded = CSharpSyntaxTree.Create(syntaxRootNode!, null, Path.GetFileName(_sourceCodePath), _encoding);
+        //var syntaxRootNode = //await syntaxTree.GetRootAsync(cancellationToken) as CSharpSyntaxNode;
+        //var encoded = CSharpSyntaxTree.Create(syntaxRootNode!, null, Path.GetFileName(_sourceCodePath), _encoding);
+        var json = CreateConfig();
 
+        await File.WriteAllTextAsync(_configOutput, json, cancellationToken);
+        File.Copy(DotPadRuntimeLib, outputDotPadRuntimeLib, true);
+        
+        var references = refs.Select(r => MetadataReference.CreateFromFile(r)).ToArray();
+
+        
         var compilation = CSharpCompilation
             .Create(
                 Guid.NewGuid().ToString(),
-                syntaxTrees: new[] { encoded },
+                syntaxTrees: new[]{syntaxTree},
                 references: references,
                 options: new CSharpCompilationOptions(
-                    OutputKind.WindowsRuntimeApplication,
+                    OutputKind.ConsoleApplication,
                     optimizationLevel: OptimizationLevel.Debug,
                     generalDiagnosticOption: ReportDiagnostic.Default
                 )
             );
-
-        var json = CreateConfig();
-
-        await File.WriteAllTextAsync(_configOutput, json, cancellationToken);
-        File.Copy(DotPadRuntimeLib, Path.Combine(OutputDir, Path.GetFileName(DotPadRuntimeLib)), true);
 
         var result = compilation.Emit(
             outputPath: _binaryOutput,
@@ -85,8 +89,6 @@ public sealed class CodeAnalysisProcessCompiler : ProcessCompilerBase
 
         foreach (var diagnostic in result.Diagnostics)
         {
-
-
             if (diagnostic.IsWarningAsError)
             {
                 errors.Add(ParseDiagnostic(diagnostic));

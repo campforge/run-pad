@@ -10,11 +10,11 @@ using ReactiveUI;
 
 namespace DotPad.ViewModels;
 
-public class MainWindowViewModel : ViewModelBase, IDisposable
+internal class MainWindowViewModel : ViewModelBase, IDisposable
 {
     readonly DotnetSdksService _dotnetSdksService = new();
     readonly FileSystemService _fileSystemService = new();
-    public string Greeting => "Welcome to Avalonia!";
+    public string GreetingDebugger => "Debugger!";
 
     public ObservableCollection<Node> Nodes { get; }
 

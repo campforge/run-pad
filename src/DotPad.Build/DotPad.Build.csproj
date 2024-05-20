@@ -17,8 +17,4 @@
     <ProjectReference Include="..\DotPad.Runtime\DotPad.Runtime.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="ProcessRunners\Models\" />
-  </ItemGroup>
-
 </Project>

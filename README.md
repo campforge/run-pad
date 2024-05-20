@@ -17,3 +17,4 @@ https://github.com/AvaloniaUI/XamlControlsGallery
 * прикрутить отладчик 
 * прикрутить nuget
 * разобраться со стилем
+* добавить настройки
