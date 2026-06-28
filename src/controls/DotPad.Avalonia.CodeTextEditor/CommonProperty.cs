@@ -1,4 +1,7 @@
-﻿namespace DotPad.Avalonia.CodeTextEditor;
+﻿using Avalonia;
+using DotPad.Avalonia.CodeTextEditor.Shared;
+
+namespace DotPad.Avalonia.CodeTextEditor;
 
 public static class CommonProperty
 {
