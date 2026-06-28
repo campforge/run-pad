@@ -1,3 +1,8 @@
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
+using Avalonia.Styling;
+using DotPad.Avalonia.CodeTextEditor.Shared;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 

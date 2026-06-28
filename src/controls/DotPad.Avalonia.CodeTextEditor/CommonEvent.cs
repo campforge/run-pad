@@ -1,4 +1,6 @@
-﻿namespace DotPad.Avalonia.CodeTextEditor;
+﻿using Avalonia.Interactivity;
+
+namespace DotPad.Avalonia.CodeTextEditor;
 
 public static class CommonEvent
 {
