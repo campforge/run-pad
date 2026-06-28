@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- NU1608: Avalonia.Diagnostics (Debug only) pulls Microsoft.CodeAnalysis.CSharp.Scripting 3.8.0
+             which declares exact constraints on CodeAnalysis packages. We knowingly override to 4.x. -->
+        <NoWarn>$(NoWarn);NU1608</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.AvaloniaEdit" />
+        <PackageReference Include="Avalonia.Browser" />
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Themes.Fluent" />
+        <PackageReference Include="Avalonia.Fonts.Inter" />
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" />
+        <PackageReference Include="Avalonia.ReactiveUI" />
+        <PackageReference Include="AvaloniaEdit.TextMate" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="System.Composition.AttributedModel" />
+        <PackageReference Include="System.Configuration.ConfigurationManager" />
+        <PackageReference Include="TextMateSharp.Grammars" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\controls\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj" />
+        <ProjectReference Include="..\..\controls\DotPad.Avalonia.Themes\DotPad.Avalonia.Themes.csproj" />
+        <ProjectReference Include="..\..\controls\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
+        <ProjectReference Include="..\..\core\DotPad.Build\DotPad.Build.csproj" />
+        <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj" />
+        <ProjectReference Include="..\..\languages\DotPad.Languages.CSharp\DotPad.Languages.CSharp.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\fonts\CustomFont.ttf" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="Views\PreferencesWindow.axaml.cs">
+            <DependentUpon>PreferencesWindow.axaml</DependentUpon>
+        </Compile>
+    </ItemGroup>
+</Project>

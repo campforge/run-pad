@@ -1,0 +1,113 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:av="clr-namespace:Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:DotPad.ViewModels"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:codeTextEditor="clr-namespace:DotPad.Avalonia.CodeTextEditor;assembly=DotPad.Avalonia.CodeTextEditor"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="DotPad.Views.MainWindow"
+    x:DataType="vm:MainWindowViewModel"
+    Icon="/Assets/avalonia-logo.ico"
+    Title="DotPad">
+
+    <Window.Styles>
+        <Style Selector="Button.TopBarButton">
+        </Style>
+        
+        <Style Selector="Button.TopBarButton Image">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+        
+        <Style Selector="Button.TopBarComboBox">
+            <Setter Property="Padding" Value="0,10,0,0"/>
+        </Style>
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    </Window.Styles>
+    
+    <Grid ColumnDefinitions="300, *">
+
+        <!-- Pane -->
+        <Grid Grid.Column="0" RowDefinitions="40, *">
+            <Menu Grid.Row="0">
+                <MenuItem Header="Edit">
+                    <MenuItem Header="_Preferences" Click="Preferences_Click" />
+                </MenuItem>
+            </Menu>
+            <TreeView Grid.Row="1" ItemsSource="{Binding Nodes}">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding SubNodes}">
+                        <TextBlock Text="{Binding Title}" />
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+        </Grid>
+
+        <!-- Editor + output -->
+        <Grid Grid.Column="1" RowDefinitions="*, 2, 250, 25">
+            <Grid Grid.Row="0" RowDefinitions="40, *">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="1" Margin="1">
+                    <Button
+                        Classes="TopBarButton"
+                        Name="RunButton"
+                        IsEnabled="{Binding EnableRunButton}"
+                        Click="RunButton_Click"
+                        ToolTip.Tip="Run (F5)">
+                        <Image Source="{StaticResource Run}"/>
+                    </Button>
+                    <Button
+                        Classes="TopBarButton"
+                        Name="CancelButton"
+                        Click="CancelButton_Click"
+                        IsEnabled="{Binding EnableCancelButton}"
+                        ToolTip.Tip="Cancel">
+                        <Image Source="{StaticResource Stop}" />
+                    </Button>
+                    <ComboBox
+                        Classes="TopBarComboBox"
+                        ItemsSource="{Binding DotnetPlatforms}"
+                        SelectedItem="{Binding SelectedDotnetPlatform}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Description}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <codeTextEditor:CodeTextEditor
+                    Grid.Row="1"
+                    Name="Editor"
+                    FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Visible"
+                    FontWeight="Light"
+                    FontSize="14" />
+            </Grid>
+            <Border Grid.Row="1" Background="Gray" />
+            <TabControl Grid.Row="2">
+                <TabItem Header="Results" FontSize="14">
+                    <av:HtmlPanel x:Name="HtmlPanel" Background="MintCream">
+                        <ToolTip.Tip>
+                            <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
+                                <av:HtmlLabel x:Name="HtmlTooltipLabel" />
+                            </ToolTip>
+                        </ToolTip.Tip>
+                    </av:HtmlPanel>
+                </TabItem>
+                <TabItem Header="Debugger" FontSize="14">
+                    <TextBlock Text="{Binding GreetingDebugger}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </TabItem>
+            </TabControl>
+            <StackPanel Grid.Row="3" Name="StatusBar" Background="Purple" Height="25"
+                        Orientation="Horizontal">
+                <TextBlock Foreground="White" Name="StatusText" Text="Ready"
+                           Margin="5,0,0,0" VerticalAlignment="Center" FontSize="12" />
+            </StackPanel>
+        </Grid>
+
+    </Grid>
+</Window>

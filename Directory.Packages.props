@@ -1,0 +1,40 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Разрешаем NuGet прозрачно использовать сборки от .NET 8/9 на платформе .NET 10 -->
+    <AssetTargetFallback>$(AssetTargetFallback);net9.0;net8.0</AssetTargetFallback>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Avalonia (11.0.6 — максимально совместимая версия из Artifactory) -->
+    <PackageVersion Include="Avalonia" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.AvaloniaEdit" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Browser" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.0.6" />
+    <PackageVersion Include="Avalonia.Themes.Simple" Version="11.0.6" />
+    <!-- TextMate -->
+    <PackageVersion Include="AvaloniaEdit.TextMate" Version="11.0.6" />
+    <PackageVersion Include="TextMateSharp" Version="1.0.56" />
+    <PackageVersion Include="TextMateSharp.Grammars" Version="1.0.56" />
+    <!-- Roslyn / Build (Корректировка версий до реальных превью/стабильных сборщиков) -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.13.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.2" />
+    <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
+    <!-- System -->
+    <PackageVersion Include="System.Composition.AttributedModel" Version="9.0.0" />
+    <PackageVersion Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
+    <!-- Source Link -->
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <!-- Tests -->
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="NUnit" Version="4.3.2" />
+    <PackageVersion Include="NUnit.Analyzers" Version="4.6.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+</Project>

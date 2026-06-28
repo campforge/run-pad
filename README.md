@@ -11,6 +11,10 @@ https://github.com/roslynpad/roslynpad
 
 Навести красоту:
 https://github.com/AvaloniaUI/XamlControlsGallery
+https://github.com/kikipoulet/SukiUI?tab=readme-ov-file
+
+DI
+https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-dependency-injection
 
 ## ToDo 
 * файл-он же проект
