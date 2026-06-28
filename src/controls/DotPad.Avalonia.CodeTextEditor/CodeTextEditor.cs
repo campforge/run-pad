@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.Windows.Input;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -13,7 +12,6 @@ using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
 using AvaloniaEdit.Utils;
-using DotPad.Avalonia.CodeTextEditor.Shared;
 using TextMateSharp.Grammars;
 using static AvaloniaEdit.TextMate.TextMate;
 
@@ -104,25 +102,9 @@ public class CodeTextEditor : TextEditor
         else FontSize = FontSize > 1 ? FontSize - 1 : 1;
     }
 
-    public static readonly RoutedEvent ToolTipRequestEvent =
-        CommonEvent.Register<CodeTextEditor, ToolTipRequestEventArgs>(
-            nameof(ToolTipRequest), RoutingStrategies.Bubble);
-
-    public event EventHandler<ToolTipRequestEventArgs> ToolTipRequest
-    {
-        add => AddHandler(ToolTipRequestEvent, value);
-        remove => RemoveHandler(ToolTipRequestEvent, value);
-    }
-
-    /// <summary>
-    /// ShowLineNumbers dependency property.
-    /// </summary>
     public static readonly StyledProperty<bool> ShowBreakpointsProperty =
         AvaloniaProperty.Register<TextEditor, bool>("ShowBreakpoints");
 
-    /// <summary>
-    /// Specifies whether line numbers are shown on the left to the text view.
-    /// </summary>
     public bool ShowBreakpoints
     {
         get => GetValue(ShowBreakpointsProperty);
@@ -137,27 +119,11 @@ public class CodeTextEditor : TextEditor
         var leftMargins = editor.TextArea.LeftMargins;
 
         if (e.NewValue != null && (bool)e.NewValue)
-        {
             leftMargins.Insert(1, _breakpointMargin);
-        }
         else
-        {
             leftMargins.Remove(_breakpointMargin);
-        }
     }
 
-    // private static void OnContextActionsIconChanged(CodeTextEditor editor, CommonPropertyChangedArgs<IImage> args)
-    // {
-    //     if (editor._contextActionsRenderer != null)
-    //     {
-    //         editor._contextActionsRenderer.IconImage = args.NewValue;
-    //     }
-    // }
-
-    /// <summary>
-    /// Installs TextMate syntax highlighting for the given language extension and theme.
-    /// Returns the scope name so the caller can load a matching document.
-    /// </summary>
     public string SetLanguage(ThemeName theme, string languageExtension)
     {
         _registryOptions = new RegistryOptions(theme);
@@ -230,8 +196,8 @@ public sealed class UnderlineAndStrikeThroughTransformer : DocumentColorizingTra
         if (line.LineNumber != 2) return;
 
         var text = CurrentContext.Document.GetText(line);
-        Highlight(line, text, "underline",      TextDecorations.Underline);
-        Highlight(line, text, "strikethrough",  TextDecorations.Strikethrough);
+        Highlight(line, text, "underline",     TextDecorations.Underline);
+        Highlight(line, text, "strikethrough", TextDecorations.Strikethrough);
     }
 
     private void Highlight(DocumentLine line, string text, string word, TextDecorationCollection decoration)
@@ -319,20 +285,6 @@ public sealed class OverloadProvider : IOverloadProvider
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
-public sealed class ContextActionProvider : IContextActionProvider
-{
-    public Task<IEnumerable<object>> GetActions(int offset, int length, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(Enumerable.Empty<object>());
-       // throw new NotImplementedException();
-    }
-
-    public ICommand GetActionCommand(object action)
-    {
-        throw new NotImplementedException();
-    }
-}
-
 public class BreakPointMargin : AbstractMargin, IDisposable
 {
     private IBreakpointStore _manager;
@@ -342,7 +294,6 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     private bool _previewPointVisible;
 
     private Pen LinePen;
-
 
     static BreakPointMargin()
     {
@@ -363,15 +314,10 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var lineVisualYPosition = visualLine.GetTextLineVisualYPosition(visualLine.TextLines[0], VisualYPosition.LineTop);
         var x = (size.Width / 4) - 1;
         var y = lineVisualYPosition + (size.Width / 4) - 3.5 - verticalOffset;
-        var result = new Point(x, y);
-        return result;
+        return new Point(x, y);
     }
-    
-    private  void  CreatePoint(
-        DrawingContext context, 
-        VisualLine line,
-        double height,
-        IBrush brush)
+
+    private void CreatePoint(DrawingContext context, VisualLine line, double height, IBrush brush)
     {
         var size = Bounds.Size;
         var point = CalculatePosition(line, size, TextView.VerticalOffset);
@@ -381,49 +327,39 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     public override void Render(DrawingContext context)
     {
-        if (!TextView.VisualLinesValid) 
+        if (!TextView.VisualLinesValid)
             return;
-        
+
         context.FillRectangle(_editor?.Background ?? Brushes.Honeydew, Bounds);
         context.DrawLine(LinePen, Bounds.TopRight, Bounds.BottomRight);
-        if (TextView.VisualLines.Count <= 0) 
+        if (TextView.VisualLines.Count <= 0)
             return;
-        
+
         var firstLine = TextView.VisualLines.FirstOrDefault();
         var height = firstLine.Height;
 
         foreach (var breakPoint in _manager?.OfType<IBreakpoint>())
         {
-            var visualLine =
-                TextView.VisualLines
-                    .FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == breakPoint.Line);
+            var visualLine = TextView.VisualLines
+                .FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == breakPoint.Line);
             if (visualLine != null)
-            {
                 CreatePoint(context, visualLine, height, Brush.Parse("#FF3737"));
-            }
         }
 
-        if (!_previewPointVisible && _previewLine >= 0) 
+        if (!_previewPointVisible && _previewLine >= 0)
             return;
         {
-            var visualLine =
-                TextView.VisualLines.FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == _previewLine);
-
+            var visualLine = TextView.VisualLines
+                .FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == _previewLine);
             if (visualLine != null)
-            {
                 CreatePoint(context, visualLine, height, Brush.Parse("#E67466"));
-            }
         }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
-
-        // Console.WriteLine(e.GetPosition(_editor));
-
-        if (UpdateLines(e)) 
+        if (UpdateLines(e))
             return;
-
         InvalidateVisual();
     }
 
@@ -440,9 +376,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             return true;
 
         if (_manager.Any(i => i.Line == lineNumber))
-        {
             _previewPointVisible = false;
-        }
         else
         {
             _previewPointVisible = true;
@@ -459,11 +393,10 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     protected override void OnPointerExited(PointerEventArgs e)
     {
-         _previewLine = -1;
+        _previewLine = -1;
         _previewPointVisible = false;
         InvalidateVisual();
     }
-
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
@@ -474,9 +407,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
         if (offset != -1)
         {
-            var lineClicked = -1;
-            lineClicked = textView.Document.GetLineByOffset(offset).LineNumber; // convert from text line to visual line.
-
+            var lineClicked = textView.Document.GetLineByOffset(offset).LineNumber;
             var currentBreakPoint = _manager.FirstOrDefault(bp => bp.Line == lineClicked);
 
             if (currentBreakPoint != null)
@@ -490,7 +421,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
                 _manager.Add(lineClicked);
             }
         }
-        
+
         InvalidateVisual();
         e.Handled = true;
     }
