@@ -1,3 +1,5 @@
+using DotPad.Contracts.IntelliSense;
+
 namespace DotPad.Contracts;
 
 public interface ILanguageHost : IAsyncDisposable
@@ -23,4 +25,7 @@ public interface ILanguageHost : IAsyncDisposable
 
     // Requires MemoryDump capability.
     Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default);
+
+    // Requires IntelliSense capability.
+    IIntelliSenseService CreateIntelliSenseService();
 }

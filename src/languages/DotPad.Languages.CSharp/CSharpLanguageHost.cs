@@ -2,9 +2,11 @@ using System.Text;
 using System.Threading.Channels;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
+using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp.Adapters;
 using DotPad.Languages.CSharp.Compiler;
 using DotPad.Languages.CSharp.Debug;
+using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -27,7 +29,17 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         LanguageHostCapabilities.Debug             |
         LanguageHostCapabilities.Breakpoints       |
         LanguageHostCapabilities.VariableInspection|
-        LanguageHostCapabilities.MemoryDump;
+        LanguageHostCapabilities.MemoryDump        |
+        LanguageHostCapabilities.IntelliSense;
+
+    public override IIntelliSenseService CreateIntelliSenseService()
+    {
+        var refs = new CSharpReferenceService();
+        var paths = refs.GetDefault()
+            .Append(_options.RuntimeLibPath)
+            .ToList();
+        return new CSharpIntelliSenseService(paths);
+    }
 
     internal CSharpLanguageHost(CSharpLanguageHostOptions options)
     {

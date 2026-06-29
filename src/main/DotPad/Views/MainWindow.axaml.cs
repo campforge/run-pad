@@ -9,7 +9,9 @@ using AvaloniaEdit.Document;
 using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Build.Core.Models;
 using DotPad.Contracts;
+using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.CSharp.IntelliSense;
 using DotPad.Models;
 using DotPad.Resources;
 using DotPad.Services;
@@ -24,6 +26,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly ILanguageHostRegistry _registry;
     private readonly IOptionsService _optionsService;
     private readonly IServiceProvider _serviceProvider;
+    private IIntelliSenseService? _intelliSenseService;
 
     private CodeTextEditor? _textEditor;
     private HtmlPanel? _htmlPanel;
@@ -77,6 +80,14 @@ public partial class MainWindow : Window, IDisposable
         _textEditor.BreakpointAdded   += (_, e) => Console.WriteLine($"BP added at line {e.Line}");
         _textEditor.BreakpointRemoved += (_, e) => Console.WriteLine($"BP removed at line {e.Line}");
 
+        _intelliSenseService = new CSharpIntelliSenseService(
+            new CSharpReferenceService().GetDefault());
+
+        _textEditor.CompletionTriggers.Add('.');
+        _textEditor.OverloadTriggers.Add('(');
+        _textEditor.AsyncCompletionProvider = OnCompletionRequestedAsync;
+        _textEditor.AsyncOverloadProvider   = OnOverloadRequestedAsync;
+
         _textEditor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(_textEditor.Options);
 
@@ -85,6 +96,25 @@ public partial class MainWindow : Window, IDisposable
     }
 
     private void OnThemeChanged(Theme theme) => _textEditor?.SetTheme(theme.CodeEditorThemeName);
+
+    private async Task OnCompletionRequestedAsync(CompletionRequestedEventArgs e)
+    {
+        if (_intelliSenseService is null || _textEditor is null) return;
+        var trigger = CompletionTrigger.Insertion(e.Trigger);
+        var list = await _intelliSenseService.GetCompletionsAsync(_textEditor.Text, e.CaretOffset, trigger);
+        if (list is null) return;
+        foreach (var item in list.Items)
+            e.Items.Add(new EditorCompletionData(item));
+    }
+
+    private async Task OnOverloadRequestedAsync(OverloadRequestedEventArgs e)
+    {
+        if (_intelliSenseService is null || _textEditor is null) return;
+        var result = await _intelliSenseService.GetSignatureHelpAsync(_textEditor.Text, e.CaretOffset, e.Trigger);
+        if (result is null) return;
+        foreach (var item in result.Items)
+            e.Overloads.Add((item.DisplaySignature, item.Documentation));
+    }
 
     private void OnCaretPositionChanged(object? sender, EventArgs e)
     {
@@ -263,6 +293,7 @@ public partial class MainWindow : Window, IDisposable
     public void Dispose()
     {
         _themeService.ThemeChange -= OnThemeChanged;
+        _intelliSenseService?.Dispose();
         _runCts?.Cancel();
         _runCts?.Dispose();
         GC.SuppressFinalize(this);
