@@ -16,7 +16,33 @@ internal class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DotnetSdksService _dotnetSdksService;
     private readonly IDotpFileService _fileSystemService;
 
-    public string GreetingDebugger => "Debugger!";
+    private bool _debugModeEnabled = true;
+    public bool DebugModeEnabled
+    {
+        get => _debugModeEnabled;
+        set => this.RaiseAndSetIfChanged(ref _debugModeEnabled, value);
+    }
+
+    private string _debugInfo = "No active debug session.";
+    public string DebugInfo
+    {
+        get => _debugInfo;
+        set => this.RaiseAndSetIfChanged(ref _debugInfo, value);
+    }
+
+    private bool _isDebugging;
+    public bool IsDebugging
+    {
+        get => _isDebugging;
+        set => this.RaiseAndSetIfChanged(ref _isDebugging, value);
+    }
+
+    private bool _isPaused;
+    public bool IsPaused
+    {
+        get => _isPaused;
+        set => this.RaiseAndSetIfChanged(ref _isPaused, value);
+    }
     public ObservableCollection<Node> Nodes { get; }
     public List<ExecutionPlatform> DotnetPlatforms { get; }
 

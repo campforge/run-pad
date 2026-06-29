@@ -1,5 +1,13 @@
 namespace DotPad.Contracts;
 
+public enum DebugAction { Continue, StepOver, StepIn, StepOut }
+
+public interface IThreadInfo
+{
+    int Id { get; }
+    string Name { get; }
+}
+
 public interface IVariableInfo
 {
     string Name { get; }
@@ -23,6 +31,8 @@ public interface IBreakpointHitContext
     int ThreadId { get; }
     IReadOnlyList<IVariableInfo> LocalVariables { get; }
     IReadOnlyList<IStackFrame> CallStack { get; }
+    IReadOnlyList<IThreadInfo> Threads { get; }
+    void Resume(DebugAction action = DebugAction.Continue);
 }
 
 public interface IMemoryDump

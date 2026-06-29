@@ -25,6 +25,12 @@ public abstract class LanguageHostBase : ILanguageHost
         return Task.CompletedTask; // unreachable
     }
 
+    public virtual Task PauseAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureCapability(LanguageHostCapabilities.Debug);
+        return Task.CompletedTask;
+    }
+
     // --- Breakpoints: virtual, maintains internal list ---
 
     public virtual void AddBreakpoint(IBreakpoint breakpoint)

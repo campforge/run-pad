@@ -5,27 +5,23 @@ namespace DotPad.Avalonia.CodeTextEditor;
 
 public class BreakpointStore : IBreakpointStore
 {
-    private List<IBreakpoint> _items = new List<IBreakpoint>();
-    public IEnumerator<IBreakpoint> GetEnumerator()
-    {
-        return _items.GetEnumerator();
-    }
+    private readonly List<IBreakpoint> _items = [];
 
-    IEnumerator IEnumerable.GetEnumerator()
+    public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
+    public event EventHandler<BreakpointEventArgs>? BreakpointRemoved;
+
+    public IEnumerator<IBreakpoint> GetEnumerator() => _items.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public void Add(int line)
     {
-        return GetEnumerator();
+        _items.Add(new Breakpoint { Line = line });
+        BreakpointAdded?.Invoke(this, new BreakpointEventArgs(line));
     }
 
     public void Remove(IBreakpoint bp)
     {
-        _items.Remove(bp);
-    }
-
-    public void Add(int lineClicked)
-    {
-        _items.Add(new Breakpoint()
-        {
-            Line = lineClicked
-        });
+        if (!_items.Remove(bp)) return;
+        BreakpointRemoved?.Invoke(this, new BreakpointEventArgs(bp.Line));
     }
 }

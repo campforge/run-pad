@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Styling;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
@@ -15,7 +16,6 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     private CodeTextEditor? _editor;
     private IBreakpointStore? _manager;
-    private readonly Pen _linePen;
 
     private int _previewLine = -1;
     private bool _previewPointVisible;
@@ -24,7 +24,6 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     {
         _editor = editor;
         _manager = manager;
-        _linePen = new Pen(Brushes.DarkRed, 0.5);
         Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
     }
@@ -35,7 +34,6 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             return;
 
         context.FillRectangle(_editor?.Background ?? Brushes.Honeydew, Bounds);
-        context.DrawLine(_linePen, Bounds.TopRight, Bounds.BottomRight);
 
         var height = TextView.VisualLines[0].Height;
 
