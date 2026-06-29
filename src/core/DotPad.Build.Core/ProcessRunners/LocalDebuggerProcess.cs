@@ -10,98 +10,89 @@ public class LocalDebuggerExecutionArgs
     public override string ToString() => " --interpreter=vscode";
 }
 
-public class LocalDebuggerProcess : IExecutionProcess, IAsyncDisposable
+/// <summary>
+/// Wraps the netcoredbg process and exposes raw byte streams for DAP framing.
+/// stdout/stdin are raw Streams; stderr is drained into a channel for diagnostics.
+/// </summary>
+public sealed class LocalDebuggerProcess : IAsyncDisposable
 {
-    private readonly Channel<string> _outputChannel = Channel.CreateBounded<string>(5);
-    private readonly Channel<string> _inputChannel = Channel.CreateBounded<string>(5);
-    private readonly Channel<string> _errorOutputChannel = Channel.CreateBounded<string>(5);
-
-    public ChannelReader<string> Reader => _outputChannel.Reader;
-    public ChannelReader<string> ErrorReader => _errorOutputChannel.Reader;
-    public ChannelWriter<string> InputWriter => _inputChannel.Writer;
-
+    private readonly Channel<string> _errorChannel = Channel.CreateUnbounded<string>();
     private readonly Process _process;
+    private Task? _stderrTask;
+
+    /// <summary>Raw stdout stream — read DAP messages here (Content-Length framing).</summary>
+    public Stream OutputStream { get; private set; } = Stream.Null;
+
+    /// <summary>Raw stdin stream — write DAP messages here (Content-Length framing).</summary>
+    public Stream InputStream { get; private set; } = Stream.Null;
+
+    /// <summary>Stderr lines from netcoredbg (diagnostic output).</summary>
+    public ChannelReader<string> ErrorReader => _errorChannel.Reader;
 
     public LocalDebuggerProcess(ExecutionOptions options, LocalDebuggerExecutionArgs args)
     {
-        var startInfo = new ProcessStartInfo
+        _process = new Process
         {
-            FileName = options.Debugger.DebuggerPath,
-            Arguments = args.ToString(),
-            WorkingDirectory = options.WorkingDirectory,
-            CreateNoWindow = !options.CreateWindow,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            StartInfo = new ProcessStartInfo
+            {
+                FileName               = options.Debugger.DebuggerPath,
+                Arguments              = args.ToString(),
+                WorkingDirectory       = options.WorkingDirectory,
+                CreateNoWindow         = true,
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                RedirectStandardInput  = true,
+                StandardErrorEncoding  = Encoding.UTF8,
+            }
         };
-        _process = new Process();
-        _process.StartInfo = startInfo;
     }
 
-    public async Task Start(CancellationToken ct)
+    public void Start(CancellationToken ct)
     {
-        if (!_process.Start())
-            return;
-        await Task.WhenAll(
-            ReadOutput(_process.StandardOutput, ct),
-            ReadErrors(_process.StandardError, ct),
-            WriteInput(_process.StandardInput, ct));
+        _process.Start();
+        // Access BaseStream directly — bypasses StreamReader/Writer buffering and encoding.
+        OutputStream = _process.StandardOutput.BaseStream;
+        InputStream  = _process.StandardInput.BaseStream;
+        _stderrTask  = PumpStderrAsync(ct);
     }
 
-    private async Task ReadErrors(StreamReader reader, CancellationToken cancellationToken)
+    private async Task PumpStderrAsync(CancellationToken ct)
     {
-        while (await _errorOutputChannel.Writer.WaitToWriteAsync(cancellationToken))
+        var reader = _process.StandardError;
+        try
         {
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line == null) break;
-            await _errorOutputChannel.Writer.WriteAsync(line, cancellationToken);
+            while (!ct.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+                if (line is null) break;
+                _errorChannel.Writer.TryWrite(line);
+            }
         }
-        _errorOutputChannel.Writer.Complete();
+        catch (OperationCanceledException) { }
+        finally { _errorChannel.Writer.TryComplete(); }
     }
 
-    private async Task ReadOutput(StreamReader reader, CancellationToken cancellationToken)
+    public Task WaitForExitAsync(CancellationToken ct) => _process.WaitForExitAsync(ct);
+
+    public void Kill()
     {
-        while (await _outputChannel.Writer.WaitToWriteAsync(cancellationToken))
+        try
         {
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line == null) break;
-            await _outputChannel.Writer.WriteAsync(line, cancellationToken);
+            if (!_process.HasExited)
+                _process.Kill(entireProcessTree: true);
         }
-        _outputChannel.Writer.Complete();
-    }
-
-    private async Task WriteInput(StreamWriter writer, CancellationToken cancellationToken)
-    {
-        while (await _inputChannel.Reader.WaitToReadAsync(cancellationToken))
-        {
-            var line = await _inputChannel.Reader.ReadAsync(cancellationToken);
-            await writer.WriteLineAsync(line);
-        }
-    }
-
-    public async Task<bool> Close(CancellationToken ct)
-    {
-        try { _process.Kill(true); }
-        catch (Exception) { return false; }
-
-        await _process.WaitForExitAsync(ct);
-        return true;
-    }
-
-    public async Task<int> WaitForExit(CancellationToken ct)
-    {
-        await _process.WaitForExitAsync(ct);
-        return _process.ExitCode;
+        catch { }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_process is IAsyncDisposable processAsyncDisposable)
-            await processAsyncDisposable.DisposeAsync();
-        else
-            _process.Dispose();
+        Kill();
+        try { await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false); }
+        catch { }
+        if (_stderrTask is not null)
+            try { await _stderrTask.ConfigureAwait(false); }
+            catch { }
+        _process.Dispose();
     }
 }

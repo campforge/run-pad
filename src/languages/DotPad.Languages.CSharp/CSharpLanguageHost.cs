@@ -16,8 +16,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 {
     private readonly CSharpLanguageHostOptions _options;
     private CancellationTokenSource? _runCts;
+    private CSharpDapSession? _currentSession;
 
-    // Snapshot of local variables from the last debug breakpoint hit.
     private IReadOnlyList<IVariableInfo> _lastDebugVariables = [];
 
     public override string Language => "csharp";
@@ -35,9 +35,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         Directory.CreateDirectory(options.OutputDirectory);
     }
 
-    // -------------------------------------------------------------------------
-    // Compile
-    // -------------------------------------------------------------------------
+    // ── Compile ──────────────────────────────────────────────────────────────
 
     public override async Task<ICompilationResult> CompileAsync(
         string code, CancellationToken cancellationToken = default)
@@ -46,10 +44,6 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         return result;
     }
 
-    /// <summary>
-    /// Compiles and returns both the public result and the binary path needed
-    /// internally by <see cref="RunAsync"/> / <see cref="RunDebugAsync"/>.
-    /// </summary>
     private async Task<(CSharpCompilationResult result, string? binaryPath)> CompileInternalAsync(
         string code, CancellationToken ct)
     {
@@ -77,9 +71,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             Path.Combine(_options.OutputDirectory, $"{_options.OutputName}.cs"));
     }
 
-    // -------------------------------------------------------------------------
-    // Run
-    // -------------------------------------------------------------------------
+    // ── Run ──────────────────────────────────────────────────────────────────
 
     public override async Task RunAsync(
         string code,
@@ -115,9 +107,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Debug
-    // -------------------------------------------------------------------------
+    // ── Debug ─────────────────────────────────────────────────────────────────
 
     public override async Task RunDebugAsync(
         string code,
@@ -146,12 +136,21 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 outputHandler,
                 HandleBreakpointHit);
 
-            await session.RunAsync(cts.Token);
+            _currentSession = session;
+            try { await session.RunAsync(cts.Token); }
+            finally { _currentSession = null; }
         }
         finally
         {
             _runCts = null;
         }
+    }
+
+    public override async Task PauseAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureCapability(LanguageHostCapabilities.Debug);
+        if (_currentSession is { } s)
+            await s.PauseAsync(cancellationToken);
     }
 
     private void HandleBreakpointHit(IBreakpointHitContext context)
@@ -160,9 +159,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         OnBreakpointHit(context);
     }
 
-    // -------------------------------------------------------------------------
-    // Terminate
-    // -------------------------------------------------------------------------
+    // ── Terminate ─────────────────────────────────────────────────────────────
 
     public override Task TerminateAsync(CancellationToken cancellationToken = default)
     {
@@ -170,9 +167,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         return Task.CompletedTask;
     }
 
-    // -------------------------------------------------------------------------
-    // Memory dump — snapshot of variables from the last breakpoint hit
-    // -------------------------------------------------------------------------
+    // ── Memory dump ───────────────────────────────────────────────────────────
 
     public override Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default)
     {
@@ -186,9 +181,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         return Task.FromResult(dump);
     }
 
-    // -------------------------------------------------------------------------
-    // Dispose
-    // -------------------------------------------------------------------------
+    // ── Dispose ───────────────────────────────────────────────────────────────
 
     public override async ValueTask DisposeAsync()
     {
@@ -196,9 +189,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         await base.DisposeAsync();
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static async Task DrainChannelAsync(
         ChannelReader<string> reader,

@@ -9,5 +9,5 @@ public interface IOptionsService
 public sealed class OptionsService : IOptionsService
 {
     public string DotnetPath { get; set; } = @"C:\Program Files\dotnet\dotnet.exe";
-    public string DebuggerPath { get; set; } = @"C:\Users\user\Downloads\netcoredbg-win64\netcoredbg\netcoredbg.exe";
+    public string DebuggerPath { get; set; } = @"C:\Users\user\Downloads\netcoredbg\netcoredbg.exe";
 }

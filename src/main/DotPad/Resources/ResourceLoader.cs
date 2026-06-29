@@ -17,7 +17,7 @@ public class Program
 {
     public static void Main()
     {
-        Debugger.Break();
+        // Debugger.Break();
 		for (int j = 0; j < 5; j++)
 		{
 			Console.WriteLine($""you said {j}"");

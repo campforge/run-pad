@@ -27,12 +27,18 @@ public class CodeTextEditor : TextEditor
             static (editor, e) => editor.OnShowBreakpointsChanged((bool?)e.NewValue));
     }
 
+    private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
     private CodeTextEditorOptions _editorOptions = new();
     private RegistryOptions? _registryOptions;
     private Installation? _textMateInstallation;
     private CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
+
+    public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
+    public event EventHandler<BreakpointEventArgs>? BreakpointRemoved;
+
+    public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
     public ElementGenerator InlineControls { get; } = new();
 
@@ -52,7 +58,11 @@ public class CodeTextEditor : TextEditor
 
     public CodeTextEditor()
     {
-        _breakpointMargin = new BreakPointMargin(this, new BreakpointStore());
+        _breakpointStore = new BreakpointStore();
+        _breakpointStore.BreakpointAdded   += (_, e) => BreakpointAdded?.Invoke(this, e);
+        _breakpointStore.BreakpointRemoved += (_, e) => BreakpointRemoved?.Invoke(this, e);
+
+        _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
 
         BindEditorCommands();
         InitContextMenu();
@@ -93,7 +103,7 @@ public class CodeTextEditor : TextEditor
 
         ApplyOptions();
 
-        TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
+       // TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
         TextArea.TextView.ElementGenerators.Add(InlineControls);
 
         TextArea.TextEntered  += TextArea_TextEntered;
@@ -124,6 +134,12 @@ public class CodeTextEditor : TextEditor
         else FontSize = FontSize > 1 ? FontSize - 1 : 1;
     }
 
+    public int GetOffsetFromPoint(Point point)
+    {
+        var position = GetPositionFromPoint(point);
+        return position != null ? Document.GetOffset(position.Value.Location) : -1;
+    }
+
     public string SetLanguage(ThemeName theme, string languageExtension)
     {
         _registryOptions = new RegistryOptions(theme);
@@ -140,12 +156,6 @@ public class CodeTextEditor : TextEditor
     {
         if (_textMateInstallation is null || _registryOptions is null) return;
         _textMateInstallation.SetTheme(_registryOptions.LoadTheme(theme));
-    }
-
-    public int GetOffsetFromPoint(Point point)
-    {
-        var position = GetPositionFromPoint(point);
-        return position != null ? Document.GetOffset(position.Value.Location) : -1;
     }
 
     private void TextArea_TextEntering(object? sender, TextInputEventArgs e)

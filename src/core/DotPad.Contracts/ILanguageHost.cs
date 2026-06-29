@@ -13,6 +13,7 @@ public interface ILanguageHost : IAsyncDisposable
 
     // Requires Debug capability.
     Task RunDebugAsync(string code, OutputReceivedHandler? outputHandler = null, CancellationToken cancellationToken = default);
+    Task PauseAsync(CancellationToken cancellationToken = default);
 
     // Requires Breakpoints capability.
     void AddBreakpoint(IBreakpoint breakpoint);
