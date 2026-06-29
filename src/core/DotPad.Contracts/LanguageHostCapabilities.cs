@@ -9,4 +9,5 @@ public enum LanguageHostCapabilities
     Breakpoints        = 1 << 2,
     VariableInspection = 1 << 3,
     MemoryDump         = 1 << 4,
+    IntelliSense       = 1 << 5,
 }

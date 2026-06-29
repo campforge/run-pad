@@ -1,3 +1,5 @@
+using DotPad.Contracts.IntelliSense;
+
 namespace DotPad.Contracts;
 
 public abstract class LanguageHostBase : ILanguageHost
@@ -63,6 +65,14 @@ public abstract class LanguageHostBase : ILanguageHost
     {
         EnsureCapability(LanguageHostCapabilities.MemoryDump);
         return Task.FromResult<IMemoryDump>(null!); // unreachable
+    }
+
+    // --- IntelliSense ---
+
+    public virtual IIntelliSenseService CreateIntelliSenseService()
+    {
+        EnsureCapability(LanguageHostCapabilities.IntelliSense);
+        return null!; // unreachable
     }
 
     // --- Helpers for subclasses ---
