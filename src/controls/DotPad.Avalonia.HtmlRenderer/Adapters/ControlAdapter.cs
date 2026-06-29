@@ -83,11 +83,9 @@ internal sealed class ControlAdapter : RControl
 
     public override void DoDragDropCopy(object dragDropData)
     {
-        var args = (_control as HtmlControl)?.LastPointerArgs;
+        var args = (_control as HtmlControl)?.LastPointerArgs as PointerPressedEventArgs;
         if (args != null)
-        {
-            DragDrop.DoDragDrop(args, (IDataObject)dragDropData, DragDropEffects.Copy);
-        }
+            _ = DragDrop.DoDragDropAsync(args, (DataTransfer)dragDropData, DragDropEffects.Copy);
     }
 
     public override void MeasureString(string str, RFont font, double maxWidth, out int charFit, out double charFitWidth)
