@@ -32,7 +32,7 @@ internal sealed class FontAdapter : RFont
     /// <summary>
     /// The glyph font for the font
     /// </summary>
-    private readonly IGlyphTypeface _glyphTypeface;
+    private readonly GlyphTypeface _glyphTypeface;
 
     /// <summary>
     /// the size of the font
@@ -70,7 +70,7 @@ internal sealed class FontAdapter : RFont
         _underlineOffset = 96d / 72d * (_size / emHeight) * (_glyphTypeface.Metrics.LineSpacing + _glyphTypeface.Metrics.UnderlinePosition);
 
         TextRunProperties = new GenericTextRunProperties(font, 96d / 72d * size, null, null, null, BaselineAlignment.Baseline, CultureInfo.CurrentCulture);
-        TextParagraphProperties = new GenericTextParagraphProperties(TextRunProperties, textWrap: TextWrapping.Wrap);
+        TextParagraphProperties = new GenericTextParagraphProperties(TextRunProperties, textWrapping: TextWrapping.Wrap);
     }
 
     internal TextRunProperties TextRunProperties { get; }
@@ -85,7 +85,7 @@ internal sealed class FontAdapter : RFont
         get { return _font; }
     }
 
-    public IGlyphTypeface GlyphTypeface
+    public GlyphTypeface GlyphTypeface
     {
         get { return _glyphTypeface; }
     }

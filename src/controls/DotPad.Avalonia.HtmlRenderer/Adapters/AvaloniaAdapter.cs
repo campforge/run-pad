@@ -122,22 +122,32 @@ internal sealed class AvaloniaAdapter : RAdapter
 
     protected override object GetClipboardDataObjectInt(string html, string plainText)
     {
-            var dataObject = new DataObject();
-            dataObject.Set(DataFormats.Text, plainText);
-            return dataObject;
-        }
+        var transfer = new DataTransfer();
+        transfer.Add(DataTransferItem.CreateText(plainText));
+        return transfer;
+    }
 
     protected override void SetToClipboardInt(string text)
     {
-            var topLevel = TryGetTopLevel();
-            _ = topLevel?.Clipboard?.SetTextAsync(text);
+        var topLevel = TryGetTopLevel();
+        if (topLevel?.Clipboard is { } clipboard)
+        {
+            var transfer = new DataTransfer();
+            transfer.Add(DataTransferItem.CreateText(text));
+            _ = clipboard.SetDataAsync(transfer);
         }
+    }
 
     protected override void SetToClipboardInt(string html, string plainText)
     {
-            var topLevel = TryGetTopLevel();
-            _ = topLevel?.Clipboard?.SetTextAsync(plainText);
+        var topLevel = TryGetTopLevel();
+        if (topLevel?.Clipboard is { } clipboard)
+        {
+            var transfer = new DataTransfer();
+            transfer.Add(DataTransferItem.CreateText(plainText));
+            _ = clipboard.SetDataAsync(transfer);
         }
+    }
 
     protected override void SetToClipboardInt(RImage image)
     {

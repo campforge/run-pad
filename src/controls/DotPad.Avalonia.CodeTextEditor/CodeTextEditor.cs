@@ -103,7 +103,7 @@ public class CodeTextEditor : TextEditor
 
         ApplyOptions();
 
-       // TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
+        TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
         TextArea.TextView.ElementGenerators.Add(InlineControls);
 
         TextArea.TextEntered  += TextArea_TextEntered;
