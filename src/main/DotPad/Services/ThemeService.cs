@@ -1,6 +1,7 @@
 using System.Configuration;
 using Avalonia;
-using Avalonia.Styling;
+using Avalonia.Platform;
+using DotPad.Avalonia.Themes;
 using DotPad.Models;
 using TextMateSharp.Grammars;
 
@@ -10,8 +11,7 @@ public delegate void ThemeChangeDelegate(Theme theme);
 
 public interface IThemeService
 {
-    IList<Theme> Themes { get; }
-    Theme GetTheme(ThemeType type);
+    IReadOnlyList<Theme> Themes { get; }
     void SetTheme(Theme theme);
     Theme CurrentTheme { get; }
     event ThemeChangeDelegate? ThemeChange;
@@ -19,26 +19,35 @@ public interface IThemeService
 
 public sealed class ThemeService : IThemeService
 {
-    private static readonly Dictionary<ThemeType, Theme> ThemesDictionary = new()
-    {
-        { ThemeType.Dark,    new Theme(ThemeName.DarkPlus, ThemeVariant.Dark,    ThemeType.Dark,    "White") },
-        { ThemeType.Light,   new Theme(ThemeName.Light,    ThemeVariant.Light,   ThemeType.Light,   "Black") },
-        { ThemeType.Default, new Theme(ThemeName.Light,    ThemeVariant.Default, ThemeType.Default, ThemeType.Default.ToString()) },
-    };
+    private static readonly IReadOnlyList<Theme> AllThemes =
+    [
+        new("VS Code Dark+",  ThemeName.DarkPlus, DotPadThemeVariants.VsCodeDark),
+        new("VS Code Light+", ThemeName.Light,    DotPadThemeVariants.VsCodeLight),
+        new("Rider Dark",     ThemeName.DarkPlus, DotPadThemeVariants.RiderDark),
+        new("Rider Light",    ThemeName.Light,    DotPadThemeVariants.RiderLight),
+    ];
 
     private readonly Application _app;
-    private Theme _currentTheme = ThemesDictionary[ThemeType.Dark];
+    private Theme _currentTheme = AllThemes[0];
 
     public ThemeService(Application app)
     {
         _app = app;
         var raw = ConfigurationManager.AppSettings["Theme"];
-        var themeIndex = raw != null && int.TryParse(raw, out var i) ? i : 0;
-        SetTheme(GetTheme((ThemeType)themeIndex));
+        int index;
+        if (raw != null && int.TryParse(raw, out var saved))
+        {
+            index = Math.Clamp(saved, 0, AllThemes.Count - 1);
+        }
+        else
+        {
+            var systemVariant = app.PlatformSettings?.GetColorValues().ThemeVariant;
+            index = systemVariant == PlatformThemeVariant.Light ? 1 : 0;
+        }
+        SetTheme(AllThemes[index]);
     }
 
-    public IList<Theme> Themes => ThemesDictionary.Values.ToList();
-    public Theme GetTheme(ThemeType type) => ThemesDictionary[type];
+    public IReadOnlyList<Theme> Themes => AllThemes;
     public Theme CurrentTheme => _currentTheme;
 
     public event ThemeChangeDelegate? ThemeChange;

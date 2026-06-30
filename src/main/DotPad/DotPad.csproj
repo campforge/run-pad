@@ -40,10 +40,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\fonts\CustomFont.ttf" />
-    </ItemGroup>
-
-    <ItemGroup>
         <Compile Update="Views\PreferencesWindow.axaml.cs">
             <DependentUpon>PreferencesWindow.axaml</DependentUpon>
         </Compile>

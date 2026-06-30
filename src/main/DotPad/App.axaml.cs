@@ -5,7 +5,6 @@ using DotPad.Build;
 using DotPad.Build.Core;
 using DotPad.Contracts;
 using DotPad.Languages.CSharp;
-using DotPad.Resources;
 using DotPad.Services;
 using DotPad.ViewModels;
 using DotPad.Views;
@@ -17,7 +16,6 @@ public class App : Application
 {
     public override void Initialize()
     {
-        Resources.MergedDictionaries.Add(new Icons());
         AvaloniaXamlLoader.Load(this);
     }
 

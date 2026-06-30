@@ -12,7 +12,7 @@ public class PreferencesWindowViewModel(IThemeService themeService, IOptionsServ
     private bool _showEndOfLine;
     private bool _showColumnRulers;
 
-    public IList<Theme> Themes => themeService.Themes;
+    public IReadOnlyList<Theme> Themes => themeService.Themes;
 
     public Theme SelectedTheme
     {
