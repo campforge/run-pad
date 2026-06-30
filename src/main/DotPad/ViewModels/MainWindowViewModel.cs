@@ -60,6 +60,13 @@ internal class MainWindowViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _enableCancelButton, value);
     }
 
+    private bool _isRunningProgress;
+    public bool IsRunningProgress
+    {
+        get => _isRunningProgress;
+        set => this.RaiseAndSetIfChanged(ref _isRunningProgress, value);
+    }
+
     private ExecutionPlatform? _selectedDotnetPlatform;
     public ExecutionPlatform? SelectedDotnetPlatform
     {

@@ -1,0 +1,31 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:themes="using:DotPad.Avalonia.Themes">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <!-- JetBrains Rider New UI — Dark -->
+                <ResourceDictionary x:Key="{x:Static themes:DotPadThemeVariants.RiderDark}">
+                    <SolidColorBrush x:Key="DotPad.Sidebar.BackgroundBrush"      Color="#2B2D30" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BackgroundBrush"      Color="#2B2D30" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BorderBrush"          Color="#393B40" />
+                    <SolidColorBrush x:Key="DotPad.Editor.BackgroundBrush"       Color="#1E1F22" />
+                    <SolidColorBrush x:Key="DotPad.Output.BackgroundBrush"       Color="#1E1F22" />
+                    <SolidColorBrush x:Key="DotPad.Panel.BackgroundBrush"        Color="#2B2D30" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.BackgroundBrush"    Color="#2B2D30" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.ForegroundBrush"    Color="#9AA7B0" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.DebuggingBrush"     Color="#4E9FDE" />
+                    <SolidColorBrush x:Key="DotPad.Separator.BackgroundBrush"    Color="#393B40" />
+                    <SolidColorBrush x:Key="DotPad.Border.BackgroundBrush"       Color="#43454A" />
+                    <SolidColorBrush x:Key="DotPad.Text.PrimaryBrush"            Color="#DFE1E5" />
+                    <SolidColorBrush x:Key="DotPad.Text.SecondaryBrush"          Color="#9AA7B0" />
+                    <SolidColorBrush x:Key="DotPad.Accent.BackgroundBrush"       Color="#2D5FAD" />
+                    <SolidColorBrush x:Key="DotPad.Accent.ForegroundBrush"       Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.Button.HoverBrush"    Color="#3C3E42" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>

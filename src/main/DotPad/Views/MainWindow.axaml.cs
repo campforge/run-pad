@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Web;
 using Avalonia.Controls;
 using Avalonia.HtmlRenderer;
@@ -31,8 +32,14 @@ public partial class MainWindow : Window, IDisposable
     private CodeTextEditor? _textEditor;
     private HtmlPanel? _htmlPanel;
     private TextBlock? _statusText;
+    private TextBlock? _elapsedText;
+    private TextBlock? _executionStatusText;
     private TabControl? _outputTabs;
     private CancellationTokenSource? _runCts;
+    private readonly Stopwatch _runStopwatch = new();
+    private bool _hadRunError;
+    private string _outputCss     = "";
+    private string _outputContent = "";
 
     // Current breakpoint hit context — non-null while the debugger is paused.
     private IBreakpointHitContext? _currentDebugContext;
@@ -62,17 +69,44 @@ public partial class MainWindow : Window, IDisposable
     {
         _htmlPanel = this.FindControl<HtmlPanel>("HtmlPanel");
         if (_htmlPanel is null) return;
-
         _htmlPanel.Container.AddFontFamily(
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-        _htmlPanel.Text = "\n<div>Init</div>";
+        _outputCss     = HtmlThemeStylesheet.Generate(_themeService.CurrentTheme.WindowTheme);
+        UpdateHtmlOutput();
+    }
+
+    private void ApplyHtmlTheme(Theme theme)
+    {
+        _outputCss = HtmlThemeStylesheet.Generate(theme.WindowTheme);
+        UpdateHtmlOutput();
+    }
+
+    private void UpdateHtmlOutput()
+    {
+        if (_htmlPanel is null) 
+        {
+            return;
+        }
+
+        var htmlContent = $@"
+            <html>
+            <head>
+                <style>{_outputCss}</style>
+            </head>
+            <body>
+                {_outputContent}
+            </body>
+            </html>";
+        _htmlPanel.Text = htmlContent;
     }
 
     private void InitializeCodeTextEditor()
     {
-        _textEditor = this.FindControl<CodeTextEditor>("Editor");
-        _statusText = this.Find<TextBlock>("StatusText");
-        _outputTabs = this.FindControl<TabControl>("OutputTabs");
+        _textEditor          = this.FindControl<CodeTextEditor>("Editor");
+        _statusText          = this.Find<TextBlock>("StatusText");
+        _elapsedText         = this.Find<TextBlock>("ElapsedText");
+        _executionStatusText = this.Find<TextBlock>("ExecutionStatusText");
+        _outputTabs          = this.FindControl<TabControl>("OutputTabs");
         if (_textEditor is null) return;
 
         _textEditor.TextArea.Caret.PositionChanged += OnCaretPositionChanged;
@@ -95,7 +129,11 @@ public partial class MainWindow : Window, IDisposable
         _textEditor.Document = new TextDocument(ResourceLoader.LoadSampleFile(scopeName));
     }
 
-    private void OnThemeChanged(Theme theme) => _textEditor?.SetTheme(theme.CodeEditorThemeName);
+    private void OnThemeChanged(Theme theme)
+    {
+        _textEditor?.SetTheme(theme.CodeEditorThemeName);
+        ApplyHtmlTheme(theme);
+    }
 
     private async Task OnCompletionRequestedAsync(CompletionRequestedEventArgs e)
     {
@@ -136,7 +174,13 @@ public partial class MainWindow : Window, IDisposable
             model.EnableCancelButton = true;
             model.IsDebugging        = false;
             model.IsPaused           = false;
-            _htmlPanel?.Text         = string.Empty;
+            model.IsRunningProgress  = true;
+            _outputContent = "";
+            _hadRunError   = false;
+            UpdateHtmlOutput();
+            if (_elapsedText is not null) _elapsedText.Text = "";
+            SetExecutionStatus("Process", "#4FC1FF");
+            _runStopwatch.Restart();
 
             _runCts = new CancellationTokenSource();
 
@@ -152,6 +196,7 @@ public partial class MainWindow : Window, IDisposable
             model.DebugInfo   = "Debugging…";
             model.IsDebugging = true;
 
+            var cancelled = false;
             try
             {
                 await Task.Run(async () =>
@@ -181,7 +226,7 @@ public partial class MainWindow : Window, IDisposable
                     }
                 }, _runCts.Token);
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { cancelled = true; }
             catch (Exception ex) { AppendOutputError(ex); }
             finally
             {
@@ -191,7 +236,16 @@ public partial class MainWindow : Window, IDisposable
                 model.EnableCancelButton = false;
                 model.IsDebugging        = false;
                 model.IsPaused           = false;
+                model.IsRunningProgress  = false;
                 if (debug) model.DebugInfo = "Debug session ended.";
+                _runStopwatch.Stop();
+                if (_elapsedText is not null)
+                    _elapsedText.Text = FormatElapsed(_runStopwatch.Elapsed);
+                if (cancelled)
+                    SetExecutionStatus("Cancelled", "#9E9E9E");
+                else if (!_hadRunError)
+                    SetExecutionStatus("Success", "#4EC94E");
+                // Error status already set inside AppendOutputError
             }
         }
         catch (Exception e)
@@ -242,7 +296,10 @@ public partial class MainWindow : Window, IDisposable
                 sb.AppendLine($"  {frame.MethodName}  ({Path.GetFileName(frame.FileName)}:{frame.Line})");
         }
 
-        GetViewModel().DebugInfo = sb.ToString();
+        var vm = GetViewModel();
+        vm.DebugInfo          = sb.ToString();
+        vm.IsRunningProgress  = false;
+        SetExecutionStatus("Paused", "#FFA500");
     }
 
     // ── Debug control buttons ────────────────────────────────────────────────
@@ -255,8 +312,10 @@ public partial class MainWindow : Window, IDisposable
     private void ResumeDebugger(DebugAction action)
     {
         var model = GetViewModel();
-        model.IsPaused  = false;
-        model.DebugInfo = $"Running… (last action: {action})";
+        model.IsPaused           = false;
+        model.IsRunningProgress  = true;
+        model.DebugInfo          = $"Running… (last action: {action})";
+        SetExecutionStatus("Process", "#4FC1FF");
 
         var ctx = _currentDebugContext;
         _currentDebugContext = null;
@@ -309,22 +368,41 @@ public partial class MainWindow : Window, IDisposable
 
     private void AppendOutput(string data)
     {
-        _htmlPanel?.Text += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+        _outputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+        UpdateHtmlOutput();
     }
 
     private void AppendOutputError(Exception ex)
     {
+        _hadRunError = true;
+        SetExecutionStatus("Error", "#F14C4C");
         var message = HttpUtility.HtmlEncode(ex.Message);
-        var html    = $"\n<div style=\"color:red\">{message}</div>";
+        _outputContent += $"\n<div style=\"color:#f14c4c\">{message}</div>";
 
         if (ex.StackTrace is { } st)
         {
             var trace = HttpUtility.HtmlEncode(st);
-            html += $"\n<pre style=\"color:#c04040;font-size:0.85em\">{trace}</pre>";
+            _outputContent += $"\n<pre style=\"color:#cd9591;font-size:0.85em\">{trace}</pre>";
         }
 
-        _htmlPanel?.Text += html;
+        UpdateHtmlOutput();
     }
+
+    private void SetExecutionStatus(string text, string hex)
+    {
+        if (_executionStatusText is null) return;
+        _executionStatusText.Text       = text;
+        _executionStatusText.Foreground = string.IsNullOrEmpty(hex)
+            ? Brushes.Transparent
+            : new SolidColorBrush(Color.Parse(hex));
+    }
+
+    private static string FormatElapsed(TimeSpan t) => t switch
+    {
+        { TotalSeconds: < 1  } => $"{t.TotalMilliseconds:F0} ms",
+        { TotalMinutes: < 1  } => $"{t.TotalSeconds:F2} s",
+        _                      => $"{(int)t.TotalMinutes}m {t.Seconds}s",
+    };
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
