@@ -41,13 +41,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Update="Windows\MainWindow\View\MainWindow.axaml.cs">
+        <Compile Update="Windows\MainWindow\MainWindow.axaml.cs">
             <DependentUpon>MainWindow.axaml</DependentUpon>
         </Compile>
-        <Compile Update="Windows\PreferencesWindow\View\PreferencesWindow.axaml.cs">
+        <Compile Update="Windows\PreferencesWindow\PreferencesWindow.axaml.cs">
             <DependentUpon>PreferencesWindow.axaml</DependentUpon>
         </Compile>
-        <Compile Update="Controls\EditorTabControl\View\EditorTabControl.cs">
+        <Compile Update="Controls\UserControl\EditorTabControl\EditorTabControl.cs">
             <DependentUpon>EditorTabControl.axaml</DependentUpon>
         </Compile>
     </ItemGroup>

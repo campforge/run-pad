@@ -83,9 +83,9 @@
             <TabItem Header="Debugger">
                 <StackPanel Margin="8" Spacing="4">
                     <TextBlock Text="Dotnet path:"/>
-                    <TextBox Watermark="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
+                    <TextBox PlaceholderText="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
                     <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>
-                    <TextBox Watermark="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
+                    <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
                 </StackPanel>
             </TabItem>
 
