@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DotPad.Build.Core.Models;
 using Microsoft.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.Compiler;
 
@@ -13,6 +14,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private readonly string _sourceCodePath;
     private readonly string _fileProjPath;
     private readonly Encoding _encoding = Encoding.UTF8;
+    private readonly ILogger<DotnetProcessCompiler> _logger;
 
     private readonly Regex _errorRegex = new(@"^([\s\S]+)\((\d+,\d+)\): error (\S+): ([\s\S]+)$");
     private readonly Regex _warningRegex = new(@"^([\s\S]+)\((\d+,\d+)\): warning (\S+): ([\s\S]+)$");
@@ -24,10 +26,12 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         ExecutionOptions executionOptions,
         string outputDir,
         string dotPadRuntimeLib,
-        string outputName) : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
+        string outputName,
+        ILogger<DotnetProcessCompiler> logger) : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
+        _logger         = logger;
         _sourceCodePath = Path.Combine(OutputDir, $"{OutputName}.cs");
-        _fileProjPath = Path.Combine(OutputDir, $"{OutputName}.csproj");
+        _fileProjPath   = Path.Combine(OutputDir, $"{OutputName}.csproj");
     }
 
     public override async Task<ProcessCompilerResult> Compilation(
@@ -71,7 +75,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
             var line = await _process.StandardOutput.ReadLineAsync(cancellationToken);
             if (line == null || string.IsNullOrEmpty(line)) break;
 
-            Console.WriteLine(line);
+            _logger.LogDebug("{Line}", line);
 
             var errorMatch = _errorRegex.Match(line);
             if (errorMatch.Success) { errors.Add(ParseMatch(errorMatch)); continue; }

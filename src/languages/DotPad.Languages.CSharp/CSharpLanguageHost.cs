@@ -10,6 +10,7 @@ using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
 using OutputKind = DotPad.Contracts.OutputKind;
 
 namespace DotPad.Languages.CSharp;
@@ -17,6 +18,7 @@ namespace DotPad.Languages.CSharp;
 public sealed class CSharpLanguageHost : LanguageHostBase
 {
     private readonly CSharpLanguageHostOptions _options;
+    private readonly ILoggerFactory _loggerFactory;
     private CancellationTokenSource? _runCts;
     private CSharpDapSession? _currentSession;
 
@@ -35,15 +37,14 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     public override IIntelliSenseService CreateIntelliSenseService()
     {
         var refs = new CSharpReferenceService();
-        var paths = refs.GetDefault()
-            .Append(_options.RuntimeLibPath)
-            .ToList();
-        return new CSharpIntelliSenseService(paths);
+        var paths = refs.GetDefault().Append(_options.RuntimeLibPath).ToList();
+        return new CSharpIntelliSenseService(paths, _loggerFactory.CreateLogger<CSharpIntelliSenseService>());
     }
 
-    internal CSharpLanguageHost(CSharpLanguageHostOptions options)
+    internal CSharpLanguageHost(CSharpLanguageHostOptions options, ILoggerFactory loggerFactory)
     {
-        _options = options;
+        _options       = options;
+        _loggerFactory = loggerFactory;
         Directory.CreateDirectory(options.OutputDirectory);
     }
 
@@ -66,7 +67,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             _options.ExecutionOptions,
             _options.OutputDirectory,
             _options.RuntimeLibPath,
-            _options.OutputName);
+            _options.OutputName,
+            _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
         var raw    = await compiler.Compilation(syntaxTree, ct);
         var result = new CSharpCompilationResult(raw);
@@ -146,7 +148,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 _options.OutputDirectory,
                 ActiveBreakpoints,
                 outputHandler,
-                HandleBreakpointHit);
+                HandleBreakpointHit,
+                _loggerFactory.CreateLogger<CSharpDapSession>());
 
             _currentSession = session;
             try { await session.RunAsync(cts.Token); }

@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DotPad.ViewModels"
+             xmlns:build="using:DotPad.Build.Core.Models"
+             x:Class="DotPad.Views.EditorTabControl"
+             x:DataType="vm:EditorTabViewModel">
+
+    <UserControl.Styles>
+
+        <!-- Button.TopBarButton -->
+        <Style Selector="Button.TopBarButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="4"/>
+            <Setter Property="Width"           Value="26"/>
+            <Setter Property="Height"          Value="26"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <Border Name="Root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.TopBarButton:pointerover /template/ Border#Root">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="Button.TopBarButton:pressed /template/ Border#Root">
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+        <Style Selector="Button.TopBarButton:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+        <Style Selector="Button.TopBarButton Image">
+            <Setter Property="Width"  Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+
+        <!-- ToggleButton.TopBarButton -->
+        <Style Selector="ToggleButton.TopBarButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="4"/>
+            <Setter Property="Width"           Value="26"/>
+            <Setter Property="Height"          Value="26"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Name="Root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton:pointerover /template/ Border#Root">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton:pressed /template/ Border#Root">
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton:checked /template/ Border#Root">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton Image">
+            <Setter Property="Width"  Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+
+        <!-- ComboBox inside toolbar -->
+        <Style Selector="StackPanel.Toolbar ComboBox">
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="CornerRadius"    Value="4"/>
+        </Style>
+        <Style Selector="StackPanel.Toolbar ComboBox /template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="StackPanel.Toolbar ComboBox:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="StackPanel.Toolbar ComboBox:focus /template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="StackPanel.Toolbar ComboBox[IsDropDownOpen=true] /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="40,*">
+
+        <!-- ProgressBar overlaid at bottom of toolbar row -->
+        <ProgressBar Grid.Row="0"
+                     VerticalAlignment="Bottom"
+                     Height="2" ZIndex="10"
+                     IsIndeterminate="True"
+                     IsVisible="{Binding IsRunningProgress}"
+                     Foreground="{DynamicResource DotPad.Accent.BackgroundBrush}"
+                     Background="Transparent"
+                     BorderThickness="0"/>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
+                BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
+                        Classes="Toolbar"
+                        VerticalAlignment="Center">
+                <Button
+                    Classes="TopBarButton"
+                    IsEnabled="{Binding EnableRunButton}"
+                    Click="RunButton_Click"
+                    ToolTip.Tip="Run (F5)">
+                    <Image Source="{StaticResource Run}"/>
+                </Button>
+                <ToggleButton
+                    Classes="TopBarButton"
+                    IsChecked="{Binding DebugModeEnabled}"
+                    ToolTip.Tip="Toggle debug mode">
+                    <Image Source="{StaticResource Bug}"/>
+                </ToggleButton>
+                <Button
+                    Classes="TopBarButton"
+                    IsEnabled="{Binding EnableCancelButton}"
+                    Click="CancelButton_Click"
+                    ToolTip.Tip="Cancel">
+                    <Image Source="{StaticResource Stop}"/>
+                </Button>
+                <ComboBox
+                    Margin="4,0,0,0"
+                    Height="24"
+                    VerticalAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    ItemsSource="{Binding DotnetPlatforms}"
+                    SelectedItem="{Binding SelectedDotnetPlatform}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="build:ExecutionPlatform">
+                            <TextBlock Text="{Binding Description}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Border>
+
+        <!-- CodeTextEditor slot -->
+        <ContentPresenter x:Name="EditorHost" Grid.Row="1"/>
+
+    </Grid>
+
+</UserControl>

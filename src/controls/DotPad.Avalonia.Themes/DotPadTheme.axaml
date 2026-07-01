@@ -5,4 +5,29 @@
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/VsCodeLight.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/RiderDark.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/RiderLight.axaml" />
+    <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Dark.axaml" />
+    <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Light.axaml" />
+
+    <!-- ── TreeView ──────────────────────────────────────────────────────── -->
+    <Style Selector="TreeView">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding"    Value="0"/>
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        <Setter Property="Padding"    Value="2,4"/>
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}"/>
+    </Style>
+
 </Styles>

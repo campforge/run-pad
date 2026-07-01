@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:DotPad.ViewModels"
+        xmlns:models="clr-namespace:DotPad.Models"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
+        x:Class="DotPad.Views.PreferencesWindow"
+        Title="Preferences"
+        Width="500" Height="400"
+        MinWidth="400" MinHeight="320"
+        CanResize="True"
+        x:DataType="viewModels:PreferencesWindowViewModel"
+        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"
+        >
+
+        <TabControl Margin="2"
+                    Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+
+            <TabItem Header="Interface">
+                <StackPanel Margin="8" Spacing="6">
+
+                    <!-- Appearance mode -->
+                    <TextBlock Text="Appearance:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <RadioButton Content="System"
+                                     IsChecked="{Binding IsSystemMode}"
+                                     GroupName="ThemeMode"/>
+                        <RadioButton Content="Dark"
+                                     IsChecked="{Binding IsDarkMode}"
+                                     GroupName="ThemeMode"/>
+                        <RadioButton Content="Light"
+                                     IsChecked="{Binding IsLightMode}"
+                                     GroupName="ThemeMode"/>
+                    </StackPanel>
+
+                    <!-- Interface theme -->
+                    <TextBlock Text="Interface theme:" Margin="0,8,0,2" FontWeight="SemiBold"/>
+                    <ComboBox ItemsSource="{Binding AvailableInterfaceThemes}"
+                              SelectedItem="{Binding SelectedInterfaceTheme}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:InterfaceTheme">
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <!-- Editor theme -->
+                    <TextBlock Text="Editor theme:" Margin="0,8,0,2" FontWeight="SemiBold"/>
+                    <ComboBox ItemsSource="{Binding AvailableEditorThemes}"
+                              SelectedItem="{Binding SelectedEditorTheme}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:EditorTheme">
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Editor">
+                <StackPanel Margin="8" Spacing="4">
+                    <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
+                    <CheckBox IsChecked="{Binding ShowTabs}"        Content="Show tabs"/>
+                    <CheckBox IsChecked="{Binding ShowSpaces}"      Content="Show spaces"/>
+                    <CheckBox IsChecked="{Binding ShowEndOfLine}"   Content="Show end of line"/>
+                    <CheckBox IsChecked="{Binding ShowColumnRuler}" Content="Show column ruler (col 80)"/>
+                    <CheckBox IsChecked="{Binding WordWrap}"        Content="Word wrap"/>
+                    <Grid ColumnDefinitions="Auto,*" Margin="0,6,0,0">
+                        <TextBlock Grid.Column="0" Text="Font size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <NumericUpDown Grid.Column="1"
+                                       Value="{Binding FontSize}"
+                                       Minimum="8" Maximum="32" Increment="1"
+                                       FormatString="0"/>
+                    </Grid>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Debugger">
+                <StackPanel Margin="8" Spacing="4">
+                    <TextBlock Text="Dotnet path:"/>
+                    <TextBox Watermark="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
+                    <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>
+                    <TextBox Watermark="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
+                </StackPanel>
+            </TabItem>
+
+        </TabControl>
+</Window>

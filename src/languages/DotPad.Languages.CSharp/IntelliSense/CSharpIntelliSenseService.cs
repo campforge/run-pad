@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.IntelliSense;
 
@@ -27,12 +28,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
     private readonly IReadOnlyList<MetadataReference> _references;
+    private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly object _lock = new();
     private CSharpCompilation? _compilation;
     private string _lastCode = "";
 
-    public CSharpIntelliSenseService(IEnumerable<string> referencePaths)
+    public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
     {
+        _logger = logger;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var refs = new List<MetadataReference>();
 
@@ -139,7 +142,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
 
     private static ICompletionItem? ToItem(ISymbol symbol)
@@ -203,7 +206,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex);
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
     }
 
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
@@ -245,7 +248,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var content = symbol.ToDisplayString(_briefFormat);
             return new SimpleQuickInfoResult(content);
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
 
     public void Dispose() { }

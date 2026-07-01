@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace DotPad.Build;
 
 public interface IDotpFileService : IDisposable
@@ -14,6 +16,12 @@ public sealed class DotpFileService : IDotpFileService
     private const string FileFilter = "*" + FileExtension;
 
     private readonly FileSystemWatcher _watcher = new();
+    private readonly ILogger<DotpFileService> _logger;
+
+    public DotpFileService(ILogger<DotpFileService> logger)
+    {
+        _logger = logger;
+    }
 
     public string GetOrCreateDefaultFolder()
     {
@@ -27,10 +35,7 @@ public sealed class DotpFileService : IDotpFileService
     }
 
     public IReadOnlyList<string> GetFilesInFolder(string folder) =>
-        Directory
-            .GetFiles(folder, FileFilter)
-            .Select(Path.GetFileName)
-            .ToList()!;
+        Directory.GetFiles(folder, FileFilter).ToList();
 
     public void StartWatcher(string folder)
     {
@@ -55,6 +60,6 @@ public sealed class DotpFileService : IDotpFileService
 
     public void Dispose() => _watcher.Dispose();
 
-    private static void OnChanged(object source, FileSystemEventArgs e) =>
-        Console.WriteLine("{0}, with path {1} has been {2}", e.Name, e.FullPath, e.ChangeType);
+    private void OnChanged(object source, FileSystemEventArgs e) =>
+        _logger.LogDebug("{Name} at {Path} has been {ChangeType}", e.Name, e.FullPath, e.ChangeType);
 }
