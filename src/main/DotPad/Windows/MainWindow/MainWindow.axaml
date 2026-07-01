@@ -6,27 +6,12 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:codeTextEditor="clr-namespace:DotPad.Avalonia.CodeTextEditor;assembly=DotPad.Avalonia.CodeTextEditor"
+    xmlns:controls="using:DotPad.Controls"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="DotPad.Views.MainWindow"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/avalonia-logo.ico"
     Title="DotPad">
-
-    <Window.Resources>
-        <DataTemplate x:Key="TabHeaderTemplate" x:DataType="vm:EditorTabViewModel">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <TextBlock Text="{Binding FileName}"
-                           VerticalAlignment="Center"
-                           FontSize="12"/>
-                <Button Classes="TabClose"
-                        Command="{Binding CloseCommand}"
-                        VerticalAlignment="Center">
-                    <PathIcon Data="{StaticResource Icon.Close}"
-                              Width="10" Height="10"/>
-                </Button>
-            </StackPanel>
-        </DataTemplate>
-    </Window.Resources>
 
     <Window.Styles>
 
@@ -86,7 +71,6 @@
             <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
-        <!-- в”Ђв”Ђ File tab close button в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
         <Style Selector="Button.TabClose">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -117,7 +101,6 @@
 
     <Grid ColumnDefinitions="300, *">
 
-        <!-- в”Ђв”Ђ Sidebar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
         <Grid Grid.Column="0" RowDefinitions="40, *"
               Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
             <Menu Grid.Row="0">
@@ -139,18 +122,14 @@
             <!-- File tabs + "+" new-file button overlaid at top-right -->
             <Panel Grid.Row="0">
                 <TabControl Name="FileTabControl" Padding="0"/>
-                <Button Name="NewFileButton"
+                <controls:IconButton
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Width="30" Height="30"
-                        Padding="0"
+                        Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                        IconData="{StaticResource Icon.Plus}"
                         Click="NewFile_Click"
-                        ToolTip.Tip="New file"
-                        Background="Transparent"
-                        BorderThickness="0">
-                    <PathIcon Data="{StaticResource Icon.Plus}" Width="18" Height="18"
-                              Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
-                </Button>
+                        ToolTip.Tip="New file"/>
             </Panel>
 
             <!-- Separator -->
@@ -172,49 +151,44 @@
                 <TabItem Header="Debugger" FontSize="14">
                     <Grid RowDefinitions="Auto,*">
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="2" Margin="2,2,2,4">
-                            <Button Name="DbgContinueButton"
+                            <controls:IconButton
+                                    IconData="{StaticResource Icon.Play}"
+                                    Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                                     IsEnabled="{Binding IsPaused}"
                                     Click="DbgContinue_Click"
                                     ToolTip.Tip="Continue (F5)"
-                                    Width="28" Height="24" Padding="0">
-                                <PathIcon Data="{StaticResource Icon.Play}" Width="16" Height="16"
-                                          Foreground="{DynamicResource DotPad.Icon.PlayBrush}"/>
-                            </Button>
-                            <Button Name="DbgStepOverButton"
+                                    Width="28" Height="24"/>
+                            <controls:IconButton
+                                    IconData="{StaticResource Icon.DebugStepOver}"
+                                    Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                                     IsEnabled="{Binding IsPaused}"
                                     Click="DbgStepOver_Click"
                                     ToolTip.Tip="Step Over (F10)"
-                                    Width="28" Height="24" Padding="0">
-                                <PathIcon Data="{StaticResource Icon.DebugStepOver}" Width="16" Height="16"
-                                          Foreground="{DynamicResource DotPad.Icon.StepBrush}"/>
-                            </Button>
-                            <Button Name="DbgStepInButton"
+                                    Width="28" Height="24"/>
+                            <controls:IconButton
+                                    IconData="{StaticResource Icon.DebugStepInto}"
+                                    Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                                     IsEnabled="{Binding IsPaused}"
                                     Click="DbgStepIn_Click"
                                     ToolTip.Tip="Step In (F11)"
-                                    Width="28" Height="24" Padding="0">
-                                <PathIcon Data="{StaticResource Icon.DebugStepInto}" Width="16" Height="16"
-                                          Foreground="{DynamicResource DotPad.Icon.StepBrush}"/>
-                            </Button>
-                            <Button Name="DbgStepOutButton"
+                                    Width="28" Height="24"/>
+                            <controls:IconButton
+                                    IconData="{StaticResource Icon.DebugStepOut}"
+                                    Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                                     IsEnabled="{Binding IsPaused}"
                                     Click="DbgStepOut_Click"
                                     ToolTip.Tip="Step Out (Shift+F11)"
-                                    Width="28" Height="24" Padding="0">
-                                <PathIcon Data="{StaticResource Icon.DebugStepOut}" Width="16" Height="16"
-                                          Foreground="{DynamicResource DotPad.Icon.StepBrush}"/>
-                            </Button>
+                                    Width="28" Height="24"/>
                             <Border Width="1" Height="20"
                                     Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
                                     Margin="4,0"/>
-                            <Button Name="DbgPauseButton"
+                            <controls:IconButton
+                                    IconData="{StaticResource Icon.Pause}"
+                                    Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
                                     IsEnabled="{Binding IsDebugging}"
                                     Click="DbgPause_Click"
                                     ToolTip.Tip="Pause"
-                                    Width="28" Height="24" Padding="0">
-                                <PathIcon Data="{StaticResource Icon.Pause}" Width="16" Height="16"
-                                          Foreground="{DynamicResource DotPad.Icon.DebugBrush}"/>
-                            </Button>
+                                    Width="28" Height="24"/>
                         </StackPanel>
                         <TextBlock Grid.Row="1"
                                    Text="{Binding DebugInfo}"

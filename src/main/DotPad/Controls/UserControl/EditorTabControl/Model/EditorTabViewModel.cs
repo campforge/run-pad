@@ -7,7 +7,7 @@ using ReactiveUI;
 
 namespace DotPad.ViewModels;
 
-public sealed class EditorTabViewModel : ViewModelBase
+public sealed class EditorTabViewModel : ControllModelBase
 {
     public string?  FilePath { get; }
     public string   FileName => FilePath is null ? "Untitled" : Path.GetFileName(FilePath);

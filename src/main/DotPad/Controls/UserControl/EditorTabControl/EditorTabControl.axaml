@@ -1,45 +1,28 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DotPad.ViewModels"
              xmlns:build="using:DotPad.Build.Core.Models"
+             xmlns:controls="using:DotPad.Controls"
              x:Class="DotPad.Views.EditorTabControl"
              x:DataType="vm:EditorTabViewModel">
 
-    <UserControl.Styles>
+    <UserControl.Resources>
+        <DataTemplate x:Key="TabHeaderTemplate" x:DataType="vm:EditorTabViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{Binding FileName}"
+                           VerticalAlignment="Center"
+                           FontSize="12"/>
+                <Button Classes="TabClose"
+                        Command="{Binding CloseCommand}"
+                        VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource Icon.Close}"
+                              Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
 
-        <!-- Button.TopBarButton -->
-        <Style Selector="Button.TopBarButton">
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding"         Value="4"/>
-            <Setter Property="Width"           Value="26"/>
-            <Setter Property="Height"          Value="26"/>
-            <Setter Property="Template">
-                <ControlTemplate TargetType="Button">
-                    <Border Name="Root"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="4"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"/>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <Style Selector="Button.TopBarButton:pointerover /template/ Border#Root">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-        <Style Selector="Button.TopBarButton:pressed /template/ Border#Root">
-            <Setter Property="Opacity" Value="0.6"/>
-        </Style>
-        <Style Selector="Button.TopBarButton:disabled">
-            <Setter Property="Opacity" Value="0.35"/>
-        </Style>
-        <Style Selector="Button.TopBarButton Image">
-            <Setter Property="Width"  Value="16"/>
-            <Setter Property="Height" Value="16"/>
-        </Style>
+    <UserControl.Styles>
 
         <!-- ToggleButton.TopBarButton -->
         <Style Selector="ToggleButton.TopBarButton">
@@ -72,10 +55,6 @@
         </Style>
         <Style Selector="ToggleButton.TopBarButton:disabled">
             <Setter Property="Opacity" Value="0.35"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton Image">
-            <Setter Property="Width"  Value="16"/>
-            <Setter Property="Height" Value="16"/>
         </Style>
         <Style Selector="ToggleButton.TopBarButton PathIcon">
             <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
@@ -122,29 +101,23 @@
                 <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
                             Classes="Toolbar"
                             VerticalAlignment="Center">
-                    <Button
-                        Classes="TopBarButton"
+                    <controls:IconButton
+                        IconData="{StaticResource Icon.Play}"
+                        Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsEnabled="{Binding EnableRunButton}"
                         Click="RunButton_Click"
-                        ToolTip.Tip="Run (F5)">
-                        <PathIcon Data="{StaticResource Icon.Play}" Width="16" Height="16"
-                                  Foreground="{DynamicResource DotPad.Icon.PlayBrush}"/>
-                    </Button>
-                    <Button
-                        Classes="TopBarButton"
+                        ToolTip.Tip="Run (F5)"/>
+                    <controls:IconButton
+                        IconData="{StaticResource Icon.Pause}"
+                        Foreground="{DynamicResource DotPad.Icon.PauseBrush}"
                         IsEnabled="False"
-                        ToolTip.Tip="Pause">
-                        <PathIcon Data="{StaticResource Icon.Pause}" Width="16" Height="16"
-                                  Foreground="{DynamicResource DotPad.Icon.PauseBrush}"/>
-                    </Button>
-                    <Button
-                        Classes="TopBarButton"
+                        ToolTip.Tip="Pause"/>
+                    <controls:IconButton
+                        IconData="{StaticResource Icon.Stop}"
+                        Foreground="{DynamicResource DotPad.Icon.StopBrush}"
                         IsEnabled="{Binding EnableCancelButton}"
                         Click="CancelButton_Click"
-                        ToolTip.Tip="Cancel">
-                        <PathIcon Data="{StaticResource Icon.Stop}" Width="16" Height="16"
-                                  Foreground="{DynamicResource DotPad.Icon.StopBrush}"/>
-                    </Button>
+                        ToolTip.Tip="Cancel"/>
                     <ComboBox
                         Margin="4,0,0,0"
                         Height="24"

@@ -18,6 +18,7 @@
     <Application.Styles>
         <FluentTheme />
         <themes:DotPadTheme />
+        <StyleInclude Source="avares://DotPad/Controls/TemplatedControls/IconButton/IconButton.axaml"/>
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     </Application.Styles>
 </Application>

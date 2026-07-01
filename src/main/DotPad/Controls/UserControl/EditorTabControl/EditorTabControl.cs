@@ -2,6 +2,7 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -76,6 +77,19 @@ public partial class EditorTabControl : UserControl, IDisposable
     }
 
     // ── Public API for MainWindow ─────────────────────────────────────────────
+
+    internal TabItem AddTo(TabControl tabControl)
+    {
+        Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
+        var tab = new TabItem
+        {
+            Header         = _vm,
+            HeaderTemplate = (IDataTemplate)tmpl!,
+            Content        = this,
+        };
+        tabControl.Items.Add(tab);
+        return tab;
+    }
 
     internal void ApplyTheme(ActiveTheme theme, IBrush? editorBg)
     {

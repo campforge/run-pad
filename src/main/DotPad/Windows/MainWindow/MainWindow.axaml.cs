@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
 using Avalonia.HtmlRenderer;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -25,7 +24,6 @@ public partial class MainWindow : Window, IDisposable
 
     private readonly Dictionary<EditorTabViewModel, (TabItem Tab, EditorTabControl Control)> _tabs = new();
     private EditorTabViewModel? _prevActiveVm;
-    private IDataTemplate _tabHeaderTemplate = null!;
 
     // Shared output / status controls
     private HtmlPanel? _htmlPanel;
@@ -60,9 +58,6 @@ public partial class MainWindow : Window, IDisposable
         _htmlPanel?.Container.AddFontFamily(
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
-        Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
-        _tabHeaderTemplate = (IDataTemplate)tmpl!;
-
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;
         fileTabControl.SelectionChanged += OnFileTabSelectionChanged;
 
@@ -89,9 +84,8 @@ public partial class MainWindow : Window, IDisposable
                 var ctrl = _tabFactory.Create(vm);
                 ctrl.StateChanged += OnTabStateChanged;
 
-                var tab = new TabItem { Header = vm, HeaderTemplate = _tabHeaderTemplate, Content = ctrl };
+                var tab = ctrl.AddTo(fileTabControl);
                 _tabs[vm] = (tab, ctrl);
-                fileTabControl.Items.Add(tab);
             }
         }
 

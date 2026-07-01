@@ -37,6 +37,7 @@
                     <SolidColorBrush x:Key="DotPad.Icon.DebugBrush"                   Color="#F5A623" />
                     <SolidColorBrush x:Key="DotPad.Icon.PauseBrush"                   Color="#F5A623" />
                     <SolidColorBrush x:Key="DotPad.Icon.StepBrush"                    Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="DotPad.Icon.DisabledBrush"               Color="#5C5C5C" />
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>
