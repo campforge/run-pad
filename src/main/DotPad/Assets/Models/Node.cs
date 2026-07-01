@@ -4,17 +4,20 @@ namespace DotPad.Models;
 
 public class Node
 {
+    public string                     Title    { get; }
+    public string                     FilePath { get; }
     public ObservableCollection<Node>? SubNodes { get; }
-    public string Title { get; }
 
-    public Node(string title)
+    public Node(string title, string filePath)
     {
-        Title = title;
+        Title    = title;
+        FilePath = filePath;
     }
 
-    public Node(string title, ObservableCollection<Node> subNodes)
+    public Node(string title, string filePath, ObservableCollection<Node> subNodes)
     {
-        Title = title;
+        Title    = title;
+        FilePath = filePath;
         SubNodes = subNodes;
     }
 }

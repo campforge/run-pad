@@ -25,6 +25,7 @@
         <PackageReference Include="Avalonia.ReactiveUI" />
         <PackageReference Include="AvaloniaEdit.TextMate" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="Microsoft.Extensions.Logging" />
         <PackageReference Include="System.Composition.AttributedModel" />
         <PackageReference Include="System.Configuration.ConfigurationManager" />
         <PackageReference Include="TextMateSharp.Grammars" />
@@ -40,8 +41,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Update="Views\PreferencesWindow.axaml.cs">
+        <Compile Update="Windows\MainWindow\View\MainWindow.axaml.cs">
+            <DependentUpon>MainWindow.axaml</DependentUpon>
+        </Compile>
+        <Compile Update="Windows\PreferencesWindow\View\PreferencesWindow.axaml.cs">
             <DependentUpon>PreferencesWindow.axaml</DependentUpon>
+        </Compile>
+        <Compile Update="Controls\EditorTabControl\View\EditorTabControl.cs">
+            <DependentUpon>EditorTabControl.axaml</DependentUpon>
         </Compile>
     </ItemGroup>
 </Project>

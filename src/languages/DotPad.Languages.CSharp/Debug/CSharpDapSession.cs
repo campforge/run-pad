@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Languages.CSharp.Debug.Protocol;
 using DotPad.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.Debug;
 
@@ -34,6 +35,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
     private readonly OutputReceivedHandler? _outputHandler;
     private readonly Action<IBreakpointHitContext> _onBreakpointHit;
+    private readonly ILogger<CSharpDapSession> _logger;
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -49,7 +51,8 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         string workingDirectory,
         IReadOnlyList<IBreakpoint> breakpoints,
         OutputReceivedHandler? outputHandler,
-        Action<IBreakpointHitContext> onBreakpointHit)
+        Action<IBreakpointHitContext> onBreakpointHit,
+        ILogger<CSharpDapSession> logger)
     {
         _process          = process;
         _programPath      = programPath;
@@ -57,6 +60,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         _breakpoints      = breakpoints;
         _outputHandler    = outputHandler;
         _onBreakpointHit  = onBreakpointHit;
+        _logger           = logger;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -115,7 +119,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         {
             await foreach (var line in _process.ErrorReader.ReadAllAsync(ct).ConfigureAwait(false))
             {
-                Console.Error.WriteLine($"[dbg] {line}");
+                _logger.LogDebug("[dbg] {Line}", line);
                 _outputHandler?.Invoke($"[dbg] {line}", OutputKind.StandardError);
             }
         }
@@ -349,9 +353,9 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         var sourceName = Path.GetFileNameWithoutExtension(_programPath) + ".cs";
         var sourceFile = Path.Combine(_workingDirectory, sourceName);
 
-        Console.Error.WriteLine($"[dap bp] source path: {sourceFile}");
+        _logger.LogDebug("[dap bp] source path: {SourceFile}", sourceFile);
         foreach (var bp in _breakpoints)
-            Console.Error.WriteLine($"[dap bp]   line {bp.Line}");
+            _logger.LogDebug("[dap bp] line {Line}", bp.Line);
 
         await SendAsync(new SetBreakpointsRequest
         {
@@ -375,7 +379,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
                     var verified = bp.TryGetProperty("verified", out var v) && v.GetBoolean();
                     var line     = bp.TryGetProperty("line", out var l) ? l.GetInt32() : -1;
                     var msg      = bp.TryGetProperty("message", out var m) ? m.GetString() : null;
-                    Console.Error.WriteLine($"[dap bp] verified={verified} line={line}{(msg is not null ? $" msg={msg}" : "")}");
+                    _logger.LogDebug("[dap bp] verified={Verified} line={Line}{Msg}", verified, line, msg is not null ? $" msg={msg}" : "");
                 }
             }
         }
@@ -402,7 +406,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     private async Task SendAsync(object request, CancellationToken ct)
     {
         var json     = JsonSerializer.Serialize(request, request.GetType(), JsonOpts);
-        Console.Error.WriteLine($"[dap →] {json[..Math.Min(200, json.Length)]}");
+        _logger.LogDebug("[dap →] {Snippet}", json[..Math.Min(200, json.Length)]);
         var body     = Encoding.UTF8.GetBytes(json);
         var header   = Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n");
         var message  = new byte[header.Length + body.Length];
@@ -508,15 +512,14 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             {
                 var doc     = JsonDocument.Parse(bodyBytes.AsMemory(0, contentLength));
                 var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(200, contentLength));
-                Console.Error.WriteLine($"[dap ←] {snippet}");
+                _logger.LogDebug("[dap ←] {Snippet}", snippet);
                 return doc;
             }
             catch (JsonException ex)
             {
                 var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(200, contentLength));
-                var msg     = $"[dbg parse error] {ex.Message} | raw: {snippet}";
-                Console.Error.WriteLine(msg);
-                _outputHandler?.Invoke(msg, OutputKind.StandardError);
+                _logger.LogWarning(ex, "DAP parse error | raw: {Raw}", snippet);
+                _outputHandler?.Invoke($"[dbg parse error] {ex.Message} | raw: {snippet}", OutputKind.StandardError);
                 return null;
             }
         }
