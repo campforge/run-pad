@@ -10,12 +10,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Handlers;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a word inside an inline box
@@ -277,17 +276,17 @@ internal abstract class CssRect
 
     public bool BreakPage()
     {
-        var container = this.OwnerBox.HtmlContainer;
+        var container = OwnerBox.HtmlContainer;
 
-        if (this.Height >= container.PageSize.Height)
+        if (Height >= container.PageSize.Height)
             return false;
 
-        var remTop = (this.Top - container.MarginTop) % container.PageSize.Height;
-        var remBottom = (this.Bottom - container.MarginTop) % container.PageSize.Height;
+        var remTop = (Top - container.MarginTop) % container.PageSize.Height;
+        var remBottom = (Bottom - container.MarginTop) % container.PageSize.Height;
 
         if (remTop > remBottom)
         {
-            this.Top += container.PageSize.Height - remTop + 1;
+            Top += container.PageSize.Height - remTop + 1;
             return true;
         }
 

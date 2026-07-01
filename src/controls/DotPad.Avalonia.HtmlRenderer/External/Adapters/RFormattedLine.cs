@@ -1,6 +1,6 @@
-﻿using Avalonia.HtmlRenderer.External.Adapters.Entities;
+﻿using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.External.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
 
 public abstract class RFormattedLine
 {

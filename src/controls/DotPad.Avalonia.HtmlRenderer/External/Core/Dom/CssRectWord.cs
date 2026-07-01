@@ -10,9 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a word inside an inline box

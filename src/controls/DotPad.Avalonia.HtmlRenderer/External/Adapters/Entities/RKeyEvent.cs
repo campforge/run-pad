@@ -10,9 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia.HtmlRenderer.External.Core;
+using DotPad.Avalonia.HtmlRenderer.External.Core;
 
-namespace Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Even class for handling keyboard events in <see cref="HtmlContainerInt"/>.

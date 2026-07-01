@@ -1,4 +1,4 @@
-using DotPad.Models;
+using DotPad.Assets.Models;
 
 namespace DotPad.Services.Preferences;
 

@@ -1,9 +1,10 @@
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using DotPad.Assets.Models;
 using DotPad.Avalonia.Themes;
-using DotPad.Models;
 using DotPad.Services.Preferences;
 using TextMateSharp.Grammars;
 
@@ -21,6 +22,8 @@ public interface IThemeService
     void SetMode(ThemeMode mode);
     void SetInterfaceTheme(InterfaceTheme theme);
     void SetEditorTheme(EditorTheme theme);
+
+    IBrush? GetBrush(string key);
 
     event ThemeChangedDelegate? ThemeChanged;
 }
@@ -125,6 +128,13 @@ public sealed class ThemeService : IThemeService
         else                 _prefs.Appearance.LightEditorTheme = theme.Name;
         _prefs.Save();
         ScheduleApply();
+    }
+
+    public IBrush? GetBrush(string key)
+    {
+        object? val = null;
+        _app.TryGetResource(key, _app.ActualThemeVariant, out val);
+        return val as IBrush;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

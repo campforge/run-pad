@@ -1,0 +1,39 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:DotPad.Windows"
+    xmlns:vm="clr-namespace:DotPad.Windows.Models"
+    xmlns:userControls="clr-namespace:DotPad.UserControls"
+    xmlns:models="clr-namespace:DotPad.Assets.Models"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="DotPad.Windows.MainWindow"
+    x:DataType="vm:MainWindowViewModel"
+    Icon="/Assets/avalonia-logo.ico"
+    Title="DotPad">
+
+    <Grid ColumnDefinitions="300,*">
+
+        <Grid Grid.Column="0" RowDefinitions="40,*"
+              Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
+            <Menu Grid.Row="0">
+                <MenuItem Header="Edit">
+                    <MenuItem Header="_Dependencies" Click="Dependencies_Click"/>
+                    <Separator/>
+                    <MenuItem Header="_Preferences" Click="Preferences_Click"/>
+                </MenuItem>
+            </Menu>
+            <TreeView Grid.Row="1" Name="FileTree" ItemsSource="{Binding Nodes}">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding SubNodes}">
+                        <TextBlock Text="{Binding Title}"/>
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+        </Grid>
+
+        <userControls:EditorTabsControl x:Name="EditorTabsCtrl" Grid.Column="1"/>
+
+    </Grid>
+</Window>

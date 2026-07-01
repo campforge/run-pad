@@ -10,15 +10,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Net;
-using System.Threading;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Handlers;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// On download file async complete, success or fail.

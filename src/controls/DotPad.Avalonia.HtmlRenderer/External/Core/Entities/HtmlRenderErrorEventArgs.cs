@@ -10,9 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-
-namespace Avalonia.HtmlRenderer.External.Core.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Raised when an error occurred during html rendering.

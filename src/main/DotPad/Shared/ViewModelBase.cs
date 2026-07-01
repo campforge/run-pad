@@ -1,8 +1,6 @@
-﻿using DotPad.Models;
-using DotPad.Services;
-using ReactiveUI;
+﻿using ReactiveUI;
 
-namespace DotPad.ViewModels;
+namespace DotPad.Shared;
 
 public class ViewModelBase : ReactiveObject
 {

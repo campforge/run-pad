@@ -10,13 +10,13 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Handlers;
-using Avalonia.HtmlRenderer.External.Core.Parse;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// CSS box for hr element.

@@ -1,10 +1,11 @@
 using System.Collections.ObjectModel;
-using DotPad.Models;
+using DotPad.Assets.Models;
 using DotPad.Services;
 using DotPad.Services.Preferences;
+using DotPad.Shared;
 using ReactiveUI;
 
-namespace DotPad.ViewModels;
+namespace DotPad.Windows.Models;
 
 public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 {

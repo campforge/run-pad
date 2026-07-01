@@ -10,10 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.External.Core.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Raised when Html Renderer request scroll to specific location.<br/>

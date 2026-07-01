@@ -10,9 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-
-namespace Avalonia.HtmlRenderer.External.Core.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Exception thrown when client code subscribed to LinkClicked event thrown exception.

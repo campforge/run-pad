@@ -10,14 +10,13 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
 using System.Globalization;
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Dom;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Parse;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Parse CSS properties values like numbers, Urls, etc.

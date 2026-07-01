@@ -8,10 +8,12 @@ using DotPad.Languages.CSharp;
 using DotPad.Logging;
 using DotPad.Services;
 using DotPad.Services.Preferences;
-using DotPad.ViewModels;
-using DotPad.Views;
+using DotPad.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using DependenciesWindow = DotPad.Windows.DependenciesWindow;
+using MainWindow = DotPad.Windows.MainWindow;
+using PreferencesWindow = DotPad.Windows.PreferencesWindow;
 
 namespace DotPad;
 
@@ -62,11 +64,11 @@ public class App : Application
             return registry;
         });
 
-        services.AddSingleton<IEditorTabFactory, EditorTabFactory>();
         services.AddTransient<MainWindow>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<PreferencesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
+        services.AddTransient<DependenciesWindow>();
 
         return services.BuildServiceProvider();
     }

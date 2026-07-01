@@ -10,10 +10,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using Avalonia;
 using Avalonia.Media;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.Utilities;
+namespace DotPad.Avalonia.HtmlRenderer.Utilities;
 
 /// <summary>
 /// Utilities for converting Avalonia entities to HtmlRenderer core entities.

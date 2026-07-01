@@ -1,8 +1,8 @@
-﻿using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.Media.TextFormatting;
+﻿using Avalonia.Media.TextFormatting;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.Adapters;
 
 public class FormattedLineAdapter : RFormattedLine
 {

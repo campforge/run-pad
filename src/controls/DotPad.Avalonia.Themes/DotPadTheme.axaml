@@ -8,6 +8,59 @@
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Dark.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Light.axaml" />
 
+    <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background"               Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+        <Setter Property="Foreground"               Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush"              Value="{DynamicResource DotPad.Border.BackgroundBrush}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+        <Setter Property="VerticalGridLinesBrush"   Value="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+        <Setter Property="RowBackground"            Value="Transparent"/>
+    </Style>
+
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background"     Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground"     Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+        <Setter Property="SeparatorBrush" Value="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+        <Setter Property="FontSize"       Value="12"/>
+        <Setter Property="MinHeight"      Value="28"/>
+    </Style>
+    <Style Selector="DataGridColumnHeader:pointerover /template/ Grid#PART_ColumnHeaderRoot">
+        <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+
+    <Style Selector="DataGridRow">
+        <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        <Setter Property="MinHeight"  Value="24"/>
+    </Style>
+    <Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="DataGridCell">
+        <Setter Property="Foreground"     Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        <Setter Property="FontSize"       Value="13"/>
+        <Setter Property="MinHeight"      Value="24"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
     <!-- ── TreeView ──────────────────────────────────────────────────────── -->
     <Style Selector="TreeView">
         <Setter Property="Background" Value="Transparent"/>

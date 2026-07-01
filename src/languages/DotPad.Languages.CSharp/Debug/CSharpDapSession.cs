@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Languages.CSharp.Debug.Protocol;
 using DotPad.Contracts;
+using DotPad.Contracts.Models;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.Debug;

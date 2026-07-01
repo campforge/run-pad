@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
+using DotPad.Contracts.Models;
 using DotPad.Languages.CSharp.Adapters;
 using DotPad.Languages.CSharp.Compiler;
 using DotPad.Languages.CSharp.Debug;
@@ -11,7 +12,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using OutputKind = DotPad.Contracts.OutputKind;
+using OutputKind = DotPad.Contracts.Models.OutputKind;
 
 namespace DotPad.Languages.CSharp;
 

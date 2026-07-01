@@ -1,16 +1,17 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:DotPad.Controls">
+        xmlns:controls="using:DotPad.Controls"
+        xmlns:iconButton="clr-namespace:DotPad.TemplatedControls">
     <Styles.Resources>
         <ResourceDictionary>
-            <ControlTheme x:Key="{x:Type controls:IconButton}" TargetType="controls:IconButton">
+            <ControlTheme x:Key="{x:Type iconButton:IconButton}" TargetType="iconButton:IconButton">
                 <Setter Property="Background"      Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Padding"         Value="4"/>
                 <Setter Property="Width"           Value="26"/>
                 <Setter Property="Height"          Value="26"/>
                 <Setter Property="Template">
-                    <ControlTemplate TargetType="controls:IconButton">
+                    <ControlTemplate TargetType="iconButton:IconButton">
                         <Border x:Name="Root"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="4"

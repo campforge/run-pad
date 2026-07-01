@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using System;
-using DotPad.ViewModels;
+using DotPad.Shared;
 
 namespace DotPad;
 

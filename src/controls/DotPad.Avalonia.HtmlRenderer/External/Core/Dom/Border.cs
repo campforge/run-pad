@@ -10,7 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Border types

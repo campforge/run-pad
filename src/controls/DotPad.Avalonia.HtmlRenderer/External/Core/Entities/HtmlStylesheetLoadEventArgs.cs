@@ -10,10 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.Collections.Generic;
-
-namespace Avalonia.HtmlRenderer.External.Core.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Invoked when a stylesheet is about to be loaded by file path or URL in 'link' element.<br/>

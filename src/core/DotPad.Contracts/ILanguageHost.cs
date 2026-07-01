@@ -1,4 +1,5 @@
 using DotPad.Contracts.IntelliSense;
+using DotPad.Contracts.Models;
 
 namespace DotPad.Contracts;
 

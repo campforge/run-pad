@@ -10,9 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-
-namespace Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Stores an ordered pair of floating-point numbers, typically the width and height of a rectangle.

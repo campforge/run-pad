@@ -1,37 +1,35 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
+using DotPad.Assets.Models;
 using DotPad.Build;
 using DotPad.Build.Core;
 using DotPad.Build.Core.Models;
-using DotPad.Models;
+using DotPad.Shared;
+using DotPad.UserControls.Models;
 using DynamicData;
 using ReactiveUI;
 
-namespace DotPad.ViewModels;
+namespace DotPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly DotnetSdksService _dotnetSdksService;
     private readonly IDotpFileService  _fileSystemService;
 
-    private readonly Dictionary<string, EditorTabViewModel>         _openTabs          = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<EditorTabViewModel, IDisposable>    _closeSubscriptions = new();
+    private readonly Dictionary<string, EditorTabItemViewModel>         _openTabs          = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<EditorTabItemViewModel, IDisposable>    _closeSubscriptions = new();
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
-    public ObservableCollection<EditorTabViewModel> Tabs { get; } = [];
+    public ObservableCollection<EditorTabItemViewModel> Tabs { get; } = [];
 
-    private EditorTabViewModel? _activeTab;
-    public EditorTabViewModel? ActiveTab
+    private EditorTabItemViewModel? _activeTab;
+    public EditorTabItemViewModel? ActiveTab
     {
         get => _activeTab;
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
-    public EditorTabViewModel NewFile()
+    public EditorTabItemViewModel NewFile()
     {
         var folder = _fileSystemService.GetOrCreateDefaultFolder();
         var path   = _fileSystemService.CreateNewFile(folder);
@@ -39,7 +37,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         return OpenTab(path);
     }
 
-    public EditorTabViewModel OpenTab(string? filePath)
+    public EditorTabItemViewModel OpenTab(string? filePath)
     {
         if (filePath is not null && _openTabs.TryGetValue(filePath, out var existing))
         {
@@ -47,7 +45,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             return existing;
         }
 
-        var vm = new EditorTabViewModel(filePath, DotnetPlatforms);
+        var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms);
         _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
 
         if (filePath is not null) _openTabs[filePath] = vm;
@@ -56,7 +54,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         return vm;
     }
 
-    internal void CloseTab(EditorTabViewModel vm)
+    internal void CloseTab(EditorTabItemViewModel vm)
     {
         if (_closeSubscriptions.TryGetValue(vm, out var d))
         {
@@ -70,35 +68,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (nextActive is not null) ActiveTab = nextActive;
     }
 
-    // ── Shared state (synced from active tab's ViewModel) ─────────────────────
-
-    private string _debugInfo = "No active debug session.";
-    public string DebugInfo
-    {
-        get => _debugInfo;
-        set => this.RaiseAndSetIfChanged(ref _debugInfo, value);
-    }
-
-    private bool _isDebugging;
-    public bool IsDebugging
-    {
-        get => _isDebugging;
-        set => this.RaiseAndSetIfChanged(ref _isDebugging, value);
-    }
-
-    private bool _isPaused;
-    public bool IsPaused
-    {
-        get => _isPaused;
-        set => this.RaiseAndSetIfChanged(ref _isPaused, value);
-    }
-
     // ── File tree ─────────────────────────────────────────────────────────────
 
     public ObservableCollection<Node> Nodes { get; }
     public List<ExecutionPlatform>    DotnetPlatforms { get; }
 
-    public MainWindowViewModel(DotnetSdksService dotnetSdksService, IDotpFileService fileSystemService)
+    public MainWindowViewModel(
+        DotnetSdksService dotnetSdksService, 
+        IDotpFileService fileSystemService)
     {
         _dotnetSdksService = dotnetSdksService;
         _fileSystemService = fileSystemService;

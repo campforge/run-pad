@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Styling;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
@@ -14,11 +13,15 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         FocusableProperty.OverrideDefaultValue(typeof(BreakPointMargin), false);
     }
 
+    private static readonly IBrush DebugArrowBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0x00));
+
     private CodeTextEditor? _editor;
     private IBreakpointStore? _manager;
 
     private int _previewLine = -1;
     private bool _previewPointVisible;
+
+    public int? DebugLine { get; set; }
 
     public BreakPointMargin(CodeTextEditor editor, IBreakpointStore manager)
     {
@@ -49,6 +52,13 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             var line = FindVisualLine(_previewLine);
             if (line != null)
                 DrawPoint(context, line, height, Brush.Parse("#E67466"));
+        }
+
+        if (DebugLine is { } debugLine)
+        {
+            var line = FindVisualLine(debugLine);
+            if (line != null)
+                DrawArrow(context, line, height);
         }
     }
 
@@ -129,5 +139,31 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var point = new Point((size.Width / 4) - 1, yTop + (size.Width / 4) - 3.5 - TextView.VerticalOffset);
         context.FillRectangle(brush,
             new Rect(point.X, point.Y, size.Width / 1.5, height / 1.5), (float)height);
+    }
+
+    private void DrawArrow(DrawingContext context, VisualLine line, double lineHeight)
+    {
+        var w    = Bounds.Width;
+        var yTop = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.LineTop)
+                   - TextView.VerticalOffset;
+        var yMid    = yTop + lineHeight / 2;
+        var arrowH  = lineHeight * 0.55;
+        var bodyH   = arrowH    * 0.40;
+        var bodyEnd = w         * 0.50;
+
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(new Point(1,       yMid - bodyH),     true);
+            ctx.LineTo(new Point(bodyEnd,       yMid - bodyH));
+            ctx.LineTo(new Point(bodyEnd,       yMid - arrowH / 2));
+            ctx.LineTo(new Point(w - 1,         yMid));
+            ctx.LineTo(new Point(bodyEnd,       yMid + arrowH / 2));
+            ctx.LineTo(new Point(bodyEnd,       yMid + bodyH));
+            ctx.LineTo(new Point(1,             yMid + bodyH));
+            ctx.EndFigure(true);
+        }
+
+        context.DrawGeometry(DebugArrowBrush, null, geo);
     }
 }

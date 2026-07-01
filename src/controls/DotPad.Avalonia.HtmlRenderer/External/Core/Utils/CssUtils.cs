@@ -10,13 +10,12 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Dom;
-using Avalonia.HtmlRenderer.External.Core.Parse;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
 
-namespace Avalonia.HtmlRenderer.External.Core.Utils;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Utility method for handling CSS stuff.

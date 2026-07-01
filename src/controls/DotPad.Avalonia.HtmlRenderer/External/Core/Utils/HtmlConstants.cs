@@ -1,4 +1,4 @@
-namespace Avalonia.HtmlRenderer.External.Core.Utils;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Defines HTML strings

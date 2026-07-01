@@ -10,10 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System.Collections.Generic;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Represents a block of CSS property values.<br/>

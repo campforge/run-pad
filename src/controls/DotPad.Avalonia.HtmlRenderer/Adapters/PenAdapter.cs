@@ -10,12 +10,12 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia pens objects for core.

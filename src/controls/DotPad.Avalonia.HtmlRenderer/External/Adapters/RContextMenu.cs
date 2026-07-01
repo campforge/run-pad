@@ -10,10 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.External.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific context menu - used to create and show context menu at specific location.<br/>

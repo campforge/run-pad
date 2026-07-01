@@ -10,7 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace Avalonia.HtmlRenderer.External.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific font family object - define the available font families to use.<br/>
