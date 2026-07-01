@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DotPad.ViewModels"
              xmlns:build="using:DotPad.Build.Core.Models"
@@ -77,6 +77,12 @@
             <Setter Property="Width"  Value="16"/>
             <Setter Property="Height" Value="16"/>
         </Style>
+        <Style Selector="ToggleButton.TopBarButton PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.TopBarButton:checked PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
+        </Style>
 
         <!-- ComboBox inside toolbar -->
         <Style Selector="StackPanel.Toolbar ComboBox">
@@ -121,20 +127,23 @@
                         IsEnabled="{Binding EnableRunButton}"
                         Click="RunButton_Click"
                         ToolTip.Tip="Run (F5)">
-                        <Image Source="{StaticResource Run}"/>
+                        <PathIcon Data="{StaticResource Icon.Play}" Width="16" Height="16"
+                                  Foreground="{DynamicResource DotPad.Icon.PlayBrush}"/>
                     </Button>
-                    <ToggleButton
+                    <Button
                         Classes="TopBarButton"
-                        IsChecked="{Binding DebugModeEnabled}"
-                        ToolTip.Tip="Toggle debug mode">
-                        <Image Source="{StaticResource Bug}"/>
-                    </ToggleButton>
+                        IsEnabled="False"
+                        ToolTip.Tip="Pause">
+                        <PathIcon Data="{StaticResource Icon.Pause}" Width="16" Height="16"
+                                  Foreground="{DynamicResource DotPad.Icon.PauseBrush}"/>
+                    </Button>
                     <Button
                         Classes="TopBarButton"
                         IsEnabled="{Binding EnableCancelButton}"
                         Click="CancelButton_Click"
                         ToolTip.Tip="Cancel">
-                        <Image Source="{StaticResource Stop}"/>
+                        <PathIcon Data="{StaticResource Icon.Stop}" Width="16" Height="16"
+                                  Foreground="{DynamicResource DotPad.Icon.StopBrush}"/>
                     </Button>
                     <ComboBox
                         Margin="4,0,0,0"
@@ -149,15 +158,30 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+                    <Border Width="1" Height="16"
+                            Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                            Margin="4,0"/>
+                    <ToggleButton
+                        Classes="TopBarButton"
+                        IsChecked="{Binding DebugModeEnabled}"
+                        ToolTip.Tip="Toggle debug mode">
+                        <PathIcon Data="{StaticResource Icon.Bug}" Width="16" Height="16"/>
+                    </ToggleButton>
                 </StackPanel>
                 <!-- Progress bar clipped by toolbar's rounded corners -->
                 <ProgressBar VerticalAlignment="Bottom"
-                             Height="2"
+                             Height="1"
+                             MinHeight="0"
                              IsIndeterminate="True"
                              IsVisible="{Binding IsRunningProgress}"
-                             Foreground="{DynamicResource DotPad.Accent.BackgroundBrush}"
+                             Foreground="{DynamicResource DotPad.Tab.AccentBrush}"
                              Background="Transparent"
-                             BorderThickness="0"/>
+                             BorderThickness="0">
+                    <ProgressBar.Effect>
+                        <DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="8" Opacity="0.85"
+                                          Color="{DynamicResource DotPad.Tab.AccentColor}"/>
+                    </ProgressBar.Effect>
+                </ProgressBar>
             </Panel>
         </Border>
 
