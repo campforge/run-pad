@@ -10,15 +10,12 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Net;
 using System.Text;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace Avalonia.HtmlRenderer.External.Core.Utils;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 internal delegate void ActionInt<in T>(T obj);
 

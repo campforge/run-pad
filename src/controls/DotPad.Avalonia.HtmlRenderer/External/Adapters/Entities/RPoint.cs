@@ -10,9 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-
-namespace Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 ///     Represents an ordered pair of floating-point x- and y-coordinates that defines a point in a two-dimensional plane.

@@ -10,19 +10,18 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.Collections.Generic;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.HtmlRenderer.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core;
-using Avalonia.HtmlRenderer.External.Core.Entities;
-using Avalonia.HtmlRenderer.External.Core.Utils;
-using Avalonia.HtmlRenderer.Utilities;
 using Avalonia.Input;
 using Avalonia.Media;
+using DotPad.Avalonia.HtmlRenderer.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.Utilities;
 
-namespace Avalonia.HtmlRenderer;
+namespace DotPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Low level handling of Html Renderer logic, this class is used by <see cref="HtmlParser"/>, 

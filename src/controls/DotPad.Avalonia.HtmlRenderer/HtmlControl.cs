@@ -10,19 +10,19 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.HtmlRenderer.External.Core;
-using Avalonia.HtmlRenderer.External.Core.Entities;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Metadata;
 using Avalonia.Threading;
+using DotPad.Avalonia.HtmlRenderer.External.Core;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
-namespace Avalonia.HtmlRenderer;
+namespace DotPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>

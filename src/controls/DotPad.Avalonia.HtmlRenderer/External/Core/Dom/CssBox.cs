@@ -10,17 +10,15 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Entities;
-using Avalonia.HtmlRenderer.External.Core.Handlers;
-using Avalonia.HtmlRenderer.External.Core.Parse;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents a CSS Box of text or replaced elements.
@@ -184,7 +182,7 @@ internal class CssBox : CssBoxProperties, IDisposable
             if (Position == CssConstants.Fixed)
                 return true;
 
-            if (this.ParentBox == null)
+            if (ParentBox == null)
                 return false;
 
             CssBox parent = this;
@@ -482,7 +480,7 @@ internal class CssBox : CssBoxProperties, IDisposable
             if (Display != CssConstants.None && Visibility == CssConstants.Visible)
             {
                 // use initial clip to draw blocks with Position = fixed. I.e. ignrore page margins
-                if (this.Position == CssConstants.Fixed)
+                if (Position == CssConstants.Fixed)
                 {
                     g.SuspendClipping();
                 }
@@ -510,7 +508,7 @@ internal class CssBox : CssBoxProperties, IDisposable
                     PaintImp(g);
 
                 // Restore clips
-                if (this.Position == CssConstants.Fixed)
+                if (Position == CssConstants.Fixed)
                 {
                     g.ResumeClipping();
                 }
@@ -1141,18 +1139,18 @@ internal class CssBox : CssBoxProperties, IDisposable
 
     public bool BreakPage()
     {
-        var container = this.HtmlContainer;
+        var container = HtmlContainer;
 
-        if (this.Size.Height >= container.PageSize.Height)
+        if (Size.Height >= container.PageSize.Height)
             return false;
 
-        var remTop = (this.Location.Y - container.MarginTop) % container.PageSize.Height;
-        var remBottom = (this.ActualBottom - container.MarginTop) % container.PageSize.Height;
+        var remTop = (Location.Y - container.MarginTop) % container.PageSize.Height;
+        var remBottom = (ActualBottom - container.MarginTop) % container.PageSize.Height;
 
         if (remTop > remBottom)
         {
             var diff = container.PageSize.Height - remTop;
-            this.Location = new RPoint(this.Location.X, this.Location.Y + diff + 1);
+            Location = new RPoint(Location.X, Location.Y + diff + 1);
             return true;
         }
 
@@ -1548,8 +1546,8 @@ internal class CssBox : CssBoxProperties, IDisposable
 
     protected override RPoint GetActualLocation(string X, string Y)
     {
-        var left = CssValueParser.ParseLength(X, this.HtmlContainer.PageSize.Width, this, null);
-        var top = CssValueParser.ParseLength(Y, this.HtmlContainer.PageSize.Height, this, null);
+        var left = CssValueParser.ParseLength(X, HtmlContainer.PageSize.Width, this, null);
+        var top = CssValueParser.ParseLength(Y, HtmlContainer.PageSize.Height, this, null);
         return new RPoint(left, top);
     }
 

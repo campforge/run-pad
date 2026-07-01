@@ -15,6 +15,7 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" />
         <PackageReference Include="Avalonia.AvaloniaEdit" />
         <PackageReference Include="Avalonia.Browser" />
         <PackageReference Include="Avalonia.Desktop" />
@@ -41,14 +42,33 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Update="Windows\MainWindow\MainWindow.axaml.cs">
-            <DependentUpon>MainWindow.axaml</DependentUpon>
-        </Compile>
-        <Compile Update="Windows\PreferencesWindow\PreferencesWindow.axaml.cs">
-            <DependentUpon>PreferencesWindow.axaml</DependentUpon>
-        </Compile>
-        <Compile Update="Controls\UserControl\EditorTabControl\EditorTabControl.cs">
+        <Compile Update="UserControls\EditorTabControl.cs">
             <DependentUpon>EditorTabControl.axaml</DependentUpon>
+            <SubType>Code</SubType>
         </Compile>
+        <Compile Update="UserControls\EditorTabsControl.cs">
+            <DependentUpon>EditorTabsControl.axaml</DependentUpon>
+            <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="UserControls\DebugPanel.cs">
+            <DependentUpon>DebugPanel.axaml</DependentUpon>
+            <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="Windows\DependenciesWindow.axaml.cs">
+          <DependentUpon>DependenciesWindow.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="Windows\PreferencesWindow.axaml.cs">
+          <DependentUpon>PreferencesWindow.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="Windows\MainWindow.axaml.cs">
+          <DependentUpon>MainWindow.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <AvaloniaResource Include="TemplatedControls\IconButton.axaml" />
     </ItemGroup>
 </Project>

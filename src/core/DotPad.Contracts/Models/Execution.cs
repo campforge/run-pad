@@ -1,4 +1,4 @@
-namespace DotPad.Contracts;
+namespace DotPad.Contracts.Models;
 
 public enum OutputKind
 {

@@ -1,0 +1,218 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DotPad.UserControls.DebugPanel"
+             x:CompileBindings="False">
+
+    <UserControl.Styles>
+
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Padding"    Value="0"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize"   Value="12"/>
+            <Setter Property="MinHeight"  Value="24"/>
+            <Setter Property="Height"     Value="24"/>
+            <Setter Property="Padding"    Value="10,0"/>
+        </Style>
+
+        <Style Selector="DataGrid">
+            <Setter Property="Background"               Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="GridLinesVisibility"      Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+            <Setter Property="RowHeight"                Value="22"/>
+            <Setter Property="CanUserResizeColumns"     Value="True"/>
+            <Setter Property="CanUserReorderColumns"    Value="False"/>
+            <Setter Property="CanUserSortColumns"       Value="False"/>
+            <Setter Property="SelectionMode"            Value="Single"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Padding"    Value="8,0"/>
+            <Setter Property="Height"     Value="22"/>
+        </Style>
+        <Style Selector="DataGridRow">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Padding"         Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- Watch toolbar buttons -->
+        <Style Selector="Button.WatchBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Height"          Value="24"/>
+            <Setter Property="Padding"         Value="8,0"/>
+            <Setter Property="Foreground"      Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="Button.WatchBtn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+
+    </UserControl.Styles>
+
+    <TabControl>
+
+        <!-- ── Threads ─────────────────────────────────────────────────────── -->
+        <TabItem Header="Threads">
+            <DataGrid ItemsSource="{Binding DebugThreads}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="ID" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Id}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Name" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </TabItem>
+
+        <!-- ── Locals ──────────────────────────────────────────────────────── -->
+        <TabItem Header="Locals">
+            <DataGrid ItemsSource="{Binding DebugLocals}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Name" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Value" Width="2*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Value}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Type" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding TypeName}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </TabItem>
+
+        <!-- ── Watch ───────────────────────────────────────────────────────── -->
+        <TabItem Header="Watch">
+            <Grid RowDefinitions="Auto,*">
+                <StackPanel Grid.Row="0" Orientation="Horizontal"
+                            Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+                    <Button Classes="WatchBtn" Click="AddWatch_Click"    Content="+ Add"/>
+                    <Button Classes="WatchBtn" Click="RemoveWatch_Click" Content="− Remove"/>
+                </StackPanel>
+                <DataGrid Grid.Row="1"
+                          x:Name="WatchGrid"
+                          ItemsSource="{Binding WatchExpressions}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="False">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Expression" Width="*" IsReadOnly="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Expression}"
+                                               Padding="8,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Expression}" Padding="6,0"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Value" Width="2*" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Value}"
+                                               Padding="8,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Type" Width="*" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding TypeName}"
+                                               Padding="8,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+
+        <!-- ── Call Stack ──────────────────────────────────────────────────── -->
+        <TabItem Header="Call Stack">
+            <DataGrid ItemsSource="{Binding DebugCallStack}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Method" Width="2*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding MethodName}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="File" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FileName}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Line" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Line}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </TabItem>
+
+    </TabControl>
+</UserControl>

@@ -1,6 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 
-namespace DotPad.Models;
+namespace DotPad.Assets.Models;
 
 public class Node
 {

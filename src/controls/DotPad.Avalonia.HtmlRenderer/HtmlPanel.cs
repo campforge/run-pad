@@ -10,14 +10,15 @@
 // - Sun Tsu,
 // "The Art of War"
 
+using Avalonia;
 using Avalonia.Controls.Primitives;
-using Avalonia.HtmlRenderer.External.Core.Entities;
-using Avalonia.HtmlRenderer.External.Core.Utils;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer;
+namespace DotPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>
@@ -142,8 +143,8 @@ public class HtmlPanel : HtmlControl
             scrollHeight = scrollHeight > 1 ? scrollHeight : 1;
             var scrollWidth = HtmlWidth(bounds) + Padding.Left + Padding.Right;
             scrollWidth = scrollWidth > 1 ? scrollWidth : 1;
-            _verticalScrollBar.Arrange(new Rect(System.Math.Max(bounds.Width - _verticalScrollBar.Width - BorderThickness.Right, 0), BorderThickness.Top, _verticalScrollBar.Width, scrollHeight));
-            _horizontalScrollBar.Arrange(new Rect(BorderThickness.Left, System.Math.Max(bounds.Height - _horizontalScrollBar.Height - BorderThickness.Bottom, 0), scrollWidth, _horizontalScrollBar.Height));
+            _verticalScrollBar.Arrange(new Rect(Math.Max(bounds.Width - _verticalScrollBar.Width - BorderThickness.Right, 0), BorderThickness.Top, _verticalScrollBar.Width, scrollHeight));
+            _horizontalScrollBar.Arrange(new Rect(BorderThickness.Left, Math.Max(bounds.Height - _horizontalScrollBar.Height - BorderThickness.Bottom, 0), scrollWidth, _horizontalScrollBar.Height));
 
             if (_htmlContainer != null)
             {

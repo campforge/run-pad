@@ -10,10 +10,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace Avalonia.HtmlRenderer.External.Core.Parse;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Collection of regular expressions used when parsing

@@ -1,9 +1,8 @@
-using System;
 using System.Globalization;
-using Avalonia.HtmlRenderer.External.Core.Parse;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents and gets info about a CSS Length

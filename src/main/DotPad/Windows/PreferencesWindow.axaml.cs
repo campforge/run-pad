@@ -1,7 +1,7 @@
 using Avalonia.Controls;
-using DotPad.ViewModels;
+using DotPad.Windows.Models;
 
-namespace DotPad.Views;
+namespace DotPad.Windows;
 
 public partial class PreferencesWindow : Window
 {

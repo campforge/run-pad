@@ -10,13 +10,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System.Collections.Generic;
-using System.Linq;
-using Avalonia.HtmlRenderer.External.Core.Entities;
-using Avalonia.HtmlRenderer.External.Core.Parse;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// CSS boxes that have ":hover" selector on them.
@@ -96,7 +94,7 @@ internal sealed class HoverBoxBlock
                 // assign the :hover style
                 foreach (var textElm in textElms)
                 {
-                    Parse.DomParser.AssignCssProps(textElm, CssBlock.Properties);
+                    DomParser.AssignCssProps(textElm, CssBlock.Properties);
                 }
             }
             else

@@ -10,10 +10,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using System.IO;
-
-namespace Avalonia.HtmlRenderer.External.Core.Utils;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Static class that contains argument-checking methods

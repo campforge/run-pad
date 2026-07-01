@@ -1,8 +1,9 @@
 using System.Diagnostics;
 using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Contracts;
+using DotPad.Contracts.Models;
 
-namespace DotPad.Models;
+namespace DotPad.UserControls.Models;
 
 internal sealed class EditorTabState
 {

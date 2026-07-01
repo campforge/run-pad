@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:DotPad.Controls"
+             xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls"
+             x:Class="DotPad.UserControls.EditorTabsControl">
+
+    <UserControl.Styles>
+
+        <Style Selector="TabControl#FileTabControl">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Padding"    Value="0"/>
+        </Style>
+
+        <Style Selector="TabControl#FileTabControl WrapPanel">
+            <Setter Property="MaxHeight" Value="30"/>
+        </Style>
+
+        <Style Selector="TabControl#FileTabControl > TabItem">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Margin"     Value="0"/>
+            <Setter Property="MinHeight"  Value="30"/>
+            <Setter Property="Height"     Value="30"/>
+            <Setter Property="FontSize"   Value="14"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TabItem">
+                    <Panel>
+                        <Border x:Name="TopAccent"
+                                Height="1"
+                                VerticalAlignment="Top"
+                                Background="Transparent"
+                                ZIndex="1"/>
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                                BorderThickness="0,0,1,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="PART_ContentPresenter"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Panel>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="TabControl#FileTabControl > TabItem:selected /template/ Border#TopAccent">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Tab.AccentBrush}"/>
+        </Style>
+        <Style Selector="TabControl#FileTabControl > TabItem:selected">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="TabControl#FileTabControl > TabItem:pointerover /template/ Border#Root">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+
+        <Style Selector="Button.TabClose">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="0"/>
+            <Setter Property="Width"           Value="14"/>
+            <Setter Property="Height"          Value="14"/>
+            <Setter Property="CornerRadius"    Value="2"/>
+            <Setter Property="VerticalContentAlignment"   Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.TabClose:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="TabControl#FileTabControl > TabItem:pointerover Button.TabClose">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="TabControl#FileTabControl > TabItem:selected Button.TabClose">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+    </UserControl.Styles>
+
+    <Panel>
+        <TabControl Name="FileTabControl" Padding="0"/>
+        <templatedControls:IconButton
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Width="30" Height="30"
+            Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+            IconData="{StaticResource Icon.Plus}"
+            Click="AddFile_Click"
+            ToolTip.Tip="New file"/>
+    </Panel>
+
+</UserControl>

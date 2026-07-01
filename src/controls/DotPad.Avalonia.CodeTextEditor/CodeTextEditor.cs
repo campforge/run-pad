@@ -29,6 +29,7 @@ public class CodeTextEditor : TextEditor
 
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
+    private readonly DebugLineHighlighter _debugLineHighlighter;
     private CodeTextEditorOptions _editorOptions = new();
     private RegistryOptions? _registryOptions;
     private Installation? _textMateInstallation;
@@ -72,6 +73,20 @@ public class CodeTextEditor : TextEditor
         set => SetValue(ShowBreakpointsProperty, value);
     }
 
+    public int? DebugCurrentLine
+    {
+        get => _breakpointMargin.DebugLine;
+        set
+        {
+            _breakpointMargin.DebugLine        = value;
+            _debugLineHighlighter.CurrentLine  = value;
+            _breakpointMargin.InvalidateVisual();
+            TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+            if (value is { } line)
+                ScrollToLine(line);
+        }
+    }
+
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
     public CodeTextEditor()
@@ -80,7 +95,8 @@ public class CodeTextEditor : TextEditor
         _breakpointStore.BreakpointAdded   += (_, e) => BreakpointAdded?.Invoke(this, e);
         _breakpointStore.BreakpointRemoved += (_, e) => BreakpointRemoved?.Invoke(this, e);
 
-        _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
+        _breakpointMargin     = new BreakPointMargin(this, _breakpointStore);
+        _debugLineHighlighter = new DebugLineHighlighter();
 
         // Remove DeleteLine — conflicts with our line-based workflow
         var deleteLineCommand = TextArea.CommandBindings
@@ -101,6 +117,8 @@ public class CodeTextEditor : TextEditor
 
         HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
         ShowLineNumbers = true;
+
+        TextArea.TextView.BackgroundRenderers.Add(_debugLineHighlighter);
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;

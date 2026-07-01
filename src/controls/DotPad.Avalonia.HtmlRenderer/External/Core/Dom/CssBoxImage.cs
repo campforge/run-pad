@@ -10,13 +10,12 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using System;
-using Avalonia.HtmlRenderer.External.Adapters;
-using Avalonia.HtmlRenderer.External.Adapters.Entities;
-using Avalonia.HtmlRenderer.External.Core.Handlers;
-using Avalonia.HtmlRenderer.External.Core.Utils;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace Avalonia.HtmlRenderer.External.Core.Dom;
+namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// CSS box for image element.
@@ -143,8 +142,8 @@ internal sealed class CssBoxImage : CssBox
                 {
                     _imageLoadHandler = new ImageLoadHandler(HtmlContainer, OnLoadImageComplete);
 
-                    if (this.Content != null && this.Content != CssConstants.Normal)
-                        _imageLoadHandler.LoadImage(this.Content, HtmlTag != null ? HtmlTag.Attributes : null);
+                    if (Content != null && Content != CssConstants.Normal)
+                        _imageLoadHandler.LoadImage(Content, HtmlTag != null ? HtmlTag.Attributes : null);
                     else
                         _imageLoadHandler.LoadImage(GetAttribute("src"), HtmlTag != null ? HtmlTag.Attributes : null);
                 }

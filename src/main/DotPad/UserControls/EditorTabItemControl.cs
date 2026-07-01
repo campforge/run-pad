@@ -1,4 +1,3 @@
-using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
@@ -7,48 +6,55 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
+using DotPad.Assets.Models;
 using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Build.Core.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
+using DotPad.Contracts.Models;
 using DotPad.Languages.CSharp;
-using DotPad.Models;
 using DotPad.Resources;
 using DotPad.Services;
 using DotPad.Services.Preferences;
-using DotPad.ViewModels;
+using DotPad.UserControls.Models;
 
-namespace DotPad.Views;
+namespace DotPad.UserControls;
 
-public partial class EditorTabControl : UserControl, IDisposable
+public partial class EditorsTabItemControl : UserControl, IDisposable
 {
     private readonly ILanguageHostRegistry _registry;
-    private readonly IPreferencesService   _prefs;
-    private readonly EditorTabViewModel    _vm;
+    private readonly IPreferencesService _prefs;
+    private readonly EditorTabItemViewModel _vm;
+    private TabControl? _outputTabsControl;
 
+    private readonly IThemeService _themeService;
     internal readonly EditorTabState State;
 
-    internal EditorTabViewModel Vm => _vm;
-
-    internal event Action<EditorTabControl>? StateChanged;
-
-    internal EditorTabControl(
-        EditorTabViewModel    vm,
-        IThemeService         themeService,
+    internal EditorsTabItemControl(
+        EditorTabItemViewModel vm,
+        IThemeService themeService,
         ILanguageHostRegistry registry,
-        IPreferencesService   prefs,
+        IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
-        IBrush?               editorBackground)
+        IBrush? editorBackground)
     {
-        _registry   = registry;
-        _prefs      = prefs;
-        _vm         = vm;
+        _themeService = themeService;
+        _registry = registry;
+        _prefs = prefs;
+        _vm = vm;
         DataContext = _vm;
 
         InitializeComponent();
 
-        var editor      = new CodeTextEditor { Background = editorBackground };
-        State           = new EditorTabState(editor);
+        this.FindControl<DebugPanel>("DebugPanelCtrl")!.DataContext = _vm;
+        _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
+
+        // Register custom font for HTML output panel
+        OutputHtml.Container.AddFontFamily(
+            new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+
+        var editor = new CodeTextEditor { Background = editorBackground };
+        State = new EditorTabState(editor);
         State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant);
 
         ApplyEditorSettings(editor, prefs.Editor);
@@ -73,30 +79,26 @@ public partial class EditorTabControl : UserControl, IDisposable
         };
         editor.AttachedToVisualTree += onAttached;
 
+        // Caret position → StatusLine
+        editor.TextArea.Caret.PositionChanged += (_, _) =>
+            StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
+
         EditorHost.Content = editor;
     }
 
-    // ── Public API for MainWindow ─────────────────────────────────────────────
-
-    internal TabItem AddTo(TabControl tabControl)
-    {
-        Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
-        var tab = new TabItem
-        {
-            Header         = _vm,
-            HeaderTemplate = (IDataTemplate)tmpl!,
-            Content        = this,
-        };
-        tabControl.Items.Add(tab);
-        return tab;
-    }
-
-    internal void ApplyTheme(ActiveTheme theme, IBrush? editorBg)
+    internal void ApplyTheme(ActiveTheme theme)
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
-        if (editorBg is not null) State.Editor.Background = editorBg;
+        var editorBg = _themeService!.GetBrush("DotPad.Editor.BackgroundBrush");
+
+        if (editorBg is not null)
+        {
+            State.Editor.Background = editorBg;
+        }
+
         ApplySelectionColor(State.Editor);
         State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant);
+        UpdateOutputUi();
     }
 
     internal void SaveIfNeeded()
@@ -119,26 +121,21 @@ public partial class EditorTabControl : UserControl, IDisposable
 
         SaveIfNeeded();
 
-        _vm.EnableRunButton    = false;
-        _vm.EnableCancelButton = true;
-        _vm.IsDebugging        = true;
-        _vm.IsPaused           = false;
-        _vm.IsRunningProgress  = true;
-        s.OutputContent        = "";
-        s.HadRunError          = false;
-        s.ElapsedText          = "";
-        _vm.DebugInfo          = "Debugging…";
+        _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
+        s.OutputContent = "";
+        s.HadRunError = false;
+        s.ElapsedText = "";
         SetStatus("Process", "DotPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
-        NotifyChanged();
+        UpdateOutputUi();
 
         s.RunCts = new CancellationTokenSource();
 
-        var workDir     = EnsureWorkDirectory();
-        var options     = BuildRunOptions(platform, workDir);
-        var script      = s.Editor.Text;
+        var workDir = EnsureWorkDirectory();
+        var options = BuildRunOptions(platform, workDir);
+        var script = s.Editor.Text;
         var breakpoints = s.Editor.Breakpoints
-            .Select(bp => (DotPad.Contracts.IBreakpoint)new ScriptBreakpoint(bp.Line))
+            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(bp.Line))
             .ToList();
 
         var cancelled = false;
@@ -169,44 +166,22 @@ public partial class EditorTabControl : UserControl, IDisposable
             }, s.RunCts.Token);
         }
         catch (OperationCanceledException) { cancelled = true; }
-        catch (Exception ex)               { AppendError(ex); }
+        catch (Exception ex) { AppendError(ex); }
         finally
         {
             s.RunningHost = null;
             await s.RunCts.CancelAsync();
 
-            _vm.EnableRunButton    = true;
-            _vm.EnableCancelButton = false;
-            _vm.IsDebugging        = false;
-            _vm.IsPaused           = false;
-            _vm.IsRunningProgress  = false;
-            if (debug) _vm.DebugInfo = "Debug session ended.";
+            _vm.RunState = RunState.Idle;
+            State.Editor.DebugCurrentLine = null;
             s.RunStopwatch.Stop();
             s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
-            if (cancelled)           SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
-            else if (!s.HadRunError) SetStatus("Success",   "DotPad.Status.SuccessBrush");
+            if (cancelled) SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
+            else if (!s.HadRunError) SetStatus("Success", "DotPad.Status.SuccessBrush");
 
-            NotifyChanged();
+            UpdateOutputUi();
         }
-    }
-
-    internal void ResumeDebug(DebugAction action)
-    {
-        _vm.IsPaused          = false;
-        _vm.IsRunningProgress = true;
-        _vm.DebugInfo         = $"Running… (last action: {action})";
-        SetStatus("Process", "#4FC1FF");
-        var ctx = State.CurrentDebugCtx;
-        State.CurrentDebugCtx = null;
-        ctx?.Resume(action);
-        NotifyChanged();
-    }
-
-    internal async Task PauseAsync()
-    {
-        if (State.RunningHost is not null)
-            await State.RunningHost.PauseAsync();
     }
 
     public void Dispose()
@@ -217,69 +192,103 @@ public partial class EditorTabControl : UserControl, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    // ── Toolbar click handlers ────────────────────────────────────────────────
+    // ── Toolbar handlers ──────────────────────────────────────────────────────
 
     private async void RunButton_Click(object? sender, RoutedEventArgs e)
         => await RunAsync(_vm.DebugModeEnabled, _vm.SelectedDotnetPlatform ?? _vm.DotnetPlatforms.First());
 
     private void CancelButton_Click(object? sender, RoutedEventArgs e) => Cancel();
 
+    // ── Debug panel handlers ──────────────────────────────────────────────────
+
+    private void DbgContinue_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.Continue);
+    private void DbgStepOver_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOver);
+    private void DbgStepIn_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepIn);
+    private void DbgStepOut_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOut);
+
+    private async void DbgPause_Click(object? sender, RoutedEventArgs e)
+    {
+        if (State.RunningHost is not null)
+            await State.RunningHost.PauseAsync();
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private void NotifyChanged() => StateChanged?.Invoke(this);
-
-    private void SetStatus(string text, string hex)
+    private void ResumeDebug(DebugAction action)
     {
-        State.ExecStatusText  = text;
-        State.ExecStatusColor = hex;
+        _vm.RunState = RunState.RunDebug;
+        State.Editor.DebugCurrentLine = null;
+        SetStatus("Process", "DotPad.Status.RunningBrush");
+        var ctx = State.CurrentDebugCtx;
+        State.CurrentDebugCtx = null;
+        ctx?.Resume(action);
+        UpdateOutputUi();
+    }
+
+    private void UpdateOutputUi()
+    {
+        OutputHtml.Text = $"""
+            <html>
+            <head><style>{State.OutputCss}</style></head>
+            <body>{State.OutputContent}</body>
+            </html>
+            """;
+
+        ExecStatusBlock.Text = State.ExecStatusText;
+        ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
+            ? Brushes.Transparent
+            : _themeService.GetBrush(State.ExecStatusColor) ?? Brushes.Transparent;
+        ElapsedBlock.Text = State.ElapsedText;
+    }
+
+    private void SetStatus(string text, string colorKey)
+    {
+        State.ExecStatusText = text;
+        State.ExecStatusColor = colorKey;
     }
 
     private void AppendOutput(string data)
     {
         State.OutputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
-        NotifyChanged();
+        UpdateOutputUi();
     }
 
     private void AppendError(Exception ex)
     {
-        State.HadRunError    = true;
+        State.HadRunError = true;
         State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
         if (ex.StackTrace is { } st)
             State.OutputContent += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
         SetStatus("Error", "DotPad.Status.ErrorBrush");
-        NotifyChanged();
+        UpdateOutputUi();
     }
 
     private void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
-        s.CurrentDebugCtx    = context;
-        _vm.IsPaused         = true;
-        _vm.IsRunningProgress = false;
+        s.CurrentDebugCtx = context;
+        _vm.RunState      = RunState.Paused;
+        State.Editor.DebugCurrentLine = context.CallStack.Count > 0
+            ? context.CallStack[0].Line
+            : context.Breakpoint.Line;
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"⏸ Paused at line {context.Breakpoint.Line}  (thread {context.ThreadId})");
-        if (context.Threads.Count > 0)
-        {
-            sb.AppendLine().AppendLine("Threads:");
-            foreach (var t in context.Threads) sb.AppendLine($"  [{t.Id}] {t.Name}");
-        }
-        if (context.LocalVariables.Count > 0)
-        {
-            sb.AppendLine().AppendLine("Locals:");
-            foreach (var v in context.LocalVariables)
-                sb.AppendLine($"  {v.TypeName} {v.Name} = {v.Value}");
-        }
-        if (context.CallStack.Count > 0)
-        {
-            sb.AppendLine().AppendLine("Call stack:");
-            foreach (var f in context.CallStack)
-                sb.AppendLine($"  {f.MethodName}  ({Path.GetFileName(f.FileName)}:{f.Line})");
-        }
+        // Switch to Debugger tab so the user sees variables immediately
+        if (_outputTabsControl is { } tc) tc.SelectedIndex = 1;
 
-        _vm.DebugInfo = sb.ToString();
+        _vm.DebugThreads.Clear();
+        foreach (var t in context.Threads)
+            _vm.DebugThreads.Add(new DebugThread(t.Id, t.Name));
+
+        _vm.DebugLocals.Clear();
+        foreach (var v in context.LocalVariables)
+            _vm.DebugLocals.Add(new DebugLocal(v.Name, v.Value, v.TypeName));
+
+        _vm.DebugCallStack.Clear();
+        foreach (var f in context.CallStack)
+            _vm.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
+
         SetStatus("Paused", "DotPad.Status.PausedBrush");
-        NotifyChanged();
+        UpdateOutputUi();
     }
 
     // ── Editor preferences ────────────────────────────────────────────────────
@@ -289,24 +298,23 @@ public partial class EditorTabControl : UserControl, IDisposable
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
-        // TextMate may set SelectionBrush to a dark color even for light themes,
-        // and SelectionForeground to white — both unreadable on a light background.
+        // TextMate may set SelectionBrush to a dark color even for light themes.
         // Read the brush from the current theme so it's fully configurable per theme.
         var variant = Application.Current?.ActualThemeVariant;
         if (Application.Current?.TryGetResource("DotPad.Editor.SelectionBrush", variant, out var res) == true
             && res is IBrush brush)
             editor.TextArea.SelectionBrush = brush;
-        editor.TextArea.SelectionForeground = null; // inherit from syntax highlighting
+        editor.TextArea.SelectionForeground = null;
     }
 
     private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
-        editor.ShowLineNumbers             = s.ShowLineNumbers;
-        editor.FontSize                    = s.FontSize;
-        editor.WordWrap                    = s.WordWrap;
-        editor.Options.ShowTabs            = s.ShowTabs;
-        editor.Options.ShowSpaces          = s.ShowSpaces;
-        editor.Options.ShowEndOfLine       = s.ShowEndOfLine;
+        editor.ShowLineNumbers = s.ShowLineNumbers;
+        editor.FontSize = s.FontSize;
+        editor.WordWrap = s.WordWrap;
+        editor.Options.ShowTabs = s.ShowTabs;
+        editor.Options.ShowSpaces = s.ShowSpaces;
+        editor.Options.ShowEndOfLine = s.ShowEndOfLine;
         editor.Options.ColumnRulerPositions = s.ShowColumnRuler
             ? [s.ColumnRulerPosition]
             : [];
@@ -353,7 +361,7 @@ public partial class EditorTabControl : UserControl, IDisposable
     {
         { TotalSeconds: < 1 } => $"{t.TotalMilliseconds:F0} ms",
         { TotalMinutes: < 1 } => $"{t.TotalSeconds:F2} s",
-        _                     => $"{(int)t.TotalMinutes}m {t.Seconds}s",
+        _ => $"{(int)t.TotalMinutes}m {t.Seconds}s",
     };
 
     private static string EnsureWorkDirectory()
@@ -365,20 +373,20 @@ public partial class EditorTabControl : UserControl, IDisposable
 
     private CSharpLanguageHostOptions BuildRunOptions(ExecutionPlatform platform, string workDir) => new()
     {
-        Platform         = platform,
+        Platform = platform,
         ExecutionOptions = new ExecutionOptions
         {
             WorkingDirectory = workDir,
-            Runtime  = new RuntimeOptions  { RuntimePath  = _prefs.Debugger.DotnetPath   },
+            Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
             Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
         },
         OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
-        RuntimeLibPath  = new CSharpReferenceService().GetExtensionReference(),
+        RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
     };
 
-    private sealed class ScriptBreakpoint(int line) : DotPad.Contracts.IBreakpoint
+    private sealed class ScriptBreakpoint(int line) : Contracts.IBreakpoint
     {
         public string FileName { get; } = string.Empty;
-        public int    Line     { get; set; } = line;
+        public int Line { get; set; } = line;
     }
 }

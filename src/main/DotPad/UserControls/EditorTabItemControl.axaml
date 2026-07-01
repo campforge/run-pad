@@ -1,13 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:DotPad.ViewModels"
              xmlns:build="using:DotPad.Build.Core.Models"
              xmlns:controls="using:DotPad.Controls"
-             x:Class="DotPad.Views.EditorTabControl"
-             x:DataType="vm:EditorTabViewModel">
+             xmlns:views="using:DotPad.Views"
+             xmlns:vm="clr-namespace:DotPad.UserControls.Models"
+             xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls"
+             xmlns:htmlRenderer="clr-namespace:DotPad.Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
+             xmlns:userControls="clr-namespace:DotPad.UserControls"
+             x:Class="DotPad.UserControls.EditorsTabItemControl"
+             x:DataType="vm:EditorTabItemViewModel">
 
     <UserControl.Resources>
-        <DataTemplate x:Key="TabHeaderTemplate" x:DataType="vm:EditorTabViewModel">
+        <DataTemplate x:Key="TabHeaderTemplate" x:DataType="vm:EditorTabItemViewModel">
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Text="{Binding FileName}"
                            VerticalAlignment="Center"
@@ -24,7 +28,6 @@
 
     <UserControl.Styles>
 
-        <!-- ToggleButton.TopBarButton -->
         <Style Selector="ToggleButton.TopBarButton">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -63,7 +66,6 @@
             <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
         </Style>
 
-        <!-- ComboBox inside toolbar -->
         <Style Selector="StackPanel.Toolbar ComboBox">
             <Setter Property="FontSize"        Value="12"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -85,11 +87,22 @@
             <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
+        <Style Selector="TabControl.OutputTabs">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Padding"    Value="0"/>
+        </Style>
+        <Style Selector="TabControl.OutputTabs > TabItem">
+            <Setter Property="FontSize"  Value="13"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Height"    Value="28"/>
+            <Setter Property="Padding"   Value="12,0"/>
+        </Style>
+
     </UserControl.Styles>
 
-    <Grid RowDefinitions="46,*">
+    <Grid RowDefinitions="46,*,5,220,22">
 
-        <!-- Toolbar floating with padding and rounded corners -->
+        <!-- Row 0: Toolbar -->
         <Border Grid.Row="0"
                 Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
                 BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
@@ -101,18 +114,13 @@
                 <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
                             Classes="Toolbar"
                             VerticalAlignment="Center">
-                    <controls:IconButton
+                    <templatedControls:IconButton
                         IconData="{StaticResource Icon.Play}"
                         Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsEnabled="{Binding EnableRunButton}"
                         Click="RunButton_Click"
                         ToolTip.Tip="Run (F5)"/>
-                    <controls:IconButton
-                        IconData="{StaticResource Icon.Pause}"
-                        Foreground="{DynamicResource DotPad.Icon.PauseBrush}"
-                        IsEnabled="False"
-                        ToolTip.Tip="Pause"/>
-                    <controls:IconButton
+                    <templatedControls:IconButton
                         IconData="{StaticResource Icon.Stop}"
                         Foreground="{DynamicResource DotPad.Icon.StopBrush}"
                         IsEnabled="{Binding EnableCancelButton}"
@@ -141,7 +149,6 @@
                         <PathIcon Data="{StaticResource Icon.Bug}" Width="16" Height="16"/>
                     </ToggleButton>
                 </StackPanel>
-                <!-- Progress bar clipped by toolbar's rounded corners -->
                 <ProgressBar VerticalAlignment="Bottom"
                              Height="1"
                              MinHeight="0"
@@ -158,8 +165,101 @@
             </Panel>
         </Border>
 
-        <!-- CodeTextEditor slot -->
+        <!-- Row 1: CodeTextEditor -->
         <ContentPresenter x:Name="EditorHost" Grid.Row="1"/>
+
+        <!-- Row 2: GridSplitter -->
+        <GridSplitter Grid.Row="2"
+                      ResizeDirection="Rows"
+                      HorizontalAlignment="Stretch"
+                      Background="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+
+        <!-- Row 3: Output tabs -->
+        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">
+
+            <TabItem Header="Results">
+                <htmlRenderer:HtmlPanel x:Name="OutputHtml"
+                              Background="{DynamicResource DotPad.Output.BackgroundBrush}">
+                    <ToolTip.Tip>
+                        <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
+                            <htmlRenderer:HtmlLabel x:Name="HtmlTooltipLabel"/>
+                        </ToolTip>
+                    </ToolTip.Tip>
+                </htmlRenderer:HtmlPanel>
+            </TabItem>
+
+            <TabItem Header="Debugger">
+                <Grid RowDefinitions="Auto,*">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="2" Margin="2,2,2,4">
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.Play}"
+                            Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
+                            IsEnabled="{Binding IsPaused}"
+                            Click="DbgContinue_Click"
+                            ToolTip.Tip="Continue (F5)"
+                            Width="28" Height="24"/>
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.DebugStepOver}"
+                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                            IsEnabled="{Binding IsPaused}"
+                            Click="DbgStepOver_Click"
+                            ToolTip.Tip="Step Over (F10)"
+                            Width="28" Height="24"/>
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.DebugStepInto}"
+                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                            IsEnabled="{Binding IsPaused}"
+                            Click="DbgStepIn_Click"
+                            ToolTip.Tip="Step In (F11)"
+                            Width="28" Height="24"/>
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.DebugStepOut}"
+                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                            IsEnabled="{Binding IsPaused}"
+                            Click="DbgStepOut_Click"
+                            ToolTip.Tip="Step Out (Shift+F11)"
+                            Width="28" Height="24"/>
+                        <Border Width="1" Height="20"
+                                Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                                Margin="4,0"/>
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.Pause}"
+                            Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
+                            IsEnabled="{Binding IsDebugging}"
+                            Click="DbgPause_Click"
+                            ToolTip.Tip="Pause"
+                            Width="28" Height="24"/>
+                    </StackPanel>
+                    <userControls:DebugPanel x:Name="DebugPanelCtrl" Grid.Row="1"/>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- Row 4: Status strip -->
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto,Auto"
+              Background="{DynamicResource DotPad.StatusBar.BackgroundBrush}">
+            <TextBlock x:Name="StatusLine"
+                       Grid.Column="0"
+                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Text="Ready"/>
+            <TextBlock x:Name="ExecStatusBlock"
+                       Grid.Column="1"
+                       FontWeight="SemiBold"
+                       Margin="0,0,12,0"
+                       VerticalAlignment="Center"
+                       FontSize="11"/>
+            <TextBlock x:Name="ElapsedBlock"
+                       Grid.Column="2"
+                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Margin="0,0,8,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"/>
+        </Grid>
 
     </Grid>
 

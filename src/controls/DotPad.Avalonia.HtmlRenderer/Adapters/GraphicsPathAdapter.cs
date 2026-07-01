@@ -10,10 +10,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using Avalonia.HtmlRenderer.External.Adapters;
+using Avalonia;
 using Avalonia.Media;
+using DotPad.Avalonia.HtmlRenderer.External.Adapters;
 
-namespace Avalonia.HtmlRenderer.Adapters;
+namespace DotPad.Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia graphics path object for core.
