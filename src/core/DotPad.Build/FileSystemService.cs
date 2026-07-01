@@ -6,6 +6,7 @@ public interface IDotpFileService : IDisposable
 {
     string GetOrCreateDefaultFolder();
     IReadOnlyList<string> GetFilesInFolder(string folder);
+    string CreateNewFile(string folder);
     void StartWatcher(string folder);
     void StopWatcher();
 }
@@ -36,6 +37,16 @@ public sealed class DotpFileService : IDotpFileService
 
     public IReadOnlyList<string> GetFilesInFolder(string folder) =>
         Directory.GetFiles(folder, FileFilter).ToList();
+
+    public string CreateNewFile(string folder)
+    {
+        int i = 1;
+        string path;
+        do { path = Path.Combine(folder, $"Query {i++}{FileExtension}"); }
+        while (File.Exists(path));
+        File.WriteAllText(path, string.Empty);
+        return path;
+    }
 
     public void StartWatcher(string folder)
     {

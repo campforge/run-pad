@@ -102,60 +102,63 @@
 
     </UserControl.Styles>
 
-    <Grid RowDefinitions="40,*">
+    <Grid RowDefinitions="46,*">
 
-        <!-- ProgressBar overlaid at bottom of toolbar row -->
-        <ProgressBar Grid.Row="0"
-                     VerticalAlignment="Bottom"
-                     Height="2" ZIndex="10"
-                     IsIndeterminate="True"
-                     IsVisible="{Binding IsRunningProgress}"
-                     Foreground="{DynamicResource DotPad.Accent.BackgroundBrush}"
-                     Background="Transparent"
-                     BorderThickness="0"/>
-
-        <!-- Toolbar -->
+        <!-- Toolbar floating with padding and rounded corners -->
         <Border Grid.Row="0"
                 Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
                 BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
-                BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
-                        Classes="Toolbar"
-                        VerticalAlignment="Center">
-                <Button
-                    Classes="TopBarButton"
-                    IsEnabled="{Binding EnableRunButton}"
-                    Click="RunButton_Click"
-                    ToolTip.Tip="Run (F5)">
-                    <Image Source="{StaticResource Run}"/>
-                </Button>
-                <ToggleButton
-                    Classes="TopBarButton"
-                    IsChecked="{Binding DebugModeEnabled}"
-                    ToolTip.Tip="Toggle debug mode">
-                    <Image Source="{StaticResource Bug}"/>
-                </ToggleButton>
-                <Button
-                    Classes="TopBarButton"
-                    IsEnabled="{Binding EnableCancelButton}"
-                    Click="CancelButton_Click"
-                    ToolTip.Tip="Cancel">
-                    <Image Source="{StaticResource Stop}"/>
-                </Button>
-                <ComboBox
-                    Margin="4,0,0,0"
-                    Height="24"
-                    VerticalAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    ItemsSource="{Binding DotnetPlatforms}"
-                    SelectedItem="{Binding SelectedDotnetPlatform}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="build:ExecutionPlatform">
-                            <TextBlock Text="{Binding Description}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </StackPanel>
+                BorderThickness="1"
+                CornerRadius="6"
+                ClipToBounds="True"
+                Margin="6,4">
+            <Panel>
+                <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
+                            Classes="Toolbar"
+                            VerticalAlignment="Center">
+                    <Button
+                        Classes="TopBarButton"
+                        IsEnabled="{Binding EnableRunButton}"
+                        Click="RunButton_Click"
+                        ToolTip.Tip="Run (F5)">
+                        <Image Source="{StaticResource Run}"/>
+                    </Button>
+                    <ToggleButton
+                        Classes="TopBarButton"
+                        IsChecked="{Binding DebugModeEnabled}"
+                        ToolTip.Tip="Toggle debug mode">
+                        <Image Source="{StaticResource Bug}"/>
+                    </ToggleButton>
+                    <Button
+                        Classes="TopBarButton"
+                        IsEnabled="{Binding EnableCancelButton}"
+                        Click="CancelButton_Click"
+                        ToolTip.Tip="Cancel">
+                        <Image Source="{StaticResource Stop}"/>
+                    </Button>
+                    <ComboBox
+                        Margin="4,0,0,0"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ItemsSource="{Binding DotnetPlatforms}"
+                        SelectedItem="{Binding SelectedDotnetPlatform}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="build:ExecutionPlatform">
+                                <TextBlock Text="{Binding Description}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <!-- Progress bar clipped by toolbar's rounded corners -->
+                <ProgressBar VerticalAlignment="Bottom"
+                             Height="2"
+                             IsIndeterminate="True"
+                             IsVisible="{Binding IsRunningProgress}"
+                             Foreground="{DynamicResource DotPad.Accent.BackgroundBrush}"
+                             Background="Transparent"
+                             BorderThickness="0"/>
+            </Panel>
         </Border>
 
         <!-- CodeTextEditor slot -->

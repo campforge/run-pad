@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.HtmlRenderer;
@@ -119,7 +120,7 @@ public partial class MainWindow : Window, IDisposable
             Classes = { "TabClose" },
             VerticalAlignment = VerticalAlignment.Center
         };
-        closeBtn.Click += (_, _) => vm.CloseCommand.Execute(default);
+        closeBtn.Click += (_, _) => vm.CloseCommand.Execute(Unit.Default).Subscribe();
 
         return new StackPanel
         {
@@ -196,7 +197,7 @@ public partial class MainWindow : Window, IDisposable
             _executionStatusText.Text       = ctrl.State.ExecStatusText;
             _executionStatusText.Foreground = string.IsNullOrEmpty(ctrl.State.ExecStatusColor)
                 ? Brushes.Transparent
-                : new SolidColorBrush(Color.Parse(ctrl.State.ExecStatusColor));
+                : GetThemeBrush(ctrl.State.ExecStatusColor) ?? Brushes.Transparent;
         }
 
         if (_htmlPanel is not null)
@@ -232,6 +233,9 @@ public partial class MainWindow : Window, IDisposable
     {
         if (GetActiveControl() is { } ctrl) await ctrl.PauseAsync();
     }
+
+    private void NewFile_Click(object? sender, RoutedEventArgs e)
+        => GetViewModel().NewFile();
 
     private void Preferences_Click(object sender, RoutedEventArgs e)
         // Defer to next tick so the button's pending pointer events (PointerReleased,

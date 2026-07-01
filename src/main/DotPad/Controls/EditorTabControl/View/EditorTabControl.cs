@@ -1,5 +1,6 @@
 using System.Text;
 using System.Web;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -15,7 +16,6 @@ using DotPad.Resources;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.ViewModels;
-using TextMateSharp.Grammars;
 
 namespace DotPad.Views;
 
@@ -54,7 +54,24 @@ public partial class EditorTabControl : UserControl, IDisposable
         prefs.Changed += OnPreferencesChanged;
 
         SetupEditor(editor, intelliSense);
-        LoadDocument(editor, _vm.FilePath, themeService.CurrentTheme.Editor.TextMateName);
+
+        // Load document content first, without TextMate.
+        // SetLanguage calls Redraw() internally, which crashes when the editor
+        // is not yet in the visual tree (no visual lines exist yet).
+        // We defer SetLanguage to AttachedToVisualTree so Redraw() works on the
+        // first call and highlighting appears immediately, without NullReferenceException.
+        SetDocumentContent(editor, _vm.FilePath);
+
+        var themeName = themeService.CurrentTheme.Editor.TextMateName;
+        EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
+        onAttached = (s, _) =>
+        {
+            editor.AttachedToVisualTree -= onAttached;
+            editor.SetLanguage(themeName, ".cs");
+            ApplySelectionColor(editor);
+        };
+        editor.AttachedToVisualTree += onAttached;
+
         EditorHost.Content = editor;
     }
 
@@ -64,6 +81,7 @@ public partial class EditorTabControl : UserControl, IDisposable
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
         if (editorBg is not null) State.Editor.Background = editorBg;
+        ApplySelectionColor(State.Editor);
         State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant);
     }
 
@@ -96,7 +114,7 @@ public partial class EditorTabControl : UserControl, IDisposable
         s.HadRunError          = false;
         s.ElapsedText          = "";
         _vm.DebugInfo          = "Debugging…";
-        SetStatus("Process", "#4FC1FF");
+        SetStatus("Process", "DotPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
         NotifyChanged();
 
@@ -152,8 +170,8 @@ public partial class EditorTabControl : UserControl, IDisposable
             s.RunStopwatch.Stop();
             s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
-            if (cancelled)           SetStatus("Cancelled", "#9E9E9E");
-            else if (!s.HadRunError) SetStatus("Success",   "#4EC94E");
+            if (cancelled)           SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
+            else if (!s.HadRunError) SetStatus("Success",   "DotPad.Status.SuccessBrush");
 
             NotifyChanged();
         }
@@ -211,11 +229,10 @@ public partial class EditorTabControl : UserControl, IDisposable
     private void AppendError(Exception ex)
     {
         State.HadRunError    = true;
-        State.OutputContent += $"\n<div style=\"color:#f14c4c\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
+        State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
         if (ex.StackTrace is { } st)
-            State.OutputContent +=
-                $"\n<pre style=\"color:#cd9591;font-size:0.85em\">{HttpUtility.HtmlEncode(st)}</pre>";
-        SetStatus("Error", "#F14C4C");
+            State.OutputContent += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
+        SetStatus("Error", "DotPad.Status.ErrorBrush");
         NotifyChanged();
     }
 
@@ -247,7 +264,7 @@ public partial class EditorTabControl : UserControl, IDisposable
         }
 
         _vm.DebugInfo = sb.ToString();
-        SetStatus("Paused", "#FFA500");
+        SetStatus("Paused", "DotPad.Status.PausedBrush");
         NotifyChanged();
     }
 
@@ -255,6 +272,18 @@ public partial class EditorTabControl : UserControl, IDisposable
 
     private void OnPreferencesChanged()
         => Dispatcher.UIThread.Post(() => ApplyEditorSettings(State.Editor, _prefs.Editor));
+
+    private static void ApplySelectionColor(CodeTextEditor editor)
+    {
+        // TextMate may set SelectionBrush to a dark color even for light themes,
+        // and SelectionForeground to white — both unreadable on a light background.
+        // Read the brush from the current theme so it's fully configurable per theme.
+        var variant = Application.Current?.ActualThemeVariant;
+        if (Application.Current?.TryGetResource("DotPad.Editor.SelectionBrush", variant, out var res) == true
+            && res is IBrush brush)
+            editor.TextArea.SelectionBrush = brush;
+        editor.TextArea.SelectionForeground = null; // inherit from syntax highlighting
+    }
 
     private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
@@ -298,18 +327,12 @@ public partial class EditorTabControl : UserControl, IDisposable
         };
     }
 
-    private static void LoadDocument(CodeTextEditor editor, string? filePath, ThemeName themeName)
+    private static void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {
-        if (filePath is null)
-        {
-            var scope = editor.SetLanguage(themeName, ".cs");
-            editor.Document = new TextDocument(ResourceLoader.LoadSampleFile(scope));
-        }
-        else
-        {
-            editor.SetLanguage(themeName, ".cs");
-            editor.Document = new TextDocument(File.Exists(filePath) ? File.ReadAllText(filePath) : "");
-        }
+        var content = filePath is null
+            ? ResourceLoader.LoadSampleFile(string.Empty)
+            : (File.Exists(filePath) ? File.ReadAllText(filePath) : "");
+        editor.Document = new TextDocument(content);
     }
 
     private static string FormatElapsed(TimeSpan t) => t switch

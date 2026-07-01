@@ -6,22 +6,31 @@
             <ResourceDictionary.ThemeDictionaries>
 
                 <ResourceDictionary x:Key="{x:Static themes:DotPadThemeVariants.VsCodeLight}">
-                    <SolidColorBrush x:Key="DotPad.Sidebar.BackgroundBrush"      Color="#F3F3F3" />
-                    <SolidColorBrush x:Key="DotPad.Toolbar.BackgroundBrush"      Color="#F3F3F3" />
-                    <SolidColorBrush x:Key="DotPad.Toolbar.BorderBrush"          Color="#E7E7E7" />
-                    <SolidColorBrush x:Key="DotPad.Editor.BackgroundBrush"       Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="DotPad.Output.BackgroundBrush"       Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="DotPad.Panel.BackgroundBrush"        Color="#F3F3F3" />
-                    <SolidColorBrush x:Key="DotPad.StatusBar.BackgroundBrush"    Color="#007ACC" />
-                    <SolidColorBrush x:Key="DotPad.StatusBar.ForegroundBrush"    Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="DotPad.StatusBar.DebuggingBrush"     Color="#CC6633" />
-                    <SolidColorBrush x:Key="DotPad.Separator.BackgroundBrush"    Color="#E7E7E7" />
-                    <SolidColorBrush x:Key="DotPad.Border.BackgroundBrush"       Color="#DDDDDD" />
-                    <SolidColorBrush x:Key="DotPad.Text.PrimaryBrush"            Color="#383838" />
-                    <SolidColorBrush x:Key="DotPad.Text.SecondaryBrush"          Color="#717171" />
-                    <SolidColorBrush x:Key="DotPad.Accent.BackgroundBrush"       Color="#C8EBFB" />
-                    <SolidColorBrush x:Key="DotPad.Accent.ForegroundBrush"       Color="#005FB8" />
-                    <SolidColorBrush x:Key="DotPad.Toolbar.Button.HoverBrush"    Color="#E0E0E0" />
+                    <SolidColorBrush x:Key="DotPad.Sidebar.BackgroundBrush"           Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BackgroundBrush"           Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BorderBrush"               Color="#E7E7E7" />
+                    <SolidColorBrush x:Key="DotPad.Editor.BackgroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.Editor.SelectionBrush"             Color="#ADD6FF" />
+                    <SolidColorBrush x:Key="DotPad.Output.BackgroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.Output.ErrorForeground"            Color="#CC0000" />
+                    <SolidColorBrush x:Key="DotPad.Output.StackTraceForeground"       Color="#A31515" />
+                    <SolidColorBrush x:Key="DotPad.Panel.BackgroundBrush"             Color="#F3F3F3" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.BackgroundBrush"         Color="#007ACC" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.ForegroundBrush"         Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.DebuggingBrush"          Color="#CC6633" />
+                    <SolidColorBrush x:Key="DotPad.Status.RunningBrush"               Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="DotPad.Status.CancelledBrush"             Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="DotPad.Status.SuccessBrush"               Color="#4EC94E" />
+                    <SolidColorBrush x:Key="DotPad.Status.ErrorBrush"                 Color="#F14C4C" />
+                    <SolidColorBrush x:Key="DotPad.Status.PausedBrush"                Color="#FFA500" />
+                    <SolidColorBrush x:Key="DotPad.Separator.BackgroundBrush"         Color="#E7E7E7" />
+                    <SolidColorBrush x:Key="DotPad.Border.BackgroundBrush"            Color="#DDDDDD" />
+                    <SolidColorBrush x:Key="DotPad.Text.PrimaryBrush"                 Color="#383838" />
+                    <SolidColorBrush x:Key="DotPad.Text.SecondaryBrush"               Color="#717171" />
+                    <SolidColorBrush x:Key="DotPad.Accent.BackgroundBrush"            Color="#C8EBFB" />
+                    <SolidColorBrush x:Key="DotPad.Accent.ForegroundBrush"            Color="#005FB8" />
+                    <SolidColorBrush x:Key="DotPad.Tab.AccentBrush"                    Color="#007ACC" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.Button.HoverBrush"         Color="#E0E0E0" />
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>
