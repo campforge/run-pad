@@ -1,0 +1,30 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:themes="using:DotPad.Avalonia.Themes">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="{x:Static themes:DotPadThemeVariants.Vs2022Dark}">
+                    <SolidColorBrush x:Key="DotPad.Sidebar.BackgroundBrush"      Color="#2D2D30" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BackgroundBrush"      Color="#2D2D30" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.BorderBrush"          Color="#3F3F46" />
+                    <SolidColorBrush x:Key="DotPad.Editor.BackgroundBrush"       Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="DotPad.Output.BackgroundBrush"       Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="DotPad.Panel.BackgroundBrush"        Color="#252526" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.BackgroundBrush"    Color="#68217A" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.ForegroundBrush"    Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.StatusBar.DebuggingBrush"     Color="#CA5100" />
+                    <SolidColorBrush x:Key="DotPad.Separator.BackgroundBrush"    Color="#3F3F46" />
+                    <SolidColorBrush x:Key="DotPad.Border.BackgroundBrush"       Color="#3F3F46" />
+                    <SolidColorBrush x:Key="DotPad.Text.PrimaryBrush"            Color="#DCDCDC" />
+                    <SolidColorBrush x:Key="DotPad.Text.SecondaryBrush"          Color="#9B9B9B" />
+                    <SolidColorBrush x:Key="DotPad.Accent.BackgroundBrush"       Color="#264F78" />
+                    <SolidColorBrush x:Key="DotPad.Accent.ForegroundBrush"       Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.Toolbar.Button.HoverBrush"    Color="#3E3E40" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>
