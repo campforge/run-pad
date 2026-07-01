@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.HtmlRenderer;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DotPad.Contracts;
@@ -26,6 +25,7 @@ public partial class MainWindow : Window, IDisposable
 
     private readonly Dictionary<EditorTabViewModel, (TabItem Tab, EditorTabControl Control)> _tabs = new();
     private EditorTabViewModel? _prevActiveVm;
+    private IDataTemplate _tabHeaderTemplate = null!;
 
     // Shared output / status controls
     private HtmlPanel? _htmlPanel;
@@ -60,6 +60,9 @@ public partial class MainWindow : Window, IDisposable
         _htmlPanel?.Container.AddFontFamily(
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
+        Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
+        _tabHeaderTemplate = (IDataTemplate)tmpl!;
+
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;
         fileTabControl.SelectionChanged += OnFileTabSelectionChanged;
 
@@ -86,7 +89,7 @@ public partial class MainWindow : Window, IDisposable
                 var ctrl = _tabFactory.Create(vm);
                 ctrl.StateChanged += OnTabStateChanged;
 
-                var tab = new TabItem { Header = BuildTabHeader(vm), Content = ctrl };
+                var tab = new TabItem { Header = vm, HeaderTemplate = _tabHeaderTemplate, Content = ctrl };
                 _tabs[vm] = (tab, ctrl);
                 fileTabControl.Items.Add(tab);
             }
@@ -104,30 +107,6 @@ public partial class MainWindow : Window, IDisposable
                 _tabs.Remove(vm);
             }
         }
-    }
-
-    private StackPanel BuildTabHeader(EditorTabViewModel vm)
-    {
-        var label = new TextBlock
-        {
-            Text = vm.FileName,
-            VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 12
-        };
-        var closeBtn = new Button
-        {
-            Content = "×",
-            Classes = { "TabClose" },
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        closeBtn.Click += (_, _) => vm.CloseCommand.Execute(Unit.Default).Subscribe();
-
-        return new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing     = 4,
-            Children    = { label, closeBtn }
-        };
     }
 
     // ── Selection sync ────────────────────────────────────────────────────────

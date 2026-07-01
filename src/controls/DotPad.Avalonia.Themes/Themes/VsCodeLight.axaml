@@ -30,7 +30,13 @@
                     <SolidColorBrush x:Key="DotPad.Accent.BackgroundBrush"            Color="#C8EBFB" />
                     <SolidColorBrush x:Key="DotPad.Accent.ForegroundBrush"            Color="#005FB8" />
                     <SolidColorBrush x:Key="DotPad.Tab.AccentBrush"                    Color="#007ACC" />
+                    <Color             x:Key="DotPad.Tab.AccentColor"                               >#007ACC</Color>
                     <SolidColorBrush x:Key="DotPad.Toolbar.Button.HoverBrush"         Color="#E0E0E0" />
+                    <SolidColorBrush x:Key="DotPad.Icon.PlayBrush"                    Color="#26862B" />
+                    <SolidColorBrush x:Key="DotPad.Icon.StopBrush"                    Color="#B80000" />
+                    <SolidColorBrush x:Key="DotPad.Icon.DebugBrush"                   Color="#C26500" />
+                    <SolidColorBrush x:Key="DotPad.Icon.PauseBrush"                   Color="#C26500" />
+                    <SolidColorBrush x:Key="DotPad.Icon.StepBrush"                    Color="#006BB3" />
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>
