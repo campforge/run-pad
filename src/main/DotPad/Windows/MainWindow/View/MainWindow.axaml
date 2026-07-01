@@ -19,18 +19,55 @@
             <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
         </Style>
+
+           <!-- Restrict the entire header strip panel -->
+        <Style Selector="TabControl#FileTabControl WrapPanel">
+            <Setter Property="MaxHeight" Value="30"/>
+        </Style>
+
         <Style Selector="TabControl#FileTabControl > TabItem">
-            <Setter Property="Background"      Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
-            <Setter Property="Foreground"      Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
-            <Setter Property="FontSize"        Value="12"/>
-            <Setter Property="Height"          Value="30"/>
-            <Setter Property="Padding"         Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background"  Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
+            <Setter Property="Foreground"  Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Margin"      Value="0"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TabItem">
+                    <Panel>
+                        <!-- 1 px top accent — appears only on the selected tab -->
+                        <Border x:Name="TopAccent"
+                                Height="1"
+                                VerticalAlignment="Top"
+                                Background="Transparent"
+                                ZIndex="1"/>
+                        <!-- Tab background + right separator border + content -->
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                                BorderThickness="0,0,1,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter x:Name="PART_ContentPresenter"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Panel>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <!-- Selected: accent + editor background -->
+        <Style Selector="TabControl#FileTabControl > TabItem:selected /template/ Border#TopAccent">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Tab.AccentBrush}"/>
         </Style>
         <Style Selector="TabControl#FileTabControl > TabItem:selected">
             <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
         </Style>
-        <Style Selector="TabControl#FileTabControl > TabItem:pointerover">
+        <!-- Hover: lighten background slightly -->
+        <Style Selector="TabControl#FileTabControl > TabItem:pointerover /template/ Border#Root">
             <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
@@ -74,8 +111,21 @@
         <!-- ── Editor area ──────────────────────────────────────────────── -->
         <Grid Grid.Column="1" RowDefinitions="*, 1, 250, 25">
 
-            <!-- File tabs — each EditorTabControl has its own toolbar inside -->
-            <TabControl Grid.Row="0" Name="FileTabControl" Padding="0"/>
+            <!-- File tabs + "+" new-file button overlaid at top-right -->
+            <Panel Grid.Row="0">
+                <TabControl Name="FileTabControl" Padding="0"/>
+                <Button Name="NewFileButton"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Content="+"
+                        Width="30" Height="30"
+                        FontSize="16" Padding="0"
+                        Click="NewFile_Click"
+                        ToolTip.Tip="New file"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            </Panel>
 
             <!-- Separator -->
             <Border Grid.Row="1"

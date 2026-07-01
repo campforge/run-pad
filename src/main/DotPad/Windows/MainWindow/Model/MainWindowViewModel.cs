@@ -31,6 +31,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
+    public EditorTabViewModel NewFile()
+    {
+        var folder = _fileSystemService.GetOrCreateDefaultFolder();
+        var path   = _fileSystemService.CreateNewFile(folder);
+        Nodes.Add(new Node(Path.GetFileName(path), path));
+        return OpenTab(path);
+    }
+
     public EditorTabViewModel OpenTab(string? filePath)
     {
         if (filePath is not null && _openTabs.TryGetValue(filePath, out var existing))
