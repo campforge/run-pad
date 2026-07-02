@@ -39,6 +39,10 @@
                     <SolidColorBrush x:Key="DotPad.Icon.PauseBrush"                   Color="#FFA94D" />
                     <SolidColorBrush x:Key="DotPad.Icon.StepBrush"                    Color="#56A8F5" />
                     <SolidColorBrush x:Key="DotPad.Icon.DisabledBrush"               Color="#636669" />
+                    <SolidColorBrush x:Key="DotPad.Margin.BreakpointBrush"           Color="#F75464" />
+                    <SolidColorBrush x:Key="DotPad.Margin.BreakpointPreviewBrush"    Color="#8B3040" />
+                    <SolidColorBrush x:Key="DotPad.Margin.DebugArrowBrush"           Color="#FFD040" />
+                    <SolidColorBrush x:Key="DotPad.Margin.DebugLineBrush"            Color="#3CFFD000" />
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>

@@ -6,7 +6,7 @@ namespace DotPad.Avalonia.CodeTextEditor;
 
 internal sealed class DebugLineHighlighter : IBackgroundRenderer
 {
-    private static readonly IBrush HighlightBrush = new SolidColorBrush(Color.FromArgb(55, 255, 216, 0));
+    private static readonly IBrush FallbackBrush = new SolidColorBrush(Color.FromArgb(55, 255, 216, 0));
 
     public int? CurrentLine { get; set; }
     public KnownLayer Layer => KnownLayer.Background;
@@ -20,10 +20,14 @@ internal sealed class DebugLineHighlighter : IBackgroundRenderer
             .FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == line);
         if (visualLine is null) return;
 
+        object? res = null;
+        Application.Current?.TryGetResource("DotPad.Margin.DebugLineBrush",
+            Application.Current?.ActualThemeVariant, out res);
+        var brush = res as IBrush ?? FallbackBrush;
+
         var yTop = visualLine.GetTextLineVisualYPosition(visualLine.TextLines[0], VisualYPosition.LineTop)
                    - textView.VerticalOffset;
 
-        drawingContext.FillRectangle(HighlightBrush,
-            new Rect(0, yTop, textView.Bounds.Width, visualLine.Height));
+        drawingContext.FillRectangle(brush, new Rect(0, yTop, textView.Bounds.Width, visualLine.Height));
     }
 }
