@@ -8,10 +8,10 @@ namespace DotPad.Build.Core.ProcessRunners;
 public class LocalProcess : IExecutionProcess, IAsyncDisposable
 {
     private readonly Channel<string> _outputChannel = Channel.CreateBounded<string>(5);
-    private readonly Channel<string> _inputChannel = Channel.CreateBounded<string>(5);
+    private readonly Channel<string> _inputChannel  = Channel.CreateBounded<string>(5);
     private readonly Channel<string> _errorOutputChannel = Channel.CreateBounded<string>(5);
 
-    public ChannelReader<string> Reader => _outputChannel.Reader;
+    public ChannelReader<string> Reader      => _outputChannel.Reader;
     public ChannelReader<string> ErrorReader => _errorOutputChannel.Reader;
     public ChannelWriter<string> InputWriter => _inputChannel.Writer;
 
@@ -21,16 +21,16 @@ public class LocalProcess : IExecutionProcess, IAsyncDisposable
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = options.Runtime.RuntimePath,
-            Arguments = args.ToString(),
-            WorkingDirectory = options.WorkingDirectory,
-            CreateNoWindow = true,
-            UseShellExecute = false,
+            FileName               = options.Runtime.RuntimePath,
+            Arguments              = args.ToString(),
+            WorkingDirectory       = options.WorkingDirectory,
+            CreateNoWindow         = true,
+            UseShellExecute        = false,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
+            RedirectStandardError  = true,
+            RedirectStandardInput  = true,
             StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            StandardErrorEncoding  = Encoding.UTF8,
         };
         _process = new Process();
         _process.StartInfo = startInfo;
@@ -42,7 +42,7 @@ public class LocalProcess : IExecutionProcess, IAsyncDisposable
             return;
         await Task.WhenAll(
             ReadOutput(_process.StandardOutput, ct),
-            ReadErrors(_process.StandardError, ct));
+            ReadErrors(_process.StandardError,  ct));
     }
 
     private async Task ReadErrors(StreamReader reader, CancellationToken cancellationToken)

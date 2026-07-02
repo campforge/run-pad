@@ -55,7 +55,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var editor = new CodeTextEditor { Background = editorBackground };
         State = new EditorTabState(editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant);
+        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant, themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
         prefs.Changed += OnPreferencesChanged;
@@ -97,7 +97,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         ApplySelectionColor(State.Editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant);
+        State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
         UpdateOutputUi();
     }
 
@@ -153,14 +153,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         Dispatcher.UIThread.Post(() => OnBreakpointHit(ctx));
                     await host.RunDebugAsync(
                         script,
-                        (data, _) => Dispatcher.UIThread.Post(() => AppendOutput(data)),
+                        (data, kind) => Dispatcher.UIThread.Post(() => AppendOutput(data, kind)),
                         s.RunCts.Token);
                 }
                 else
                 {
                     await host.RunAsync(
                         script,
-                        (data, _) => Dispatcher.UIThread.Post(() => AppendOutput(data)),
+                        (data, kind) => Dispatcher.UIThread.Post(() => AppendOutput(data, kind)),
                         s.RunCts.Token);
                 }
             }, s.RunCts.Token);
@@ -247,9 +247,43 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.ExecStatusColor = colorKey;
     }
 
-    private void AppendOutput(string data)
+
+    private void AppendOutput(string data, OutputKind kind)
     {
-        State.OutputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+        if (kind == OutputKind.DumpHtml)
+        {
+            RenderDump(data);
+            return;
+        }
+        if (data.Length > 0 && data[0] == '\x1e')
+        {
+            RenderDump(data[1..]);
+            return;
+        }
+        if (data.StartsWith("DOTPAD_DUMP:", StringComparison.Ordinal))
+        {
+            RenderDump(data["DOTPAD_DUMP:".Length..]);
+            return;
+        }
+
+        if (kind == OutputKind.StandardError)
+            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
+        else
+            State.OutputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+        UpdateOutputUi();
+    }
+
+    private void RenderDump(string base64)
+    {
+        try
+        {
+            var html = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
+            State.OutputContent += $"\n<div class=\"dp-dump\">{html}</div>";
+        }
+        catch
+        {
+            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
+        }
         UpdateOutputUi();
     }
 
@@ -310,6 +344,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
         editor.ShowLineNumbers = s.ShowLineNumbers;
+        editor.ShowFolding     = s.ShowFolding;
         editor.FontSize = s.FontSize;
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;

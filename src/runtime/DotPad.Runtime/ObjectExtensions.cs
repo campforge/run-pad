@@ -1,23 +1,16 @@
-﻿using System;
-using System.Text.Json;
+using System;
+using System.Text;
 
 // ReSharper disable once CheckNamespace
 public static class ObjectExtensions
 {
-    public static T Dump<T>(this T o, string? header = null, int? maxDepth = null)
-    {
-        DumpCore(o, header, maxDepth);
-        return o;
-    }
+    internal const char DumpLinePrefixChar = '\x1e'; // ASCII Record Separator — non-printable, won't appear in normal output
 
-    private static T DumpCore<T>(T o, string? header, int? maxDepth)
+    public static T Dump<T>(this T o, string? label = null, int? maxDepth = null)
     {
-        Console.WriteLine($"dump <{typeof(T)}>: {
-            JsonSerializer.Serialize(o, new JsonSerializerOptions()
-            {
-                WriteIndented = false,
-                MaxDepth = maxDepth ?? 0
-            })} : {header}");
+        var html    = DotPad.Runtime.DumpRenderer.Render(o, label, maxDepth);
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(html));
+        Console.WriteLine(DumpLinePrefixChar + encoded);
         return o;
     }
 }

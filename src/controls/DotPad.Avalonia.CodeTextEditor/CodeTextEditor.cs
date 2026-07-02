@@ -5,10 +5,12 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
+using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
@@ -21,15 +23,25 @@ public class CodeTextEditor : TextEditor
     public static readonly StyledProperty<bool> ShowBreakpointsProperty =
         AvaloniaProperty.Register<CodeTextEditor, bool>(nameof(ShowBreakpoints));
 
+    public static readonly StyledProperty<bool> ShowFoldingProperty =
+        AvaloniaProperty.Register<CodeTextEditor, bool>(nameof(ShowFolding));
+
     static CodeTextEditor()
     {
         ShowBreakpointsProperty.Changed.AddClassHandler<CodeTextEditor>(
             static (editor, e) => editor.OnShowBreakpointsChanged((bool?)e.NewValue));
+        ShowFoldingProperty.Changed.AddClassHandler<CodeTextEditor>(
+            static (editor, e) => editor.OnShowFoldingChanged((bool?)e.NewValue));
     }
 
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
+    private readonly BraceFoldingStrategy _foldingStrategy = new();
+    private readonly DispatcherTimer _foldingTimer;
+    private FoldingManager?       _foldingManager;
+    private VsCodeFoldingMargin?  _foldingMargin;
+    private bool _isLoaded;
     private CodeTextEditorOptions _editorOptions = new();
     private RegistryOptions? _registryOptions;
     private Installation? _textMateInstallation;
@@ -73,6 +85,12 @@ public class CodeTextEditor : TextEditor
         set => SetValue(ShowBreakpointsProperty, value);
     }
 
+    public bool ShowFolding
+    {
+        get => GetValue(ShowFoldingProperty);
+        set => SetValue(ShowFoldingProperty, value);
+    }
+
     public int? DebugCurrentLine
     {
         get => _breakpointMargin.DebugLine;
@@ -97,6 +115,9 @@ public class CodeTextEditor : TextEditor
 
         _breakpointMargin     = new BreakPointMargin(this, _breakpointStore);
         _debugLineHighlighter = new DebugLineHighlighter();
+
+        _foldingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _foldingTimer.Tick += (_, _) => { _foldingTimer.Stop(); UpdateFoldings(); };
 
         // Remove DeleteLine — conflicts with our line-based workflow
         var deleteLineCommand = TextArea.CommandBindings
@@ -130,6 +151,26 @@ public class CodeTextEditor : TextEditor
         TextArea.TextEntering += OnTextEntering;
         TextArea.TextEntered  += OnTextEntered;
 
+        TextChanged += (_, _) => { _foldingTimer.Stop(); _foldingTimer.Start(); };
+
+        // FoldingManager.Install requires the document to be in its final state;
+        // defer until Loaded so AvaloniaEdit's template has fully applied.
+        Loaded += (_, _) =>
+        {
+            _isLoaded = true;
+            if (ShowFolding && _foldingManager is null)
+                InstallFolding();
+        };
+
+        // Reinstall when the document object itself is replaced (new file opened).
+        DocumentChanged += (_, _) =>
+        {
+            if (!ShowFolding || !_isLoaded) return;
+            if (_foldingManager is not null)
+                UninstallFolding();
+            InstallFolding();
+        };
+
         AddHandler(PointerWheelChangedEvent, OnFontSizeScroll, RoutingStrategies.Bubble, handledEventsToo: true);
 
         ApplyOptions();
@@ -138,6 +179,7 @@ public class CodeTextEditor : TextEditor
     private void ApplyOptions()
     {
         ShowBreakpoints = _editorOptions.ShowBreakpoints;
+        ShowFolding     = _editorOptions.ShowFolding;
         Options.ColumnRulerPositions = _editorOptions.ColumnRulerPositions;
     }
 
@@ -148,6 +190,56 @@ public class CodeTextEditor : TextEditor
             leftMargins.Insert(1, _breakpointMargin);
         else
             leftMargins.Remove(_breakpointMargin);
+    }
+
+    private void OnShowFoldingChanged(bool? show)
+    {
+        if (show == true)
+        {
+            if (_isLoaded && _foldingManager is null)
+                InstallFolding();
+            // else: deferred to Loaded event
+        }
+        else if (_foldingManager is not null)
+        {
+            UninstallFolding();
+        }
+    }
+
+    private void InstallFolding()
+    {
+        _foldingManager = FoldingManager.Install(TextArea);
+
+        // Replace AvaloniaEdit's default FoldingMargin with our VS Code-style one.
+        // FoldingManager.Install adds a FoldingMargin; we swap it out immediately.
+        var defaultMargin = TextArea.LeftMargins.OfType<FoldingMargin>().FirstOrDefault();
+        if (defaultMargin is not null)
+        {
+            var idx = TextArea.LeftMargins.IndexOf(defaultMargin);
+            TextArea.LeftMargins.Remove(defaultMargin);
+            _foldingMargin = new VsCodeFoldingMargin(_foldingManager);
+            TextArea.LeftMargins.Insert(idx, _foldingMargin);
+        }
+
+        UpdateFoldings();
+    }
+
+    private void UninstallFolding()
+    {
+        if (_foldingMargin is not null)
+        {
+            TextArea.LeftMargins.Remove(_foldingMargin);
+            _foldingMargin = null;
+        }
+        FoldingManager.Uninstall(_foldingManager!);
+        _foldingManager = null;
+    }
+
+    private void UpdateFoldings()
+    {
+        if (_foldingManager is null || Document is null) return;
+        _foldingStrategy.UpdateFoldings(_foldingManager, Document);
+        _foldingMargin?.InvalidateVisual();
     }
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)

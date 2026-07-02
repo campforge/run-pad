@@ -110,7 +110,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             var ioTask = process.Start(cts.Token);
 
             await Task.WhenAll(
-                DrainChannelAsync(process.Reader,      OutputKind.StandardOutput, outputHandler, cts.Token),
+                DrainChannelAsync(process.Reader,      OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
                 DrainChannelAsync(process.ErrorReader, OutputKind.StandardError,  outputHandler, cts.Token),
                 ioTask);
 
@@ -148,13 +148,17 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 binaryPath,
                 _options.OutputDirectory,
                 ActiveBreakpoints,
-                outputHandler,
+                WrapWithDumpDetection(outputHandler),
                 HandleBreakpointHit,
                 _loggerFactory.CreateLogger<CSharpDapSession>());
 
             _currentSession = session;
             try { await session.RunAsync(cts.Token); }
-            finally { _currentSession = null; }
+            finally
+            {
+                session.FlushOutputBuffers();
+                _currentSession = null;
+            }
         }
         finally
         {
@@ -206,6 +210,23 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private const char   RsPrefix   = '\x1e';        // new format: RS + base64
+    private const string TextPrefix = "DOTPAD_DUMP:"; // legacy format
+
+    private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
+    {
+        if (handler is null) return null;
+        return (data, kind) =>
+        {
+            if (data.Length > 0 && data[0] == RsPrefix)
+                handler(data[1..], OutputKind.DumpHtml);
+            else if (data.StartsWith(TextPrefix, StringComparison.Ordinal))
+                handler(data[TextPrefix.Length..], OutputKind.DumpHtml);
+            else
+                handler(data, kind);
+        };
+    }
 
     private static async Task DrainChannelAsync(
         ChannelReader<string> reader,
