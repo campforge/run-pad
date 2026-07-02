@@ -39,8 +39,8 @@ public class CodeTextEditor : TextEditor
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceFoldingStrategy _foldingStrategy = new();
     private readonly DispatcherTimer _foldingTimer;
-    private FoldingManager?       _foldingManager;
-    private VsCodeFoldingMargin?  _foldingMargin;
+    private FoldingManager? _foldingManager;
+    private VsCodeFoldingMargin? _foldingMargin;
     private bool _isLoaded;
     private CodeTextEditorOptions _editorOptions = new();
     private RegistryOptions? _registryOptions;
@@ -96,8 +96,8 @@ public class CodeTextEditor : TextEditor
         get => _breakpointMargin.DebugLine;
         set
         {
-            _breakpointMargin.DebugLine        = value;
-            _debugLineHighlighter.CurrentLine  = value;
+            _breakpointMargin.DebugLine = value;
+            _debugLineHighlighter.CurrentLine = value;
             _breakpointMargin.InvalidateVisual();
             TextArea.TextView.InvalidateLayer(KnownLayer.Background);
             if (value is { } line)
@@ -110,10 +110,10 @@ public class CodeTextEditor : TextEditor
     public CodeTextEditor()
     {
         _breakpointStore = new BreakpointStore();
-        _breakpointStore.BreakpointAdded   += (_, e) => BreakpointAdded?.Invoke(this, e);
+        _breakpointStore.BreakpointAdded += (_, e) => BreakpointAdded?.Invoke(this, e);
         _breakpointStore.BreakpointRemoved += (_, e) => BreakpointRemoved?.Invoke(this, e);
 
-        _breakpointMargin     = new BreakPointMargin(this, _breakpointStore);
+        _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
         _debugLineHighlighter = new DebugLineHighlighter();
 
         _foldingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
@@ -149,7 +149,7 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.ElementGenerators.Add(InlineControls);
 
         TextArea.TextEntering += OnTextEntering;
-        TextArea.TextEntered  += OnTextEntered;
+        TextArea.TextEntered += OnTextEntered;
 
         TextChanged += (_, _) => { _foldingTimer.Stop(); _foldingTimer.Start(); };
 
@@ -179,7 +179,7 @@ public class CodeTextEditor : TextEditor
     private void ApplyOptions()
     {
         ShowBreakpoints = _editorOptions.ShowBreakpoints;
-        ShowFolding     = _editorOptions.ShowFolding;
+        ShowFolding = _editorOptions.ShowFolding;
         Options.ColumnRulerPositions = _editorOptions.ColumnRulerPositions;
     }
 

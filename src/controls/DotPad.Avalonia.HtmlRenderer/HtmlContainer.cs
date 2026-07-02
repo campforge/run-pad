@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -45,7 +45,7 @@ public sealed class HtmlContainer : IDisposable
     /// <summary>
     /// Init.
     /// </summary>
-    public HtmlContainer(Control hostControl)
+    public HtmlContainer(Control? hostControl)
     {
         _avaloniaAdapter = new AvaloniaAdapter(hostControl);
         _htmlContainerInt = new HtmlContainerInt(_avaloniaAdapter);
@@ -274,7 +274,7 @@ public sealed class HtmlContainer : IDisposable
     /// </summary>
     /// <param name="htmlSource">the html to init with, init empty if not given</param>
     /// <param name="baseCssData">optional: the stylesheet to init with, init default if not given</param>
-    public void SetHtml(string htmlSource, CssData baseCssData = null)
+    public void SetHtml(string? htmlSource, CssData? baseCssData = null)
     {
         _htmlContainerInt.SetHtml(htmlSource, baseCssData);
     }

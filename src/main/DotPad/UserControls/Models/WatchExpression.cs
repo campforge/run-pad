@@ -5,8 +5,8 @@ namespace DotPad.UserControls.Models;
 public class WatchExpression : ReactiveObject
 {
     private string _expression = "";
-    private string _value      = "?";
-    private string _typeName   = "";
+    private string _value = "?";
+    private string _typeName = "";
 
     public string Expression
     {

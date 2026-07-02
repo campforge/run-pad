@@ -15,10 +15,10 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
     public string Language => "csharp";
 
     public LanguageHostCapabilities Capabilities =>
-        LanguageHostCapabilities.Run               |
-        LanguageHostCapabilities.Debug             |
-        LanguageHostCapabilities.Breakpoints       |
-        LanguageHostCapabilities.VariableInspection|
+        LanguageHostCapabilities.Run |
+        LanguageHostCapabilities.Debug |
+        LanguageHostCapabilities.Breakpoints |
+        LanguageHostCapabilities.VariableInspection |
         LanguageHostCapabilities.MemoryDump;
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)

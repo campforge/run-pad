@@ -9,7 +9,7 @@ namespace DotPad.Runtime;
 
 internal static class DumpRenderer
 {
-    private const int MaxRows         = 1000;
+    private const int MaxRows = 1000;
     private const int MaxStringLength = 500;
     private const int DefaultMaxDepth = 3;
 
@@ -64,16 +64,16 @@ internal static class DumpRenderer
     // ── Primitives ────────────────────────────────────────────────────────────
 
     private static bool IsPrimitiveLike(Type type) =>
-        type.IsPrimitive           ||
-        type == typeof(string)     ||
-        type == typeof(decimal)    ||
-        type == typeof(char)       ||
-        type == typeof(bool)       ||
-        type == typeof(DateTime)   ||
+        type.IsPrimitive ||
+        type == typeof(string) ||
+        type == typeof(decimal) ||
+        type == typeof(char) ||
+        type == typeof(bool) ||
+        type == typeof(DateTime) ||
         type == typeof(DateTimeOffset) ||
-        type == typeof(TimeSpan)   ||
-        type == typeof(Guid)       ||
-        type == typeof(Uri)        ||
+        type == typeof(TimeSpan) ||
+        type == typeof(Guid) ||
+        type == typeof(Uri) ||
         type.IsEnum;
 
     private static void RenderPrimitive(StringBuilder sb, object value, Type type)
@@ -81,11 +81,11 @@ internal static class DumpRenderer
         switch (value)
         {
             case string s:
-            {
-                var v = s.Length > MaxStringLength ? s.Substring(0, MaxStringLength) + "…" : s;
-                sb.Append("<span class=\"dp-string\">&quot;").Append(Encode(v)).Append("&quot;</span>");
-                break;
-            }
+                {
+                    var v = s.Length > MaxStringLength ? s.Substring(0, MaxStringLength) + "…" : s;
+                    sb.Append("<span class=\"dp-string\">&quot;").Append(Encode(v)).Append("&quot;</span>");
+                    break;
+                }
             case char c:
                 sb.Append("<span class=\"dp-string\">&apos;").Append(Encode(c.ToString())).Append("&apos;</span>");
                 break;
@@ -154,7 +154,7 @@ internal static class DumpRenderer
         }
 
         var shownCount = Math.Min(items.Count, MaxRows);
-        var hasMore    = items.Count > MaxRows;
+        var hasMore = items.Count > MaxRows;
 
         sb.Append("<div class=\"dp-count\">")
           .Append(Encode(FriendlyName(collectionType)))
@@ -215,7 +215,7 @@ internal static class DumpRenderer
                         foreach (var p in props)
                         {
                             sb.Append("<td class=\"dp-td\">");
-                            try   { RenderValue(sb, p.GetValue(item), depth + 1, maxDepth); }
+                            try { RenderValue(sb, p.GetValue(item), depth + 1, maxDepth); }
                             catch (Exception ex) { sb.Append("<span class=\"dp-error\">").Append(Encode(ex.Message)).Append("</span>"); }
                             sb.Append("</td>");
                         }
@@ -251,7 +251,7 @@ internal static class DumpRenderer
         foreach (var p in props)
         {
             sb.Append("<tr><td class=\"dp-td dp-propname\">").Append(Encode(p.Name)).Append("</td><td class=\"dp-td\">");
-            try   { RenderValue(sb, p.GetValue(value), depth + 1, maxDepth); }
+            try { RenderValue(sb, p.GetValue(value), depth + 1, maxDepth); }
             catch (Exception ex) { sb.Append("<span class=\"dp-error\">").Append(Encode(ex.Message)).Append("</span>"); }
             sb.Append("</td></tr>");
         }
@@ -263,9 +263,9 @@ internal static class DumpRenderer
     private static string FriendlyName(Type type)
     {
         if (!type.IsGenericType) return type.Name;
-        var idx      = type.Name.IndexOf('`');
+        var idx = type.Name.IndexOf('`');
         var baseName = idx >= 0 ? type.Name.Substring(0, idx) : type.Name;
-        var args     = string.Join(", ", type.GetGenericArguments().Select(FriendlyName));
+        var args = string.Join(", ", type.GetGenericArguments().Select(FriendlyName));
         return baseName + "<" + args + ">";
     }
 
@@ -273,7 +273,7 @@ internal static class DumpRenderer
 
     private static string SafeToString(object? v)
     {
-        try   { return v?.ToString() ?? "null"; }
+        try { return v?.ToString() ?? "null"; }
         catch { return "<" + (v?.GetType().Name ?? "?") + ">"; }
     }
 

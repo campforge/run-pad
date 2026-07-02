@@ -301,7 +301,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var s = State;
         s.CurrentDebugCtx = context;
-        _vm.RunState      = RunState.Paused;
+        _vm.RunState = RunState.Paused;
         State.Editor.DebugCurrentLine = context.CallStack.Count > 0
             ? context.CallStack[0].Line
             : context.Breakpoint.Line;
@@ -344,7 +344,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
         editor.ShowLineNumbers = s.ShowLineNumbers;
-        editor.ShowFolding     = s.ShowFolding;
+        editor.ShowFolding = s.ShowFolding;
         editor.FontSize = s.FontSize;
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;

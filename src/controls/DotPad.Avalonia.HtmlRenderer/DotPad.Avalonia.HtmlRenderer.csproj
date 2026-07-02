@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-      <NoWarn>CS0436</NoWarn>
+      <NoWarn>CS0436;SYSLIB0014</NoWarn>
     <RootNamespace>DotPad.Avalonia.HtmlRenderer</RootNamespace>
   </PropertyGroup>
   <ItemGroup>

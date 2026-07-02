@@ -1,3 +1,4 @@
+﻿#nullable disable
 namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>

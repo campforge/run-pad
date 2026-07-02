@@ -15,8 +15,8 @@ public sealed class PreferencesService : IPreferencesService
     private AppSettings _settings = new();
 
     public AppearanceSettings Appearance => _settings.Appearance;
-    public EditorSettings     Editor     => _settings.Editor;
-    public DebuggerSettings   Debugger   => _settings.Debugger;
+    public EditorSettings Editor => _settings.Editor;
+    public DebuggerSettings Debugger => _settings.Debugger;
 
     public event Action? Changed;
 

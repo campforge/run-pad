@@ -35,15 +35,15 @@ public sealed class LocalDebuggerProcess : IAsyncDisposable
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName               = options.Debugger.DebuggerPath,
-                Arguments              = args.ToString(),
-                WorkingDirectory       = options.WorkingDirectory,
-                CreateNoWindow         = true,
-                UseShellExecute        = false,
+                FileName = options.Debugger.DebuggerPath,
+                Arguments = args.ToString(),
+                WorkingDirectory = options.WorkingDirectory,
+                CreateNoWindow = true,
+                UseShellExecute = false,
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                RedirectStandardInput  = true,
-                StandardErrorEncoding  = Encoding.UTF8,
+                RedirectStandardError = true,
+                RedirectStandardInput = true,
+                StandardErrorEncoding = Encoding.UTF8,
             }
         };
     }
@@ -53,8 +53,8 @@ public sealed class LocalDebuggerProcess : IAsyncDisposable
         _process.Start();
         // Access BaseStream directly — bypasses StreamReader/Writer buffering and encoding.
         OutputStream = _process.StandardOutput.BaseStream;
-        InputStream  = _process.StandardInput.BaseStream;
-        _stderrTask  = PumpStderrAsync(ct);
+        InputStream = _process.StandardInput.BaseStream;
+        _stderrTask = PumpStderrAsync(ct);
     }
 
     private async Task PumpStderrAsync(CancellationToken ct)

@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -66,7 +66,7 @@ public class HtmlControl : Control
     /// <summary>
     /// the base stylesheet data used in the control
     /// </summary>
-    protected CssData _baseCssData;
+    protected CssData? _baseCssData;
 
     /// <summary>
     /// The last position of the scrollbars to know if it has changed to update mouse
@@ -78,29 +78,29 @@ public class HtmlControl : Control
 
     #region Dependency properties / routed events
 
-    public static readonly AvaloniaProperty AvoidImagesLateLoadingProperty =
+    public static readonly StyledProperty<bool> AvoidImagesLateLoadingProperty =
         AvaloniaProperty.Register<HtmlControl, bool>(nameof(AvoidImagesLateLoading), defaultValue: false);
-    public static readonly AvaloniaProperty IsSelectionEnabledProperty =
+    public static readonly StyledProperty<bool> IsSelectionEnabledProperty =
         AvaloniaProperty.Register<HtmlControl, bool>(nameof(IsSelectionEnabled), defaultValue: true);
-    public static readonly AvaloniaProperty IsContextMenuEnabledProperty =
+    public static readonly StyledProperty<bool> IsContextMenuEnabledProperty =
         AvaloniaProperty.Register<HtmlControl, bool>(nameof(IsContextMenuEnabled), defaultValue: true);
 
-    public static readonly AvaloniaProperty BaseStylesheetProperty =
-        AvaloniaProperty.Register<HtmlControl, string>(nameof(BaseStylesheet), defaultValue: null);
+    public static readonly StyledProperty<string?> BaseStylesheetProperty =
+        AvaloniaProperty.Register<HtmlControl, string?>(nameof(BaseStylesheet));
 
-    public static readonly AvaloniaProperty TextProperty =
-        AvaloniaProperty.Register<HtmlControl, string>(nameof(Text), defaultValue: null);
+    public static readonly StyledProperty<string?> TextProperty =
+        AvaloniaProperty.Register<HtmlControl, string?>(nameof(Text));
 
-    public static readonly StyledProperty<IBrush> BackgroundProperty =
+    public static readonly StyledProperty<IBrush?> BackgroundProperty =
         Border.BackgroundProperty.AddOwner<HtmlControl>();
 
-    public static readonly AvaloniaProperty BorderThicknessProperty =
+    public static readonly StyledProperty<Thickness> BorderThicknessProperty =
         Border.BorderThicknessProperty.AddOwner<HtmlControl>();
 
-    public static readonly AvaloniaProperty BorderBrushProperty =
+    public static readonly StyledProperty<IBrush?> BorderBrushProperty =
         Border.BorderBrushProperty.AddOwner<HtmlControl>();
 
-    public static readonly AvaloniaProperty PaddingProperty =
+    public static readonly StyledProperty<Thickness> PaddingProperty =
         Decorator.PaddingProperty.AddOwner<HtmlControl>();
     public static readonly RoutedEvent LoadCompleteEvent =
         RoutedEvent.Register<RoutedEventArgs>("LoadComplete", RoutingStrategies.Bubble, typeof(HtmlControl));
@@ -117,50 +117,50 @@ public class HtmlControl : Control
             typeof(HtmlControl));
     #endregion
 
-    internal PointerEventArgs LastPointerArgs { get; private set; }
+    internal PointerEventArgs? LastPointerArgs { get; private set; }
 
     /// <summary>
     /// Creates a new HtmlPanel and sets a basic css for it's styling.
     /// </summary>
     public HtmlControl()
     {
-            _htmlContainer = new HtmlContainer(this);
-            _htmlContainer.LoadComplete += OnLoadComplete;
-            _htmlContainer.LinkClicked += OnLinkClicked;
-            _htmlContainer.RenderError += OnRenderError;
-            _htmlContainer.Refresh += OnRefresh;
-            _htmlContainer.StylesheetLoad += OnStylesheetLoad;
-            _htmlContainer.ImageLoad += OnImageLoad;
+        _htmlContainer = new HtmlContainer(this);
+        _htmlContainer.LoadComplete += OnLoadComplete;
+        _htmlContainer.LinkClicked += OnLinkClicked;
+        _htmlContainer.RenderError += OnRenderError;
+        _htmlContainer.Refresh += OnRefresh;
+        _htmlContainer.StylesheetLoad += OnStylesheetLoad;
+        _htmlContainer.ImageLoad += OnImageLoad;
 
-            PointerMoved += (sender, e) =>
-            {
-                LastPointerArgs = e;
-                _htmlContainer.HandleMouseMove(this, e.GetPosition(this));
-            };
-            PointerExited += (sender, e) =>
-            {
-                LastPointerArgs = null;
-                _htmlContainer.HandleMouseLeave(this);
-            };
-            PointerPressed += (sender, e) =>
-            {
-                LastPointerArgs = e;
-                _htmlContainer?.HandleLeftMouseDown(this, e);
-            };
-            PointerReleased += (sender, e) =>
-            {
-                LastPointerArgs = e;
-                _htmlContainer.HandleLeftMouseUp(this, e);
-            };
-            DoubleTapped += (sender, e) =>
-            {
-                _htmlContainer.HandleMouseDoubleClick(this, e);
-            };
-            KeyDown += (sender, e) =>
-            {
-                _htmlContainer.HandleKeyDown(this, e);
-            };
-        }
+        PointerMoved += (sender, e) =>
+        {
+            LastPointerArgs = e;
+            _htmlContainer.HandleMouseMove(this, e.GetPosition(this));
+        };
+        PointerExited += (sender, e) =>
+        {
+            LastPointerArgs = null;
+            _htmlContainer.HandleMouseLeave(this);
+        };
+        PointerPressed += (sender, e) =>
+        {
+            LastPointerArgs = e;
+            _htmlContainer?.HandleLeftMouseDown(this, e);
+        };
+        PointerReleased += (sender, e) =>
+        {
+            LastPointerArgs = e;
+            _htmlContainer.HandleLeftMouseUp(this, e);
+        };
+        DoubleTapped += (sender, e) =>
+        {
+            _htmlContainer.HandleMouseDoubleClick(this, e);
+        };
+        KeyDown += (sender, e) =>
+        {
+            _htmlContainer.HandleKeyDown(this, e);
+        };
+    }
 
     /// <summary>
     /// Raised when the set html document has been fully loaded.<br/>
@@ -229,7 +229,7 @@ public class HtmlControl : Control
     [Description("If image loading only when visible should be avoided")]
     public bool AvoidImagesLateLoading
     {
-        get { return (bool)GetValue(AvoidImagesLateLoadingProperty); }
+        get { return GetValue(AvoidImagesLateLoadingProperty); }
         set { SetValue(AvoidImagesLateLoadingProperty, value); }
     }
 
@@ -241,7 +241,7 @@ public class HtmlControl : Control
     [Description("Is content selection is enabled for the rendered html.")]
     public bool IsSelectionEnabled
     {
-        get { return (bool)GetValue(IsSelectionEnabledProperty); }
+        get { return GetValue(IsSelectionEnabledProperty); }
         set { SetValue(IsSelectionEnabledProperty, value); }
     }
 
@@ -252,7 +252,7 @@ public class HtmlControl : Control
     [Description("Is the build-in context menu enabled and will be shown on mouse right click.")]
     public bool IsContextMenuEnabled
     {
-        get { return (bool)GetValue(IsContextMenuEnabledProperty); }
+        get { return GetValue(IsContextMenuEnabledProperty); }
         set { SetValue(IsContextMenuEnabledProperty, value); }
     }
 
@@ -261,9 +261,9 @@ public class HtmlControl : Control
     /// </summary>
     [Category("Appearance")]
     [Description("Set base stylesheet to be used by html rendered in the control.")]
-    public string BaseStylesheet
+    public string? BaseStylesheet
     {
-        get { return (string)GetValue(BaseStylesheetProperty); }
+        get { return GetValue(BaseStylesheetProperty); }
         set { SetValue(BaseStylesheetProperty, value); }
     }
 
@@ -272,33 +272,33 @@ public class HtmlControl : Control
     /// </summary>
     [Description("Sets the html of this control.")]
     [Content]
-    public string Text
+    public string? Text
     {
-        get { return (string)GetValue(TextProperty); }
+        get { return GetValue(TextProperty); }
         set { SetValue(TextProperty, value); }
     }
 
     public Thickness BorderThickness
     {
-        get { return (Thickness)GetValue(BorderThicknessProperty); }
+        get { return GetValue(BorderThicknessProperty); }
         set { SetValue(BorderThicknessProperty, value); }
     }
 
-    public IBrush BorderBrush
+    public IBrush? BorderBrush
     {
-        get { return (IBrush)GetValue(BorderBrushProperty); }
-        set { SetValue(BorderThicknessProperty, value); }
+        get { return GetValue(BorderBrushProperty); }
+        set { SetValue(BorderBrushProperty, value); }
     }
 
     public Thickness Padding
     {
-        get { return (Thickness)GetValue(PaddingProperty); }
+        get { return GetValue(PaddingProperty); }
         set { SetValue(PaddingProperty, value); }
     }
 
-    public IBrush Background
+    public IBrush? Background
     {
-        get { return (IBrush)GetValue(BackgroundProperty); }
+        get { return GetValue(BackgroundProperty); }
         set { SetValue(BackgroundProperty, value); }
     }
 
@@ -329,10 +329,10 @@ public class HtmlControl : Control
     /// Get html from the current DOM tree with inline style.
     /// </summary>
     /// <returns>generated html</returns>
-    public virtual string GetHtml()
+    public virtual string? GetHtml()
     {
-            return _htmlContainer != null ? _htmlContainer.GetHtml() : null;
-        }
+        return _htmlContainer != null ? _htmlContainer.GetHtml() : null;
+    }
 
     /// <summary>
     /// Get the rectangle of html element as calculated by html layout.<br/>
@@ -343,17 +343,17 @@ public class HtmlControl : Control
     /// <returns>the rectangle of the element or null if not found</returns>
     public virtual Rect? GetElementRectangle(string elementId)
     {
-            return _htmlContainer != null ? _htmlContainer.GetElementRectangle(elementId) : null;
-        }
+        return _htmlContainer != null ? _htmlContainer.GetElementRectangle(elementId) : null;
+    }
 
     /// <summary>
     /// Clear the current selection.
     /// </summary>
     public void ClearSelection()
     {
-            if (_htmlContainer != null)
-                _htmlContainer.ClearSelection();
-        }
+        if (_htmlContainer != null)
+            _htmlContainer.ClearSelection();
+    }
 
     #region Private methods
 
@@ -364,54 +364,55 @@ public class HtmlControl : Control
     /// </summary>
     public override void Render(DrawingContext context)
     {
-            context.FillRectangle(Background, new Rect(RenderSize));
+        if (Background is { } background)
+            context.FillRectangle(background, new Rect(RenderSize));
 
-            if (BorderThickness != new Thickness(0) && BorderBrush != null)
+        if (BorderThickness != new Thickness(0) && BorderBrush != null)
+        {
+            var brush = new ImmutableSolidColorBrush(Colors.Black);
+            if (BorderThickness.Top > 0)
+                context.FillRectangle(brush, new Rect(0, 0, RenderSize.Width, BorderThickness.Top));
+            if (BorderThickness.Bottom > 0)
+                context.FillRectangle(brush, new Rect(0, RenderSize.Height - BorderThickness.Bottom, RenderSize.Width, BorderThickness.Bottom));
+            if (BorderThickness.Left > 0)
+                context.FillRectangle(brush, new Rect(0, 0, BorderThickness.Left, RenderSize.Height));
+            if (BorderThickness.Right > 0)
+                context.FillRectangle(brush, new Rect(RenderSize.Width - BorderThickness.Right, 0, BorderThickness.Right, RenderSize.Height));
+        }
+
+        var htmlWidth = HtmlWidth(RenderSize);
+        var htmlHeight = HtmlHeight(RenderSize);
+        if (_htmlContainer != null && htmlWidth > 0 && htmlHeight > 0)
+        {
+            using (context.PushClip(new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top,
+                htmlWidth, (int)htmlHeight)))
             {
-                var brush = new ImmutableSolidColorBrush(Colors.Black);
-                if (BorderThickness.Top > 0)
-                    context.FillRectangle(brush, new Rect(0, 0, RenderSize.Width, BorderThickness.Top));
-                if (BorderThickness.Bottom > 0)
-                    context.FillRectangle(brush, new Rect(0, RenderSize.Height - BorderThickness.Bottom, RenderSize.Width, BorderThickness.Bottom));
-                if (BorderThickness.Left > 0)
-                    context.FillRectangle(brush, new Rect(0, 0, BorderThickness.Left, RenderSize.Height));
-                if (BorderThickness.Right > 0)
-                    context.FillRectangle(brush, new Rect(RenderSize.Width - BorderThickness.Right, 0, BorderThickness.Right, RenderSize.Height));
+                _htmlContainer.Location = new Point(Padding.Left + BorderThickness.Left,
+                    Padding.Top + BorderThickness.Top);
+                _htmlContainer.PerformPaint(context,
+                    new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top, htmlWidth,
+                        htmlHeight));
             }
 
-            var htmlWidth = HtmlWidth(RenderSize);
-            var htmlHeight = HtmlHeight(RenderSize);
-            if (_htmlContainer != null && htmlWidth > 0 && htmlHeight > 0)
+            if (!_lastScrollOffset.Equals(_htmlContainer.ScrollOffset))
             {
-                using (context.PushClip(new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top,
-                    htmlWidth, (int)htmlHeight)))
-                {
-                    _htmlContainer.Location = new Point(Padding.Left + BorderThickness.Left,
-                        Padding.Top + BorderThickness.Top);
-                    _htmlContainer.PerformPaint(context,
-                        new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top, htmlWidth,
-                            htmlHeight));
-                }
-
-                if (!_lastScrollOffset.Equals(_htmlContainer.ScrollOffset))
-                {
-                    _lastScrollOffset = _htmlContainer.ScrollOffset;
-                    InvokeMouseMove();
-                }
+                _lastScrollOffset = _htmlContainer.ScrollOffset;
+                InvokeMouseMove();
             }
         }
+    }
 
     void RaiseRouted<T>(RoutedEvent ev, T arg)
     {
-            var e = new HtmlRendererRoutedEventArgs<T>
-            {
-                Event = arg,
-                Source = this,
-                RoutedEvent = ev,
-                Route = ev.RoutingStrategies
-            };
-            RaiseEvent(e);
-        }
+        var e = new HtmlRendererRoutedEventArgs<T>
+        {
+            Event = arg,
+            Source = this,
+            RoutedEvent = ev,
+            Route = ev.RoutingStrategies
+        };
+        RaiseEvent(e);
+    }
 
     /// <summary>
     /// Propagate the LoadComplete event from root container.
@@ -443,131 +444,129 @@ public class HtmlControl : Control
     /// </summary>
     protected virtual void OnRefresh(HtmlRefreshEventArgs e)
     {
-            if (e.Layout)
-                InvalidateMeasure();
-            InvalidateVisual();
-        }
+        if (e.Layout)
+            InvalidateMeasure();
+        InvalidateVisual();
+    }
 
     /// <summary>
     /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
     /// </summary>
     protected virtual double HtmlWidth(Size size)
     {
-            return size.Width - Padding.Left - Padding.Right - BorderThickness.Left - BorderThickness.Right;
-        }
+        return size.Width - Padding.Left - Padding.Right - BorderThickness.Left - BorderThickness.Right;
+    }
 
     /// <summary>
     /// Get the width the HTML has to render in (not including vertical scroll iff it is visible)
     /// </summary>
     protected virtual double HtmlHeight(Size size)
     {
-            return size.Height - Padding.Top - Padding.Bottom - BorderThickness.Top - BorderThickness.Bottom;
-        }
+        return size.Height - Padding.Top - Padding.Bottom - BorderThickness.Top - BorderThickness.Bottom;
+    }
 
     /// <summary>
     /// call mouse move to handle paint after scroll or html change affecting mouse cursor.
     /// </summary>
     protected virtual void InvokeMouseMove()
     {
-            if (LastPointerArgs != null)
-            {
-                _htmlContainer.HandleMouseMove(this, LastPointerArgs.GetPosition(this));
-            }
+        if (LastPointerArgs != null)
+        {
+            _htmlContainer.HandleMouseMove(this, LastPointerArgs.GetPosition(this));
         }
+    }
 
     /// <summary>
     /// Handle when dependency property value changes to update the underline HtmlContainer with the new value.
     /// </summary>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs e)
     {
-            base.OnPropertyChanged(e);
+        base.OnPropertyChanged(e);
 
-            var htmlContainer = _htmlContainer;
-            if (e.Property == AvoidImagesLateLoadingProperty)
-            {
-                htmlContainer.AvoidImagesLateLoading = (bool)e.NewValue;
-            }
-            else if (e.Property == IsSelectionEnabledProperty)
-            {
-                htmlContainer.IsSelectionEnabled = (bool)e.NewValue;
-            }
-            else if (e.Property == IsContextMenuEnabledProperty)
-            {
-                htmlContainer.IsContextMenuEnabled = (bool)e.NewValue;
-            }
-            else if (e.Property == BaseStylesheetProperty)
-            {
-                var baseCssData = HtmlRender.ParseStyleSheet((string)e.NewValue);
-                _baseCssData = baseCssData;
-                htmlContainer.SetHtml(Text, baseCssData);
-            }
-            else if (e.Property == TextProperty)
-            {
-                htmlContainer.ScrollOffset = new Point(0, 0);
-                htmlContainer.SetHtml((string)e.NewValue, _baseCssData);
-                InvalidateMeasure();
-                InvalidateVisual();
+        var htmlContainer = _htmlContainer;
+        if (e.Property == AvoidImagesLateLoadingProperty)
+        {
+            htmlContainer.AvoidImagesLateLoading = (bool)e.NewValue!;
+        }
+        else if (e.Property == IsSelectionEnabledProperty)
+        {
+            htmlContainer.IsSelectionEnabled = (bool)e.NewValue!;
+        }
+        else if (e.Property == IsContextMenuEnabledProperty)
+        {
+            htmlContainer.IsContextMenuEnabled = (bool)e.NewValue!;
+        }
+        else if (e.Property == BaseStylesheetProperty)
+        {
+            var baseCssData = HtmlRender.ParseStyleSheet((string?)e.NewValue);
+            _baseCssData = baseCssData;
+            htmlContainer.SetHtml(Text, baseCssData);
+        }
+        else if (e.Property == TextProperty)
+        {
+            htmlContainer.ScrollOffset = new Point(0, 0);
+            htmlContainer.SetHtml((string?)e.NewValue, _baseCssData);
+            InvalidateMeasure();
+            InvalidateVisual();
 
-                if (VisualRoot != null)
-                {
-                    InvokeMouseMove();
-                }
+            if (VisualRoot != null)
+            {
+                InvokeMouseMove();
             }
         }
+    }
 
 
     #region Private event handlers
 
-    private void OnLoadComplete(object sender, EventArgs e)
+    private void OnLoadComplete(object? sender, EventArgs e)
     {
+        if (CheckAccess())
+            OnLoadComplete(e);
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnLoadComplete(e)).Wait();
+    }
 
-            if (CheckAccess())
-                OnLoadComplete(e);
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnLoadComplete(e)).Wait();
-
-        }
-
-    private void OnLinkClicked(object sender, HtmlLinkClickedEventArgs e)
+    private void OnLinkClicked(object? sender, HtmlLinkClickedEventArgs e)
     {
-            if (CheckAccess())
-                OnLinkClicked(e);
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnLinkClicked(e)).Wait();
-        }
+        if (CheckAccess())
+            OnLinkClicked(e);
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnLinkClicked(e)).Wait();
+    }
 
-    private void OnRenderError(object sender, HtmlRenderErrorEventArgs e)
+    private void OnRenderError(object? sender, HtmlRenderErrorEventArgs e)
     {
-            if (CheckAccess())
-                OnRenderError(e);
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnRenderError(e)).Wait();
-        }
+        if (CheckAccess())
+            OnRenderError(e);
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnRenderError(e)).Wait();
+    }
 
-    private void OnStylesheetLoad(object sender, HtmlStylesheetLoadEventArgs e)
+    private void OnStylesheetLoad(object? sender, HtmlStylesheetLoadEventArgs e)
     {
-            if (CheckAccess())
-                OnStylesheetLoad(e);
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnStylesheetLoad(e)).Wait();
-        }
+        if (CheckAccess())
+            OnStylesheetLoad(e);
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnStylesheetLoad(e)).Wait();
+    }
 
-    private void OnImageLoad(object sender, HtmlImageLoadEventArgs e)
+    private void OnImageLoad(object? sender, HtmlImageLoadEventArgs e)
     {
-            if (CheckAccess())
-                OnImageLoad(e);
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnImageLoad(e)).Wait();
-        }
+        if (CheckAccess())
+            OnImageLoad(e);
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnImageLoad(e)).Wait();
+    }
 
-    private void OnRefresh(object sender, HtmlRefreshEventArgs e)
+    private void OnRefresh(object? sender, HtmlRefreshEventArgs e)
     {
-            if (CheckAccess())
-                // Visual invalidation should always go on the dispatcher.
-                Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e));
-            else
-                Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e)).Wait();
-        }
+        if (CheckAccess())
+            // Visual invalidation should always go on the dispatcher.
+            Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e));
+        else
+            Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e)).Wait();
+    }
 
     #endregion
 

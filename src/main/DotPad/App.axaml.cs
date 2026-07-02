@@ -48,7 +48,7 @@ public class App : Application
         services.AddSingleton<DotnetSdksService>();
         services.AddLogging(logging =>
         {
-            var logDir  = Path.Combine(
+            var logDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "DotPad", "logs");
             logging.AddProvider(new FileLoggerProvider(

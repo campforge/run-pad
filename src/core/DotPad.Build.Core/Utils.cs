@@ -94,14 +94,14 @@ public static class Utils
     {
         var info = new ProcessStartInfo
         {
-            FileName               = fileName,
-            Arguments              = arguments,
+            FileName = fileName,
+            Arguments = arguments,
             RedirectStandardOutput = true,
-            RedirectStandardError  = true,
-            RedirectStandardInput  = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true,
-            StandardErrorEncoding  = encoding ?? Encoding.UTF8,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardErrorEncoding = encoding ?? Encoding.UTF8,
         };
 
         try

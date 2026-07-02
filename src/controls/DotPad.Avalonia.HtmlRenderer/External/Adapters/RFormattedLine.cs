@@ -1,4 +1,5 @@
-﻿using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+﻿#nullable disable
+using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
 

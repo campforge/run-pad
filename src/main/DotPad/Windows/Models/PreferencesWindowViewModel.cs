@@ -9,24 +9,24 @@ namespace DotPad.Windows.Models;
 
 public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly IThemeService       _themeService;
+    private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
 
     private InterfaceTheme? _selectedInterfaceTheme;
-    private EditorTheme?    _selectedEditorTheme;
+    private EditorTheme? _selectedEditorTheme;
 
     public ObservableCollection<InterfaceTheme> AvailableInterfaceThemes { get; } = [];
-    public ObservableCollection<EditorTheme>    AvailableEditorThemes    { get; } = [];
+    public ObservableCollection<EditorTheme> AvailableEditorThemes { get; } = [];
 
     public PreferencesWindowViewModel(IThemeService themeService, IPreferencesService prefs)
     {
         _themeService = themeService;
-        _prefs        = prefs;
+        _prefs = prefs;
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
         _selectedInterfaceTheme = theme.Interface;
-        _selectedEditorTheme    = theme.Editor;
+        _selectedEditorTheme = theme.Editor;
         foreach (var t in themeService.InterfaceThemes.Where(t => t.IsDark == theme.Interface.IsDark))
             AvailableInterfaceThemes.Add(t);
         foreach (var t in themeService.EditorThemes.Where(t => t.IsDark == theme.Editor.IsDark))
@@ -82,8 +82,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     }
 
     public bool IsSystemMode { get => SelectedMode == ThemeMode.System; set { if (value) SelectedMode = ThemeMode.System; } }
-    public bool IsDarkMode   { get => SelectedMode == ThemeMode.Dark;   set { if (value) SelectedMode = ThemeMode.Dark;   } }
-    public bool IsLightMode  { get => SelectedMode == ThemeMode.Light;  set { if (value) SelectedMode = ThemeMode.Light;  } }
+    public bool IsDarkMode { get => SelectedMode == ThemeMode.Dark; set { if (value) SelectedMode = ThemeMode.Dark; } }
+    public bool IsLightMode { get => SelectedMode == ThemeMode.Light; set { if (value) SelectedMode = ThemeMode.Light; } }
 
     // ── Interface theme ───────────────────────────────────────────────────────
 

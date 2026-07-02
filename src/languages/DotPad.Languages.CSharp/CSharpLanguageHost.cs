@@ -28,11 +28,11 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     public override string Language => "csharp";
 
     public override LanguageHostCapabilities Capabilities =>
-        LanguageHostCapabilities.Run               |
-        LanguageHostCapabilities.Debug             |
-        LanguageHostCapabilities.Breakpoints       |
-        LanguageHostCapabilities.VariableInspection|
-        LanguageHostCapabilities.MemoryDump        |
+        LanguageHostCapabilities.Run |
+        LanguageHostCapabilities.Debug |
+        LanguageHostCapabilities.Breakpoints |
+        LanguageHostCapabilities.VariableInspection |
+        LanguageHostCapabilities.MemoryDump |
         LanguageHostCapabilities.IntelliSense;
 
     public override IIntelliSenseService CreateIntelliSenseService()
@@ -44,7 +44,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     internal CSharpLanguageHost(CSharpLanguageHostOptions options, ILoggerFactory loggerFactory)
     {
-        _options       = options;
+        _options = options;
         _loggerFactory = loggerFactory;
         Directory.CreateDirectory(options.OutputDirectory);
     }
@@ -71,7 +71,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             _options.OutputName,
             _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
-        var raw    = await compiler.Compilation(syntaxTree, ct);
+        var raw = await compiler.Compilation(syntaxTree, ct);
         var result = new CSharpCompilationResult(raw);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
     }
@@ -79,7 +79,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     private SyntaxTree BuildSyntaxTree(string code)
     {
         var bytes = Encoding.UTF8.GetBytes(code);
-        var text  = SourceText.From(bytes, bytes.Length, Encoding.UTF8, canBeEmbedded: true);
+        var text = SourceText.From(bytes, bytes.Length, Encoding.UTF8, canBeEmbedded: true);
         return CSharpSyntaxTree.ParseText(
             text,
             new CSharpParseOptions(),
@@ -110,8 +110,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             var ioTask = process.Start(cts.Token);
 
             await Task.WhenAll(
-                DrainChannelAsync(process.Reader,      OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
-                DrainChannelAsync(process.ErrorReader, OutputKind.StandardError,  outputHandler, cts.Token),
+                DrainChannelAsync(process.Reader, OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
+                DrainChannelAsync(process.ErrorReader, OutputKind.StandardError, outputHandler, cts.Token),
                 ioTask);
 
             await process.WaitForExit(cts.Token);
@@ -196,7 +196,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         IMemoryDump dump = new DapMemoryDump
         {
             CapturedAt = DateTimeOffset.UtcNow,
-            Variables  = _lastDebugVariables,
+            Variables = _lastDebugVariables,
         };
         return Task.FromResult(dump);
     }
@@ -211,7 +211,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private const char   RsPrefix   = '\x1e';        // new format: RS + base64
+    private const char RsPrefix = '\x1e';        // new format: RS + base64
     private const string TextPrefix = "DOTPAD_DUMP:"; // legacy format
 
     private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)

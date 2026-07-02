@@ -1,3 +1,4 @@
+﻿#nullable disable
 using System.Globalization;
 using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
 using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;

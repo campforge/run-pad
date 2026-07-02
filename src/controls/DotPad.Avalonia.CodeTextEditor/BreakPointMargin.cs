@@ -16,7 +16,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     private CodeTextEditor? _editor;
     private IBreakpointStore? _manager;
 
-    private int  _previewLine        = -1;
+    private int _previewLine = -1;
     private bool _previewPointVisible;
 
     // Loaded once from app resources; geometries are immutable
@@ -27,9 +27,9 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     public BreakPointMargin(CodeTextEditor editor, IBreakpointStore manager)
     {
-        _editor  = editor;
+        _editor = editor;
         _manager = manager;
-        Cursor   = new Cursor(StandardCursorType.Hand);
+        Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
     }
 
@@ -42,17 +42,17 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         _breakpointGeo ??= LoadResource<StreamGeometry>("Icon.Breakpoint");
         _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
 
-        var bpBrush      = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
+        var bpBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
         var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
-        var arrowBrush   = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
+        var arrowBrush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
 
         foreach (var vl in TextView.VisualLines)
         {
-            var lineNo  = vl.FirstDocumentLine.LineNumber;
-            var lineH   = vl.Height;
-            var yTop    = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
+            var lineNo = vl.FirstDocumentLine.LineNumber;
+            var lineH = vl.Height;
+            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
                           - TextView.VerticalOffset;
-            var hasBp   = _manager?.Any(bp => bp.Line == lineNo) ?? false;
+            var hasBp = _manager?.Any(bp => bp.Line == lineNo) ?? false;
             var isDebug = DebugLine == lineNo;
             var isHover = _previewPointVisible && _previewLine == lineNo;
 
@@ -80,8 +80,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     protected override void OnPointerExited(PointerEventArgs e)
     {
-        _previewLine          = -1;
-        _previewPointVisible  = false;
+        _previewLine = -1;
+        _previewPointVisible = false;
         InvalidateVisual();
     }
 
@@ -94,7 +94,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
         _previewPointVisible = true;
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
-        var existing   = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
+        var existing = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
 
         if (existing != null)
         {
@@ -116,7 +116,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     public void Dispose()
     {
-        _editor  = null;
+        _editor = null;
         _manager = null;
         GC.SuppressFinalize(this);
     }
@@ -129,7 +129,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
                                double yTop, double lineH)
     {
         if (brush is null) return;
-        var s  = Bounds.Width * 0.72 / 24.0;
+        var s = Bounds.Width * 0.72 / 24.0;
         var cx = Bounds.Width / 2 - 12 * s;
         var cy = yTop + lineH / 2 - 12 * s;
         using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
@@ -140,7 +140,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
                                 double yTop, double lineH)
     {
         if (brush is null) return;
-        var s  = Bounds.Width / 24.0;
+        var s = Bounds.Width / 24.0;
         var cy = yTop + lineH / 2 - 12 * s;
         using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(0, cy)))
             ctx.DrawGeometry(brush, null, geo);
@@ -175,7 +175,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
         if (_previewPointVisible && lineNumber == _previewLine) return false;
 
-        var hasBreakpoint    = _manager?.Any(i => i.Line == lineNumber) ?? false;
+        var hasBreakpoint = _manager?.Any(i => i.Line == lineNumber) ?? false;
         _previewPointVisible = !hasBreakpoint;
         if (_previewPointVisible)
             _previewLine = lineNumber;

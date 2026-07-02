@@ -10,8 +10,8 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 
 public sealed class EditorTabItemViewModel : ControllModelBase
 {
-    public string?  FilePath { get; }
-    public string   FileName => FilePath is null ? "Untitled" : Path.GetFileName(FilePath);
+    public string? FilePath { get; }
+    public string FileName => FilePath is null ? "Untitled" : Path.GetFileName(FilePath);
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
@@ -46,22 +46,22 @@ public sealed class EditorTabItemViewModel : ControllModelBase
         }
     }
 
-    public bool EnableRunButton    => _runState == RunState.Idle;
+    public bool EnableRunButton => _runState == RunState.Idle;
     public bool EnableCancelButton => _runState != RunState.Idle;
-    public bool IsDebugging        => _runState is RunState.RunDebug or RunState.Paused;
-    public bool IsPaused           => _runState == RunState.Paused;
-    public bool IsRunningProgress  => _runState is RunState.Run or RunState.RunDebug;
+    public bool IsDebugging => _runState is RunState.RunDebug or RunState.Paused;
+    public bool IsPaused => _runState == RunState.Paused;
+    public bool IsRunningProgress => _runState is RunState.Run or RunState.RunDebug;
 
-    public ObservableCollection<DebugThread>     DebugThreads     { get; } = [];
-    public ObservableCollection<DebugLocal>      DebugLocals      { get; } = [];
-    public ObservableCollection<DebugFrame>      DebugCallStack   { get; } = [];
+    public ObservableCollection<DebugThread> DebugThreads { get; } = [];
+    public ObservableCollection<DebugLocal> DebugLocals { get; } = [];
+    public ObservableCollection<DebugFrame> DebugCallStack { get; } = [];
     public ObservableCollection<WatchExpression> WatchExpressions { get; } = [];
 
     public EditorTabItemViewModel(string? filePath, List<ExecutionPlatform> platforms)
     {
-        FilePath                = filePath;
-        DotnetPlatforms         = platforms;
+        FilePath = filePath;
+        DotnetPlatforms = platforms;
         _selectedDotnetPlatform = platforms.FirstOrDefault();
-        CloseCommand            = ReactiveCommand.Create(() => { });
+        CloseCommand = ReactiveCommand.Create(() => { });
     }
 }

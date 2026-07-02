@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -30,8 +30,8 @@ internal sealed class FontFamilyAdapter : RFontFamily
     /// </summary>
     public FontFamilyAdapter(FontFamily fontFamily)
     {
-            _fontFamily = fontFamily;
-        }
+        _fontFamily = fontFamily;
+    }
 
     /// <summary>
     /// the underline Avalonia font family.

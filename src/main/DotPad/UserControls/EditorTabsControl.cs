@@ -20,13 +20,13 @@ public partial class EditorTabsControl : UserControl, IDisposable
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
 
-    private MainWindowViewModel?   _vm;
-    private IThemeService?         _themeService;
+    private MainWindowViewModel? _vm;
+    private IThemeService? _themeService;
     private ILanguageHostRegistry? _registry;
-    private IPreferencesService?   _prefs;
-    private ILoggerFactory?        _loggerFactory;
-    private IIntelliSenseService?  _intelliSense;
-    private IDisposable?           _activeTabSub;
+    private IPreferencesService? _prefs;
+    private ILoggerFactory? _loggerFactory;
+    private IIntelliSenseService? _intelliSense;
+    private IDisposable? _activeTabSub;
 
     public EditorTabsControl()
     {
@@ -34,16 +34,16 @@ public partial class EditorTabsControl : UserControl, IDisposable
     }
 
     public void Initialize(
-        MainWindowViewModel   vm,
-        IThemeService         themeService,
+        MainWindowViewModel vm,
+        IThemeService themeService,
         ILanguageHostRegistry registry,
-        IPreferencesService   prefs,
-        ILoggerFactory        loggerFactory)
+        IPreferencesService prefs,
+        ILoggerFactory loggerFactory)
     {
-        _vm            = vm;
-        _themeService  = themeService;
-        _registry      = registry;
-        _prefs         = prefs;
+        _vm = vm;
+        _themeService = themeService;
+        _registry = registry;
+        _prefs = prefs;
         _loggerFactory = loggerFactory;
 
         _themeService.ThemeChanged += OnThemeChanged;
@@ -68,7 +68,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             foreach (EditorTabItemViewModel vm in e.NewItems)
             {
                 var ctrl = CreateControl(vm);
-                var tab  = AddTabItem(ctrl, vm, fileTabControl);
+                var tab = AddTabItem(ctrl, vm, fileTabControl);
                 _tabs[vm] = (tab, ctrl);
             }
         }
@@ -122,7 +122,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     public void Dispose()
     {
         if (_themeService is not null) _themeService.ThemeChanged -= OnThemeChanged;
-        if (_vm is not null)           _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
+        if (_vm is not null) _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
         _activeTabSub?.Dispose();
 
         foreach (var (_, ctrl) in _tabs.Values)
@@ -151,9 +151,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
         ctrl.Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
         var tab = new TabItem
         {
-            Header         = vm,
+            Header = vm,
             HeaderTemplate = (IDataTemplate)tmpl!,
-            Content        = ctrl,
+            Content = ctrl,
         };
         tabControl.Items.Add(tab);
         return tab;

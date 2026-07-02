@@ -13,10 +13,10 @@ namespace DotPad.Windows.Models;
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly DotnetSdksService _dotnetSdksService;
-    private readonly IDotpFileService  _fileSystemService;
+    private readonly IDotpFileService _fileSystemService;
 
-    private readonly Dictionary<string, EditorTabItemViewModel>         _openTabs          = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<EditorTabItemViewModel, IDisposable>    _closeSubscriptions = new();
+    private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public EditorTabItemViewModel NewFile()
     {
         var folder = _fileSystemService.GetOrCreateDefaultFolder();
-        var path   = _fileSystemService.CreateNewFile(folder);
+        var path = _fileSystemService.CreateNewFile(folder);
         Nodes.Add(new Node(Path.GetFileName(path), path));
         return OpenTab(path);
     }
@@ -71,10 +71,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // ── File tree ─────────────────────────────────────────────────────────────
 
     public ObservableCollection<Node> Nodes { get; }
-    public List<ExecutionPlatform>    DotnetPlatforms { get; }
+    public List<ExecutionPlatform> DotnetPlatforms { get; }
 
     public MainWindowViewModel(
-        DotnetSdksService dotnetSdksService, 
+        DotnetSdksService dotnetSdksService,
         IDotpFileService fileSystemService)
     {
         _dotnetSdksService = dotnetSdksService;
@@ -82,7 +82,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         DotnetPlatforms = _dotnetSdksService.GetSdkInfos().ToList();
 
-        var root  = _fileSystemService.GetOrCreateDefaultFolder();
+        var root = _fileSystemService.GetOrCreateDefaultFolder();
         var files = _fileSystemService.GetFilesInFolder(root);
 
         Nodes = new ObservableCollection<Node>();

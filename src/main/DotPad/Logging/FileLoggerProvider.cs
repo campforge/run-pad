@@ -37,13 +37,13 @@ internal sealed class FileLogger(string category, StreamWriter writer, object wr
 
         var level = logLevel switch
         {
-            LogLevel.Trace       => "TRC",
-            LogLevel.Debug       => "DBG",
+            LogLevel.Trace => "TRC",
+            LogLevel.Debug => "DBG",
             LogLevel.Information => "INF",
-            LogLevel.Warning     => "WRN",
-            LogLevel.Error       => "ERR",
-            LogLevel.Critical    => "CRT",
-            _                    => "???"
+            LogLevel.Warning => "WRN",
+            LogLevel.Error => "ERR",
+            LogLevel.Critical => "CRT",
+            _ => "???"
         };
 
         var text = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {_shortCategory}: {formatter(state, exception)}";

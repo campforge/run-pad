@@ -2,9 +2,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotPad.Build.Core.ProcessRunners;
-using DotPad.Languages.CSharp.Debug.Protocol;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
+using DotPad.Languages.CSharp.Debug.Protocol;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.Debug;
@@ -25,9 +25,9 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
-        IncludeFields            = true,
+        IncludeFields = true,
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition   = JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     private readonly LocalDebuggerProcess _process;
@@ -55,13 +55,13 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         Action<IBreakpointHitContext> onBreakpointHit,
         ILogger<CSharpDapSession> logger)
     {
-        _process          = process;
-        _programPath      = programPath;
+        _process = process;
+        _programPath = programPath;
         _workingDirectory = workingDirectory;
-        _breakpoints      = breakpoints;
-        _outputHandler    = outputHandler;
-        _onBreakpointHit  = onBreakpointHit;
-        _logger           = logger;
+        _breakpoints = breakpoints;
+        _outputHandler = outputHandler;
+        _onBreakpointHit = onBreakpointHit;
+        _logger = logger;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         if (_isPaused) return;
         await SendAsync(new PauseRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new PauseArguments { threadId = _activeThreadId },
         }, ct);
     }
@@ -96,7 +96,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
                     using var dCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                     await SendAsync(new DisconnectRequest
                     {
-                        seq       = NextSeq(),
+                        seq = NextSeq(),
                         arguments = new DisconnectArguments { terminateDebuggee = true },
                     }, dCts.Token);
                     using var wCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -133,15 +133,15 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     {
         await SendAsync(new InitializeRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new InitializeRequestArguments
             {
-                clientID             = "dotpad",
-                clientName           = "DotPad",
-                adapterID            = "coreclr",
-                linesStartAt1        = true,
-                columnsStartAt1      = true,
-                pathFormat           = "path",
+                clientID = "dotpad",
+                clientName = "DotPad",
+                adapterID = "coreclr",
+                linesStartAt1 = true,
+                columnsStartAt1 = true,
+                pathFormat = "path",
                 supportsVariableType = true,
             }
         }, ct);
@@ -153,21 +153,21 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             using var doc = await ReadMessageAsync(ct);
             if (doc is null) break;
 
-            var root    = doc.RootElement;
+            var root = doc.RootElement;
             var msgType = GetStr(root, "type");
 
             if (msgType == "response" && !launchSent && GetStr(root, "command") == "initialize")
             {
                 await SendAsync(new LaunchRequest
                 {
-                    seq       = NextSeq(),
+                    seq = NextSeq(),
                     arguments = new LaunchRequestArguments
                     {
-                        program     = _programPath,
-                        cwd         = _workingDirectory,
+                        program = _programPath,
+                        cwd = _workingDirectory,
                         stopAtEntry = false,
-                        justMyCode  = false,
-                        console     = "internalConsole",
+                        justMyCode = false,
+                        console = "internalConsole",
                     }
                 }, ct);
                 launchSent = true;
@@ -190,11 +190,11 @@ internal sealed class CSharpDapSession : IAsyncDisposable
                 break;
 
             case "stopped":
-                var body     = root.GetProperty("body");
+                var body = root.GetProperty("body");
                 var threadId = body.TryGetProperty("threadId", out var tid) ? tid.GetInt32() : 1;
-                var reason   = GetStr(body, "reason");
+                var reason = GetStr(body, "reason");
                 _activeThreadId = threadId;
-                _isPaused       = true;
+                _isPaused = true;
                 if (reason is "breakpoint" or "step" or "pause" or "exception" or "entry")
                     await HandleStoppedAsync(threadId, ct);
                 else
@@ -220,8 +220,8 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     private async Task HandleStoppedAsync(int threadId, CancellationToken ct)
     {
         var threads = await QueryThreadsAsync(ct);
-        var frames  = await QueryStackTraceAsync(threadId, ct);
-        var vars    = frames.Count > 0
+        var frames = await QueryStackTraceAsync(threadId, ct);
+        var vars = frames.Count > 0
             ? await QueryLocalsAsync(frames[0].id, ct)
             : (IReadOnlyList<IVariableInfo>)[];
 
@@ -233,19 +233,19 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
         var context = new DapBreakpointHitContext
         {
-            Breakpoint     = matched,
-            ThreadId       = threadId,
+            Breakpoint = matched,
+            ThreadId = threadId,
             LocalVariables = vars,
-            CallStack      = frames.Select(f => (IStackFrame)new DapStackFrame
+            CallStack = frames.Select(f => (IStackFrame)new DapStackFrame
             {
                 MethodName = f.name ?? "",
-                FileName   = f.source?.path ?? f.source?.name ?? "",
-                Line       = f.line,
-                Column     = f.column,
+                FileName = f.source?.path ?? f.source?.name ?? "",
+                Line = f.line,
+                Column = f.column,
             }).ToList(),
             Threads = threads.Select(t => (IThreadInfo)new DapThreadInfo
             {
-                Id   = t.id,
+                Id = t.id,
                 Name = t.name ?? $"Thread {t.id}",
             }).ToList(),
         };
@@ -261,10 +261,10 @@ internal sealed class CSharpDapSession : IAsyncDisposable
                 await SendContinueAsync(threadId, ct);
                 break;
             case DebugAction.StepOver:
-                await SendAsync(new NextRequest    { seq = NextSeq(), arguments = new NextArguments    { threadId = threadId } }, ct);
+                await SendAsync(new NextRequest { seq = NextSeq(), arguments = new NextArguments { threadId = threadId } }, ct);
                 break;
             case DebugAction.StepIn:
-                await SendAsync(new StepInRequest  { seq = NextSeq(), arguments = new StepInArguments  { threadId = threadId } }, ct);
+                await SendAsync(new StepInRequest { seq = NextSeq(), arguments = new StepInArguments { threadId = threadId } }, ct);
                 break;
             case DebugAction.StepOut:
                 await SendAsync(new StepOutRequest { seq = NextSeq(), arguments = new StepOutArguments { threadId = threadId } }, ct);
@@ -281,8 +281,8 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         if (doc is null) return [];
 
         var root = doc.RootElement;
-        if (!root.TryGetProperty("body",    out var body))    return [];
-        if (!body.TryGetProperty("threads", out var el))      return [];
+        if (!root.TryGetProperty("body", out var body)) return [];
+        if (!body.TryGetProperty("threads", out var el)) return [];
         return JsonSerializer.Deserialize<List<DapThread>>(el.GetRawText(), JsonOpts) ?? [];
     }
 
@@ -290,15 +290,15 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     {
         await SendAsync(new StackTraceRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new StackTraceArguments { threadId = threadId },
         }, ct);
         using var doc = await ReadResponseForCommandAsync("stackTrace", ct);
         if (doc is null) return [];
 
         var root = doc.RootElement;
-        if (!root.TryGetProperty("body",        out var body)) return [];
-        if (!body.TryGetProperty("stackFrames", out var el))   return [];
+        if (!root.TryGetProperty("body", out var body)) return [];
+        if (!body.TryGetProperty("stackFrames", out var el)) return [];
         return JsonSerializer.Deserialize<List<StackFrame>>(el.GetRawText(), JsonOpts) ?? [];
     }
 
@@ -306,17 +306,17 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     {
         await SendAsync(new ScopesRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new ScopesArguments { frameId = frameId },
         }, ct);
         using var scopesDoc = await ReadResponseForCommandAsync("scopes", ct);
         if (scopesDoc is null) return [];
 
         var scopesRoot = scopesDoc.RootElement;
-        if (!scopesRoot.TryGetProperty("body",   out var sb))      return [];
-        if (!sb.TryGetProperty("scopes",         out var scopesEl)) return [];
+        if (!scopesRoot.TryGetProperty("body", out var sb)) return [];
+        if (!sb.TryGetProperty("scopes", out var scopesEl)) return [];
 
-        var scopes    = JsonSerializer.Deserialize<List<Scope>>(scopesEl.GetRawText(), JsonOpts) ?? [];
+        var scopes = JsonSerializer.Deserialize<List<Scope>>(scopesEl.GetRawText(), JsonOpts) ?? [];
         var localScope = scopes.FirstOrDefault(s =>
             s.name?.Equals("Locals", StringComparison.OrdinalIgnoreCase) == true);
         var varRef = localScope?.variablesReference;
@@ -324,22 +324,22 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
         await SendAsync(new VariablesRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new VariablesArguments { variablesReference = varRef.Value },
         }, ct);
         using var varsDoc = await ReadResponseForCommandAsync("variables", ct);
         if (varsDoc is null) return [];
 
         var varsRoot = varsDoc.RootElement;
-        if (!varsRoot.TryGetProperty("body",      out var vb))    return [];
-        if (!vb.TryGetProperty("variables",       out var varsEl)) return [];
+        if (!varsRoot.TryGetProperty("body", out var vb)) return [];
+        if (!vb.TryGetProperty("variables", out var varsEl)) return [];
 
         var vars = JsonSerializer.Deserialize<List<Variable>>(varsEl.GetRawText(), JsonOpts) ?? [];
         return vars.Select(v => (IVariableInfo)new DapVariableInfo
         {
-            Name        = v.name     ?? "",
-            Value       = v.value    ?? "",
-            TypeName    = v.type     ?? "",
+            Name = v.name ?? "",
+            Value = v.value ?? "",
+            TypeName = v.type ?? "",
             HasChildren = v.variablesReference > 0,
         }).ToList();
     }
@@ -360,10 +360,10 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
         await SendAsync(new SetBreakpointsRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new SetBreakpointsArguments
             {
-                source      = new Source { path = sourceFile, name = sourceName },
+                source = new Source { path = sourceFile, name = sourceName },
                 breakpoints = _breakpoints.Select(bp => new SourceBreakpoint(bp.Line)).ToList(),
             },
         }, ct);
@@ -378,8 +378,8 @@ internal sealed class CSharpDapSession : IAsyncDisposable
                 foreach (var bp in bps.EnumerateArray())
                 {
                     var verified = bp.TryGetProperty("verified", out var v) && v.GetBoolean();
-                    var line     = bp.TryGetProperty("line", out var l) ? l.GetInt32() : -1;
-                    var msg      = bp.TryGetProperty("message", out var m) ? m.GetString() : null;
+                    var line = bp.TryGetProperty("line", out var l) ? l.GetInt32() : -1;
+                    var msg = bp.TryGetProperty("message", out var m) ? m.GetString() : null;
                     _logger.LogDebug("[dap bp] verified={Verified} line={Line}{Msg}", verified, line, msg is not null ? $" msg={msg}" : "");
                 }
             }
@@ -389,27 +389,27 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     private Task SendContinueAsync(int threadId, CancellationToken ct) =>
         SendAsync(new ContinueRequest
         {
-            seq       = NextSeq(),
+            seq = NextSeq(),
             arguments = new ContinueArguments { threadId = threadId },
         }, ct);
 
     // netcoredbg splits long stdout lines across multiple DAP output events.
     // Buffer per-category and only invoke the handler on complete \n-terminated lines.
     private readonly StringBuilder _stdoutBuf = new();
-    private readonly StringBuilder _stderrBuf  = new();
+    private readonly StringBuilder _stderrBuf = new();
 
     private void ForwardOutput(JsonElement root)
     {
         if (!root.TryGetProperty("body", out var body)) return;
-        var text     = GetStr(body, "output") ?? "";
+        var text = GetStr(body, "output") ?? "";
         var category = GetStr(body, "category") ?? "stdout";
-        var kind     = category == "stderr" ? OutputKind.StandardError : OutputKind.StandardOutput;
-        var buf      = category == "stderr" ? _stderrBuf : _stdoutBuf;
+        var kind = category == "stderr" ? OutputKind.StandardError : OutputKind.StandardOutput;
+        var buf = category == "stderr" ? _stderrBuf : _stdoutBuf;
 
         buf.Append(text);
 
         var content = buf.ToString();
-        var start   = 0;
+        var start = 0;
         for (int i = 0; i < content.Length; i++)
         {
             if (content[i] != '\n') continue;
@@ -435,11 +435,11 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
     private async Task SendAsync(object request, CancellationToken ct)
     {
-        var json     = JsonSerializer.Serialize(request, request.GetType(), JsonOpts);
+        var json = JsonSerializer.Serialize(request, request.GetType(), JsonOpts);
         _logger.LogDebug("[dap →] {Snippet}", json[..Math.Min(200, json.Length)]);
-        var body     = Encoding.UTF8.GetBytes(json);
-        var header   = Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n");
-        var message  = new byte[header.Length + body.Length];
+        var body = Encoding.UTF8.GetBytes(json);
+        var header = Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n");
+        var message = new byte[header.Length + body.Length];
         header.CopyTo(message, 0);
         body.CopyTo(message, header.Length);
 
@@ -465,7 +465,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             var doc = await ReadMessageAsync(ct);
             if (doc is null) return null;
 
-            var root    = doc.RootElement;
+            var root = doc.RootElement;
             var msgType = GetStr(root, "type");
 
             if (msgType == "response" && GetStr(root, "command") == command)
@@ -490,9 +490,9 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     /// </summary>
     private async Task<JsonDocument?> ReadMessageAsync(CancellationToken ct)
     {
-        var stream     = _process.OutputStream;
+        var stream = _process.OutputStream;
         var singleByte = new byte[1];
-        var headerBuf  = new List<byte>(64);
+        var headerBuf = new List<byte>(64);
 
         try
         {
@@ -515,7 +515,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
             // 2. Parse "Content-Length: N" from the header.
             var headerStr = Encoding.ASCII.GetString(headerBuf.ToArray());
-            int clIdx     = headerStr.IndexOf(ContentLengthPrefix, StringComparison.OrdinalIgnoreCase);
+            int clIdx = headerStr.IndexOf(ContentLengthPrefix, StringComparison.OrdinalIgnoreCase);
             if (clIdx < 0) return null;
 
             int crIdx = headerStr.IndexOf('\r', clIdx + ContentLengthPrefix.Length);
@@ -540,7 +540,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             // 4. Parse JSON — decode only the exact N bytes (no null terminator).
             try
             {
-                var doc     = JsonDocument.Parse(bodyBytes.AsMemory(0, contentLength));
+                var doc = JsonDocument.Parse(bodyBytes.AsMemory(0, contentLength));
                 var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(200, contentLength));
                 _logger.LogDebug("[dap ←] {Snippet}", snippet);
                 return doc;

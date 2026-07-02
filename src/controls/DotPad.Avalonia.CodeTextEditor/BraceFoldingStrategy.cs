@@ -17,7 +17,7 @@ internal sealed class BraceFoldingStrategy
     private IEnumerable<NewFolding> CreateFoldings(string text)
     {
         var result = new List<NewFolding>();
-        var stack  = new Stack<int>();
+        var stack = new Stack<int>();
 
         for (int i = 0; i < text.Length; i++)
         {

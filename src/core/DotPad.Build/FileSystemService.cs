@@ -54,10 +54,10 @@ public sealed class DotpFileService : IDotpFileService
         _watcher.Filter = FileFilter;
         _watcher.IncludeSubdirectories = true;
         _watcher.NotifyFilter =
-            NotifyFilters.Attributes    | NotifyFilters.CreationTime |
-            NotifyFilters.DirectoryName | NotifyFilters.FileName     |
-            NotifyFilters.LastAccess    | NotifyFilters.LastWrite    |
-            NotifyFilters.Security      | NotifyFilters.Size;
+            NotifyFilters.Attributes | NotifyFilters.CreationTime |
+            NotifyFilters.DirectoryName | NotifyFilters.FileName |
+            NotifyFilters.LastAccess | NotifyFilters.LastWrite |
+            NotifyFilters.Security | NotifyFilters.Size;
 
         _watcher.Changed += OnChanged;
         _watcher.Created += OnChanged;

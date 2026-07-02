@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -33,33 +33,33 @@ internal sealed class GraphicsPathAdapter : RGraphicsPath
 
     public GraphicsPathAdapter()
     {
-            _geometryContext = _geometry.Open();
-        }
+        _geometryContext = _geometry.Open();
+    }
 
     public override void Start(double x, double y)
     {
-            _geometryContext.BeginFigure(new Point(x, y), true);
-        }
+        _geometryContext.BeginFigure(new Point(x, y), true);
+    }
 
     public override void LineTo(double x, double y)
     {
-            _geometryContext.LineTo(new Point(x, y));
-        }
+        _geometryContext.LineTo(new Point(x, y));
+    }
 
     public override void ArcTo(double x, double y, double size, Corner corner)
     {
-            _geometryContext.ArcTo(new Point(x, y), new Size(size, size), 0, false, SweepDirection.Clockwise);
-        }
+        _geometryContext.ArcTo(new Point(x, y), new Size(size, size), 0, false, SweepDirection.Clockwise);
+    }
 
     /// <summary>
     /// Close the geometry to so no more path adding is allowed and return the instance so it can be rendered.
     /// </summary>
     public StreamGeometry GetClosedGeometry()
     {
-            _geometryContext.EndFigure(false);
-            _geometryContext.Dispose();
-            return _geometry;
-        }
+        _geometryContext.EndFigure(false);
+        _geometryContext.Dispose();
+        return _geometry;
+    }
 
     public override void Dispose()
     { }
