@@ -1,4 +1,4 @@
-﻿using Avalonia.Media.TextFormatting;
+using Avalonia.Media.TextFormatting;
 using DotPad.Avalonia.HtmlRenderer.External.Adapters;
 using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 

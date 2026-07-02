@@ -16,15 +16,15 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly IServiceProvider _serviceProvider;
 
     public MainWindow(
-        IThemeService         themeService,
+        IThemeService themeService,
         ILanguageHostRegistry registry,
-        IPreferencesService   prefs,
-        ILoggerFactory        loggerFactory,
-        IServiceProvider      serviceProvider,
-        MainWindowViewModel   viewModel)
+        IPreferencesService prefs,
+        ILoggerFactory loggerFactory,
+        IServiceProvider serviceProvider,
+        MainWindowViewModel viewModel)
     {
         _serviceProvider = serviceProvider;
-        DataContext      = viewModel;
+        DataContext = viewModel;
 
         InitializeComponent();
 

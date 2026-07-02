@@ -66,7 +66,7 @@ internal sealed class ContextMenuAdapter : RContextMenu
 
     public override void RemoveLastDivider()
     {
-        if (Items[Items.Count - 1].GetType() == typeof(Separator))
+        if (Items[Items.Count - 1] is Separator)
             Items.RemoveAt(Items.Count - 1);
     }
 

@@ -8,7 +8,7 @@ public static class ObjectExtensions
 
     public static T Dump<T>(this T o, string? label = null, int? maxDepth = null)
     {
-        var html    = DotPad.Runtime.DumpRenderer.Render(o, label, maxDepth);
+        var html = DotPad.Runtime.DumpRenderer.Render(o, label, maxDepth);
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(html));
         Console.WriteLine(DumpLinePrefixChar + encoded);
         return o;

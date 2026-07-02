@@ -11,7 +11,7 @@ public sealed class UnderlineAndStrikeThroughTransformer : DocumentColorizingTra
         if (line.LineNumber != 2) return;
 
         var text = CurrentContext.Document.GetText(line);
-        Highlight(line, text, "underline",     TextDecorations.Underline);
+        Highlight(line, text, "underline", TextDecorations.Underline);
         Highlight(line, text, "strikethrough", TextDecorations.Strikethrough);
     }
 

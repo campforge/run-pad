@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -32,7 +32,7 @@ internal sealed class FontAdapter : RFont
     /// <summary>
     /// The glyph font for the font
     /// </summary>
-    private readonly GlyphTypeface _glyphTypeface;
+    private readonly GlyphTypeface? _glyphTypeface;
 
     /// <summary>
     /// the size of the font
@@ -65,9 +65,9 @@ internal sealed class FontAdapter : RFont
         _font = font;
         _size = size;
         FontManager.Current.TryGetGlyphTypeface(font, out _glyphTypeface);
-        var emHeight = _glyphTypeface.Metrics.DesignEmHeight;
-        _height = 96d / 72d * (_size / emHeight) * _glyphTypeface.Metrics.LineSpacing;
-        _underlineOffset = 96d / 72d * (_size / emHeight) * (_glyphTypeface.Metrics.LineSpacing + _glyphTypeface.Metrics.UnderlinePosition);
+        var emHeight = _glyphTypeface!.Metrics.DesignEmHeight;
+        _height = 96d / 72d * (_size / emHeight) * _glyphTypeface!.Metrics.LineSpacing;
+        _underlineOffset = 96d / 72d * (_size / emHeight) * (_glyphTypeface!.Metrics.LineSpacing + _glyphTypeface!.Metrics.UnderlinePosition);
 
         TextRunProperties = new GenericTextRunProperties(font, 96d / 72d * size, null, null, null, BaselineAlignment.Baseline, CultureInfo.CurrentCulture);
         TextParagraphProperties = new GenericTextParagraphProperties(TextRunProperties, textWrapping: TextWrapping.Wrap);
@@ -85,7 +85,7 @@ internal sealed class FontAdapter : RFont
         get { return _font; }
     }
 
-    public GlyphTypeface GlyphTypeface
+    public GlyphTypeface? GlyphTypeface
     {
         get { return _glyphTypeface; }
     }

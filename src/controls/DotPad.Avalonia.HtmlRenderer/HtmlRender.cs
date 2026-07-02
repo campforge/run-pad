@@ -83,7 +83,7 @@ public static class HtmlRender
     /// <param name="stylesheet">the stylesheet source to parse</param>
     /// <param name="combineWithDefault">true - combine the parsed css data with default css data, false - return only the parsed css data</param>
     /// <returns>the parsed css data</returns>
-    public static CssData ParseStyleSheet(string stylesheet, bool combineWithDefault = true)
+    public static CssData ParseStyleSheet(string? stylesheet, bool combineWithDefault = true)
     {
         return CssData.Parse(new AvaloniaAdapter(null), stylesheet, combineWithDefault);
     }
@@ -99,8 +99,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the size required for the html</returns>
-    public static Size Measure(string html, double maxWidth = 0, CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Size Measure(string html, double maxWidth = 0, CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         Size actualSize = default;
         if (!string.IsNullOrEmpty(html))
@@ -140,8 +140,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the actual size of the rendered html</returns>
-    public static Size Render(DrawingContext g, string html, double left = 0, double top = 0, double maxWidth = 0, CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Size Render(DrawingContext g, string html, double left = 0, double top = 0, double maxWidth = 0, CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         ArgChecker.AssertArgNotNull(g, "g");
         return RenderClip(g, html, new Point(left, top), new Size(maxWidth, 0), cssData, stylesheetLoad, imageLoad);
@@ -163,8 +163,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the actual size of the rendered html</returns>
-    public static Size Render(DrawingContext g, string html, Point location, Size maxSize, CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Size Render(DrawingContext g, string html, Point location, Size maxSize, CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         ArgChecker.AssertArgNotNull(g, "g");
         return RenderClip(g, html, location, maxSize, cssData, stylesheetLoad, imageLoad);
@@ -180,8 +180,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the generated image of the html</returns>
-    public static Bitmap RenderToImage(string html, Size size, CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Bitmap RenderToImage(string html, Size size, CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         var renderTarget = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height), new Vector(96, 96));
 
@@ -216,8 +216,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the generated image of the html</returns>
-    public static Bitmap RenderToImage(string html, int maxWidth = 0, int maxHeight = 0, Color backgroundColor = new Color(), CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Bitmap RenderToImage(string html, int maxWidth = 0, int maxHeight = 0, Color backgroundColor = new Color(), CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         return RenderToImage(html, default, new Size(maxWidth, maxHeight), backgroundColor, cssData, stylesheetLoad, imageLoad);
     }
@@ -242,8 +242,8 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the generated image of the html</returns>
-    public static Bitmap RenderToImage(string html, Size minSize, Size maxSize, Color backgroundColor = new Color(), CssData cssData = null,
-        EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs> imageLoad = null)
+    public static Bitmap RenderToImage(string html, Size minSize, Size maxSize, Color backgroundColor = new Color(), CssData? cssData = null,
+        EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad = null, EventHandler<HtmlImageLoadEventArgs>? imageLoad = null)
     {
         RenderTargetBitmap renderTarget;
         if (!string.IsNullOrEmpty(html))
@@ -318,7 +318,7 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the actual size of the rendered html</returns>
-    private static Size RenderClip(DrawingContext g, string html, Point location, Size maxSize, CssData cssData, EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad, EventHandler<HtmlImageLoadEventArgs> imageLoad)
+    private static Size RenderClip(DrawingContext g, string html, Point location, Size maxSize, CssData? cssData, EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad, EventHandler<HtmlImageLoadEventArgs>? imageLoad)
     {
         DrawingContext.PushedState? state = null;
         if (maxSize.Height > 0)
@@ -348,7 +348,7 @@ public static class HtmlRender
     /// <param name="stylesheetLoad">optional: can be used to overwrite stylesheet resolution logic</param>
     /// <param name="imageLoad">optional: can be used to overwrite image resolution logic</param>
     /// <returns>the actual size of the rendered html</returns>
-    private static Size RenderHtml(DrawingContext g, string html, Point location, Size maxSize, CssData cssData, EventHandler<HtmlStylesheetLoadEventArgs> stylesheetLoad, EventHandler<HtmlImageLoadEventArgs> imageLoad)
+    private static Size RenderHtml(DrawingContext g, string html, Point location, Size maxSize, CssData? cssData, EventHandler<HtmlStylesheetLoadEventArgs>? stylesheetLoad, EventHandler<HtmlImageLoadEventArgs>? imageLoad)
     {
         Size actualSize = default;
 

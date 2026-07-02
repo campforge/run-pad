@@ -15,7 +15,7 @@ public delegate void ThemeChangedDelegate(ActiveTheme theme);
 public interface IThemeService
 {
     IReadOnlyList<InterfaceTheme> InterfaceThemes { get; }
-    IReadOnlyList<EditorTheme>    EditorThemes    { get; }
+    IReadOnlyList<EditorTheme> EditorThemes { get; }
 
     ActiveTheme CurrentTheme { get; }
 
@@ -65,13 +65,13 @@ public sealed class ThemeService : IThemeService
 
     // ── State ─────────────────────────────────────────────────────────────────
 
-    private readonly Application          _app;
-    private readonly IPreferencesService  _prefs;
+    private readonly Application _app;
+    private readonly IPreferencesService _prefs;
     private ActiveTheme _currentTheme = null!;
 
     public ThemeService(Application app, IPreferencesService prefs)
     {
-        _app   = app;
+        _app = app;
         _prefs = prefs;
 
         if (app.PlatformSettings is { } ps)
@@ -87,8 +87,8 @@ public sealed class ThemeService : IThemeService
     // ── IThemeService ─────────────────────────────────────────────────────────
 
     public IReadOnlyList<InterfaceTheme> InterfaceThemes => AllInterfaceThemes;
-    public IReadOnlyList<EditorTheme>    EditorThemes    => AllEditorThemes;
-    public ActiveTheme                   CurrentTheme    => _currentTheme;
+    public IReadOnlyList<EditorTheme> EditorThemes => AllEditorThemes;
+    public ActiveTheme CurrentTheme => _currentTheme;
 
     public event ThemeChangedDelegate? ThemeChanged;
 
@@ -97,17 +97,17 @@ public sealed class ThemeService : IThemeService
         _prefs.Appearance.Mode = mode;
 
         bool isDark = ResolveIsDark();
-        var firstIface  = AllInterfaceThemes.First(t => t.IsDark == isDark);
+        var firstIface = AllInterfaceThemes.First(t => t.IsDark == isDark);
         var firstEditor = AllEditorThemes.First(t => t.IsDark == isDark);
         if (isDark)
         {
             _prefs.Appearance.DarkInterfaceTheme = firstIface.Name;
-            _prefs.Appearance.DarkEditorTheme    = firstEditor.Name;
+            _prefs.Appearance.DarkEditorTheme = firstEditor.Name;
         }
         else
         {
             _prefs.Appearance.LightInterfaceTheme = firstIface.Name;
-            _prefs.Appearance.LightEditorTheme    = firstEditor.Name;
+            _prefs.Appearance.LightEditorTheme = firstEditor.Name;
         }
 
         _prefs.Save();
@@ -116,16 +116,16 @@ public sealed class ThemeService : IThemeService
 
     public void SetInterfaceTheme(InterfaceTheme theme)
     {
-        if (ResolveIsDark()) _prefs.Appearance.DarkInterfaceTheme  = theme.Name;
-        else                 _prefs.Appearance.LightInterfaceTheme = theme.Name;
+        if (ResolveIsDark()) _prefs.Appearance.DarkInterfaceTheme = theme.Name;
+        else _prefs.Appearance.LightInterfaceTheme = theme.Name;
         _prefs.Save();
         ScheduleApply();
     }
 
     public void SetEditorTheme(EditorTheme theme)
     {
-        if (ResolveIsDark()) _prefs.Appearance.DarkEditorTheme  = theme.Name;
-        else                 _prefs.Appearance.LightEditorTheme = theme.Name;
+        if (ResolveIsDark()) _prefs.Appearance.DarkEditorTheme = theme.Name;
+        else _prefs.Appearance.LightEditorTheme = theme.Name;
         _prefs.Save();
         ScheduleApply();
     }
@@ -149,21 +149,21 @@ public sealed class ThemeService : IThemeService
     private void ApplyCore()
     {
         bool isDark = ResolveIsDark();
-        var a       = _prefs.Appearance;
+        var a = _prefs.Appearance;
 
         var interfaceTheme = ResolveInterface(isDark ? a.DarkInterfaceTheme : a.LightInterfaceTheme, isDark);
-        var editorTheme    = ResolveEditor   (isDark ? a.DarkEditorTheme    : a.LightEditorTheme,    isDark);
+        var editorTheme = ResolveEditor(isDark ? a.DarkEditorTheme : a.LightEditorTheme, isDark);
 
-        _currentTheme              = new ActiveTheme(interfaceTheme, editorTheme);
+        _currentTheme = new ActiveTheme(interfaceTheme, editorTheme);
         _app.RequestedThemeVariant = interfaceTheme.Variant;
         ThemeChanged?.Invoke(_currentTheme);
     }
 
     private bool ResolveIsDark() => _prefs.Appearance.Mode switch
     {
-        ThemeMode.Dark  => true,
+        ThemeMode.Dark => true,
         ThemeMode.Light => false,
-        _               => _app.PlatformSettings?.GetColorValues().ThemeVariant != PlatformThemeVariant.Light,
+        _ => _app.PlatformSettings?.GetColorValues().ThemeVariant != PlatformThemeVariant.Light,
     };
 
     private static InterfaceTheme ResolveInterface(string name, bool isDark)

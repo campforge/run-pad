@@ -1,4 +1,4 @@
-﻿namespace DotPad.Resources;
+namespace DotPad.Resources;
 
 internal class ResourceLoader
 {

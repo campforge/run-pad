@@ -1,8 +1,10 @@
-name: Build
+name: CI
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
-  
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
 on:
   push:
     branches: [ "main" ]
@@ -10,32 +12,61 @@ on:
     branches: [ "main" ]
 
 jobs:
+  format:
+    name: Code Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧲 Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 📦 Restore
+        run: dotnet restore
+
+      - name: 🔍 Check formatting
+        run: dotnet format --verify-no-changes --verbosity diagnostic
 
   build:
-    name: ".NET App"
+    name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ./
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, windows-2022, macos-12 ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
-      - name: 🚚 Checkout latest
-        uses: actions/checkout@v4.1.1
+      - name: 🚚 Checkout
+        uses: actions/checkout@v4
 
-      - name: 🧲 Setup .NET 7
-        uses: actions/setup-dotnet@v4.0.0
+      - name: 🧲 Setup .NET 10
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: 10.0.x
 
-      - name: 📦 Install dependencies
+      - name: 📦 Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: 📦 Restore
         run: dotnet restore
 
       - name: 🔨 Build
-        run: dotnet build --no-restore
+        run: dotnet build --no-restore --configuration Release -warnaserror
 
-      - name: 🧐 Test
-        run: dotnet test --no-build --verbosity normal
+      - name: 🧪 Test
+        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: 📊 Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: ./coverage/**/coverage.cobertura.xml
+          if-no-files-found: warn

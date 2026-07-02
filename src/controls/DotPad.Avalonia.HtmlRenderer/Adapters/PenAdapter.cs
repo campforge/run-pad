@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -35,15 +35,15 @@ internal sealed class PenAdapter : RPen
     /// <summary>
     /// the dash style of the pen
     /// </summary>
-    private IDashStyle _dashStyle = null;
+    private IDashStyle? _dashStyle;
 
     /// <summary>
     /// Init.
     /// </summary>
     public PenAdapter(IImmutableBrush brush)
     {
-            _brush = brush;
-        }
+        _brush = brush;
+    }
 
     public override double Width
     {
@@ -55,25 +55,25 @@ internal sealed class PenAdapter : RPen
     {
         set
         {
-                switch (value)
-                {
-                    case RDashStyle.Dash:
-                        _dashStyle = global::Avalonia.Media.DashStyle.Dash;
-                        break;
-                    case RDashStyle.Dot:
-                        _dashStyle = global::Avalonia.Media.DashStyle.Dot;
-                        break;
-                    case RDashStyle.DashDot:
-                        _dashStyle = global::Avalonia.Media.DashStyle.DashDot;
-                        break;
-                    case RDashStyle.DashDotDot:
-                        _dashStyle = global::Avalonia.Media.DashStyle.DashDotDot;
-                        break;
-                    default:
-                        _dashStyle = null;
-                        break;
-                }
+            switch (value)
+            {
+                case RDashStyle.Dash:
+                    _dashStyle = global::Avalonia.Media.DashStyle.Dash;
+                    break;
+                case RDashStyle.Dot:
+                    _dashStyle = global::Avalonia.Media.DashStyle.Dot;
+                    break;
+                case RDashStyle.DashDot:
+                    _dashStyle = global::Avalonia.Media.DashStyle.DashDot;
+                    break;
+                case RDashStyle.DashDotDot:
+                    _dashStyle = global::Avalonia.Media.DashStyle.DashDotDot;
+                    break;
+                default:
+                    _dashStyle = null;
+                    break;
             }
+        }
     }
 
     /// <summary>
@@ -81,6 +81,6 @@ internal sealed class PenAdapter : RPen
     /// </summary>
     public IPen CreatePen()
     {
-            return new ImmutablePen(_brush, _width, (ImmutableDashStyle)_dashStyle);
-        }
+        return new ImmutablePen(_brush, _width, (ImmutableDashStyle?)_dashStyle);
+    }
 }

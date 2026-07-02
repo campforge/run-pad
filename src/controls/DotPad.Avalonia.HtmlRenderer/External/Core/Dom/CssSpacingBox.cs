@@ -1,3 +1,4 @@
+﻿#nullable disable
 using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;

@@ -1,4 +1,4 @@
-﻿// "Therefore those skilled at the unorthodox
+// "Therefore those skilled at the unorthodox
 // are infinite as heaven and earth,
 // inexhaustible as the great rivers.
 // When they come to an end,
@@ -88,9 +88,9 @@ public class HtmlLabel : HtmlControl
                 var horizontal = Padding.Left + Padding.Right + BorderThickness.Left + BorderThickness.Right;
                 var vertical = Padding.Top + Padding.Bottom + BorderThickness.Top + BorderThickness.Bottom;
 
-                var size = new RSize(constraint.Width < Double.PositiveInfinity ? constraint.Width - horizontal : 0, constraint.Height < Double.PositiveInfinity ? constraint.Height - vertical : 0);
-                var minSize = new RSize(MinWidth < Double.PositiveInfinity ? MinWidth - horizontal : 0, MinHeight < Double.PositiveInfinity ? MinHeight - vertical : 0);
-                var maxSize = new RSize(MaxWidth < Double.PositiveInfinity ? MaxWidth - horizontal : 0, MaxHeight < Double.PositiveInfinity ? MaxHeight - vertical : 0);
+                var size = new RSize(constraint.Width < double.PositiveInfinity ? constraint.Width - horizontal : 0, constraint.Height < double.PositiveInfinity ? constraint.Height - vertical : 0);
+                var minSize = new RSize(MinWidth < double.PositiveInfinity ? MinWidth - horizontal : 0, MinHeight < double.PositiveInfinity ? MinHeight - vertical : 0);
+                var maxSize = new RSize(MaxWidth < double.PositiveInfinity ? MaxWidth - horizontal : 0, MaxHeight < double.PositiveInfinity ? MaxHeight - vertical : 0);
 
                 var newSize = HtmlRendererUtils.Layout(ig, _htmlContainer.HtmlContainerInt, size, minSize, maxSize, AutoSize, AutoSizeHeightOnly);
 

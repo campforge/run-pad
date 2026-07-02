@@ -29,9 +29,9 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         string outputName,
         ILogger<DotnetProcessCompiler> logger) : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
-        _logger         = logger;
+        _logger = logger;
         _sourceCodePath = Path.Combine(OutputDir, $"{OutputName}.cs");
-        _fileProjPath   = Path.Combine(OutputDir, $"{OutputName}.csproj");
+        _fileProjPath = Path.Combine(OutputDir, $"{OutputName}.csproj");
     }
 
     public override async Task<ProcessCompilerResult> Compilation(

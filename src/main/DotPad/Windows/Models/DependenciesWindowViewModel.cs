@@ -14,7 +14,7 @@ public class Person
 {
     public string FirstName { get; set; }
     public string LastName { get; set; }
-    public int AgeInYears { get; set; } 
+    public int AgeInYears { get; set; }
 
     public Person(string firstName, string lastName, int ageInYears)
     {
@@ -26,16 +26,16 @@ public class Person
 
 public class DependenciesWindowViewModel : ViewModelBase
 {
-     public ObservableCollection<Person> People { get; }
+    public ObservableCollection<Person> People { get; }
 
     public DependenciesWindowViewModel()
-        {
-            var people = new List<Person> 
+    {
+        var people = new List<Person>
             {
                  new Person("Neil", "Armstrong",  55),
                 new Person("Buzz", "Lightyear", 38),
                 new Person("James", "Kirk", 44)
             };
-            People = new ObservableCollection<Person>(people);
-        }
+        People = new ObservableCollection<Person>(people);
+    }
 }

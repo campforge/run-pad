@@ -26,7 +26,7 @@ public sealed class ListSdks : IEnumerable<SdkInfoModel>
 
             var name = trimmed[..spaceIdx];
 
-            var openBracket  = trimmed.IndexOf('[', spaceIdx);
+            var openBracket = trimmed.IndexOf('[', spaceIdx);
             var closeBracket = trimmed.LastIndexOf(']');
             if (openBracket < 0 || closeBracket <= openBracket) continue;
 

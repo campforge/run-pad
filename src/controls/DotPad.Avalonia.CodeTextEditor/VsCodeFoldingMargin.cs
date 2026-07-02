@@ -11,37 +11,37 @@ namespace DotPad.Avalonia.CodeTextEditor;
 internal sealed class VsCodeFoldingMargin : AbstractMargin
 {
     private readonly FoldingManager _manager;
-    private FoldingSection?         _hovered;
+    private FoldingSection? _hovered;
 
     private const double W = 16.0; // gutter width — wide enough to hit easily
 
     // Open-stroke chevrons in a 10×10 space; scaled at render time
-    private static readonly StreamGeometry ExpandedGeo  = BuildChevron(down: true);
+    private static readonly StreamGeometry ExpandedGeo = BuildChevron(down: true);
     private static readonly StreamGeometry CollapsedGeo = BuildChevron(down: false);
 
     public VsCodeFoldingMargin(FoldingManager manager)
     {
         _manager = manager;
-        Cursor   = new Cursor(StandardCursorType.Arrow);
+        Cursor = new Cursor(StandardCursorType.Arrow);
     }
 
     protected override Size MeasureOverride(Size _) => new(W, 0);
 
     public override void Render(DrawingContext ctx)
     {
-        var tv  = TextView;
+        var tv = TextView;
         var doc = Document;
         if (tv is null || doc is null || !tv.VisualLinesValid || tv.VisualLines.Count == 0) return;
 
         var chevronBrush = LoadThemedResource<IBrush>("DotPad.Folding.ChevronBrush");
-        var hoverBrush   = LoadThemedResource<IBrush>("DotPad.Folding.ChevronHoverBrush");
-        var lineBrush    = LoadThemedResource<IBrush>("DotPad.Folding.LineBrush");
+        var hoverBrush = LoadThemedResource<IBrush>("DotPad.Folding.ChevronHoverBrush");
+        var lineBrush = LoadThemedResource<IBrush>("DotPad.Folding.LineBrush");
 
         // ── Pass 1: thin vertical scope line for each expanded fold ──────────
         if (lineBrush is not null)
         {
             var linePen = new Pen(lineBrush, 1.0);
-            var cx      = Math.Floor(W / 2.0) + 0.5; // pixel-aligned centre
+            var cx = Math.Floor(W / 2.0) + 0.5; // pixel-aligned centre
 
             foreach (var section in _manager.AllFoldings)
             {
@@ -49,15 +49,15 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
 
                 var bracePos = Math.Max(0, section.StartOffset - 1);
                 double? yStart = null;
-                double  yEnd   = 0;
-                bool    hasEnd = false;
+                double yEnd = 0;
+                bool hasEnd = false;
 
                 foreach (var vl in tv.VisualLines)
                 {
-                    var lo  = vl.FirstDocumentLine.Offset;
-                    var lt  = lo + vl.FirstDocumentLine.TotalLength;
-                    var yT  = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
-                    var yB  = yT + vl.Height;
+                    var lo = vl.FirstDocumentLine.Offset;
+                    var lt = lo + vl.FirstDocumentLine.TotalLength;
+                    var yT = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
+                    var yB = yT + vl.Height;
 
                     if (bracePos >= lo && bracePos < lt)
                     {
@@ -87,8 +87,8 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
             var section = FindFoldStartOnLine(vl, doc);
             if (section is null) continue;
 
-            var yTop  = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
-            var yMid  = yTop + vl.Height / 2.0;
+            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
+            var yMid = yTop + vl.Height / 2.0;
             var isHover = section == _hovered;
 
             // Subtle background highlight across the full line height on hover
@@ -101,7 +101,7 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
             var geo = section.IsFolded ? CollapsedGeo : ExpandedGeo;
 
             // Scale 10×10 chevron to (W-4)×(W-4) and centre it vertically
-            var s  = (W - 4.0) / 10.0;
+            var s = (W - 4.0) / 10.0;
             var ox = (W - 10.0 * s) / 2.0;
             var oy = yMid - 5.0 * s;
 
@@ -162,7 +162,7 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
 
     private FoldingSection? HitTest(Point pt)
     {
-        var tv  = TextView;
+        var tv = TextView;
         var doc = Document;
         if (tv is null || doc is null || !tv.VisualLinesValid) return null;
 
