@@ -65,6 +65,7 @@
             <TabItem Header="Editor">
                 <StackPanel Margin="8" Spacing="4">
                     <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
+                    <CheckBox IsChecked="{Binding ShowFolding}"     Content="Show code folding"/>
                     <CheckBox IsChecked="{Binding ShowTabs}"        Content="Show tabs"/>
                     <CheckBox IsChecked="{Binding ShowSpaces}"      Content="Show spaces"/>
                     <CheckBox IsChecked="{Binding ShowEndOfLine}"   Content="Show end of line"/>

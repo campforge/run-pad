@@ -393,13 +393,42 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             arguments = new ContinueArguments { threadId = threadId },
         }, ct);
 
+    // netcoredbg splits long stdout lines across multiple DAP output events.
+    // Buffer per-category and only invoke the handler on complete \n-terminated lines.
+    private readonly StringBuilder _stdoutBuf = new();
+    private readonly StringBuilder _stderrBuf  = new();
+
     private void ForwardOutput(JsonElement root)
     {
         if (!root.TryGetProperty("body", out var body)) return;
         var text     = GetStr(body, "output") ?? "";
         var category = GetStr(body, "category") ?? "stdout";
         var kind     = category == "stderr" ? OutputKind.StandardError : OutputKind.StandardOutput;
-        _outputHandler?.Invoke(text, kind);
+        var buf      = category == "stderr" ? _stderrBuf : _stdoutBuf;
+
+        buf.Append(text);
+
+        var content = buf.ToString();
+        var start   = 0;
+        for (int i = 0; i < content.Length; i++)
+        {
+            if (content[i] != '\n') continue;
+            var line = content.Substring(start, i - start).TrimEnd('\r');
+            if (line.Length > 0)
+                _outputHandler?.Invoke(line, kind);
+            start = i + 1;
+        }
+        buf.Clear();
+        if (start < content.Length)
+            buf.Append(content, start, content.Length - start);
+    }
+
+    internal void FlushOutputBuffers()
+    {
+        if (_stdoutBuf.Length > 0)
+            _outputHandler?.Invoke(_stdoutBuf.ToString(), OutputKind.StandardOutput);
+        if (_stderrBuf.Length > 0)
+            _outputHandler?.Invoke(_stderrBuf.ToString(), OutputKind.StandardError);
     }
 
     // ─── Send ────────────────────────────────────────────────────────────────

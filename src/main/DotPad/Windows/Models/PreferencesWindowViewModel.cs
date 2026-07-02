@@ -121,6 +121,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set { _prefs.Editor.ShowLineNumbers = value; _prefs.Save(); this.RaisePropertyChanged(); }
     }
 
+    public bool ShowFolding
+    {
+        get => _prefs.Editor.ShowFolding;
+        set { _prefs.Editor.ShowFolding = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
+
     public bool ShowTabs
     {
         get => _prefs.Editor.ShowTabs;

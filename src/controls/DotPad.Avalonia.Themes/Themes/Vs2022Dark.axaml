@@ -42,6 +42,19 @@
                     <SolidColorBrush x:Key="DotPad.Margin.BreakpointPreviewBrush"    Color="#8B3030" />
                     <SolidColorBrush x:Key="DotPad.Margin.DebugArrowBrush"           Color="#FFCC00" />
                     <SolidColorBrush x:Key="DotPad.Margin.DebugLineBrush"            Color="#3CFFEE00" />
+                    <SolidColorBrush x:Key="DotPad.Folding.ChevronBrush"            Color="#717171" />
+                    <SolidColorBrush x:Key="DotPad.Folding.ChevronHoverBrush"       Color="#BFBFBF" />
+                    <SolidColorBrush x:Key="DotPad.Folding.LineBrush"               Color="#3B3B3B" />
+                    <SolidColorBrush x:Key="DotPad.Dump.TableHeaderBrush"           Color="#264F78" />
+                    <SolidColorBrush x:Key="DotPad.Dump.TableHeaderForegroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="DotPad.Dump.TableBorderBrush"           Color="#3F3F46" />
+                    <SolidColorBrush x:Key="DotPad.Dump.TableEvenRowBrush"          Color="#252527" />
+                    <SolidColorBrush x:Key="DotPad.Dump.StringBrush"                Color="#CE9178" />
+                    <SolidColorBrush x:Key="DotPad.Dump.NumberBrush"                Color="#B5CEA8" />
+                    <SolidColorBrush x:Key="DotPad.Dump.BoolBrush"                  Color="#569CD6" />
+                    <SolidColorBrush x:Key="DotPad.Dump.EnumBrush"                  Color="#4EC9B0" />
+                    <SolidColorBrush x:Key="DotPad.Dump.DateTimeBrush"              Color="#C8A0D4" />
+                    <SolidColorBrush x:Key="DotPad.Dump.PropertyNameBrush"          Color="#9CDCFE" />
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>
