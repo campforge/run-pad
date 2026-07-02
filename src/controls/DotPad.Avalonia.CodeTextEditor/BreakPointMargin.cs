@@ -13,52 +13,62 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         FocusableProperty.OverrideDefaultValue(typeof(BreakPointMargin), false);
     }
 
-    private static readonly IBrush DebugArrowBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0x00));
-
     private CodeTextEditor? _editor;
     private IBreakpointStore? _manager;
 
-    private int _previewLine = -1;
+    private int  _previewLine        = -1;
     private bool _previewPointVisible;
+
+    // Loaded once from app resources; geometries are immutable
+    private StreamGeometry? _breakpointGeo;
+    private StreamGeometry? _debugArrowGeo;
 
     public int? DebugLine { get; set; }
 
     public BreakPointMargin(CodeTextEditor editor, IBreakpointStore manager)
     {
-        _editor = editor;
+        _editor  = editor;
         _manager = manager;
-        Cursor = new Cursor(StandardCursorType.Hand);
+        Cursor   = new Cursor(StandardCursorType.Hand);
         Focusable = false;
     }
 
     public override void Render(DrawingContext context)
     {
-        if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0)
-            return;
+        if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0) return;
 
         context.FillRectangle(_editor?.Background ?? Brushes.Honeydew, Bounds);
 
-        var height = TextView.VisualLines[0].Height;
+        _breakpointGeo ??= LoadResource<StreamGeometry>("Icon.Breakpoint");
+        _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
 
-        foreach (var bp in _manager?.OfType<IBreakpoint>() ?? [])
-        {
-            var line = FindVisualLine(bp.Line);
-            if (line != null)
-                DrawPoint(context, line, height, Brush.Parse("#FF3737"));
-        }
+        var bpBrush      = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
+        var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
+        var arrowBrush   = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
 
-        if (_previewPointVisible && _previewLine >= 0)
+        foreach (var vl in TextView.VisualLines)
         {
-            var line = FindVisualLine(_previewLine);
-            if (line != null)
-                DrawPoint(context, line, height, Brush.Parse("#E67466"));
-        }
+            var lineNo  = vl.FirstDocumentLine.LineNumber;
+            var lineH   = vl.Height;
+            var yTop    = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
+                          - TextView.VerticalOffset;
+            var hasBp   = _manager?.Any(bp => bp.Line == lineNo) ?? false;
+            var isDebug = DebugLine == lineNo;
+            var isHover = _previewPointVisible && _previewLine == lineNo;
 
-        if (DebugLine is { } debugLine)
-        {
-            var line = FindVisualLine(debugLine);
-            if (line != null)
-                DrawArrow(context, line, height);
+            if (isDebug && _debugArrowGeo is not null)
+            {
+                // When stopped at a breakpoint, arrow turns red to show the overlap state
+                DrawFullWidth(context, _debugArrowGeo, hasBp ? bpBrush : arrowBrush, yTop, lineH);
+            }
+            else if (hasBp && _breakpointGeo is not null)
+            {
+                DrawCentered(context, _breakpointGeo, bpBrush, yTop, lineH);
+            }
+            else if (isHover && _breakpointGeo is not null)
+            {
+                DrawCentered(context, _breakpointGeo, previewBrush, yTop, lineH);
+            }
         }
     }
 
@@ -70,8 +80,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     protected override void OnPointerExited(PointerEventArgs e)
     {
-        _previewLine = -1;
-        _previewPointVisible = false;
+        _previewLine          = -1;
+        _previewPointVisible  = false;
         InvalidateVisual();
     }
 
@@ -84,7 +94,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
         _previewPointVisible = true;
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
-        var existing = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
+        var existing   = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
 
         if (existing != null)
         {
@@ -106,10 +116,54 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     public void Dispose()
     {
-        _editor = null;
+        _editor  = null;
         _manager = null;
         GC.SuppressFinalize(this);
     }
+
+    // ── Drawing helpers ───────────────────────────────────────────────────────
+
+    // Icons are defined in a 24×24 viewbox.
+
+    private void DrawCentered(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
+                               double yTop, double lineH)
+    {
+        if (brush is null) return;
+        var s  = Bounds.Width * 0.72 / 24.0;
+        var cx = Bounds.Width / 2 - 12 * s;
+        var cy = yTop + lineH / 2 - 12 * s;
+        using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
+            ctx.DrawGeometry(brush, null, geo);
+    }
+
+    private void DrawFullWidth(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
+                                double yTop, double lineH)
+    {
+        if (brush is null) return;
+        var s  = Bounds.Width / 24.0;
+        var cy = yTop + lineH / 2 - 12 * s;
+        using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(0, cy)))
+            ctx.DrawGeometry(brush, null, geo);
+    }
+
+    // ── Resource helpers ──────────────────────────────────────────────────────
+
+    private static T? LoadResource<T>(string key) where T : class
+    {
+        object? res = null;
+        Application.Current?.TryGetResource(key, null, out res);
+        return res as T;
+    }
+
+    private static T? LoadThemedResource<T>(string key) where T : class
+    {
+        object? res = null;
+        var variant = Application.Current?.ActualThemeVariant;
+        Application.Current?.TryGetResource(key, variant, out res);
+        return res as T;
+    }
+
+    // ── Pointer helpers ───────────────────────────────────────────────────────
 
     private bool UpdatePreviewLine(PointerEventArgs e)
     {
@@ -121,49 +175,11 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
         if (_previewPointVisible && lineNumber == _previewLine) return false;
 
-        var hasBreakpoint = _manager?.Any(i => i.Line == lineNumber) ?? false;
+        var hasBreakpoint    = _manager?.Any(i => i.Line == lineNumber) ?? false;
         _previewPointVisible = !hasBreakpoint;
         if (_previewPointVisible)
             _previewLine = lineNumber;
 
         return true;
-    }
-
-    private VisualLine? FindVisualLine(int lineNumber)
-        => TextView.VisualLines.FirstOrDefault(vl => vl.FirstDocumentLine.LineNumber == lineNumber);
-
-    private void DrawPoint(DrawingContext context, VisualLine line, double height, IBrush brush)
-    {
-        var size = Bounds.Size;
-        var yTop = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.LineTop);
-        var point = new Point((size.Width / 4) - 1, yTop + (size.Width / 4) - 3.5 - TextView.VerticalOffset);
-        context.FillRectangle(brush,
-            new Rect(point.X, point.Y, size.Width / 1.5, height / 1.5), (float)height);
-    }
-
-    private void DrawArrow(DrawingContext context, VisualLine line, double lineHeight)
-    {
-        var w    = Bounds.Width;
-        var yTop = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.LineTop)
-                   - TextView.VerticalOffset;
-        var yMid    = yTop + lineHeight / 2;
-        var arrowH  = lineHeight * 0.55;
-        var bodyH   = arrowH    * 0.40;
-        var bodyEnd = w         * 0.50;
-
-        var geo = new StreamGeometry();
-        using (var ctx = geo.Open())
-        {
-            ctx.BeginFigure(new Point(1,       yMid - bodyH),     true);
-            ctx.LineTo(new Point(bodyEnd,       yMid - bodyH));
-            ctx.LineTo(new Point(bodyEnd,       yMid - arrowH / 2));
-            ctx.LineTo(new Point(w - 1,         yMid));
-            ctx.LineTo(new Point(bodyEnd,       yMid + arrowH / 2));
-            ctx.LineTo(new Point(bodyEnd,       yMid + bodyH));
-            ctx.LineTo(new Point(1,             yMid + bodyH));
-            ctx.EndFigure(true);
-        }
-
-        context.DrawGeometry(DebugArrowBrush, null, geo);
     }
 }
