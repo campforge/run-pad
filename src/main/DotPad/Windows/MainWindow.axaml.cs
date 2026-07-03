@@ -35,6 +35,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _prefs = prefs;
         DataContext = viewModel;
 
+
         InitializeComponent();
 
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
@@ -85,6 +86,24 @@ public sealed partial class MainWindow : Window, IDisposable
         catch { return false; }
     }
 
+    // ── Title bar window controls ─────────────────────────────────────────────
+
+    private void Minimize_Click(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void Maximize_Click(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized 
+            ? WindowState.Normal 
+            : WindowState.Maximized;
+    }
+
+    private void Close_Click(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
     private void NewRpadFile_Click(object? sender, RoutedEventArgs e)
