@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:build="using:DotPad.Build.Core.Models"
+             xmlns:build="using:DotPad.Contracts.Models"
              xmlns:controls="using:DotPad.Controls"
              xmlns:views="using:DotPad.Views"
              xmlns:vm="clr-namespace:DotPad.UserControls.Models"

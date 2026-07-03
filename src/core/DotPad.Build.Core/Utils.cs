@@ -36,11 +36,9 @@ public static class Utils
     {
         var process = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? GetWindowsProcess(commandText, args, encoding)
-            : RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-                ? GetUnixProcess("/bin/bash", commandText, args, encoding)
-                : RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-                    ? GetUnixProcess("/bin/bash", commandText, args, encoding)
-                    : null;
+            : (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                ? GetUnixProcess(commandText, args, encoding)
+                : null;
 
         if (process is null)
             yield break;
@@ -70,24 +68,20 @@ public static class Utils
 
     private static Process? GetWindowsProcess(string cmdText, string? args, Encoding? encoding)
     {
-        var arguments = BuildArguments(cmdText, args, encoding);
-        return StartProcess("cmd.exe", arguments, encoding);
-    }
-
-    private static Process? GetUnixProcess(string shell, string cmdText, string? args, Encoding? encoding)
-    {
-        var arguments = BuildArguments(cmdText, args, encoding);
-        return StartProcess(shell, arguments, encoding);
-    }
-
-    private static string BuildArguments(string cmdText, string? args, Encoding? encoding)
-    {
         cmdText = cmdText.Trim();
         if (cmdText.Contains(' '))
             cmdText = $"\"{cmdText}\"";
-
         var prefix = encoding?.EncodingName == "Unicode" ? "/u /c" : "/c";
-        return string.IsNullOrEmpty(args) ? $"{prefix} {cmdText}" : $"{prefix} {cmdText} {args}";
+        var arguments = string.IsNullOrEmpty(args) ? $"{prefix} {cmdText}" : $"{prefix} {cmdText} {args}";
+        return StartProcess("cmd.exe", arguments, encoding);
+    }
+
+    private static Process? GetUnixProcess(string cmdText, string? args, Encoding? encoding)
+    {
+        cmdText = cmdText.Trim();
+        var full = string.IsNullOrEmpty(args) ? cmdText : $"{cmdText} {args}";
+        var escaped = full.Replace("\"", "\\\"");
+        return StartProcess("/bin/sh", $"-c \"{escaped}\"", encoding);
     }
 
     private static Process? StartProcess(string fileName, string arguments, Encoding? encoding)

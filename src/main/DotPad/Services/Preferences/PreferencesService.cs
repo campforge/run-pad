@@ -17,6 +17,7 @@ public sealed class PreferencesService : IPreferencesService
     public AppearanceSettings Appearance => _settings.Appearance;
     public EditorSettings Editor => _settings.Editor;
     public DebuggerSettings Debugger => _settings.Debugger;
+    public KeyboardSettings Keyboard => _settings.Keyboard;
 
     public event Action? Changed;
 
@@ -30,7 +31,9 @@ public sealed class PreferencesService : IPreferencesService
     {
         var dir = Path.GetDirectoryName(SettingsPath)!;
         Directory.CreateDirectory(dir);
-        File.WriteAllText(SettingsPath, JsonSerializer.Serialize(_settings, SerializerOptions));
+        var tmp = SettingsPath + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(_settings, SerializerOptions));
+        File.Move(tmp, SettingsPath, overwrite: true);
         Changed?.Invoke();
     }
 

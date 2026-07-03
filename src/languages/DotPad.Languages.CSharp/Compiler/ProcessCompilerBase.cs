@@ -1,4 +1,5 @@
 using DotPad.Build.Core.Models;
+using DotPad.Contracts.Models;
 using Microsoft.CodeAnalysis;
 
 namespace DotPad.Languages.CSharp.Compiler;

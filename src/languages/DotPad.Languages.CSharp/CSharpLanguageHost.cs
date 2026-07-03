@@ -1,5 +1,4 @@
 using System.Text;
-using System.Threading.Channels;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -12,6 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using DiagnosticSeverity = DotPad.Contracts.Models.DiagnosticSeverity;
 using OutputKind = DotPad.Contracts.Models.OutputKind;
 
 namespace DotPad.Languages.CSharp;
@@ -21,7 +21,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     private readonly CSharpLanguageHostOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private CancellationTokenSource? _runCts;
-    private CSharpDapSession? _currentSession;
+    private IDapSession? _currentSession;
 
     private IReadOnlyList<IVariableInfo> _lastDebugVariables = [];
 
@@ -54,16 +54,16 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     public override async Task<ICompilationResult> CompileAsync(
         string code, CancellationToken cancellationToken = default)
     {
-        var (result, _) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult result, _) = await CompileInternalAsync(code, cancellationToken);
         return result;
     }
 
     private async Task<(CSharpCompilationResult result, string? binaryPath)> CompileInternalAsync(
         string code, CancellationToken ct)
     {
-        var syntaxTree = BuildSyntaxTree(code);
+        SyntaxTree syntaxTree = BuildSyntaxTree(code);
 
-        using var compiler = new DotnetProcessCompiler(
+        using DotnetProcessCompiler compiler = new(
             _options.Platform,
             _options.ExecutionOptions,
             _options.OutputDirectory,
@@ -71,8 +71,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             _options.OutputName,
             _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
-        var raw = await compiler.Compilation(syntaxTree, ct);
-        var result = new CSharpCompilationResult(raw);
+        ProcessCompilerResult raw = await compiler.Compilation(syntaxTree, ct);
+        CSharpCompilationResult result = new(raw);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
     }
 
@@ -95,7 +95,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
 
-        var (compilationResult, binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -103,18 +104,16 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
         try
         {
-            await using var process = new LocalProcess(
+            await using var process = ChildProcess.ForExecution(
                 _options.ExecutionOptions,
-                new LocalExecutionArgs(binaryPath, Environment.ProcessId.ToString()));
+                binaryPath,
+                Environment.ProcessId.ToString());
 
-            var ioTask = process.Start(cts.Token);
+            if (!process.Start()) return;
 
             await Task.WhenAll(
-                DrainChannelAsync(process.Reader, OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
-                DrainChannelAsync(process.ErrorReader, OutputKind.StandardError, outputHandler, cts.Token),
-                ioTask);
-
-            await process.WaitForExit(cts.Token);
+                DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
+                DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
         }
         finally
         {
@@ -131,7 +130,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
 
-        var (compilationResult, binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -139,9 +139,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
         try
         {
-            await using var process = new LocalDebuggerProcess(
-                _options.ExecutionOptions,
-                new LocalDebuggerExecutionArgs());
+            await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
 
             await using var session = new CSharpDapSession(
                 process,
@@ -228,16 +226,28 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         };
     }
 
-    private static async Task DrainChannelAsync(
-        ChannelReader<string> reader,
+    private static void EmitDiagnostics(IReadOnlyList<IDiagnostic> diagnostics, OutputReceivedHandler? handler)
+    {
+        if (handler is null) return;
+        foreach (IDiagnostic d in diagnostics)
+        {
+            string severity = d.Severity.ToString().ToLowerInvariant();
+            string text = $"({d.Line},{d.Column}): {severity} {d.Code}: {d.Message}";
+            OutputKind kind = d.Severity == DiagnosticSeverity.Error
+                ? OutputKind.StandardError
+                : OutputKind.StandardOutput;
+            handler(text, kind);
+        }
+    }
+
+    private static async Task DrainReaderAsync(
+        StreamReader reader,
         OutputKind kind,
         OutputReceivedHandler? handler,
         CancellationToken ct)
     {
-        while (await reader.WaitToReadAsync(ct))
-        {
-            var line = await reader.ReadAsync(ct);
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) is not null)
             handler?.Invoke(line, kind);
-        }
     }
 }

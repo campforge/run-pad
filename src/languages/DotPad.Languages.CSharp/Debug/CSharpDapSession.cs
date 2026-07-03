@@ -19,7 +19,7 @@ namespace DotPad.Languages.CSharp.Debug;
 /// Interactive model: on each "stopped" event the session pauses and calls _onBreakpointHit.
 /// The caller must invoke context.Resume(action) to unblock execution.
 /// </summary>
-internal sealed class CSharpDapSession : IAsyncDisposable
+internal sealed class CSharpDapSession : IDapSession
 {
     private const string ContentLengthPrefix = "Content-Length: ";
 
@@ -30,7 +30,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private readonly LocalDebuggerProcess _process;
+    private readonly ChildProcess _process;
     private readonly string _programPath;
     private readonly string _workingDirectory;
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
@@ -47,7 +47,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     private volatile bool _processExited;
 
     internal CSharpDapSession(
-        LocalDebuggerProcess process,
+        ChildProcess process,
         string programPath,
         string workingDirectory,
         IReadOnlyList<IBreakpoint> breakpoints,
@@ -66,7 +66,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
     // ─── External control ────────────────────────────────────────────────────
 
-    internal async Task PauseAsync(CancellationToken ct)
+    public async Task PauseAsync(CancellationToken ct)
     {
         if (_isPaused) return;
         await SendAsync(new PauseRequest
@@ -78,9 +78,9 @@ internal sealed class CSharpDapSession : IAsyncDisposable
 
     // ─── Session entry point ─────────────────────────────────────────────────
 
-    internal async Task RunAsync(CancellationToken ct)
+    public async Task RunAsync(CancellationToken ct)
     {
-        _process.Start(ct);
+        _process.Start();
         var stderrTask = DrainStderrAsync(ct);
         try
         {
@@ -118,7 +118,8 @@ internal sealed class CSharpDapSession : IAsyncDisposable
     {
         try
         {
-            await foreach (var line in _process.ErrorReader.ReadAllAsync(ct).ConfigureAwait(false))
+            string? line;
+            while ((line = await _process.StandardError.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
             {
                 _logger.LogDebug("[dbg] {Line}", line);
                 _outputHandler?.Invoke($"[dbg] {line}", OutputKind.StandardError);
@@ -228,7 +229,6 @@ internal sealed class CSharpDapSession : IAsyncDisposable
         var topFrame = frames.Count > 0 ? frames[0] : null;
         IBreakpoint matched =
             _breakpoints.FirstOrDefault(bp => bp.Line == topFrame?.line)
-            ?? _breakpoints.FirstOrDefault()
             ?? new SyntheticBreakpoint(topFrame?.source?.path ?? "", topFrame?.line ?? 0);
 
         var context = new DapBreakpointHitContext
@@ -423,7 +423,7 @@ internal sealed class CSharpDapSession : IAsyncDisposable
             buf.Append(content, start, content.Length - start);
     }
 
-    internal void FlushOutputBuffers()
+    public void FlushOutputBuffers()
     {
         if (_stdoutBuf.Length > 0)
             _outputHandler?.Invoke(_stdoutBuf.ToString(), OutputKind.StandardOutput);

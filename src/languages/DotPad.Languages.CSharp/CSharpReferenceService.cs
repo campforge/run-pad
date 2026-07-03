@@ -11,13 +11,18 @@ public sealed class CSharpReferenceService
 
     public string[] GetDefault()
     {
-        return new[]
+        string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            typeof(object).GetTypeInfo().Assembly.Location,
-            typeof(Console).GetTypeInfo().Assembly.Location,
-            Path.Combine(
-                Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location)!,
-                "System.Runtime.dll"),
+            typeof(object).Assembly.Location,
+            typeof(Console).Assembly.Location,
+            Path.Combine(runtimeDir, "System.Runtime.dll"),
         };
+
+        foreach (string dll in Directory.GetFiles(runtimeDir, "System.*.dll"))
+            paths.Add(dll);
+
+        return [.. paths.Where(File.Exists)];
     }
 }

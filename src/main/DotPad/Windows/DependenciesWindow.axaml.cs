@@ -6,10 +6,10 @@ namespace DotPad.Windows;
 
 public partial class DependenciesWindow : Window
 {
-    public DependenciesWindow()
+    public DependenciesWindow(DependenciesWindowViewModel viewModel)
     {
         InitializeComponent();
-        DataContext = new DependenciesWindowViewModel();
+        DataContext = viewModel;
     }
 
     private void Close_Click(object? sender, RoutedEventArgs e) => Close();

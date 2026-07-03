@@ -1,6 +1,7 @@
 using System.Text;
 using DotPad.Build.Core.Models;
 using Microsoft.CodeAnalysis;
+using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace DotPad.Languages.CSharp.Compiler;
