@@ -3,152 +3,239 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:views="using:DotPad.Windows"
     xmlns:vm="clr-namespace:DotPad.Windows.Models"
     xmlns:models="clr-namespace:DotPad.Assets.Models"
     xmlns:userControls="clr-namespace:DotPad.UserControls"
+    xmlns:chrome="using:Avalonia.Controls.Chrome"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="DotPad.Windows.MainWindow"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/icon.ico"
-    Title="DotPad">
+    Title="DotPad"
+    WindowDecorations="BorderOnly"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaTitleBarHeightHint="32">
 
-    <Grid ColumnDefinitions="300,*">
+    <Window.Styles>
 
-        <!-- ── Sidebar ──────────────────────────────────────────────────── -->
-        <Grid Grid.Column="0" RowDefinitions="40,Auto,*"
-              Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
+        <!-- Window control buttons -->
+        <Style Selector="Button.wc-btn">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <Border Name="root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="0">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.wc-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="Button.wc-close:pointerover">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
 
-            <!-- Menu bar -->
-            <Menu Grid.Row="0">
-                <MenuItem Header="File">
-                    <MenuItem Header="New _RPad File" Click="NewRpadFile_Click"/>
-                </MenuItem>
-                <MenuItem Header="Edit">
-                    <MenuItem Header="_Dependencies" Click="Dependencies_Click"/>
-                    <Separator/>
-                    <MenuItem Header="_Preferences" Click="Preferences_Click"/>
-                </MenuItem>
-            </Menu>
+    </Window.Styles>
 
-            <!-- Section header -->
-            <TextBlock Grid.Row="1"
-                       Text="FILES"
-                       FontSize="11"
-                       FontWeight="Medium"
-                       LetterSpacing="1.0"
-                       Margin="12,6,8,2"
-                       Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
-                       Opacity="0.6"/>
+    <Grid RowDefinitions="32,*">
 
-            <!-- File tree -->
-            <TreeView Grid.Row="2"
-                      Name="FileTree"
-                      ItemsSource="{Binding Nodes}"
-                      Background="Transparent"
-                      BorderThickness="0"
-                      Padding="4,2,4,8"
-                      SelectionMode="Single"
-                      PointerPressed="FileTree_PointerPressed"
-                      KeyDown="FileTree_KeyDown">
+        <!-- ── Title bar ─────────────────────────────────────────────────── -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
-                <TreeView.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Rename" Click="ContextRename_Click">
-                            <MenuItem.Icon>
-                                <Image Source="{StaticResource Rename}" Width="16" Height="16"/>
-                            </MenuItem.Icon>
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- Left: app icon + menu -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            VerticalAlignment="Center" Spacing="0"
+                            chrome:WindowDecorationProperties.ElementRole="User">
+
+                    <Image Source="/Assets/icon.ico"
+                           Width="16" Height="16"
+                           Margin="10,0,4,0"
+                           IsHitTestVisible="False"
+                           VerticalAlignment="Center"/>
+
+                    <Menu Background="Transparent" VerticalAlignment="Center">
+                        <Menu.Styles>
+                            <Style Selector="MenuItem">
+                                <Setter Property="Padding" Value="7,4"/>
+                                <Setter Property="FontSize" Value="13"/>
+                            </Style>
+                        </Menu.Styles>
+                        <MenuItem Header="File">
+                            <MenuItem Header="New _RPad File" Click="NewRpadFile_Click"/>
                         </MenuItem>
-                        <MenuItem Header="Delete" Click="ContextDelete_Click">
-                            <MenuItem.Icon>
-                                <Image Source="{StaticResource Close}" Width="16" Height="16"/>
-                            </MenuItem.Icon>
+                        <MenuItem Header="Edit">
+                            <MenuItem Header="_Dependencies" Click="Dependencies_Click"/>
+                            <Separator/>
+                            <MenuItem Header="_Preferences" Click="Preferences_Click"/>
                         </MenuItem>
-                        <Separator/>
-                        <MenuItem Header="Show in Explorer" Click="ContextOpenFolder_Click">
-                            <MenuItem.Icon>
-                                <Image Source="{StaticResource OpenFolder}" Width="16" Height="16"/>
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </ContextMenu>
-                </TreeView.ContextMenu>
+                    </Menu>
 
-                <TreeView.Styles>
-                    <Style Selector="TreeViewItem">
-                        <Setter Property="Padding" Value="6,0,6,0"/>
-                        <Setter Property="MinHeight" Value="27"/>
-                        <Setter Property="Margin" Value="0,0"/>
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="Cursor" Value="Hand"/>
-                    </Style>
-                    <!-- Hover state -->
-                    <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
-                        <Setter Property="CornerRadius" Value="5"/>
-                    </Style>
-                    <!-- Selected state: full-width accent background -->
-                    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-                        <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
-                        <Setter Property="CornerRadius" Value="5"/>
-                    </Style>
-                    <!-- Hide the left-border selection indicator (FluentTheme default) -->
-                    <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
-                        <Setter Property="IsVisible" Value="False"/>
-                    </Style>
-                    <!-- Selected text color -->
-                    <Style Selector="TreeViewItem:selected TextBlock">
-                        <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}"/>
-                    </Style>
-                    <!-- Normal text color -->
-                    <Style Selector="TreeViewItem TextBlock">
-                        <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
-                        <Setter Property="FontSize" Value="13"/>
-                        <Setter Property="VerticalAlignment" Value="Center"/>
-                    </Style>
-                    <!-- Remove default focus border -->
-                    <Style Selector="TreeViewItem:focus /template/ Border#PART_LayoutRoot">
-                        <Setter Property="BorderThickness" Value="0"/>
-                    </Style>
-                </TreeView.Styles>
+                </StackPanel>
 
-                <TreeView.ItemTemplate>
-                    <TreeDataTemplate DataType="models:Node" ItemsSource="{Binding SubNodes}">
-                        <Panel VerticalAlignment="Center" Margin="0,1">
+                <!-- Middle: drag region (empty) -->
+                <Border Grid.Column="1" Background="Transparent"/>
 
-                            <!-- Normal display: icon + file name -->
-                            <StackPanel Orientation="Horizontal" Spacing="7"
-                                        IsVisible="{Binding !IsRenaming}"
-                                        VerticalAlignment="Center">
-                                <!-- Minimal document icon -->
-                                <Path Width="12" Height="14"
-                                      VerticalAlignment="Center"
-                                      Stretch="Fill"
-                                      Opacity="0.55"
-                                      Fill="{DynamicResource DotPad.Text.PrimaryBrush}"
-                                      Data="M1,0 L7.5,0 L11,3.5 L11,14 L1,14 Z M7.5,0 L7.5,3.5 L11,3.5 Z"/>
-                                <TextBlock Text="{Binding DisplayName}"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
+                <!-- Right: window control buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch"
+                            chrome:WindowDecorationProperties.ElementRole="User">
 
-                            <!-- Rename TextBox (visible only when IsRenaming) -->
-                            <TextBox Text="{Binding EditingName, Mode=TwoWay}"
-                                     IsVisible="{Binding IsRenaming}"
-                                     FontSize="13"
-                                     Padding="3,1"
-                                     MinHeight="0"
-                                     BorderThickness="1"
-                                     VerticalAlignment="Center"
-                                     KeyDown="RenameBox_KeyDown"
-                                     LostFocus="RenameBox_LostFocus"/>
-                        </Panel>
-                    </TreeDataTemplate>
-                </TreeView.ItemTemplate>
+                    <Button Classes="wc-btn" Click="Minimize_Click">
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Data="M 0,0 H 10"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              StrokeThickness="1" StrokeLineCap="Square"/>
+                    </Button>
 
-            </TreeView>
+                    <Button Classes="wc-btn" Click="Maximize_Click">
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Data="M 0.5,0.5 H 9.5 V 9.5 H 0.5 Z"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              StrokeThickness="1" Fill="Transparent"/>
+                    </Button>
+
+                    <Button Classes="wc-btn wc-close" Click="Close_Click">
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Data="M 0,0 L 10,10 M 10,0 L 0,10"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              StrokeThickness="1" StrokeLineCap="Round"/>
+                    </Button>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Body ──────────────────────────────────────────────────────── -->
+        <Grid Grid.Row="1" ColumnDefinitions="300,*">
+
+            <!-- ── Sidebar ───────────────────────────────────────────────── -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,*"
+                  Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
+
+                <TextBlock Grid.Row="0"
+                           Text="FILES"
+                           FontSize="11"
+                           FontWeight="Medium"
+                           LetterSpacing="1.0"
+                           Margin="12,6,8,2"
+                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                           Opacity="0.6"/>
+
+                <TreeView Grid.Row="1"
+                          Name="FileTree"
+                          ItemsSource="{Binding Nodes}"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="4,2,4,8"
+                          SelectionMode="Single"
+                          PointerPressed="FileTree_PointerPressed"
+                          KeyDown="FileTree_KeyDown">
+
+                    <TreeView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Rename" Click="ContextRename_Click">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource Icon.Rename}" Width="16" Height="16"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Delete" Click="ContextDelete_Click">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource Icon.Delete}" Width="16" Height="16"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator/>
+                            <MenuItem Header="Show in Explorer" Click="ContextOpenFolder_Click">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="16" Height="16"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
+
+                    <TreeView.Styles>
+                        <Style Selector="TreeViewItem">
+                            <Setter Property="Padding" Value="6,0,6,0"/>
+                            <Setter Property="MinHeight" Value="27"/>
+                            <Setter Property="Margin" Value="0,0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                        </Style>
+                        <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+                            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                        <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+                            <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                        <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
+                            <Setter Property="IsVisible" Value="False"/>
+                        </Style>
+                        <Style Selector="TreeViewItem:selected TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}"/>
+                        </Style>
+                        <Style Selector="TreeViewItem TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                        <Style Selector="TreeViewItem:focus /template/ Border#PART_LayoutRoot">
+                            <Setter Property="BorderThickness" Value="0"/>
+                        </Style>
+                    </TreeView.Styles>
+
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate DataType="models:Node" ItemsSource="{Binding SubNodes}">
+                            <Panel VerticalAlignment="Center" Margin="0,1">
+
+                                <StackPanel Orientation="Horizontal" Spacing="7"
+                                            IsVisible="{Binding !IsRenaming}"
+                                            VerticalAlignment="Center">
+                                    <Path Width="12" Height="14"
+                                          VerticalAlignment="Center"
+                                          Stretch="Fill"
+                                          Opacity="0.55"
+                                          Fill="{DynamicResource DotPad.Text.PrimaryBrush}"
+                                          Data="M1,0 L7.5,0 L11,3.5 L11,14 L1,14 Z M7.5,0 L7.5,3.5 L11,3.5 Z"/>
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <TextBox Text="{Binding EditingName, Mode=TwoWay}"
+                                         IsVisible="{Binding IsRenaming}"
+                                         FontSize="13"
+                                         Padding="3,1"
+                                         MinHeight="0"
+                                         BorderThickness="1"
+                                         VerticalAlignment="Center"
+                                         KeyDown="RenameBox_KeyDown"
+                                         LostFocus="RenameBox_LostFocus"/>
+                            </Panel>
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+
+                </TreeView>
+            </Grid>
+
+            <!-- ── Editor area ───────────────────────────────────────────── -->
+            <userControls:EditorTabsControl x:Name="EditorTabsCtrl" Grid.Column="1"/>
+
         </Grid>
-
-        <!-- ── Editor area ─────────────────────────────────────────────── -->
-        <userControls:EditorTabsControl x:Name="EditorTabsCtrl" Grid.Column="1"/>
-
     </Grid>
 </Window>
