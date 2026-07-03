@@ -10,7 +10,7 @@
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="DotPad.Windows.MainWindow"
     x:DataType="vm:MainWindowViewModel"
-    Icon="/Assets/avalonia-logo.ico"
+    Icon="/Assets/icon.ico"
     Title="DotPad">
 
     <Grid ColumnDefinitions="300,*">
