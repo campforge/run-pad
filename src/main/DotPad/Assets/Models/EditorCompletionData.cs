@@ -16,8 +16,6 @@ internal sealed class EditorCompletionData(ICompletionItem item) : ICompletionDa
 
     public double Priority => item.Kind == CompletionItemKind.Method ? 1.0 : 0.9;
 
-    public IBrush? Background => null;
-
     public IImage? Image => null;
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)

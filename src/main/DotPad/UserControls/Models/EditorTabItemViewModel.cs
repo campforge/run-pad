@@ -11,6 +11,7 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 public sealed class EditorTabItemViewModel : ControllModelBase
 {
     public string? FilePath { get; }
+
     public string FileName => FilePath is null ? "Untitled" : Path.GetFileName(FilePath);
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
@@ -24,12 +25,11 @@ public sealed class EditorTabItemViewModel : ControllModelBase
         set => this.RaiseAndSetIfChanged(ref _selectedDotnetPlatform, value);
     }
 
-    private bool _debugModeEnabled = true;
     public bool DebugModeEnabled
     {
-        get => _debugModeEnabled;
-        set => this.RaiseAndSetIfChanged(ref _debugModeEnabled, value);
-    }
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = true;
 
     private RunState _runState;
     public RunState RunState
@@ -54,23 +54,48 @@ public sealed class EditorTabItemViewModel : ControllModelBase
 
     // ── Hotkey tooltips (updated by EditorsTabItemControl on prefs change) ──────
 
-    private string _tooltipRun      = "Run (F5)";
-    private string _tooltipContinue = "Continue (F5)";
-    private string _tooltipCancel   = "Cancel (Escape)";
-    private string _tooltipStepOver = "Step Over (F10)";
-    private string _tooltipStepIn   = "Step In (F11)";
-    private string _tooltipStepOut  = "Step Out (Shift+F11)";
+    public string TooltipRun
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Run (F5)";
 
-    public string TooltipRun      { get => _tooltipRun;      set => this.RaiseAndSetIfChanged(ref _tooltipRun, value); }
-    public string TooltipContinue { get => _tooltipContinue; set => this.RaiseAndSetIfChanged(ref _tooltipContinue, value); }
-    public string TooltipCancel   { get => _tooltipCancel;   set => this.RaiseAndSetIfChanged(ref _tooltipCancel, value); }
-    public string TooltipStepOver { get => _tooltipStepOver; set => this.RaiseAndSetIfChanged(ref _tooltipStepOver, value); }
-    public string TooltipStepIn   { get => _tooltipStepIn;   set => this.RaiseAndSetIfChanged(ref _tooltipStepIn, value); }
-    public string TooltipStepOut  { get => _tooltipStepOut;  set => this.RaiseAndSetIfChanged(ref _tooltipStepOut, value); }
+    public string TooltipContinue
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Continue (F5)";
+
+    public string TooltipCancel
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Cancel (Escape)";
+
+    public string TooltipStepOver
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Step Over (F10)";
+
+    public string TooltipStepIn
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Step In (F11)";
+
+    public string TooltipStepOut
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = "Step Out (Shift+F11)";
 
     public ObservableCollection<DebugThread> DebugThreads { get; } = [];
+
     public ObservableCollection<DebugLocal> DebugLocals { get; } = [];
+
     public ObservableCollection<DebugFrame> DebugCallStack { get; } = [];
+
     public ObservableCollection<WatchExpression> WatchExpressions { get; } = [];
 
     public EditorTabItemViewModel(string? filePath, List<ExecutionPlatform> platforms)

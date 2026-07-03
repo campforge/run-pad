@@ -50,6 +50,8 @@ public class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IDotpFileService, DotpFileService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
+        services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
+
         services.AddLogging(logging =>
         {
             var logDir = Path.Combine(
@@ -81,8 +83,8 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
-        services.AddTransient<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
-        services.AddTransient<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
+        services.AddTransient<Func<PreferencesWindow>>(sp => sp.GetRequiredService<PreferencesWindow>);
+        services.AddTransient<Func<DependenciesWindow>>(sp => sp.GetRequiredService<DependenciesWindow>);
 
         return services.BuildServiceProvider();
     }

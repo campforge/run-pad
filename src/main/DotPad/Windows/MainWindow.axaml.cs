@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _dependenciesWindowFactory = dependenciesWindowFactory;
         _preferencesWindowFactory = preferencesWindowFactory;
         _prefs = prefs;
+
         DataContext = viewModel;
 
 
@@ -53,12 +54,14 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         var kb = _prefs.Keyboard;
+        var vm = (DataContext as MainWindowViewModel);
+
         if (Match(e, kb.Run))
         {
             EditorTabsCtrl.RunOrContinueActive();
             e.Handled = true;
         }
-        else if (Match(e, kb.Cancel) && (DataContext as MainWindowViewModel)?.ActiveTab?.EnableCancelButton == true)
+        else if (Match(e, kb.Cancel) && vm?.ActiveTab?.EnableCancelButton == true)
         {
             EditorTabsCtrl.CancelActive();
             e.Handled = true;
@@ -78,6 +81,16 @@ public sealed partial class MainWindow : Window, IDisposable
             EditorTabsCtrl.StepOutActive();
             e.Handled = true;
         }
+        else if (e.Key == Key.F4)
+        {
+            Dispatcher.UIThread.Post(() => _dependenciesWindowFactory().ShowDialog(this));
+            e.Handled = true;
+        }else if (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            vm?.CloseActiveTab();
+            e.Handled = true;
+        }
+
     }
 
     private static bool Match(KeyEventArgs e, string gesture)
@@ -95,8 +108,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void Maximize_Click(object? sender, RoutedEventArgs e)
     {
-        WindowState = WindowState == WindowState.Maximized 
-            ? WindowState.Normal 
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
             : WindowState.Maximized;
     }
 
