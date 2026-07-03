@@ -119,13 +119,13 @@
                         Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsEnabled="{Binding EnableRunButton}"
                         Click="RunButton_Click"
-                        ToolTip.Tip="Run (F5)"/>
+                        ToolTip.Tip="{Binding TooltipRun}"/>
                     <templatedControls:IconButton
                         IconData="{StaticResource Icon.Stop}"
                         Foreground="{DynamicResource DotPad.Icon.StopBrush}"
                         IsEnabled="{Binding EnableCancelButton}"
                         Click="CancelButton_Click"
-                        ToolTip.Tip="Cancel"/>
+                        ToolTip.Tip="{Binding TooltipCancel}"/>
                     <ComboBox
                         Margin="4,0,0,0"
                         Height="24"
@@ -196,28 +196,28 @@
                             Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                             IsEnabled="{Binding IsPaused}"
                             Click="DbgContinue_Click"
-                            ToolTip.Tip="Continue (F5)"
+                            ToolTip.Tip="{Binding TooltipContinue}"
                             Width="28" Height="24"/>
                         <templatedControls:IconButton
                             IconData="{StaticResource Icon.DebugStepOver}"
                             Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                             IsEnabled="{Binding IsPaused}"
                             Click="DbgStepOver_Click"
-                            ToolTip.Tip="Step Over (F10)"
+                            ToolTip.Tip="{Binding TooltipStepOver}"
                             Width="28" Height="24"/>
                         <templatedControls:IconButton
                             IconData="{StaticResource Icon.DebugStepInto}"
                             Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                             IsEnabled="{Binding IsPaused}"
                             Click="DbgStepIn_Click"
-                            ToolTip.Tip="Step In (F11)"
+                            ToolTip.Tip="{Binding TooltipStepIn}"
                             Width="28" Height="24"/>
                         <templatedControls:IconButton
                             IconData="{StaticResource Icon.DebugStepOut}"
                             Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                             IsEnabled="{Binding IsPaused}"
                             Click="DbgStepOut_Click"
-                            ToolTip.Tip="Step Out (Shift+F11)"
+                            ToolTip.Tip="{Binding TooltipStepOut}"
                             Width="28" Height="24"/>
                         <Border Width="1" Height="20"
                                 Background="{DynamicResource DotPad.Separator.BackgroundBrush}"

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,6 +13,7 @@ using DotPad.Build.Core.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
+using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Resources;
 using DotPad.Services;
@@ -58,6 +60,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant, themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
+        SyncHotkeyLabels();
         prefs.Changed += OnPreferencesChanged;
 
         SetupEditor(editor, intelliSense);
@@ -74,7 +77,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         onAttached = (s, _) =>
         {
             editor.AttachedToVisualTree -= onAttached;
-            editor.SetLanguage(themeName, ".cs");
+            var langExt = LangToExtension(State.RpadDocument?.FrontMatter.Language);
+            editor.SetLanguage(themeName, langExt);
             ApplySelectionColor(editor);
         };
         editor.AttachedToVisualTree += onAttached;
@@ -104,7 +108,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void SaveIfNeeded()
     {
         if (_vm.FilePath is null) return;
-        try { File.WriteAllText(_vm.FilePath, State.Editor.Text); } catch { /* best-effort */ }
+        try { WriteFile(_vm.FilePath); } catch { /* best-effort */ }
+    }
+
+    private void WriteFile(string path)
+    {
+        if (State.RpadDocument is { } rpad)
+        {
+            rpad.RunCode = State.Editor.Text;
+            File.WriteAllText(path, RpadWriter.Write(rpad), Encoding.UTF8);
+        }
+        else
+        {
+            File.WriteAllText(path, State.Editor.Text);
+        }
     }
 
     internal void Cancel()
@@ -129,7 +146,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (_vm.FilePath is not null)
         {
-            try { File.WriteAllText(_vm.FilePath, State.Editor.Text); }
+            try { WriteFile(_vm.FilePath); }
             catch (Exception ex)
             {
                 AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
@@ -340,7 +357,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // ── Editor preferences ────────────────────────────────────────────────────
 
     private void OnPreferencesChanged()
-        => Dispatcher.UIThread.Post(() => ApplyEditorSettings(State.Editor, _prefs.Editor));
+        => Dispatcher.UIThread.Post(() =>
+        {
+            ApplyEditorSettings(State.Editor, _prefs.Editor);
+            SyncHotkeyLabels();
+        });
+
+    private void SyncHotkeyLabels()
+    {
+        var kb = _prefs.Keyboard;
+        _vm.TooltipRun      = Label("Run",       kb.Run);
+        _vm.TooltipContinue = Label("Continue",  kb.Run);
+        _vm.TooltipCancel   = Label("Cancel",    kb.Cancel);
+        _vm.TooltipStepOver = Label("Step Over", kb.StepOver);
+        _vm.TooltipStepIn   = Label("Step In",   kb.StepIn);
+        _vm.TooltipStepOut  = Label("Step Out",  kb.StepOut);
+
+        static string Label(string name, string key)
+            => string.IsNullOrWhiteSpace(key) ? name : $"{name} ({key})";
+    }
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -396,13 +431,37 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
     }
 
-    private static void SetDocumentContent(CodeTextEditor editor, string? filePath)
+    private void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {
-        var content = filePath is null
-            ? ResourceLoader.LoadSampleFile(string.Empty)
-            : (File.Exists(filePath) ? File.ReadAllText(filePath) : "");
+        string content;
+        RpadDocument? rpad = null;
+
+        if (filePath is null)
+        {
+            content = ResourceLoader.LoadSampleFile(string.Empty);
+        }
+        else if (Path.GetExtension(filePath).Equals(".rpad", StringComparison.OrdinalIgnoreCase)
+                 && File.Exists(filePath))
+        {
+            var raw = File.ReadAllText(filePath);
+            rpad = RpadParser.TryParse(raw);
+            content = rpad?.RunCode ?? raw;
+        }
+        else
+        {
+            content = File.Exists(filePath) ? File.ReadAllText(filePath) : "";
+        }
+
+        State.RpadDocument = rpad;
         editor.Document = new TextDocument(content);
     }
+
+    private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
+    {
+        "fsharp" => ".fs",
+        "vb"     => ".vb",
+        _        => ".cs",
+    };
 
     private static string FormatElapsed(TimeSpan t) => t switch
     {
@@ -418,18 +477,31 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return dir;
     }
 
-    private CSharpLanguageHostOptions BuildRunOptions(ExecutionPlatform platform, string workDir) => new()
+    private CSharpLanguageHostOptions BuildRunOptions(ExecutionPlatform platform, string workDir)
     {
-        Platform = platform,
-        ExecutionOptions = new ExecutionOptions
+        var rpad = State.RpadDocument;
+        return new CSharpLanguageHostOptions
         {
-            WorkingDirectory = workDir,
-            Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
-            Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
-        },
-        OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
-        RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-    };
+            Platform = platform,
+            ExecutionOptions = new ExecutionOptions
+            {
+                WorkingDirectory = workDir,
+                Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
+                Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
+            },
+            OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
+            RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+            TargetFrameworkOverride = rpad?.FrontMatter.TargetFramework,
+            NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
+            GlobalUsings = rpad?.FrontMatter.Usings ?? [],
+            AssemblyReferences = rpad?.FrontMatter.References?
+                .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                .ToList() ?? [],
+            ProjectReferences = rpad?.FrontMatter.References?
+                .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                .ToList() ?? [],
+        };
+    }
 
     private sealed class ScriptBreakpoint(int line) : Contracts.IBreakpoint
     {

@@ -52,6 +52,22 @@ public sealed class EditorTabItemViewModel : ControllModelBase
     public bool IsPaused => _runState == RunState.Paused;
     public bool IsRunningProgress => _runState is RunState.Run or RunState.RunDebug;
 
+    // ── Hotkey tooltips (updated by EditorsTabItemControl on prefs change) ──────
+
+    private string _tooltipRun      = "Run (F5)";
+    private string _tooltipContinue = "Continue (F5)";
+    private string _tooltipCancel   = "Cancel (Escape)";
+    private string _tooltipStepOver = "Step Over (F10)";
+    private string _tooltipStepIn   = "Step In (F11)";
+    private string _tooltipStepOut  = "Step Out (Shift+F11)";
+
+    public string TooltipRun      { get => _tooltipRun;      set => this.RaiseAndSetIfChanged(ref _tooltipRun, value); }
+    public string TooltipContinue { get => _tooltipContinue; set => this.RaiseAndSetIfChanged(ref _tooltipContinue, value); }
+    public string TooltipCancel   { get => _tooltipCancel;   set => this.RaiseAndSetIfChanged(ref _tooltipCancel, value); }
+    public string TooltipStepOver { get => _tooltipStepOver; set => this.RaiseAndSetIfChanged(ref _tooltipStepOver, value); }
+    public string TooltipStepIn   { get => _tooltipStepIn;   set => this.RaiseAndSetIfChanged(ref _tooltipStepIn, value); }
+    public string TooltipStepOut  { get => _tooltipStepOut;  set => this.RaiseAndSetIfChanged(ref _tooltipStepOut, value); }
+
     public ObservableCollection<DebugThread> DebugThreads { get; } = [];
     public ObservableCollection<DebugLocal> DebugLocals { get; } = [];
     public ObservableCollection<DebugFrame> DebugCallStack { get; } = [];

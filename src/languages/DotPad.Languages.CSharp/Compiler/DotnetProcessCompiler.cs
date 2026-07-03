@@ -17,6 +17,12 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private readonly Encoding _encoding = Encoding.UTF8;
     private readonly ILogger<DotnetProcessCompiler> _logger;
 
+    private readonly IReadOnlyDictionary<string, string> _nugetPackages;
+    private readonly IReadOnlyList<string> _globalUsings;
+    private readonly IReadOnlyList<string> _assemblyReferences;
+    private readonly IReadOnlyList<string> _projectReferences;
+    private readonly string? _targetFrameworkOverride;
+
     private readonly Regex _errorRegex = new(@"^([\s\S]+)\((\d+,\d+)\): error (\S+): ([\s\S]+)$");
     private readonly Regex _warningRegex = new(@"^([\s\S]+)\((\d+,\d+)\): warning (\S+): ([\s\S]+)$");
 
@@ -28,8 +34,19 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         string outputDir,
         string dotPadRuntimeLib,
         string outputName,
-        ILogger<DotnetProcessCompiler> logger) : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
+        IReadOnlyDictionary<string, string> nugetPackages,
+        IReadOnlyList<string> globalUsings,
+        IReadOnlyList<string> assemblyReferences,
+        IReadOnlyList<string> projectReferences,
+        string? targetFrameworkOverride,
+        ILogger<DotnetProcessCompiler> logger)
+        : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
+        _nugetPackages = nugetPackages;
+        _globalUsings = globalUsings;
+        _assemblyReferences = assemblyReferences;
+        _projectReferences = projectReferences;
+        _targetFrameworkOverride = targetFrameworkOverride;
         _logger = logger;
         _sourceCodePath = Path.Combine(OutputDir, $"{OutputName}.cs");
         _fileProjPath = Path.Combine(OutputDir, $"{OutputName}.csproj");
@@ -39,10 +56,20 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         SyntaxTree syntaxTree,
         CancellationToken cancellationToken)
     {
-        var code = await syntaxTree.GetTextAsync(cancellationToken);
-        await File.WriteAllTextAsync(_sourceCodePath, code.ToString(), _encoding, cancellationToken);
+        var code = (await syntaxTree.GetTextAsync(cancellationToken)).ToString();
 
-        var projectFile = Resources.GerProjectFile(ExecutionPlatform.TargetFrameworkMoniker, new[] { DotPadRuntimeLib });
+        // Prepend global usings from .rpad front matter
+        if (_globalUsings.Count > 0)
+        {
+            var usingsText = string.Join("\n", _globalUsings.Select(u => $"global using {u};"));
+            code = usingsText + "\n" + code;
+        }
+
+        await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, cancellationToken);
+
+        var tfm = _targetFrameworkOverride ?? ExecutionPlatform.TargetFrameworkMoniker;
+        var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
+        var projectFile = Resources.GerProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
         await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, cancellationToken);
 
         var binDirectory = Path.Join(OutputDir, BinDir);
