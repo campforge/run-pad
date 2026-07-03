@@ -12,4 +12,6 @@ public static class DotPadThemeVariants
     public static readonly ThemeVariant RiderLight = new("RiderLight", ThemeVariant.Light);
     public static readonly ThemeVariant Vs2022Dark = new("Vs2022Dark", ThemeVariant.Dark);
     public static readonly ThemeVariant Vs2022Light = new("Vs2022Light", ThemeVariant.Light);
+    public static readonly ThemeVariant DotPadMidnight = new("DotPadMidnight", ThemeVariant.Dark);
+    public static readonly ThemeVariant DotPadWarmLight = new("DotPadWarmLight", ThemeVariant.Light);
 }
