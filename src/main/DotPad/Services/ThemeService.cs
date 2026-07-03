@@ -37,9 +37,11 @@ public sealed class ThemeService : IThemeService, IDisposable
         new("VS Code Dark",  DotPadThemeVariants.VsCodeDark,  true),
         new("Rider Dark",    DotPadThemeVariants.RiderDark,   true),
         new("VS 2022 Dark",  DotPadThemeVariants.Vs2022Dark,  true),
-        new("VS Code Light", DotPadThemeVariants.VsCodeLight, false),
-        new("Rider Light",   DotPadThemeVariants.RiderLight,  false),
-        new("VS 2022 Light", DotPadThemeVariants.Vs2022Light, false),
+        new("DotPad Midnight",   DotPadThemeVariants.DotPadMidnight,   true),
+        new("VS Code Light",     DotPadThemeVariants.VsCodeLight,      false),
+        new("Rider Light",       DotPadThemeVariants.RiderLight,       false),
+        new("VS 2022 Light",     DotPadThemeVariants.Vs2022Light,      false),
+        new("DotPad Warm Light", DotPadThemeVariants.DotPadWarmLight,  false),
     ];
 
     private static readonly IReadOnlyList<EditorTheme> AllEditorThemes =

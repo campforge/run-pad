@@ -7,6 +7,8 @@
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/RiderLight.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Dark.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/Vs2022Light.axaml" />
+    <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/DotPadMidnight.axaml" />
+    <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/DotPadWarmLight.axaml" />
 
     <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
     <Style Selector="DataGrid">
