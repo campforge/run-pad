@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DotPad.Build.Core.Models;
 using Microsoft.CodeAnalysis;
+using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp.Compiler;
@@ -73,7 +74,8 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         while (true)
         {
             var line = await _process.StandardOutput.ReadLineAsync(cancellationToken);
-            if (line == null || string.IsNullOrEmpty(line)) break;
+            if (line == null) break;
+            if (string.IsNullOrWhiteSpace(line)) continue;
 
             _logger.LogDebug("{Line}", line);
 

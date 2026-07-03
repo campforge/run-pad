@@ -1,0 +1,8 @@
+using DotPad.Contracts.Models;
+
+namespace DotPad.Contracts;
+
+public interface ISdkProvider
+{
+    IReadOnlyList<ExecutionPlatform> Get();
+}

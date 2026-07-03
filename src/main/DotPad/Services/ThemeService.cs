@@ -28,7 +28,7 @@ public interface IThemeService
     event ThemeChangedDelegate? ThemeChanged;
 }
 
-public sealed class ThemeService : IThemeService
+public sealed class ThemeService : IThemeService, IDisposable
 {
     // ── Catalog ───────────────────────────────────────────────────────────────
 
@@ -75,11 +75,7 @@ public sealed class ThemeService : IThemeService
         _prefs = prefs;
 
         if (app.PlatformSettings is { } ps)
-            ps.ColorValuesChanged += (_, _) =>
-            {
-                if (_prefs.Appearance.Mode == ThemeMode.System)
-                    Dispatcher.UIThread.Post(ApplyCore, DispatcherPriority.Background);
-            };
+            ps.ColorValuesChanged += OnColorValuesChanged;
 
         ApplyCore(); // Synchronous on startup — no UI input events in flight yet
     }
@@ -95,21 +91,6 @@ public sealed class ThemeService : IThemeService
     public void SetMode(ThemeMode mode)
     {
         _prefs.Appearance.Mode = mode;
-
-        bool isDark = ResolveIsDark();
-        var firstIface = AllInterfaceThemes.First(t => t.IsDark == isDark);
-        var firstEditor = AllEditorThemes.First(t => t.IsDark == isDark);
-        if (isDark)
-        {
-            _prefs.Appearance.DarkInterfaceTheme = firstIface.Name;
-            _prefs.Appearance.DarkEditorTheme = firstEditor.Name;
-        }
-        else
-        {
-            _prefs.Appearance.LightInterfaceTheme = firstIface.Name;
-            _prefs.Appearance.LightEditorTheme = firstEditor.Name;
-        }
-
         _prefs.Save();
         ScheduleApply();
     }
@@ -137,12 +118,24 @@ public sealed class ThemeService : IThemeService
         return val as IBrush;
     }
 
+    public void Dispose()
+    {
+        if (_app.PlatformSettings is { } ps)
+            ps.ColorValuesChanged -= OnColorValuesChanged;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     // Post entire apply at Background priority (= 4).
     // All pointer/keyboard input events process at Input priority (= 5) which is HIGHER,
     // so they complete fully before we touch RequestedThemeVariant or fire ThemeChanged.
     // This eliminates "PlatformImpl is null" errors from InputManager.
+    private void OnColorValuesChanged(object? sender, PlatformColorValues e)
+    {
+        if (_prefs.Appearance.Mode == ThemeMode.System)
+            Dispatcher.UIThread.Post(ApplyCore, DispatcherPriority.Background);
+    }
+
     private void ScheduleApply()
         => Dispatcher.UIThread.Post(ApplyCore, DispatcherPriority.Background);
 

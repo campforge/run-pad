@@ -2,9 +2,11 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using DotPad.Build;
-using DotPad.Build.Core;
 using DotPad.Contracts;
+using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.CSharp.IntelliSense;
+using DotPad.Languages.CSharp.Sdk;
 using DotPad.Logging;
 using DotPad.Services;
 using DotPad.Services.Preferences;
@@ -19,6 +21,8 @@ namespace DotPad;
 
 public class App : Application
 {
+    private ServiceProvider? _serviceProvider;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -26,12 +30,12 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        var services = ConfigureServices();
+        _serviceProvider = ConfigureServices();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var mainWindow = services.GetRequiredService<MainWindow>();
-            desktop.MainWindow = mainWindow;
+            desktop.MainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            desktop.Exit += (_, _) => _serviceProvider.Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -45,7 +49,7 @@ public class App : Application
         services.AddSingleton<IPreferencesService, PreferencesService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IDotpFileService, DotpFileService>();
-        services.AddSingleton<DotnetSdksService>();
+        services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
         services.AddLogging(logging =>
         {
             var logDir = Path.Combine(
@@ -64,11 +68,21 @@ public class App : Application
             return registry;
         });
 
+        services.AddSingleton<IIntelliSenseService>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var refs = new CSharpReferenceService().GetDefault();
+            return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
+        });
+
         services.AddTransient<MainWindow>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<PreferencesWindowViewModel>();
+        services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
+        services.AddTransient<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
+        services.AddTransient<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
 
         return services.BuildServiceProvider();
     }

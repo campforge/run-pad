@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using DotPad.Assets.Models;
 using DotPad.Build;
-using DotPad.Build.Core;
-using DotPad.Build.Core.Models;
+using DotPad.Contracts;
+using DotPad.Contracts.Models;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
 using DynamicData;
@@ -12,7 +12,6 @@ namespace DotPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly DotnetSdksService _dotnetSdksService;
     private readonly IDotpFileService _fileSystemService;
 
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(StringComparer.OrdinalIgnoreCase);
@@ -63,9 +62,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
         if (vm.FilePath is not null) _openTabs.Remove(vm.FilePath);
 
-        var nextActive = ActiveTab == vm ? Tabs.LastOrDefault(t => t != vm) : null;
+        bool wasActive = ActiveTab == vm;
         Tabs.Remove(vm);
-        if (nextActive is not null) ActiveTab = nextActive;
+        if (wasActive) ActiveTab = Tabs.LastOrDefault();
     }
 
     // ── File tree ─────────────────────────────────────────────────────────────
@@ -74,13 +73,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public List<ExecutionPlatform> DotnetPlatforms { get; }
 
     public MainWindowViewModel(
-        DotnetSdksService dotnetSdksService,
+        IEnumerable<ISdkProvider> sdkProviders,
         IDotpFileService fileSystemService)
     {
-        _dotnetSdksService = dotnetSdksService;
         _fileSystemService = fileSystemService;
 
-        DotnetPlatforms = _dotnetSdksService.GetSdkInfos().ToList();
+        DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         var root = _fileSystemService.GetOrCreateDefaultFolder();
         var files = _fileSystemService.GetFilesInFolder(root);
@@ -92,6 +90,5 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         foreach (var d in _closeSubscriptions.Values) d.Dispose();
-        _fileSystemService.Dispose();
     }
 }

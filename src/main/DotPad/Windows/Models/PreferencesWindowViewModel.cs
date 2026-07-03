@@ -176,4 +176,36 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         get => _prefs.Debugger.DebuggerPath;
         set { _prefs.Debugger.DebuggerPath = value; _prefs.Save(); this.RaisePropertyChanged(); }
     }
+
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+
+    public string HotkeyRun
+    {
+        get => _prefs.Keyboard.Run;
+        set { _prefs.Keyboard.Run = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
+
+    public string HotkeyCancel
+    {
+        get => _prefs.Keyboard.Cancel;
+        set { _prefs.Keyboard.Cancel = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
+
+    public string HotkeyStepOver
+    {
+        get => _prefs.Keyboard.StepOver;
+        set { _prefs.Keyboard.StepOver = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
+
+    public string HotkeyStepIn
+    {
+        get => _prefs.Keyboard.StepIn;
+        set { _prefs.Keyboard.StepIn = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
+
+    public string HotkeyStepOut
+    {
+        get => _prefs.Keyboard.StepOut;
+        set { _prefs.Keyboard.StepOut = value; _prefs.Save(); this.RaisePropertyChanged(); }
+    }
 }

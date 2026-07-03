@@ -5,8 +5,7 @@ using Avalonia.Interactivity;
 using DotPad.Assets.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
+using DotPad.Contracts.Models;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
@@ -38,13 +37,15 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IThemeService themeService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IIntelliSenseService intelliSense)
     {
         _vm = vm;
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
         _loggerFactory = loggerFactory;
+        _intelliSense = intelliSense;
 
         _themeService.ThemeChanged += OnThemeChanged;
 
@@ -112,6 +113,42 @@ public partial class EditorTabsControl : UserControl, IDisposable
             ctrl.ApplyTheme(theme);
     }
 
+    // ── Hotkey actions ─────────────────────────────────────────────────────────
+
+    public void RunOrContinueActive()
+    {
+        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
+        if (vm.EnableRunButton)
+            _ = ctrl.RunAsync(vm.DebugModeEnabled, vm.SelectedDotnetPlatform ?? vm.DotnetPlatforms.First());
+        else if (vm.IsPaused)
+            ctrl.ResumeDebug(DebugAction.Continue);
+    }
+
+    public void CancelActive()
+        => GetActiveControl()?.Cancel();
+
+    public void StepOverActive()
+    {
+        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOver);
+    }
+
+    public void StepInActive()
+    {
+        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepIn);
+    }
+
+    public void StepOutActive()
+    {
+        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
+    }
+
+    private EditorsTabItemControl? GetActiveControl()
+    {
+        if (_vm?.ActiveTab is { } vm && _tabs.TryGetValue(vm, out var entry))
+            return entry.Control;
+        return null;
+    }
+
     // ── "+" button ─────────────────────────────────────────────────────────────
 
     private void AddFile_Click(object? sender, RoutedEventArgs e)
@@ -137,10 +174,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private EditorsTabItemControl CreateControl(EditorTabItemViewModel vm)
     {
-        _intelliSense ??= new CSharpIntelliSenseService(
-            new CSharpReferenceService().GetDefault(),
-            _loggerFactory!.CreateLogger<CSharpIntelliSenseService>());
-
         return new EditorsTabItemControl(
             vm, _themeService!, _registry!, _prefs!, _intelliSense,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));

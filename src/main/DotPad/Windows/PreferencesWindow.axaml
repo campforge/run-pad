@@ -90,5 +90,42 @@
                 </StackPanel>
             </TabItem>
 
+            <TabItem Header="Keyboard">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                               Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Run / Continue:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="1" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyRun, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cancel:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="2" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyCancel, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Step Over:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="3" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyStepOver, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Step In:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="4" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyStepIn, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Step Out:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="5" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyStepOut, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="6" Grid.ColumnSpan="2"
+                               Margin="0,8,0,0" FontSize="11" Opacity="0.55"
+                               Text="Format: F5 · Escape · Ctrl+S · Shift+F11"
+                               TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+
         </TabControl>
 </Window>

@@ -1,5 +1,6 @@
 using DotPad.Build.Core.Models;
 using DotPad.Contracts;
+using DotPad.Contracts.Models;
 
 namespace DotPad.Languages.CSharp;
 

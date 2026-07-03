@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
-using DotPad.Build.Core.Models;
+using DotPad.Contracts.Models;
 using DotPad.Shared;
 using ReactiveUI;
 

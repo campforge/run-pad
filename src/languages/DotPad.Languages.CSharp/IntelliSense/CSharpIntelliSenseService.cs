@@ -45,15 +45,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 refs.Add(MetadataReference.CreateFromFile(path));
         }
 
-        // Supplement with assemblies already loaded in this process
-        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (asm.IsDynamic) continue;
-            var loc = asm.Location;
-            if (!string.IsNullOrEmpty(loc) && File.Exists(loc) && seen.Add(loc))
-                refs.Add(MetadataReference.CreateFromFile(loc));
-        }
-
         _references = refs;
     }
 

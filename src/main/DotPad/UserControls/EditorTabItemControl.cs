@@ -119,8 +119,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var s = State;
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
-        SaveIfNeeded();
-
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.OutputContent = "";
         s.HadRunError = false;
@@ -129,6 +127,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.RunStopwatch.Restart();
         UpdateOutputUi();
 
+        if (_vm.FilePath is not null)
+        {
+            try { File.WriteAllText(_vm.FilePath, State.Editor.Text); }
+            catch (Exception ex)
+            {
+                AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
+                _vm.RunState = RunState.Idle;
+                s.RunStopwatch.Stop();
+                UpdateOutputUi();
+                return;
+            }
+        }
+
+        s.RunCts?.Dispose();
         s.RunCts = new CancellationTokenSource();
 
         var workDir = EnsureWorkDirectory();
@@ -214,7 +226,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private void ResumeDebug(DebugAction action)
+    internal void ResumeDebug(DebugAction action)
     {
         _vm.RunState = RunState.RunDebug;
         State.Editor.DebugCurrentLine = null;
