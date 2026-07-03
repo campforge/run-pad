@@ -174,8 +174,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private EditorsTabItemControl CreateControl(EditorTabItemViewModel vm)
     {
-        return new EditorsTabItemControl(
-            vm, _themeService!, _registry!, _prefs!, _intelliSense,
+        return new EditorsTabItemControl(vm,
+            _themeService!,
+            _registry!,
+            _prefs!,
+            _intelliSense,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
     }
 

@@ -68,7 +68,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         return vm;
     }
 
-    internal void CloseTab(EditorTabItemViewModel vm)
+    internal void CloseActiveTab()
+    {
+        if (_activeTab != null) CloseTab(_activeTab);
+    }
+
+    private void CloseTab(EditorTabItemViewModel vm)
     {
         if (_closeSubscriptions.TryGetValue(vm, out var d))
         {
