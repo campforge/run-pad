@@ -1,7 +1,9 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DotPad.Assets.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -45,7 +47,7 @@ public sealed partial class MainWindow : Window, IDisposable
         EditorTabsCtrl.Initialize(viewModel, themeService, registry, prefs, loggerFactory, intelliSense);
     }
 
-    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    // ── Global keyboard shortcuts ─────────────────────────────────────────────
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
@@ -96,12 +98,109 @@ public sealed partial class MainWindow : Window, IDisposable
         => Dispatcher.UIThread.Post(() =>
             _preferencesWindowFactory().ShowDialog(this));
 
+    // ── File tree selection ───────────────────────────────────────────────────
+
     private void FileTree_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (e.AddedItems.Count == 0) return;
         if (e.AddedItems[0] is not Node { SubNodes: null } node) return;
         GetViewModel().OpenTab(node.FilePath);
     }
+
+    // ── File tree — right-click selects item before context menu opens ─────────
+
+    private void FileTree_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(FileTree).Properties.IsRightButtonPressed) return;
+
+        // Walk up the visual tree to find the TreeViewItem that was pressed
+        Visual? v = e.Source as Visual;
+        while (v is not null and not TreeViewItem)
+            v = v.GetVisualParent();
+
+        if (v is TreeViewItem { DataContext: Node node })
+            FileTree.SelectedItem = node;
+    }
+
+    // ── File tree — F2 / Delete hotkeys ──────────────────────────────────────
+
+    private void FileTree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (FileTree.SelectedItem is not Node node) return;
+
+        if (e.Key == Key.F2)
+        {
+            StartRename(node);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Delete)
+        {
+            GetViewModel().DeleteNode(node);
+            e.Handled = true;
+        }
+    }
+
+    // ── Rename helpers ────────────────────────────────────────────────────────
+
+    private void StartRename(Node node)
+    {
+        GetViewModel().BeginRenameNode(node);
+
+        // Focus the TextBox after the binding update propagates
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (FileTree.ContainerFromItem(node) is not TreeViewItem tvi) return;
+            var box = tvi.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(b => b.IsVisible);
+            if (box is null) return;
+            box.Focus();
+            box.SelectAll();
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void RenameBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox box || box.DataContext is not Node node) return;
+
+        if (e.Key == Key.Return)
+        {
+            GetViewModel().CommitRenameNode(node);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            GetViewModel().CancelRenameNode(node);
+            e.Handled = true;
+        }
+    }
+
+    private void RenameBox_LostFocus(object? sender, RoutedEventArgs e)
+    {
+        // Guard against double-commit when Enter already set IsRenaming=false
+        if (sender is TextBox box && box.DataContext is Node { IsRenaming: true } node)
+            GetViewModel().CommitRenameNode(node);
+    }
+
+    // ── Context menu handlers ─────────────────────────────────────────────────
+
+    private void ContextRename_Click(object? sender, RoutedEventArgs e)
+    {
+        if (FileTree.SelectedItem is Node node)
+            StartRename(node);
+    }
+
+    private void ContextDelete_Click(object? sender, RoutedEventArgs e)
+    {
+        if (FileTree.SelectedItem is Node node)
+            GetViewModel().DeleteNode(node);
+    }
+
+    private void ContextOpenFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        if (FileTree.SelectedItem is Node node)
+            GetViewModel().OpenContainingFolder(node);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private MainWindowViewModel GetViewModel()
         => DataContext as MainWindowViewModel

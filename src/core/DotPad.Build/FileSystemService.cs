@@ -10,6 +10,13 @@ public interface IDotpFileService : IDisposable
     string CreateNewRpadFile(string folder);
     void StartWatcher(string folder);
     void StopWatcher();
+
+    /// <summary>
+    /// Raised on the thread-pool when a tracked file (.rpad/.dotp) or a directory
+    /// inside the watched folder is created, deleted, renamed, or changed.
+    /// For Renamed events the argument is <see cref="RenamedEventArgs"/>.
+    /// </summary>
+    event EventHandler<FileSystemEventArgs>? WatcherEvent;
 }
 
 public sealed class DotpFileService : IDotpFileService
@@ -19,6 +26,8 @@ public sealed class DotpFileService : IDotpFileService
 
     private readonly FileSystemWatcher _watcher = new();
     private readonly ILogger<DotpFileService> _logger;
+
+    public event EventHandler<FileSystemEventArgs>? WatcherEvent;
 
     public DotpFileService(ILogger<DotpFileService> logger)
     {
@@ -38,8 +47,8 @@ public sealed class DotpFileService : IDotpFileService
 
     public IReadOnlyList<string> GetFilesInFolder(string folder)
     {
-        var dotp = Directory.GetFiles(folder, "*" + DotpExtension);
-        var rpad = Directory.GetFiles(folder, "*" + RpadExtension);
+        var dotp = Directory.GetFiles(folder, "*" + DotpExtension, SearchOption.AllDirectories);
+        var rpad = Directory.GetFiles(folder, "*" + RpadExtension, SearchOption.AllDirectories);
         return dotp.Concat(rpad).OrderBy(Path.GetFileName).ToList();
     }
 
@@ -59,7 +68,6 @@ public sealed class DotpFileService : IDotpFileService
         string path;
         do { path = Path.Combine(folder, $"Query {i++}{RpadExtension}"); }
         while (File.Exists(path));
-        // Write the default template; import is resolved at the call site to avoid coupling
         File.WriteAllText(path, string.Empty);
         return path;
     }
@@ -70,15 +78,13 @@ public sealed class DotpFileService : IDotpFileService
         _watcher.Filter = "*.*";
         _watcher.IncludeSubdirectories = true;
         _watcher.NotifyFilter =
-            NotifyFilters.Attributes | NotifyFilters.CreationTime |
-            NotifyFilters.DirectoryName | NotifyFilters.FileName |
-            NotifyFilters.LastAccess | NotifyFilters.LastWrite |
-            NotifyFilters.Security | NotifyFilters.Size;
+            NotifyFilters.FileName | NotifyFilters.DirectoryName |
+            NotifyFilters.LastWrite | NotifyFilters.CreationTime;
 
-        _watcher.Changed += OnChanged;
-        _watcher.Created += OnChanged;
-        _watcher.Deleted += OnChanged;
-        _watcher.Renamed += OnChanged;
+        _watcher.Changed += OnFileEvent;
+        _watcher.Created += OnFileEvent;
+        _watcher.Deleted += OnFileEvent;
+        _watcher.Renamed += OnRenamedEvent;
 
         _watcher.EnableRaisingEvents = true;
     }
@@ -87,12 +93,26 @@ public sealed class DotpFileService : IDotpFileService
 
     public void Dispose() => _watcher.Dispose();
 
-    private void OnChanged(object source, FileSystemEventArgs e)
+    private void OnFileEvent(object source, FileSystemEventArgs e)
     {
-        var ext = Path.GetExtension(e.FullPath);
-        if (!ext.Equals(DotpExtension, StringComparison.OrdinalIgnoreCase) &&
-            !ext.Equals(RpadExtension, StringComparison.OrdinalIgnoreCase))
-            return;
-        _logger.LogDebug("{Name} at {Path} has been {ChangeType}", e.Name, e.FullPath, e.ChangeType);
+        if (!IsRelevant(e.FullPath)) return;
+        _logger.LogDebug("{Name} {ChangeType}", e.Name, e.ChangeType);
+        WatcherEvent?.Invoke(source, e);
+    }
+
+    private void OnRenamedEvent(object source, RenamedEventArgs e)
+    {
+        if (!IsRelevant(e.FullPath) && !IsRelevant(e.OldFullPath)) return;
+        _logger.LogDebug("{OldName} → {Name} (Renamed)", e.OldName, e.Name);
+        WatcherEvent?.Invoke(source, e);
+    }
+
+    // Fire for: tracked file types (.rpad/.dotp) or items with no extension (directories)
+    private static bool IsRelevant(string fullPath)
+    {
+        var ext = Path.GetExtension(fullPath);
+        return string.IsNullOrEmpty(ext)
+            || ext.Equals(DotpExtension, StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(RpadExtension, StringComparison.OrdinalIgnoreCase);
     }
 }
