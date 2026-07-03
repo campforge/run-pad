@@ -85,6 +85,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
+    private void NewRpadFile_Click(object? sender, RoutedEventArgs e)
+        => GetViewModel().NewRpadFile();
+
     private void Dependencies_Click(object? sender, RoutedEventArgs e)
         => Dispatcher.UIThread.Post(() =>
             _dependenciesWindowFactory().ShowDialog(this));

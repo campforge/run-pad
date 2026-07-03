@@ -31,6 +31,8 @@
     <PackageVersion Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
     <!-- Source Link -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <!-- Format -->
+    <PackageVersion Include="YamlDotNet" Version="16.3.0" />
     <!-- Tests -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

@@ -18,6 +18,9 @@
         <Grid Grid.Column="0" RowDefinitions="40,*"
               Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
             <Menu Grid.Row="0">
+                <MenuItem Header="File">
+                    <MenuItem Header="New _RPad File" Click="NewRpadFile_Click"/>
+                </MenuItem>
                 <MenuItem Header="Edit">
                     <MenuItem Header="_Dependencies" Click="Dependencies_Click"/>
                     <Separator/>

@@ -3,6 +3,7 @@ using DotPad.Assets.Models;
 using DotPad.Build;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
+using DotPad.Format.RPad;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
 using DynamicData;
@@ -32,6 +33,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var folder = _fileSystemService.GetOrCreateDefaultFolder();
         var path = _fileSystemService.CreateNewFile(folder);
+        Nodes.Add(new Node(Path.GetFileName(path), path));
+        return OpenTab(path);
+    }
+
+    public EditorTabItemViewModel NewRpadFile()
+    {
+        var folder = _fileSystemService.GetOrCreateDefaultFolder();
+        var path = _fileSystemService.CreateNewRpadFile(folder);
+        var title = Path.GetFileNameWithoutExtension(path);
+        File.WriteAllText(path, RpadWriter.NewFile(title), System.Text.Encoding.UTF8);
         Nodes.Add(new Node(Path.GetFileName(path), path));
         return OpenTab(path);
     }

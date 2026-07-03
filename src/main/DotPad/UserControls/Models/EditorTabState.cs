@@ -2,6 +2,7 @@ using System.Diagnostics;
 using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
+using DotPad.Format.RPad;
 
 namespace DotPad.UserControls.Models;
 
@@ -24,6 +25,9 @@ internal sealed class EditorTabState
     public ILanguageHost? RunningHost { get; set; }
     public IBreakpointHitContext? CurrentDebugCtx { get; set; }
     public readonly Stopwatch RunStopwatch = new();
+
+    // Set when the active file is an .rpad document; null for plain .dotp files
+    public RpadDocument? RpadDocument { get; set; }
 
     public EditorTabState(CodeTextEditor editor)
     {

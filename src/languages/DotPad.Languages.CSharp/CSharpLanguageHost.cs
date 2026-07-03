@@ -69,6 +69,11 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             _options.OutputDirectory,
             _options.RuntimeLibPath,
             _options.OutputName,
+            _options.NugetPackages,
+            _options.GlobalUsings,
+            _options.AssemblyReferences,
+            _options.ProjectReferences,
+            _options.TargetFrameworkOverride,
             _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
         ProcessCompilerResult raw = await compiler.Compilation(syntaxTree, ct);
