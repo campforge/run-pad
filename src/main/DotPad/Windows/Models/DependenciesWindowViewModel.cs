@@ -288,7 +288,10 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             foreach (var p in _cache.GetCachedPackages())
                 CacheItems.Add(new CachedPackageItemViewModel(p, scriptPackageIds.Contains(p.Id), ToggleCachePackage, hasFm));
         }
-        catch { } // BUG-10: ошибки IO при загрузке кэша молча проглатываются — пользователь видит пустой список.
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to load package cache: {ex.Message}";
+        }
     }
 
     private void ToggleCachePackage(CachedPackageItemViewModel item)
