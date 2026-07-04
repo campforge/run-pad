@@ -222,10 +222,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Toolbar handlers ──────────────────────────────────────────────────────
 
-    // BUG-11: async void — если DotnetPlatforms пуст (нет SDK), .First() бросит InvalidOperationException,
-    // которая из async void станет необработанной и уронит процесс.
     private async void RunButton_Click(object? sender, RoutedEventArgs e)
-        => await RunAsync(_vm.DebugModeEnabled, _vm.SelectedDotnetPlatform ?? _vm.DotnetPlatforms.First());
+    {
+        var platform = _vm.SelectedDotnetPlatform ?? _vm.DotnetPlatforms.FirstOrDefault();
+        if (platform is null) return;
+        await RunAsync(_vm.DebugModeEnabled, platform);
+    }
 
     private void CancelButton_Click(object? sender, RoutedEventArgs e) => Cancel();
 

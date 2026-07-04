@@ -76,7 +76,8 @@ public class App : Application
         services.AddSingleton<IIntelliSenseService>(sp =>
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var refs = new CSharpReferenceService().GetDefault();
+            var refService = new CSharpReferenceService();
+            var refs = refService.GetDefault().Append(refService.GetExtensionReference());
             return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
         });
 

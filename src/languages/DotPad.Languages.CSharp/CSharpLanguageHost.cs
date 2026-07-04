@@ -148,6 +148,9 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         {
             await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
 
+            int lineOffset = _options.GlobalUsings.Count
+                + (_options.Kind is "Program" or "Expression" ? 1 : 0);
+
             await using var session = new CSharpDapSession(
                 process,
                 binaryPath,
@@ -155,6 +158,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 ActiveBreakpoints,
                 WrapWithDumpDetection(outputHandler),
                 HandleBreakpointHit,
+                lineOffset,
                 _loggerFactory.CreateLogger<CSharpDapSession>());
 
             _currentSession = session;

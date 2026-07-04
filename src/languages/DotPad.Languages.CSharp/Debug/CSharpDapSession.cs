@@ -41,6 +41,11 @@ internal sealed class CSharpDapSession : IDapSession
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
+    // Lines prepended by the compiler before the user's first line.
+    // Sent breakpoints: user_line + _lineOffset → compiled_line.
+    // Received frame.line: compiled_line - _lineOffset → user_line.
+    private readonly int _lineOffset;
+
     private int _seq;
     private volatile int _activeThreadId;
     private volatile bool _isPaused;
@@ -53,6 +58,7 @@ internal sealed class CSharpDapSession : IDapSession
         IReadOnlyList<IBreakpoint> breakpoints,
         OutputReceivedHandler? outputHandler,
         Action<IBreakpointHitContext> onBreakpointHit,
+        int lineOffset,
         ILogger<CSharpDapSession> logger)
     {
         _process = process;
@@ -61,6 +67,7 @@ internal sealed class CSharpDapSession : IDapSession
         _breakpoints = breakpoints;
         _outputHandler = outputHandler;
         _onBreakpointHit = onBreakpointHit;
+        _lineOffset = lineOffset;
         _logger = logger;
     }
 
@@ -227,9 +234,10 @@ internal sealed class CSharpDapSession : IDapSession
             : (IReadOnlyList<IVariableInfo>)[];
 
         var topFrame = frames.Count > 0 ? frames[0] : null;
+        var topFrameUserLine = (topFrame?.line ?? 0) - _lineOffset;
         IBreakpoint matched =
-            _breakpoints.FirstOrDefault(bp => bp.Line == topFrame?.line)
-            ?? new SyntheticBreakpoint(topFrame?.source?.path ?? "", topFrame?.line ?? 0);
+            _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine)
+            ?? new SyntheticBreakpoint(topFrame?.source?.path ?? "", topFrameUserLine);
 
         var context = new DapBreakpointHitContext
         {
@@ -240,7 +248,7 @@ internal sealed class CSharpDapSession : IDapSession
             {
                 MethodName = f.name ?? "",
                 FileName = f.source?.path ?? f.source?.name ?? "",
-                Line = f.line,
+                Line = f.line - _lineOffset,
                 Column = f.column,
             }).ToList(),
             Threads = threads.Select(t => (IThreadInfo)new DapThreadInfo
@@ -354,9 +362,9 @@ internal sealed class CSharpDapSession : IDapSession
         var sourceName = Path.GetFileNameWithoutExtension(_programPath) + ".cs";
         var sourceFile = Path.Combine(_workingDirectory, sourceName);
 
-        _logger.LogDebug("[dap bp] source path: {SourceFile}", sourceFile);
+        _logger.LogDebug("[dap bp] source path: {SourceFile}, lineOffset: {Offset}", sourceFile, _lineOffset);
         foreach (var bp in _breakpoints)
-            _logger.LogDebug("[dap bp] line {Line}", bp.Line);
+            _logger.LogDebug("[dap bp] user line {UserLine} → compiled line {CompiledLine}", bp.Line, bp.Line + _lineOffset);
 
         await SendAsync(new SetBreakpointsRequest
         {
@@ -364,7 +372,7 @@ internal sealed class CSharpDapSession : IDapSession
             arguments = new SetBreakpointsArguments
             {
                 source = new Source { path = sourceFile, name = sourceName },
-                breakpoints = _breakpoints.Select(bp => new SourceBreakpoint(bp.Line)).ToList(),
+                breakpoints = _breakpoints.Select(bp => new SourceBreakpoint(bp.Line + _lineOffset)).ToList(),
             },
         }, ct);
 
