@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Reactive;
 using Avalonia.Threading;
 using DotPad.Assets.Models;
 using DotPad.Build;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
+using DotPad.Services;
+using DotPad.Services.Preferences;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
 using DynamicData;
@@ -16,13 +19,24 @@ namespace DotPad.Windows.Models;
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IDotpFileService _fileSystemService;
+    private readonly IWindowService _windowService;
+    private readonly IPreferencesService _prefs;
     private readonly string _rootFolder;
 
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
     // Debounce state for watcher-triggered refreshes
-    private int _debounceVersion;
+    // BUG-5: должно быть volatile — чтение без барьера памяти может взять кэшированное значение.
+    private volatile int _debounceVersion;
+
+    // ── Window commands ───────────────────────────────────────────────────────
+
+    public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
+
+    public void OpenDependenciesWindow() => _ = _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter);
+    public void OpenPreferencesWindow()  => _ = _windowService.ShowPreferencesAsync();
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -33,13 +47,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         get => _activeTab;
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
-    }
-
-    public EditorTabItemViewModel NewFile()
-    {
-        var path = _fileSystemService.CreateNewFile(_rootFolder);
-        Nodes.Add(new Node(Path.GetFileName(path), path));
-        return OpenTab(path);
     }
 
     public EditorTabItemViewModel NewRpadFile()
@@ -59,7 +66,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             return existing;
         }
 
-        var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms);
+        var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms, _prefs);
         _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
 
         if (filePath is not null) _openTabs[filePath] = vm;
@@ -125,6 +132,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (_openTabs.TryGetValue(oldPath, out var tab))
             CloseTab(tab);
 
+        // BUG-6: ошибка переименования молча проглатывается, пользователь не получает обратной связи.
         try { File.Move(oldPath, newPath); }
         catch { return; }
 
@@ -160,9 +168,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
-        IDotpFileService fileSystemService)
+        IDotpFileService fileSystemService,
+        IWindowService windowService,
+        IPreferencesService prefs)
     {
         _fileSystemService = fileSystemService;
+        _windowService = windowService;
+        _prefs = prefs;
+        OpenDependenciesCommand = ReactiveCommand.CreateFromTask(() => _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter));
+        OpenPreferencesCommand  = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
+        OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
+        OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
         DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         _rootFolder = _fileSystemService.GetOrCreateDefaultFolder();
@@ -227,8 +243,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private static bool IsTrackedFile(string path)
     {
         var ext = Path.GetExtension(path);
-        return ext.Equals(".rpad", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".dotp", StringComparison.OrdinalIgnoreCase);
+        return ext.Equals(".rpad", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Merges <paramref name="fresh"/> into <paramref name="current"/> with minimal
@@ -287,5 +302,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _fileSystemService.WatcherEvent -= OnWatcherEvent;
         _fileSystemService.StopWatcher();
         foreach (var d in _closeSubscriptions.Values) d.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

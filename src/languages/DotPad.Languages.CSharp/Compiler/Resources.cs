@@ -2,6 +2,8 @@ namespace DotPad.Languages.CSharp.Compiler;
 
 public static class Resources
 {
+    // BUG-7: опечатка в имени метода — должно быть GetProjectFile.
+    // BUG-4: package ID и version вставляются в XML без эскейпа (SecurityElement.Escape).
     public static string GerProjectFile(
         string targetFramework,
         string[] assemblyReferences,

@@ -6,13 +6,12 @@ public interface IDotpFileService : IDisposable
 {
     string GetOrCreateDefaultFolder();
     IReadOnlyList<string> GetFilesInFolder(string folder);
-    string CreateNewFile(string folder);
     string CreateNewRpadFile(string folder);
     void StartWatcher(string folder);
     void StopWatcher();
 
     /// <summary>
-    /// Raised on the thread-pool when a tracked file (.rpad/.dotp) or a directory
+    /// Raised on the thread-pool when a tracked file (.rpad) or a directory
     /// inside the watched folder is created, deleted, renamed, or changed.
     /// For Renamed events the argument is <see cref="RenamedEventArgs"/>.
     /// </summary>
@@ -21,7 +20,6 @@ public interface IDotpFileService : IDisposable
 
 public sealed class DotpFileService : IDotpFileService
 {
-    private const string DotpExtension = ".dotp";
     private const string RpadExtension = ".rpad";
 
     private readonly FileSystemWatcher _watcher = new();
@@ -46,21 +44,8 @@ public sealed class DotpFileService : IDotpFileService
     }
 
     public IReadOnlyList<string> GetFilesInFolder(string folder)
-    {
-        var dotp = Directory.GetFiles(folder, "*" + DotpExtension, SearchOption.AllDirectories);
-        var rpad = Directory.GetFiles(folder, "*" + RpadExtension, SearchOption.AllDirectories);
-        return dotp.Concat(rpad).OrderBy(Path.GetFileName).ToList();
-    }
-
-    public string CreateNewFile(string folder)
-    {
-        int i = 1;
-        string path;
-        do { path = Path.Combine(folder, $"Query {i++}{DotpExtension}"); }
-        while (File.Exists(path));
-        File.WriteAllText(path, string.Empty);
-        return path;
-    }
+        => Directory.GetFiles(folder, "*" + RpadExtension, SearchOption.AllDirectories)
+            .OrderBy(Path.GetFileName).ToList();
 
     public string CreateNewRpadFile(string folder)
     {
@@ -107,12 +92,11 @@ public sealed class DotpFileService : IDotpFileService
         WatcherEvent?.Invoke(source, e);
     }
 
-    // Fire for: tracked file types (.rpad/.dotp) or items with no extension (directories)
+    // Fire for: .rpad files or items with no extension (directories)
     private static bool IsRelevant(string fullPath)
     {
         var ext = Path.GetExtension(fullPath);
         return string.IsNullOrEmpty(ext)
-            || ext.Equals(DotpExtension, StringComparison.OrdinalIgnoreCase)
             || ext.Equals(RpadExtension, StringComparison.OrdinalIgnoreCase);
     }
 }

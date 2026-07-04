@@ -5,7 +5,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:DotPad.Windows.Models"
     xmlns:models="clr-namespace:DotPad.Assets.Models"
-    xmlns:userControls="clr-namespace:DotPad.UserControls"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="DotPad.Windows.MainWindow"
@@ -81,9 +80,9 @@
                             <MenuItem Header="New _RPad File" Click="NewRpadFile_Click"/>
                         </MenuItem>
                         <MenuItem Header="Edit">
-                            <MenuItem Header="_Dependencies" Click="Dependencies_Click"/>
+                            <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"/>
                             <Separator/>
-                            <MenuItem Header="_Preferences" Click="Preferences_Click"/>
+                            <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>
                     </Menu>
 
@@ -234,7 +233,7 @@
             </Grid>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
-            <userControls:EditorTabsControl x:Name="EditorTabsCtrl" Grid.Column="1"/>
+            <ContentControl x:Name="EditorTabsHost" Grid.Column="1"/>
 
         </Grid>
     </Grid>

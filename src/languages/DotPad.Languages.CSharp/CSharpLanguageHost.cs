@@ -35,6 +35,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         LanguageHostCapabilities.MemoryDump |
         LanguageHostCapabilities.IntelliSense;
 
+    // BUG-9: этот метод никогда не вызывается — DI регистрирует IIntelliSenseService напрямую в App.axaml.cs.
+    // Следствие: RuntimeLibPath не попадает в Roslyn → .Dump() отсутствует в автодополнении.
     public override IIntelliSenseService CreateIntelliSenseService()
     {
         var refs = new CSharpReferenceService();
@@ -54,7 +56,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     public override async Task<ICompilationResult> CompileAsync(
         string code, CancellationToken cancellationToken = default)
     {
-        (CSharpCompilationResult result, _) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult result, _) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         return result;
     }
 
@@ -100,7 +102,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
 
-        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
@@ -135,7 +137,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
 
-        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(code, cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
@@ -213,6 +215,17 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // Transforms user code based on the script kind before compilation.
+    // Program: prepend Main() call (user declares void Main(), runtime calls it).
+    // Expression: wrap expression in parentheses and call .Dump() on the result.
+    // Statements: pass through unchanged (top-level statements, already the default).
+    private string ApplyKindTransform(string code) => _options.Kind switch
+    {
+        "Program"    => $"Main();\n{code}",
+        "Expression" => $"(\n{code.TrimEnd()}\n).Dump();\n",
+        _            => code,
+    };
 
     private const char RsPrefix = '\x1e';        // new format: RS + base64
     private const string TextPrefix = "DOTPAD_DUMP:"; // legacy format

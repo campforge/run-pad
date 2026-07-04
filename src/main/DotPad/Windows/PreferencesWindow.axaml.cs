@@ -11,4 +11,6 @@ public partial class PreferencesWindow : Window
         DataContext = viewModel;
         Closed += (_, _) => viewModel.Dispose();
     }
+
+    public PreferencesWindow() => InitializeComponent();
 }

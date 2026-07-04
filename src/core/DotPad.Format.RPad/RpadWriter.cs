@@ -13,8 +13,16 @@ public static class RpadWriter
     }
 
     /// <summary>Generates the content for a brand-new .rpad file.</summary>
-    public static string NewFile(string title = "Untitled", string targetFramework = "net10.0")
-        => $"---\nversion: 1\nlanguage: csharp\ntargetFramework: {targetFramework}\nkind: Program\n---\n\n# {title}\n\n```csharp run\nConsole.WriteLine(\"Hello, RPad!\");\n```\n";
+    public static string NewFile(string title = "Untitled", string targetFramework = "net10.0", string kind = "Statements")
+    {
+        var code = kind switch
+        {
+            "Program"    => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
+            "Expression" => "\"Hello, RPad!\"\n",
+            _            => "Console.WriteLine(\"Hello, RPad!\");\n",
+        };
+        return $"---\nversion: 1\nlanguage: csharp\ntargetFramework: {targetFramework}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
+    }
 
     private static string SerializeFm(RpadFrontMatter fm)
     {

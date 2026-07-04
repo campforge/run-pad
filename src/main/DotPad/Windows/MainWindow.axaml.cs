@@ -5,37 +5,26 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DotPad.Assets.Models;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Services;
 using DotPad.Services.Preferences;
+using DotPad.UserControls;
 using DotPad.Windows.Models;
-using Microsoft.Extensions.Logging;
 
 namespace DotPad.Windows;
 
 public sealed partial class MainWindow : Window, IDisposable
 {
-    private readonly Func<DependenciesWindow> _dependenciesWindowFactory;
-    private readonly Func<PreferencesWindow> _preferencesWindowFactory;
     private readonly IPreferencesService _prefs;
+    private readonly EditorTabsControl _editorTabs;
 
     public MainWindow(
-        IThemeService themeService,
-        ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        ILoggerFactory loggerFactory,
-        IIntelliSenseService intelliSense,
-        Func<DependenciesWindow> dependenciesWindowFactory,
-        Func<PreferencesWindow> preferencesWindowFactory,
+        EditorTabsControl editorTabsCtrl,
         MainWindowViewModel viewModel)
     {
-        _dependenciesWindowFactory = dependenciesWindowFactory;
-        _preferencesWindowFactory = preferencesWindowFactory;
         _prefs = prefs;
+        _editorTabs = editorTabsCtrl;
 
         DataContext = viewModel;
-
 
         InitializeComponent();
 
@@ -46,7 +35,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (fileTree is not null)
             fileTree.SelectionChanged += FileTree_SelectionChanged;
 
-        EditorTabsCtrl.Initialize(viewModel, themeService, registry, prefs, loggerFactory, intelliSense);
+        this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
+        editorTabsCtrl.Attach(viewModel);
     }
 
     // ── Global keyboard shortcuts ─────────────────────────────────────────────
@@ -54,43 +44,43 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         var kb = _prefs.Keyboard;
-        var vm = (DataContext as MainWindowViewModel);
+        var vm = GetViewModel();
 
         if (Match(e, kb.Run))
         {
-            EditorTabsCtrl.RunOrContinueActive();
+            _editorTabs.RunOrContinueActive();
             e.Handled = true;
         }
-        else if (Match(e, kb.Cancel) && vm?.ActiveTab?.EnableCancelButton == true)
+        else if (Match(e, kb.Cancel) && vm.ActiveTab?.EnableCancelButton == true)
         {
-            EditorTabsCtrl.CancelActive();
+            _editorTabs.CancelActive();
             e.Handled = true;
         }
         else if (Match(e, kb.StepOver))
         {
-            EditorTabsCtrl.StepOverActive();
+            _editorTabs.StepOverActive();
             e.Handled = true;
         }
         else if (Match(e, kb.StepIn))
         {
-            EditorTabsCtrl.StepInActive();
+            _editorTabs.StepInActive();
             e.Handled = true;
         }
         else if (Match(e, kb.StepOut))
         {
-            EditorTabsCtrl.StepOutActive();
+            _editorTabs.StepOutActive();
             e.Handled = true;
         }
         else if (e.Key == Key.F4)
         {
-            Dispatcher.UIThread.Post(() => _dependenciesWindowFactory().ShowDialog(this));
-            e.Handled = true;
-        }else if (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control))
-        {
-            vm?.CloseActiveTab();
+            vm.OpenDependenciesWindow();
             e.Handled = true;
         }
-
+        else if (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            vm.CloseActiveTab();
+            e.Handled = true;
+        }
     }
 
     private static bool Match(KeyEventArgs e, string gesture)
@@ -117,18 +107,11 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         Close();
     }
+
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
     private void NewRpadFile_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile();
-
-    private void Dependencies_Click(object? sender, RoutedEventArgs e)
-        => Dispatcher.UIThread.Post(() =>
-            _dependenciesWindowFactory().ShowDialog(this));
-
-    private void Preferences_Click(object? sender, RoutedEventArgs e)
-        => Dispatcher.UIThread.Post(() =>
-            _preferencesWindowFactory().ShowDialog(this));
+        => GetViewModel().NewRpadFile();  // creates a new .rpad file (Statements kind by default)
 
     // ── File tree selection ───────────────────────────────────────────────────
 
@@ -145,7 +128,6 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         if (!e.GetCurrentPoint(FileTree).Properties.IsRightButtonPressed) return;
 
-        // Walk up the visual tree to find the TreeViewItem that was pressed
         Visual? v = e.Source as Visual;
         while (v is not null and not TreeViewItem)
             v = v.GetVisualParent();
@@ -178,7 +160,6 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         GetViewModel().BeginRenameNode(node);
 
-        // Focus the TextBox after the binding update propagates
         Dispatcher.UIThread.Post(() =>
         {
             if (FileTree.ContainerFromItem(node) is not TreeViewItem tvi) return;
@@ -207,7 +188,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void RenameBox_LostFocus(object? sender, RoutedEventArgs e)
     {
-        // Guard against double-commit when Enter already set IsRenaming=false
         if (sender is TextBox box && box.DataContext is Node { IsRenaming: true } node)
             GetViewModel().CommitRenameNode(node);
     }
@@ -241,7 +221,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
-        EditorTabsCtrl.Dispose();
+        _editorTabs.Dispose();
         GC.SuppressFinalize(this);
     }
 }

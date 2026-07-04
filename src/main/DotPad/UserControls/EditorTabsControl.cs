@@ -10,7 +10,6 @@ using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
 using DotPad.Windows.Models;
-using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
 namespace DotPad.UserControls;
@@ -18,36 +17,45 @@ namespace DotPad.UserControls;
 public partial class EditorTabsControl : UserControl, IDisposable
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
+    private IDisposable? _activeTabSub;
 
     private MainWindowViewModel? _vm;
-    private IThemeService? _themeService;
-    private ILanguageHostRegistry? _registry;
-    private IPreferencesService? _prefs;
-    private ILoggerFactory? _loggerFactory;
-    private IIntelliSenseService? _intelliSense;
-    private IDisposable? _activeTabSub;
+
+    // ── Set in DI constructor ─────────────────────────────────────────────────
+
+    private readonly IThemeService? _themeService;
+    private readonly ILanguageHostRegistry? _registry;
+    private readonly IPreferencesService? _prefs;
+    private readonly IIntelliSenseService? _intelliSense;
+
+    // ── Empty ctor: used by XAML previewer only ───────────────────────────────
 
     public EditorTabsControl()
     {
         InitializeComponent();
     }
 
-    public void Initialize(
-        MainWindowViewModel vm,
+    // ── DI ctor: used at runtime ──────────────────────────────────────────────
+
+    public EditorTabsControl(
         IThemeService themeService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        ILoggerFactory loggerFactory,
         IIntelliSenseService intelliSense)
     {
-        _vm = vm;
+        InitializeComponent();
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
-        _loggerFactory = loggerFactory;
         _intelliSense = intelliSense;
-
         _themeService.ThemeChanged += OnThemeChanged;
+    }
+
+    // ── Called by MainWindow after construction ───────────────────────────────
+
+    public void Attach(MainWindowViewModel vm)
+    {
+        _vm = vm;
 
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;
         fileTabControl.SelectionChanged += OnFileTabSelectionChanged;
@@ -83,6 +91,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
+                // BUG-2: vm.Dispose() не вызывается. EditorTabItemViewModel подписывается на
+                // _prefs.Changed и никогда не отписывается → утечка ссылки через делегат.
             }
         }
     }
@@ -152,7 +162,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // ── "+" button ─────────────────────────────────────────────────────────────
 
     private void AddFile_Click(object? sender, RoutedEventArgs e)
-        => _vm?.NewFile();
+        => _vm?.NewRpadFile();
 
     // ── IDisposable ────────────────────────────────────────────────────────────
 
