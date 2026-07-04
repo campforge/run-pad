@@ -36,6 +36,18 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
 
+    public bool BreakOnAllExceptions
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public bool BreakOnUncaughtExceptions
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    } = true;
+
     private RunState _runState;
     public RunState RunState
     {

@@ -229,6 +229,13 @@
                             Click="DbgPause_Click"
                             ToolTip.Tip="Pause"
                             Width="28" Height="24"/>
+                        <templatedControls:IconButton
+                            IconData="{StaticResource Icon.RunToCursor}"
+                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                            IsEnabled="{Binding IsPaused}"
+                            Click="DbgRunToCursor_Click"
+                            ToolTip.Tip="Run to Cursor"
+                            Width="28" Height="24"/>
                     </StackPanel>
                     <userControls:DebugPanel x:Name="DebugPanelCtrl" Grid.Row="1"/>
                 </Grid>

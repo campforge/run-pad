@@ -12,6 +12,9 @@ public sealed class CSharpLanguageHostOptions : ILanguageHostOptions
     public required string RuntimeLibPath { get; init; }
     public string OutputName { get; init; } = "DotPadQuery";
 
+    public bool BreakOnAllExceptions { get; init; }
+    public bool BreakOnUncaughtExceptions { get; init; } = true;
+
     // RPad front-matter overrides (null/empty = use defaults)
     public string Kind { get; init; } = "Statements";
     public string? TargetFrameworkOverride { get; init; }

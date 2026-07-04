@@ -4,6 +4,7 @@ public interface IBreakpoint
 {
     string FileName { get; }
     int Line { get; set; }
+    string? Condition { get; }
 }
 
 // Editor-side breakpoint list (gutter display, persisted state).

@@ -159,7 +159,9 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 WrapWithDumpDetection(outputHandler),
                 HandleBreakpointHit,
                 lineOffset,
-                _loggerFactory.CreateLogger<CSharpDapSession>());
+                _loggerFactory.CreateLogger<CSharpDapSession>(),
+                _options.BreakOnAllExceptions,
+                _options.BreakOnUncaughtExceptions);
 
             _currentSession = session;
             try { await session.RunAsync(cts.Token); }

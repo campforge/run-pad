@@ -2,6 +2,7 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -33,6 +34,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IThemeService _themeService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
+    private IIntelliSenseService? _intelliSense;
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -64,6 +66,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ApplyEditorSettings(editor, prefs.Editor);
         prefs.Changed += OnPreferencesChanged;
 
+        _intelliSense = intelliSense;
         SetupEditor(editor, intelliSense);
 
         // Load document content first, without TextMate.
@@ -166,7 +169,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var options = BuildRunOptions(platform, workDir);
         var script = s.Editor.Text;
         var breakpoints = s.Editor.Breakpoints
-            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(bp.Line))
+            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(bp.Line, bp.Condition))
             .ToList();
 
         var cancelled = false;
@@ -245,6 +248,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (State.RunningHost is not null)
             await State.RunningHost.PauseAsync();
+    }
+
+    private async void DbgRunToCursor_Click(object? sender, RoutedEventArgs e)
+    {
+        var ctx = State.CurrentDebugCtx;
+        if (ctx is null) return;
+        var line = State.Editor.TextArea.Caret.Line;
+        State.CurrentDebugCtx = null;
+        _vm.RunState = RunState.RunDebug;
+        State.Editor.DebugCurrentLine = null;
+        SetStatus("Process", "DotPad.Status.RunningBrush");
+        UpdateOutputUi();
+        await ctx.RunToCursorAsync(line);
+    }
+
+    private async void OnBreakpointRightClicked(int line, DotPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var dialog = new DotPad.Windows.ConditionDialog(bp?.Condition);
+        var result = await dialog.ShowDialog<string?>(owner);
+        if (result is null) return; // cancelled
+
+        var condition = string.IsNullOrWhiteSpace(result) ? null : result;
+
+        if (bp is not null)
+        {
+            bp.Condition = condition;
+        }
+        else if (condition is not null)
+        {
+            State.Editor.AddBreakpoint(line);
+            var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
+            if (newBp is not null) newBp.Condition = condition;
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -408,8 +447,28 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         editor.CompletionTriggers.Add('.');
         editor.OverloadTriggers.Add('(');
+        editor.OverloadTriggers.Add(',');
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
+
+        editor.BreakpointRightClicked += OnBreakpointRightClicked;
+
+        editor.Snippets["for"]       = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
+        editor.Snippets["foreach"]   = "foreach (var item in ${0})\n{\n\t\n}";
+        editor.Snippets["while"]     = "while (${0})\n{\n\t\n}";
+        editor.Snippets["do"]        = "do\n{\n\t${0}\n} while ();";
+        editor.Snippets["if"]        = "if (${0})\n{\n\t\n}";
+        editor.Snippets["ife"]       = "if (${0})\n{\n\t\n}\nelse\n{\n\t\n}";
+        editor.Snippets["try"]       = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}";
+        editor.Snippets["tryf"]      = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}";
+        editor.Snippets["sw"]        = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}";
+        editor.Snippets["prop"]      = "public ${0} Property { get; set; }";
+        editor.Snippets["propg"]     = "public ${0} Property { get; private set; }";
+        editor.Snippets["class"]     = "class ${0}\n{\n\t\n}";
+        editor.Snippets["interface"] = "interface I${0}\n{\n\t\n}";
+        editor.Snippets["ctor"]      = "public ${0}()\n{\n\t\n}";
+        editor.Snippets["using"]     = "using (var resource = ${0})\n{\n\t\n}";
+        editor.Snippets["lock"]      = "lock (${0})\n{\n\t\n}";
 
         if (intelliSense is null) return;
 
@@ -457,6 +516,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             });
 
         editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
+
+        // ── Quick Info tooltips on hover ──────────────────────────────────────
+        ToolTip.SetShowDelay(editor.TextArea.TextView, 0);
+        var quickInfoCts = new CancellationTokenSource();
+
+        editor.TextArea.TextView.PointerMoved += (_, e) =>
+        {
+            quickInfoCts.Cancel();
+            quickInfoCts = new CancellationTokenSource();
+            var ct = quickInfoCts.Token;
+            var pos = e.GetPosition(editor);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(400, ct);
+                    var offset = await Dispatcher.UIThread.InvokeAsync(
+                        () => editor.GetOffsetFromPoint(pos));
+                    if (offset < 0 || ct.IsCancellationRequested) return;
+                    var result = await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (!ct.IsCancellationRequested)
+                            ToolTip.SetTip(editor.TextArea.TextView, result?.Content);
+                    });
+                }
+                catch (OperationCanceledException) { }
+            });
+        };
+
+        editor.TextArea.TextView.PointerExited += (_, _) =>
+        {
+            quickInfoCts.Cancel();
+            ToolTip.SetTip(editor.TextArea.TextView, null);
+        };
     }
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
@@ -482,6 +577,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.RpadDocument = rpad;
         _vm.FrontMatter = rpad?.FrontMatter;
         editor.Document = new TextDocument(content);
+
+        if (rpad?.FrontMatter.Packages is { Count: > 0 } packages)
+            _intelliSense?.UpdatePackageReferences(packages);
     }
 
     private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
@@ -520,6 +618,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
             // BUG-8: new CSharpReferenceService() создаётся при каждом запуске. Стоит кэшировать или инжектировать.
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+            BreakOnAllExceptions = _vm.BreakOnAllExceptions,
+            BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
             Kind = rpad?.FrontMatter.Kind ?? "Statements",
             TargetFrameworkOverride = rpad?.FrontMatter.TargetFramework,
             NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
@@ -533,9 +633,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
     }
 
-    private sealed class ScriptBreakpoint(int line) : Contracts.IBreakpoint
+    private sealed class ScriptBreakpoint(int line, string? condition) : Contracts.IBreakpoint
     {
         public string FileName { get; } = string.Empty;
         public int Line { get; set; } = line;
+        public string? Condition { get; } = condition;
     }
 }

@@ -37,6 +37,8 @@ internal sealed class CSharpDapSession : IDapSession
     private readonly OutputReceivedHandler? _outputHandler;
     private readonly Action<IBreakpointHitContext> _onBreakpointHit;
     private readonly ILogger<CSharpDapSession> _logger;
+    private readonly bool _breakOnAllExceptions;
+    private readonly bool _breakOnUncaughtExceptions;
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -45,6 +47,13 @@ internal sealed class CSharpDapSession : IDapSession
     // Sent breakpoints: user_line + _lineOffset → compiled_line.
     // Received frame.line: compiled_line - _lineOffset → user_line.
     private readonly int _lineOffset;
+
+    // Run-to-cursor one-shot breakpoints (user line numbers).
+    private readonly HashSet<int> _runToCursorLines = [];
+
+    // Stored after first SendBreakpointsAsync so ResendBreakpointsAsync can reuse them.
+    private string? _sourceFile;
+    private string? _sourceName;
 
     private int _seq;
     private volatile int _activeThreadId;
@@ -59,7 +68,9 @@ internal sealed class CSharpDapSession : IDapSession
         OutputReceivedHandler? outputHandler,
         Action<IBreakpointHitContext> onBreakpointHit,
         int lineOffset,
-        ILogger<CSharpDapSession> logger)
+        ILogger<CSharpDapSession> logger,
+        bool breakOnAllExceptions = false,
+        bool breakOnUncaughtExceptions = true)
     {
         _process = process;
         _programPath = programPath;
@@ -69,6 +80,8 @@ internal sealed class CSharpDapSession : IDapSession
         _onBreakpointHit = onBreakpointHit;
         _lineOffset = lineOffset;
         _logger = logger;
+        _breakOnAllExceptions = breakOnAllExceptions;
+        _breakOnUncaughtExceptions = breakOnUncaughtExceptions;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -194,6 +207,7 @@ internal sealed class CSharpDapSession : IDapSession
         {
             case "initialized":
                 await SendBreakpointsAsync(ct);
+                await SendExceptionBreakpointsAsync(ct);
                 await SendAsync(new ConfigurationDoneRequest { seq = NextSeq() }, ct);
                 break;
 
@@ -230,7 +244,7 @@ internal sealed class CSharpDapSession : IDapSession
         var threads = await QueryThreadsAsync(ct);
         var frames = await QueryStackTraceAsync(threadId, ct);
         var vars = frames.Count > 0
-            ? await QueryLocalsAsync(frames[0].id, ct)
+            ? await QueryAllScopesAsync(frames[0].id, ct)
             : (IReadOnlyList<IVariableInfo>)[];
 
         var topFrame = frames.Count > 0 ? frames[0] : null;
@@ -239,12 +253,15 @@ internal sealed class CSharpDapSession : IDapSession
             _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine)
             ?? new SyntheticBreakpoint(topFrame?.source?.path ?? "", topFrameUserLine);
 
+        bool wasRunToCursor = _runToCursorLines.Remove(topFrameUserLine);
+
         var context = new DapBreakpointHitContext
         {
             Breakpoint = matched,
             ThreadId = threadId,
             LocalVariables = vars,
             GetChildrenFunc = FetchChildrenAsync,
+            RunToCursorFunc = RegisterRunToCursorAsync,
             CallStack = frames.Select(f => (IStackFrame)new DapStackFrame
             {
                 MethodName = f.name ?? "",
@@ -264,6 +281,10 @@ internal sealed class CSharpDapSession : IDapSession
         // Block here until the UI calls context.Resume(action).
         var action = await context.WaitForResumeAsync(ct);
 
+        // Resend breakpoints if a run-to-cursor BP was consumed or a new one was registered.
+        if (wasRunToCursor || _runToCursorLines.Count > 0)
+            await ResendBreakpointsAsync(ct);
+
         switch (action)
         {
             case DebugAction.Continue:
@@ -279,6 +300,12 @@ internal sealed class CSharpDapSession : IDapSession
                 await SendAsync(new StepOutRequest { seq = NextSeq(), arguments = new StepOutArguments { threadId = threadId } }, ct);
                 break;
         }
+    }
+
+    private Task RegisterRunToCursorAsync(int userLine, CancellationToken _)
+    {
+        _runToCursorLines.Add(userLine);
+        return Task.CompletedTask;
     }
 
     // ─── DAP request helpers ─────────────────────────────────────────────────
@@ -311,7 +338,7 @@ internal sealed class CSharpDapSession : IDapSession
         return JsonSerializer.Deserialize<List<StackFrame>>(el.GetRawText(), JsonOpts) ?? [];
     }
 
-    private async Task<IReadOnlyList<IVariableInfo>> QueryLocalsAsync(long frameId, CancellationToken ct)
+    private async Task<IReadOnlyList<IVariableInfo>> QueryAllScopesAsync(long frameId, CancellationToken ct)
     {
         await SendAsync(new ScopesRequest
         {
@@ -322,36 +349,54 @@ internal sealed class CSharpDapSession : IDapSession
         if (scopesDoc is null) return [];
 
         var scopesRoot = scopesDoc.RootElement;
-        if (!scopesRoot.TryGetProperty("body", out var sb)) return [];
-        if (!sb.TryGetProperty("scopes", out var scopesEl)) return [];
+        if (!scopesRoot.TryGetProperty("body", out var scopesBody)) return [];
+        if (!scopesBody.TryGetProperty("scopes", out var scopesEl)) return [];
 
         var scopes = JsonSerializer.Deserialize<List<Scope>>(scopesEl.GetRawText(), JsonOpts) ?? [];
-        var localScope = scopes.FirstOrDefault(s =>
-            s.name?.Equals("Locals", StringComparison.OrdinalIgnoreCase) == true);
-        var varRef = localScope?.variablesReference;
-        if (varRef is null or 0) return [];
+        var usableScopes = scopes.Where(s => s.expensive != true && s.variablesReference is > 0).ToList();
+        if (usableScopes.Count == 0) return [];
 
-        await SendAsync(new VariablesRequest
+        var result = new List<IVariableInfo>();
+        bool multipleScopes = usableScopes.Count > 1;
+
+        foreach (var scope in usableScopes)
         {
-            seq = NextSeq(),
-            arguments = new VariablesArguments { variablesReference = varRef.Value },
-        }, ct);
-        using var varsDoc = await ReadResponseForCommandAsync("variables", ct);
-        if (varsDoc is null) return [];
+            if (multipleScopes)
+            {
+                result.Add(new DapVariableInfo
+                {
+                    Name = $"── {scope.name} ──",
+                    Value = "",
+                    TypeName = "",
+                    HasChildren = false,
+                    VariablesReference = 0,
+                });
+            }
 
-        var varsRoot = varsDoc.RootElement;
-        if (!varsRoot.TryGetProperty("body", out var vb)) return [];
-        if (!vb.TryGetProperty("variables", out var varsEl)) return [];
+            await SendAsync(new VariablesRequest
+            {
+                seq = NextSeq(),
+                arguments = new VariablesArguments { variablesReference = scope.variablesReference!.Value },
+            }, ct);
+            using var varsDoc = await ReadResponseForCommandAsync("variables", ct);
+            if (varsDoc is null) continue;
 
-        var vars = JsonSerializer.Deserialize<List<Variable>>(varsEl.GetRawText(), JsonOpts) ?? [];
-        return vars.Select(v => (IVariableInfo)new DapVariableInfo
-        {
-            Name = v.name ?? "",
-            Value = v.value ?? "",
-            TypeName = v.type ?? "",
-            HasChildren = v.variablesReference > 0,
-            VariablesReference = v.variablesReference,
-        }).ToList();
+            var varsRoot = varsDoc.RootElement;
+            if (!varsRoot.TryGetProperty("body", out var varsBody)) continue;
+            if (!varsBody.TryGetProperty("variables", out var varsEl)) continue;
+
+            var vars = JsonSerializer.Deserialize<List<Variable>>(varsEl.GetRawText(), JsonOpts) ?? [];
+            result.AddRange(vars.Select(v => (IVariableInfo)new DapVariableInfo
+            {
+                Name = v.name ?? "",
+                Value = v.value ?? "",
+                TypeName = v.type ?? "",
+                HasChildren = v.variablesReference > 0,
+                VariablesReference = v.variablesReference,
+            }));
+        }
+
+        return result;
     }
 
     private async Task<IReadOnlyList<IVariableInfo>> FetchChildrenAsync(int variablesReference, CancellationToken ct)
@@ -381,15 +426,14 @@ internal sealed class CSharpDapSession : IDapSession
 
     private async Task SendBreakpointsAsync(CancellationToken ct)
     {
-        if (_breakpoints.Count == 0) return;
-
         // The compiler writes source to _workingDirectory/{name}.cs
         // but the binary goes to _workingDirectory/bin/{name}.dll.
-        // Path.ChangeExtension(_programPath, ".cs") would give the wrong bin/ path.
-        var sourceName = Path.GetFileNameWithoutExtension(_programPath) + ".cs";
-        var sourceFile = Path.Combine(_workingDirectory, sourceName);
+        _sourceName = Path.GetFileNameWithoutExtension(_programPath) + ".cs";
+        _sourceFile = Path.Combine(_workingDirectory, _sourceName);
 
-        _logger.LogDebug("[dap bp] source path: {SourceFile}, lineOffset: {Offset}", sourceFile, _lineOffset);
+        if (_breakpoints.Count == 0) return;
+
+        _logger.LogDebug("[dap bp] source path: {SourceFile}, lineOffset: {Offset}", _sourceFile, _lineOffset);
         foreach (var bp in _breakpoints)
             _logger.LogDebug("[dap bp] user line {UserLine} → compiled line {CompiledLine}", bp.Line, bp.Line + _lineOffset);
 
@@ -398,8 +442,10 @@ internal sealed class CSharpDapSession : IDapSession
             seq = NextSeq(),
             arguments = new SetBreakpointsArguments
             {
-                source = new Source { path = sourceFile, name = sourceName },
-                breakpoints = _breakpoints.Select(bp => new SourceBreakpoint(bp.Line + _lineOffset)).ToList(),
+                source = new Source { path = _sourceFile, name = _sourceName },
+                breakpoints = _breakpoints
+                    .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+                    .ToList(),
             },
         }, ct);
 
@@ -419,6 +465,41 @@ internal sealed class CSharpDapSession : IDapSession
                 }
             }
         }
+    }
+
+    private async Task ResendBreakpointsAsync(CancellationToken ct)
+    {
+        if (_sourceFile is null || _sourceName is null) return;
+
+        var allBps = _breakpoints
+            .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+            .Concat(_runToCursorLines.Select(l => new SourceBreakpoint(l + _lineOffset)))
+            .ToList();
+
+        await SendAsync(new SetBreakpointsRequest
+        {
+            seq = NextSeq(),
+            arguments = new SetBreakpointsArguments
+            {
+                source = new Source { path = _sourceFile, name = _sourceName },
+                breakpoints = allBps,
+            },
+        }, ct);
+        using var _ = await ReadResponseForCommandAsync("setBreakpoints", ct);
+    }
+
+    private async Task SendExceptionBreakpointsAsync(CancellationToken ct)
+    {
+        var filters = new List<string>();
+        if (_breakOnAllExceptions)         filters.Add("all");
+        else if (_breakOnUncaughtExceptions) filters.Add("unhandled");
+
+        await SendAsync(new SetExceptionBreakpointsRequest
+        {
+            seq = NextSeq(),
+            arguments = new SetExceptionBreakpointsArguments { filters = filters },
+        }, ct);
+        using var _ = await ReadResponseForCommandAsync("setExceptionBreakpoints", ct);
     }
 
     private Task SendContinueAsync(int threadId, CancellationToken ct) =>
