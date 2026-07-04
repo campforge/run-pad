@@ -98,25 +98,29 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         var errors = new List<ResultItem>();
         var warnings = new List<ResultItem>();
 
-        // BUG-1: stderr не читается конкурентно со stdout.
-        // Если dotnet build запишет много данных в stderr (ошибки MSBuild при загрузке NuGet),
-        // пайп заполнится, процесс зависнет, а ReadLineAsync ниже никогда не вернёт null → дедлок.
-        // Правильно: Task.WhenAll(DrainStdout, DrainStderr) с параллельным чтением.
-        while (true)
+        async Task DrainStdout()
         {
-            var line = await _process.StandardOutput.ReadLineAsync(cancellationToken);
-            if (line == null) break;
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            _logger.LogDebug("{Line}", line);
-
-            var errorMatch = _errorRegex.Match(line);
-            if (errorMatch.Success) { errors.Add(ParseMatch(errorMatch)); continue; }
-
-            var warningMatch = _warningRegex.Match(line);
-            if (warningMatch.Success) warnings.Add(ParseMatch(warningMatch));
+            string? line;
+            while ((line = await _process.StandardOutput.ReadLineAsync(cancellationToken)) != null)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                _logger.LogDebug("{Line}", line);
+                var errorMatch = _errorRegex.Match(line);
+                if (errorMatch.Success) { errors.Add(ParseMatch(errorMatch)); continue; }
+                var warningMatch = _warningRegex.Match(line);
+                if (warningMatch.Success) warnings.Add(ParseMatch(warningMatch));
+            }
         }
 
+        async Task DrainStderr()
+        {
+            string? line;
+            while ((line = await _process.StandardError.ReadLineAsync(cancellationToken)) != null)
+                if (!string.IsNullOrWhiteSpace(line))
+                    _logger.LogWarning("build stderr: {Line}", line);
+        }
+
+        await Task.WhenAll(DrainStdout(), DrainStderr());
         await _process.WaitForExitAsync(cancellationToken);
 
         return new ProcessCompilerResult(
