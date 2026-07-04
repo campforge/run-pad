@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using DotPad.Assets.Models;
 using DotPad.Services;
 using DotPad.Services.Preferences;
@@ -35,7 +37,11 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         themeService.ThemeChanged += OnThemeChanged;
     }
 
-    public void Dispose() => _themeService.ThemeChanged -= OnThemeChanged;
+    public void Dispose()
+    {
+        _themeService.ThemeChanged -= OnThemeChanged;
+        GC.SuppressFinalize(this);
+    }
 
     private void OnThemeChanged(ActiveTheme theme) => RefreshThemeLists(theme);
 
@@ -82,8 +88,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     }
 
     public bool IsSystemMode { get => SelectedMode == ThemeMode.System; set { if (value) SelectedMode = ThemeMode.System; } }
-    public bool IsDarkMode { get => SelectedMode == ThemeMode.Dark; set { if (value) SelectedMode = ThemeMode.Dark; } }
-    public bool IsLightMode { get => SelectedMode == ThemeMode.Light; set { if (value) SelectedMode = ThemeMode.Light; } }
+    public bool IsDarkMode   { get => SelectedMode == ThemeMode.Dark;   set { if (value) SelectedMode = ThemeMode.Dark;   } }
+    public bool IsLightMode  { get => SelectedMode == ThemeMode.Light;  set { if (value) SelectedMode = ThemeMode.Light;  } }
 
     // ── Interface theme ───────────────────────────────────────────────────────
 
@@ -118,49 +124,49 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public bool ShowLineNumbers
     {
         get => _prefs.Editor.ShowLineNumbers;
-        set { _prefs.Editor.ShowLineNumbers = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowLineNumbers, value, v => _prefs.Editor.ShowLineNumbers = v);
     }
 
     public bool ShowFolding
     {
         get => _prefs.Editor.ShowFolding;
-        set { _prefs.Editor.ShowFolding = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowFolding, value, v => _prefs.Editor.ShowFolding = v);
     }
 
     public bool ShowTabs
     {
         get => _prefs.Editor.ShowTabs;
-        set { _prefs.Editor.ShowTabs = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowTabs, value, v => _prefs.Editor.ShowTabs = v);
     }
 
     public bool ShowSpaces
     {
         get => _prefs.Editor.ShowSpaces;
-        set { _prefs.Editor.ShowSpaces = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowSpaces, value, v => _prefs.Editor.ShowSpaces = v);
     }
 
     public bool ShowEndOfLine
     {
         get => _prefs.Editor.ShowEndOfLine;
-        set { _prefs.Editor.ShowEndOfLine = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowEndOfLine, value, v => _prefs.Editor.ShowEndOfLine = v);
     }
 
     public bool ShowColumnRuler
     {
         get => _prefs.Editor.ShowColumnRuler;
-        set { _prefs.Editor.ShowColumnRuler = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.ShowColumnRuler, value, v => _prefs.Editor.ShowColumnRuler = v);
     }
 
     public bool WordWrap
     {
         get => _prefs.Editor.WordWrap;
-        set { _prefs.Editor.WordWrap = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.WordWrap, value, v => _prefs.Editor.WordWrap = v);
     }
 
     public double FontSize
     {
         get => _prefs.Editor.FontSize;
-        set { _prefs.Editor.FontSize = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Editor.FontSize, value, v => _prefs.Editor.FontSize = v);
     }
 
     // ── Debugger ──────────────────────────────────────────────────────────────
@@ -168,13 +174,13 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public string DotnetPath
     {
         get => _prefs.Debugger.DotnetPath;
-        set { _prefs.Debugger.DotnetPath = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Debugger.DotnetPath, value, v => _prefs.Debugger.DotnetPath = v);
     }
 
     public string DebuggerPath
     {
         get => _prefs.Debugger.DebuggerPath;
-        set { _prefs.Debugger.DebuggerPath = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Debugger.DebuggerPath, value, v => _prefs.Debugger.DebuggerPath = v);
     }
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -182,30 +188,40 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public string HotkeyRun
     {
         get => _prefs.Keyboard.Run;
-        set { _prefs.Keyboard.Run = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Keyboard.Run, value, v => _prefs.Keyboard.Run = v);
     }
 
     public string HotkeyCancel
     {
         get => _prefs.Keyboard.Cancel;
-        set { _prefs.Keyboard.Cancel = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Keyboard.Cancel, value, v => _prefs.Keyboard.Cancel = v);
     }
 
     public string HotkeyStepOver
     {
         get => _prefs.Keyboard.StepOver;
-        set { _prefs.Keyboard.StepOver = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Keyboard.StepOver, value, v => _prefs.Keyboard.StepOver = v);
     }
 
     public string HotkeyStepIn
     {
         get => _prefs.Keyboard.StepIn;
-        set { _prefs.Keyboard.StepIn = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Keyboard.StepIn, value, v => _prefs.Keyboard.StepIn = v);
     }
 
     public string HotkeyStepOut
     {
         get => _prefs.Keyboard.StepOut;
-        set { _prefs.Keyboard.StepOut = value; _prefs.Save(); this.RaisePropertyChanged(); }
+        set => SetPref(_prefs.Keyboard.StepOut, value, v => _prefs.Keyboard.StepOut = v);
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private void SetPref<T>(T current, T value, Action<T> assign, [CallerMemberName] string? name = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(current, value)) return;
+        assign(value);
+        _prefs.Save();
+        this.RaisePropertyChanged(name);
     }
 }

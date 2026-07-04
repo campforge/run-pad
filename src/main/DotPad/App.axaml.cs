@@ -10,6 +10,7 @@ using DotPad.Languages.CSharp.Sdk;
 using DotPad.Logging;
 using DotPad.Services;
 using DotPad.Services.Preferences;
+using DotPad.UserControls;
 using DotPad.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -51,10 +52,12 @@ public class App : Application
         services.AddSingleton<IDotpFileService, DotpFileService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
         services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
+        services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
+        services.AddSingleton<IWindowService, WindowService>();
 
         services.AddLogging(logging =>
         {
-            var logDir = Path.Combine(
+            string logDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "DotPad", "logs");
             logging.AddProvider(new FileLoggerProvider(
@@ -64,15 +67,15 @@ public class App : Application
 
         services.AddSingleton<ILanguageHostRegistry>(sp =>
         {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var registry = new LanguageHostRegistry();
+            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            LanguageHostRegistry registry = new();
             registry.Register(new CSharpLanguageHostFactory(loggerFactory));
             return registry;
         });
 
         services.AddSingleton<IIntelliSenseService>(sp =>
         {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var refs = new CSharpReferenceService().GetDefault();
             return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
         });
@@ -83,8 +86,7 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
-        services.AddTransient<Func<PreferencesWindow>>(sp => sp.GetRequiredService<PreferencesWindow>);
-        services.AddTransient<Func<DependenciesWindow>>(sp => sp.GetRequiredService<DependenciesWindow>);
+        services.AddTransient<EditorTabsControl>();
 
         return services.BuildServiceProvider();
     }

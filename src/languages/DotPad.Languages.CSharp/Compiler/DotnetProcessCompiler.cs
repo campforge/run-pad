@@ -98,6 +98,10 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         var errors = new List<ResultItem>();
         var warnings = new List<ResultItem>();
 
+        // BUG-1: stderr не читается конкурентно со stdout.
+        // Если dotnet build запишет много данных в stderr (ошибки MSBuild при загрузке NuGet),
+        // пайп заполнится, процесс зависнет, а ReadLineAsync ниже никогда не вернёт null → дедлок.
+        // Правильно: Task.WhenAll(DrainStdout, DrainStderr) с параллельным чтением.
         while (true)
         {
             var line = await _process.StandardOutput.ReadLineAsync(cancellationToken);

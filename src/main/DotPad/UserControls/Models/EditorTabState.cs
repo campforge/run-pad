@@ -26,7 +26,7 @@ internal sealed class EditorTabState
     public IBreakpointHitContext? CurrentDebugCtx { get; set; }
     public readonly Stopwatch RunStopwatch = new();
 
-    // Set when the active file is an .rpad document; null for plain .dotp files
+    // Set when the active file is an .rpad document; null for untitled tabs
     public RpadDocument? RpadDocument { get; set; }
 
     public EditorTabState(CodeTextEditor editor)

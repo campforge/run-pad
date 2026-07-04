@@ -60,7 +60,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant, themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
-        SyncHotkeyLabels();
         prefs.Changed += OnPreferencesChanged;
 
         SetupEditor(editor, intelliSense);
@@ -223,6 +222,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Toolbar handlers ──────────────────────────────────────────────────────
 
+    // BUG-11: async void — если DotnetPlatforms пуст (нет SDK), .First() бросит InvalidOperationException,
+    // которая из async void станет необработанной и уронит процесс.
     private async void RunButton_Click(object? sender, RoutedEventArgs e)
         => await RunAsync(_vm.DebugModeEnabled, _vm.SelectedDotnetPlatform ?? _vm.DotnetPlatforms.First());
 
@@ -357,25 +358,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // ── Editor preferences ────────────────────────────────────────────────────
 
     private void OnPreferencesChanged()
-        => Dispatcher.UIThread.Post(() =>
-        {
-            ApplyEditorSettings(State.Editor, _prefs.Editor);
-            SyncHotkeyLabels();
-        });
-
-    private void SyncHotkeyLabels()
-    {
-        var kb = _prefs.Keyboard;
-        _vm.TooltipRun      = Label("Run",       kb.Run);
-        _vm.TooltipContinue = Label("Continue",  kb.Run);
-        _vm.TooltipCancel   = Label("Cancel",    kb.Cancel);
-        _vm.TooltipStepOver = Label("Step Over", kb.StepOver);
-        _vm.TooltipStepIn   = Label("Step In",   kb.StepIn);
-        _vm.TooltipStepOut  = Label("Step Out",  kb.StepOut);
-
-        static string Label(string name, string key)
-            => string.IsNullOrWhiteSpace(key) ? name : $"{name} ({key})";
-    }
+        => Dispatcher.UIThread.Post(() => ApplyEditorSettings(State.Editor, _prefs.Editor));
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -440,8 +423,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             content = ResourceLoader.LoadSampleFile(string.Empty);
         }
-        else if (Path.GetExtension(filePath).Equals(".rpad", StringComparison.OrdinalIgnoreCase)
-                 && File.Exists(filePath))
+        else if (File.Exists(filePath))
         {
             var raw = File.ReadAllText(filePath);
             rpad = RpadParser.TryParse(raw);
@@ -449,10 +431,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         else
         {
-            content = File.Exists(filePath) ? File.ReadAllText(filePath) : "";
+            content = "";
         }
 
         State.RpadDocument = rpad;
+        _vm.FrontMatter = rpad?.FrontMatter;
         editor.Document = new TextDocument(content);
     }
 
@@ -490,7 +473,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
             },
             OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
+            // BUG-8: new CSharpReferenceService() создаётся при каждом запуске. Стоит кэшировать или инжектировать.
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+            Kind = rpad?.FrontMatter.Kind ?? "Statements",
             TargetFrameworkOverride = rpad?.FrontMatter.TargetFramework,
             NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
             GlobalUsings = rpad?.FrontMatter.Usings ?? [],

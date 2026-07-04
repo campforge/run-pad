@@ -13,6 +13,7 @@ public sealed class CSharpLanguageHostOptions : ILanguageHostOptions
     public string OutputName { get; init; } = "DotPadQuery";
 
     // RPad front-matter overrides (null/empty = use defaults)
+    public string Kind { get; init; } = "Statements";
     public string? TargetFrameworkOverride { get; init; }
     public IReadOnlyDictionary<string, string> NugetPackages { get; init; } = new Dictionary<string, string>();
     public IReadOnlyList<string> GlobalUsings { get; init; } = [];

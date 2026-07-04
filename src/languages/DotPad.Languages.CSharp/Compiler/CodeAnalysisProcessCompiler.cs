@@ -40,7 +40,7 @@ public sealed class CodeAnalysisProcessCompiler : ProcessCompilerBase
 
         var compilation = CSharpCompilation.Create(
             Guid.NewGuid().ToString(),
-            syntaxTrees: new[] { syntaxTree },
+            syntaxTrees: [syntaxTree],
             references: references,
             options: new CSharpCompilationOptions(
                 OutputKind.ConsoleApplication,
