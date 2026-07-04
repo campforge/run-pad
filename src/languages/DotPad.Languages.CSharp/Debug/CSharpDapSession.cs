@@ -244,6 +244,7 @@ internal sealed class CSharpDapSession : IDapSession
             Breakpoint = matched,
             ThreadId = threadId,
             LocalVariables = vars,
+            GetChildrenFunc = FetchChildrenAsync,
             CallStack = frames.Select(f => (IStackFrame)new DapStackFrame
             {
                 MethodName = f.name ?? "",
@@ -349,6 +350,32 @@ internal sealed class CSharpDapSession : IDapSession
             Value = v.value ?? "",
             TypeName = v.type ?? "",
             HasChildren = v.variablesReference > 0,
+            VariablesReference = v.variablesReference,
+        }).ToList();
+    }
+
+    private async Task<IReadOnlyList<IVariableInfo>> FetchChildrenAsync(int variablesReference, CancellationToken ct)
+    {
+        await SendAsync(new VariablesRequest
+        {
+            seq = NextSeq(),
+            arguments = new VariablesArguments { variablesReference = variablesReference },
+        }, ct);
+        using var doc = await ReadResponseForCommandAsync("variables", ct);
+        if (doc is null) return [];
+
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("body", out var body)) return [];
+        if (!body.TryGetProperty("variables", out var el)) return [];
+
+        var vars = JsonSerializer.Deserialize<List<Variable>>(el.GetRawText(), JsonOpts) ?? [];
+        return vars.Select(v => (IVariableInfo)new DapVariableInfo
+        {
+            Name = v.name ?? "",
+            Value = v.value ?? "",
+            TypeName = v.type ?? "",
+            HasChildren = v.variablesReference > 0,
+            VariablesReference = v.variablesReference,
         }).ToList();
     }
 

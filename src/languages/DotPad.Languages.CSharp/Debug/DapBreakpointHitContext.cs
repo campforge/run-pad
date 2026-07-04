@@ -14,6 +14,13 @@ internal sealed class DapBreakpointHitContext : IBreakpointHitContext
     public IReadOnlyList<IStackFrame> CallStack { get; init; } = [];
     public IReadOnlyList<IThreadInfo> Threads { get; init; } = [];
 
+    internal Func<int, CancellationToken, Task<IReadOnlyList<IVariableInfo>>>? GetChildrenFunc { get; set; }
+
+    public Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default)
+        => GetChildrenFunc is { } f
+            ? f(variablesReference, ct)
+            : Task.FromResult<IReadOnlyList<IVariableInfo>>([]);
+
     public void Resume(DebugAction action = DebugAction.Continue)
         => _tcs.TrySetResult(action);
 

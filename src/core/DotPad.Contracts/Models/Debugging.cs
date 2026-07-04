@@ -14,6 +14,7 @@ public interface IVariableInfo
     string Value { get; }
     string TypeName { get; }
     bool HasChildren { get; }
+    int VariablesReference { get; }
     IReadOnlyList<IVariableInfo> Children { get; }
 }
 
@@ -33,6 +34,7 @@ public interface IBreakpointHitContext
     IReadOnlyList<IStackFrame> CallStack { get; }
     IReadOnlyList<IThreadInfo> Threads { get; }
     void Resume(DebugAction action = DebugAction.Continue);
+    Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default);
 }
 
 public interface IMemoryDump
