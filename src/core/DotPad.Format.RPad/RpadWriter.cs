@@ -39,7 +39,7 @@ public static class RpadWriter
             foreach (var (k, v) in fm.Packages)
             {
                 sb.AppendLine();
-                sb.Append($"  {k}: {v}");
+                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v)}");
             }
         }
 
@@ -66,5 +66,16 @@ public static class RpadWriter
         }
 
         return sb.ToString();
+    }
+
+    // Wraps value in single quotes if it contains YAML-special characters.
+    // Single quotes inside the value are escaped by doubling them ('').
+    private static string YamlEscape(string value)
+    {
+        if (value.Length == 0) return "''";
+        bool needsQuote = value[0] is ':' or '#' or '&' or '*' or '!' or '|' or '>' or '\'' or '"' or '%' or '@' or '`' or '{'
+            || value.Contains(": ") || value.Contains(" #") || value.Contains('\n') || value.Contains('\r');
+        if (!needsQuote) return value;
+        return "'" + value.Replace("'", "''") + "'";
     }
 }

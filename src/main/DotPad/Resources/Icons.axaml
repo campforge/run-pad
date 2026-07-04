@@ -463,6 +463,7 @@
     <StreamGeometry x:Key="Icon.DebugStepOver">M6,18V6L13,12M13,6V18H15V6Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.DebugStepInto">M20,12L18.59,10.59L13,16.17V4H11V16.17L5.41,10.59L4,12L12,20Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.DebugStepOut">M4,12L5.41,13.41L11,7.83V20H13V7.83L18.59,13.41L20,12L12,4Z</StreamGeometry>
+    <StreamGeometry x:Key="Icon.RunToCursor">M5,3L19,12L5,21V3Z M17,10H15V14H17V10Z M19,10H17V14H19V10Z</StreamGeometry>
     <!-- Gutter margin icons (24×24 viewbox) -->
     <StreamGeometry x:Key="Icon.Breakpoint">M12,3 A9,9,0,0,1,21,12 A9,9,0,0,1,12,21 A9,9,0,0,1,3,12 A9,9,0,0,1,12,3 Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.DebugArrow">M2,9 L13,9 L13,4 L22,12 L13,20 L13,15 L2,15 Z</StreamGeometry>

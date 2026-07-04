@@ -35,6 +35,7 @@ public interface IBreakpointHitContext
     IReadOnlyList<IThreadInfo> Threads { get; }
     void Resume(DebugAction action = DebugAction.Continue);
     Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default);
+    Task RunToCursorAsync(int line, CancellationToken ct = default);
 }
 
 public interface IMemoryDump

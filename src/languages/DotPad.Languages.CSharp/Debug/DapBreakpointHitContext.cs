@@ -15,11 +15,19 @@ internal sealed class DapBreakpointHitContext : IBreakpointHitContext
     public IReadOnlyList<IThreadInfo> Threads { get; init; } = [];
 
     internal Func<int, CancellationToken, Task<IReadOnlyList<IVariableInfo>>>? GetChildrenFunc { get; set; }
+    internal Func<int, CancellationToken, Task>? RunToCursorFunc { get; set; }
 
     public Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default)
         => GetChildrenFunc is { } f
             ? f(variablesReference, ct)
             : Task.FromResult<IReadOnlyList<IVariableInfo>>([]);
+
+    public async Task RunToCursorAsync(int line, CancellationToken ct = default)
+    {
+        if (RunToCursorFunc is { } f)
+            await f(line, ct);
+        Resume(DebugAction.Continue);
+    }
 
     public void Resume(DebugAction action = DebugAction.Continue)
         => _tcs.TrySetResult(action);
@@ -50,4 +58,5 @@ internal sealed class SyntheticBreakpoint : IBreakpoint
     public SyntheticBreakpoint(string fileName, int line) { FileName = fileName; Line = line; }
     public string FileName { get; }
     public int Line { get; set; }
+    public string? Condition => null;
 }

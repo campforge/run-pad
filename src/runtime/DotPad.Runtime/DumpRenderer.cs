@@ -9,22 +9,23 @@ namespace DotPad.Runtime;
 
 internal static class DumpRenderer
 {
-    private const int MaxRows = 1000;
+    private const int DefaultMaxRows = 1000;
     private const int MaxStringLength = 500;
     private const int DefaultMaxDepth = 3;
 
-    public static string Render(object? value, string? label, int? maxDepth = null)
+    public static string Render(object? value, string? label, int? maxDepth = null, int? maxRows = null)
     {
+        var resolvedMaxRows = maxRows ?? DefaultMaxRows;
         var sb = new StringBuilder();
         if (label != null)
             sb.Append("<div class=\"dp-label\">").Append(Encode(label)).Append("</div>");
-        RenderValue(sb, value, 0, maxDepth ?? DefaultMaxDepth);
+        RenderValue(sb, value, 0, maxDepth ?? DefaultMaxDepth, resolvedMaxRows);
         return sb.ToString();
     }
 
     // ── Value dispatch ────────────────────────────────────────────────────────
 
-    private static void RenderValue(StringBuilder sb, object? value, int depth, int maxDepth)
+    private static void RenderValue(StringBuilder sb, object? value, int depth, int maxDepth, int maxRows)
     {
         if (value is null)
         {
@@ -48,17 +49,17 @@ internal static class DumpRenderer
 
         if (value is IDictionary dict)
         {
-            RenderDictionary(sb, dict, depth, maxDepth);
+            RenderDictionary(sb, dict, depth, maxDepth, maxRows);
             return;
         }
 
         if (value is IEnumerable enumerable)
         {
-            RenderEnumerable(sb, enumerable, type, depth, maxDepth);
+            RenderEnumerable(sb, enumerable, type, depth, maxDepth, maxRows);
             return;
         }
 
-        RenderObject(sb, value, type, depth, maxDepth);
+        RenderObject(sb, value, type, depth, maxDepth, maxRows);
     }
 
     // ── Primitives ────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ internal static class DumpRenderer
 
     // ── Dictionary ────────────────────────────────────────────────────────────
 
-    private static void RenderDictionary(StringBuilder sb, IDictionary dict, int depth, int maxDepth)
+    private static void RenderDictionary(StringBuilder sb, IDictionary dict, int depth, int maxDepth, int maxRows)
     {
         var count = dict.Count;
         sb.Append("<div class=\"dp-count\">").Append(count).Append(' ').Append(Plural(count, "item")).Append("</div>");
@@ -127,15 +128,15 @@ internal static class DumpRenderer
         int row = 0;
         foreach (DictionaryEntry entry in dict)
         {
-            if (row >= MaxRows)
+            if (row >= maxRows)
             {
-                sb.Append("<tr><td class=\"dp-td dp-truncated\" colspan=\"2\">… ").Append(count - MaxRows).Append(" more</td></tr>");
+                sb.Append("<tr><td class=\"dp-td dp-truncated\" colspan=\"2\">… ").Append(count - maxRows).Append(" more</td></tr>");
                 break;
             }
             sb.Append("<tr><td class=\"dp-td\">");
-            RenderValue(sb, entry.Key, depth + 1, maxDepth);
+            RenderValue(sb, entry.Key, depth + 1, maxDepth, maxRows);
             sb.Append("</td><td class=\"dp-td\">");
-            RenderValue(sb, entry.Value, depth + 1, maxDepth);
+            RenderValue(sb, entry.Value, depth + 1, maxDepth, maxRows);
             sb.Append("</td></tr>");
             row++;
         }
@@ -144,17 +145,17 @@ internal static class DumpRenderer
 
     // ── Enumerable ────────────────────────────────────────────────────────────
 
-    private static void RenderEnumerable(StringBuilder sb, IEnumerable enumerable, Type collectionType, int depth, int maxDepth)
+    private static void RenderEnumerable(StringBuilder sb, IEnumerable enumerable, Type collectionType, int depth, int maxDepth, int maxRows)
     {
         var items = new List<object?>();
         foreach (var item in enumerable)
         {
             items.Add(item);
-            if (items.Count > MaxRows) break;
+            if (items.Count > maxRows) break;
         }
 
-        var shownCount = Math.Min(items.Count, MaxRows);
-        var hasMore = items.Count > MaxRows;
+        var shownCount = Math.Min(items.Count, maxRows);
+        var hasMore = items.Count > maxRows;
 
         sb.Append("<div class=\"dp-count\">")
           .Append(Encode(FriendlyName(collectionType)))
@@ -175,7 +176,7 @@ internal static class DumpRenderer
             for (int i = 0; i < shownCount; i++)
             {
                 sb.Append("<tr><td class=\"dp-td dp-number\">").Append(i).Append("</td><td class=\"dp-td\">");
-                RenderValue(sb, items[i], depth + 1, maxDepth);
+                RenderValue(sb, items[i], depth + 1, maxDepth, maxRows);
                 sb.Append("</td></tr>");
             }
         }
@@ -192,7 +193,7 @@ internal static class DumpRenderer
                 for (int i = 0; i < shownCount; i++)
                 {
                     sb.Append("<tr><td class=\"dp-td\">");
-                    RenderValue(sb, items[i], depth + 1, maxDepth);
+                    RenderValue(sb, items[i], depth + 1, maxDepth, maxRows);
                     sb.Append("</td></tr>");
                 }
             }
@@ -215,7 +216,7 @@ internal static class DumpRenderer
                         foreach (var p in props)
                         {
                             sb.Append("<td class=\"dp-td\">");
-                            try { RenderValue(sb, p.GetValue(item), depth + 1, maxDepth); }
+                            try { RenderValue(sb, p.GetValue(item), depth + 1, maxDepth, maxRows); }
                             catch (Exception ex) { sb.Append("<span class=\"dp-error\">").Append(Encode(ex.Message)).Append("</span>"); }
                             sb.Append("</td>");
                         }
@@ -232,7 +233,7 @@ internal static class DumpRenderer
 
     // ── Object (property grid) ────────────────────────────────────────────────
 
-    private static void RenderObject(StringBuilder sb, object value, Type type, int depth, int maxDepth)
+    private static void RenderObject(StringBuilder sb, object value, Type type, int depth, int maxDepth, int maxRows)
     {
         var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
@@ -251,7 +252,7 @@ internal static class DumpRenderer
         foreach (var p in props)
         {
             sb.Append("<tr><td class=\"dp-td dp-propname\">").Append(Encode(p.Name)).Append("</td><td class=\"dp-td\">");
-            try { RenderValue(sb, p.GetValue(value), depth + 1, maxDepth); }
+            try { RenderValue(sb, p.GetValue(value), depth + 1, maxDepth, maxRows); }
             catch (Exception ex) { sb.Append("<span class=\"dp-error\">").Append(Encode(ex.Message)).Append("</span>"); }
             sb.Append("</td></tr>");
         }

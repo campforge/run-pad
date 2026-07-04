@@ -92,10 +92,17 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var offset = _editor.GetOffsetFromPoint(e.GetPosition(this));
         if (offset == -1) return;
 
-        _previewPointVisible = true;
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
         var existing = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
 
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            _editor.RaiseBreakpointRightClicked(lineNumber, existing);
+            e.Handled = true;
+            return;
+        }
+
+        _previewPointVisible = true;
         if (existing != null)
         {
             _previewLine = lineNumber;

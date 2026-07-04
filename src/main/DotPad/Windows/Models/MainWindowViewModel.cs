@@ -66,12 +66,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             return existing;
         }
 
+        // Close the initial blank tab when the first real file is opened.
+        EditorTabItemViewModel? blankToClose = null;
+        if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null)
+            blankToClose = Tabs[0];
+
         var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms, _prefs);
         _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
 
         if (filePath is not null) _openTabs[filePath] = vm;
         Tabs.Add(vm);
         ActiveTab = vm;
+
+        if (blankToClose is not null) CloseTab(blankToClose);
+
         return vm;
     }
 

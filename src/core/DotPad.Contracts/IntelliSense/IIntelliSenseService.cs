@@ -26,4 +26,7 @@ public interface IIntelliSenseService : IDisposable
     event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
 
     void NotifyTextChanged(string code);
+
+    // Call when the tab's NuGet packages change so IntelliSense sees the new types.
+    void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages);
 }

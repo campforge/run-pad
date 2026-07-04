@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DotPad.Windows.ConditionDialog"
+        Title="Conditional Breakpoint"
+        Width="440" Height="160"
+        MinWidth="320" MinHeight="140"
+        CanResize="False"
+        SizeToContent="Manual"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
+
+        <TextBlock Grid.Row="0"
+                   Text="Break when this condition is true (C# expression):"
+                   FontSize="12"
+                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                   Margin="0,0,0,6"/>
+
+        <TextBox x:Name="ConditionBox"
+                 Grid.Row="1"
+                 FontSize="13"
+                 FontFamily="Consolas,Menlo,Courier New,monospace"
+                 Padding="6,4"
+                 Margin="0,0,0,12"/>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Content="OK"
+                    Width="80"
+                    Click="OkButton_Click"
+                    IsDefault="True"/>
+            <Button Content="Cancel"
+                    Width="80"
+                    Click="CancelButton_Click"
+                    IsCancel="True"/>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

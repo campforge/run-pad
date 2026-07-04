@@ -73,10 +73,12 @@ public class App : Application
             return registry;
         });
 
+        services.AddSingleton<CSharpReferenceService>();
+
         services.AddSingleton<IIntelliSenseService>(sp =>
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var refService = new CSharpReferenceService();
+            var refService = sp.GetRequiredService<CSharpReferenceService>();
             var refs = refService.GetDefault().Append(refService.GetExtensionReference());
             return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
         });
@@ -87,8 +89,13 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
-        services.AddTransient<EditorTabsControl>();
+        services.AddSingleton<EditorTabsControl>();
 
-        return services.BuildServiceProvider();
+        var provider = services.BuildServiceProvider();
+
+        // Kick off Roslyn warmup in the background so the first completion is fast.
+        _ = Task.Run(() => provider.GetService<IIntelliSenseService>()?.NotifyTextChanged(""));
+
+        return provider;
     }
 }

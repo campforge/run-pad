@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using NuGet.Configuration;
 
 namespace DotPad.Languages.CSharp.IntelliSense;
 
@@ -49,9 +50,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(kw, CompletionItemKind.Keyword, null))
         .ToArray();
 
+    private static readonly string[] _tfmPreference =
+    [
+        "net10.0", "net9.0", "net8.0", "net7.0", "net6.0", "net5.0",
+        "netcoreapp3.1", "netstandard2.1", "netstandard2.0",
+    ];
+
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
+    private readonly string _nugetRoot = ResolveNuGetRoot();
+    private readonly List<MetadataReference> _nugetRefs = [];
     private string _lastCode = "";
     private CancellationTokenSource? _diagnosticsCts;
 
@@ -372,6 +381,68 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         ClassificationTypeNames.ParameterName                       => SemanticTokenKind.ParameterName,
         _                                                           => SemanticTokenKind.None,
     };
+
+    // ── Package references ────────────────────────────────────────────────────
+
+    public void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages)
+    {
+        var newPaths = packages
+            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var newRefs = newPaths
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .ToList();
+
+        var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+
+        // Keep base BCL refs, replace NuGet refs with the new set.
+        var baseRefs = project.MetadataReferences
+            .Where(r => !_nugetRefs.Contains(r))
+            .ToList();
+
+        _nugetRefs.Clear();
+        _nugetRefs.AddRange(newRefs);
+
+        _workspace.TryApplyChanges(
+            project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution);
+        _lastCode = "";  // force re-sync on next analysis pass
+    }
+
+    private static IEnumerable<string> FindPackageDlls(string nugetRoot, string id, string version)
+    {
+        var libDir = Path.Combine(nugetRoot, id.ToLowerInvariant(), version, "lib");
+        if (!Directory.Exists(libDir)) yield break;
+
+        var available = Directory.EnumerateDirectories(libDir)
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tfm in _tfmPreference)
+        {
+            if (!available.Contains(tfm)) continue;
+            foreach (var dll in Directory.GetFiles(Path.Combine(libDir, tfm), "*.dll"))
+                yield return dll;
+            yield break;
+        }
+    }
+
+    private static string ResolveNuGetRoot()
+    {
+        try
+        {
+            var settings = Settings.LoadDefaultSettings(root: null);
+            return SettingsUtility.GetGlobalPackagesFolder(settings);
+        }
+        catch
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".nuget", "packages");
+        }
+    }
 
     public void Dispose()
     {

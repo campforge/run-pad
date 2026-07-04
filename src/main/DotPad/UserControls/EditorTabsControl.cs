@@ -18,6 +18,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private IDisposable? _activeTabSub;
+    private bool _disposed;
 
     private MainWindowViewModel? _vm;
 
@@ -171,6 +172,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         if (_themeService is not null) _themeService.ThemeChanged -= OnThemeChanged;
         if (_vm is not null) _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
         _activeTabSub?.Dispose();

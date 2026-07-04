@@ -230,5 +230,17 @@
             </DataGrid>
         </TabItem>
 
+        <!-- ── Exceptions ───────────────────────────────────────────────────── -->
+        <TabItem Header="Exceptions">
+            <StackPanel Margin="8,8,8,4" Spacing="6">
+                <CheckBox IsChecked="{Binding BreakOnUncaughtExceptions}"
+                          Content="Break on unhandled exceptions"
+                          FontSize="12"/>
+                <CheckBox IsChecked="{Binding BreakOnAllExceptions}"
+                          Content="Break on all exceptions (including caught)"
+                          FontSize="12"/>
+            </StackPanel>
+        </TabItem>
+
     </TabControl>
 </UserControl>

@@ -34,9 +34,13 @@ public class CodeTextEditor : TextEditor
             static (editor, e) => editor.OnShowFoldingChanged((bool?)e.NewValue));
     }
 
+    private static readonly char[] _openBraces  = ['(', '[', '{'];
+    private static readonly char[] _closeBraces = [')', ']', '}'];
+
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
+    private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
     private readonly BraceFoldingStrategy _foldingStrategy = new();
     private readonly DispatcherTimer _foldingTimer;
     private FoldingManager? _foldingManager;
@@ -48,8 +52,21 @@ public class CodeTextEditor : TextEditor
     private CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
 
+    private static readonly Dictionary<char, char> _bracePairs = new()
+    {
+        ['('] = ')',
+        ['['] = ']',
+        ['{'] = '}',
+    };
+
     public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
     public event EventHandler<BreakpointEventArgs>? BreakpointRemoved;
+
+    /// <summary>Fired on right-click in the breakpoint margin. Args: line number, existing breakpoint (or null).</summary>
+    public event Action<int, IBreakpoint?>? BreakpointRightClicked;
+
+    internal void RaiseBreakpointRightClicked(int line, IBreakpoint? bp)
+        => BreakpointRightClicked?.Invoke(line, bp);
 
     /// <summary>Sync completion provider. For async (e.g. Roslyn), use <see cref="AsyncCompletionProvider"/> instead.</summary>
     public event EventHandler<CompletionRequestedEventArgs>? CompletionRequested;
@@ -65,6 +82,9 @@ public class CodeTextEditor : TextEditor
 
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
+    public void AddBreakpoint(int line) => _breakpointStore.Add(line);
+    public void RemoveBreakpoint(IBreakpoint bp) => _breakpointStore.Remove(bp);
+
     public ElementGenerator InlineControls { get; } = new();
 
     /// <summary>Characters that open the completion dropdown.</summary>
@@ -72,6 +92,9 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Characters that open the overload insight window.</summary>
     public HashSet<char> OverloadTriggers { get; } = [];
+
+    /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
+    public Dictionary<string, string> Snippets { get; } = [];
 
     public CodeTextEditorOptions EditorOptions
     {
@@ -140,6 +163,8 @@ public class CodeTextEditor : TextEditor
         ShowLineNumbers = true;
 
         TextArea.TextView.BackgroundRenderers.Add(_debugLineHighlighter);
+        TextArea.TextView.BackgroundRenderers.Add(_braceMatchHighlighter);
+        TextArea.Caret.PositionChanged += (_, _) => UpdateBraceMatch();
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;
@@ -172,6 +197,22 @@ public class CodeTextEditor : TextEditor
         };
 
         AddHandler(PointerWheelChangedEvent, OnFontSizeScroll, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // Intercept Tab (snippet expansion) and Ctrl+] (brace navigation) before
+        // AvaloniaEdit's built-in KeyBinding handlers fire.
+        TextArea.AddHandler(
+            KeyDownEvent,
+            (object? _, KeyEventArgs e) =>
+            {
+                if (e.Key == Key.Tab && e.KeyModifiers == KeyModifiers.None && TryExpandSnippet())
+                    e.Handled = true;
+                else if (e.Key == Key.OemCloseBrackets && e.KeyModifiers == KeyModifiers.Control)
+                {
+                    JumpToMatchingBrace();
+                    e.Handled = true;
+                }
+            },
+            RoutingStrategies.Tunnel);
 
         ApplyOptions();
     }
@@ -242,6 +283,133 @@ public class CodeTextEditor : TextEditor
         _foldingMargin?.InvalidateVisual();
     }
 
+    private void UpdateBraceMatch()
+    {
+        if (Document is null) { _braceMatchHighlighter.Clear(); return; }
+        var (open, close, matched) = FindBraceMatch(TextArea.Caret.Offset);
+        if (open < 0 && close < 0)
+            _braceMatchHighlighter.Clear();
+        else
+            _braceMatchHighlighter.Update(open, close, matched);
+        TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+    }
+
+    private (int open, int close, bool matched) FindBraceMatch(int caretOffset)
+    {
+        var doc = Document;
+        if (doc is null) return (-1, -1, false);
+        var text = doc.Text;
+        int len = text.Length;
+
+        // Determine which brace to match against: prefer char at caret, then char before caret.
+        char ch;
+        int checkOffset;
+        int openIdx, closeIdx;
+
+        if (caretOffset < len)
+        {
+            ch = text[caretOffset];
+            checkOffset = caretOffset;
+            openIdx = Array.IndexOf(_openBraces, ch);
+            closeIdx = Array.IndexOf(_closeBraces, ch);
+            if (openIdx < 0 && closeIdx < 0 && caretOffset > 0)
+            {
+                ch = text[caretOffset - 1];
+                checkOffset = caretOffset - 1;
+                openIdx = Array.IndexOf(_openBraces, ch);
+                closeIdx = Array.IndexOf(_closeBraces, ch);
+            }
+        }
+        else if (caretOffset > 0)
+        {
+            ch = text[caretOffset - 1];
+            checkOffset = caretOffset - 1;
+            openIdx = Array.IndexOf(_openBraces, ch);
+            closeIdx = Array.IndexOf(_closeBraces, ch);
+        }
+        else return (-1, -1, false);
+
+        if (openIdx >= 0) // opening brace — search forward
+        {
+            char closeChar = _closeBraces[openIdx];
+            int depth = 1;
+            for (int i = checkOffset + 1; i < len; i++)
+            {
+                if (text[i] == ch) depth++;
+                else if (text[i] == closeChar && --depth == 0)
+                    return (checkOffset, i, true);
+            }
+            return (checkOffset, -1, false); // unmatched open
+        }
+        else if (closeIdx >= 0) // closing brace — search backward
+        {
+            char openChar = _openBraces[closeIdx];
+            int depth = 1;
+            for (int i = checkOffset - 1; i >= 0; i--)
+            {
+                if (text[i] == ch) depth++;
+                else if (text[i] == openChar && --depth == 0)
+                    return (i, checkOffset, true);
+            }
+            return (-1, checkOffset, false); // unmatched close
+        }
+
+        return (-1, -1, false);
+    }
+
+    private void JumpToMatchingBrace()
+    {
+        var caret = TextArea.Caret.Offset;
+        var (open, close, matched) = FindBraceMatch(caret);
+        if (!matched || open < 0 || close < 0) return;
+        // Jump to the opposite end of the pair
+        TextArea.Caret.Offset = (caret <= open + 1) ? close : open;
+    }
+
+    private bool TryExpandSnippet()
+    {
+        if (Snippets.Count == 0 || Document is null) return false;
+        var offset = TextArea.Caret.Offset;
+        if (offset == 0) return false;
+
+        int wordEnd = offset;
+        int wordStart = wordEnd;
+        while (wordStart > 0 && char.IsLetterOrDigit(Document.GetCharAt(wordStart - 1)))
+            wordStart--;
+
+        if (wordStart == wordEnd) return false;
+        var word = Document.GetText(wordStart, wordEnd - wordStart);
+        if (!Snippets.TryGetValue(word, out var template)) return false;
+
+        // Base indentation of the current line
+        var caretLine = Document.GetLineByOffset(offset);
+        var lineText = Document.GetText(caretLine.Offset, caretLine.Length);
+        int indentLen = 0;
+        while (indentLen < lineText.Length && (lineText[indentLen] == ' ' || lineText[indentLen] == '\t'))
+            indentLen++;
+        var baseIndent = lineText[..indentLen];
+        var tab = Options.IndentationString;
+
+        var expansion = template.Replace("\n", "\n" + baseIndent).Replace("\t", tab);
+
+        const string cursorMarker = "${0}";
+        var cursorIdx = expansion.IndexOf(cursorMarker, StringComparison.Ordinal);
+        int cursorOffset;
+        if (cursorIdx >= 0)
+        {
+            expansion = expansion.Remove(cursorIdx, cursorMarker.Length);
+            cursorOffset = wordStart + cursorIdx;
+        }
+        else
+        {
+            cursorOffset = wordStart + expansion.Length;
+        }
+
+        Document.Replace(wordStart, wordEnd - wordStart, expansion);
+        TextArea.Caret.Offset = cursorOffset;
+        return true;
+    }
+
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {
         if (e.KeyModifiers != KeyModifiers.Control) return;
@@ -253,7 +421,23 @@ public class CodeTextEditor : TextEditor
         if (e.Text is { Length: > 0 } && _completionWindow != null && !char.IsLetterOrDigit(e.Text[0]))
             _completionWindow.CompletionList.RequestInsertion(e);
 
-        _insightWindow?.Hide();
+        if (e.Text is not { Length: 1 } || e.Handled) return;
+        var ch = e.Text[0];
+
+        // Only close the insight window when exiting the argument list.
+        if (ch == ')' || ch == ';')
+            _insightWindow?.Hide();
+
+        // Skip-ahead: if the closing bracket is already at caret, move past it instead of inserting.
+        if (ch is ')' or ']' or '}')
+        {
+            var offset = TextArea.Caret.Offset;
+            if (offset < Document.TextLength && Document.GetCharAt(offset) == ch)
+            {
+                TextArea.Caret.Offset = offset + 1;
+                e.Handled = true;
+            }
+        }
     }
 
     private void OnTextEntered(object? sender, TextInputEventArgs e)
@@ -265,6 +449,10 @@ public class CodeTextEditor : TextEditor
             ShowCompletion(ch);
         else if (OverloadTriggers.Contains(ch))
             ShowOverloads(ch);
+
+        // Brace completion: insert the matching closing bracket.
+        if (_bracePairs.TryGetValue(ch, out var closing))
+            Document.Insert(TextArea.Caret.Offset, closing.ToString());
     }
 
     private async void ShowCompletion(char trigger)
@@ -298,6 +486,7 @@ public class CodeTextEditor : TextEditor
 
         if (args.Overloads.Count == 0) return;
 
+        _insightWindow?.Close();
         _insightWindow = new OverloadInsightWindow(TextArea);
         _insightWindow.Closed += (_, _) => _insightWindow = null;
         _insightWindow.Provider = new OverloadProvider(args.Overloads);
