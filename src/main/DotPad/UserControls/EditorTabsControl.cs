@@ -91,8 +91,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
-                // BUG-2: vm.Dispose() не вызывается. EditorTabItemViewModel подписывается на
-                // _prefs.Changed и никогда не отписывается → утечка ссылки через делегат.
+                vm.Dispose();
             }
         }
     }
@@ -129,7 +128,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
         if (vm.EnableRunButton)
-            _ = ctrl.RunAsync(vm.DebugModeEnabled, vm.SelectedDotnetPlatform ?? vm.DotnetPlatforms.First());
+        {
+            var platform = vm.SelectedDotnetPlatform ?? vm.DotnetPlatforms.FirstOrDefault();
+            if (platform is not null)
+                _ = ctrl.RunAsync(vm.DebugModeEnabled, platform);
+        }
         else if (vm.IsPaused)
             ctrl.ResumeDebug(DebugAction.Continue);
     }
@@ -172,10 +175,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_vm is not null) _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
         _activeTabSub?.Dispose();
 
-        foreach (var (_, ctrl) in _tabs.Values)
+        foreach (var (tabVm, (_, ctrl)) in _tabs)
         {
             ctrl.SaveIfNeeded();
             ctrl.Dispose();
+            tabVm.Dispose();
         }
         GC.SuppressFinalize(this);
     }

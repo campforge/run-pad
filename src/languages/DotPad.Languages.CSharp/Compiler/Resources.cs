@@ -1,10 +1,10 @@
+using System.Security;
+
 namespace DotPad.Languages.CSharp.Compiler;
 
 public static class Resources
 {
-    // BUG-7: опечатка в имени метода — должно быть GetProjectFile.
-    // BUG-4: package ID и version вставляются в XML без эскейпа (SecurityElement.Escape).
-    public static string GerProjectFile(
+    public static string GetProjectFile(
         string targetFramework,
         string[] assemblyReferences,
         IReadOnlyList<string> projectReferences,
@@ -24,7 +24,7 @@ public static class Resources
 
         var pkgRefs = nugetPackages.Select(kv =>
             $"""
-                    <PackageReference Include="{kv.Key}" Version="{kv.Value}" />
+                    <PackageReference Include="{SecurityElement.Escape(kv.Key)}" Version="{SecurityElement.Escape(kv.Value)}" />
             """);
 
         return $"""

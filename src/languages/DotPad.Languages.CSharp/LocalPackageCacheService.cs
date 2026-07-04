@@ -1,5 +1,6 @@
 using DotPad.Contracts;
 using NuGet.Configuration;
+using NuGet.Versioning;
 
 namespace DotPad.Languages.CSharp;
 
@@ -29,13 +30,10 @@ public sealed class LocalPackageCacheService : ILocalPackageCacheService
             var id = Path.GetFileName(packageDir);
             if (string.IsNullOrEmpty(id)) continue;
 
-            // BUG-3: строковая сортировка версий даёт неверный результат.
-            // "1.10.0" < "1.9.0" при OrdinalIgnoreCase — неверно для SemVer.
-            // Правильно: NuGetVersion.Parse(v) + VersionComparer.Default.
             var latestVersion = Directory.EnumerateDirectories(packageDir)
                 .Select(Path.GetFileName)
                 .OfType<string>()
-                .OrderByDescending(v => v, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(v => NuGetVersion.TryParse(v, out var nv) ? nv : new NuGetVersion(0, 0, 0))
                 .FirstOrDefault() ?? "";
 
             result.Add(new CachedPackageInfo(id, latestVersion));

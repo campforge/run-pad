@@ -69,7 +69,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
 
         var tfm = _targetFrameworkOverride ?? ExecutionPlatform.TargetFrameworkMoniker;
         var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
-        var projectFile = Resources.GerProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
+        var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
         await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, cancellationToken);
 
         var binDirectory = Path.Join(OutputDir, BinDir);

@@ -132,9 +132,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (_openTabs.TryGetValue(oldPath, out var tab))
             CloseTab(tab);
 
-        // BUG-6: ошибка переименования молча проглатывается, пользователь не получает обратной связи.
         try { File.Move(oldPath, newPath); }
-        catch { return; }
+        catch
+        {
+            node.EditingName = node.DisplayName;
+            return;
+        }
 
         node.FilePath = newPath;
         node.Title = newFileName;
