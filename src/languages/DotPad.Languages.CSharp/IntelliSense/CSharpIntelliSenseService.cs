@@ -1,6 +1,9 @@
 using System.Text;
 using DotPad.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
+using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
+using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -27,79 +30,100 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
-    private readonly IReadOnlyList<MetadataReference> _references;
+    private static readonly IReadOnlyList<ICompletionItem> _keywords =
+        new[]
+        {
+            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
+            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
+            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
+            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
+            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
+            "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
+            "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
+            "void", "volatile", "while", "async", "await", "var", "dynamic", "yield", "get", "set",
+            "add", "remove", "partial", "where", "select", "from", "let", "orderby", "group", "join",
+            "into", "ascending", "descending", "on", "equals", "by", "when", "init", "record",
+            "with", "not", "and", "or", "nint", "nuint", "file", "scoped", "required", "global",
+        }
+        .Select(kw => (ICompletionItem)new SimpleCompletionItem(kw, CompletionItemKind.Keyword, null))
+        .ToArray();
+
     private readonly ILogger<CSharpIntelliSenseService> _logger;
-    private readonly object _lock = new();
-    private CSharpCompilation? _compilation;
+    private readonly AdhocWorkspace _workspace;
+    private readonly DocumentId _documentId;
     private string _lastCode = "";
+    private CancellationTokenSource? _diagnosticsCts;
 
     public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
     {
         _logger = logger;
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var refs = new List<MetadataReference>();
-
         foreach (var path in referencePaths)
-        {
             if (File.Exists(path) && seen.Add(path))
                 refs.Add(MetadataReference.CreateFromFile(path));
-        }
 
-        _references = refs;
+        _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+
+        var projectId = ProjectId.CreateNewId("DotPadScript");
+        _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
+
+        var projectInfo = ProjectInfo.Create(
+            projectId,
+            VersionStamp.Create(),
+            name: "DotPadScript",
+            assemblyName: "DotPadScript",
+            language: LanguageNames.CSharp,
+            compilationOptions: new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable),
+            parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
+            metadataReferences: refs);
+
+        _workspace.AddProject(projectInfo);
+        _workspace.AddDocument(DocumentInfo.Create(
+            _documentId,
+            "Script.cs",
+            loader: TextLoader.From(TextAndVersion.Create(
+                SourceText.From(_preamble, Encoding.UTF8),
+                VersionStamp.Create()))));
     }
 
-    // ── Compilation cache ─────────────────────────────────────────────────────
+    // ── Document sync ──────────────────────────────────────────────────────────
 
-    private CSharpCompilation GetCompilation(string userCode)
+    private Document SyncDocument(string code)
     {
-        var fullCode = _preamble + userCode;
-
-        lock (_lock)
+        if (_lastCode != code)
         {
-            if (_compilation != null && _lastCode == userCode)
-                return _compilation;
-
-            if (_compilation != null)
-            {
-                // Incremental reparse — fast path
-                var oldTree = _compilation.SyntaxTrees[0];
-                var newTree = oldTree.WithChangedText(SourceText.From(fullCode, Encoding.UTF8));
-                _compilation = _compilation.ReplaceSyntaxTree(oldTree, newTree);
-            }
-            else
-            {
-                var tree = CSharpSyntaxTree.ParseText(fullCode,
-                    new CSharpParseOptions(LanguageVersion.Latest));
-                _compilation = CSharpCompilation.Create(
-                    "__dotpad_intellisense",
-                    [tree],
-                    _references,
-                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
-                        nullableContextOptions: NullableContextOptions.Enable));
-            }
-
-            _lastCode = userCode;
-            return _compilation;
+            _lastCode = code;
+            var text = SourceText.From(_preamble + code, Encoding.UTF8);
+            var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
+            _workspace.TryApplyChanges(newSolution);
         }
+        return _workspace.CurrentSolution.GetDocument(_documentId)!;
     }
 
-    // ── Completion ────────────────────────────────────────────────────────────
+    // ── Completion ─────────────────────────────────────────────────────────────
 
     public Task<ICompletionList?> GetCompletionsAsync(
-        string code, int position, CompletionTrigger trigger = default, CancellationToken cancellationToken = default)
-        => Task.Run(() => (ICompletionList?)TryGetCompletions(code, position, trigger), cancellationToken);
+        string code, int position, CompletionTrigger trigger = default, CancellationToken ct = default)
+        => Task.Run(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
 
-    private ICompletionList? TryGetCompletions(string code, int position, CompletionTrigger trigger)
+    private async Task<ICompletionList?> TryGetCompletionsAsync(
+        string code, int position, CompletionTrigger trigger, CancellationToken ct)
     {
         try
         {
-            var compilation = GetCompilation(code);
-            var tree = compilation.SyntaxTrees[0];
-            var root = tree.GetRoot();
-            var model = compilation.GetSemanticModel(tree);
-            var pos = position + _preambleLength;
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
 
-            IEnumerable<ISymbol> symbols;
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var pos = position + _preambleLength;
 
             if (trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.')
             {
@@ -114,66 +138,76 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 var type = typeInfo.Type ?? typeInfo.ConvertedType;
                 if (type == null) return null;
 
-                // LookupSymbols handles inheritance, array base members, and extension methods
-                symbols = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true);
+                var symbols = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true);
+                var items = symbols
+                    .Select(ToItem)
+                    .Where(i => i != null)
+                    .Cast<ICompletionItem>()
+                    .GroupBy(i => i.DisplayText)
+                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                    .OrderBy(i => i.SortText)
+                    .ToList();
+
+                return items.Count > 0 ? new SimpleCompletionList(items) : null;
             }
             else
             {
-                symbols = model.LookupSymbols(pos);
+                var symbols = model.LookupSymbols(pos);
+                var items = symbols
+                    .Select(ToItem)
+                    .Where(i => i != null)
+                    .Cast<ICompletionItem>()
+                    .Concat(_keywords)
+                    .GroupBy(i => i.DisplayText)
+                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                    .OrderBy(i => i.SortText)
+                    .ToList();
+
+                return items.Count > 0 ? new SimpleCompletionList(items) : null;
             }
-
-            var items = symbols
-                .Select(ToItem)
-                .Where(i => i != null)
-                .Cast<ICompletionItem>()
-                .GroupBy(i => i.DisplayText)
-                .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                .OrderBy(i => i.SortText)
-                .ToList();
-
-            return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
 
-    private static ICompletionItem? ToItem(ISymbol symbol)
+    private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
     {
-        return symbol switch
-        {
-            IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension
-                => new SimpleCompletionItem(m.Name, CompletionItemKind.Method, m.ToDisplayString(_briefFormat)),
-            IPropertySymbol p
-                => new SimpleCompletionItem(p.Name, CompletionItemKind.Property, p.ToDisplayString(_briefFormat)),
-            IFieldSymbol f when !f.IsImplicitlyDeclared
-                => new SimpleCompletionItem(f.Name, CompletionItemKind.Field, f.ToDisplayString(_briefFormat)),
-            IEventSymbol e
-                => new SimpleCompletionItem(e.Name, CompletionItemKind.Event, e.ToDisplayString(_briefFormat)),
-            ILocalSymbol l
-                => new SimpleCompletionItem(l.Name, CompletionItemKind.Variable, l.ToDisplayString(_briefFormat)),
-            IParameterSymbol p
-                => new SimpleCompletionItem(p.Name, CompletionItemKind.Variable, p.ToDisplayString(_briefFormat)),
-            INamedTypeSymbol t
-                => new SimpleCompletionItem(t.Name, t.TypeKind == TypeKind.Interface ? CompletionItemKind.Interface : CompletionItemKind.Class, t.ToDisplayString(_briefFormat)),
-            _ => null
-        };
-    }
+        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension
+            => new SimpleCompletionItem(m.Name, CompletionItemKind.Method, m.ToDisplayString(_briefFormat)),
+        IPropertySymbol p
+            => new SimpleCompletionItem(p.Name, CompletionItemKind.Property, p.ToDisplayString(_briefFormat)),
+        IFieldSymbol f when !f.IsImplicitlyDeclared
+            => new SimpleCompletionItem(f.Name, CompletionItemKind.Field, f.ToDisplayString(_briefFormat)),
+        IEventSymbol e
+            => new SimpleCompletionItem(e.Name, CompletionItemKind.Event, e.ToDisplayString(_briefFormat)),
+        ILocalSymbol l
+            => new SimpleCompletionItem(l.Name, CompletionItemKind.Variable, l.ToDisplayString(_briefFormat)),
+        IParameterSymbol p
+            => new SimpleCompletionItem(p.Name, CompletionItemKind.Variable, p.ToDisplayString(_briefFormat)),
+        INamedTypeSymbol t
+            => new SimpleCompletionItem(t.Name,
+                t.TypeKind == TypeKind.Interface ? CompletionItemKind.Interface : CompletionItemKind.Class,
+                t.ToDisplayString(_briefFormat)),
+        _ => null
+    };
 
-    // ── Signature Help ────────────────────────────────────────────────────────
+    // ── Signature Help ─────────────────────────────────────────────────────────
 
     public Task<ISignatureHelpResult?> GetSignatureHelpAsync(
-        string code, int position, char? triggerCharacter = null, CancellationToken cancellationToken = default)
-        => Task.Run(() => (ISignatureHelpResult?)TryGetSignatureHelp(code, position), cancellationToken);
+        string code, int position, char? triggerCharacter = null, CancellationToken ct = default)
+        => Task.Run(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
 
-    private ISignatureHelpResult? TryGetSignatureHelp(string code, int position)
+    private async Task<ISignatureHelpResult?> TryGetSignatureHelpAsync(string code, int position, CancellationToken ct)
     {
         try
         {
-            var compilation = GetCompilation(code);
-            var tree = compilation.SyntaxTrees[0];
-            var root = tree.GetRoot();
-            var model = compilation.GetSemanticModel(tree);
-            var pos = position + _preambleLength;
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
 
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var pos = position + _preambleLength;
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
             var invocation = node.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
             if (invocation == null) return null;
@@ -211,22 +245,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         return count;
     }
 
-    // ── Quick Info ────────────────────────────────────────────────────────────
+    // ── Quick Info ─────────────────────────────────────────────────────────────
 
     public Task<IQuickInfoResult?> GetQuickInfoAsync(
-        string code, int position, CancellationToken cancellationToken = default)
-        => Task.Run(() => (IQuickInfoResult?)TryGetQuickInfo(code, position), cancellationToken);
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IQuickInfoResult?)await TryGetQuickInfoAsync(code, position, ct), ct);
 
-    private IQuickInfoResult? TryGetQuickInfo(string code, int position)
+    private async Task<IQuickInfoResult?> TryGetQuickInfoAsync(string code, int position, CancellationToken ct)
     {
         try
         {
-            var compilation = GetCompilation(code);
-            var tree = compilation.SyntaxTrees[0];
-            var root = tree.GetRoot();
-            var model = compilation.GetSemanticModel(tree);
-            var pos = position + _preambleLength;
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
 
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var pos = position + _preambleLength;
             var token = root.FindToken(pos);
             if (token == default) return null;
 
@@ -236,15 +272,115 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             if (symbol == null) return null;
 
-            var content = symbol.ToDisplayString(_briefFormat);
-            return new SimpleQuickInfoResult(content);
+            return new SimpleQuickInfoResult(symbol.ToDisplayString(_briefFormat));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
 
-    public void Dispose() { }
+    // ── Background analysis (diagnostics + semantic tokens) ───────────────────
 
-    // ── Private model types ───────────────────────────────────────────────────
+    public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
+    public event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
+
+    public void NotifyTextChanged(string code)
+    {
+        _diagnosticsCts?.Cancel();
+        _diagnosticsCts = new CancellationTokenSource();
+        var ct = _diagnosticsCts.Token;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, ct);
+                var document = SyncDocument(code);
+                await Task.WhenAll(
+                    ComputeDiagnosticsAsync(code, document, ct),
+                    ComputeSemanticTokensAsync(code, document, ct));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
+        }, CancellationToken.None);
+    }
+
+    private async Task ComputeDiagnosticsAsync(string code, Document document, CancellationToken ct)
+    {
+        var model = await document.GetSemanticModelAsync(ct);
+        if (model == null) { DiagnosticsChanged?.Invoke(code, []); return; }
+
+        var result = new List<IDiagnosticInfo>();
+        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
+        {
+            if (d.Severity == RoslynSeverity.Hidden) continue;
+            if (!d.Location.IsInSource) continue;
+
+            var span = d.Location.SourceSpan;
+            var start = span.Start - _preambleLength;
+            if (start < 0) continue;
+
+            var end = Math.Max(span.End - _preambleLength, start + 1);
+            var severity = d.Severity switch
+            {
+                RoslynSeverity.Error   => ContractSeverity.Error,
+                RoslynSeverity.Warning => ContractSeverity.Warning,
+                _                      => ContractSeverity.Info,
+            };
+            result.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
+        }
+
+        DiagnosticsChanged?.Invoke(code, result);
+    }
+
+    private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
+    {
+        var textLen = _preambleLength + code.Length;
+        var spans = await Classifier.GetClassifiedSpansAsync(
+            document, new TextSpan(0, textLen), ct);
+
+        var result = new List<ISemanticToken>();
+        foreach (var span in spans)
+        {
+            var kind = ClassifySpan(span.ClassificationType);
+            if (kind == SemanticTokenKind.None) continue;
+
+            var start = span.TextSpan.Start - _preambleLength;
+            if (start < 0) continue;
+            var end = Math.Min(span.TextSpan.End - _preambleLength, code.Length);
+            if (start >= end) continue;
+
+            result.Add(new SimpleSemanticToken(start, end - start, kind));
+        }
+
+        SemanticTokensChanged?.Invoke(code, result);
+    }
+
+    private static SemanticTokenKind ClassifySpan(string type) => type switch
+    {
+        ClassificationTypeNames.ClassName or "record class name"    => SemanticTokenKind.ClassName,
+        ClassificationTypeNames.StructName or "record struct name"  => SemanticTokenKind.StructName,
+        ClassificationTypeNames.InterfaceName                       => SemanticTokenKind.InterfaceName,
+        ClassificationTypeNames.EnumName                            => SemanticTokenKind.EnumName,
+        ClassificationTypeNames.DelegateName                        => SemanticTokenKind.DelegateName,
+        ClassificationTypeNames.TypeParameterName                   => SemanticTokenKind.TypeParameterName,
+        ClassificationTypeNames.MethodName                          => SemanticTokenKind.MethodName,
+        ClassificationTypeNames.ExtensionMethodName                 => SemanticTokenKind.ExtensionMethodName,
+        ClassificationTypeNames.PropertyName                        => SemanticTokenKind.PropertyName,
+        ClassificationTypeNames.FieldName or "constant name"        => SemanticTokenKind.FieldName,
+        ClassificationTypeNames.EventName                           => SemanticTokenKind.EventName,
+        ClassificationTypeNames.NamespaceName                       => SemanticTokenKind.NamespaceName,
+        ClassificationTypeNames.LocalName                           => SemanticTokenKind.LocalName,
+        ClassificationTypeNames.ParameterName                       => SemanticTokenKind.ParameterName,
+        _                                                           => SemanticTokenKind.None,
+    };
+
+    public void Dispose()
+    {
+        _diagnosticsCts?.Cancel();
+        _diagnosticsCts?.Dispose();
+        _workspace.Dispose();
+    }
+
+    // ── Private model types ────────────────────────────────────────────────────
 
     private sealed record SimpleCompletionItem(string DisplayText, CompletionItemKind Kind, string? Description) : ICompletionItem
     {
@@ -289,4 +425,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     private sealed record SimpleQuickInfoResult(string Content) : IQuickInfoResult;
+
+    private sealed record SimpleDiagnostic(
+        int StartOffset, int EndOffset, string Message,
+        ContractSeverity Severity) : IDiagnosticInfo;
+
+    private sealed record SimpleSemanticToken(
+        int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
 }

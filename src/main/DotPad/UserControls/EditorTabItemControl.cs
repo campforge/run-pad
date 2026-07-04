@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Rendering;
 using DotPad.Assets.Models;
 using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Build.Core.Models;
@@ -31,6 +32,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private readonly IThemeService _themeService;
     internal readonly EditorTabState State;
+    private SemanticHighlighter? _semanticHighlighter;
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -92,6 +94,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void ApplyTheme(ActiveTheme theme)
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
+        _semanticHighlighter?.SetDark(theme.Editor.IsDark);
         var editorBg = _themeService!.GetBrush("DotPad.Editor.BackgroundBrush");
 
         if (editorBg is not null)
@@ -347,7 +350,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _vm.DebugLocals.Clear();
         foreach (var v in context.LocalVariables)
-            _vm.DebugLocals.Add(new DebugLocal(v.Name, v.Value, v.TypeName));
+            _vm.DebugLocals.Add(CreateDebugLocal(v, context));
 
         _vm.DebugCallStack.Clear();
         foreach (var f in context.CallStack)
@@ -355,6 +358,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         SetStatus("Paused", "DotPad.Status.PausedBrush");
         UpdateOutputUi();
+    }
+
+    private static DebugLocal CreateDebugLocal(IVariableInfo v, IBreakpointHitContext context)
+    {
+        Func<Task<IReadOnlyList<DebugLocal>>>? loader = v.HasChildren
+            ? async () =>
+            {
+                var children = await context.GetChildrenAsync(v.VariablesReference);
+                return children.Select(c => CreateDebugLocal(c, context)).ToList();
+            }
+            : null;
+        return new DebugLocal(v.Name, v.Value, v.TypeName, v.HasChildren, loader);
     }
 
     // ── Editor preferences ────────────────────────────────────────────────────
@@ -414,6 +429,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             foreach (var item in result.Items)
                 e.Overloads.Add((item.DisplaySignature, item.Documentation));
         };
+
+        // ── Live diagnostics (squiggles) ──────────────────────────────────────
+        var squiggleRenderer = new SquiggleRenderer();
+        editor.TextArea.TextView.BackgroundRenderers.Add(squiggleRenderer);
+
+        intelliSense.DiagnosticsChanged += (code, diagnostics) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+                squiggleRenderer.Update(diagnostics);
+                editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+            });
+
+        // ── Semantic highlighting ─────────────────────────────────────────────
+        var semanticHighlighter = new SemanticHighlighter();
+        semanticHighlighter.SetDark(_themeService.CurrentTheme.Editor.IsDark);
+        editor.TextArea.TextView.LineTransformers.Add(semanticHighlighter);
+        _semanticHighlighter = semanticHighlighter;
+
+        intelliSense.SemanticTokensChanged += (code, tokens) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+                semanticHighlighter.Update(tokens);
+                editor.TextArea.TextView.Redraw();
+            });
+
+        editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
     }
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)

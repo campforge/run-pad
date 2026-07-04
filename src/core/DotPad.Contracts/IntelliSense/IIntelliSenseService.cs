@@ -18,4 +18,12 @@ public interface IIntelliSenseService : IDisposable
         string code,
         int position,
         CancellationToken cancellationToken = default);
+
+    // Fires from a background thread. First arg = the code that produced the diagnostics.
+    event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
+
+    // Fires from a background thread. First arg = the code that produced the tokens.
+    event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
+
+    void NotifyTextChanged(string code);
 }

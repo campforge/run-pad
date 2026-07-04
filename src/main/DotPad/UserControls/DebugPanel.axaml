@@ -92,39 +92,54 @@
 
         <!-- ── Locals ──────────────────────────────────────────────────────── -->
         <TabItem Header="Locals">
-            <DataGrid ItemsSource="{Binding DebugLocals}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="Name" Width="*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}"
-                                           Padding="8,0" VerticalAlignment="Center"
+            <Grid RowDefinitions="22,*">
+
+                <!-- Column header row -->
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="*,2*,*"
+                      Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+                    <TextBlock Grid.Column="0" Text="Name"
+                               Padding="24,0,4,0" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                    <TextBlock Grid.Column="1" Text="Value"
+                               Padding="4,0" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                    <TextBlock Grid.Column="2" Text="Type"
+                               Padding="4,0" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                </Grid>
+
+                <!-- Variable tree -->
+                <TreeView Grid.Row="1"
+                          ItemsSource="{Binding DebugLocals}"
+                          Background="{DynamicResource DotPad.Output.BackgroundBrush}">
+                    <TreeView.Styles>
+                        <Style Selector="TreeViewItem" x:DataType="models:DebugLocal">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                            <Setter Property="Padding"    Value="0"/>
+                            <Setter Property="MinHeight"  Value="22"/>
+                        </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate ItemsSource="{Binding Children}">
+                            <Grid ColumnDefinitions="*,2*,*" MinHeight="22">
+                                <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                           Padding="4,0" VerticalAlignment="Center" FontSize="12"
                                            Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Value" Width="2*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Value}"
-                                           Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Type" Width="*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding TypeName}"
-                                           Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+                                <TextBlock Grid.Column="1" Text="{Binding Value}"
+                                           Padding="4,0" VerticalAlignment="Center" FontSize="12"
+                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="2" Text="{Binding TypeName}"
+                                           Padding="4,0" VerticalAlignment="Center" FontSize="12"
+                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+            </Grid>
         </TabItem>
 
         <!-- ── Watch ───────────────────────────────────────────────────────── -->
