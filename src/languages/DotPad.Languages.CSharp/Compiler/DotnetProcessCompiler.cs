@@ -18,7 +18,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private readonly ILogger<DotnetProcessCompiler> _logger;
 
     private readonly IReadOnlyDictionary<string, string> _nugetPackages;
-    private readonly IReadOnlyList<string> _globalUsings;
+    private readonly IReadOnlyList<string> _usings;
     private readonly IReadOnlyList<string> _assemblyReferences;
     private readonly IReadOnlyList<string> _projectReferences;
     private readonly string? _targetFrameworkOverride;
@@ -43,7 +43,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
         _nugetPackages = nugetPackages;
-        _globalUsings = globalUsings;
+        _usings = globalUsings;
         _assemblyReferences = assemblyReferences;
         _projectReferences = projectReferences;
         _targetFrameworkOverride = targetFrameworkOverride;
@@ -53,15 +53,13 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     }
 
     public override async Task<ProcessCompilerResult> Compilation(
-        SyntaxTree syntaxTree,
+        string code,
         CancellationToken cancellationToken)
     {
-        var code = (await syntaxTree.GetTextAsync(cancellationToken)).ToString();
-
         // Prepend global usings from .rpad front matter
-        if (_globalUsings.Count > 0)
+        if (_usings.Count > 0)
         {
-            var usingsText = string.Join("\n", _globalUsings.Select(u => $"global using {u};"));
+            var usingsText = string.Join("\n", _usings.Select(u => $"using {u};"));
             code = usingsText + "\n" + code;
         }
 

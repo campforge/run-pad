@@ -4,6 +4,7 @@ using Avalonia.Styling;
 
 namespace DotPad.Services;
 
+// ToDo: перенести в DotPad.Avalonia.Themes
 public static class HtmlThemeStylesheet
 {
     public static string Generate(ThemeVariant variant, bool isDark)

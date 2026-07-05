@@ -184,6 +184,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal async Task RunAsync(bool debug, ExecutionPlatform platform)
     {
+        // ToDo: сделать отдельный проект rpad ранннер, который будет запускать код с консоли без отладки
         var s = State;
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
@@ -564,6 +565,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             : [];
     }
 
+
+    // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
     // ── Setup helpers ─────────────────────────────────────────────────────────
 
     private void SetupEditor(CodeTextEditor editor, IIntelliSenseService? intelliSense)
