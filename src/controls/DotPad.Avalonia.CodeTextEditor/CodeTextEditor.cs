@@ -34,7 +34,7 @@ public class CodeTextEditor : TextEditor
             static (editor, e) => editor.OnShowFoldingChanged((bool?)e.NewValue));
     }
 
-    private static readonly char[] _openBraces  = ['(', '[', '{'];
+    private static readonly char[] _openBraces = ['(', '[', '{'];
     private static readonly char[] _closeBraces = [')', ']', '}'];
 
     private readonly BreakpointStore _breakpointStore;
@@ -84,6 +84,9 @@ public class CodeTextEditor : TextEditor
 
     public void AddBreakpoint(int line) => _breakpointStore.Add(line);
     public void RemoveBreakpoint(IBreakpoint bp) => _breakpointStore.Remove(bp);
+
+    /// <summary>Redraws the breakpoint margin — call after updating a breakpoint's VerificationState.</summary>
+    public void InvalidateBreakpoints() => _breakpointMargin.InvalidateVisual();
 
     public ElementGenerator InlineControls { get; } = new();
 

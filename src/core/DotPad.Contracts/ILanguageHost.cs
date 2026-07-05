@@ -1,4 +1,3 @@
-using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 
 namespace DotPad.Contracts;
@@ -23,10 +22,8 @@ public interface ILanguageHost : IAsyncDisposable
     void RemoveBreakpoint(IBreakpoint breakpoint);
     void ClearBreakpoints();
     event BreakpointHitHandler? BreakpointHit;
+    event BreakpointVerifiedHandler? BreakpointVerified;
 
     // Requires MemoryDump capability.
     Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default);
-
-    // Requires IntelliSense capability.
-    IIntelliSenseService CreateIntelliSenseService();
 }

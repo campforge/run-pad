@@ -5,4 +5,6 @@ public interface IBreakpoint
     string FileName { get; }
     int Line { get; set; }
     string? Condition { get; set; }
+    BreakpointVerificationState VerificationState { get; set; }
+    string? VerificationMessage { get; set; }
 }

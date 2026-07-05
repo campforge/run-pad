@@ -23,6 +23,9 @@ public sealed class WindowService : IWindowService
     public Task ShowPreferencesAsync()
         => ShowDialogAsync(_sp.GetRequiredService<PreferencesWindow>());
 
+    public Task ShowErrorAsync(string title, string message)
+        => ShowDialogAsync(new ErrorDialog(title, message));
+
     private static Task ShowDialogAsync(Window dialog)
     {
         var owner = (Application.Current?.ApplicationLifetime

@@ -27,7 +27,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
     // Debounce state for watcher-triggered refreshes
-    // BUG-5: должно быть volatile — чтение без барьера памяти может взять кэшированное значение.
     private volatile int _debounceVersion;
 
     // ── Window commands ───────────────────────────────────────────────────────
@@ -35,8 +34,19 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
 
-    public void OpenDependenciesWindow() => _ = _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter);
-    public void OpenPreferencesWindow()  => _ = _windowService.ShowPreferencesAsync();
+    // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
+    // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
+    public event Action? DependenciesWindowClosed;
+
+    public void OpenDependenciesWindow() => _ = OpenDependenciesWindowAsync();
+
+    private async Task OpenDependenciesWindowAsync()
+    {
+        await _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter);
+        DependenciesWindowClosed?.Invoke();
+    }
+
+    public void OpenPreferencesWindow() => _ = _windowService.ShowPreferencesAsync();
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -141,9 +151,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             CloseTab(tab);
 
         try { File.Move(oldPath, newPath); }
-        catch
+        catch (Exception ex)
         {
             node.EditingName = node.DisplayName;
+            // The tab was already closed above (so SaveIfNeeded could flush to oldPath) — since the
+            // rename didn't happen, the file is still at oldPath, so reopen it instead of leaving its
+            // tab silently gone from the tab bar.
+            if (hadTab) OpenTab(oldPath);
+            _ = _windowService.ShowErrorAsync(
+                "Rename Failed",
+                $"Could not rename '{Path.GetFileName(oldPath)}' to '{newFileName}':\n{ex.Message}");
             return;
         }
 
@@ -186,8 +203,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
-        OpenDependenciesCommand = ReactiveCommand.CreateFromTask(() => _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter));
-        OpenPreferencesCommand  = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
+        OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
+        OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
         DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
