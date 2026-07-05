@@ -7,10 +7,10 @@ using AvaloniaEdit.Rendering;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
-// Lightbulb gutter margin: shows an icon on lines with an available quick fix (currently just
-// "add using") and applies it on click. Kept deliberately single-candidate — if more than one fix
-// is offered for a line, the first is used; a picker menu can be added later if that turns out to
-// matter in practice.
+// Lightbulb gutter margin: shows an icon on lines with an available quick fix and applies it on
+// click. Real Roslyn CodeFixProviders (RoslynCodeFixEngine) routinely offer several candidates for
+// one line (e.g. multiple "using X;" namespaces for the same unresolved type) — a single click
+// applies the only fix directly, or opens a small picker menu when there's more than one.
 public class CodeFixMargin : AbstractMargin
 {
     static CodeFixMargin()
@@ -62,12 +62,29 @@ public class CodeFixMargin : AbstractMargin
         if (offset == -1) return;
 
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
-        var fix = _fixes.FirstOrDefault(f => f.Line == lineNumber);
-        if (fix is null) return;
+        var candidates = _fixes.Where(f => f.Line == lineNumber).ToList();
+        if (candidates.Count == 0) return;
 
-        _editor.Document.Text = fix.NewCode;
+        if (candidates.Count == 1)
+        {
+            Apply(candidates[0]);
+        }
+        else
+        {
+            var menu = new MenuFlyout();
+            foreach (var fix in candidates)
+            {
+                var item = new MenuItem { Header = fix.Title };
+                item.Click += (_, _) => Apply(fix);
+                menu.Items.Add(item);
+            }
+            menu.ShowAt(this);
+        }
+
         e.Handled = true;
     }
+
+    private void Apply(CodeFixEntry fix) => _editor.Document.Text = fix.NewCode;
 
     protected override Size MeasureOverride(Size availableSize)
         => TextView != null ? new Size(TextView.DefaultLineHeight * 0.8, 0) : new Size(0, 0);

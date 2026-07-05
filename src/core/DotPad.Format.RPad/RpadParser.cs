@@ -34,6 +34,11 @@ public static class RpadParser
         try
         {
             fm = YamlDeserializer.Deserialize<RpadFrontMatter>(yamlText) ?? new RpadFrontMatter();
+            // YamlDotNet overwrites defaulted string properties with an explicit YAML null
+            // (e.g. "language:" with no value) — restore the defaults in that case.
+            fm.Language ??= "csharp";
+            fm.TargetFramework ??= "net10.0";
+            fm.Kind ??= "Statements";
             fm.Packages ??= [];
             fm.References ??= [];
             fm.Usings ??= [];
