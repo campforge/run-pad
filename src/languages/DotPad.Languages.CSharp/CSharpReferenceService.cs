@@ -18,6 +18,10 @@ public sealed class CSharpReferenceService
             typeof(object).Assembly.Location,
             typeof(Console).Assembly.Location,
             Path.Combine(runtimeDir, "System.Runtime.dll"),
+            // netstandard2.0 assemblies (e.g. DotPad.Runtime, which defines .Dump()) type-forward
+            // most BCL types through netstandard.dll — without it Roslyn can't fully resolve such
+            // an assembly's public surface, so anything referencing it shows spurious CS0012 errors.
+            Path.Combine(runtimeDir, "netstandard.dll"),
         };
 
         foreach (string dll in Directory.GetFiles(runtimeDir, "System.*.dll"))

@@ -45,6 +45,7 @@
                     <SolidColorBrush x:Key="DotPad.Margin.BreakpointPreviewBrush"    Color="#8B3040" />
                     <SolidColorBrush x:Key="DotPad.Margin.DebugArrowBrush"           Color="#FFD040" />
                     <SolidColorBrush x:Key="DotPad.Margin.DebugLineBrush"            Color="#3CFFD000" />
+                    <SolidColorBrush x:Key="DotPad.Margin.LineNumberBrush"          Color="#67696B" />
                     <SolidColorBrush x:Key="DotPad.Folding.ChevronBrush"            Color="#6B6B6B" />
                     <SolidColorBrush x:Key="DotPad.Folding.ChevronHoverBrush"       Color="#BDBDBD" />
                     <SolidColorBrush x:Key="DotPad.Folding.LineBrush"               Color="#3A3D41" />

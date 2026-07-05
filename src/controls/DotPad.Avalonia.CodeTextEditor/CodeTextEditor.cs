@@ -39,6 +39,7 @@ public class CodeTextEditor : TextEditor
 
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
+    private readonly CodeFixMargin _codeFixMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
     private readonly BraceFoldingStrategy _foldingStrategy = new();
@@ -87,6 +88,25 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Redraws the breakpoint margin — call after updating a breakpoint's VerificationState.</summary>
     public void InvalidateBreakpoints() => _breakpointMargin.InvalidateVisual();
+
+    /// <summary>Updates the lightbulb quick-fix gutter (e.g. after a diagnostics pass finds a missing using).</summary>
+    public void UpdateCodeFixes(IReadOnlyList<CodeFixEntry> fixes) => _codeFixMargin.Update(fixes);
+
+    /// <summary>
+    /// Whether the merged gutter shows line numbers (not the base <see cref="TextEditor.ShowLineNumbers"/>,
+    /// which this control keeps permanently off — see the ctor comment on that assignment).
+    /// </summary>
+    public bool ShowLineNumberText
+    {
+        get => _breakpointMargin.ShowLineNumbers;
+        set
+        {
+            if (_breakpointMargin.ShowLineNumbers == value) return;
+            _breakpointMargin.ShowLineNumbers = value;
+            _breakpointMargin.InvalidateMeasure();
+            _breakpointMargin.InvalidateVisual();
+        }
+    }
 
     public ElementGenerator InlineControls { get; } = new();
 
@@ -140,6 +160,8 @@ public class CodeTextEditor : TextEditor
         _breakpointStore.BreakpointRemoved += (_, e) => BreakpointRemoved?.Invoke(this, e);
 
         _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
+        _codeFixMargin = new CodeFixMargin(this);
+        TextArea.LeftMargins.Add(_codeFixMargin);
         _debugLineHighlighter = new DebugLineHighlighter();
 
         _foldingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
@@ -163,7 +185,9 @@ public class CodeTextEditor : TextEditor
         };
 
         HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
-        ShowLineNumbers = true;
+        // Line numbers are rendered by BreakPointMargin itself (merged gutter — see its class
+        // comment), not by AvaloniaEdit's own LineNumberMargin.
+        ShowLineNumbers = false;
 
         TextArea.TextView.BackgroundRenderers.Add(_debugLineHighlighter);
         TextArea.TextView.BackgroundRenderers.Add(_braceMatchHighlighter);
@@ -231,7 +255,7 @@ public class CodeTextEditor : TextEditor
     {
         var leftMargins = TextArea.LeftMargins;
         if (showBreakpoints == true)
-            leftMargins.Insert(1, _breakpointMargin);
+            leftMargins.Insert(0, _breakpointMargin);
         else
             leftMargins.Remove(_breakpointMargin);
     }

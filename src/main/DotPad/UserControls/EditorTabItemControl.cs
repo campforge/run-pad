@@ -36,6 +36,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
+    private bool _disposed;
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -71,6 +72,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _intelliSense = intelliSense;
         SetupEditor(editor, intelliSense);
+        editor.BreakpointAdded += OnGutterBreakpointAdded;
+        editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
@@ -95,6 +98,46 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+
+        // Watch panel: re-evaluate an expression whenever its text changes (row added via
+        // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
+        // gives us a fresh IBreakpointHitContext (see OnBreakpointHit).
+        _vm.WatchExpressions.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is not null)
+                foreach (WatchExpression w in e.NewItems)
+                {
+                    w.PropertyChanged += OnWatchExpressionPropertyChanged;
+                    _ = EvaluateWatchAsync(w);
+                }
+            if (e.OldItems is not null)
+                foreach (WatchExpression w in e.OldItems)
+                    w.PropertyChanged -= OnWatchExpressionPropertyChanged;
+        };
+    }
+
+    private void OnWatchExpressionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(WatchExpression.Expression)) return;
+        if (sender is WatchExpression w) _ = EvaluateWatchAsync(w);
+    }
+
+    private async Task EvaluateWatchAsync(WatchExpression w)
+    {
+        if (string.IsNullOrWhiteSpace(w.Expression)) { w.Value = "?"; w.TypeName = ""; return; }
+        if (State.CurrentDebugCtx is not { } ctx) { w.Value = "<not paused>"; w.TypeName = ""; return; }
+
+        try
+        {
+            var result = await ctx.EvaluateAsync(w.Expression);
+            w.Value = result?.Value ?? "<error>";
+            w.TypeName = result?.TypeName ?? "";
+        }
+        catch (Exception ex)
+        {
+            w.Value = $"<error: {ex.Message}>";
+            w.TypeName = "";
+        }
     }
 
     internal void ApplyTheme(ActiveTheme theme)
@@ -146,6 +189,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.OutputContent = "";
+        s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
         SetStatus("Process", "DotPad.Status.RunningBrush");
@@ -168,25 +212,26 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.RunCts?.Dispose();
         s.RunCts = new CancellationTokenSource();
 
-        var workDir = EnsureWorkDirectory();
-        var options = BuildRunOptions(platform, workDir);
-        var script = s.Editor.Text;
-        // Matches the path DotnetProcessCompiler writes the source to and CSharpDapSession expects
-        // it at (OutputDirectory/{OutputName}.cs) — see ScriptBreakpoint below.
-        var sourceFilePath = Path.Combine(options.OutputDirectory, $"{options.OutputName}.cs");
-        var breakpoints = s.Editor.Breakpoints
-            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
-            .ToList();
-
-        // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
-        // in the margin until the new session's setBreakpoints response arrives.
-        foreach (var bp in s.Editor.Breakpoints)
-            bp.VerificationState = DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Pending;
-        s.Editor.InvalidateBreakpoints();
-
         var cancelled = false;
         try
         {
+            var workDir = EnsureWorkDirectory();
+            var options = BuildRunOptions(platform, workDir);
+            var script = s.Editor.Text;
+            // Matches the path DotnetProcessCompiler writes the source to and CSharpDapSession expects
+            // it at (OutputDirectory/{OutputName}.cs) — see ScriptBreakpoint below.
+            var sourceFilePath = Path.Combine(options.OutputDirectory, $"{options.OutputName}.cs");
+            s.SourceFilePath = sourceFilePath;
+            var breakpoints = s.Editor.Breakpoints
+                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
+                .ToList();
+
+            // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
+            // in the margin until the new session's setBreakpoints response arrives.
+            foreach (var bp in s.Editor.Breakpoints)
+                bp.VerificationState = DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Pending;
+            s.Editor.InvalidateBreakpoints();
+
             await Task.Run(async () =>
             {
                 await using var host = _registry.Create("csharp", options);
@@ -234,6 +279,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         Cancel();
         State.RunCts?.Dispose();
@@ -250,11 +296,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         await RunAsync(_vm.DebugModeEnabled, platform);
     }
 
+    // Play/Continue is a single toolbar button — same logic as the Run/Continue hotkey
+    // (EditorTabsControl.RunOrContinueActive).
+    private void RunOrContinueButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.EnableRunButton) RunButton_Click(sender, e);
+        else if (_vm.IsPaused) ResumeDebug(DebugAction.Continue);
+    }
+
     private void CancelButton_Click(object? sender, RoutedEventArgs e) => Cancel();
 
     // ── Debug panel handlers ──────────────────────────────────────────────────
 
-    private void DbgContinue_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.Continue);
     private void DbgStepOver_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOver);
     private void DbgStepIn_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepIn);
     private void DbgStepOut_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOut);
@@ -362,12 +415,32 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
+    private static readonly System.Text.RegularExpressions.Regex DumpContainerIdRegex =
+        new("data-dp-id=\"([a-f0-9]+)\"", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private void RenderDump(string base64)
     {
         try
         {
             var html = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
-            State.OutputContent += $"\n<div class=\"dp-dump\">{html}</div>";
+            var wrapped = $"\n<div class=\"dp-dump\">{html}</div>";
+
+            // DumpContainer (ANALYSIS.md feature #19) re-emits the same data-dp-id on every
+            // update — replace its existing block in place instead of appending a new one.
+            var idMatch = DumpContainerIdRegex.Match(html);
+            if (idMatch.Success)
+            {
+                var id = idMatch.Groups[1].Value;
+                if (State.DumpContainerBlocks.TryGetValue(id, out var previous))
+                    State.OutputContent = State.OutputContent.Replace(previous, wrapped);
+                else
+                    State.OutputContent += wrapped;
+                State.DumpContainerBlocks[id] = wrapped;
+            }
+            else
+            {
+                State.OutputContent += wrapped;
+            }
         }
         catch
         {
@@ -400,6 +473,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.Editor.InvalidateBreakpoints();
     }
 
+    // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise
+    // they only take effect the next time RunAsync reads State.Editor.Breakpoints at run start.
+    private void OnGutterBreakpointAdded(object? sender, BreakpointEventArgs e)
+    {
+        if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
+        if (State.SourceFilePath is not { } path) return;
+        var condition = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line)?.Condition;
+        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, condition));
+    }
+
+    private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
+    {
+        if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
+        if (State.SourceFilePath is not { } path) return;
+        host.RemoveBreakpoint(new ScriptBreakpoint(path, e.Line, null));
+    }
+
     private void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
@@ -423,6 +513,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugCallStack.Clear();
         foreach (var f in context.CallStack)
             _vm.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
+
+        // Watch expressions are evaluated against whichever frame/scope is current, so refresh them
+        // for the new stop — stale values from the previous breakpoint hit would be misleading.
+        foreach (var w in _vm.WatchExpressions) _ = EvaluateWatchAsync(w);
 
         SetStatus("Paused", "DotPad.Status.PausedBrush");
         UpdateOutputUi();
@@ -458,7 +552,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
-        editor.ShowLineNumbers = s.ShowLineNumbers;
+        editor.ShowLineNumberText = s.ShowLineNumbers;
         editor.ShowFolding = s.ShowFolding;
         editor.FontSize = s.FontSize;
         editor.WordWrap = s.WordWrap;
@@ -525,6 +619,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         intelliSense.DiagnosticsChanged += (code, diagnostics) =>
             Dispatcher.UIThread.Post(() =>
             {
+                if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
                 squiggleRenderer.Update(diagnostics);
                 editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
@@ -539,9 +634,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         intelliSense.SemanticTokensChanged += (code, tokens) =>
             Dispatcher.UIThread.Post(() =>
             {
+                if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
                 semanticHighlighter.Update(tokens);
                 editor.TextArea.TextView.Redraw();
+            });
+
+        // ── Code fixes (lightbulb: "add using") ────────────────────────────────
+        intelliSense.CodeFixesChanged += (code, fixes) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+                editor.UpdateCodeFixes(fixes.Select(f => new CodeFixEntry(f.Line, f.Title, f.NewCode)).ToList());
             });
 
         editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
@@ -565,11 +670,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     var offset = await Dispatcher.UIThread.InvokeAsync(
                         () => editor.GetOffsetFromPoint(pos));
                     if (offset < 0 || ct.IsCancellationRequested) return;
-                    var result = await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct);
+
+                    // A diagnostic under the cursor takes priority over Quick Info — seeing why a
+                    // squiggle is there is usually more useful than the symbol's signature.
+                    var diagnostic = squiggleRenderer.Diagnostics.FirstOrDefault(
+                        d => offset >= d.StartOffset && offset < d.EndOffset);
+                    var content = diagnostic?.Message
+                        ?? (await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct))?.Content;
+
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (!ct.IsCancellationRequested)
-                            ToolTip.SetTip(editor.TextArea.TextView, result?.Content);
+                            ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
                 catch (OperationCanceledException) { }
@@ -643,6 +755,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private CSharpLanguageHostOptions BuildRunOptions(ExecutionPlatform platform, string workDir)
     {
         var rpad = State.RpadDocument;
+
+        // Reused across runs of this tab (allocated once) so DotnetProcessCompiler can detect an
+        // unchanged .csproj and skip NuGet restore — see its Compilation() for the actual check.
+        State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
+
         return new CSharpLanguageHostOptions
         {
             Platform = platform,
@@ -652,10 +769,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
                 Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
             },
-            OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
+            OutputDirectory = State.OutputDirectory,
             RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
+            JustMyCode = _vm.JustMyCode,
             Kind = rpad?.FrontMatter.Kind ?? "Statements",
             TargetFrameworkOverride = rpad?.FrontMatter.TargetFramework,
             NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Reactive;
+using System.Reactive.Linq;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using DotPad.Assets.Models;
 using DotPad.Build;
@@ -33,6 +35,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenAboutCommand { get; }
 
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
@@ -47,6 +50,31 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public void OpenPreferencesWindow() => _ = _windowService.ShowPreferencesAsync();
+
+    // ── Sidebar layout (collapsible file tree) ────────────────────────────────
+
+    private double _lastExpandedSidebarWidth;
+
+    public GridLength SidebarColumnWidth
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ReactiveCommand<Unit, Unit> ToggleSidebarCommand { get; }
+
+    private void ToggleSidebar()
+    {
+        if (SidebarColumnWidth.Value > 0)
+        {
+            _lastExpandedSidebarWidth = SidebarColumnWidth.Value;
+            SidebarColumnWidth = new GridLength(0);
+        }
+        else
+        {
+            SidebarColumnWidth = new GridLength(_lastExpandedSidebarWidth > 0 ? _lastExpandedSidebarWidth : 300);
+        }
+    }
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -205,9 +233,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _prefs = prefs;
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
+        OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
         OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
+        OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
         DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
+
+        SidebarColumnWidth = _prefs.Layout.SidebarCollapsed ? new GridLength(0) : new GridLength(_prefs.Layout.SidebarWidth);
+        _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;
+        ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
+        this.WhenAnyValue(x => x.SidebarColumnWidth)
+            .Skip(1)
+            .Throttle(TimeSpan.FromMilliseconds(400), RxApp.MainThreadScheduler)
+            .Subscribe(w =>
+            {
+                _prefs.Layout.SidebarCollapsed = w.Value <= 0;
+                if (w.Value > 0) _prefs.Layout.SidebarWidth = w.Value;
+                _prefs.Save();
+            });
 
         _rootFolder = _fileSystemService.GetOrCreateDefaultFolder();
 
