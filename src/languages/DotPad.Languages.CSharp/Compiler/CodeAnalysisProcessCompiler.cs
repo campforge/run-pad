@@ -15,6 +15,30 @@ namespace DotPad.Languages.CSharp.Compiler;
 // logic instead of reimplementing it here.
 public sealed class CodeAnalysisProcessCompiler : ProcessCompilerBase
 {
+    // Matches the SDK's own <ImplicitUsings>enable</ImplicitUsings> (which DotnetProcessCompiler's
+    // generated .csproj always sets — see Resources.GetProjectFile) — without these, code that
+    // assumes them (e.g. a bare `Console.WriteLine(...)`, the ANALYSIS.md #27 repro) only fails to
+    // compile on *this* fast path, since it never runs the SDK's own build that would otherwise
+    // generate them. Verified against a real `dotnet build` with ImplicitUsings enabled — exactly
+    // these 7, no System.Text.
+    private static readonly string[] _implicitUsings =
+    [
+        "System", "System.Collections.Generic", "System.IO", "System.Linq",
+        "System.Net.Http", "System.Threading", "System.Threading.Tasks",
+    ];
+
+    // A separate synthetic tree (not prepended into the user's own syntax tree) so it doesn't shift
+    // that tree's line numbers — which CSharpLanguageHost.RunDebugAsync's lineOffset (computed from
+    // _options.GlobalUsings.Count alone) depends on staying in sync with what DotnetProcessCompiler
+    // does. `global using` applies compilation-wide regardless of which tree declares it, exactly
+    // like the SDK's own separately-generated GlobalUsings.g.cs. Needs an explicit encoding (not the
+    // plain-string ParseText overload) — Emit() with PortablePdb debug info requires one for every
+    // tree in the compilation, not just the main one (CS8055 otherwise).
+    private static readonly SyntaxTree _implicitUsingsTree = CSharpSyntaxTree.ParseText(
+        SourceText.From(string.Join("\n", _implicitUsings.Select(u => $"global using {u};")), Encoding.UTF8),
+        new CSharpParseOptions(),
+        path: "ImplicitUsings.g.cs");
+
     private readonly string _binaryOutput;
     private readonly string _pdbOutput;
     private readonly string _configOutput;
@@ -85,7 +109,7 @@ public sealed class CodeAnalysisProcessCompiler : ProcessCompilerBase
 
         var compilation = CSharpCompilation.Create(
             Guid.NewGuid().ToString(),
-            syntaxTrees: [syntaxTree],
+            syntaxTrees: [syntaxTree, _implicitUsingsTree],
             references: references,
             options: new CSharpCompilationOptions(
                 OutputKind.ConsoleApplication,
