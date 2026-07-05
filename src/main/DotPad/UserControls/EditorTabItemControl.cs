@@ -730,6 +730,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.FrontMatter = rpad?.FrontMatter;
         editor.Document = new TextDocument(content);
 
+        // Shows which kind/target framework the script actually runs as (ANALYSIS.md #29) — helps
+        // tell the two compile paths apart (fast path vs. DotnetProcessCompiler) and diagnose
+        // compile/run discrepancies between them without having to open the front matter by hand.
+        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetFramework}";
+
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Usings is { Count: > 0 })

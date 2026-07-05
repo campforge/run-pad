@@ -16,6 +16,8 @@
     <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.5" />
     <PackageVersion Include="Avalonia.Themes.Simple" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Headless" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.0.5" />
     <!-- TextMate -->
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
     <PackageVersion Include="TextMateSharp" Version="2.0.4" />
@@ -47,5 +49,10 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Avalonia.Headless.XUnit 12.0.5 depends on xunit v3 (a different package family from
+         classic "xunit" 2.x above), so DotPad.Runtime.UI.Tests uses these instead — see its
+         csproj comment. -->
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
   </ItemGroup>
 </Project>

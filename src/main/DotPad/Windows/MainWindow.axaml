@@ -175,7 +175,7 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator/>
-                            <MenuItem Header="Show in Explorer" Click="ContextOpenFolder_Click">
+                            <MenuItem Header="Show in File Manager" Click="ContextOpenFolder_Click">
                                 <MenuItem.Icon>
                                     <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="16" Height="16"/>
                                 </MenuItem.Icon>
@@ -249,7 +249,7 @@
             </Grid>
 
             <GridSplitter Grid.Column="1" Width="5"
-                          Background="Transparent"
+                          Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
                           ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
