@@ -61,6 +61,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly DocumentId _documentId;
     private readonly string _nugetRoot = ResolveNuGetRoot();
     private readonly List<MetadataReference> _nugetRefs = [];
+    private readonly RoslynCodeFixEngine _codeFixEngine;
     private string _lastCode = "";
     private CancellationTokenSource? _diagnosticsCts;
 
@@ -75,6 +76,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 refs.Add(MetadataReference.CreateFromFile(path));
 
         _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+        _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
 
         var projectId = ProjectId.CreateNewId("DotPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
@@ -365,62 +367,19 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         SemanticTokensChanged?.Invoke(code, result);
     }
 
-    // ── Code fixes (minimum viable: "add using" for CS0246) ────────────────────
+    // ── Code fixes (real Roslyn CodeFixProviders — see RoslynCodeFixEngine) ────
 
     private async Task ComputeCodeFixesAsync(string code, Document document, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
         if (model == null) { CodeFixesChanged?.Invoke(code, []); return; }
 
-        var text = await document.GetTextAsync(ct);
-        var result = new List<ICodeFixInfo>();
+        var diagnostics = model.GetDiagnostics(cancellationToken: ct)
+            .Where(d => d.Severity != RoslynSeverity.Hidden)
+            .ToList();
 
-        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
-        {
-            // "The type or namespace name 'X' could not be found (are you missing a using directive
-            // or an assembly reference?)" — the one case where "add using" is an unambiguous fix.
-            if (d.Id != "CS0246" || !d.Location.IsInSource) continue;
-
-            var span = d.Location.SourceSpan;
-            var start = span.Start - _preambleLength;
-            if (start < 0) continue;
-
-            // The span sometimes covers more than the bare identifier (e.g. "Foo<T>" or "Foo.Bar");
-            // keep just the leading identifier so the namespace search has a real type name.
-            var identifier = text.ToString(span);
-            var identEnd = 0;
-            while (identEnd < identifier.Length && (char.IsLetterOrDigit(identifier[identEnd]) || identifier[identEnd] == '_'))
-                identEnd++;
-            if (identEnd == 0) continue;
-            identifier = identifier[..identEnd];
-
-            var namespaces = model.Compilation.GetSymbolsWithName(n => n == identifier, SymbolFilter.Type, ct)
-                .OfType<INamedTypeSymbol>()
-                .Select(t => t.ContainingNamespace)
-                .Where(ns => ns is { IsGlobalNamespace: false })
-                .Select(ns => ns.ToDisplayString())
-                .Distinct()
-                .OrderBy(ns => ns, StringComparer.Ordinal)
-                .Take(3);
-
-            var userLine = GetLineNumber(code, start);
-            foreach (var ns in namespaces)
-            {
-                var usingDirective = $"using {ns};";
-                if (code.Contains(usingDirective)) continue;
-                result.Add(new SimpleCodeFix(userLine, usingDirective, usingDirective + "\n" + code));
-            }
-        }
-
+        var result = await _codeFixEngine.ComputeFixesAsync(document, diagnostics, code, _preambleLength, ct);
         CodeFixesChanged?.Invoke(code, result);
-    }
-
-    private static int GetLineNumber(string code, int offset)
-    {
-        var line = 1;
-        for (var i = 0; i < offset && i < code.Length; i++)
-            if (code[i] == '\n') line++;
-        return line;
     }
 
     private static SemanticTokenKind ClassifySpan(string type) => type switch
@@ -564,5 +523,4 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleSemanticToken(
         int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
 
-    private sealed record SimpleCodeFix(int Line, string Title, string NewCode) : ICodeFixInfo;
 }
