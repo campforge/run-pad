@@ -154,11 +154,6 @@
                         VerticalContentAlignment="Center"
                         ItemsSource="{Binding Kinds}"
                         SelectedItem="{Binding SelectedKind}">
-                        <!-- <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="build:ExecutionPlatform">
-                                <TextBlock Text="{Binding Description}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate> -->
                     </ComboBox>
 
                     <Border Width="1" Height="16"
