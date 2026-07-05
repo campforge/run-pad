@@ -138,10 +138,10 @@
                         Height="24"
                         VerticalAlignment="Center"
                         VerticalContentAlignment="Center"
-                        ItemsSource="{Binding DotnetPlatforms}"
-                        SelectedItem="{Binding SelectedDotnetPlatform}">
+                        ItemsSource="{Binding AvailableSdks}"
+                        SelectedItem="{Binding SelectedSdk}">
                         <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="build:ExecutionPlatform">
+                            <DataTemplate x:DataType="build:DotnetSdk">
                                 <TextBlock Text="{Binding Description}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>

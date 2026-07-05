@@ -22,10 +22,9 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
-    // ToDo: переимнеовать в Current SDK 
-    public List<ExecutionPlatform> DotnetPlatforms { get; }
+    public List<DotnetSdk> AvailableSdks { get; }
 
-    public List<string> Kinds  { get; } = new() { "Statements", "Program", ".." };
+    public List<string> Kinds { get; } = new() { "Statements", "Program", "Expression" };
 
     private string? _selectedKind = "Statements";
     public string? SelectedKind
@@ -34,11 +33,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _selectedKind, value);
     }
 
-    private ExecutionPlatform? _selectedDotnetPlatform;
-    public ExecutionPlatform? SelectedDotnetPlatform
+    private DotnetSdk? _selectedSdk;
+    public DotnetSdk? SelectedSdk
     {
-        get => _selectedDotnetPlatform;
-        set => this.RaiseAndSetIfChanged(ref _selectedDotnetPlatform, value);
+        get => _selectedSdk;
+        set => this.RaiseAndSetIfChanged(ref _selectedSdk, value);
     }
 
     public bool DebugModeEnabled
@@ -181,11 +180,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    public EditorTabItemViewModel(string? filePath, List<ExecutionPlatform> platforms, IPreferencesService prefs)
+    public EditorTabItemViewModel(string? filePath, List<DotnetSdk> sdks, IPreferencesService prefs)
     {
         FilePath = filePath;
-        DotnetPlatforms = platforms;
-        _selectedDotnetPlatform = platforms.FirstOrDefault();
+        AvailableSdks = sdks;
+        _selectedSdk = sdks.FirstOrDefault();
         _prefs = prefs;
 
         CloseCommand = ReactiveCommand.Create(() => { });

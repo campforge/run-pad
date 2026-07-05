@@ -7,7 +7,7 @@ namespace DotPad.Languages.CSharp.Sdk;
 
 public sealed class DotnetSdkProvider : ISdkProvider
 {
-    public IReadOnlyList<ExecutionPlatform> Get()
+    public IReadOnlyList<DotnetSdk> Get()
     {
         List<(string tfm, NuGetVersion version)> versions = [];
 
@@ -30,7 +30,7 @@ public sealed class DotnetSdkProvider : ISdkProvider
             .Select(g => g.MaxBy(x => x.version))
             .OrderBy(x => x.version.IsPrerelease)
             .ThenByDescending(x => x.version)
-            .Select(x => new ExecutionPlatform(".NET", x.tfm, $"{x.version.Major}.{x.version.Minor}.0", $".NET {x.version}"))
+            .Select(x => new DotnetSdk(".NET", x.tfm, $"{x.version.Major}.{x.version.Minor}.0", $".NET {x.version}"))
             .ToList();
     }
 }

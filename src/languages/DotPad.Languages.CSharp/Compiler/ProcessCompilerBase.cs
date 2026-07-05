@@ -6,20 +6,20 @@ namespace DotPad.Languages.CSharp.Compiler;
 
 public abstract class ProcessCompilerBase : IDotnetProcessCompiler
 {
-    protected readonly ExecutionPlatform ExecutionPlatform;
+    protected readonly DotnetSdk Sdk;
     protected readonly string OutputDir;
     protected readonly string DotPadRuntimeLib;
     protected readonly string OutputName;
     protected readonly ExecutionOptions ExecutionOptions;
 
     protected ProcessCompilerBase(
-        ExecutionPlatform executionPlatform,
+        DotnetSdk sdk,
         ExecutionOptions executionOptions,
         string outputDir,
         string dotPadRuntimeLib,
         string outputName)
     {
-        ExecutionPlatform = executionPlatform;
+        Sdk = sdk;
         OutputDir = outputDir;
         DotPadRuntimeLib = dotPadRuntimeLib;
         OutputName = outputName;
