@@ -209,12 +209,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var dir = Path.GetDirectoryName(node.FilePath);
         if (dir is null) return;
 
-        Process.Start(new ProcessStartInfo
+        // Windows/macOS can select the file itself within its file manager; Linux has no
+        // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
+        // containing folder instead (see ANALYSIS.md #26).
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{node.FilePath}\"" }
+            : OperatingSystem.IsMacOS()
+                ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", node.FilePath } }
+                : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
+
+        startInfo.UseShellExecute = true;
+        try { Process.Start(startInfo); }
+        catch (Exception ex)
         {
-            FileName = "explorer.exe",
-            Arguments = $"/select,\"{node.FilePath}\"",
-            UseShellExecute = true
-        });
+            _ = _windowService.ShowErrorAsync("Could Not Open File Manager", ex.Message);
+        }
     }
 
     // ── File tree ─────────────────────────────────────────────────────────────
