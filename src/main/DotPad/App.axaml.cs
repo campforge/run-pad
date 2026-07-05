@@ -75,7 +75,11 @@ public class App : Application
 
         services.AddSingleton<CSharpReferenceService>();
 
-        services.AddSingleton<IIntelliSenseService>(sp =>
+        // One IIntelliSenseService instance per tab, not a shared singleton: each open script can
+        // reference different NuGet packages, and CSharpIntelliSenseService is stateful (one
+        // AdhocWorkspace/document per instance). A shared instance would let one tab's package
+        // references and last-synced text stomp another tab's — see EditorTabsControl.CreateControl.
+        services.AddSingleton<Func<IIntelliSenseService>>(sp => () =>
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var refService = sp.GetRequiredService<CSharpReferenceService>();
@@ -93,8 +97,10 @@ public class App : Application
 
         var provider = services.BuildServiceProvider();
 
-        // Kick off Roslyn warmup in the background so the first completion is fast.
-        _ = Task.Run(() => provider.GetService<IIntelliSenseService>()?.NotifyTextChanged(""));
+        // Kick off Roslyn warmup in the background so the first tab's completion is fast.
+        // Uses a throwaway instance — the expensive part (DotPadRoslynHost.HostServices / MEF
+        // composition) is a process-wide lazy singleton shared by every instance the factory creates.
+        _ = Task.Run(() => provider.GetRequiredService<Func<IIntelliSenseService>>()().NotifyTextChanged(""));
 
         return provider;
     }

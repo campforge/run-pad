@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DotPad.Windows.ErrorDialog"
+        Width="440"
+        MinWidth="320" MinHeight="140"
+        CanResize="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+
+    <Grid RowDefinitions="Auto,Auto" Margin="16">
+
+        <TextBlock x:Name="MessageBlock"
+                   Grid.Row="0"
+                   FontSize="13"
+                   Foreground="{DynamicResource DotPad.Status.ErrorBrush}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,16"/>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="OK"
+                    Width="80"
+                    Click="OkButton_Click"
+                    IsDefault="True"
+                    IsCancel="True"/>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

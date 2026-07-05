@@ -6,6 +6,7 @@ using DotPad.Assets.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
+using DotPad.Languages.CSharp;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
@@ -27,7 +28,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly IThemeService? _themeService;
     private readonly ILanguageHostRegistry? _registry;
     private readonly IPreferencesService? _prefs;
-    private readonly IIntelliSenseService? _intelliSense;
+    private readonly Func<IIntelliSenseService>? _intelliSenseFactory;
+    private readonly CSharpReferenceService? _referenceService;
 
     // ── Empty ctor: used by XAML previewer only ───────────────────────────────
 
@@ -42,13 +44,15 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IThemeService themeService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        IIntelliSenseService intelliSense)
+        Func<IIntelliSenseService> intelliSenseFactory,
+        CSharpReferenceService referenceService)
     {
         InitializeComponent();
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
-        _intelliSense = intelliSense;
+        _intelliSenseFactory = intelliSenseFactory;
+        _referenceService = referenceService;
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
@@ -63,8 +67,20 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         vm.Tabs.CollectionChanged += OnTabsCollectionChanged;
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
+        vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
 
         vm.OpenTab(filePath: null);
+    }
+
+    // Dependencies window mutates the active tab's RpadFrontMatter in place, in memory only.
+    // On close: push the new package set into that tab's own IntelliSense instance so
+    // completion/diagnostics see it without reopening the tab, and flush to disk immediately so the
+    // change survives an app close/crash instead of waiting for the next Run or tab close.
+    private void OnDependenciesWindowClosed()
+    {
+        var ctrl = GetActiveControl();
+        ctrl?.RefreshIntelliSensePackages();
+        ctrl?.SaveIfNeeded();
     }
 
     // ── Tab lifecycle ──────────────────────────────────────────────────────────
@@ -175,7 +191,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         if (_themeService is not null) _themeService.ThemeChanged -= OnThemeChanged;
-        if (_vm is not null) _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
+        if (_vm is not null)
+        {
+            _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
+            _vm.DependenciesWindowClosed -= OnDependenciesWindowClosed;
+        }
         _activeTabSub?.Dispose();
 
         foreach (var (tabVm, (_, ctrl)) in _tabs)
@@ -191,11 +211,14 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private EditorsTabItemControl CreateControl(EditorTabItemViewModel vm)
     {
+        // Each tab gets its own IntelliSense instance — see the comment on the
+        // Func<IIntelliSenseService> registration in App.axaml.cs for why this can't be shared.
         return new EditorsTabItemControl(vm,
             _themeService!,
             _registry!,
             _prefs!,
-            _intelliSense,
+            _intelliSenseFactory?.Invoke(),
+            _referenceService!,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
     }
 

@@ -36,6 +36,7 @@ internal sealed class CSharpDapSession : IDapSession
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
     private readonly OutputReceivedHandler? _outputHandler;
     private readonly Action<IBreakpointHitContext> _onBreakpointHit;
+    private readonly Action<IBreakpoint, bool, string?>? _onBreakpointVerified;
     private readonly ILogger<CSharpDapSession> _logger;
     private readonly bool _breakOnAllExceptions;
     private readonly bool _breakOnUncaughtExceptions;
@@ -70,7 +71,8 @@ internal sealed class CSharpDapSession : IDapSession
         int lineOffset,
         ILogger<CSharpDapSession> logger,
         bool breakOnAllExceptions = false,
-        bool breakOnUncaughtExceptions = true)
+        bool breakOnUncaughtExceptions = true,
+        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null)
     {
         _process = process;
         _programPath = programPath;
@@ -82,6 +84,7 @@ internal sealed class CSharpDapSession : IDapSession
         _logger = logger;
         _breakOnAllExceptions = breakOnAllExceptions;
         _breakOnUncaughtExceptions = breakOnUncaughtExceptions;
+        _onBreakpointVerified = onBreakpointVerified;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -228,6 +231,14 @@ internal sealed class CSharpDapSession : IDapSession
                 ForwardOutput(root);
                 break;
 
+            // netcoredbg answers the initial setBreakpoints response with verified=false
+            // ("pending, will be resolved when debugging starts") before the target module is even
+            // loaded — that response alone would make every breakpoint look permanently unverified.
+            // The real verdict arrives later as this unsolicited event once the module loads.
+            case "breakpoint":
+                HandleBreakpointEvent(root);
+                break;
+
             case "exited":
             case "terminated":
                 _processExited = true;
@@ -249,9 +260,15 @@ internal sealed class CSharpDapSession : IDapSession
 
         var topFrame = frames.Count > 0 ? frames[0] : null;
         var topFrameUserLine = (topFrame?.line ?? 0) - _lineOffset;
+        var topFrameSourcePath = topFrame?.source?.path;
+        // Matching on Line alone would misattribute a hit to the wrong breakpoint if two source
+        // files coincidentally used the same line number (won't happen with a single script file,
+        // but IBreakpoint.FileName is now populated, so verify it when both sides have one).
         IBreakpoint matched =
-            _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine)
-            ?? new SyntheticBreakpoint(topFrame?.source?.path ?? "", topFrameUserLine);
+            _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine
+                && (string.IsNullOrEmpty(bp.FileName) || topFrameSourcePath is null
+                    || string.Equals(bp.FileName, topFrameSourcePath, StringComparison.OrdinalIgnoreCase)))
+            ?? new SyntheticBreakpoint(topFrameSourcePath ?? "", topFrameUserLine);
 
         bool wasRunToCursor = _runToCursorLines.Remove(topFrameUserLine);
 
@@ -300,6 +317,25 @@ internal sealed class CSharpDapSession : IDapSession
                 await SendAsync(new StepOutRequest { seq = NextSeq(), arguments = new StepOutArguments { threadId = threadId } }, ct);
                 break;
         }
+    }
+
+    // Body shape: { reason: "changed"|"new"|"removed", breakpoint: { verified, line, message, ... } }.
+    // "line" is in compiled-file coordinates, same as what SendBreakpointsAsync sent.
+    private void HandleBreakpointEvent(JsonElement root)
+    {
+        if (!root.TryGetProperty("body", out var body)) return;
+        if (!body.TryGetProperty("breakpoint", out var bpEl)) return;
+        if (!bpEl.TryGetProperty("line", out var lineEl)) return;
+
+        var verified = bpEl.TryGetProperty("verified", out var v) && v.GetBoolean();
+        var msg = bpEl.TryGetProperty("message", out var m) ? m.GetString() : null;
+        var userLine = lineEl.GetInt32() - _lineOffset;
+
+        var matched = _breakpoints.FirstOrDefault(bp => bp.Line == userLine);
+        if (matched is null) return;
+
+        _logger.LogDebug("[dap bp] (event) verified={Verified} line={Line}{Msg}", verified, userLine, msg is not null ? $" msg={msg}" : "");
+        _onBreakpointVerified?.Invoke(matched, verified, msg);
     }
 
     private Task RegisterRunToCursorAsync(int userLine, CancellationToken _)
@@ -426,10 +462,16 @@ internal sealed class CSharpDapSession : IDapSession
 
     private async Task SendBreakpointsAsync(CancellationToken ct)
     {
+        // Prefer the path the breakpoints were actually set against (IBreakpoint.FileName). Fall back
+        // to the well-known compiled path when there are no breakpoints yet — e.g. before the first
+        // Run to Cursor request arrives, ResendBreakpointsAsync still needs somewhere to send it.
         // The compiler writes source to _workingDirectory/{name}.cs
         // but the binary goes to _workingDirectory/bin/{name}.dll.
-        _sourceName = Path.GetFileNameWithoutExtension(_programPath) + ".cs";
-        _sourceFile = Path.Combine(_workingDirectory, _sourceName);
+        var fallback = Path.Combine(_workingDirectory, Path.GetFileNameWithoutExtension(_programPath) + ".cs");
+        _sourceFile = _breakpoints.FirstOrDefault()?.FileName is { Length: > 0 } fromBreakpoint
+            ? fromBreakpoint
+            : fallback;
+        _sourceName = Path.GetFileName(_sourceFile);
 
         if (_breakpoints.Count == 0) return;
 
@@ -449,21 +491,29 @@ internal sealed class CSharpDapSession : IDapSession
             },
         }, ct);
 
-        // Read and log the response so we know if breakpoints were verified.
+        // Read the response and report verified/message back per breakpoint (DAP guarantees the
+        // response array is in the same order as the request array, so zip by index with _breakpoints).
         using var doc = await ReadResponseForCommandAsync("setBreakpoints", ct);
-        if (doc is not null)
+        ReportVerification(doc, _breakpoints);
+    }
+
+    private void ReportVerification(JsonDocument? doc, IReadOnlyList<IBreakpoint> requested)
+    {
+        if (doc is null) return;
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("body", out var body) || !body.TryGetProperty("breakpoints", out var bps)) return;
+
+        int i = 0;
+        foreach (var bp in bps.EnumerateArray())
         {
-            var root = doc.RootElement;
-            if (root.TryGetProperty("body", out var body) && body.TryGetProperty("breakpoints", out var bps))
-            {
-                foreach (var bp in bps.EnumerateArray())
-                {
-                    var verified = bp.TryGetProperty("verified", out var v) && v.GetBoolean();
-                    var line = bp.TryGetProperty("line", out var l) ? l.GetInt32() : -1;
-                    var msg = bp.TryGetProperty("message", out var m) ? m.GetString() : null;
-                    _logger.LogDebug("[dap bp] verified={Verified} line={Line}{Msg}", verified, line, msg is not null ? $" msg={msg}" : "");
-                }
-            }
+            var verified = bp.TryGetProperty("verified", out var v) && v.GetBoolean();
+            var line = bp.TryGetProperty("line", out var l) ? l.GetInt32() : -1;
+            var msg = bp.TryGetProperty("message", out var m) ? m.GetString() : null;
+            _logger.LogDebug("[dap bp] verified={Verified} line={Line}{Msg}", verified, line, msg is not null ? $" msg={msg}" : "");
+
+            if (i < requested.Count)
+                _onBreakpointVerified?.Invoke(requested[i], verified, msg);
+            i++;
         }
     }
 
@@ -485,13 +535,16 @@ internal sealed class CSharpDapSession : IDapSession
                 breakpoints = allBps,
             },
         }, ct);
-        using var _ = await ReadResponseForCommandAsync("setBreakpoints", ct);
+        // Only the first _breakpoints.Count entries correspond to real IBreakpoint objects — the rest
+        // are synthetic run-to-cursor lines with nothing in the margin to report back to.
+        using var doc = await ReadResponseForCommandAsync("setBreakpoints", ct);
+        ReportVerification(doc, _breakpoints);
     }
 
     private async Task SendExceptionBreakpointsAsync(CancellationToken ct)
     {
         var filters = new List<string>();
-        if (_breakOnAllExceptions)         filters.Add("all");
+        if (_breakOnAllExceptions) filters.Add("all");
         else if (_breakOnUncaughtExceptions) filters.Add("unhandled");
 
         await SendAsync(new SetExceptionBreakpointsRequest
@@ -591,6 +644,11 @@ internal sealed class CSharpDapSession : IDapSession
             {
                 var evt = GetStr(root, "event");
                 if (evt == "output") ForwardOutput(root);
+                // The "breakpoint" (changed) event can legitimately arrive while we're blocked here
+                // waiting on some other command's response (e.g. during HandleStoppedAsync's
+                // threads/stackTrace/variables round-trips) — without this it would be silently
+                // dropped and the margin would never learn the debugger's real verified/message verdict.
+                else if (evt == "breakpoint") HandleBreakpointEvent(root);
                 if (evt is "exited" or "terminated") { doc.Dispose(); return null; }
             }
 

@@ -1,4 +1,3 @@
-using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 
 namespace DotPad.Contracts;
@@ -7,6 +6,7 @@ public abstract class LanguageHostBase : ILanguageHost
 {
     private readonly List<IBreakpoint> _breakpoints = new();
     private BreakpointHitHandler? _breakpointHit;
+    private BreakpointVerifiedHandler? _breakpointVerified;
     private bool _disposed;
 
     public abstract string Language { get; }
@@ -60,6 +60,12 @@ public abstract class LanguageHostBase : ILanguageHost
         remove => _breakpointHit -= value;
     }
 
+    public virtual event BreakpointVerifiedHandler? BreakpointVerified
+    {
+        add => _breakpointVerified += value;
+        remove => _breakpointVerified -= value;
+    }
+
     // --- Memory dump ---
 
     public virtual Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default)
@@ -68,19 +74,14 @@ public abstract class LanguageHostBase : ILanguageHost
         return Task.FromResult<IMemoryDump>(null!); // unreachable
     }
 
-    // --- IntelliSense ---
-
-    public virtual IIntelliSenseService CreateIntelliSenseService()
-    {
-        EnsureCapability(LanguageHostCapabilities.IntelliSense);
-        return null!; // unreachable
-    }
-
     // --- Helpers for subclasses ---
 
     protected IReadOnlyList<IBreakpoint> ActiveBreakpoints => _breakpoints.AsReadOnly();
 
     protected void OnBreakpointHit(IBreakpointHitContext context) => _breakpointHit?.Invoke(context);
+
+    protected void OnBreakpointVerified(IBreakpoint breakpoint, bool verified, string? message)
+        => _breakpointVerified?.Invoke(breakpoint, verified, message);
 
     protected void EnsureCapability(LanguageHostCapabilities required)
     {

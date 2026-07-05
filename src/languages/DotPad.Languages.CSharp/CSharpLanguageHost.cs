@@ -1,12 +1,10 @@
 using System.Text;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 using DotPad.Languages.CSharp.Adapters;
 using DotPad.Languages.CSharp.Compiler;
 using DotPad.Languages.CSharp.Debug;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -34,15 +32,6 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         LanguageHostCapabilities.VariableInspection |
         LanguageHostCapabilities.MemoryDump |
         LanguageHostCapabilities.IntelliSense;
-
-    // BUG-9: этот метод никогда не вызывается — DI регистрирует IIntelliSenseService напрямую в App.axaml.cs.
-    // Следствие: RuntimeLibPath не попадает в Roslyn → .Dump() отсутствует в автодополнении.
-    public override IIntelliSenseService CreateIntelliSenseService()
-    {
-        var refs = new CSharpReferenceService();
-        var paths = refs.GetDefault().Append(_options.RuntimeLibPath).ToList();
-        return new CSharpIntelliSenseService(paths, _loggerFactory.CreateLogger<CSharpIntelliSenseService>());
-    }
 
     internal CSharpLanguageHost(CSharpLanguageHostOptions options, ILoggerFactory loggerFactory)
     {
@@ -161,7 +150,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 lineOffset,
                 _loggerFactory.CreateLogger<CSharpDapSession>(),
                 _options.BreakOnAllExceptions,
-                _options.BreakOnUncaughtExceptions);
+                _options.BreakOnUncaughtExceptions,
+                OnBreakpointVerified);
 
             _currentSession = session;
             try { await session.RunAsync(cts.Token); }
@@ -228,9 +218,9 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     // Statements: pass through unchanged (top-level statements, already the default).
     private string ApplyKindTransform(string code) => _options.Kind switch
     {
-        "Program"    => $"Main();\n{code}",
+        "Program" => $"Main();\n{code}",
         "Expression" => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        _            => code,
+        _ => code,
     };
 
     private const char RsPrefix = '\x1e';        // new format: RS + base64

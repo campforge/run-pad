@@ -35,6 +35,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
+    private readonly CSharpReferenceService _referenceService;
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -42,11 +43,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
+        CSharpReferenceService referenceService,
         IBrush? editorBackground)
     {
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
+        _referenceService = referenceService;
         _vm = vm;
         DataContext = _vm;
 
@@ -168,9 +171,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var workDir = EnsureWorkDirectory();
         var options = BuildRunOptions(platform, workDir);
         var script = s.Editor.Text;
+        // Matches the path DotnetProcessCompiler writes the source to and CSharpDapSession expects
+        // it at (OutputDirectory/{OutputName}.cs) — see ScriptBreakpoint below.
+        var sourceFilePath = Path.Combine(options.OutputDirectory, $"{options.OutputName}.cs");
         var breakpoints = s.Editor.Breakpoints
-            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(bp.Line, bp.Condition))
+            .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
             .ToList();
+
+        // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
+        // in the margin until the new session's setBreakpoints response arrives.
+        foreach (var bp in s.Editor.Breakpoints)
+            bp.VerificationState = DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Pending;
+        s.Editor.InvalidateBreakpoints();
 
         var cancelled = false;
         try
@@ -185,6 +197,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     foreach (var bp in breakpoints) host.AddBreakpoint(bp);
                     host.BreakpointHit += ctx =>
                         Dispatcher.UIThread.Post(() => OnBreakpointHit(ctx));
+                    host.BreakpointVerified += (bp, verified, message) =>
+                        Dispatcher.UIThread.Post(() => OnBreakpointVerified(bp, verified, message));
                     await host.RunDebugAsync(
                         script,
                         (data, kind) => Dispatcher.UIThread.Post(() => AppendOutput(data, kind)),
@@ -223,6 +237,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _prefs.Changed -= OnPreferencesChanged;
         Cancel();
         State.RunCts?.Dispose();
+        _intelliSense?.Dispose(); // owned by this tab now — see EditorTabsControl.CreateControl
         GC.SuppressFinalize(this);
     }
 
@@ -371,6 +386,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
+    // Maps the DAP-facing breakpoint (the ScriptBreakpoint passed to host.AddBreakpoint) back to the
+    // editor-side gutter breakpoint by line, so BreakPointMargin can color it red/green/yellow.
+    private void OnBreakpointVerified(Contracts.IBreakpoint bp, bool verified, string? message)
+    {
+        var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == bp.Line);
+        if (editorBp is null) return;
+
+        editorBp.VerificationState = verified
+            ? DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Verified
+            : DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Unverified;
+        editorBp.VerificationMessage = message;
+        State.Editor.InvalidateBreakpoints();
+    }
+
     private void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
@@ -407,7 +436,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var children = await context.GetChildrenAsync(v.VariablesReference);
                 return children.Select(c => CreateDebugLocal(c, context)).ToList();
             }
-            : null;
+        : null;
         return new DebugLocal(v.Name, v.Value, v.TypeName, v.HasChildren, loader);
     }
 
@@ -453,22 +482,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
 
-        editor.Snippets["for"]       = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
-        editor.Snippets["foreach"]   = "foreach (var item in ${0})\n{\n\t\n}";
-        editor.Snippets["while"]     = "while (${0})\n{\n\t\n}";
-        editor.Snippets["do"]        = "do\n{\n\t${0}\n} while ();";
-        editor.Snippets["if"]        = "if (${0})\n{\n\t\n}";
-        editor.Snippets["ife"]       = "if (${0})\n{\n\t\n}\nelse\n{\n\t\n}";
-        editor.Snippets["try"]       = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}";
-        editor.Snippets["tryf"]      = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}";
-        editor.Snippets["sw"]        = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}";
-        editor.Snippets["prop"]      = "public ${0} Property { get; set; }";
-        editor.Snippets["propg"]     = "public ${0} Property { get; private set; }";
-        editor.Snippets["class"]     = "class ${0}\n{\n\t\n}";
+        editor.Snippets["for"] = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
+        editor.Snippets["foreach"] = "foreach (var item in ${0})\n{\n\t\n}";
+        editor.Snippets["while"] = "while (${0})\n{\n\t\n}";
+        editor.Snippets["do"] = "do\n{\n\t${0}\n} while ();";
+        editor.Snippets["if"] = "if (${0})\n{\n\t\n}";
+        editor.Snippets["ife"] = "if (${0})\n{\n\t\n}\nelse\n{\n\t\n}";
+        editor.Snippets["try"] = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}";
+        editor.Snippets["tryf"] = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}";
+        editor.Snippets["sw"] = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}";
+        editor.Snippets["prop"] = "public ${0} Property { get; set; }";
+        editor.Snippets["propg"] = "public ${0} Property { get; private set; }";
+        editor.Snippets["class"] = "class ${0}\n{\n\t\n}";
         editor.Snippets["interface"] = "interface I${0}\n{\n\t\n}";
-        editor.Snippets["ctor"]      = "public ${0}()\n{\n\t\n}";
-        editor.Snippets["using"]     = "using (var resource = ${0})\n{\n\t\n}";
-        editor.Snippets["lock"]      = "lock (${0})\n{\n\t\n}";
+        editor.Snippets["ctor"] = "public ${0}()\n{\n\t\n}";
+        editor.Snippets["using"] = "using (var resource = ${0})\n{\n\t\n}";
+        editor.Snippets["lock"] = "lock (${0})\n{\n\t\n}";
 
         if (intelliSense is null) return;
 
@@ -578,15 +607,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.FrontMatter = rpad?.FrontMatter;
         editor.Document = new TextDocument(content);
 
-        if (rpad?.FrontMatter.Packages is { Count: > 0 } packages)
-            _intelliSense?.UpdatePackageReferences(packages);
+        if (rpad?.FrontMatter.Packages is { Count: > 0 })
+            RefreshIntelliSensePackages();
     }
+
+    /// <summary>
+    /// Pushes this tab's current NuGet packages into its own IntelliSense instance. Called on initial
+    /// load and again after the Dependencies window closes, since it mutates the same RpadFrontMatter
+    /// in place without any change notification of its own.
+    /// </summary>
+    internal void RefreshIntelliSensePackages()
+        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, string>());
 
     private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
     {
         "fsharp" => ".fs",
-        "vb"     => ".vb",
-        _        => ".cs",
+        "vb" => ".vb",
+        _ => ".cs",
     };
 
     private static string FormatElapsed(TimeSpan t) => t switch
@@ -616,8 +653,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
             },
             OutputDirectory = Path.Combine(workDir, Path.GetRandomFileName()),
-            // BUG-8: new CSharpReferenceService() создаётся при каждом запуске. Стоит кэшировать или инжектировать.
-            RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+            RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
             Kind = rpad?.FrontMatter.Kind ?? "Statements",
@@ -633,9 +669,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
     }
 
-    private sealed class ScriptBreakpoint(int line, string? condition) : Contracts.IBreakpoint
+    private sealed class ScriptBreakpoint(string fileName, int line, string? condition) : Contracts.IBreakpoint
     {
-        public string FileName { get; } = string.Empty;
+        public string FileName { get; } = fileName;
         public int Line { get; set; } = line;
         public string? Condition { get; } = condition;
     }

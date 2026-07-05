@@ -45,3 +45,7 @@ public interface IMemoryDump
 }
 
 public delegate void BreakpointHitHandler(IBreakpointHitContext context);
+
+// Reports the debugger's verified/message response for a breakpoint after setBreakpoints —
+// e.g. verified=false, message="No code at line 5".
+public delegate void BreakpointVerifiedHandler(IBreakpoint breakpoint, bool verified, string? message);

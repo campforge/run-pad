@@ -12,14 +12,14 @@ public static class Resources
     {
         var asmRefs = assemblyReferences.Select(r =>
             $"""
-                    <Reference Include="{Path.GetFileNameWithoutExtension(r)}">
-                        <HintPath>{r}</HintPath>
+                    <Reference Include="{SecurityElement.Escape(Path.GetFileNameWithoutExtension(r))}">
+                        <HintPath>{SecurityElement.Escape(r)}</HintPath>
                     </Reference>
             """);
 
         var projRefs = projectReferences.Select(r =>
             $"""
-                    <ProjectReference Include="{r}" />
+                    <ProjectReference Include="{SecurityElement.Escape(r)}" />
             """);
 
         var pkgRefs = nugetPackages.Select(kv =>

@@ -45,9 +45,9 @@ public sealed class PackageResultViewModel : ReactiveObject
     private static string FormatDownloads(long n) => n switch
     {
         >= 1_000_000_000 => $"{n / 1_000_000_000.0:F1}B",
-        >= 1_000_000     => $"{n / 1_000_000.0:F1}M",
-        >= 1_000         => $"{n / 1_000.0:F0}K",
-        _                => n.ToString("N0")
+        >= 1_000_000 => $"{n / 1_000_000.0:F1}M",
+        >= 1_000 => $"{n / 1_000.0:F0}K",
+        _ => n.ToString("N0")
     };
 }
 
@@ -213,6 +213,12 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // ── Front matter injection ────────────────────────────────────────────────
 
+    // All mutations below (AddPackage, RemoveScriptPackage, ExecuteAddUsing, RemoveUsingItem) write
+    // straight into this shared RpadFrontMatter instance, so the open editor tab sees them
+    // immediately in memory. There's still no explicit Save button or dirty-state indicator in this
+    // window, but MainWindowViewModel.DependenciesWindowClosed makes EditorTabsControl flush the
+    // active tab to disk as soon as this window closes, so changes no longer depend on the user
+    // hitting Run or closing the tab afterwards.
     public void SetFrontMatter(RpadFrontMatter? fm)
     {
         _frontMatter = fm;

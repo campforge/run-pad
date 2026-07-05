@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using AvaloniaEdit.Editing;
@@ -43,6 +44,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
 
         var bpBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
+        var verifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointVerifiedBrush");
+        var unverifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointUnverifiedBrush");
         var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
         var arrowBrush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
 
@@ -52,7 +55,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             var lineH = vl.Height;
             var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
                           - TextView.VerticalOffset;
-            var hasBp = _manager?.Any(bp => bp.Line == lineNo) ?? false;
+            var bpAtLine = _manager?.FirstOrDefault(bp => bp.Line == lineNo);
+            var hasBp = bpAtLine is not null;
             var isDebug = DebugLine == lineNo;
             var isHover = _previewPointVisible && _previewLine == lineNo;
 
@@ -63,7 +67,13 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             }
             else if (hasBp && _breakpointGeo is not null)
             {
-                DrawCentered(context, _breakpointGeo, bpBrush, yTop, lineH);
+                var stateBrush = bpAtLine!.VerificationState switch
+                {
+                    BreakpointVerificationState.Verified => verifiedBrush ?? bpBrush,
+                    BreakpointVerificationState.Unverified => unverifiedBrush ?? bpBrush,
+                    _ => bpBrush,
+                };
+                DrawCentered(context, _breakpointGeo, stateBrush, yTop, lineH);
             }
             else if (isHover && _breakpointGeo is not null)
             {
@@ -76,6 +86,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     {
         if (UpdatePreviewLine(e))
             InvalidateVisual();
+
+        UpdateVerificationTooltip(e);
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
@@ -83,6 +95,20 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         _previewLine = -1;
         _previewPointVisible = false;
         InvalidateVisual();
+        ToolTip.SetTip(this, null);
+    }
+
+    // Shows the debugger's rejection reason (e.g. "No code at line 5") while hovering an
+    // unverified breakpoint. Verified/pending breakpoints have nothing to add beyond the color.
+    private void UpdateVerificationTooltip(PointerEventArgs e)
+    {
+        var offset = _editor?.GetOffsetFromPoint(e.GetPosition(this)) ?? -1;
+        if (offset == -1) { ToolTip.SetTip(this, null); return; }
+
+        var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
+        var bp = _manager?.FirstOrDefault(b => b.Line == lineNumber);
+        ToolTip.SetTip(this,
+            bp?.VerificationState == BreakpointVerificationState.Unverified ? bp.VerificationMessage : null);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
