@@ -3,8 +3,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DotPad.Build.Core.Models;
 using Microsoft.CodeAnalysis;
-using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 using Microsoft.Extensions.Logging;
+using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 
 namespace DotPad.Languages.CSharp.Compiler;
 
@@ -70,6 +70,17 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         var tfm = _targetFrameworkOverride ?? ExecutionPlatform.TargetFrameworkMoniker;
         var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
         var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
+
+        // OutputDir is reused across runs of the same tab (see EditorTabState.OutputDirectory) so
+        // that MSBuild/NuGet's own incremental caches under obj/ survive between runs. If the
+        // .csproj we're about to write is byte-for-byte identical to what's already there — i.e.
+        // packages/references/target framework haven't changed since the last run in this
+        // directory — restore already ran for this exact input and can safely be skipped, cutting
+        // build time roughly in half for the common "just edited the code" case.
+        var canSkipRestore = File.Exists(Path.Combine(OutputDir, "obj", "project.assets.json"))
+            && File.Exists(_fileProjPath)
+            && await File.ReadAllTextAsync(_fileProjPath, cancellationToken) == projectFile;
+
         await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, cancellationToken);
 
         var binDirectory = Path.Join(OutputDir, BinDir);
@@ -78,7 +89,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         var startInfo = new ProcessStartInfo
         {
             FileName = ExecutionOptions.Runtime.RuntimePath,
-            Arguments = @$"build -o ""./{BinDir}"" -c Debug --nologo --no-dependencies --tl:off",
+            Arguments = @$"build -o ""./{BinDir}"" -c Debug --nologo --no-dependencies --tl:off{(canSkipRestore ? " --no-restore" : "")}",
             WorkingDirectory = OutputDir,
             CreateNoWindow = true,
             UseShellExecute = false,
@@ -133,11 +144,12 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     public override void Dispose()
     {
         if (_process == null) return;
-        if (!_process.HasExited)
+        try
         {
-            try { _process.Kill(true); }
-            catch (Exception) { }
+            if (!_process.HasExited)
+                _process.Kill(true);
         }
+        catch (Exception) { }
         _process?.Dispose();
     }
 

@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window, IDisposable
         DataContext = viewModel;
 
         InitializeComponent();
+        ApplyPlatformChrome();
 
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -87,6 +88,42 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         try { return KeyGesture.Parse(gesture).Matches(e); }
         catch { return false; }
+    }
+
+    // ── Per-platform window chrome (ANALYSIS.md feature #15) ──────────────────
+    //
+    // The XAML defaults (WindowDecorations="BorderOnly" + ExtendClientAreaToDecorationsHint) are a
+    // client-side-decoration request: the app draws its own titlebar row (icon, menu, custom
+    // wc-btn min/max/close) and asks the OS only for a border. Windows' DWM composites a border,
+    // shadow and rounded corners around that automatically — that's what this was designed against.
+    //
+    // On Linux there's no equivalent guarantee: KWin/GNOME hand back a bare rectangle with no
+    // border, shadow, or corner radius for a CSD request (confirmed on this KDE/KWin/Wayland
+    // session), and different compositors could behave differently still — there's no portable way
+    // to replicate a specific compositor's decoration from inside the app. Falling back to normal
+    // OS-drawn decorations is the documented cheaper fix: our custom title row keeps the app
+    // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
+    // wc-btn cluster is hidden.
+    //
+    // On macOS, native traffic-light buttons render over the extended client area in the top-left
+    // corner — the standard Avalonia-on-macOS pattern — so only the redundant wc-btn cluster needs
+    // hiding here. This branch is UNVERIFIED on real hardware (none available in this environment);
+    // the icon/menu StackPanel also sitting at top-left may visually collide with the traffic
+    // lights and need further adjustment once someone can test on an actual Mac.
+    private void ApplyPlatformChrome()
+    {
+        var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
+
+        if (OperatingSystem.IsLinux())
+        {
+            WindowDecorations = global::Avalonia.Controls.WindowDecorations.Full;
+            ExtendClientAreaToDecorationsHint = false;
+            if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
+        }
     }
 
     // ── Title bar window controls ─────────────────────────────────────────────

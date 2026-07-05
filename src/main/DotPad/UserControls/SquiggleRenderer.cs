@@ -12,6 +12,8 @@ internal sealed class SquiggleRenderer : IBackgroundRenderer
 
     public KnownLayer Layer => KnownLayer.Background;
 
+    public IReadOnlyList<IDiagnosticInfo> Diagnostics => _diagnostics;
+
     public void Update(IReadOnlyList<IDiagnosticInfo> diagnostics) => _diagnostics = diagnostics;
 
     public void Draw(TextView textView, DrawingContext dc)
@@ -32,9 +34,9 @@ internal sealed class SquiggleRenderer : IBackgroundRenderer
 
             var color = d.Severity switch
             {
-                DiagnosticSeverity.Error   => Color.FromRgb(0xF4, 0x4F, 0x4F),
+                DiagnosticSeverity.Error => Color.FromRgb(0xF4, 0x4F, 0x4F),
                 DiagnosticSeverity.Warning => Color.FromRgb(0xFF, 0x99, 0x00),
-                _                          => Color.FromRgb(0x4F, 0x9A, 0xF4),
+                _ => Color.FromRgb(0x4F, 0x9A, 0xF4),
             };
 
             var pen = new Pen(new SolidColorBrush(color), 1.5);

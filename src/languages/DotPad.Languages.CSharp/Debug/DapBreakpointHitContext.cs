@@ -16,11 +16,15 @@ internal sealed class DapBreakpointHitContext : IBreakpointHitContext
 
     internal Func<int, CancellationToken, Task<IReadOnlyList<IVariableInfo>>>? GetChildrenFunc { get; set; }
     internal Func<int, CancellationToken, Task>? RunToCursorFunc { get; set; }
+    internal Func<string, CancellationToken, Task<IVariableInfo?>>? EvaluateFunc { get; set; }
 
     public Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default)
         => GetChildrenFunc is { } f
             ? f(variablesReference, ct)
             : Task.FromResult<IReadOnlyList<IVariableInfo>>([]);
+
+    public Task<IVariableInfo?> EvaluateAsync(string expression, CancellationToken ct = default)
+        => EvaluateFunc is { } f ? f(expression, ct) : Task.FromResult<IVariableInfo?>(null);
 
     public async Task RunToCursorAsync(int line, CancellationToken ct = default)
     {

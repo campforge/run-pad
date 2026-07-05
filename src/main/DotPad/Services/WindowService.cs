@@ -26,6 +26,9 @@ public sealed class WindowService : IWindowService
     public Task ShowErrorAsync(string title, string message)
         => ShowDialogAsync(new ErrorDialog(title, message));
 
+    public Task ShowAboutAsync()
+        => ShowDialogAsync(new AboutWindow());
+
     private static Task ShowDialogAsync(Window dialog)
     {
         var owner = (Application.Current?.ApplicationLifetime
