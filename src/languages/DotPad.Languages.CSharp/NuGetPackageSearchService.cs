@@ -7,6 +7,8 @@ namespace DotPad.Languages.CSharp;
 
 public sealed class NuGetPackageSearchService : IPackageSearchService
 {
+
+    //TODO: Вынести это в настройки, или вообще имплементировать из глобальных настроек nuget
     private static readonly SourceRepository _repository =
         Repository.Factory.GetCoreV3("https://api.nuget.org/v3/index.json");
 
