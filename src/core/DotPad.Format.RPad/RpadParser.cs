@@ -34,6 +34,11 @@ public static class RpadParser
         try
         {
             fm = YamlDeserializer.Deserialize<RpadFrontMatter>(yamlText) ?? new RpadFrontMatter();
+            // YamlDotNet overwrites defaulted string properties with an explicit YAML null
+            // (e.g. "targetSdk:" with no value) — restore the default in that case. Language/Kind
+            // don't need this: YamlDotNet leaves non-nullable enum properties at their object
+            // initializer default when the YAML value is null/empty rather than nulling them out.
+            fm.TargetSdk ??= "net10.0";
             fm.Packages ??= [];
             fm.References ??= [];
             fm.Usings ??= [];
@@ -43,7 +48,7 @@ public static class RpadParser
             fm = new RpadFrontMatter();
         }
 
-        var openFence = $"```{fm.Language.ToLowerInvariant()} run";
+        var openFence = $"```{fm.Language.ToString().ToLowerInvariant()} run";
         var openIdx = FindLineStart(markdownBody, 0, openFence);
         if (openIdx < 0)
         {
