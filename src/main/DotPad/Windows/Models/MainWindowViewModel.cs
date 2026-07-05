@@ -211,14 +211,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Windows/macOS can select the file itself within its file manager; Linux has no
         // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
-        // containing folder instead (see ANALYSIS.md #26).
+        // containing folder instead (see ANALYSIS.md #26). The Windows branch keeps its original,
+        // already-working `/select,"path"` form (single Arguments string, not ArgumentList — that
+        // exact comma-then-quoted-path syntax is what explorer.exe expects) unverified changes to
+        // it aren't worth the risk since Windows isn't available to test in this environment.
         var startInfo = OperatingSystem.IsWindows()
-            ? new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{node.FilePath}\"" }
+            ? new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{node.FilePath}\"", UseShellExecute = true }
             : OperatingSystem.IsMacOS()
                 ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", node.FilePath } }
                 : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
 
-        startInfo.UseShellExecute = true;
         try { Process.Start(startInfo); }
         catch (Exception ex)
         {

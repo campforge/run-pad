@@ -24,6 +24,15 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public List<ExecutionPlatform> DotnetPlatforms { get; }
 
+    public List<string> Kinds  { get; } = new() { "Script", "Program", "Library" };
+
+    private string? _selectedKind;
+    public string? SelectedKind
+    {
+        get => _selectedKind;
+        set => this.RaiseAndSetIfChanged(ref _selectedKind, value);
+    }
+
     private ExecutionPlatform? _selectedDotnetPlatform;
     public ExecutionPlatform? SelectedDotnetPlatform
     {
