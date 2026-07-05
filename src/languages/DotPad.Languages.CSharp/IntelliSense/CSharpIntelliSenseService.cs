@@ -14,16 +14,15 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 
 public sealed class CSharpIntelliSenseService : IIntelliSenseService
 {
-    private static readonly string _preamble =
-        "using System;\n" +
-        "using System.Collections.Generic;\n" +
-        "using System.IO;\n" +
-        "using System.Linq;\n" +
-        "using System.Text;\n" +
-        "using System.Threading;\n" +
-        "using System.Threading.Tasks;\n\n";
-
-    private static readonly int _preambleLength = _preamble.Length;
+    // Default usings the synthetic script document is built with, so completion/diagnostics work
+    // without the user typing them. Extended at runtime with the .rpad front matter's own
+    // `usings:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler will
+    // actually add as `global using` — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
+    private static readonly string[] _basePreambleUsings =
+    [
+        "System", "System.Collections.Generic", "System.IO", "System.Linq",
+        "System.Text", "System.Threading", "System.Threading.Tasks",
+    ];
 
     private static readonly SymbolDisplayFormat _briefFormat =
         new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
@@ -62,12 +61,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly string _nugetRoot = ResolveNuGetRoot();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
+    private string[] _extraPreambleUsings = [];
+    private string _preamble = "";
+    private int _preambleLength;
     private string _lastCode = "";
     private CancellationTokenSource? _diagnosticsCts;
 
     public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
     {
         _logger = logger;
+        RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var refs = new List<MetadataReference>();
@@ -100,6 +103,31 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             loader: TextLoader.From(TextAndVersion.Create(
                 SourceText.From(_preamble, Encoding.UTF8),
                 VersionStamp.Create()))));
+    }
+
+    private void RebuildPreamble()
+    {
+        var sb = new StringBuilder();
+        foreach (var u in _basePreambleUsings) sb.Append("using ").Append(u).Append(";\n");
+        foreach (var u in _extraPreambleUsings) sb.Append("using ").Append(u).Append(";\n");
+        sb.Append('\n');
+        _preamble = sb.ToString();
+        _preambleLength = _preamble.Length;
+    }
+
+    // Call when the .rpad front matter's `usings:` list changes (including once at initial load)
+    // so completion/diagnostics/quick-fix ranking see the same global usings the compiler will add.
+    public void UpdateGlobalUsings(IReadOnlyList<string> usings)
+    {
+        var extra = usings
+            .Where(u => !_basePreambleUsings.Contains(u, StringComparer.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (extra.SequenceEqual(_extraPreambleUsings, StringComparer.Ordinal)) return;
+
+        _extraPreambleUsings = extra;
+        RebuildPreamble();
+        _lastCode = "";  // force re-sync with the new preamble on the next analysis pass
     }
 
     // ── Document sync ──────────────────────────────────────────────────────────

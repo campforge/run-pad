@@ -1,6 +1,7 @@
 using System.Composition;
 using System.Composition.Hosting;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using DotPad.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
@@ -24,10 +25,12 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 // synthetic document may insert a new `using` directive among the preamble's own — i.e. entirely
 // *before* the offset we'd naively slice at to recover "the user's code" — so it can't be
 // recovered by just cutting the new full text at the old preamble length. Text changes are instead
-// split into "touches the preamble" (relocated to the top of the user-visible code, since that's
-// where such an insertion is meant to be seen) and "touches the user's code" (shifted back by
-// -preambleLength and applied directly). Any preamble edit that isn't a pure insertion (replaces or
-// deletes preamble text) is treated as unsafe to reconstruct and the whole fix is discarded.
+// split into "touches the preamble" (a pure `using X;` insertion there is lifted out into
+// ICodeFixInfo.UsingsToAdd, per docs/ImplementationPlanRPad.md — usings are project-level metadata,
+// not text in the visible script) and "touches the user's code" (shifted back by -preambleLength and
+// applied directly to produce NewCode). Any preamble edit that isn't a recognizable pure `using`
+// insertion (replaces/deletes preamble text, or something else entirely) is treated as unsafe to
+// reconstruct and the whole fix is discarded.
 internal sealed class RoslynCodeFixEngine
 {
     private readonly IReadOnlyList<CodeFixProvider> _providers;
@@ -98,9 +101,11 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
-                var newCode = await TryMaterializeAsync(leaf, document, preambleLength, ct);
-                if (newCode is null || newCode == userCode) continue;
-                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode));
+                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, ct);
+                if (materialized is null) continue;
+                var (newCode, usingsToAdd) = materialized.Value;
+                if (newCode == userCode && usingsToAdd.Count == 0) continue;
+                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd));
             }
         }
     }
@@ -110,7 +115,7 @@ internal sealed class RoslynCodeFixEngine
     private static IEnumerable<CodeAction> Flatten(CodeAction action) =>
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
-    private static async Task<string?> TryMaterializeAsync(
+    private static async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
         CodeAction action, Document originalDocument, int preambleLength, CancellationToken ct)
     {
         try
@@ -128,12 +133,15 @@ internal sealed class RoslynCodeFixEngine
         catch { return null; }
     }
 
-    // Reconstructs the new user-visible code from a set of TextChanges expressed against the
-    // synthetic `_preamble + code` document. See the class doc comment for why this can't be a
-    // plain substring cut.
-    private static string? ApplyRelocatingPreambleEdits(List<TextChange> changes, SourceText originalFullText, int preambleLength)
+    private static readonly Regex _usingInsertionRegex = new(@"^\s*using\s+([\w.]+)\s*;\s*$", RegexOptions.Compiled);
+
+    // Splits a set of TextChanges expressed against the synthetic `_preamble + code` document into
+    // "usings to add" (lifted out of the preamble) and "the rest" (shifted back onto the user's
+    // code). See the class doc comment for why this can't be a plain substring cut.
+    private static (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
+        List<TextChange> changes, SourceText originalFullText, int preambleLength)
     {
-        var preambleInsertions = new List<string>();
+        var usingsToAdd = new List<string>();
         var userCodeChanges = new List<TextChange>();
 
         foreach (var change in changes.OrderBy(c => c.Span.Start))
@@ -145,21 +153,20 @@ internal sealed class RoslynCodeFixEngine
                 continue;
             }
 
-            // Touches the hidden preamble. Only a pure insertion right there is recoverable —
-            // anything that replaces/removes existing preamble text, or straddles into the user's
-            // code, can't be represented without risking corruption, so bail out entirely.
+            // Touches the hidden preamble. Only a pure `using X;` insertion right there is
+            // recoverable — anything else (replaces/removes existing preamble text, straddles into
+            // the user's code, or inserts something that isn't a plain using directive) can't be
+            // represented without risking corruption, so bail out entirely.
             if (change.Span.Length > 0 || change.Span.End > preambleLength)
                 return null;
 
-            preambleInsertions.Add(change.NewText ?? "");
+            var match = _usingInsertionRegex.Match(change.NewText ?? "");
+            if (!match.Success) return null;
+            usingsToAdd.Add(match.Groups[1].Value);
         }
 
         var userText = originalFullText.GetSubText(new TextSpan(preambleLength, originalFullText.Length - preambleLength));
-        var newUserText = userText.WithChanges(userCodeChanges).ToString();
-
-        return preambleInsertions.Count == 0
-            ? newUserText
-            : string.Concat(preambleInsertions) + newUserText;
+        return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
     }
 
     private static int GetLineNumber(string code, int offset)
@@ -171,5 +178,5 @@ internal sealed class RoslynCodeFixEngine
         return line;
     }
 
-    private sealed record RoslynCodeFix(int Line, string Title, string NewCode) : ICodeFixInfo;
+    private sealed record RoslynCodeFix(int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd) : ICodeFixInfo;
 }

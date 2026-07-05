@@ -22,6 +22,11 @@ public class CodeFixMargin : AbstractMargin
     private IReadOnlyList<CodeFixEntry> _fixes = [];
     private StreamGeometry? _bulbGeo;
 
+    // Raised when an applied fix carries namespaces to import — this control has no notion of a
+    // "project file"/front matter to route them to (see CodeFixEntry's doc comment), so it's left
+    // to whoever owns that (forwarded up via CodeTextEditor.UsingsToAddRequested).
+    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+
     public CodeFixMargin(CodeTextEditor editor)
     {
         _editor = editor;
@@ -84,7 +89,13 @@ public class CodeFixMargin : AbstractMargin
         e.Handled = true;
     }
 
-    private void Apply(CodeFixEntry fix) => _editor.Document.Text = fix.NewCode;
+    private void Apply(CodeFixEntry fix)
+    {
+        if (_editor.Document.Text != fix.NewCode)
+            _editor.Document.Text = fix.NewCode;
+        if (fix.UsingsToAdd.Count > 0)
+            UsingsToAddRequested?.Invoke(fix.UsingsToAdd);
+    }
 
     protected override Size MeasureOverride(Size availableSize)
         => TextView != null ? new Size(TextView.DefaultLineHeight * 0.8, 0) : new Size(0, 0);
