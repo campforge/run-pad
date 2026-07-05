@@ -15,14 +15,12 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 public sealed class CSharpIntelliSenseService : IIntelliSenseService
 {
     // Default usings the synthetic script document is built with, so completion/diagnostics work
-    // without the user typing them. Extended at runtime with the .rpad front matter's own
-    // `usings:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler will
-    // actually add as `global using` — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
-    private static readonly string[] _basePreambleUsings =
-    [
-        "System", "System.Collections.Generic", "System.IO", "System.Linq",
-        "System.Text", "System.Threading", "System.Threading.Tasks",
-    ];
+    // without the user typing them — must match the compiler's own implicit usings exactly (see
+    // ImplicitUsings.Default / ANALYSIS.md #27), otherwise IntelliSense shows no error for something
+    // that won't actually compile. Extended at runtime with the .rpad front matter's own `usings:`
+    // list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler will actually add
+    // as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
+    private static readonly string[] _basePreambleUsings = ImplicitUsings.Default;
 
     private static readonly SymbolDisplayFormat _briefFormat =
         new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
