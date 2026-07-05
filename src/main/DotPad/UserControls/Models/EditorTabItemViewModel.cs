@@ -22,11 +22,12 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
+    // ToDo: переимнеовать в Current SDK 
     public List<ExecutionPlatform> DotnetPlatforms { get; }
 
-    public List<string> Kinds  { get; } = new() { "Script", "Program", "Library" };
+    public List<string> Kinds  { get; } = new() { "Statements", "Program", ".." };
 
-    private string? _selectedKind;
+    private string? _selectedKind = "Statements";
     public string? SelectedKind
     {
         get => _selectedKind;

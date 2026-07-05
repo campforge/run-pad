@@ -1,5 +1,6 @@
 namespace DotPad.Contracts.Models;
 
+// ToDo: Переимновать Using SDK 
 public class ExecutionPlatform
 {
     public string Name { get; }
