@@ -1,14 +1,24 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
+// Combined line-number + breakpoint gutter: a single wide column with one click handler for both,
+// instead of AvaloniaEdit's built-in LineNumberMargin sitting as a separate narrow column next to
+// ours. Two adjacent narrow columns made it easy to miss the breakpoint column when clicking
+// (see BUG-B in ANALYSIS.md) — CodeTextEditor now keeps ShowLineNumbers off and relies on this
+// margin to render the number itself, hidden behind the breakpoint/debug-arrow icon on lines that
+// have one.
 public class BreakPointMargin : AbstractMargin, IDisposable
 {
+    private const double HorizontalPadding = 6.0;
+
     static BreakPointMargin()
     {
         FocusableProperty.OverrideDefaultValue(typeof(BreakPointMargin), false);
@@ -19,12 +29,18 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     private int _previewLine = -1;
     private bool _previewPointVisible;
+    private bool _measureInvalidationPending;
 
     // Loaded once from app resources; geometries are immutable
     private StreamGeometry? _breakpointGeo;
     private StreamGeometry? _debugArrowGeo;
 
     public int? DebugLine { get; set; }
+
+    // Backs CodeTextEditor.ShowLineNumberText — separate from the base TextEditor.ShowLineNumbers
+    // property, which this margin permanently keeps off (see CodeTextEditor ctor) to avoid
+    // AvaloniaEdit reinserting its own separate LineNumberMargin column.
+    public bool ShowLineNumbers { get; set; } = true;
 
     public BreakPointMargin(CodeTextEditor editor, IBreakpointStore manager)
     {
@@ -38,6 +54,19 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     {
         if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0) return;
 
+        // The column widens as the document gains digits (e.g. 9 → 10, 99 → 100 lines). Cheaper to
+        // just compare against the desired width on every render than to wire up a document
+        // line-count-changed subscription for what's a rare, one-pixel-relevant event.
+        // InvalidateMeasure() must NOT be called synchronously here — Avalonia throws
+        // "Visual was invalidated during the render pass" if a render callback invalidates layout
+        // for itself mid-pass. Deferring via Dispatcher.Post re-measures right after this pass ends.
+        var desiredWidth = GetDesiredWidth();
+        if (Math.Abs(desiredWidth - Bounds.Width) > 0.5 && !_measureInvalidationPending)
+        {
+            _measureInvalidationPending = true;
+            Dispatcher.UIThread.Post(() => { _measureInvalidationPending = false; InvalidateMeasure(); });
+        }
+
         context.FillRectangle(_editor?.Background ?? Brushes.Honeydew, Bounds);
 
         _breakpointGeo ??= LoadResource<StreamGeometry>("Icon.Breakpoint");
@@ -48,6 +77,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var unverifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointUnverifiedBrush");
         var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
         var arrowBrush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
+        var lineNumberBrush = LoadThemedResource<IBrush>("DotPad.Margin.LineNumberBrush");
 
         foreach (var vl in TextView.VisualLines)
         {
@@ -78,6 +108,10 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             else if (isHover && _breakpointGeo is not null)
             {
                 DrawCentered(context, _breakpointGeo, previewBrush, yTop, lineH);
+            }
+            else if (ShowLineNumbers)
+            {
+                DrawLineNumber(context, lineNo, lineNumberBrush, yTop, lineH);
             }
         }
     }
@@ -145,7 +179,36 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     }
 
     protected override Size MeasureOverride(Size availableSize)
-        => TextView != null ? new Size(TextView.DefaultLineHeight, 0) : new Size(0, 0);
+        => new(GetDesiredWidth(), 0);
+
+    private double GetDesiredWidth()
+    {
+        if (TextView is null) return 0;
+        if (!ShowLineNumbers) return TextView.DefaultLineHeight;
+        return Math.Max(TextView.DefaultLineHeight, MeasureMaxLineNumberWidth() + HorizontalPadding * 2);
+    }
+
+    private double MeasureMaxLineNumberWidth()
+    {
+        if (_editor is null || TextView?.Document is null) return 0;
+        var digits = Math.Max(2, TextView.Document.LineCount.ToString(CultureInfo.InvariantCulture).Length);
+        var probe = new string('8', digits);
+        var typeface = new Typeface(_editor.FontFamily);
+        var text = new FormattedText(probe, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            typeface, _editor.FontSize, Brushes.Black);
+        return text.Width;
+    }
+
+    private void DrawLineNumber(DrawingContext ctx, int lineNo, IBrush? brush, double yTop, double lineH)
+    {
+        if (_editor is null || brush is null) return;
+        var typeface = new Typeface(_editor.FontFamily);
+        var text = new FormattedText(lineNo.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight, typeface, _editor.FontSize, brush);
+        var x = Bounds.Width - text.Width - HorizontalPadding;
+        var y = yTop + (lineH - text.Height) / 2;
+        ctx.DrawText(text, new Point(x, y));
+    }
 
     public void Dispose()
     {

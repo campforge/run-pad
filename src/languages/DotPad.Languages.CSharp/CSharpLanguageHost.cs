@@ -54,18 +54,32 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         SyntaxTree syntaxTree = BuildSyntaxTree(code);
 
-        using DotnetProcessCompiler compiler = new(
-            _options.Platform,
-            _options.ExecutionOptions,
-            _options.OutputDirectory,
-            _options.RuntimeLibPath,
-            _options.OutputName,
-            _options.NugetPackages,
-            _options.GlobalUsings,
-            _options.AssemblyReferences,
-            _options.ProjectReferences,
-            _options.TargetFrameworkOverride,
-            _loggerFactory.CreateLogger<DotnetProcessCompiler>());
+        // Fast path: no NuGet packages and no project references means nothing needs MSBuild's own
+        // restore/reference-resolution — compile in-process and skip the dotnet-build subprocess
+        // entirely (see ANALYSIS.md feature #16). Anything else falls back to the process compiler,
+        // which already handles the full range of packages/references/target frameworks.
+        using ProcessCompilerBase compiler = _options.NugetPackages.Count == 0 && _options.ProjectReferences.Count == 0
+            ? new CodeAnalysisProcessCompiler(
+                _options.Platform,
+                _options.ExecutionOptions,
+                _options.OutputDirectory,
+                _options.RuntimeLibPath,
+                _options.OutputName,
+                _options.GlobalUsings,
+                _options.AssemblyReferences,
+                _options.TargetFrameworkOverride)
+            : new DotnetProcessCompiler(
+                _options.Platform,
+                _options.ExecutionOptions,
+                _options.OutputDirectory,
+                _options.RuntimeLibPath,
+                _options.OutputName,
+                _options.NugetPackages,
+                _options.GlobalUsings,
+                _options.AssemblyReferences,
+                _options.ProjectReferences,
+                _options.TargetFrameworkOverride,
+                _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
         ProcessCompilerResult raw = await compiler.Compilation(syntaxTree, ct);
         CSharpCompilationResult result = new(raw);
@@ -151,7 +165,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 _loggerFactory.CreateLogger<CSharpDapSession>(),
                 _options.BreakOnAllExceptions,
                 _options.BreakOnUncaughtExceptions,
-                OnBreakpointVerified);
+                OnBreakpointVerified,
+                _options.JustMyCode);
 
             _currentSession = session;
             try { await session.RunAsync(cts.Token); }
@@ -172,6 +187,23 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         EnsureCapability(LanguageHostCapabilities.Debug);
         if (_currentSession is { } s)
             await s.PauseAsync(cancellationToken);
+    }
+
+    // Forward gutter breakpoint edits made during an active debug session to the DAP session, so
+    // netcoredbg's own breakpoint set doesn't go stale relative to what's shown in the editor.
+    // The resend itself only happens the next time execution naturally stops (see
+    // CSharpDapSession.RequestBreakpointResync) — sending "setBreakpoints" while the debuggee is
+    // running would race the session's single message-read loop.
+    public override void AddBreakpoint(IBreakpoint breakpoint)
+    {
+        base.AddBreakpoint(breakpoint);
+        _currentSession?.RequestBreakpointResync();
+    }
+
+    public override void RemoveBreakpoint(IBreakpoint breakpoint)
+    {
+        base.RemoveBreakpoint(breakpoint);
+        _currentSession?.RequestBreakpointResync();
     }
 
     private void HandleBreakpointHit(IBreakpointHitContext context)

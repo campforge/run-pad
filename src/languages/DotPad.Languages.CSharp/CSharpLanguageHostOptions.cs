@@ -14,6 +14,7 @@ public sealed class CSharpLanguageHostOptions : ILanguageHostOptions
 
     public bool BreakOnAllExceptions { get; init; }
     public bool BreakOnUncaughtExceptions { get; init; } = true;
+    public bool JustMyCode { get; init; }
 
     // RPad front-matter overrides (null/empty = use defaults)
     public string Kind { get; init; } = "Statements";

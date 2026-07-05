@@ -6,6 +6,7 @@ public interface IPreferencesService
     EditorSettings Editor { get; }
     DebuggerSettings Debugger { get; }
     KeyboardSettings Keyboard { get; }
+    LayoutSettings Layout { get; }
 
     void Save();
 

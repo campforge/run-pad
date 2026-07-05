@@ -33,6 +33,15 @@ public class App : Application
     {
         _serviceProvider = ConfigureServices();
 
+        ILogger logger = _serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<App>();
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            logger.LogError(e.Exception, "Unobserved task exception");
+            e.SetObserved();
+        };
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = _serviceProvider.GetRequiredService<MainWindow>();
