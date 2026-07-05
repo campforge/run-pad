@@ -92,6 +92,9 @@ public class CodeTextEditor : TextEditor
     /// <summary>Updates the lightbulb quick-fix gutter (e.g. after a diagnostics pass finds a missing using).</summary>
     public void UpdateCodeFixes(IReadOnlyList<CodeFixEntry> fixes) => _codeFixMargin.Update(fixes);
 
+    /// <summary>Fired when an applied quick fix wants namespaces imported (see CodeFixEntry.UsingsToAdd).</summary>
+    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+
     /// <summary>
     /// Whether the merged gutter shows line numbers (not the base <see cref="TextEditor.ShowLineNumbers"/>,
     /// which this control keeps permanently off — see the ctor comment on that assignment).
@@ -161,6 +164,7 @@ public class CodeTextEditor : TextEditor
 
         _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
         _codeFixMargin = new CodeFixMargin(this);
+        _codeFixMargin.UsingsToAddRequested += usings => UsingsToAddRequested?.Invoke(usings);
         TextArea.LeftMargins.Add(_codeFixMargin);
         _debugLineHighlighter = new DebugLineHighlighter();
 

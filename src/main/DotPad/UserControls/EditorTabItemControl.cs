@@ -640,14 +640,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 editor.TextArea.TextView.Redraw();
             });
 
-        // ── Code fixes (lightbulb: "add using") ────────────────────────────────
+        // ── Code fixes (lightbulb: real Roslyn CodeFixProviders) ────────────────
         intelliSense.CodeFixesChanged += (code, fixes) =>
             Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                editor.UpdateCodeFixes(fixes.Select(f => new CodeFixEntry(f.Line, f.Title, f.NewCode)).ToList());
+
+                // Usings go to the .rpad front matter's `usings:` list (a project file, per
+                // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
+                // script with no front matter to route them to, where they're folded into the text.
+                var hasProjectFile = State.RpadDocument is not null;
+                var entries = fixes.Select(f => hasProjectFile
+                    ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
+                    : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
+                    .ToList();
+                editor.UpdateCodeFixes(entries);
             });
+
+        editor.UsingsToAddRequested += AddGlobalUsings;
 
         editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
 
@@ -721,6 +732,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
+        if (rpad?.FrontMatter.Usings is { Count: > 0 })
+            RefreshIntelliSenseUsings();
     }
 
     /// <summary>
@@ -730,6 +743,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// </summary>
     internal void RefreshIntelliSensePackages()
         => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, string>());
+
+    /// <summary>Pushes this tab's front-matter `usings:` list into its own IntelliSense instance.</summary>
+    private void RefreshIntelliSenseUsings()
+        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Usings ?? []);
+
+    // Adds namespaces to the .rpad front matter's `usings:` list (compiled in as `global using` —
+    // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
+    // persists + re-syncs IntelliSense immediately so the fix's effect (squiggle gone) is visible
+    // right away rather than waiting for the next save/run.
+    private void AddGlobalUsings(IReadOnlyList<string> usings)
+    {
+        var rpad = State.RpadDocument;
+        if (rpad is null) return;
+
+        var fmUsings = rpad.FrontMatter.Usings ??= [];
+        var added = false;
+        foreach (var ns in usings)
+            if (!fmUsings.Contains(ns)) { fmUsings.Add(ns); added = true; }
+        if (!added) return;
+
+        RefreshIntelliSenseUsings();
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        SaveIfNeeded();
+    }
+
+    private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
+        usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
 
     private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
     {
