@@ -1,14 +1,13 @@
 namespace DotPad.Contracts.Models;
 
-// ToDo: Переимновать Using SDK 
-public class ExecutionPlatform
+public class DotnetSdk
 {
     public string Name { get; }
     public string TargetFrameworkMoniker { get; }
     public string Description { get; }
     public string RuntimeConfigVersion { get; }
 
-    public ExecutionPlatform(string name, string targetFrameworkMoniker, string runtimeConfigVersion, string description)
+    public DotnetSdk(string name, string targetFrameworkMoniker, string runtimeConfigVersion, string description)
     {
         Name = name;
         TargetFrameworkMoniker = targetFrameworkMoniker;

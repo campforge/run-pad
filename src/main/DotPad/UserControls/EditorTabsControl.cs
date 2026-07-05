@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
-using DotPad.Assets.Models;
+using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
@@ -146,7 +146,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
         if (vm.EnableRunButton)
         {
-            var platform = vm.SelectedDotnetPlatform ?? vm.DotnetPlatforms.FirstOrDefault();
+            var platform = vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault();
             if (platform is not null)
                 _ = ctrl.RunAsync(vm.DebugModeEnabled, platform);
         }

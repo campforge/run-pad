@@ -109,7 +109,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null)
             blankToClose = Tabs[0];
 
-        var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms, _prefs);
+        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs);
         _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
 
         if (filePath is not null) _openTabs[filePath] = vm;
@@ -231,7 +231,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // ── File tree ─────────────────────────────────────────────────────────────
 
     public ObservableCollection<Node> Nodes { get; }
-    public List<ExecutionPlatform> DotnetPlatforms { get; }
+    public List<DotnetSdk> AvailableSdks { get; }
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
@@ -248,7 +248,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
-        DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
+        AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed ? new GridLength(0) : new GridLength(_prefs.Layout.SidebarWidth);
         _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;

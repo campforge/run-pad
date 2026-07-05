@@ -37,7 +37,7 @@
 ---
 version: 1
 language: csharp
-targetFramework: net9.0
+targetSdk: net9.0
 kind: Statements
 ---
 
@@ -101,14 +101,14 @@ language: csharp
 
 ---
 
-## targetFramework
+## targetSdk
 
 Целевая версия .NET.
 
 Тип:
 
 ```yaml
-targetFramework: net9.0
+targetSdk: net9.0
 ```
 
 Обязательный параметр.
@@ -116,12 +116,15 @@ targetFramework: net9.0
 Примеры:
 
 ```yaml
-targetFramework: net8.0
+targetSdk: net8.0
 ```
 
 ```yaml
-targetFramework: net9.0
+targetSdk: net9.0
 ```
+
+> Ключ был переименован из `targetFramework` в `targetSdk` (2026-07-06). Файлы, созданные до этой
+> даты, нужно поправить вручную — автоматической миграции нет.
 
 ---
 
@@ -322,7 +325,7 @@ Console.WriteLine("Hello");
 ---
 version: 1
 language: csharp
-targetFramework: net9.0
+targetSdk: net9.0
 kind: Statements
 
 packages:

@@ -9,8 +9,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
-using DotPad.Assets.Models;
 using DotPad.Avalonia.CodeTextEditor;
+using DotPad.Avalonia.Themes;
 using DotPad.Build.Core.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -21,6 +21,7 @@ using DotPad.Resources;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
+using ReactiveUI;
 
 namespace DotPad.UserControls;
 
@@ -36,6 +37,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
+    private IDisposable? _selectedKindSub;
     private bool _disposed;
 
     internal EditorsTabItemControl(
@@ -75,6 +77,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.BreakpointAdded += OnGutterBreakpointAdded;
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
+        _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
+
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
         // is not yet in the visual tree (no visual lines exist yet).
@@ -87,7 +91,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         onAttached = (s, _) =>
         {
             editor.AttachedToVisualTree -= onAttached;
-            var langExt = LangToExtension(State.RpadDocument?.FrontMatter.Language);
+            var langExt = LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
             editor.SetLanguage(themeName, langExt);
             ApplySelectionColor(editor);
         };
@@ -182,7 +186,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.RunCts?.Cancel();
     }
 
-    internal async Task RunAsync(bool debug, ExecutionPlatform platform)
+    internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
         // ToDo: сделать отдельный проект rpad ранннер, который будет запускать код с консоли без отладки
         var s = State;
@@ -282,6 +286,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
+        _selectedKindSub?.Dispose();
         Cancel();
         State.RunCts?.Dispose();
         _intelliSense?.Dispose(); // owned by this tab now — see EditorTabsControl.CreateControl
@@ -292,7 +297,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async void RunButton_Click(object? sender, RoutedEventArgs e)
     {
-        var platform = _vm.SelectedDotnetPlatform ?? _vm.DotnetPlatforms.FirstOrDefault();
+        var platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault();
         if (platform is null) return;
         await RunAsync(_vm.DebugModeEnabled, platform);
     }
@@ -731,6 +736,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         State.RpadDocument = rpad;
         _vm.FrontMatter = rpad?.FrontMatter;
+        _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
         editor.Document = new TextDocument(content);
 
         // Shows which kind/target framework the script actually runs as (ANALYSIS.md #29) — helps
@@ -776,6 +782,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         SaveIfNeeded();
     }
 
+    // FrontMatter.Kind is the source of truth (like usings/packages/references above) — SelectedKind
+    // is just the combobox's mirror of it. Guards against writing on the initial sync in
+    // SetDocumentContent (which sets SelectedKind from the same value already on FrontMatter.Kind)
+    // and only reacts to genuine user-driven changes. See ANALYSIS.md #35.
+    private void OnSelectedKindChanged(string? kind)
+    {
+        var rpad = State.RpadDocument;
+        if (rpad is null || kind is null) return;
+        if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
+
+        rpad.FrontMatter.Kind = parsedKind;
+        SaveIfNeeded();
+    }
+
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
 
@@ -800,7 +820,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return dir;
     }
 
-    private CSharpLanguageHostOptions BuildRunOptions(ExecutionPlatform platform, string workDir)
+    private CSharpLanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
     {
         var rpad = State.RpadDocument;
 
@@ -822,8 +842,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             BreakOnAllExceptions = _vm.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
             JustMyCode = _vm.JustMyCode,
-            Kind = rpad?.FrontMatter.Kind ?? "Statements",
-            TargetFrameworkOverride = rpad?.FrontMatter.TargetFramework,
+            Kind = rpad?.FrontMatter.Kind.ToString() ?? "Statements",
+            TargetFrameworkOverride = rpad?.FrontMatter.TargetSdk,
             NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
             GlobalUsings = rpad?.FrontMatter.Usings ?? [],
             AssemblyReferences = rpad?.FrontMatter.References?

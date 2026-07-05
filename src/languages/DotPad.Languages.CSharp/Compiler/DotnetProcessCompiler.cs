@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using DotPad.Build.Core.Models;
+using DotPad.Contracts.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 
 namespace DotPad.Languages.CSharp.Compiler;
 
@@ -29,7 +29,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private Process? _process;
 
     public DotnetProcessCompiler(
-        ExecutionPlatform executionPlatform,
+        DotnetSdk sdk,
         ExecutionOptions executionOptions,
         string outputDir,
         string dotPadRuntimeLib,
@@ -40,7 +40,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         IReadOnlyList<string> projectReferences,
         string? targetFrameworkOverride,
         ILogger<DotnetProcessCompiler> logger)
-        : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
+        : base(sdk, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
         _nugetPackages = nugetPackages;
         _usings = globalUsings;
@@ -65,7 +65,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
 
         await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, cancellationToken);
 
-        var tfm = _targetFrameworkOverride ?? ExecutionPlatform.TargetFrameworkMoniker;
+        var tfm = _targetFrameworkOverride ?? Sdk.TargetFrameworkMoniker;
         var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
         var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
 

@@ -3,7 +3,6 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using DotPad.Assets.Models;
 using DotPad.Avalonia.Themes;
 using DotPad.Services.Preferences;
 using TextMateSharp.Grammars;

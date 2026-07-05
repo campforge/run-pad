@@ -1,4 +1,3 @@
-namespace DotPad.Assets.Models;
+namespace DotPad.Avalonia.Themes;
 
-// ToDo: перенести в DotPad.Avalonia.Themes
 public sealed record ActiveTheme(InterfaceTheme Interface, EditorTheme Editor);

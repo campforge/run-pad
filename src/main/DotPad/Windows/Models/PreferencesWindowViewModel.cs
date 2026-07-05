@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
-using DotPad.Assets.Models;
+using DotPad.Avalonia.Themes;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
