@@ -84,7 +84,16 @@
                             <Separator/>
                             <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>
+                        <MenuItem Header="Help">
+                            <MenuItem Header="_About DotPad" Command="{Binding OpenAboutCommand}"/>
+                        </MenuItem>
                     </Menu>
+
+                    <Button Classes="wc-btn" Width="30"
+                            Command="{Binding ToggleSidebarCommand}"
+                            ToolTip.Tip="Toggle file tree">
+                        <PathIcon Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
+                    </Button>
 
                 </StackPanel>
 
@@ -92,7 +101,8 @@
                 <Border Grid.Column="1" Background="Transparent"/>
 
                 <!-- Right: window control buttons -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch"
+                <StackPanel x:Name="WindowControlButtons"
+                            Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch"
                             chrome:WindowDecorationProperties.ElementRole="User">
 
                     <Button Classes="wc-btn" Click="Minimize_Click">
@@ -121,10 +131,16 @@
         </Border>
 
         <!-- ── Body ──────────────────────────────────────────────────────── -->
-        <Grid Grid.Row="1" ColumnDefinitions="300,*">
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{Binding SidebarColumnWidth, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
             <Grid Grid.Column="0" RowDefinitions="Auto,*"
+                  ClipToBounds="True"
                   Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
 
                 <TextBlock Grid.Row="0"
@@ -232,8 +248,12 @@
                 </TreeView>
             </Grid>
 
+            <GridSplitter Grid.Column="1" Width="5"
+                          Background="Transparent"
+                          ResizeDirection="Columns"/>
+
             <!-- ── Editor area ───────────────────────────────────────────── -->
-            <ContentControl x:Name="EditorTabsHost" Grid.Column="1"/>
+            <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>
 
         </Grid>
     </Grid>

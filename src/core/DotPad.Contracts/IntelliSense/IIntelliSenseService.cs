@@ -25,6 +25,9 @@ public interface IIntelliSenseService : IDisposable
     // Fires from a background thread. First arg = the code that produced the tokens.
     event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
 
+    // Fires from a background thread. First arg = the code the fixes were computed against.
+    event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
+
     void NotifyTextChanged(string code);
 
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.

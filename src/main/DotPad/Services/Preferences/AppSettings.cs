@@ -6,4 +6,5 @@ public sealed class AppSettings
     public EditorSettings Editor { get; set; } = new();
     public DebuggerSettings Debugger { get; set; } = new();
     public KeyboardSettings Keyboard { get; set; } = new();
+    public LayoutSettings Layout { get; set; } = new();
 }

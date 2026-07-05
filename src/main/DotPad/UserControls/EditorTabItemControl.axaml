@@ -100,7 +100,14 @@
 
     </UserControl.Styles>
 
-    <Grid RowDefinitions="46,*,5,220,22">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="46"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="5"/>
+            <RowDefinition Height="{Binding OutputPanelHeight, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
+            <RowDefinition Height="22"/>
+        </Grid.RowDefinitions>
 
         <!-- Row 0: Toolbar -->
         <Border Grid.Row="0"
@@ -117,9 +124,9 @@
                     <templatedControls:IconButton
                         IconData="{StaticResource Icon.Play}"
                         Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
-                        IsEnabled="{Binding EnableRunButton}"
-                        Click="RunButton_Click"
-                        ToolTip.Tip="{Binding TooltipRun}"/>
+                        IsEnabled="{Binding EnableRunOrContinueButton}"
+                        Click="RunOrContinueButton_Click"
+                        ToolTip.Tip="{Binding TooltipRunOrContinue}"/>
                     <templatedControls:IconButton
                         IconData="{StaticResource Icon.Stop}"
                         Foreground="{DynamicResource DotPad.Icon.StopBrush}"
@@ -148,6 +155,58 @@
                         ToolTip.Tip="Toggle debug mode">
                         <PathIcon Data="{StaticResource Icon.Bug}" Width="16" Height="16"/>
                     </ToggleButton>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.PanelBottom}"
+                        Command="{Binding ToggleOutputPanelCommand}"
+                        ToolTip.Tip="Toggle output panel"
+                        Width="28" Height="24"/>
+
+                    <!-- Debug-only controls: shown, not merely enabled, only while debugging
+                         (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with
+                         inactive step/pause icons. -->
+                    <Border Width="1" Height="16"
+                            Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                            Margin="4,0"
+                            IsVisible="{Binding IsDebugging}"/>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.DebugStepOver}"
+                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        IsEnabled="{Binding IsPaused}"
+                        IsVisible="{Binding IsDebugging}"
+                        Click="DbgStepOver_Click"
+                        ToolTip.Tip="{Binding TooltipStepOver}"
+                        Width="28" Height="24"/>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.DebugStepInto}"
+                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        IsEnabled="{Binding IsPaused}"
+                        IsVisible="{Binding IsDebugging}"
+                        Click="DbgStepIn_Click"
+                        ToolTip.Tip="{Binding TooltipStepIn}"
+                        Width="28" Height="24"/>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.DebugStepOut}"
+                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        IsEnabled="{Binding IsPaused}"
+                        IsVisible="{Binding IsDebugging}"
+                        Click="DbgStepOut_Click"
+                        ToolTip.Tip="{Binding TooltipStepOut}"
+                        Width="28" Height="24"/>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.Pause}"
+                        Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
+                        IsVisible="{Binding IsDebugging}"
+                        Click="DbgPause_Click"
+                        ToolTip.Tip="Pause"
+                        Width="28" Height="24"/>
+                    <templatedControls:IconButton
+                        IconData="{StaticResource Icon.RunToCursor}"
+                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        IsEnabled="{Binding IsPaused}"
+                        IsVisible="{Binding IsDebugging}"
+                        Click="DbgRunToCursor_Click"
+                        ToolTip.Tip="Run to Cursor"
+                        Width="28" Height="24"/>
                 </StackPanel>
                 <ProgressBar VerticalAlignment="Bottom"
                              Height="1"
@@ -189,56 +248,7 @@
             </TabItem>
 
             <TabItem Header="Debugger">
-                <Grid RowDefinitions="Auto,*">
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="2" Margin="2,2,2,4">
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.Play}"
-                            Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
-                            IsEnabled="{Binding IsPaused}"
-                            Click="DbgContinue_Click"
-                            ToolTip.Tip="{Binding TooltipContinue}"
-                            Width="28" Height="24"/>
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.DebugStepOver}"
-                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
-                            IsEnabled="{Binding IsPaused}"
-                            Click="DbgStepOver_Click"
-                            ToolTip.Tip="{Binding TooltipStepOver}"
-                            Width="28" Height="24"/>
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.DebugStepInto}"
-                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
-                            IsEnabled="{Binding IsPaused}"
-                            Click="DbgStepIn_Click"
-                            ToolTip.Tip="{Binding TooltipStepIn}"
-                            Width="28" Height="24"/>
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.DebugStepOut}"
-                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
-                            IsEnabled="{Binding IsPaused}"
-                            Click="DbgStepOut_Click"
-                            ToolTip.Tip="{Binding TooltipStepOut}"
-                            Width="28" Height="24"/>
-                        <Border Width="1" Height="20"
-                                Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
-                                Margin="4,0"/>
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.Pause}"
-                            Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
-                            IsEnabled="{Binding IsDebugging}"
-                            Click="DbgPause_Click"
-                            ToolTip.Tip="Pause"
-                            Width="28" Height="24"/>
-                        <templatedControls:IconButton
-                            IconData="{StaticResource Icon.RunToCursor}"
-                            Foreground="{DynamicResource DotPad.Icon.StepBrush}"
-                            IsEnabled="{Binding IsPaused}"
-                            Click="DbgRunToCursor_Click"
-                            ToolTip.Tip="Run to Cursor"
-                            Width="28" Height="24"/>
-                    </StackPanel>
-                    <userControls:DebugPanel x:Name="DebugPanelCtrl" Grid.Row="1"/>
-                </Grid>
+                <userControls:DebugPanel x:Name="DebugPanelCtrl"/>
             </TabItem>
 
         </TabControl>

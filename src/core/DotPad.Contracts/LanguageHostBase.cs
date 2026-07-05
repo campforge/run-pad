@@ -45,7 +45,12 @@ public abstract class LanguageHostBase : ILanguageHost
     public virtual void RemoveBreakpoint(IBreakpoint breakpoint)
     {
         EnsureCapability(LanguageHostCapabilities.Breakpoints);
-        _breakpoints.Remove(breakpoint);
+        // Match by Line/FileName rather than reference/instance equality: a breakpoint removed from
+        // the editor gutter during an active debug session is a freshly-constructed IBreakpoint, not
+        // the same instance originally passed to AddBreakpoint.
+        _breakpoints.RemoveAll(bp => bp.Line == breakpoint.Line
+            && (string.IsNullOrEmpty(bp.FileName) || string.IsNullOrEmpty(breakpoint.FileName)
+                || string.Equals(bp.FileName, breakpoint.FileName, StringComparison.OrdinalIgnoreCase)));
     }
 
     public virtual void ClearBreakpoints()

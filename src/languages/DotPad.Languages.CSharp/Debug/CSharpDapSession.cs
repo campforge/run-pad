@@ -40,9 +40,21 @@ internal sealed class CSharpDapSession : IDapSession
     private readonly ILogger<CSharpDapSession> _logger;
     private readonly bool _breakOnAllExceptions;
     private readonly bool _breakOnUncaughtExceptions;
+    private readonly bool _justMyCode;
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+
+    // Serializes UI-triggered send+read round trips (lazy variable children, watch evaluation) that
+    // happen while paused, outside HandleStoppedAsync's own sequential await chain — safe only
+    // because the main read loop is itself idle (blocked on the resume signal) during that window,
+    // but two such calls firing concurrently (e.g. expanding a tree node while evaluating a watch)
+    // would still race each other on the same stream without this.
+    private readonly SemaphoreSlim _requestResponseLock = new(1, 1);
+
+    // Top stack frame id from the most recent "stopped" event — evaluate/watch requests run in this
+    // frame's scope.
+    private long _currentFrameId;
 
     // Lines prepended by the compiler before the user's first line.
     // Sent breakpoints: user_line + _lineOffset → compiled_line.
@@ -51,6 +63,10 @@ internal sealed class CSharpDapSession : IDapSession
 
     // Run-to-cursor one-shot breakpoints (user line numbers).
     private readonly HashSet<int> _runToCursorLines = [];
+
+    // Set by RequestBreakpointResync (any thread) when a gutter breakpoint changed during an active
+    // session; consumed the next time HandleStoppedAsync reaches its pre-resume resync check.
+    private volatile bool _breakpointResyncPending;
 
     // Stored after first SendBreakpointsAsync so ResendBreakpointsAsync can reuse them.
     private string? _sourceFile;
@@ -72,7 +88,8 @@ internal sealed class CSharpDapSession : IDapSession
         ILogger<CSharpDapSession> logger,
         bool breakOnAllExceptions = false,
         bool breakOnUncaughtExceptions = true,
-        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null)
+        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null,
+        bool justMyCode = false)
     {
         _process = process;
         _programPath = programPath;
@@ -85,6 +102,7 @@ internal sealed class CSharpDapSession : IDapSession
         _breakOnAllExceptions = breakOnAllExceptions;
         _breakOnUncaughtExceptions = breakOnUncaughtExceptions;
         _onBreakpointVerified = onBreakpointVerified;
+        _justMyCode = justMyCode;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -98,6 +116,8 @@ internal sealed class CSharpDapSession : IDapSession
             arguments = new PauseArguments { threadId = _activeThreadId },
         }, ct);
     }
+
+    public void RequestBreakpointResync() => _breakpointResyncPending = true;
 
     // ─── Session entry point ─────────────────────────────────────────────────
 
@@ -190,7 +210,7 @@ internal sealed class CSharpDapSession : IDapSession
                         program = _programPath,
                         cwd = _workingDirectory,
                         stopAtEntry = false,
-                        justMyCode = false,
+                        justMyCode = _justMyCode,
                         console = "internalConsole",
                     }
                 }, ct);
@@ -271,6 +291,7 @@ internal sealed class CSharpDapSession : IDapSession
             ?? new SyntheticBreakpoint(topFrameSourcePath ?? "", topFrameUserLine);
 
         bool wasRunToCursor = _runToCursorLines.Remove(topFrameUserLine);
+        _currentFrameId = topFrame?.id ?? 0;
 
         var context = new DapBreakpointHitContext
         {
@@ -279,6 +300,7 @@ internal sealed class CSharpDapSession : IDapSession
             LocalVariables = vars,
             GetChildrenFunc = FetchChildrenAsync,
             RunToCursorFunc = RegisterRunToCursorAsync,
+            EvaluateFunc = EvaluateAsync,
             CallStack = frames.Select(f => (IStackFrame)new DapStackFrame
             {
                 MethodName = f.name ?? "",
@@ -298,9 +320,13 @@ internal sealed class CSharpDapSession : IDapSession
         // Block here until the UI calls context.Resume(action).
         var action = await context.WaitForResumeAsync(ct);
 
-        // Resend breakpoints if a run-to-cursor BP was consumed or a new one was registered.
-        if (wasRunToCursor || _runToCursorLines.Count > 0)
+        // Resend breakpoints if a run-to-cursor BP was consumed, a new one was registered, or a
+        // gutter breakpoint was added/removed while paused here (RequestBreakpointResync).
+        if (wasRunToCursor || _runToCursorLines.Count > 0 || _breakpointResyncPending)
+        {
+            _breakpointResyncPending = false;
             await ResendBreakpointsAsync(ct);
+        }
 
         switch (action)
         {
@@ -437,27 +463,81 @@ internal sealed class CSharpDapSession : IDapSession
 
     private async Task<IReadOnlyList<IVariableInfo>> FetchChildrenAsync(int variablesReference, CancellationToken ct)
     {
-        await SendAsync(new VariablesRequest
+        await _requestResponseLock.WaitAsync(ct);
+        try
         {
-            seq = NextSeq(),
-            arguments = new VariablesArguments { variablesReference = variablesReference },
-        }, ct);
-        using var doc = await ReadResponseForCommandAsync("variables", ct);
-        if (doc is null) return [];
+            await SendAsync(new VariablesRequest
+            {
+                seq = NextSeq(),
+                arguments = new VariablesArguments { variablesReference = variablesReference },
+            }, ct);
+            using var doc = await ReadResponseForCommandAsync("variables", ct);
+            if (doc is null) return [];
 
-        var root = doc.RootElement;
-        if (!root.TryGetProperty("body", out var body)) return [];
-        if (!body.TryGetProperty("variables", out var el)) return [];
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("body", out var body)) return [];
+            if (!body.TryGetProperty("variables", out var el)) return [];
 
-        var vars = JsonSerializer.Deserialize<List<Variable>>(el.GetRawText(), JsonOpts) ?? [];
-        return vars.Select(v => (IVariableInfo)new DapVariableInfo
+            var vars = JsonSerializer.Deserialize<List<Variable>>(el.GetRawText(), JsonOpts) ?? [];
+            return vars.Select(v => (IVariableInfo)new DapVariableInfo
+            {
+                Name = v.name ?? "",
+                Value = v.value ?? "",
+                TypeName = v.type ?? "",
+                HasChildren = v.variablesReference > 0,
+                VariablesReference = v.variablesReference,
+            }).ToList();
+        }
+        finally { _requestResponseLock.Release(); }
+    }
+
+    // Backs IBreakpointHitContext.EvaluateAsync (Watch panel) — DAP "evaluate" in the current
+    // top-frame's scope. Guarded by _requestResponseLock like FetchChildrenAsync since both can be
+    // triggered by the UI at arbitrary times while paused.
+    private async Task<IVariableInfo?> EvaluateAsync(string expression, CancellationToken ct)
+    {
+        if (!_isPaused) return null;
+
+        await _requestResponseLock.WaitAsync(ct);
+        try
         {
-            Name = v.name ?? "",
-            Value = v.value ?? "",
-            TypeName = v.type ?? "",
-            HasChildren = v.variablesReference > 0,
-            VariablesReference = v.variablesReference,
-        }).ToList();
+            await SendAsync(new EvaluateRequest
+            {
+                seq = NextSeq(),
+                arguments = new EvaluateArguments { expression = expression, frameId = _currentFrameId, context = "watch" },
+            }, ct);
+            using var doc = await ReadResponseForCommandAsync("evaluate", ct);
+            if (doc is null) return null;
+
+            var root = doc.RootElement;
+            var success = root.TryGetProperty("success", out var s) && s.GetBoolean();
+            if (!success)
+            {
+                var message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
+                return new DapVariableInfo
+                {
+                    Name = expression,
+                    Value = message ?? "<error>",
+                    TypeName = "",
+                    HasChildren = false,
+                    VariablesReference = 0,
+                };
+            }
+
+            if (!root.TryGetProperty("body", out var body)) return null;
+            var result = body.TryGetProperty("result", out var r) ? r.GetString() ?? "" : "";
+            var type = body.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
+            var varRef = body.TryGetProperty("variablesReference", out var vr) ? vr.GetInt32() : 0;
+            return new DapVariableInfo
+            {
+                Name = expression,
+                Value = result,
+                TypeName = type,
+                HasChildren = varRef > 0,
+                VariablesReference = varRef,
+            };
+        }
+        finally { _requestResponseLock.Release(); }
     }
 
     private async Task SendBreakpointsAsync(CancellationToken ct)

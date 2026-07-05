@@ -4,6 +4,11 @@
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <Product>DotPad</Product>
+        <Version>0.1.0</Version>
+        <Authors>coddwrench</Authors>
+        <Company>coddwrench</Company>
+        <Copyright>© coddwrench</Copyright>
         <!-- NU1608: Avalonia.Diagnostics (Debug only) pulls Microsoft.CodeAnalysis.CSharp.Scripting 3.8.0
              which declares exact constraints on CodeAnalysis packages. We knowingly override to 4.x. -->
         <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->

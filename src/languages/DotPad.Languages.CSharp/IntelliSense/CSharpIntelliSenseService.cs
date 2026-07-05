@@ -1,14 +1,14 @@
 using System.Text;
 using DotPad.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
-using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
-using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
+using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace DotPad.Languages.CSharp.IntelliSense;
 
@@ -290,6 +290,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
     public event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
+    public event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
 
     public void NotifyTextChanged(string code)
     {
@@ -305,7 +306,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAsync(code, document, ct),
-                    ComputeSemanticTokensAsync(code, document, ct));
+                    ComputeSemanticTokensAsync(code, document, ct),
+                    ComputeCodeFixesAsync(code, document, ct));
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
@@ -330,9 +332,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var end = Math.Max(span.End - _preambleLength, start + 1);
             var severity = d.Severity switch
             {
-                RoslynSeverity.Error   => ContractSeverity.Error,
+                RoslynSeverity.Error => ContractSeverity.Error,
                 RoslynSeverity.Warning => ContractSeverity.Warning,
-                _                      => ContractSeverity.Info,
+                _ => ContractSeverity.Info,
             };
             result.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
         }
@@ -363,23 +365,81 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         SemanticTokensChanged?.Invoke(code, result);
     }
 
+    // ── Code fixes (minimum viable: "add using" for CS0246) ────────────────────
+
+    private async Task ComputeCodeFixesAsync(string code, Document document, CancellationToken ct)
+    {
+        var model = await document.GetSemanticModelAsync(ct);
+        if (model == null) { CodeFixesChanged?.Invoke(code, []); return; }
+
+        var text = await document.GetTextAsync(ct);
+        var result = new List<ICodeFixInfo>();
+
+        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
+        {
+            // "The type or namespace name 'X' could not be found (are you missing a using directive
+            // or an assembly reference?)" — the one case where "add using" is an unambiguous fix.
+            if (d.Id != "CS0246" || !d.Location.IsInSource) continue;
+
+            var span = d.Location.SourceSpan;
+            var start = span.Start - _preambleLength;
+            if (start < 0) continue;
+
+            // The span sometimes covers more than the bare identifier (e.g. "Foo<T>" or "Foo.Bar");
+            // keep just the leading identifier so the namespace search has a real type name.
+            var identifier = text.ToString(span);
+            var identEnd = 0;
+            while (identEnd < identifier.Length && (char.IsLetterOrDigit(identifier[identEnd]) || identifier[identEnd] == '_'))
+                identEnd++;
+            if (identEnd == 0) continue;
+            identifier = identifier[..identEnd];
+
+            var namespaces = model.Compilation.GetSymbolsWithName(n => n == identifier, SymbolFilter.Type, ct)
+                .OfType<INamedTypeSymbol>()
+                .Select(t => t.ContainingNamespace)
+                .Where(ns => ns is { IsGlobalNamespace: false })
+                .Select(ns => ns.ToDisplayString())
+                .Distinct()
+                .OrderBy(ns => ns, StringComparer.Ordinal)
+                .Take(3);
+
+            var userLine = GetLineNumber(code, start);
+            foreach (var ns in namespaces)
+            {
+                var usingDirective = $"using {ns};";
+                if (code.Contains(usingDirective)) continue;
+                result.Add(new SimpleCodeFix(userLine, usingDirective, usingDirective + "\n" + code));
+            }
+        }
+
+        CodeFixesChanged?.Invoke(code, result);
+    }
+
+    private static int GetLineNumber(string code, int offset)
+    {
+        var line = 1;
+        for (var i = 0; i < offset && i < code.Length; i++)
+            if (code[i] == '\n') line++;
+        return line;
+    }
+
     private static SemanticTokenKind ClassifySpan(string type) => type switch
     {
-        ClassificationTypeNames.ClassName or "record class name"    => SemanticTokenKind.ClassName,
-        ClassificationTypeNames.StructName or "record struct name"  => SemanticTokenKind.StructName,
-        ClassificationTypeNames.InterfaceName                       => SemanticTokenKind.InterfaceName,
-        ClassificationTypeNames.EnumName                            => SemanticTokenKind.EnumName,
-        ClassificationTypeNames.DelegateName                        => SemanticTokenKind.DelegateName,
-        ClassificationTypeNames.TypeParameterName                   => SemanticTokenKind.TypeParameterName,
-        ClassificationTypeNames.MethodName                          => SemanticTokenKind.MethodName,
-        ClassificationTypeNames.ExtensionMethodName                 => SemanticTokenKind.ExtensionMethodName,
-        ClassificationTypeNames.PropertyName                        => SemanticTokenKind.PropertyName,
-        ClassificationTypeNames.FieldName or "constant name"        => SemanticTokenKind.FieldName,
-        ClassificationTypeNames.EventName                           => SemanticTokenKind.EventName,
-        ClassificationTypeNames.NamespaceName                       => SemanticTokenKind.NamespaceName,
-        ClassificationTypeNames.LocalName                           => SemanticTokenKind.LocalName,
-        ClassificationTypeNames.ParameterName                       => SemanticTokenKind.ParameterName,
-        _                                                           => SemanticTokenKind.None,
+        ClassificationTypeNames.ClassName or "record class name" => SemanticTokenKind.ClassName,
+        ClassificationTypeNames.StructName or "record struct name" => SemanticTokenKind.StructName,
+        ClassificationTypeNames.InterfaceName => SemanticTokenKind.InterfaceName,
+        ClassificationTypeNames.EnumName => SemanticTokenKind.EnumName,
+        ClassificationTypeNames.DelegateName => SemanticTokenKind.DelegateName,
+        ClassificationTypeNames.TypeParameterName => SemanticTokenKind.TypeParameterName,
+        ClassificationTypeNames.MethodName => SemanticTokenKind.MethodName,
+        ClassificationTypeNames.ExtensionMethodName => SemanticTokenKind.ExtensionMethodName,
+        ClassificationTypeNames.PropertyName => SemanticTokenKind.PropertyName,
+        ClassificationTypeNames.FieldName or "constant name" => SemanticTokenKind.FieldName,
+        ClassificationTypeNames.EventName => SemanticTokenKind.EventName,
+        ClassificationTypeNames.NamespaceName => SemanticTokenKind.NamespaceName,
+        ClassificationTypeNames.LocalName => SemanticTokenKind.LocalName,
+        ClassificationTypeNames.ParameterName => SemanticTokenKind.ParameterName,
+        _ => SemanticTokenKind.None,
     };
 
     // ── Package references ────────────────────────────────────────────────────
@@ -503,4 +563,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleSemanticToken(
         int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
+
+    private sealed record SimpleCodeFix(int Line, string Title, string NewCode) : ICodeFixInfo;
 }
