@@ -52,23 +52,12 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     private async Task<(CSharpCompilationResult result, string? binaryPath)> CompileInternalAsync(
         string code, CancellationToken ct)
     {
-        SyntaxTree syntaxTree = BuildSyntaxTree(code);
 
         // Fast path: no NuGet packages and no project references means nothing needs MSBuild's own
         // restore/reference-resolution — compile in-process and skip the dotnet-build subprocess
         // entirely (see ANALYSIS.md feature #16). Anything else falls back to the process compiler,
         // which already handles the full range of packages/references/target frameworks.
-        using ProcessCompilerBase compiler = _options.NugetPackages.Count == 0 && _options.ProjectReferences.Count == 0
-            ? new CodeAnalysisProcessCompiler(
-                _options.Platform,
-                _options.ExecutionOptions,
-                _options.OutputDirectory,
-                _options.RuntimeLibPath,
-                _options.OutputName,
-                _options.GlobalUsings,
-                _options.AssemblyReferences,
-                _options.TargetFrameworkOverride)
-            : new DotnetProcessCompiler(
+        using ProcessCompilerBase compiler =new DotnetProcessCompiler(
                 _options.Platform,
                 _options.ExecutionOptions,
                 _options.OutputDirectory,
@@ -81,7 +70,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 _options.TargetFrameworkOverride,
                 _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
-        ProcessCompilerResult raw = await compiler.Compilation(syntaxTree, ct);
+        ProcessCompilerResult raw = await compiler.Compilation(code, ct);
         CSharpCompilationResult result = new(raw);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
     }
@@ -244,14 +233,10 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // Transforms user code based on the script kind before compilation.
-    // Program: prepend Main() call (user declares void Main(), runtime calls it).
-    // Expression: wrap expression in parentheses and call .Dump() on the result.
-    // Statements: pass through unchanged (top-level statements, already the default).
     private string ApplyKindTransform(string code) => _options.Kind switch
     {
-        "Program" => $"Main();\n{code}",
         "Expression" => $"(\n{code.TrimEnd()}\n).Dump();\n",
+        "Program" => $"Main();{code}",
         _ => code,
     };
 
@@ -265,8 +250,6 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         {
             if (data.Length > 0 && data[0] == RsPrefix)
                 handler(data[1..], OutputKind.DumpHtml);
-            else if (data.StartsWith(TextPrefix, StringComparison.Ordinal))
-                handler(data[TextPrefix.Length..], OutputKind.DumpHtml);
             else
                 handler(data, kind);
         };

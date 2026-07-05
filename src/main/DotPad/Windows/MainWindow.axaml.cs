@@ -114,11 +114,14 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
 
+        // TODO: должен быть смособ чтобы делать это красиво, сейчас приходится делать WindowDecorations = Full из за этого меню выглядит не красиво
+        // Но если делать WindowDecorations = BorderOnly то меню выглядит красиво, но тогда на Linux нету бордера
         if (OperatingSystem.IsLinux())
         {
             WindowDecorations = global::Avalonia.Controls.WindowDecorations.Full;
             ExtendClientAreaToDecorationsHint = false;
             if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
+            // ToDO: скрыть еще иконку из меню
         }
         else if (OperatingSystem.IsMacOS())
         {

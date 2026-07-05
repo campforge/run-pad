@@ -13,23 +13,23 @@ public static class RpadWriter
     }
 
     /// <summary>Generates the content for a brand-new .rpad file.</summary>
-    public static string NewFile(string title = "Untitled", string targetFramework = "net10.0", string kind = "Statements")
+    public static string NewFile(string title = "Untitled", string targetSdk = "net10.0", RpadKind kind = RpadKind.Statements)
     {
         var code = kind switch
         {
-            "Program"    => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
-            "Expression" => "\"Hello, RPad!\"\n",
-            _            => "Console.WriteLine(\"Hello, RPad!\");\n",
+            RpadKind.Program => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
+            RpadKind.Expression => "\"Hello, RPad!\"\n",
+            _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
-        return $"---\nversion: 1\nlanguage: csharp\ntargetFramework: {targetFramework}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
+        return $"---\nversion: 1\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"version: {fm.Version}");
-        sb.AppendLine($"language: {fm.Language}");
-        sb.AppendLine($"targetFramework: {fm.TargetFramework}");
+        sb.AppendLine($"language: {fm.Language.ToString().ToLowerInvariant()}");
+        sb.AppendLine($"targetSdk: {fm.TargetSdk}");
         sb.Append($"kind: {fm.Kind}");
 
         if (fm.Packages?.Count > 0)

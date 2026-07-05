@@ -92,6 +92,9 @@ public class CodeTextEditor : TextEditor
     /// <summary>Updates the lightbulb quick-fix gutter (e.g. after a diagnostics pass finds a missing using).</summary>
     public void UpdateCodeFixes(IReadOnlyList<CodeFixEntry> fixes) => _codeFixMargin.Update(fixes);
 
+    /// <summary>Fired when an applied quick fix wants namespaces imported (see CodeFixEntry.UsingsToAdd).</summary>
+    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+
     /// <summary>
     /// Whether the merged gutter shows line numbers (not the base <see cref="TextEditor.ShowLineNumbers"/>,
     /// which this control keeps permanently off — see the ctor comment on that assignment).
@@ -161,6 +164,7 @@ public class CodeTextEditor : TextEditor
 
         _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
         _codeFixMargin = new CodeFixMargin(this);
+        _codeFixMargin.UsingsToAddRequested += usings => UsingsToAddRequested?.Invoke(usings);
         TextArea.LeftMargins.Add(_codeFixMargin);
         _debugLineHighlighter = new DebugLineHighlighter();
 
@@ -174,15 +178,7 @@ public class CodeTextEditor : TextEditor
         if (deleteLineCommand != null)
             TextArea.CommandBindings.Remove(deleteLineCommand);
 
-        ContextMenu = new ContextMenu
-        {
-            ItemsSource = new MenuItem[]
-            {
-                new() { Header = "Copy",  Command = ApplicationCommands.Copy  },
-                new() { Header = "Paste", Command = ApplicationCommands.Paste },
-                new() { Header = "Cut",   Command = ApplicationCommands.Cut   },
-            }
-        };
+        SetupEditContextMenu();
 
         HorizontalScrollBarVisibility = ScrollBarVisibility.Visible;
         // Line numbers are rendered by BreakPointMargin itself (merged gutter — see its class
@@ -242,6 +238,36 @@ public class CodeTextEditor : TextEditor
             RoutingStrategies.Tunnel);
 
         ApplyOptions();
+    }
+
+    // ApplicationCommands.Copy/Cut/Paste (AvaloniaEdit.RoutedCommand) resolve ICommand.Execute/
+    // CanExecute through a process-wide static "last focused element" tracker, not through this
+    // TextArea specifically. Opening the ContextMenu moves keyboard focus onto the clicked MenuItem
+    // (for arrow-key navigation), which lives in a disconnected popup visual tree — so binding
+    // MenuItem.Command directly to the RoutedCommand can never find the CommandBindings registered
+    // on TextArea and silently does nothing. Executing against TextArea explicitly on Click sidesteps
+    // that broken focus-based resolution. See ANALYSIS.md #34 for the full diagnosis.
+    private void SetupEditContextMenu()
+    {
+        var copy = CreateEditMenuItem("Copy", ApplicationCommands.Copy);
+        var cut = CreateEditMenuItem("Cut", ApplicationCommands.Cut);
+        var paste = CreateEditMenuItem("Paste", ApplicationCommands.Paste);
+
+        var menu = new ContextMenu { ItemsSource = new[] { copy, cut, paste } };
+        menu.Opening += (_, _) =>
+        {
+            copy.IsEnabled = ApplicationCommands.Copy.CanExecute(null, TextArea);
+            cut.IsEnabled = ApplicationCommands.Cut.CanExecute(null, TextArea);
+            paste.IsEnabled = ApplicationCommands.Paste.CanExecute(null, TextArea);
+        };
+        ContextMenu = menu;
+    }
+
+    private MenuItem CreateEditMenuItem(string header, RoutedCommand command)
+    {
+        var item = new MenuItem { Header = header, InputGesture = command.Gesture };
+        item.Click += (_, _) => command.Execute(null, TextArea);
+        return item;
     }
 
     private void ApplyOptions()

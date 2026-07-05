@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
 
-namespace DotPad.Services;
+namespace DotPad.Avalonia.Themes;
 
 public static class HtmlThemeStylesheet
 {

@@ -4,5 +4,5 @@ namespace DotPad.Contracts;
 
 public interface ISdkProvider
 {
-    IReadOnlyList<ExecutionPlatform> Get();
+    IReadOnlyList<DotnetSdk> Get();
 }

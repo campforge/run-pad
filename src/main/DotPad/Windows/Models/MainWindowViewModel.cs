@@ -109,7 +109,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null)
             blankToClose = Tabs[0];
 
-        var vm = new EditorTabItemViewModel(filePath, DotnetPlatforms, _prefs);
+        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs);
         _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
 
         if (filePath is not null) _openTabs[filePath] = vm;
@@ -209,18 +209,29 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var dir = Path.GetDirectoryName(node.FilePath);
         if (dir is null) return;
 
-        Process.Start(new ProcessStartInfo
+        // Windows/macOS can select the file itself within its file manager; Linux has no
+        // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
+        // containing folder instead (see ANALYSIS.md #26). The Windows branch keeps its original,
+        // already-working `/select,"path"` form (single Arguments string, not ArgumentList — that
+        // exact comma-then-quoted-path syntax is what explorer.exe expects) unverified changes to
+        // it aren't worth the risk since Windows isn't available to test in this environment.
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{node.FilePath}\"", UseShellExecute = true }
+            : OperatingSystem.IsMacOS()
+                ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", node.FilePath } }
+                : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
+
+        try { Process.Start(startInfo); }
+        catch (Exception ex)
         {
-            FileName = "explorer.exe",
-            Arguments = $"/select,\"{node.FilePath}\"",
-            UseShellExecute = true
-        });
+            _ = _windowService.ShowErrorAsync("Could Not Open File Manager", ex.Message);
+        }
     }
 
     // ── File tree ─────────────────────────────────────────────────────────────
 
     public ObservableCollection<Node> Nodes { get; }
-    public List<ExecutionPlatform> DotnetPlatforms { get; }
+    public List<DotnetSdk> AvailableSdks { get; }
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
@@ -237,7 +248,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
         OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
-        DotnetPlatforms = sdkProviders.SelectMany(p => p.Get()).ToList();
+        AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed ? new GridLength(0) : new GridLength(_prefs.Layout.SidebarWidth);
         _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;

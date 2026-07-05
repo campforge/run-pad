@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using DotPad.Build.Core.Models;
+using DotPad.Contracts.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using ExecutionPlatform = DotPad.Contracts.Models.ExecutionPlatform;
 
 namespace DotPad.Languages.CSharp.Compiler;
 
@@ -18,7 +18,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private readonly ILogger<DotnetProcessCompiler> _logger;
 
     private readonly IReadOnlyDictionary<string, string> _nugetPackages;
-    private readonly IReadOnlyList<string> _globalUsings;
+    private readonly IReadOnlyList<string> _usings;
     private readonly IReadOnlyList<string> _assemblyReferences;
     private readonly IReadOnlyList<string> _projectReferences;
     private readonly string? _targetFrameworkOverride;
@@ -29,7 +29,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     private Process? _process;
 
     public DotnetProcessCompiler(
-        ExecutionPlatform executionPlatform,
+        DotnetSdk sdk,
         ExecutionOptions executionOptions,
         string outputDir,
         string dotPadRuntimeLib,
@@ -40,10 +40,10 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         IReadOnlyList<string> projectReferences,
         string? targetFrameworkOverride,
         ILogger<DotnetProcessCompiler> logger)
-        : base(executionPlatform, executionOptions, outputDir, dotPadRuntimeLib, outputName)
+        : base(sdk, executionOptions, outputDir, dotPadRuntimeLib, outputName)
     {
         _nugetPackages = nugetPackages;
-        _globalUsings = globalUsings;
+        _usings = globalUsings;
         _assemblyReferences = assemblyReferences;
         _projectReferences = projectReferences;
         _targetFrameworkOverride = targetFrameworkOverride;
@@ -53,21 +53,19 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
     }
 
     public override async Task<ProcessCompilerResult> Compilation(
-        SyntaxTree syntaxTree,
+        string code,
         CancellationToken cancellationToken)
     {
-        var code = (await syntaxTree.GetTextAsync(cancellationToken)).ToString();
-
         // Prepend global usings from .rpad front matter
-        if (_globalUsings.Count > 0)
+        if (_usings.Count > 0)
         {
-            var usingsText = string.Join("\n", _globalUsings.Select(u => $"global using {u};"));
+            var usingsText = string.Join("\n", _usings.Select(u => $"using {u};"));
             code = usingsText + "\n" + code;
         }
 
         await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, cancellationToken);
 
-        var tfm = _targetFrameworkOverride ?? ExecutionPlatform.TargetFrameworkMoniker;
+        var tfm = _targetFrameworkOverride ?? Sdk.TargetFrameworkMoniker;
         var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
         var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
 

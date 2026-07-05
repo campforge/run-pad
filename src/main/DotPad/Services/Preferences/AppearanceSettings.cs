@@ -1,4 +1,4 @@
-using DotPad.Assets.Models;
+using DotPad.Avalonia.Themes;
 
 namespace DotPad.Services.Preferences;
 

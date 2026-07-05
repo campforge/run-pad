@@ -22,13 +22,22 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
-    public List<ExecutionPlatform> DotnetPlatforms { get; }
+    public List<DotnetSdk> AvailableSdks { get; }
 
-    private ExecutionPlatform? _selectedDotnetPlatform;
-    public ExecutionPlatform? SelectedDotnetPlatform
+    public List<string> Kinds { get; } = new() { "Statements", "Program", "Expression" };
+
+    private string? _selectedKind = "Statements";
+    public string? SelectedKind
     {
-        get => _selectedDotnetPlatform;
-        set => this.RaiseAndSetIfChanged(ref _selectedDotnetPlatform, value);
+        get => _selectedKind;
+        set => this.RaiseAndSetIfChanged(ref _selectedKind, value);
+    }
+
+    private DotnetSdk? _selectedSdk;
+    public DotnetSdk? SelectedSdk
+    {
+        get => _selectedSdk;
+        set => this.RaiseAndSetIfChanged(ref _selectedSdk, value);
     }
 
     public bool DebugModeEnabled
@@ -171,11 +180,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    public EditorTabItemViewModel(string? filePath, List<ExecutionPlatform> platforms, IPreferencesService prefs)
+    public EditorTabItemViewModel(string? filePath, List<DotnetSdk> sdks, IPreferencesService prefs)
     {
         FilePath = filePath;
-        DotnetPlatforms = platforms;
-        _selectedDotnetPlatform = platforms.FirstOrDefault();
+        AvailableSdks = sdks;
+        _selectedSdk = sdks.FirstOrDefault();
         _prefs = prefs;
 
         CloseCommand = ReactiveCommand.Create(() => { });
