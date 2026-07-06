@@ -1,12 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:build="using:DotPad.Contracts.Models"
-             xmlns:controls="using:DotPad.Controls"
-             xmlns:views="using:DotPad.Views"
              xmlns:vm="clr-namespace:DotPad.UserControls.Models"
-             xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls"
+             xmlns:tc="clr-namespace:DotPad.TemplatedControls"
              xmlns:htmlRenderer="clr-namespace:DotPad.Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
-             xmlns:userControls="clr-namespace:DotPad.UserControls"
+             xmlns:uc="clr-namespace:DotPad.UserControls"
              x:Class="DotPad.UserControls.EditorsTabItemControl"
              x:DataType="vm:EditorTabItemViewModel">
 
@@ -27,66 +25,6 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-
-        <Style Selector="ToggleButton.TopBarButton">
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding"         Value="4"/>
-            <Setter Property="Width"           Value="26"/>
-            <Setter Property="Height"          Value="26"/>
-            <Setter Property="Template">
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border Name="Root"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="4"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"/>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton:pointerover /template/ Border#Root">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton:pressed /template/ Border#Root">
-            <Setter Property="Opacity" Value="0.6"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton:checked /template/ Border#Root">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton:disabled">
-            <Setter Property="Opacity" Value="0.35"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton PathIcon">
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
-        </Style>
-        <Style Selector="ToggleButton.TopBarButton:checked PathIcon">
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
-        </Style>
-
-        <Style Selector="StackPanel.Toolbar ComboBox">
-            <Setter Property="FontSize"        Value="12"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="CornerRadius"    Value="4"/>
-        </Style>
-        <Style Selector="StackPanel.Toolbar ComboBox /template/ Border#Background">
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style Selector="StackPanel.Toolbar ComboBox:pointerover /template/ Border#Background">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-        <Style Selector="StackPanel.Toolbar ComboBox:focus /template/ Border#Background">
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style Selector="StackPanel.Toolbar ComboBox[IsDropDownOpen=true] /template/ Border#Background">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-
         <Style Selector="TabControl.OutputTabs">
             <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
@@ -97,7 +35,6 @@
             <Setter Property="Height"    Value="28"/>
             <Setter Property="Padding"   Value="12,0"/>
         </Style>
-
     </UserControl.Styles>
 
     <Grid>
@@ -121,19 +58,19 @@
                 <StackPanel Orientation="Horizontal" Spacing="1" Margin="4,0"
                             Classes="Toolbar"
                             VerticalAlignment="Center">
-                    <templatedControls:IconButton
+                    <tc:IconButton
                         IconData="{StaticResource Icon.Play}"
                         Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsEnabled="{Binding EnableRunOrContinueButton}"
                         Click="RunOrContinueButton_Click"
                         ToolTip.Tip="{Binding TooltipRunOrContinue}"/>
-                    <templatedControls:IconButton
+                    <tc:IconButton
                         IconData="{StaticResource Icon.Stop}"
                         Foreground="{DynamicResource DotPad.Icon.StopBrush}"
                         IsEnabled="{Binding EnableCancelButton}"
                         Click="CancelButton_Click"
                         ToolTip.Tip="{Binding TooltipCancel}"/>
-                    <ComboBox
+                    <tc:ToolbarComboBox
                         Margin="4,0,0,0"
                         Height="24"
                         VerticalAlignment="Center"
@@ -145,31 +82,33 @@
                                 <TextBlock Text="{Binding Description}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
-                    </ComboBox>
+                    </tc:ToolbarComboBox>
 
-                    <ComboBox
+                    <tc:ToolbarComboBox
                         Margin="4,0,0,0"
                         Height="24"
                         VerticalAlignment="Center"
                         VerticalContentAlignment="Center"
                         ItemsSource="{Binding Kinds}"
                         SelectedItem="{Binding SelectedKind}">
-                    </ComboBox>
+                    </tc:ToolbarComboBox>
 
                     <Border Width="1" Height="16"
                             Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
                             Margin="4,0"/>
-                    <ToggleButton
-                        Classes="TopBarButton"
+
+                    <tc:IconToggleButton
+                        IconData="{StaticResource Icon.Bug}"
                         IsChecked="{Binding DebugModeEnabled}"
-                        ToolTip.Tip="Toggle debug mode">
-                        <PathIcon Data="{StaticResource Icon.Bug}" Width="16" Height="16"/>
-                    </ToggleButton>
-                    <templatedControls:IconButton
+                        ToolTip.Tip= "Toggle debug mode"
+                        Width="24" Height="24"
+                        />
+
+                    <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
                         Command="{Binding ToggleOutputPanelCommand}"
                         ToolTip.Tip="Toggle output panel"
-                        Width="28" Height="24"/>
+                        Width="24" Height="24"/>
 
                     <!-- Debug-only controls: shown, not merely enabled, only while debugging
                          (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with
@@ -178,45 +117,45 @@
                             Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
                             Margin="4,0"
                             IsVisible="{Binding IsDebugging}"/>
-                    <templatedControls:IconButton
+                    <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepOver}"
                         Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepOver_Click"
                         ToolTip.Tip="{Binding TooltipStepOver}"
-                        Width="28" Height="24"/>
-                    <templatedControls:IconButton
+                        Width="24" Height="24"/>
+                    <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepInto}"
                         Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepIn_Click"
                         ToolTip.Tip="{Binding TooltipStepIn}"
-                        Width="28" Height="24"/>
-                    <templatedControls:IconButton
+                        Width="24" Height="24"/>
+                    <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepOut}"
                         Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepOut_Click"
                         ToolTip.Tip="{Binding TooltipStepOut}"
-                        Width="28" Height="24"/>
-                    <templatedControls:IconButton
+                        Width="24" Height="24"/>
+                    <tc:IconButton
                         IconData="{StaticResource Icon.Pause}"
                         Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgPause_Click"
                         ToolTip.Tip="Pause"
-                        Width="28" Height="24"/>
-                    <templatedControls:IconButton
+                        Width="24" Height="24"/>
+                    <tc:IconButton
                         IconData="{StaticResource Icon.RunToCursor}"
                         Foreground="{DynamicResource DotPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgRunToCursor_Click"
                         ToolTip.Tip="Run to Cursor"
-                        Width="28" Height="24"/>
+                        Width="24" Height="24"/>
                 </StackPanel>
                 <ProgressBar VerticalAlignment="Bottom"
                              Height="1"
@@ -258,7 +197,7 @@
             </TabItem>
 
             <TabItem Header="Debugger">
-                <userControls:DebugPanel x:Name="DebugPanelCtrl"/>
+                <uc:DebugPanel x:Name="DebugPanelCtrl"/>
             </TabItem>
 
         </TabControl>

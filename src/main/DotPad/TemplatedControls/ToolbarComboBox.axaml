@@ -1,56 +1,25 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls">
-    <Styles.Resources>
-        <ResourceDictionary>
+    <Style Selector="StackPanel.Toolbar ComboBox">
+        <Setter Property="FontSize"        Value="12"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="CornerRadius"    Value="4"/>
 
-            <ControlTheme x:Key="{x:Type templatedControls:IconToggleButton}" TargetType="templatedControls:IconToggleButton">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="Padding" Value="4" />
-                <Setter Property="Width" Value="26" />
-                <Setter Property="Height" Value="26" />
-                <Setter Property="Template">
-                    <ControlTemplate TargetType="templatedControls:IconToggleButton">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <PathIcon Data="{TemplateBinding IconData}"
-                                      Width="16" Height="16"
-                                      Foreground="{TemplateBinding Foreground}" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter>
-
-                <Style Selector="^:pointerover /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}" />
-                </Style>
-                <Style Selector="^:pressed /template/ Border#Root">
-                    <Setter Property="Opacity" Value="0.6" />
-                </Style>
-                <Style Selector="^:disabled /template/ PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.DisabledBrush}" />
-                </Style>
-
-                <Style Selector="^:checked /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
-                </Style>
-
-                <Style Selector="^:disabled">
-                    <Setter Property="Opacity" Value="0.35"/>
-                </Style>
-
-                <Style Selector="^:checked PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
-                </Style>
-
-                <Style Selector="PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
-                </Style>
-
-            </ControlTheme>
-
-        </ResourceDictionary>
-    </Styles.Resources>
+        <Style Selector="^/template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="^:focus /template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^[IsDropDownOpen=true] /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+    </Style>
 </Styles>

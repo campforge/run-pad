@@ -22,6 +22,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{EC9916CC-52F
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{EC9916CC-52F6-4CE0-9377-BC6CEA9761CE}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad", "src\main\DotPad\DotPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.CodeTextEditor", "src\controls\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj", "{2E0A86BA-449E-4D4D-B5B6-2D4A7A43B788}"
