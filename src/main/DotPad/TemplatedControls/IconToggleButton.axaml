@@ -41,12 +41,12 @@
                     <Setter Property="Opacity" Value="0.35"/>
                 </Style>
 
-                <Style Selector="^:checked PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
+                <Style Selector="^ /template/ PathIcon">
+                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
                 </Style>
 
-                <Style Selector="PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                <Style Selector="^:checked /template/ PathIcon">
+                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
                 </Style>
 
             </ControlTheme>

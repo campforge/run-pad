@@ -2,8 +2,6 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -67,7 +65,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var editor = new CodeTextEditor { Background = editorBackground };
         State = new EditorTabState(editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant, themeService.CurrentTheme.Interface.IsDark);
+        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
+            themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
         prefs.Changed += OnPreferencesChanged;
@@ -114,6 +113,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     w.PropertyChanged += OnWatchExpressionPropertyChanged;
                     _ = EvaluateWatchAsync(w);
                 }
+
             if (e.OldItems is not null)
                 foreach (WatchExpression w in e.OldItems)
                     w.PropertyChanged -= OnWatchExpressionPropertyChanged;
@@ -128,8 +128,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async Task EvaluateWatchAsync(WatchExpression w)
     {
-        if (string.IsNullOrWhiteSpace(w.Expression)) { w.Value = "?"; w.TypeName = ""; return; }
-        if (State.CurrentDebugCtx is not { } ctx) { w.Value = "<not paused>"; w.TypeName = ""; return; }
+        if (string.IsNullOrWhiteSpace(w.Expression))
+        {
+            w.Value = "?";
+            w.TypeName = "";
+            return;
+        }
+
+        if (State.CurrentDebugCtx is not { } ctx)
+        {
+            w.Value = "<not paused>";
+            w.TypeName = "";
+            return;
+        }
 
         try
         {
@@ -163,7 +174,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void SaveIfNeeded()
     {
         if (_vm.FilePath is null) return;
-        try { WriteFile(_vm.FilePath); } catch { /* best-effort */ }
+        try
+        {
+            WriteFile(_vm.FilePath);
+        }
+        catch
+        {
+            /* best-effort */
+        }
     }
 
     private void WriteFile(string path)
@@ -203,7 +221,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (_vm.FilePath is not null)
         {
-            try { WriteFile(_vm.FilePath); }
+            try
+            {
+                WriteFile(_vm.FilePath);
+            }
             catch (Exception ex)
             {
                 AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
@@ -234,7 +255,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
             foreach (var bp in s.Editor.Breakpoints)
-                bp.VerificationState = DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Pending;
+            {
+                bp.VerificationState = BreakpointVerificationState.Pending;
+            }
+
             s.Editor.InvalidateBreakpoints();
 
             await Task.Run(async () =>
@@ -263,8 +287,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 }
             }, s.RunCts.Token);
         }
-        catch (OperationCanceledException) { cancelled = true; }
-        catch (Exception ex) { AppendError(ex); }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+        catch (Exception ex)
+        {
+            AppendError(ex);
+        }
         finally
         {
             s.RunningHost = null;
@@ -320,21 +350,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async void DbgPause_Click(object? sender, RoutedEventArgs e)
     {
-        if (State.RunningHost is not null)
-            await State.RunningHost.PauseAsync();
+        try
+        {
+            if (State.RunningHost is not null)
+                await State.RunningHost.PauseAsync(State.RunCts!.Token);
+        }
+        catch (Exception )
+        {
+            throw; // TODO handle exception
+        }
     }
 
     private async void DbgRunToCursor_Click(object? sender, RoutedEventArgs e)
     {
-        var ctx = State.CurrentDebugCtx;
-        if (ctx is null) return;
-        var line = State.Editor.TextArea.Caret.Line;
-        State.CurrentDebugCtx = null;
-        _vm.RunState = RunState.RunDebug;
-        State.Editor.DebugCurrentLine = null;
-        SetStatus("Process", "DotPad.Status.RunningBrush");
-        UpdateOutputUi();
-        await ctx.RunToCursorAsync(line);
+        try
+        {
+            var ctx = State.CurrentDebugCtx;
+            if (ctx is null) return;
+            var line = State.Editor.TextArea.Caret.Line;
+            State.CurrentDebugCtx = null;
+            _vm.RunState = RunState.RunDebug;
+            State.Editor.DebugCurrentLine = null;
+            SetStatus("Process", "DotPad.Status.RunningBrush");
+            UpdateOutputUi();
+            await ctx.RunToCursorAsync(line);
+        }
+        catch (Exception)
+        {
+            throw; // TODO handle exception
+        }
     }
 
     private async void OnBreakpointRightClicked(int line, DotPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
@@ -376,11 +420,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void UpdateOutputUi()
     {
         OutputHtml.Text = $"""
-            <html>
-            <head><style>{State.OutputCss}</style></head>
-            <body>{State.OutputContent}</body>
-            </html>
-            """;
+                           <html>
+                           <head><style>{State.OutputCss}</style></head>
+                           <body>{State.OutputContent}</body>
+                           </html>
+                           """;
 
         ExecStatusBlock.Text = State.ExecStatusText;
         ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
@@ -403,11 +447,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RenderDump(data);
             return;
         }
+
         if (data.Length > 0 && data[0] == '\x1e')
         {
             RenderDump(data[1..]);
             return;
         }
+
         if (data.StartsWith("DOTPAD_DUMP:", StringComparison.Ordinal))
         {
             RenderDump(data["DOTPAD_DUMP:".Length..]);
@@ -452,6 +498,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
         }
+
         UpdateOutputUi();
     }
 
@@ -536,7 +583,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var children = await context.GetChildrenAsync(v.VariablesReference);
                 return children.Select(c => CreateDebugLocal(c, context)).ToList();
             }
-        : null;
+            : null;
         return new DebugLocal(v.Name, v.Value, v.TypeName, v.HasChildren, loader);
     }
 
@@ -660,8 +707,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 // script with no front matter to route them to, where they're folded into the text.
                 var hasProjectFile = State.RpadDocument is not null;
                 var entries = fixes.Select(f => hasProjectFile
-                    ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
-                    : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
+                        ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
+                        : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
                     .ToList();
                 editor.UpdateCodeFixes(entries);
             });
@@ -686,16 +733,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(400, ct);
-                    var offset = await Dispatcher.UIThread.InvokeAsync(
-                        () => editor.GetOffsetFromPoint(pos));
+                    var offset = await Dispatcher.UIThread.InvokeAsync(() => editor.GetOffsetFromPoint(pos));
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
                     // squiggle is there is usually more useful than the symbol's signature.
-                    var diagnostic = squiggleRenderer.Diagnostics.FirstOrDefault(
-                        d => offset >= d.StartOffset && offset < d.EndOffset);
+                    var diagnostic =
+                        squiggleRenderer.Diagnostics.FirstOrDefault(d =>
+                            offset >= d.StartOffset && offset < d.EndOffset);
                     var content = diagnostic?.Message
-                        ?? (await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct))?.Content;
+                                  ?? (await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct))?.Content;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
@@ -703,7 +750,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                             ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                }
             });
         };
 
@@ -746,7 +795,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
-        if (rpad?.FrontMatter.Usings is { Count: > 0 })
+        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
     }
 
@@ -756,11 +805,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// in place without any change notification of its own.
     /// </summary>
     internal void RefreshIntelliSensePackages()
-        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, string>());
+        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
+                                                  new Dictionary<string, Package>());
 
     /// <summary>Pushes this tab's front-matter `usings:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
-        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Usings ?? []);
+        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
 
     // Adds namespaces to the .rpad front matter's `usings:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
@@ -771,10 +821,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var rpad = State.RpadDocument;
         if (rpad is null) return;
 
-        var fmUsings = rpad.FrontMatter.Usings ??= [];
+        var fmUsings = rpad.FrontMatter.Namespaces ??= [];
         var added = false;
         foreach (var ns in usings)
-            if (!fmUsings.Contains(ns)) { fmUsings.Add(ns); added = true; }
+            if (!fmUsings.Contains(ns))
+            {
+                fmUsings.Add(ns);
+                added = true;
+            }
+
         if (!added) return;
 
         RefreshIntelliSenseUsings();
@@ -841,15 +896,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
-            JustMyCode = _vm.JustMyCode,
-            Kind = rpad?.FrontMatter.Kind.ToString() ?? "Statements",
-            TargetFrameworkOverride = rpad?.FrontMatter.TargetSdk,
-            NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
-            GlobalUsings = rpad?.FrontMatter.Usings ?? [],
-            AssemblyReferences = rpad?.FrontMatter.References?
+            Kind = rpad.FrontMatter.Kind,
+            Packages = rpad.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version),
+            Usings = rpad.FrontMatter.Namespaces ?? [],
+            // это уюрать под капот CSharpLanguageHost
+            AssemblyReferences = rpad.FrontMatter.References?
                 .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
-            ProjectReferences = rpad?.FrontMatter.References?
+            // это уюрать под капот CSharpLanguageHost
+            ProjectReferences = rpad.FrontMatter.References?
                 .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
         };

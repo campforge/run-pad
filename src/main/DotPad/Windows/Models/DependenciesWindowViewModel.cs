@@ -18,6 +18,7 @@ public sealed class PackageResultViewModel : ReactiveObject
     public string Downloads { get; }
 
     private bool _isInScript;
+
     public bool IsInScript
     {
         get => _isInScript;
@@ -26,7 +27,8 @@ public sealed class PackageResultViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> AddCommand { get; }
 
-    internal PackageResultViewModel(PackageSearchResult r, bool isInScript, Action<PackageResultViewModel> onAdd, IObservable<bool> hasFrontMatter)
+    internal PackageResultViewModel(PackageSearchResult r, bool isInScript, Action<PackageResultViewModel> onAdd,
+        IObservable<bool> hasFrontMatter)
     {
         Id = r.Id;
         Version = r.Version;
@@ -59,6 +61,7 @@ public sealed class CachedPackageItemViewModel : ReactiveObject
     public string Version { get; }
 
     private bool _isInScript;
+
     public bool IsInScript
     {
         get => _isInScript;
@@ -67,7 +70,8 @@ public sealed class CachedPackageItemViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> ToggleCommand { get; }
 
-    internal CachedPackageItemViewModel(CachedPackageInfo info, bool isInScript, Action<CachedPackageItemViewModel> onToggle, IObservable<bool> hasFrontMatter)
+    internal CachedPackageItemViewModel(CachedPackageInfo info, bool isInScript,
+        Action<CachedPackageItemViewModel> onToggle, IObservable<bool> hasFrontMatter)
     {
         Id = info.Id;
         Version = info.LatestVersion;
@@ -138,19 +142,31 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     public bool IsLoading
     {
         get => _isLoading;
-        private set { this.RaiseAndSetIfChanged(ref _isLoading, value); NotifyDerivedState(); }
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _isLoading, value);
+            NotifyDerivedState();
+        }
     }
 
     public bool HasSearched
     {
         get => _hasSearched;
-        private set { this.RaiseAndSetIfChanged(ref _hasSearched, value); NotifyDerivedState(); }
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _hasSearched, value);
+            NotifyDerivedState();
+        }
     }
 
     public string? ErrorMessage
     {
         get => _errorMessage;
-        private set { this.RaiseAndSetIfChanged(ref _errorMessage, value); NotifyDerivedState(); }
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _errorMessage, value);
+            NotifyDerivedState();
+        }
     }
 
     public bool HasResults => Results.Count > 0;
@@ -229,7 +245,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         var scriptPackageIds = BuildScriptPackageSet(fm);
         LoadScriptPackages(fm?.Packages);
         LoadCache(scriptPackageIds);
-        LoadUsings(fm?.Usings);
+        LoadUsings(fm?.Namespaces);
     }
 
     private static HashSet<string> BuildScriptPackageSet(RpadFrontMatter? fm)
@@ -246,22 +262,30 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     // ── Script packages ───────────────────────────────────────────────────────
 
-    private void LoadScriptPackages(Dictionary<string, string>? packages)
+    private void LoadScriptPackages(Dictionary<string, Package>? packages)
     {
         ScriptPackages.Clear();
         if (packages is null) return;
-        foreach (var (id, version) in packages)
-            ScriptPackages.Add(new ScriptPackageItemViewModel(id, version, RemoveScriptPackage));
+        foreach (var (id, package) in packages)
+            ScriptPackages.Add(new ScriptPackageItemViewModel(id, package.Version, RemoveScriptPackage));
     }
 
-    private void AddPackage(string id, string version)
+    private void AddPackage(string id, Package package)
     {
-        if (_frontMatter is null) return;
-        _frontMatter.Packages ??= new Dictionary<string, string>();
-        if (_frontMatter.Packages.ContainsKey(id)) return;
+        if (_frontMatter is null)
+        {
+            return;
+        }
 
-        _frontMatter.Packages[id] = version;
-        ScriptPackages.Add(new ScriptPackageItemViewModel(id, version, RemoveScriptPackage));
+        _frontMatter.Packages ??= new Dictionary<string, Package>();
+
+        if (_frontMatter.Packages.ContainsKey(id))
+        {
+            return;
+        }
+
+        _frontMatter.Packages[id] = package;
+        ScriptPackages.Add(new ScriptPackageItemViewModel(id, package.Version, RemoveScriptPackage));
         SetIsInScript(id, true);
     }
 
@@ -292,7 +316,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         try
         {
             foreach (var p in _cache.GetCachedPackages())
-                CacheItems.Add(new CachedPackageItemViewModel(p, scriptPackageIds.Contains(p.Id), ToggleCachePackage, hasFm));
+                CacheItems.Add(new CachedPackageItemViewModel(p, scriptPackageIds.Contains(p.Id), ToggleCachePackage,
+                    hasFm));
         }
         catch (Exception ex)
         {
@@ -304,13 +329,13 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     {
         if (item.IsInScript)
         {
-            var sp = ScriptPackages.FirstOrDefault(
-                p => string.Equals(p.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+            var sp =
+                ScriptPackages.FirstOrDefault(p => string.Equals(p.Id, item.Id, StringComparison.OrdinalIgnoreCase));
             if (sp is not null) RemoveScriptPackage(sp);
         }
         else
         {
-            AddPackage(item.Id, item.Version);
+            AddPackage(item.Id, new Package(item.Version));
         }
     }
 
@@ -330,14 +355,14 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         var name = _newUsing.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
-        (_frontMatter.Usings ??= []).Add(name);
+        (_frontMatter.Namespaces ??= []).Add(name);
         Usings.Add(new UsingItemViewModel(name, RemoveUsingItem));
         NewUsing = "";
     }
 
     private void RemoveUsingItem(UsingItemViewModel item)
     {
-        _frontMatter?.Usings?.Remove(item.Name);
+        _frontMatter?.Namespaces?.Remove(item.Name);
         Usings.Remove(item);
     }
 
@@ -369,8 +394,14 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        try { await Task.Delay(350, ct); }
-        catch (OperationCanceledException) { return; }
+        try
+        {
+            await Task.Delay(350, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         ErrorMessage = null;
         Results.Clear();
@@ -384,9 +415,12 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         {
             var items = await _search.SearchAsync(q, ct);
             foreach (var item in items)
-                Results.Add(new PackageResultViewModel(item, scriptPackageIds.Contains(item.Id), r => AddPackage(r.Id, r.Version), hasFm));
+                Results.Add(new PackageResultViewModel(item, scriptPackageIds.Contains(item.Id),
+                    r => AddPackage(r.Id, new Package(item.Version)), hasFm));
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
             ErrorMessage = $"Search failed: {ex.Message}";

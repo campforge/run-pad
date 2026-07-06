@@ -1,5 +1,6 @@
 using System.Text;
 using DotPad.Contracts.IntelliSense;
+using DotPad.Format.RPad;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
@@ -113,8 +114,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _preambleLength = _preamble.Length;
     }
 
-    // Call when the .rpad front matter's `usings:` list changes (including once at initial load)
-    // so completion/diagnostics/quick-fix ranking see the same global usings the compiler will add.
+
+
     public void UpdateGlobalUsings(IReadOnlyList<string> usings)
     {
         var extra = usings
@@ -429,10 +430,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Package references ────────────────────────────────────────────────────
 
-    public void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages)
+    public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages)
     {
         var newPaths = packages
-            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value))
+            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value.Version))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

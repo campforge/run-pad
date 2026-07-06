@@ -26,7 +26,7 @@ public abstract class ProcessCompilerBase : IDotnetProcessCompiler
         ExecutionOptions = executionOptions;
     }
 
-    public abstract Task<ProcessCompilerResult> Compilation(string code, CancellationToken cancellationToken);
+    public abstract Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx);
 
     public abstract void Dispose();
 }
