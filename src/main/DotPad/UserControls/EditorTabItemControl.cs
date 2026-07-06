@@ -355,7 +355,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (State.RunningHost is not null)
                 await State.RunningHost.PauseAsync(State.RunCts!.Token);
         }
-        catch (Exception )
+        catch (Exception)
         {
             throw; // TODO handle exception
         }
@@ -583,7 +583,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var children = await context.GetChildrenAsync(v.VariablesReference);
                 return children.Select(c => CreateDebugLocal(c, context)).ToList();
             }
-            : null;
+        : null;
         return new DebugLocal(v.Name, v.Value, v.TypeName, v.HasChildren, loader);
     }
 

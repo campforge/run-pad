@@ -1,4 +1,3 @@
-using DotPad.Format.RPad;
 using Xunit;
 
 namespace DotPad.Format.RPad.Tests;

@@ -1,11 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using DotPad.Assets.Models;
-using DotPad.Build;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
@@ -13,17 +11,15 @@ using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
-using DynamicData;
 using ReactiveUI;
 
 namespace DotPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly IDotpFileService _fileSystemService;
+    private readonly IFileSystemService _fileSystemSystemService;
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
-    private readonly string _rootFolder;
 
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
@@ -48,8 +44,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         await _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter);
         DependenciesWindowClosed?.Invoke();
     }
-
-    public void OpenPreferencesWindow() => _ = _windowService.ShowPreferencesAsync();
 
     // ── Sidebar layout (collapsible file tree) ────────────────────────────────
 
@@ -81,27 +75,28 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<EditorTabItemViewModel> Tabs { get; } = [];
 
     private EditorTabItemViewModel? _activeTab;
+
     public EditorTabItemViewModel? ActiveTab
     {
         get => _activeTab;
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
-    public EditorTabItemViewModel NewRpadFile()
+    public void NewRpadFile()
     {
-        var path = _fileSystemService.CreateNewRpadFile(_rootFolder);
+        var path = _fileSystemSystemService.CreateNewFile();
         var title = Path.GetFileNameWithoutExtension(path);
         File.WriteAllText(path, RpadWriter.NewFile(title), System.Text.Encoding.UTF8);
         Nodes.Add(new Node(Path.GetFileName(path), path));
-        return OpenTab(path);
+        OpenTab(path);
     }
 
-    public EditorTabItemViewModel OpenTab(string? filePath)
+    public void OpenTab(string? filePath)
     {
         if (filePath is not null && _openTabs.TryGetValue(filePath, out var existing))
         {
             ActiveTab = existing;
-            return existing;
+            return;
         }
 
         // Close the initial blank tab when the first real file is opened.
@@ -116,9 +111,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         Tabs.Add(vm);
         ActiveTab = vm;
 
-        if (blankToClose is not null) CloseTab(blankToClose);
-
-        return vm;
+        if (blankToClose is not null)
+            CloseTab(blankToClose);
     }
 
     internal void CloseActiveTab()
@@ -133,6 +127,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             d.Dispose();
             _closeSubscriptions.Remove(vm);
         }
+
         if (vm.FilePath is not null) _openTabs.Remove(vm.FilePath);
 
         bool wasActive = ActiveTab == vm;
@@ -148,7 +143,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (_openTabs.TryGetValue(node.FilePath, out var tab))
             CloseTab(tab);
 
-        try { File.Delete(node.FilePath); } catch { /* ignore */ }
+        try
+        {
+            File.Delete(node.FilePath);
+        }
+        catch
+        {
+            /* ignore */
+        }
 
         RemoveNodeByPath(Nodes, node.FilePath);
     }
@@ -178,7 +180,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (_openTabs.TryGetValue(oldPath, out var tab))
             CloseTab(tab);
 
-        try { File.Move(oldPath, newPath); }
+        try
+        {
+            File.Move(oldPath, newPath);
+        }
         catch (Exception ex)
         {
             node.EditingName = node.DisplayName;
@@ -206,22 +211,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void OpenContainingFolder(Node node)
     {
-        var dir = Path.GetDirectoryName(node.FilePath);
-        if (dir is null) return;
-
-        // Windows/macOS can select the file itself within its file manager; Linux has no
-        // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
-        // containing folder instead (see ANALYSIS.md #26). The Windows branch keeps its original,
-        // already-working `/select,"path"` form (single Arguments string, not ArgumentList — that
-        // exact comma-then-quoted-path syntax is what explorer.exe expects) unverified changes to
-        // it aren't worth the risk since Windows isn't available to test in this environment.
-        var startInfo = OperatingSystem.IsWindows()
-            ? new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{node.FilePath}\"", UseShellExecute = true }
-            : OperatingSystem.IsMacOS()
-                ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", node.FilePath } }
-                : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
-
-        try { Process.Start(startInfo); }
+        try
+        {
+            _fileSystemSystemService.OpenFolder(node.FilePath);
+        }
         catch (Exception ex)
         {
             _ = _windowService.ShowErrorAsync("Could Not Open File Manager", ex.Message);
@@ -235,11 +228,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
-        IDotpFileService fileSystemService,
+        IFileSystemService fileSystemSystemService,
         IWindowService windowService,
         IPreferencesService prefs)
     {
-        _fileSystemService = fileSystemService;
+        _fileSystemSystemService = fileSystemSystemService;
         _windowService = windowService;
         _prefs = prefs;
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
@@ -250,7 +243,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
-        SidebarColumnWidth = _prefs.Layout.SidebarCollapsed ? new GridLength(0) : new GridLength(_prefs.Layout.SidebarWidth);
+        SidebarColumnWidth = _prefs.Layout.SidebarCollapsed
+            ? new GridLength(0)
+            : new GridLength(_prefs.Layout.SidebarWidth);
         _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;
         ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
         this.WhenAnyValue(x => x.SidebarColumnWidth)
@@ -262,13 +257,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 if (w.Value > 0) _prefs.Layout.SidebarWidth = w.Value;
                 _prefs.Save();
             });
+        Nodes = [];
+        RefreshNodes();
 
-        _rootFolder = _fileSystemService.GetOrCreateDefaultFolder();
-
-        Nodes = new ObservableCollection<Node>(BuildNodesFromDisk(_rootFolder));
-
-        _fileSystemService.WatcherEvent += OnWatcherEvent;
-        _fileSystemService.StartWatcher(_rootFolder);
+        _fileSystemSystemService.WatcherEvent += OnWatcherEvent;
+        _fileSystemSystemService.StartWatcher();
     }
 
     // ── Watcher ───────────────────────────────────────────────────────────────
@@ -289,48 +282,19 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     /// objects where possible so selection and expand state survive small changes.</summary>
     private void RefreshNodes()
     {
-        var fresh = BuildNodesFromDisk(_rootFolder);
-        MergeNodeList(Nodes, fresh);
+        var filesTree = _fileSystemSystemService.GetFilesTree();
+        MergeNodeList(Nodes, filesTree);
     }
 
     // ── Tree building ─────────────────────────────────────────────────────────
 
-    private static List<Node> BuildNodesFromDisk(string folder)
-    {
-        var result = new List<Node>();
-        try
-        {
-            // Folders first (alphabetically), but only if they contain tracked files
-            foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
-            {
-                var children = BuildNodesFromDisk(dir);
-                if (children.Count > 0)
-                    result.Add(new Node(Path.GetFileName(dir), dir,
-                        new ObservableCollection<Node>(children)));
-            }
-
-            // Then tracked files
-            foreach (var file in Directory.GetFiles(folder)
-                         .Where(IsTrackedFile)
-                         .OrderBy(Path.GetFileName))
-            {
-                result.Add(new Node(Path.GetFileName(file), file));
-            }
-        }
-        catch (UnauthorizedAccessException) { /* skip inaccessible dirs */ }
-
-        return result;
-    }
-
-    private static bool IsTrackedFile(string path)
-    {
-        var ext = Path.GetExtension(path);
-        return ext.Equals(".rpad", StringComparison.OrdinalIgnoreCase);
-    }
+    private static Node MapToNode(FileSystemItem fsi) => fsi.IsDirectory
+        ? new Node(fsi.Name, fsi.FilePath, new ObservableCollection<Node>((fsi.Children ?? []).Select(MapToNode)))
+        : new Node(fsi.Name, fsi.FilePath);
 
     /// <summary>Merges <paramref name="fresh"/> into <paramref name="current"/> with minimal
     /// ObservableCollection mutations to preserve UI state (selection, expanded folders).</summary>
-    private static void MergeNodeList(ObservableCollection<Node> current, List<Node> fresh)
+    private static void MergeNodeList(ObservableCollection<Node> current, IReadOnlyList<FileSystemItem> fresh)
     {
         // Build a lookup of fresh paths for O(1) access
         var freshByPath = fresh.ToDictionary(n => n.FilePath, StringComparer.OrdinalIgnoreCase);
@@ -346,7 +310,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var existing in current)
         {
             if (existing.SubNodes is not null && freshByPath.TryGetValue(existing.FilePath, out var freshFolder))
-                MergeNodeList(existing.SubNodes, freshFolder.SubNodes?.ToList() ?? []);
+                MergeNodeList(existing.SubNodes, freshFolder.Children ?? []);
         }
 
         // 3. Add nodes that are missing from current (new files/folders)
@@ -354,10 +318,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             current.Select(n => n.FilePath), StringComparer.OrdinalIgnoreCase);
 
         int insertIndex = 0;
+
         foreach (var freshNode in fresh)
         {
             if (!currentPaths.Contains(freshNode.FilePath))
-                current.Insert(Math.Min(insertIndex, current.Count), freshNode);
+                current.Insert(Math.Min(insertIndex, current.Count), MapToNode(freshNode));
             insertIndex++;
         }
     }
@@ -371,9 +336,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 nodes.RemoveAt(i);
                 return true;
             }
+
             if (nodes[i].SubNodes is { } sub && RemoveNodeByPath(sub, filePath))
                 return true;
         }
+
         return false;
     }
 
@@ -381,9 +348,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        _fileSystemService.WatcherEvent -= OnWatcherEvent;
-        _fileSystemService.StopWatcher();
-        foreach (var d in _closeSubscriptions.Values) d.Dispose();
+        _fileSystemSystemService.WatcherEvent -= OnWatcherEvent;
+        _fileSystemSystemService.StopWatcher();
+        foreach (var d in _closeSubscriptions.Values)
+        {
+            d.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 }

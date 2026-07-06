@@ -43,7 +43,6 @@
         <ProjectReference Include="..\..\controls\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj" />
         <ProjectReference Include="..\..\controls\DotPad.Avalonia.Themes\DotPad.Avalonia.Themes.csproj" />
         <ProjectReference Include="..\..\controls\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
-        <ProjectReference Include="..\..\core\DotPad.Build\DotPad.Build.csproj" />
         <ProjectReference Include="..\..\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
         <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj" />
         <ProjectReference Include="..\..\languages\DotPad.Languages.CSharp\DotPad.Languages.CSharp.csproj" />

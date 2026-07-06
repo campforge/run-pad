@@ -15,7 +15,7 @@ public record Package(string Version)
 
 public sealed class RpadFrontMatter
 {
-    public int Version { get; set; } = 1;
+    public string Version { get; set; } = "1.0";
     public RpadLanguage Language { get; set; } = RpadLanguage.CSharp;
     public TargetSdk TargetSdk { get; set; } = TargetSdk.Default;
     public RpadKind Kind { get; set; } = RpadKind.Statements;

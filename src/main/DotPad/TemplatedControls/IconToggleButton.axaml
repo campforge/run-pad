@@ -34,7 +34,8 @@
                 </Style>
 
                 <Style Selector="^:checked /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+                    <Setter Property="BorderThickness" Value="1" />
+                    <!-- <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/> -->
                 </Style>
 
                 <Style Selector="^:disabled">

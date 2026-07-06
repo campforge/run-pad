@@ -1,4 +1,3 @@
-using System.Composition;
 using System.Composition.Hosting;
 using System.Reflection;
 using System.Text.RegularExpressions;
