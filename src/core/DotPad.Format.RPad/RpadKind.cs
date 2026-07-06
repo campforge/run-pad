@@ -2,7 +2,8 @@ namespace DotPad.Format.RPad;
 
 public enum RpadKind
 {
-    Statements,
-    Program,
-    Expression,
+    Unknown = 0,
+    Statements = 1,
+    Program = 2,
+    Expression = 3,
 }

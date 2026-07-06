@@ -1,14 +1,18 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Build;
+namespace DotPad.Services;
 
-public interface IDotpFileService : IDisposable
+public record FileSystemItem(string Name, bool IsDirectory, string FilePath, IReadOnlyList<FileSystemItem>? Children);
+
+public interface IFileSystemService : IDisposable
 {
-    string GetOrCreateDefaultFolder();
-    IReadOnlyList<string> GetFilesInFolder(string folder);
-    string CreateNewRpadFile(string folder);
-    void StartWatcher(string folder);
+    IReadOnlyList<FileSystemItem> GetFilesTree();
+    string CreateNewFile();
+    void StartWatcher();
     void StopWatcher();
+
+    string Folder { get; }
 
     /// <summary>
     /// Raised on the thread-pool when a tracked file (.rpad) or a directory
@@ -16,23 +20,33 @@ public interface IDotpFileService : IDisposable
     /// For Renamed events the argument is <see cref="RenamedEventArgs"/>.
     /// </summary>
     event EventHandler<FileSystemEventArgs>? WatcherEvent;
+
+    void OpenFolder(string dir);
 }
 
-public sealed class DotpFileService : IDotpFileService
+public sealed class FileSystemService : IFileSystemService
 {
-    private const string RpadExtension = ".rpad";
+    private const string FileExtension = ".rpad";
+    private readonly string _rootFolder;
 
     private readonly FileSystemWatcher _watcher = new();
-    private readonly ILogger<DotpFileService> _logger;
+    private readonly ILogger<FileSystemService> _logger;
 
     public event EventHandler<FileSystemEventArgs>? WatcherEvent;
 
-    public DotpFileService(ILogger<DotpFileService> logger)
+
+
+    public string Folder => _rootFolder;
+
+    public FileSystemService(
+        ILogger<FileSystemService> logger
+    )
     {
         _logger = logger;
+        _rootFolder = GetOrCreateDefaultFolder();
     }
 
-    public string GetOrCreateDefaultFolder()
+    private static string GetOrCreateDefaultFolder()
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var folder = Path.Combine(documents, "DotPad Queries");
@@ -43,24 +57,63 @@ public sealed class DotpFileService : IDotpFileService
         return folder;
     }
 
-    public IReadOnlyList<string> GetFilesInFolder(string folder)
-        => Directory.GetFiles(folder, "*" + RpadExtension, SearchOption.AllDirectories)
-            .OrderBy(Path.GetFileName).ToList();
+    private static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(string folder)
+    {
+        var result = new List<FileSystemItem>();
 
-    public string CreateNewRpadFile(string folder)
+        // Идем сперва по папкам
+        foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
+        {
+            var children = GetFilesTreeInternal(dir);
+            if (children.Count > 0)
+            {
+                result.Add(new FileSystemItem(Path.GetFileName(dir), true, dir, children));
+            }
+        }
+
+        // Потом по файлам
+        foreach (var file in Directory
+                     .GetFiles(folder, $"*{FileExtension}")
+                     .OrderBy(Path.GetFileName))
+        {
+            result.Add(new FileSystemItem(Path.GetFileName(file), false, file, null));
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<FileSystemItem> GetFilesTree()
+    {
+        try
+        {
+            return GetFilesTreeInternal(_rootFolder);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Can not build FilesTree");
+            throw;
+        }
+        return new List<FileSystemItem>();
+    }
+
+
+    public string CreateNewFile()
     {
         int i = 1;
         string path;
-        do { path = Path.Combine(folder, $"Query {i++}{RpadExtension}"); }
-        while (File.Exists(path));
+        do
+        {
+            path = Path.Combine(_rootFolder, $"Query {i++}{FileExtension}");
+        } while (File.Exists(path));
+
         File.WriteAllText(path, string.Empty);
         return path;
     }
 
-    public void StartWatcher(string folder)
+    public void StartWatcher()
     {
-        _watcher.Path = folder;
-        _watcher.Filter = "*.*";
+        _watcher.Path = _rootFolder;
+        _watcher.Filter = $"*{FileExtension}";
         _watcher.IncludeSubdirectories = true;
         _watcher.NotifyFilter =
             NotifyFilters.FileName | NotifyFilters.DirectoryName |
@@ -80,14 +133,22 @@ public sealed class DotpFileService : IDotpFileService
 
     private void OnFileEvent(object source, FileSystemEventArgs e)
     {
-        if (!IsRelevant(e.FullPath)) return;
+        if (!IsRelevant(e.FullPath))
+        {
+            return;
+        }
+
         _logger.LogDebug("{Name} {ChangeType}", e.Name, e.ChangeType);
         WatcherEvent?.Invoke(source, e);
     }
 
     private void OnRenamedEvent(object source, RenamedEventArgs e)
     {
-        if (!IsRelevant(e.FullPath) && !IsRelevant(e.OldFullPath)) return;
+        if (!IsRelevant(e.FullPath) && !IsRelevant(e.OldFullPath))
+        {
+            return;
+        }
+
         _logger.LogDebug("{OldName} → {Name} (Renamed)", e.OldName, e.Name);
         WatcherEvent?.Invoke(source, e);
     }
@@ -97,6 +158,27 @@ public sealed class DotpFileService : IDotpFileService
     {
         var ext = Path.GetExtension(fullPath);
         return string.IsNullOrEmpty(ext)
-            || ext.Equals(RpadExtension, StringComparison.OrdinalIgnoreCase);
+               || ext.Equals(FileExtension, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void OpenFolder(string filePath)
+    {
+        var dir = Path.GetDirectoryName(filePath);
+        if (dir is null)
+            return;
+
+        // Windows/macOS can select the file itself within its file manager; Linux has no
+        // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
+        // containing folder instead (see ANALYSIS.md #26). The Windows branch keeps its original,
+        // already-working `/select,"path"` form (single Arguments string, not ArgumentList — that
+        // exact comma-then-quoted-path syntax is what explorer.exe expects) unverified changes to
+        // it aren't worth the risk since Windows isn't available to test in this environment.
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo
+            { FileName = "explorer.exe", Arguments = $"/select,\"{filePath}\"", UseShellExecute = true }
+            : OperatingSystem.IsMacOS()
+                ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", filePath } }
+                : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
+        Process.Start(startInfo);
     }
 }

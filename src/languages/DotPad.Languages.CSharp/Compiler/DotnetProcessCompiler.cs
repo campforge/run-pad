@@ -114,7 +114,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
             taskOut.Result.Item2);
     }
 
-    private async Task<( List<ResultItem>, List<ResultItem>)> DrainStdout(CancellationToken cancellationToken)
+    private async Task<(List<ResultItem>, List<ResultItem>)> DrainStdout(CancellationToken cancellationToken)
     {
         var errors = new List<ResultItem>();
         var warnings = new List<ResultItem>();

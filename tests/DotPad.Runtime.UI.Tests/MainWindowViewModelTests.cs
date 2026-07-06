@@ -1,6 +1,4 @@
 using Avalonia.Headless.XUnit;
-using DotPad.Build;
-using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Windows.Models;
@@ -18,7 +16,7 @@ public class MainWindowViewModelTests
         var rootFolder = Directory.CreateTempSubdirectory("dotpad-ui-test").FullName;
         try
         {
-            var fileService = new Mock<IDotpFileService>();
+            var fileService = new Mock<IFileSystemService>();
             fileService.Setup(f => f.GetOrCreateDefaultFolder()).Returns(rootFolder);
 
             var prefs = new Mock<IPreferencesService>();
@@ -26,7 +24,7 @@ public class MainWindowViewModelTests
 
             var vm = new MainWindowViewModel(
                 sdkProviders: [],
-                fileSystemService: fileService.Object,
+                fileSystemSystemService: fileService.Object,
                 windowService: new Mock<IWindowService>().Object,
                 prefs: prefs.Object);
 

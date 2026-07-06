@@ -101,14 +101,13 @@
                         IconData="{StaticResource Icon.Bug}"
                         IsChecked="{Binding DebugModeEnabled}"
                         ToolTip.Tip= "Toggle debug mode"
-                        Width="24" Height="24"
-                        />
+                       />
 
                     <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
                         Command="{Binding ToggleOutputPanelCommand}"
                         ToolTip.Tip="Toggle output panel"
-                        Width="24" Height="24"/>
+                        />
 
                     <!-- Debug-only controls: shown, not merely enabled, only while debugging
                          (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with

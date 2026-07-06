@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Platform;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using DotPad.Avalonia.Themes;
 using DotPad.Services.Preferences;

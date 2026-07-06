@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using DotPad.Build;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp;
@@ -55,7 +54,7 @@ public class App : Application
         services.AddSingleton<Application>(this);
         services.AddSingleton<IPreferencesService, PreferencesService>();
         services.AddSingleton<IThemeService, ThemeService>();
-        services.AddSingleton<IDotpFileService, DotpFileService>();
+        services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
         services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();

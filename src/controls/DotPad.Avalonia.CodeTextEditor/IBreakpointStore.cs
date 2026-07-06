@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace DotPad.Avalonia.CodeTextEditor;
 
 public interface IBreakpointStore : IEnumerable<IBreakpoint>
