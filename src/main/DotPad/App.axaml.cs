@@ -24,10 +24,7 @@ public class App : Application
 {
     private ServiceProvider? _serviceProvider;
 
-    public override void Initialize()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -64,15 +61,7 @@ public class App : Application
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();
 
-        services.AddLogging(logging =>
-        {
-            string logDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "DotPad", "logs");
-            logging.AddProvider(new FileLoggerProvider(
-                Path.Combine(logDir, $"dotpad-{DateTime.Now:yyyy-MM-dd}.log")));
-            logging.SetMinimumLevel(LogLevel.Debug);
-        });
+        AddLogging(services);
 
         services.AddSingleton<ILanguageHostRegistry>(sp =>
         {
@@ -82,8 +71,8 @@ public class App : Application
             return registry;
         });
 
+        // ToDo: Какаято фигня которая должна переехать непосредственно в мплементацию языка
         services.AddSingleton<CSharpReferenceService>();
-
         // One IIntelliSenseService instance per tab, not a shared singleton: each open script can
         // reference different NuGet packages, and CSharpIntelliSenseService is stateful (one
         // AdhocWorkspace/document per instance). A shared instance would let one tab's package
@@ -106,11 +95,24 @@ public class App : Application
 
         var provider = services.BuildServiceProvider();
 
+        // ToDo: выделить отдельный сервис прогрева приложения
         // Kick off Roslyn warmup in the background so the first tab's completion is fast.
         // Uses a throwaway instance — the expensive part (DotPadRoslynHost.HostServices / MEF
         // composition) is a process-wide lazy singleton shared by every instance the factory creates.
         _ = Task.Run(() => provider.GetRequiredService<Func<IIntelliSenseService>>()().NotifyTextChanged(""));
 
         return provider;
+    }
+
+    private static void AddLogging(ServiceCollection services)
+    {
+        var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "logs");
+        Directory.CreateDirectory(logDir);
+        services.AddLogging(lb =>
+        {
+            lb.AddConsole();
+            lb.AddProvider(new FileLoggerProvider(Path.Combine(logDir)));
+            lb.SetMinimumLevel(LogLevel.Debug);
+        });
     }
 }

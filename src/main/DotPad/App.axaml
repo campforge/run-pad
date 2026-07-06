@@ -14,6 +14,8 @@
         <FluentTheme />
         <themes:DotPadTheme />
         <StyleInclude Source="avares://DotPad/TemplatedControls/IconButton.axaml"/>
+        <StyleInclude Source="avares://DotPad/TemplatedControls/IconToggleButton.axaml"/>
+        <StyleInclude Source="avares://DotPad/TemplatedControls/ToolbarComboBox.axaml"/>
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
     </Application.Styles>

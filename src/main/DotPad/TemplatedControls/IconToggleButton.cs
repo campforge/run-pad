@@ -1,10 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 
 namespace DotPad.TemplatedControls;
 
-public class IconButton : Button
+public class IconToggleButton : ToggleButton
 {
     public static readonly StyledProperty<Geometry?> IconDataProperty =
         AvaloniaProperty.Register<IconButton, Geometry?>(nameof(IconData));

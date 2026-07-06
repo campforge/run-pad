@@ -28,7 +28,7 @@ https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-d
 
 ## ошибки
 
-###
+### error CS0009
 (0,0): error CS0009: Не удалось открыть файл метаданных "C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.Compression.Native.dll" — Образ среды предустановки не содержит управляемые метаданные.
 
 ```
@@ -48,4 +48,26 @@ https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-d
     i.Dump();
     ```
 
+```
+
+### Нет системных импортов
+Можно всегда делать вот так:
+
+```
+System
+System.Collections
+System.Collections.Generic
+System.Data
+System.Diagnostics
+System.IO
+System.Linq
+System.Linq.Expressions
+System.Reflection
+System.Text
+System.Text.RegularExpressions
+System.Threading
+System.Transactions
+System.Xml
+System.Xml.Linq
+System.Xml.XPath
 ```

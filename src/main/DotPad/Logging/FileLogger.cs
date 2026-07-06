@@ -39,7 +39,7 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
             _ => "???"
         };
 
-        var logLine = $"[{timestamp}] [{level}] [{category}] {message}";
+        var logLine = $"[{timestamp}] [{level}] [{_shortCategory}] {message}";
 
         if (exception is not null)
         {
