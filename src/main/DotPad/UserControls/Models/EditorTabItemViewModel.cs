@@ -58,15 +58,6 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
 
-    // DAP "justMyCode" — when true, the debugger steps over framework/library code with no
-    // symbols instead of stepping into it. Off by default to match this project's prior hardcoded
-    // behavior (ANALYSIS.md feature #21).
-    public bool JustMyCode
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
     private RunState _runState;
     public RunState RunState
     {

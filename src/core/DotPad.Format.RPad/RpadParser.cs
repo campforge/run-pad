@@ -3,9 +3,10 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace DotPad.Format.RPad;
 
+/// ToDo: надо радоьать со стримом, причем иметь возможность взять непосредственно стрим кода игонрируя заголовки
 public static class RpadParser
 {
-    private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
+    private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .Build();
@@ -33,15 +34,14 @@ public static class RpadParser
         RpadFrontMatter fm;
         try
         {
-            fm = YamlDeserializer.Deserialize<RpadFrontMatter>(yamlText) ?? new RpadFrontMatter();
+            fm = _yamlDeserializer.Deserialize<RpadFrontMatter>(yamlText);
             // YamlDotNet overwrites defaulted string properties with an explicit YAML null
             // (e.g. "targetSdk:" with no value) — restore the default in that case. Language/Kind
             // don't need this: YamlDotNet leaves non-nullable enum properties at their object
             // initializer default when the YAML value is null/empty rather than nulling them out.
-            fm.TargetSdk ??= "net10.0";
             fm.Packages ??= [];
             fm.References ??= [];
-            fm.Usings ??= [];
+            fm.Namespaces ??= [];
         }
         catch
         {

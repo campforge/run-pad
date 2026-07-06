@@ -1,3 +1,5 @@
+using DotPad.Format.RPad;
+
 namespace DotPad.Contracts.IntelliSense;
 
 public interface IIntelliSenseService : IDisposable
@@ -31,7 +33,7 @@ public interface IIntelliSenseService : IDisposable
     void NotifyTextChanged(string code);
 
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.
-    void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages);
+    void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
 
     // Call when the tab's .rpad front-matter `usings:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler

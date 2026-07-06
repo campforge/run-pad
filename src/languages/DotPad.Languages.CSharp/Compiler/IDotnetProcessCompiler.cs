@@ -4,5 +4,5 @@ namespace DotPad.Languages.CSharp.Compiler;
 
 public interface IDotnetProcessCompiler : IDisposable
 {
-    Task<ProcessCompilerResult> Compilation(string code, CancellationToken cancellationToken);
+    Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx);
 }

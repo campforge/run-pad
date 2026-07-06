@@ -4,6 +4,7 @@ namespace DotPad.Format.RPad;
 
 public static class RpadWriter
 {
+    /// ToDo: надо радоьать со стримом, причем иметь возможность взять непосредственно стрим кода игонрируя заголовки
     /// <summary>Serializes the document back to .rpad file content.</summary>
     public static string Write(RpadDocument doc)
     {
@@ -39,7 +40,7 @@ public static class RpadWriter
             foreach (var (k, v) in fm.Packages)
             {
                 sb.AppendLine();
-                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v)}");
+                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v.Version)}");
             }
         }
 
@@ -54,11 +55,11 @@ public static class RpadWriter
             }
         }
 
-        if (fm.Usings?.Count > 0)
+        if (fm.Namespaces?.Count > 0)
         {
             sb.AppendLine();
             sb.Append("usings:");
-            foreach (var u in fm.Usings)
+            foreach (var u in fm.Namespaces)
             {
                 sb.AppendLine();
                 sb.Append($"  - {u}");

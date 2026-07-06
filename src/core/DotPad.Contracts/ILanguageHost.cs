@@ -9,13 +9,21 @@ public interface ILanguageHost : IAsyncDisposable
     bool Supports(LanguageHostCapabilities capability);
 
     // Always available: compile, run, stop.
-    Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken = default);
-    Task RunAsync(string code, OutputReceivedHandler? outputHandler = null, CancellationToken cancellationToken = default);
-    Task TerminateAsync(CancellationToken cancellationToken = default);
+    Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
+
+    Task RunAsync(string code,
+        OutputReceivedHandler outputHandler,
+        CancellationToken cancellationToken);
+
+    Task TerminateAsync(CancellationToken cancellationToken);
 
     // Requires Debug capability.
-    Task RunDebugAsync(string code, OutputReceivedHandler? outputHandler = null, CancellationToken cancellationToken = default);
-    Task PauseAsync(CancellationToken cancellationToken = default);
+    Task RunDebugAsync(
+        string code,
+        OutputReceivedHandler outputHandler,
+        CancellationToken cancellationToken);
+
+    Task PauseAsync(CancellationToken cancellationToken);
 
     // Requires Breakpoints capability.
     void AddBreakpoint(IBreakpoint breakpoint);
@@ -25,5 +33,5 @@ public interface ILanguageHost : IAsyncDisposable
     event BreakpointVerifiedHandler? BreakpointVerified;
 
     // Requires MemoryDump capability.
-    Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default);
+    Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken);
 }

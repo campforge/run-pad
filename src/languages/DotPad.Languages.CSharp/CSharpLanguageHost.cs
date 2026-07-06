@@ -1,13 +1,10 @@
-using System.Text;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
+using DotPad.Format.RPad;
 using DotPad.Languages.CSharp.Adapters;
 using DotPad.Languages.CSharp.Compiler;
 using DotPad.Languages.CSharp.Debug;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using DiagnosticSeverity = DotPad.Contracts.Models.DiagnosticSeverity;
 using OutputKind = DotPad.Contracts.Models.OutputKind;
@@ -52,37 +49,25 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     private async Task<(CSharpCompilationResult result, string? binaryPath)> CompileInternalAsync(
         string code, CancellationToken ct)
     {
-
         // Fast path: no NuGet packages and no project references means nothing needs MSBuild's own
         // restore/reference-resolution — compile in-process and skip the dotnet-build subprocess
         // entirely (see ANALYSIS.md feature #16). Anything else falls back to the process compiler,
         // which already handles the full range of packages/references/target frameworks.
-        using ProcessCompilerBase compiler =new DotnetProcessCompiler(
-                _options.Platform,
-                _options.ExecutionOptions,
-                _options.OutputDirectory,
-                _options.RuntimeLibPath,
-                _options.OutputName,
-                _options.NugetPackages,
-                _options.GlobalUsings,
-                _options.AssemblyReferences,
-                _options.ProjectReferences,
-                _options.TargetFrameworkOverride,
-                _loggerFactory.CreateLogger<DotnetProcessCompiler>());
+        using ProcessCompilerBase compiler = new DotnetProcessCompiler(
+            sdk: _options.Platform,
+            executionOptions: _options.ExecutionOptions,
+            outputDir: _options.OutputDirectory,
+            dotPadRuntimeLib: _options.RuntimeLibPath,
+            outputName: _options.OutputName,
+            nugetPackages: _options.Packages,
+            usings: _options.Usings,
+            assemblyReferences: _options.AssemblyReferences,
+            projectReferences: _options.ProjectReferences,
+            logger: _loggerFactory.CreateLogger<DotnetProcessCompiler>());
 
         ProcessCompilerResult raw = await compiler.Compilation(code, ct);
         CSharpCompilationResult result = new(raw);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
-    }
-
-    private SyntaxTree BuildSyntaxTree(string code)
-    {
-        var bytes = Encoding.UTF8.GetBytes(code);
-        var text = SourceText.From(bytes, bytes.Length, Encoding.UTF8, canBeEmbedded: true);
-        return CSharpSyntaxTree.ParseText(
-            text,
-            new CSharpParseOptions(),
-            Path.Combine(_options.OutputDirectory, $"{_options.OutputName}.cs"));
     }
 
     // ── Run ──────────────────────────────────────────────────────────────────
@@ -94,7 +79,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
 
-        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) =
+            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
@@ -111,7 +97,8 @@ public sealed class CSharpLanguageHost : LanguageHostBase
             if (!process.Start()) return;
 
             await Task.WhenAll(
-                DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput, WrapWithDumpDetection(outputHandler), cts.Token),
+                DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput,
+                    WrapWithDumpDetection(outputHandler), cts.Token),
                 DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
         }
         finally
@@ -124,12 +111,15 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     public override async Task RunDebugAsync(
         string code,
-        OutputReceivedHandler? outputHandler = null,
-        CancellationToken cancellationToken = default)
+        OutputReceivedHandler outputHandler,
+        CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
+        var lineOffset = CalcKindOffset();
+        code = ApplyKindTransform(code);
 
-        (CSharpCompilationResult compilationResult, string? binaryPath) = await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
+        (CSharpCompilationResult compilationResult, string? binaryPath) =
+            await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
@@ -139,10 +129,6 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         try
         {
             await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
-
-            int lineOffset = _options.GlobalUsings.Count
-                + (_options.Kind is "Program" or "Expression" ? 1 : 0);
-
             await using var session = new CSharpDapSession(
                 process,
                 binaryPath,
@@ -154,11 +140,13 @@ public sealed class CSharpLanguageHost : LanguageHostBase
                 _loggerFactory.CreateLogger<CSharpDapSession>(),
                 _options.BreakOnAllExceptions,
                 _options.BreakOnUncaughtExceptions,
-                OnBreakpointVerified,
-                _options.JustMyCode);
+                OnBreakpointVerified);
 
             _currentSession = session;
-            try { await session.RunAsync(cts.Token); }
+            try
+            {
+                await session.RunAsync(cts.Token);
+            }
             finally
             {
                 session.FlushOutputBuffers();
@@ -171,7 +159,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         }
     }
 
-    public override async Task PauseAsync(CancellationToken cancellationToken = default)
+    public override async Task PauseAsync(CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.Debug);
         if (_currentSession is { } s)
@@ -203,7 +191,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     // ── Terminate ─────────────────────────────────────────────────────────────
 
-    public override Task TerminateAsync(CancellationToken cancellationToken = default)
+    public override Task TerminateAsync(CancellationToken cancellationToken)
     {
         _runCts?.Cancel();
         return Task.CompletedTask;
@@ -211,7 +199,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     // ── Memory dump ───────────────────────────────────────────────────────────
 
-    public override Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default)
+    public override Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.MemoryDump);
 
@@ -227,21 +215,35 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     public override async ValueTask DisposeAsync()
     {
-        _runCts?.Cancel();
+        try
+        {
+            await _runCts?.CancelAsync()!;
+        }
+        catch (Exception e)
+        {
+            // ignored
+        }
+
         await base.DisposeAsync();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private const char RsPrefix = '\x1e'; // new format: RS + base64
+
     private string ApplyKindTransform(string code) => _options.Kind switch
     {
-        "Expression" => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        "Program" => $"Main();{code}",
+        RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
+        RpadKind.Program => $"Main();{code}",
         _ => code,
     };
 
-    private const char RsPrefix = '\x1e';        // new format: RS + base64
-    private const string TextPrefix = "DOTPAD_DUMP:"; // legacy format
+    private int CalcKindOffset() => _options.Kind switch
+    {
+        RpadKind.Expression => 1,
+        RpadKind.Program => 2,
+        _ => 0,
+    };
 
     private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
     {
@@ -275,8 +277,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         OutputReceivedHandler? handler,
         CancellationToken ct)
     {
-        string? line;
-        while ((line = await reader.ReadLineAsync(ct)) is not null)
+        while (await reader.ReadLineAsync(ct) is { } line)
             handler?.Invoke(line, kind);
     }
 }
