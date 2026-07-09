@@ -22,7 +22,7 @@ public static class RpadWriter
             RpadKind.Expression => "\"Hello, RPad!\"\n",
             _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
-        return $"---\nversion: 1\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
+        return $"---\nversion: \"1.0\"\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm)
