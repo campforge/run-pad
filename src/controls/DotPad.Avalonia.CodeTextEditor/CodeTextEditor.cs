@@ -519,6 +519,15 @@ public class CodeTextEditor : TextEditor
         _completionWindow = new CompletionWindow(TextArea);
         _completionWindow.Closed += (_, _) => _completionWindow = null;
 
+        // The window itself is a bare Popup with no Font/Background/Foreground of its own — the
+        // actual visible content is CompletionList, a separate TemplatedControl that doesn't
+        // inherit these from this editor through the visual tree, so copy them explicitly instead
+        // of falling back to AvaloniaEdit's own default theme.
+        _completionWindow.CompletionList.FontFamily = FontFamily;
+        _completionWindow.CompletionList.FontSize = FontSize;
+        _completionWindow.CompletionList.Background = Background;
+        _completionWindow.CompletionList.Foreground = Foreground;
+
         foreach (var item in args.Items)
             _completionWindow.CompletionList.CompletionData.Add(item);
 
@@ -539,6 +548,14 @@ public class CodeTextEditor : TextEditor
         _insightWindow?.Close();
         _insightWindow = new OverloadInsightWindow(TextArea);
         _insightWindow.Closed += (_, _) => _insightWindow = null;
+        // Same reasoning as ShowCompletion above — style the popup's actual content control.
+        if (_insightWindow.Child is TemplatedControl content)
+        {
+            content.FontFamily = FontFamily;
+            content.FontSize = FontSize;
+            content.Background = Background;
+            content.Foreground = Foreground;
+        }
         _insightWindow.Provider = new OverloadProvider(args.Overloads);
         _insightWindow.Show();
     }
