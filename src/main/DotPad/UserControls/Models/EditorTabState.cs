@@ -32,7 +32,7 @@ internal sealed class EditorTabState
     public readonly Stopwatch RunStopwatch = new();
 
     // Set when the active file is an .rpad document; null for untitled tabs
-    public RpadDocument RpadDocument { get; set; }
+    public RpadDocument? RpadDocument { get; set; }
 
     // Compile output directory, reused across runs of this tab (allocated once, on first run).
     // Lets DotnetProcessCompiler skip NuGet restore when packages/references haven't changed —

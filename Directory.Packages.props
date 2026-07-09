@@ -6,18 +6,18 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Avalonia -->
-    <PackageVersion Include="Avalonia" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
+    <PackageVersion Include="Avalonia" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.1.0" />
     <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
-    <PackageVersion Include="Avalonia.Browser" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Browser" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.0" />
     <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.Themes.Simple" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.Headless" Version="12.0.5" />
-    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Themes.Simple" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Headless" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.0" />
     <!-- TextMate -->
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
     <PackageVersion Include="TextMateSharp" Version="2.0.4" />

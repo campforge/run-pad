@@ -964,15 +964,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-            Kind = rpad.FrontMatter.Kind,
-            Packages = rpad.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version),
-            Usings = rpad.FrontMatter.Namespaces ?? [],
+            // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
+            // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
+            Kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements,
+            Packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [],
+            Usings = rpad?.FrontMatter.Namespaces ?? [],
             // это уюрать под капот CSharpLanguageHost
-            AssemblyReferences = rpad.FrontMatter.References?
+            AssemblyReferences = rpad?.FrontMatter.References?
                 .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
             // это уюрать под капот CSharpLanguageHost
-            ProjectReferences = rpad.FrontMatter.References?
+            ProjectReferences = rpad?.FrontMatter.References?
                 .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
         };
