@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Controls;
@@ -41,18 +40,6 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     }
 
     public bool DebugModeEnabled
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = true;
-
-    public bool BreakOnAllExceptions
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
-    public bool BreakOnUncaughtExceptions
     {
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
@@ -124,25 +111,9 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         private set => this.RaiseAndSetIfChanged(ref field, value);
     } = "Step Out";
 
-    // ── Debug collections ─────────────────────────────────────────────────────
+    // ── Debug panel (Threads/Locals/Watch/Call Stack/Exceptions) ──────────────
 
-    public ObservableCollection<DebugThread> DebugThreads { get; } = [];
-    public ObservableCollection<DebugLocal> DebugLocals { get; } = [];
-    public ObservableCollection<DebugFrame> DebugCallStack { get; } = [];
-
-    // ── Watch expressions ─────────────────────────────────────────────────────
-
-    public ObservableCollection<WatchExpression> WatchExpressions { get; } = [];
-
-    private WatchExpression? _selectedWatchExpression;
-    public WatchExpression? SelectedWatchExpression
-    {
-        get => _selectedWatchExpression;
-        set => this.RaiseAndSetIfChanged(ref _selectedWatchExpression, value);
-    }
-
-    public ReactiveCommand<Unit, Unit> AddWatchCommand { get; }
-    public ReactiveCommand<Unit, Unit> RemoveWatchCommand { get; }
+    public DebugPanelViewModel DebugPanel { get; } = new();
 
     // ── Output/debug panel layout (collapsible) ───────────────────────────────
 
@@ -179,13 +150,6 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         _prefs = prefs;
 
         CloseCommand = ReactiveCommand.Create(() => { });
-
-        AddWatchCommand = ReactiveCommand.Create(
-            () => WatchExpressions.Add(new WatchExpression()));
-
-        RemoveWatchCommand = ReactiveCommand.Create(
-            () => { if (SelectedWatchExpression is { } w) WatchExpressions.Remove(w); },
-            this.WhenAnyValue(x => x.SelectedWatchExpression).Select(w => w is not null));
 
         OutputPanelHeight = _prefs.Layout.DebugPanelCollapsed
             ? new GridLength(0)
