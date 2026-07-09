@@ -1,4 +1,4 @@
-namespace DotPad.Languages.CSharp.Debug.Protocol;
+namespace DotPad.Debug.Protocol;
 
 public class Response : ProtocolMessage
 {

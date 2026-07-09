@@ -6,7 +6,7 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
 {
     private static readonly object _lock = new();
 
-    // Trim namespace prefix: "DotPad.Languages.CSharp.Debug.CSharpDapSession" → "CSharpDapSession"
+    // Trim namespace prefix: "DotPad.Debug.DapSession" → "DapSession"
     private readonly string _shortCategory = category.Contains('.')
         ? category[(category.LastIndexOf('.') + 1)..]
         : category;
