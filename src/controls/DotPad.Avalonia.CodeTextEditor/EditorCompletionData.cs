@@ -20,7 +20,7 @@ public sealed class EditorCompletionData(
 
     public double Priority => priority;
 
-    public IImage? Image => null;
+    public IImage? Image => image;
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
