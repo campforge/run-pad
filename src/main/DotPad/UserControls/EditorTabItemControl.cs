@@ -251,7 +251,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var breakpoints = s.Editor.Breakpoints
                 .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
                 .ToList();
-
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
             foreach (var bp in s.Editor.Breakpoints)
