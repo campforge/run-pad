@@ -59,25 +59,34 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
             code = usingsText + "\n" + code;
         }
 
-        await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
-
         var tfm = Sdk.TargetFrameworkMoniker;
         var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
         var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
 
+        var binDirectory = Path.Join(OutputDir, BinDir);
+        var outputDll = Path.Combine(binDirectory, $"{OutputName}.dll");
+
+        var previousSource = File.Exists(_sourceCodePath) ? await File.ReadAllTextAsync(_sourceCodePath, ctx) : null;
+        var previousProjectFile = File.Exists(_fileProjPath) ? await File.ReadAllTextAsync(_fileProjPath, ctx) : null;
+        var projectUnchanged = previousProjectFile == projectFile;
+
+        // Hot path: source, csproj and the binary from the last build in this directory are all
+        // still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
+        // rather than just skipping restore.
+        if (projectUnchanged && previousSource == code && File.Exists(outputDll))
+            return new ProcessCompilerResult(outputDll, true, [], []);
+
+        await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
+        await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, ctx);
+
         // OutputDir is reused across runs of the same tab (see EditorTabState.OutputDirectory) so
         // that MSBuild/NuGet's own incremental caches under obj/ survive between runs. If the
-        // .csproj we're about to write is byte-for-byte identical to what's already there — i.e.
+        // .csproj we just wrote is byte-for-byte identical to what was already there — i.e.
         // packages/references/target framework haven't changed since the last run in this
         // directory — restore already ran for this exact input and can safely be skipped, cutting
         // build time roughly in half for the common "just edited the code" case.
-        var canSkipRestore = File.Exists(Path.Combine(OutputDir, "obj", "project.assets.json"))
-                             && File.Exists(_fileProjPath)
-                             && await File.ReadAllTextAsync(_fileProjPath, ctx) == projectFile;
+        var canSkipRestore = projectUnchanged && File.Exists(Path.Combine(OutputDir, "obj", "project.assets.json"));
 
-        await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, ctx);
-
-        var binDirectory = Path.Join(OutputDir, BinDir);
         Directory.CreateDirectory(binDirectory);
 
         var startInfo = new ProcessStartInfo

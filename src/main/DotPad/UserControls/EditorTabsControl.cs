@@ -8,6 +8,7 @@ using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 using DotPad.Languages.CSharp;
 using DotPad.Services;
+using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
 using DotPad.Windows.Models;
@@ -30,6 +31,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly IPreferencesService? _prefs;
     private readonly Func<IIntelliSenseService>? _intelliSenseFactory;
     private readonly CSharpReferenceService? _referenceService;
+    private readonly IBuildCacheService? _buildCache;
 
     // ── Empty ctor: used by XAML previewer only ───────────────────────────────
 
@@ -45,7 +47,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         Func<IIntelliSenseService> intelliSenseFactory,
-        CSharpReferenceService referenceService)
+        CSharpReferenceService referenceService,
+        IBuildCacheService buildCache)
     {
         InitializeComponent();
         _themeService = themeService;
@@ -53,6 +56,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _prefs = prefs;
         _intelliSenseFactory = intelliSenseFactory;
         _referenceService = referenceService;
+        _buildCache = buildCache;
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
@@ -85,7 +89,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // ── Tab lifecycle ──────────────────────────────────────────────────────────
 
-    private void OnTabsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private async void OnTabsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         var fileTabControl = this.FindControl<TabControl>("FileTabControl")!;
 
@@ -93,9 +97,29 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             foreach (EditorTabItemViewModel vm in e.NewItems)
             {
-                var ctrl = CreateControl(vm);
+                // The expensive part (Roslyn workspace + BCL metadata references — see
+                // CreateControlAsync) runs off the UI thread so opening a script doesn't freeze the
+                // app. By the time we get back here, the tab may already have been closed again
+                // (or the whole control torn down) — don't resurrect it in that case.
+                var ctrl = await CreateControlAsync(vm);
+                if (_disposed || !(_vm?.Tabs.Contains(vm) ?? false))
+                {
+                    // Nobody else owns vm's disposal in this case: MainWindowViewModel.CloseTab
+                    // doesn't dispose it itself, it relies on the (normally synchronous) OldItems
+                    // branch below — which already ran and no-opped, since _tabs had no entry yet.
+                    ctrl.Dispose();
+                    vm.Dispose();
+                    continue;
+                }
+
                 var tab = AddTabItem(ctrl, vm, fileTabControl);
                 _tabs[vm] = (tab, ctrl);
+
+                // ActiveTab may already have been set to vm (e.g. it's the tab that was just
+                // opened) before this entry existed — OnActiveTabChanged no-ops in that case, so
+                // select it explicitly now if it's still the active one.
+                if (ReferenceEquals(_vm?.ActiveTab, vm))
+                    fileTabControl.SelectedItem = tab;
             }
         }
 
@@ -209,16 +233,25 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private EditorsTabItemControl CreateControl(EditorTabItemViewModel vm)
+    private async Task<EditorsTabItemControl> CreateControlAsync(EditorTabItemViewModel vm)
     {
         // Each tab gets its own IntelliSense instance — see the comment on the
         // Func<IIntelliSenseService> registration in App.axaml.cs for why this can't be shared.
+        // Constructing it builds a fresh Roslyn AdhocWorkspace and loads metadata references for
+        // every BCL assembly (see CSharpReferenceService.GetDefault) — real disk/CPU work with no
+        // Avalonia dependency, so it runs off the UI thread instead of freezing the app on open.
+        var factory = _intelliSenseFactory;
+        var intelliSense = factory is null ? null : await Task.Run(factory.Invoke);
+
+        // Avalonia controls (CodeTextEditor, InitializeComponent, ...) must be constructed on the
+        // UI thread, so the control itself is still created here, synchronously.
         return new EditorsTabItemControl(vm,
             _themeService!,
             _registry!,
             _prefs!,
-            _intelliSenseFactory?.Invoke(),
+            intelliSense,
             _referenceService!,
+            _buildCache!,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
     }
 

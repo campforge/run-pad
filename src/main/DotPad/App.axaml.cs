@@ -8,6 +8,7 @@ using DotPad.Languages.CSharp.IntelliSense;
 using DotPad.Languages.CSharp.Sdk;
 using DotPad.Logging;
 using DotPad.Services;
+using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
 using DotPad.UserControls;
 using DotPad.Windows.Models;
@@ -59,6 +60,7 @@ public class App : Application
         services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();
+        services.AddSingleton<IBuildCacheService, BuildCacheService>();
 
         AddLogging(services);
 
@@ -99,6 +101,10 @@ public class App : Application
         // Uses a throwaway instance — the expensive part (DotPadRoslynHost.HostServices / MEF
         // composition) is a process-wide lazy singleton shared by every instance the factory creates.
         _ = Task.Run(() => provider.GetRequiredService<Func<IIntelliSenseService>>()().NotifyTextChanged(""));
+
+        // Reclaim build-cache directories for files that haven't been run in a while, so
+        // %TEMP%\DotPad doesn't grow unbounded now that directories persist across restarts.
+        _ = Task.Run(() => provider.GetRequiredService<IBuildCacheService>().PruneStale(TimeSpan.FromDays(14)));
 
         return provider;
     }
