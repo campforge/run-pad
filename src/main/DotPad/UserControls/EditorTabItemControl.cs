@@ -645,15 +645,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Snippets["ctor"] = "public ${0}()\n{\n\t\n}";
         editor.Snippets["using"] = "using (var resource = ${0})\n{\n\t\n}";
         editor.Snippets["lock"] = "lock (${0})\n{\n\t\n}";
+        editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
         if (intelliSense is null) return;
 
         editor.AsyncCompletionProvider = async e =>
         {
-            var list = await intelliSense.GetCompletionsAsync(
-                State.Editor.Text,
-                e.CaretOffset,
-                CompletionTrigger.Insertion(e.Trigger));
+            var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
+            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
             if (list is null) return;
             foreach (var item in list.Items)
             {
