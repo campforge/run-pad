@@ -162,47 +162,56 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
+            var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
-            if (trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.')
+            // An explicit Ctrl+Space invoke right after a '.' should behave like typing the dot
+            // itself — member completion for the expression before it — not fall through to the
+            // generic in-scope-symbols+keywords list below (which is where keywords like `for`/`if`
+            // would otherwise show up sitting right next to `.Length`/`.Count`).
+            if ((isDotInsertion || trigger.Kind == CompletionTriggerKind.Invoked) && pos > 0)
             {
-                if (pos <= 0) return null;
                 var token = root.FindToken(pos - 1);
                 var memberAccess = token.Parent?.AncestorsAndSelf()
                     .OfType<MemberAccessExpressionSyntax>()
                     .FirstOrDefault();
-                if (memberAccess == null) return null;
 
-                var typeInfo = model.GetTypeInfo(memberAccess.Expression);
-                var type = typeInfo.Type ?? typeInfo.ConvertedType;
-                if (type == null) return null;
+                if (memberAccess != null)
+                {
+                    var typeInfo = model.GetTypeInfo(memberAccess.Expression);
+                    var type = typeInfo.Type ?? typeInfo.ConvertedType;
+                    if (type != null)
+                    {
+                        var memberItems = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true)
+                            .Select(ToItem)
+                            .Where(i => i != null)
+                            .Cast<ICompletionItem>()
+                            .GroupBy(i => i.DisplayText)
+                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                            .OrderBy(i => i.SortText)
+                            .ToList();
 
-                var symbols = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true);
-                var items = symbols
-                    .Select(ToItem)
-                    .Where(i => i != null)
-                    .Cast<ICompletionItem>()
-                    .GroupBy(i => i.DisplayText)
-                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                    .OrderBy(i => i.SortText)
-                    .ToList();
+                        return memberItems.Count > 0 ? new SimpleCompletionList(memberItems) : null;
+                    }
+                }
 
-                return items.Count > 0 ? new SimpleCompletionList(items) : null;
+                // A typed '.' with nothing sensible to complete has nothing worth falling back to;
+                // an explicit invoke elsewhere (not after a dot, or Invoked with no resolvable
+                // member type) should still fall through to the general list below.
+                if (isDotInsertion) return null;
             }
-            else
-            {
-                var symbols = model.LookupSymbols(pos);
-                var items = symbols
-                    .Select(ToItem)
-                    .Where(i => i != null)
-                    .Cast<ICompletionItem>()
-                    .Concat(_keywords)
-                    .GroupBy(i => i.DisplayText)
-                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                    .OrderBy(i => i.SortText)
-                    .ToList();
 
-                return items.Count > 0 ? new SimpleCompletionList(items) : null;
-            }
+            var symbols = model.LookupSymbols(pos);
+            var items = symbols
+                .Select(ToItem)
+                .Where(i => i != null)
+                .Cast<ICompletionItem>()
+                .Concat(_keywords)
+                .GroupBy(i => i.DisplayText)
+                .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                .OrderBy(i => i.SortText)
+                .ToList();
+
+            return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
