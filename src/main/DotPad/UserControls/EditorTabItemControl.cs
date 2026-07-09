@@ -17,6 +17,7 @@ using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Resources;
 using DotPad.Services;
+using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
 using ReactiveUI;
@@ -35,6 +36,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
+    private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private bool _disposed;
 
@@ -45,12 +47,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         CSharpReferenceService referenceService,
+        IBuildCacheService buildCache,
         IBrush? editorBackground)
     {
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
         _referenceService = referenceService;
+        _buildCache = buildCache;
         _vm = vm;
         DataContext = _vm;
 
@@ -786,6 +790,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var raw = File.ReadAllText(filePath);
             rpad = RpadParser.TryParse(raw);
             content = rpad?.RunCode ?? raw;
+
+            // Allocate/reuse this file's persistent build directory now, at open time, rather than
+            // lazily on first Run — see EnsureWorkDirectory/BuildRunOptions for how it's consumed.
+            State.OutputDirectory = _buildCache.EnsureOutputDirectory(filePath, EnsureWorkDirectory());
         }
         else
         {
@@ -888,9 +896,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var rpad = State.RpadDocument;
 
-        // Reused across runs of this tab (allocated once) so DotnetProcessCompiler can detect an
-        // unchanged .csproj and skip NuGet restore — see its Compilation() for the actual check.
-        State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
+        // Reused across runs of this tab (allocated once, normally already set by SetDocumentContent
+        // at file-open time) so DotnetProcessCompiler can detect an unchanged .csproj/source and skip
+        // NuGet restore or the whole build — see its Compilation() for the actual checks. Untitled
+        // tabs (no FilePath) have no stable identity to persist against, so they just get a
+        // session-only random directory, same as before.
+        if (_vm.FilePath is not null)
+        {
+            State.OutputDirectory ??= _buildCache.EnsureOutputDirectory(_vm.FilePath, workDir);
+            _buildCache.Touch(_vm.FilePath);
+        }
+        else
+        {
+            State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
+        }
 
         return new CSharpLanguageHostOptions
         {
