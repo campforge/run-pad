@@ -174,7 +174,7 @@ public sealed class FileSystemService : IFileSystemService
         // it aren't worth the risk since Windows isn't available to test in this environment.
         var startInfo = OperatingSystem.IsWindows()
             ? new ProcessStartInfo
-                { FileName = "explorer.exe", Arguments = $"/select,\"{filePath}\"", UseShellExecute = true }
+            { FileName = "explorer.exe", Arguments = $"/select,\"{filePath}\"", UseShellExecute = true }
             : OperatingSystem.IsMacOS()
                 ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", filePath } }
                 : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
