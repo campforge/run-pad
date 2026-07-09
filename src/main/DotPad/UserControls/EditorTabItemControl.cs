@@ -60,7 +60,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         InitializeComponent();
 
-        this.FindControl<DebugPanel>("DebugPanelCtrl")!.DataContext = _vm;
+        this.FindControl<DebugPanel>("DebugPanelCtrl")!.DataContext = _vm.DebugPanel;
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
         // Register custom font for HTML output panel
@@ -109,7 +109,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
         // gives us a fresh IBreakpointHitContext (see OnBreakpointHit).
-        _vm.WatchExpressions.CollectionChanged += (_, e) =>
+        _vm.DebugPanel.WatchExpressions.CollectionChanged += (_, e) =>
         {
             if (e.NewItems is not null)
                 foreach (WatchExpression w in e.NewItems)
@@ -559,21 +559,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Switch to Debugger tab so the user sees variables immediately
         if (_outputTabsControl is { } tc) tc.SelectedIndex = 1;
 
-        _vm.DebugThreads.Clear();
+        _vm.DebugPanel.DebugThreads.Clear();
         foreach (var t in context.Threads)
-            _vm.DebugThreads.Add(new DebugThread(t.Id, t.Name));
+            _vm.DebugPanel.DebugThreads.Add(new DebugThread(t.Id, t.Name));
 
-        _vm.DebugLocals.Clear();
+        _vm.DebugPanel.DebugLocals.Clear();
         foreach (var v in context.LocalVariables)
-            _vm.DebugLocals.Add(CreateDebugLocal(v, context));
+            _vm.DebugPanel.DebugLocals.Add(CreateDebugLocal(v, context));
 
-        _vm.DebugCallStack.Clear();
+        _vm.DebugPanel.DebugCallStack.Clear();
         foreach (var f in context.CallStack)
-            _vm.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
+            _vm.DebugPanel.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
 
         // Watch expressions are evaluated against whichever frame/scope is current, so refresh them
         // for the new stop — stale values from the previous breakpoint hit would be misleading.
-        foreach (var w in _vm.WatchExpressions) _ = EvaluateWatchAsync(w);
+        foreach (var w in _vm.DebugPanel.WatchExpressions) _ = EvaluateWatchAsync(w);
 
         SetStatus("Paused", "DotPad.Status.PausedBrush");
         UpdateOutputUi();
@@ -922,8 +922,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             },
             OutputDirectory = State.OutputDirectory,
             RuntimeLibPath = _referenceService.GetExtensionReference(),
-            BreakOnAllExceptions = _vm.BreakOnAllExceptions,
-            BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
+            BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
+            BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
             Kind = rpad.FrontMatter.Kind,
             Packages = rpad.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version),
             Usings = rpad.FrontMatter.Namespaces ?? [],

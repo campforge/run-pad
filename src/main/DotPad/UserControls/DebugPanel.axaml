@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="clr-namespace:DotPad.UserControls.Models"
              x:Class="DotPad.UserControls.DebugPanel"
-             x:DataType="models:EditorTabItemViewModel">
+             x:DataType="models:DebugPanelViewModel">
 
     <UserControl.Styles>
 
