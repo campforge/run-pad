@@ -3,7 +3,6 @@ using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
-using DotPad.Assets.Models;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
@@ -87,7 +86,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var path = _fileSystemSystemService.CreateNewFile();
         var title = Path.GetFileNameWithoutExtension(path);
         File.WriteAllText(path, RpadWriter.NewFile(title), System.Text.Encoding.UTF8);
-        Nodes.Add(new Node(Path.GetFileName(path), path));
+
+        RefreshNodes();
         OpenTab(path);
     }
 
@@ -137,83 +137,63 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── File tree operations ──────────────────────────────────────────────────
 
-    public void DeleteNode(Node node)
+    public void DeleteFile(string filePath)
     {
         // Close tab first so SaveIfNeeded writes content, THEN delete the file.
-        if (_openTabs.TryGetValue(node.FilePath, out var tab))
+        if (_openTabs.TryGetValue(filePath, out var tab))
             CloseTab(tab);
 
         try
         {
-            File.Delete(node.FilePath);
+            File.Delete(filePath);
         }
         catch
         {
             /* ignore */
         }
 
-        RemoveNodeByPath(Nodes, node.FilePath);
+        FileTree.RemoveByPath(filePath);
     }
 
-    public void BeginRenameNode(Node node)
+    public void RenameFile(string filePath, string newName)
     {
-        node.EditingName = node.DisplayName;
-        node.IsRenaming = true;
-    }
-
-    public void CommitRenameNode(Node node)
-    {
-        node.IsRenaming = false;
-
-        var newName = node.EditingName.Trim();
-        if (string.IsNullOrEmpty(newName) || newName == node.DisplayName)
-            return;
-
-        var ext = Path.GetExtension(node.FilePath);
-        var dir = Path.GetDirectoryName(node.FilePath)!;
+        var ext = Path.GetExtension(filePath);
+        var dir = Path.GetDirectoryName(filePath)!;
         var newFileName = newName + ext;
         var newPath = Path.Combine(dir, newFileName);
-        var oldPath = node.FilePath;
 
         // Close tab first so SaveIfNeeded writes current content to OLD path.
-        var hadTab = _openTabs.ContainsKey(oldPath);
-        if (_openTabs.TryGetValue(oldPath, out var tab))
+        var hadTab = _openTabs.ContainsKey(filePath);
+        if (_openTabs.TryGetValue(filePath, out var tab))
             CloseTab(tab);
 
         try
         {
-            File.Move(oldPath, newPath);
+            File.Move(filePath, newPath);
         }
         catch (Exception ex)
         {
-            node.EditingName = node.DisplayName;
-            // The tab was already closed above (so SaveIfNeeded could flush to oldPath) — since the
-            // rename didn't happen, the file is still at oldPath, so reopen it instead of leaving its
-            // tab silently gone from the tab bar.
-            if (hadTab) OpenTab(oldPath);
+            // The tab was already closed above (so SaveIfNeeded could flush to the old path) — since
+            // the rename didn't happen, the file is still at the old path, so reopen it instead of
+            // leaving its tab silently gone from the tab bar.
+            if (hadTab) OpenTab(filePath);
             _ = _windowService.ShowErrorAsync(
                 "Rename Failed",
-                $"Could not rename '{Path.GetFileName(oldPath)}' to '{newFileName}':\n{ex.Message}");
+                $"Could not rename '{Path.GetFileName(filePath)}' to '{newFileName}':\n{ex.Message}");
             return;
         }
 
-        node.FilePath = newPath;
-        node.Title = newFileName;
+        RefreshNodes();
 
         if (hadTab)
             OpenTab(newPath);
     }
 
-    public void CancelRenameNode(Node node)
-    {
-        node.IsRenaming = false;
-    }
-
-    public void OpenContainingFolder(Node node)
+    public void OpenContainingFolder(string filePath)
     {
         try
         {
-            _fileSystemSystemService.OpenFolder(node.FilePath);
+            _fileSystemSystemService.OpenFolder(filePath);
         }
         catch (Exception ex)
         {
@@ -223,7 +203,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── File tree ─────────────────────────────────────────────────────────────
 
-    public ObservableCollection<Node> Nodes { get; }
+    public FileTreeViewModel FileTree { get; } = new();
+
     public List<DotnetSdk> AvailableSdks { get; }
 
     public MainWindowViewModel(
@@ -257,7 +238,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 if (w.Value > 0) _prefs.Layout.SidebarWidth = w.Value;
                 _prefs.Save();
             });
-        Nodes = [];
+
         RefreshNodes();
 
         _fileSystemSystemService.WatcherEvent += OnWatcherEvent;
@@ -270,7 +251,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         // Version-based debounce: capture current version, wait 300 ms,
         // then refresh only if no newer event arrived.
-        var version = System.Threading.Interlocked.Increment(ref _debounceVersion);
+        var version = Interlocked.Increment(ref _debounceVersion);
         Task.Delay(300).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
@@ -278,71 +259,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    /// <summary>Rebuilds the Nodes tree from disk, preserving existing Node
-    /// objects where possible so selection and expand state survive small changes.</summary>
-    private void RefreshNodes()
-    {
-        var filesTree = _fileSystemSystemService.GetFilesTree();
-        MergeNodeList(Nodes, filesTree);
-    }
-
-    // ── Tree building ─────────────────────────────────────────────────────────
-
-    private static Node MapToNode(FileSystemItem fsi) => fsi.IsDirectory
-        ? new Node(fsi.Name, fsi.FilePath, new ObservableCollection<Node>((fsi.Children ?? []).Select(MapToNode)))
-        : new Node(fsi.Name, fsi.FilePath);
-
-    /// <summary>Merges <paramref name="fresh"/> into <paramref name="current"/> with minimal
-    /// ObservableCollection mutations to preserve UI state (selection, expanded folders).</summary>
-    private static void MergeNodeList(ObservableCollection<Node> current, IReadOnlyList<FileSystemItem> fresh)
-    {
-        // Build a lookup of fresh paths for O(1) access
-        var freshByPath = fresh.ToDictionary(n => n.FilePath, StringComparer.OrdinalIgnoreCase);
-
-        // 1. Remove nodes that no longer exist on disk
-        for (int i = current.Count - 1; i >= 0; i--)
-        {
-            if (!freshByPath.ContainsKey(current[i].FilePath))
-                current.RemoveAt(i);
-        }
-
-        // 2. For surviving folder nodes, merge their children recursively
-        foreach (var existing in current)
-        {
-            if (existing.SubNodes is not null && freshByPath.TryGetValue(existing.FilePath, out var freshFolder))
-                MergeNodeList(existing.SubNodes, freshFolder.Children ?? []);
-        }
-
-        // 3. Add nodes that are missing from current (new files/folders)
-        var currentPaths = new HashSet<string>(
-            current.Select(n => n.FilePath), StringComparer.OrdinalIgnoreCase);
-
-        int insertIndex = 0;
-
-        foreach (var freshNode in fresh)
-        {
-            if (!currentPaths.Contains(freshNode.FilePath))
-                current.Insert(Math.Min(insertIndex, current.Count), MapToNode(freshNode));
-            insertIndex++;
-        }
-    }
-
-    private static bool RemoveNodeByPath(ObservableCollection<Node> nodes, string filePath)
-    {
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            if (string.Equals(nodes[i].FilePath, filePath, StringComparison.OrdinalIgnoreCase))
-            {
-                nodes.RemoveAt(i);
-                return true;
-            }
-
-            if (nodes[i].SubNodes is { } sub && RemoveNodeByPath(sub, filePath))
-                return true;
-        }
-
-        return false;
-    }
+    private void RefreshNodes() => FileTree.Refresh(_fileSystemSystemService.GetFilesTree());
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 
@@ -354,6 +271,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         {
             d.Dispose();
         }
+
         GC.SuppressFinalize(this);
     }
 }

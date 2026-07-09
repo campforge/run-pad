@@ -6,6 +6,7 @@ using DotPad.Contracts.IntelliSense;
 
 namespace DotPad.UserControls;
 
+// ToDo: Перенести в DotPad.Avalonia.CodeTextEditor
 internal sealed class SquiggleRenderer : IBackgroundRenderer
 {
     private IReadOnlyList<IDiagnosticInfo> _diagnostics = [];

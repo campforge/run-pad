@@ -85,6 +85,10 @@
         <Compile Update="TemplatedControls\ToolbarComboBox.cs">
           <DependentUpon>ToolbarComboBox.axaml</DependentUpon>
         </Compile>
+        <Compile Update="UserControls\FileTreeView.cs">
+          <DependentUpon>FileTreeView.axaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

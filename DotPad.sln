@@ -54,6 +54,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Runtime.UI.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Format.RPad.Tests", "tests\DotPad.Format.RPad.Tests\DotPad.Format.RPad.Tests.csproj", "{3EFE3731-463C-4361-8CF7-3B8A2B347290}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "develop-guide", "develop-guide", "{7F651E44-0062-40DD-992A-1A73EDB9191D}"
+	ProjectSection(SolutionItems) = preProject
+		docs\MVVM.md = docs\MVVM.md
+		docs\MVVM-Guide.md = docs\MVVM-Guide.md
+		docs\UserControlEvents.md = docs\UserControlEvents.md
+		docs\TemplatedControls.md = docs\TemplatedControls.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -243,6 +251,7 @@ Global
 		{B4C6D8E0-F2A4-4B6C-D8E0-F2A4B6C8D0E2} = {4D09A6D7-118A-446D-B707-6A5C9F74E57F}
 		{30706321-17E4-4EC7-9E79-168DDBA1EE60} = {4D09A6D7-118A-446D-B707-6A5C9F74E57F}
 		{3EFE3731-463C-4361-8CF7-3B8A2B347290} = {4D09A6D7-118A-446D-B707-6A5C9F74E57F}
+		{7F651E44-0062-40DD-992A-1A73EDB9191D} = {EC9916CC-52F6-4CE0-9377-BC6CEA9761CE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {21803269-54D2-403D-887A-3B75DFF7625B}

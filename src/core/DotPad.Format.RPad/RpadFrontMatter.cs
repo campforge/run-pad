@@ -5,6 +5,16 @@ public record TargetSdk(string Name, string? Version = null)
     public override string ToString() => $"{Name}{Version}";
 
     public static readonly TargetSdk Default = new("latest");
+
+    // Splits "net8.0" into Name "net" / Version "8.0"; a value with no digits (e.g. "latest")
+    // becomes Name-only.
+    public static TargetSdk Parse(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return Default;
+        var idx = 0;
+        while (idx < value.Length && !char.IsDigit(value[idx])) idx++;
+        return idx == value.Length ? new TargetSdk(value) : new TargetSdk(value[..idx], value[idx..]);
+    }
 };
 
 public record Package(string Version)

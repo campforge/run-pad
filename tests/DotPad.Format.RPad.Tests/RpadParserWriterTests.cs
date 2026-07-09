@@ -29,7 +29,7 @@ public class RpadParserWriterTests
     }
 
     [Fact]
-    public void Write_ThenParse_RoundTripsUsingsPackagesReferences()
+    public void Write_ThenParse_RoundTripsNamespacesPackagesReferences()
     {
         var doc = new RpadDocument
         {
@@ -48,6 +48,46 @@ public class RpadParserWriterTests
         Assert.Equal(["System.Text", "System.Linq"], parsed!.FrontMatter.Namespaces);
         Assert.Equal("2.1.66", parsed.FrontMatter.Packages?["Dapper"].Version);
         Assert.Equal(["../Shared/Shared.csproj"], parsed.FrontMatter.References);
+    }
+
+    [Fact]
+    public void TryParse_ReadmeFrontMatterExample_ParsesAllFieldsWithoutResetting()
+    {
+        // Mirrors the front-matter example from src/core/DotPad.Format.RPad/README.md verbatim.
+        // Regression guard: TargetSdk/Package are plain YAML scalars, and without the type
+        // converters registered on the deserializer, YamlDotNet fails to bind them onto the
+        // TargetSdk/Package records and throws — which silently resets the *entire* front matter
+        // (including Kind and Packages) back to defaults instead of just falling back for the one
+        // unparseable field.
+        const string content = """
+            ---
+            version: "1.0"
+            language: csharp
+            targetSdk: latest
+            kind: Statements
+            packages:
+              Dapper: 2.1.66
+            references:
+              - ../Shared/Shared.csproj
+            namespaces:
+              - System
+              - System.Linq
+            ---
+
+            ```csharp run
+            Console.WriteLine("Hello");
+            ```
+            """;
+
+        var parsed = RpadParser.TryParse(content);
+
+        Assert.NotNull(parsed);
+        Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
+        Assert.Equal(RpadLanguage.CSharp, parsed.FrontMatter.Language);
+        Assert.Equal(TargetSdk.Default, parsed.FrontMatter.TargetSdk);
+        Assert.Equal("2.1.66", parsed.FrontMatter.Packages["Dapper"].Version);
+        Assert.Equal(["../Shared/Shared.csproj"], parsed.FrontMatter.References);
+        Assert.Equal(["System", "System.Linq"], parsed.FrontMatter.Namespaces);
     }
 
     // ── NewFile ───────────────────────────────────────────────────────────────
@@ -90,9 +130,10 @@ public class RpadParserWriterTests
 
         // The whole front matter resets to defaults on an unparseable enum value (YamlDotNet throws,
         // caught by TryParse's outer catch) — packages included. See ANALYSIS.md #37 for the tradeoff.
+        // Packages is a non-nullable dictionary defaulting to empty, not null.
         Assert.NotNull(parsed);
         Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
-        Assert.Null(parsed.FrontMatter.Packages);
+        Assert.Empty(parsed.FrontMatter.Packages);
     }
 
     [Fact]
@@ -104,7 +145,6 @@ public class RpadParserWriterTests
         var parsed = RpadParser.TryParse(content);
 
         Assert.NotNull(parsed);
-        Assert.Equal("net", parsed!.FrontMatter.TargetSdk.Name);
-        Assert.Equal("10.0", parsed!.FrontMatter.TargetSdk.Version);
+        Assert.Equal(TargetSdk.Default, parsed!.FrontMatter.TargetSdk);
     }
 }

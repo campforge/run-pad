@@ -33,11 +33,11 @@ https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-d
 
 ```
     ---
-    version: 1
+    version: "1.0"
     language: csharp
-    targetFramework: net10.0
+    targetSdk: net10.0
     kind: Statements
-    usings:
+    namespaces:
     - System
     ---
 

@@ -58,7 +58,7 @@ public static class RpadWriter
         if (fm.Namespaces?.Count > 0)
         {
             sb.AppendLine();
-            sb.Append("usings:");
+            sb.Append("namespaces:");
             foreach (var u in fm.Namespaces)
             {
                 sb.AppendLine();
