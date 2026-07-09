@@ -196,6 +196,12 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
     }
 
+    public void FormatActive()
+        => _ = GetActiveControl()?.FormatAsync();
+
+    public void GoToLineActive()
+        => GetActiveControl()?.ShowGoToLine();
+
     private EditorsTabItemControl? GetActiveControl()
     {
         if (_vm?.ActiveTab is { } vm && _tabs.TryGetValue(vm, out var entry))

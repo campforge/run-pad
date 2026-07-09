@@ -64,6 +64,16 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.StepOutActive();
             e.Handled = true;
         }
+        else if (Match(e, kb.Format))
+        {
+            _editorTabs.FormatActive();
+            e.Handled = true;
+        }
+        else if (Match(e, kb.GoToLine))
+        {
+            _editorTabs.GoToLineActive();
+            e.Handled = true;
+        }
         else if (e.Key == Key.F4)
         {
             vm.OpenDependenciesWindow();

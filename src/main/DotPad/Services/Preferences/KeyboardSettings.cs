@@ -7,4 +7,6 @@ public sealed class KeyboardSettings
     public string StepOver { get; set; } = "F10";
     public string StepIn { get; set; } = "F11";
     public string StepOut { get; set; } = "Shift+F11";
+    public string Format { get; set; } = "Shift+Alt+F";
+    public string GoToLine { get; set; } = "Ctrl+G";
 }

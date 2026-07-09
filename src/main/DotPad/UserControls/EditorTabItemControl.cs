@@ -60,7 +60,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         InitializeComponent();
 
-        this.FindControl<DebugPanel>("DebugPanelCtrl")!.DataContext = _vm.DebugPanel;
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
         // Register custom font for HTML output panel
@@ -405,6 +404,47 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
             if (newBp is not null) newBp.Condition = condition;
         }
+    }
+
+    // ── Format / navigation ────────────────────────────────────────────────────
+
+    internal async Task FormatAsync()
+    {
+        if (_intelliSense is null) return;
+        var editor = State.Editor;
+        var original = editor.Text;
+        var formatted = await _intelliSense.FormatDocumentAsync(original);
+        if (formatted is null || formatted == original) return;
+
+        // Formatting can shift line/column boundaries (re-indentation), so the caret is restored
+        // on a best-effort basis: same line number (clamped to the new line count), same column
+        // (clamped to that line's new length) rather than a precise offset remap.
+        var caretLine = editor.TextArea.Caret.Line;
+        var caretColumn = editor.TextArea.Caret.Column;
+
+        editor.Document.Text = formatted;
+
+        var line = Math.Min(caretLine, editor.Document.LineCount);
+        var column = Math.Min(caretColumn, editor.Document.GetLineByNumber(line).Length + 1);
+        editor.TextArea.Caret.Line = line;
+        editor.TextArea.Caret.Column = column;
+    }
+
+    internal async void ShowGoToLine()
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var editor = State.Editor;
+        var maxLine = editor.Document.LineCount;
+        var dialog = new Windows.GoToLineDialog(editor.TextArea.Caret.Line, maxLine);
+        var result = await dialog.ShowDialog<int?>(owner);
+        if (result is not { } line) return;
+
+        editor.TextArea.Caret.Line = Math.Clamp(line, 1, maxLine);
+        editor.TextArea.Caret.Column = 1;
+        editor.ScrollToLine(editor.TextArea.Caret.Line);
+        editor.Focus();
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

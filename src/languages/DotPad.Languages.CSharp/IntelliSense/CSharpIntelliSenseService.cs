@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -328,6 +329,33 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return new SimpleQuickInfoResult(symbol.ToDisplayString(_briefFormat));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
+    }
+
+    // ── Format ─────────────────────────────────────────────────────────────────
+
+    // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
+    // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
+    // boundary whitespace to reconcile.
+    public async Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default)
+    {
+        try
+        {
+            using var formatWorkspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+            var projectId = ProjectId.CreateNewId("Format");
+            formatWorkspace.AddProject(ProjectInfo.Create(
+                projectId,
+                VersionStamp.Create(),
+                name: "Format",
+                assemblyName: "Format",
+                language: LanguageNames.CSharp,
+                parseOptions: new CSharpParseOptions(LanguageVersion.Latest)));
+
+            var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
+            var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
+            var text = await formatted.GetTextAsync(ct);
+            return text.ToString();
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
     }
 
     // ── Background analysis (diagnostics + semantic tokens) ───────────────────

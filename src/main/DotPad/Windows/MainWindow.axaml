@@ -1,19 +1,21 @@
-<Window
-    xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:DotPad.Windows.Models"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
-    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-    x:Class="DotPad.Windows.MainWindow"
-    x:DataType="vm:MainWindowViewModel"
     xmlns:uc="clr-namespace:DotPad.UserControls"
-    Icon="/Assets/icon.ico"
-    Title="DotPad"
-    WindowDecorations="BorderOnly"
-    ExtendClientAreaToDecorationsHint="True"
-    ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:ucm="clr-namespace:DotPad.UserControls.Models" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="DotPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="DotPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+
+    <Window.Resources>
+        <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
+             sets the built control's DataContext to the content object before it's attached to the
+             tree, so FileTreeView's own compiled bindings never see this window's MainWindowViewModel
+             as an intermediate (wrong-typed) DataContext. -->
+        <DataTemplate x:Key="FileTreeTemplate" x:DataType="ucm:FileTreeViewModel">
+            <uc:FileTreeView Open="FileTree_Open" Delete="FileTree_Delete" Rename="FileTree_Rename" OpenFolder="FileTree_OpenFolder"/>
+        </DataTemplate>
+    </Window.Resources>
 
     <Window.Styles>
 
@@ -28,13 +30,8 @@
             <Setter Property="VerticalAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <ControlTemplate TargetType="Button">
-                    <Border Name="root"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="0">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"/>
+                    <Border Name="root" Background="{TemplateBinding Background}" CornerRadius="0">
+                        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -52,22 +49,14 @@
     <Grid RowDefinitions="32,*">
 
         <!-- ── Title bar ─────────────────────────────────────────────────── -->
-        <Border Grid.Row="0"
-                Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}"
-                chrome:WindowDecorationProperties.ElementRole="TitleBar">
+        <Border Grid.Row="0" Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
 
                 <!-- Left: app icon + menu -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal"
-                            VerticalAlignment="Center" Spacing="0"
-                            chrome:WindowDecorationProperties.ElementRole="User">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0" chrome:WindowDecorationProperties.ElementRole="User">
 
-                    <Image Source="/Assets/icon.ico"
-                           Width="16" Height="16"
-                           Margin="10,0,4,0"
-                           IsHitTestVisible="False"
-                           VerticalAlignment="Center"/>
+                    <Image Source="/Assets/icon.ico" Width="16" Height="16" Margin="10,0,4,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
 
                     <Menu Background="Transparent" VerticalAlignment="Center">
                         <Menu.Styles>
@@ -89,9 +78,7 @@
                         </MenuItem>
                     </Menu>
 
-                    <Button Classes="wc-btn" Width="30"
-                            Command="{Binding ToggleSidebarCommand}"
-                            ToolTip.Tip="Toggle file tree">
+                    <Button Classes="wc-btn" Width="30" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="Toggle file tree">
                         <PathIcon Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
                     </Button>
 
@@ -101,29 +88,18 @@
                 <Border Grid.Column="1" Background="Transparent"/>
 
                 <!-- Right: window control buttons -->
-                <StackPanel x:Name="WindowControlButtons"
-                            Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch"
-                            chrome:WindowDecorationProperties.ElementRole="User">
+                <StackPanel x:Name="WindowControlButtons" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch" chrome:WindowDecorationProperties.ElementRole="User">
 
                     <Button Classes="wc-btn" Click="Minimize_Click">
-                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
-                              Data="M 0,0 H 10"
-                              Stroke="{Binding $parent[Button].Foreground}"
-                              StrokeThickness="1" StrokeLineCap="Square"/>
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0,0 H 10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" StrokeLineCap="Square"/>
                     </Button>
 
                     <Button Classes="wc-btn" Click="Maximize_Click">
-                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
-                              Data="M 0.5,0.5 H 9.5 V 9.5 H 0.5 Z"
-                              Stroke="{Binding $parent[Button].Foreground}"
-                              StrokeThickness="1" Fill="Transparent"/>
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0.5,0.5 H 9.5 V 9.5 H 0.5 Z" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"/>
                     </Button>
 
                     <Button Classes="wc-btn wc-close" Click="Close_Click">
-                        <Path HorizontalAlignment="Center" VerticalAlignment="Center"
-                              Data="M 0,0 L 10,10 M 10,0 L 0,10"
-                              Stroke="{Binding $parent[Button].Foreground}"
-                              StrokeThickness="1" StrokeLineCap="Round"/>
+                        <Path HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0,0 L 10,10 M 10,0 L 0,10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" StrokeLineCap="Round"/>
                     </Button>
 
                 </StackPanel>
@@ -139,20 +115,12 @@
             </Grid.ColumnDefinitions>
 
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
-            <Grid Grid.Column="0"
-                  ClipToBounds="True"
-                  Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
+            <Grid Grid.Column="0" ClipToBounds="True" Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
 
-                <uc:FileTreeView DataContext="{Binding FileTree}"
-                                 Open="FileTree_Open"
-                                 Delete="FileTree_Delete"
-                                 Rename="FileTree_Rename"
-                                 OpenFolder="FileTree_OpenFolder"/>
+                <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"/>
             </Grid>
 
-            <GridSplitter Grid.Column="1" Width="5"
-                          Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
-                          ResizeDirection="Columns"/>
+            <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource DotPad.Separator.BackgroundBrush}" ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
             <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>

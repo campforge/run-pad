@@ -21,6 +21,11 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
+    // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
+    // the original text in that case.
+    Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
+
     // Fires from a background thread. First arg = the code that produced the diagnostics.
     event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
 

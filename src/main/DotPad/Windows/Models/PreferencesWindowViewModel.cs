@@ -214,6 +214,18 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Keyboard.StepOut, value, v => _prefs.Keyboard.StepOut = v);
     }
 
+    public string HotkeyFormat
+    {
+        get => _prefs.Keyboard.Format;
+        set => SetPref(_prefs.Keyboard.Format, value, v => _prefs.Keyboard.Format = v);
+    }
+
+    public string HotkeyGoToLine
+    {
+        get => _prefs.Keyboard.GoToLine;
+        set => SetPref(_prefs.Keyboard.GoToLine, value, v => _prefs.Keyboard.GoToLine = v);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private void SetPref<T>(T current, T value, Action<T> assign, [CallerMemberName] string? name = null)
