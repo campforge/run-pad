@@ -4,6 +4,7 @@ namespace DotPad.Format.RPad;
 
 public static class RpadWriter
 {
+    /// ToDo: надо радоьать со стримом, причем иметь возможность взять непосредственно стрим кода игонрируя заголовки
     /// <summary>Serializes the document back to .rpad file content.</summary>
     public static string Write(RpadDocument doc)
     {
@@ -21,7 +22,7 @@ public static class RpadWriter
             RpadKind.Expression => "\"Hello, RPad!\"\n",
             _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
-        return $"---\nversion: 1\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
+        return $"---\nversion: \"1.0\"\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm)
@@ -39,7 +40,7 @@ public static class RpadWriter
             foreach (var (k, v) in fm.Packages)
             {
                 sb.AppendLine();
-                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v)}");
+                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v.Version)}");
             }
         }
 
@@ -54,11 +55,11 @@ public static class RpadWriter
             }
         }
 
-        if (fm.Usings?.Count > 0)
+        if (fm.Namespaces?.Count > 0)
         {
             sb.AppendLine();
-            sb.Append("usings:");
-            foreach (var u in fm.Usings)
+            sb.Append("namespaces:");
+            foreach (var u in fm.Namespaces)
             {
                 sb.AppendLine();
                 sb.Append($"  - {u}");

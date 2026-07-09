@@ -3,5 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);IDE0007;IDE0008;CS1591;CA2007;</NoWarn>
   </PropertyGroup>
 </Project>

@@ -33,11 +33,11 @@ https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-d
 
 ```
     ---
-    version: 1
+    version: "1.0"
     language: csharp
-    targetFramework: net10.0
+    targetSdk: net10.0
     kind: Statements
-    usings:
+    namespaces:
     - System
     ---
 
@@ -70,4 +70,44 @@ System.Transactions
 System.Xml
 System.Xml.Linq
 System.Xml.XPath
+```
+### Ошбка вкладки EditorsTabItemControl
+
+```
+fail: DotPad.App[0]
+      Unobserved task exception
+      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
+       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
+         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
+         at Avalonia.Threading.Dispatcher.VerifyAccess()
+         at Avalonia.AvaloniaObject.VerifyAccess()
+         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
+         at AvaloniaEdit.TextEditor.get_Document()
+         at AvaloniaEdit.TextEditor.get_Text()
+         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
+         --- End of inner exception stack trace ---
+fail: DotPad.App[0]
+      Unobserved task exception
+      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
+       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
+         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
+         at Avalonia.Threading.Dispatcher.VerifyAccess()
+         at Avalonia.AvaloniaObject.VerifyAccess()
+         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
+         at AvaloniaEdit.TextEditor.get_Document()
+         at AvaloniaEdit.TextEditor.get_Text()
+         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
+         --- End of inner exception stack trace ---
+fail: DotPad.App[0]
+      Unobserved task exception
+      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
+       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
+         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
+         at Avalonia.Threading.Dispatcher.VerifyAccess()
+         at Avalonia.AvaloniaObject.VerifyAccess()
+         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
+         at AvaloniaEdit.TextEditor.get_Document()
+         at AvaloniaEdit.TextEditor.get_Text()
+         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
+         --- End of inner exception stack trace ---
 ```

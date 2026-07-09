@@ -22,6 +22,14 @@
                 </Button>
             </StackPanel>
         </DataTemplate>
+
+        <!-- Referenced via ContentTemplate on the "Debugger" TabItem's ContentControl below.
+             DataTemplate.Build() sets the built control's DataContext to the content object before
+             it's attached to the tree, so DebugPanel's own compiled bindings never see this tab's
+             EditorTabItemViewModel as an intermediate (wrong-typed) DataContext. -->
+        <DataTemplate x:Key="DebugPanelTemplate" x:DataType="vm:DebugPanelViewModel">
+            <uc:DebugPanel/>
+        </DataTemplate>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -99,16 +107,16 @@
 
                     <tc:IconToggleButton
                         IconData="{StaticResource Icon.Bug}"
+                        CheckedBrush="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsChecked="{Binding DebugModeEnabled}"
-                        ToolTip.Tip= "Toggle debug mode"
-                        Width="24" Height="24"
-                        />
+                        ToolTip.Tip="Toggle debug mode"
+                       />
 
                     <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
                         Command="{Binding ToggleOutputPanelCommand}"
                         ToolTip.Tip="Toggle output panel"
-                        Width="24" Height="24"/>
+                        />
 
                     <!-- Debug-only controls: shown, not merely enabled, only while debugging
                          (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with
@@ -197,30 +205,29 @@
             </TabItem>
 
             <TabItem Header="Debugger">
-                <uc:DebugPanel x:Name="DebugPanelCtrl"/>
+                <ContentControl Content="{Binding DebugPanel}" ContentTemplate="{StaticResource DebugPanelTemplate}"/>
             </TabItem>
 
         </TabControl>
 
-        <!-- Row 4: Status strip -->
+        <!-- Row 4: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
         <Grid Grid.Row="4"
-              ColumnDefinitions="*,Auto,Auto"
+              ColumnDefinitions="Auto,Auto,*,Auto"
               Background="{DynamicResource DotPad.StatusBar.BackgroundBrush}">
-            <TextBlock x:Name="StatusLine"
-                       Grid.Column="0"
-                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
-                       Margin="8,0,0,0"
-                       VerticalAlignment="Center"
-                       FontSize="12"
-                       Text="Ready"/>
-
             <TextBlock x:Name="ExecStatusBlock"
-                       Grid.Column="2"
+                       Grid.Column="0"
                        FontWeight="SemiBold"
-                       Margin="0,0,12,0"
+                       Margin="8,0,12,0"
                        VerticalAlignment="Center"
-                       FontSize="11"/>
+                       FontSize="11"
+                       Text="Ready"/>
             <TextBlock x:Name="ElapsedBlock"
+                       Grid.Column="1"
+                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       VerticalAlignment="Center"
+                       FontSize="12"/>
+
+            <TextBlock x:Name="StatusLine"
                        Grid.Column="3"
                        Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
                        Margin="0,0,8,0"

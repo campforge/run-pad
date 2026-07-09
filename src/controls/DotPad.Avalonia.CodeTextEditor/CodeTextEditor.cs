@@ -8,8 +8,6 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.Editing;
 using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
@@ -122,6 +120,10 @@ public class CodeTextEditor : TextEditor
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
     public Dictionary<string, string> Snippets { get; } = [];
 
+    /// <summary>Icon shown for <see cref="Snippets"/> entries in the completion list (set by the app
+    /// layer, which owns kind→icon mapping) — see ShowCompletion.</summary>
+    public IImage? SnippetIcon { get; set; }
+
     public CodeTextEditorOptions EditorOptions
     {
         get => _editorOptions;
@@ -232,6 +234,11 @@ public class CodeTextEditor : TextEditor
                 else if (e.Key == Key.OemCloseBrackets && e.KeyModifiers == KeyModifiers.Control)
                 {
                     JumpToMatchingBrace();
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+                {
+                    ShowCompletion('\0', explicitInvoke: true);
                     e.Handled = true;
                 }
             },
@@ -434,7 +441,15 @@ public class CodeTextEditor : TextEditor
         var word = Document.GetText(wordStart, wordEnd - wordStart);
         if (!Snippets.TryGetValue(word, out var template)) return false;
 
-        // Base indentation of the current line
+        ExpandSnippet(wordStart, wordEnd - wordStart, template);
+        return true;
+    }
+
+    // Expands a snippet template at [offset, offset+length) — used by both Tab-expansion above and
+    // SnippetCompletionData (completion-list entry) — re-indenting it to match the current line and
+    // placing the caret at the ${0} cursor marker (or the end of the expansion if there isn't one).
+    private void ExpandSnippet(int offset, int length, string template)
+    {
         var caretLine = Document.GetLineByOffset(offset);
         var lineText = Document.GetText(caretLine.Offset, caretLine.Length);
         int indentLen = 0;
@@ -451,16 +466,27 @@ public class CodeTextEditor : TextEditor
         if (cursorIdx >= 0)
         {
             expansion = expansion.Remove(cursorIdx, cursorMarker.Length);
-            cursorOffset = wordStart + cursorIdx;
+            cursorOffset = offset + cursorIdx;
         }
         else
         {
-            cursorOffset = wordStart + expansion.Length;
+            cursorOffset = offset + expansion.Length;
         }
 
-        Document.Replace(wordStart, wordEnd - wordStart, expansion);
+        Document.Replace(offset, length, expansion);
         TextArea.Caret.Offset = cursorOffset;
-        return true;
+    }
+
+    // True right after a '.' member access (skipping back over the identifier prefix already being
+    // typed) — the same spot completion is triggered by typing '.' itself. Snippets don't make sense
+    // there (nobody wants a `for` snippet offered next to `.Length`/`.Count`), so ShowCompletion uses
+    // this to suppress them on an explicit Ctrl+Space invoke in that context.
+    private bool IsMemberAccessContext(int offset)
+    {
+        var pos = offset;
+        while (pos > 0 && (char.IsLetterOrDigit(Document.GetCharAt(pos - 1)) || Document.GetCharAt(pos - 1) == '_'))
+            pos--;
+        return pos > 0 && Document.GetCharAt(pos - 1) == '.';
     }
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
@@ -508,19 +534,36 @@ public class CodeTextEditor : TextEditor
             Document.Insert(TextArea.Caret.Offset, closing.ToString());
     }
 
-    private async void ShowCompletion(char trigger)
+    private async void ShowCompletion(char trigger, bool explicitInvoke = false)
     {
-        var args = new CompletionRequestedEventArgs(trigger, TextArea.Caret.Offset);
+        var args = new CompletionRequestedEventArgs(trigger, TextArea.Caret.Offset, explicitInvoke);
 
         if (AsyncCompletionProvider != null)
             await AsyncCompletionProvider(args);
         else
             CompletionRequested?.Invoke(this, args);
 
+        // Snippets only make sense as statement-level suggestions, so only add them for an
+        // explicit Ctrl+Space invoke — not e.g. after a '.' member access, where regular completion
+        // is what the user is actually after.
+        if (explicitInvoke && !IsMemberAccessContext(args.CaretOffset))
+            foreach (var (name, template) in Snippets)
+                args.Items.Add(new SnippetCompletionData(
+                    name, template, SnippetIcon, segment => ExpandSnippet(segment.Offset, segment.Length, template)));
+
         if (args.Items.Count == 0) return;
 
         _completionWindow = new CompletionWindow(TextArea);
         _completionWindow.Closed += (_, _) => _completionWindow = null;
+
+        // The window itself is a bare Popup with no Font/Background/Foreground of its own — the
+        // actual visible content is CompletionList, a separate TemplatedControl that doesn't
+        // inherit these from this editor through the visual tree, so copy them explicitly instead
+        // of falling back to AvaloniaEdit's own default theme.
+        _completionWindow.CompletionList.FontFamily = FontFamily;
+        _completionWindow.CompletionList.FontSize = FontSize;
+        _completionWindow.CompletionList.Background = Background;
+        _completionWindow.CompletionList.Foreground = Foreground;
 
         foreach (var item in args.Items)
             _completionWindow.CompletionList.CompletionData.Add(item);
@@ -542,6 +585,14 @@ public class CodeTextEditor : TextEditor
         _insightWindow?.Close();
         _insightWindow = new OverloadInsightWindow(TextArea);
         _insightWindow.Closed += (_, _) => _insightWindow = null;
+        // Same reasoning as ShowCompletion above — style the popup's actual content control.
+        if (_insightWindow.Child is TemplatedControl content)
+        {
+            content.FontFamily = FontFamily;
+            content.FontSize = FontSize;
+            content.Background = Background;
+            content.Foreground = Foreground;
+        }
         _insightWindow.Provider = new OverloadProvider(args.Overloads);
         _insightWindow.Show();
     }

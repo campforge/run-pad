@@ -1,13 +1,18 @@
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace DotPad.Format.RPad;
 
+/// ToDo: надо радоьать со стримом, причем иметь возможность взять непосредственно стрим кода игонрируя заголовки
 public static class RpadParser
 {
-    private static readonly IDeserializer YamlDeserializer = new DeserializerBuilder()
+    private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
+        .WithTypeConverter(new TargetSdkYamlConverter())
+        .WithTypeConverter(new PackageYamlConverter())
         .Build();
 
     /// <summary>
@@ -33,15 +38,20 @@ public static class RpadParser
         RpadFrontMatter fm;
         try
         {
-            fm = YamlDeserializer.Deserialize<RpadFrontMatter>(yamlText) ?? new RpadFrontMatter();
-            // YamlDotNet overwrites defaulted string properties with an explicit YAML null
-            // (e.g. "targetSdk:" with no value) — restore the default in that case. Language/Kind
-            // don't need this: YamlDotNet leaves non-nullable enum properties at their object
-            // initializer default when the YAML value is null/empty rather than nulling them out.
-            fm.TargetSdk ??= "net10.0";
+            fm = _yamlDeserializer.Deserialize<RpadFrontMatter>(yamlText);
+            // YamlDotNet overwrites defaulted list properties with an explicit YAML null (e.g.
+            // "references:" with no value) — restore the default in that case. TargetSdk/Package
+            // don't need it — their converters below already map an empty scalar to
+            // TargetSdk.Default/Package.Default themselves. For a non-nullable enum property with an
+            // empty/null YAML value, YamlDotNet assigns default(TEnum) rather than leaving the
+            // property at its object-initializer value, so Kind/Language need the same "restore to
+            // the real default" treatment — their `Unknown = 0` member exists precisely to make that
+            // distinguishable from a deliberately-chosen value.
             fm.Packages ??= [];
             fm.References ??= [];
-            fm.Usings ??= [];
+            fm.Namespaces ??= [];
+            if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
+            if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
         }
         catch
         {
@@ -133,4 +143,32 @@ public static class RpadParser
         }
         return -1;
     }
+}
+
+// TargetSdk/Package are plain YAML scalars ("net8.0", "2.1.66") in the .rpad file, not mappings —
+// without these, YamlDotNet tries to bind the scalar onto the record's constructor and throws,
+// which TryParse's outer catch turns into a silent reset of the *entire* front matter.
+internal sealed class TargetSdkYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(TargetSdk);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
+        => TargetSdk.Parse(parser.Consume<Scalar>().Value);
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => emitter.Emit(new Scalar(((TargetSdk)value!).ToString()));
+}
+
+internal sealed class PackageYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(Package);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
+    {
+        var value = parser.Consume<Scalar>().Value;
+        return string.IsNullOrEmpty(value) ? Package.Default : new Package(value);
+    }
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => emitter.Emit(new Scalar(((Package)value!).Version));
 }

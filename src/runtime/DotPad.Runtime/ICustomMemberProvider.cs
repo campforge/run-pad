@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace DotPad.Runtime;
 
 // Implement on a type to control how Dump() renders it, instead of the default reflection-over-

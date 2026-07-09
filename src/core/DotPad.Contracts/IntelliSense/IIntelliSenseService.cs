@@ -1,3 +1,5 @@
+using DotPad.Format.RPad;
+
 namespace DotPad.Contracts.IntelliSense;
 
 public interface IIntelliSenseService : IDisposable
@@ -19,6 +21,11 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
+    // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
+    // the original text in that case.
+    Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
+
     // Fires from a background thread. First arg = the code that produced the diagnostics.
     event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
 
@@ -31,9 +38,9 @@ public interface IIntelliSenseService : IDisposable
     void NotifyTextChanged(string code);
 
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.
-    void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages);
+    void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
 
-    // Call when the tab's .rpad front-matter `usings:` list changes (including once at initial
+    // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see ICodeFixInfo.UsingsToAdd.
     void UpdateGlobalUsings(IReadOnlyList<string> usings);

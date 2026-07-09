@@ -1,9 +1,11 @@
 using System.Text;
 using DotPad.Contracts.IntelliSense;
+using DotPad.Format.RPad;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -17,9 +19,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Default usings the synthetic script document is built with, so completion/diagnostics work
     // without the user typing them — must match the compiler's own implicit usings exactly (see
     // ImplicitUsings.Default / ANALYSIS.md #27), otherwise IntelliSense shows no error for something
-    // that won't actually compile. Extended at runtime with the .rpad front matter's own `usings:`
-    // list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler will actually add
-    // as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
+    // that won't actually compile. Extended at runtime with the .rpad front matter's own
+    // `namespaces:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler
+    // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
     private static readonly string[] _basePreambleUsings = ImplicitUsings.Default;
 
     private static readonly SymbolDisplayFormat _briefFormat =
@@ -113,8 +115,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _preambleLength = _preamble.Length;
     }
 
-    // Call when the .rpad front matter's `usings:` list changes (including once at initial load)
-    // so completion/diagnostics/quick-fix ranking see the same global usings the compiler will add.
+
+
     public void UpdateGlobalUsings(IReadOnlyList<string> usings)
     {
         var extra = usings
@@ -161,47 +163,56 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
+            var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
-            if (trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.')
+            // An explicit Ctrl+Space invoke right after a '.' should behave like typing the dot
+            // itself — member completion for the expression before it — not fall through to the
+            // generic in-scope-symbols+keywords list below (which is where keywords like `for`/`if`
+            // would otherwise show up sitting right next to `.Length`/`.Count`).
+            if ((isDotInsertion || trigger.Kind == CompletionTriggerKind.Invoked) && pos > 0)
             {
-                if (pos <= 0) return null;
                 var token = root.FindToken(pos - 1);
                 var memberAccess = token.Parent?.AncestorsAndSelf()
                     .OfType<MemberAccessExpressionSyntax>()
                     .FirstOrDefault();
-                if (memberAccess == null) return null;
 
-                var typeInfo = model.GetTypeInfo(memberAccess.Expression);
-                var type = typeInfo.Type ?? typeInfo.ConvertedType;
-                if (type == null) return null;
+                if (memberAccess != null)
+                {
+                    var typeInfo = model.GetTypeInfo(memberAccess.Expression);
+                    var type = typeInfo.Type ?? typeInfo.ConvertedType;
+                    if (type != null)
+                    {
+                        var memberItems = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true)
+                            .Select(ToItem)
+                            .Where(i => i != null)
+                            .Cast<ICompletionItem>()
+                            .GroupBy(i => i.DisplayText)
+                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                            .OrderBy(i => i.SortText)
+                            .ToList();
 
-                var symbols = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true);
-                var items = symbols
-                    .Select(ToItem)
-                    .Where(i => i != null)
-                    .Cast<ICompletionItem>()
-                    .GroupBy(i => i.DisplayText)
-                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                    .OrderBy(i => i.SortText)
-                    .ToList();
+                        return memberItems.Count > 0 ? new SimpleCompletionList(memberItems) : null;
+                    }
+                }
 
-                return items.Count > 0 ? new SimpleCompletionList(items) : null;
+                // A typed '.' with nothing sensible to complete has nothing worth falling back to;
+                // an explicit invoke elsewhere (not after a dot, or Invoked with no resolvable
+                // member type) should still fall through to the general list below.
+                if (isDotInsertion) return null;
             }
-            else
-            {
-                var symbols = model.LookupSymbols(pos);
-                var items = symbols
-                    .Select(ToItem)
-                    .Where(i => i != null)
-                    .Cast<ICompletionItem>()
-                    .Concat(_keywords)
-                    .GroupBy(i => i.DisplayText)
-                    .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                    .OrderBy(i => i.SortText)
-                    .ToList();
 
-                return items.Count > 0 ? new SimpleCompletionList(items) : null;
-            }
+            var symbols = model.LookupSymbols(pos);
+            var items = symbols
+                .Select(ToItem)
+                .Where(i => i != null)
+                .Cast<ICompletionItem>()
+                .Concat(_keywords)
+                .GroupBy(i => i.DisplayText)
+                .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                .OrderBy(i => i.SortText)
+                .ToList();
+
+            return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
@@ -213,7 +224,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         IPropertySymbol p
             => new SimpleCompletionItem(p.Name, CompletionItemKind.Property, p.ToDisplayString(_briefFormat)),
         IFieldSymbol f when !f.IsImplicitlyDeclared
-            => new SimpleCompletionItem(f.Name, CompletionItemKind.Field, f.ToDisplayString(_briefFormat)),
+            => new SimpleCompletionItem(f.Name,
+                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field,
+                f.ToDisplayString(_briefFormat)),
         IEventSymbol e
             => new SimpleCompletionItem(e.Name, CompletionItemKind.Event, e.ToDisplayString(_briefFormat)),
         ILocalSymbol l
@@ -221,9 +234,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         IParameterSymbol p
             => new SimpleCompletionItem(p.Name, CompletionItemKind.Variable, p.ToDisplayString(_briefFormat)),
         INamedTypeSymbol t
-            => new SimpleCompletionItem(t.Name,
-                t.TypeKind == TypeKind.Interface ? CompletionItemKind.Interface : CompletionItemKind.Class,
-                t.ToDisplayString(_briefFormat)),
+            => new SimpleCompletionItem(t.Name, t.TypeKind switch
+            {
+                TypeKind.Interface => CompletionItemKind.Interface,
+                TypeKind.Enum => CompletionItemKind.Enum,
+                TypeKind.Struct => CompletionItemKind.Struct,
+                _ => CompletionItemKind.Class,
+            }, t.ToDisplayString(_briefFormat)),
         _ => null
     };
 
@@ -312,6 +329,33 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return new SimpleQuickInfoResult(symbol.ToDisplayString(_briefFormat));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
+    }
+
+    // ── Format ─────────────────────────────────────────────────────────────────
+
+    // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
+    // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
+    // boundary whitespace to reconcile.
+    public async Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default)
+    {
+        try
+        {
+            using var formatWorkspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+            var projectId = ProjectId.CreateNewId("Format");
+            formatWorkspace.AddProject(ProjectInfo.Create(
+                projectId,
+                VersionStamp.Create(),
+                name: "Format",
+                assemblyName: "Format",
+                language: LanguageNames.CSharp,
+                parseOptions: new CSharpParseOptions(LanguageVersion.Latest)));
+
+            var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
+            var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
+            var text = await formatted.GetTextAsync(ct);
+            return text.ToString();
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
     }
 
     // ── Background analysis (diagnostics + semantic tokens) ───────────────────
@@ -429,10 +473,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Package references ────────────────────────────────────────────────────
 
-    public void UpdatePackageReferences(IReadOnlyDictionary<string, string> packages)
+    public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages)
     {
         var newPaths = packages
-            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value))
+            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value.Version))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

@@ -16,19 +16,27 @@ public abstract class LanguageHostBase : ILanguageHost
 
     // --- Core: must be implemented by every host ---
 
-    public abstract Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken = default);
-    public abstract Task RunAsync(string code, OutputReceivedHandler? outputHandler = null, CancellationToken cancellationToken = default);
-    public abstract Task TerminateAsync(CancellationToken cancellationToken = default);
+    public abstract Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
+
+    public abstract Task RunAsync(
+        string code,
+        OutputReceivedHandler outputHandler,
+        CancellationToken cancellationToken);
+
+    public abstract Task TerminateAsync(CancellationToken cancellationToken);
 
     // --- Debug: virtual, throws if capability not declared ---
 
-    public virtual Task RunDebugAsync(string code, OutputReceivedHandler? outputHandler = null, CancellationToken cancellationToken = default)
+    public virtual Task RunDebugAsync(
+        string code,
+        OutputReceivedHandler outputHandler,
+        CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.Debug);
         return Task.CompletedTask; // unreachable
     }
 
-    public virtual Task PauseAsync(CancellationToken cancellationToken = default)
+    public virtual Task PauseAsync(CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.Debug);
         return Task.CompletedTask;
@@ -49,8 +57,10 @@ public abstract class LanguageHostBase : ILanguageHost
         // the editor gutter during an active debug session is a freshly-constructed IBreakpoint, not
         // the same instance originally passed to AddBreakpoint.
         _breakpoints.RemoveAll(bp => bp.Line == breakpoint.Line
-            && (string.IsNullOrEmpty(bp.FileName) || string.IsNullOrEmpty(breakpoint.FileName)
-                || string.Equals(bp.FileName, breakpoint.FileName, StringComparison.OrdinalIgnoreCase)));
+                                     && (string.IsNullOrEmpty(bp.FileName) || string.IsNullOrEmpty(breakpoint.FileName)
+                                                                           || string.Equals(bp.FileName,
+                                                                               breakpoint.FileName,
+                                                                               StringComparison.OrdinalIgnoreCase)));
     }
 
     public virtual void ClearBreakpoints()
@@ -73,7 +83,7 @@ public abstract class LanguageHostBase : ILanguageHost
 
     // --- Memory dump ---
 
-    public virtual Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken = default)
+    public virtual Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.MemoryDump);
         return Task.FromResult<IMemoryDump>(null!); // unreachable

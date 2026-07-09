@@ -1,4 +1,3 @@
-using System.Composition;
 using System.Composition.Hosting;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -90,6 +89,7 @@ internal sealed class RoslynCodeFixEngine
         var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), ct);
 
         try { await provider.RegisterCodeFixesAsync(context); }
+        catch (OperationCanceledException) { throw; } // routine — superseded by the next keystroke
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Code fix provider {Provider} threw for {Id}", provider.GetType().Name, diagnostic.Id);

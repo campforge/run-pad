@@ -1,4 +1,3 @@
-using DotPad.Contracts;
 using DotPad.Contracts.Models;
 
 namespace DotPad.Languages.CSharp.Debug;
