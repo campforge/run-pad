@@ -2,14 +2,14 @@ using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
-using DotPad.Contracts.IntelliSense;
 
-namespace DotPad;
+namespace DotPad.Avalonia.CodeTextEditor;
 
-internal sealed class EditorCompletionData(
+public sealed class EditorCompletionData(
     string displayText,
     string description,
-    double priority
+    double priority,
+    IImage? image = null
 ) : ICompletionData
 {
     public string Text => displayText;

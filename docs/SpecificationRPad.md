@@ -35,7 +35,7 @@
 
 ````markdown
 ---
-version: 1
+version: "1.0"
 language: csharp
 targetSdk: net9.0
 kind: Statements
@@ -64,10 +64,10 @@ Console.WriteLine("Hello");
 
 Версия формата файла.
 
-Тип:
+Тип: строка.
 
 ```yaml
-version: 1
+version: "1.0"
 ```
 
 Обязательный параметр.
@@ -94,10 +94,12 @@ language: csharp
 
 В будущем могут быть добавлены:
 
-* `fsharp`
-* `vb`
+* `java`
+* `kotlin`
 * `python`
 * `javascript`
+* `go`
+* `rust`
 
 ---
 
@@ -111,7 +113,8 @@ language: csharp
 targetSdk: net9.0
 ```
 
-Обязательный параметр.
+Обязательный параметр. Если ключ отсутствует или указан без значения, редактор не выбрасывает
+ошибку, а откатывается на значение по умолчанию `latest`.
 
 Примеры:
 
@@ -121,6 +124,10 @@ targetSdk: net8.0
 
 ```yaml
 targetSdk: net9.0
+```
+
+```yaml
+targetSdk: latest
 ```
 
 > Ключ был переименован из `targetFramework` в `targetSdk` (2026-07-06). Файлы, созданные до этой
@@ -243,14 +250,14 @@ packages:
 
 ---
 
-## usings
+## namespaces
 
 Список глобальных using.
 
 Тип:
 
 ```yaml
-usings:
+namespaces:
   - System.Text
   - System.Linq
   - Microsoft.Extensions.Logging
@@ -259,6 +266,9 @@ usings:
 Необязательный параметр.
 
 Редактор может автоматически добавить их при компиляции.
+
+> Ключ был переименован из `usings` в `namespaces` (2026-07-09). Файлы, созданные до этой даты,
+> нужно поправить вручную — автоматической миграции нет.
 
 ---
 
@@ -323,7 +333,7 @@ Console.WriteLine("Hello");
 
 ````markdown
 ---
-version: 1
+version: "1.0"
 language: csharp
 targetSdk: net9.0
 kind: Statements
@@ -335,7 +345,7 @@ packages:
 references:
   - ../Shared/Shared.csproj
 
-usings:
+namespaces:
   - System.Text
   - System.Linq
 ---

@@ -386,7 +386,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new DotPad.Windows.ConditionDialog(bp?.Condition);
+        var dialog = new Windows.ConditionDialog(bp?.Condition);
         var result = await dialog.ShowDialog<string?>(owner);
         if (result is null) return; // cancelled
 
@@ -474,7 +474,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         try
         {
-            var html = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
+            var html = Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
             var wrapped = $"\n<div class=\"dp-dump\">{html}</div>";
 
             // DumpContainer (ANALYSIS.md feature #19) re-emits the same data-dp-id on every
@@ -520,8 +520,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (editorBp is null) return;
 
         editorBp.VerificationState = verified
-            ? DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Verified
-            : DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Unverified;
+            ? BreakpointVerificationState.Verified
+            : BreakpointVerificationState.Unverified;
         editorBp.VerificationMessage = message;
         State.Editor.InvalidateBreakpoints();
     }
@@ -552,6 +552,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ? context.CallStack[0].Line
             : context.Breakpoint.Line;
 
+        // ToDo: перенести это все в DebugPanel
         // Switch to Debugger tab so the user sees variables immediately
         if (_outputTabsControl is { } tc) tc.SelectedIndex = 1;
 
@@ -618,7 +619,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
 
-    // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
     // ── Setup helpers ─────────────────────────────────────────────────────────
 
     private void SetupEditor(CodeTextEditor editor, IIntelliSenseService? intelliSense)
@@ -628,9 +628,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.OverloadTriggers.Add(',');
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
-
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
-
+        // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
         editor.Snippets["for"] = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
         editor.Snippets["foreach"] = "foreach (var item in ${0})\n{\n\t\n}";
         editor.Snippets["while"] = "while (${0})\n{\n\t\n}";
@@ -653,9 +652,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AsyncCompletionProvider = async e =>
         {
             var list = await intelliSense.GetCompletionsAsync(
-                State.Editor.Text, e.CaretOffset, CompletionTrigger.Insertion(e.Trigger));
+                State.Editor.Text,
+                e.CaretOffset,
+                CompletionTrigger.Insertion(e.Trigger));
             if (list is null) return;
-            foreach (var item in list.Items) e.Items.Add(new EditorCompletionData(item));
+            foreach (var item in list.Items)
+            {
+                e.Items.Add(new EditorCompletionData(
+                    item.DisplayText,
+                    item.Description ?? string.Empty,
+                    // ToDo: вынести расчет приоритета в языковую модель
+                    item.Kind == CompletionItemKind.Method ? 1.0 : 0.9
+                ));
+            }
         };
 
         editor.AsyncOverloadProvider = async e =>
@@ -702,7 +711,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
 
-                // Usings go to the .rpad front matter's `usings:` list (a project file, per
+                // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
                 // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
                 // script with no front matter to route them to, where they're folded into the text.
                 var hasProjectFile = State.RpadDocument is not null;
@@ -733,7 +742,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(400, ct);
-                    var offset = await Dispatcher.UIThread.InvokeAsync(() => editor.GetOffsetFromPoint(pos));
+                    var (offset, text) = await Dispatcher.UIThread.InvokeAsync(
+                        () => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
@@ -742,7 +752,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         squiggleRenderer.Diagnostics.FirstOrDefault(d =>
                             offset >= d.StartOffset && offset < d.EndOffset);
                     var content = diagnostic?.Message
-                                  ?? (await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct))?.Content;
+                                  ?? (await intelliSense.GetQuickInfoAsync(text, offset, ct))?.Content;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
@@ -791,7 +801,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Shows which kind/target framework the script actually runs as (ANALYSIS.md #29) — helps
         // tell the two compile paths apart (fast path vs. DotnetProcessCompiler) and diagnose
         // compile/run discrepancies between them without having to open the front matter by hand.
-        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetFramework}";
+        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}";
 
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
@@ -808,11 +818,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
                                                   new Dictionary<string, Package>());
 
-    /// <summary>Pushes this tab's front-matter `usings:` list into its own IntelliSense instance.</summary>
+    /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
         => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
 
-    // Adds namespaces to the .rpad front matter's `usings:` list (compiled in as `global using` —
+    // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
     // persists + re-syncs IntelliSense immediately so the fix's effect (squiggle gone) is visible
     // right away rather than waiting for the next save/run.

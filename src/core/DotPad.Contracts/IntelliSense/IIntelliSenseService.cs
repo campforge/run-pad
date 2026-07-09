@@ -35,7 +35,7 @@ public interface IIntelliSenseService : IDisposable
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.
     void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
 
-    // Call when the tab's .rpad front-matter `usings:` list changes (including once at initial
+    // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see ICodeFixInfo.UsingsToAdd.
     void UpdateGlobalUsings(IReadOnlyList<string> usings);

@@ -35,7 +35,6 @@ public sealed class FileSystemService : IFileSystemService
     public event EventHandler<FileSystemEventArgs>? WatcherEvent;
 
 
-
     public string Folder => _rootFolder;
 
     public FileSystemService(
@@ -93,7 +92,7 @@ public sealed class FileSystemService : IFileSystemService
             _logger.LogError(e, "Can not build FilesTree");
             throw;
         }
-        return new List<FileSystemItem>();
+        // return new List<FileSystemItem>();
     }
 
 
@@ -175,7 +174,7 @@ public sealed class FileSystemService : IFileSystemService
         // it aren't worth the risk since Windows isn't available to test in this environment.
         var startInfo = OperatingSystem.IsWindows()
             ? new ProcessStartInfo
-            { FileName = "explorer.exe", Arguments = $"/select,\"{filePath}\"", UseShellExecute = true }
+                { FileName = "explorer.exe", Arguments = $"/select,\"{filePath}\"", UseShellExecute = true }
             : OperatingSystem.IsMacOS()
                 ? new ProcessStartInfo { FileName = "open", ArgumentList = { "-R", filePath } }
                 : new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { dir } };
