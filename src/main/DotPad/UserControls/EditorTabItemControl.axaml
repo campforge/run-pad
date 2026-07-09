@@ -99,8 +99,9 @@
 
                     <tc:IconToggleButton
                         IconData="{StaticResource Icon.Bug}"
+                        CheckedBrush="{DynamicResource DotPad.Icon.PlayBrush}"
                         IsChecked="{Binding DebugModeEnabled}"
-                        ToolTip.Tip= "Toggle debug mode"
+                        ToolTip.Tip="Toggle debug mode"
                        />
 
                     <tc:IconButton
