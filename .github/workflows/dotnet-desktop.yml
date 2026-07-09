@@ -30,14 +30,39 @@ jobs:
       - name: 🔍 Check formatting
         run: dotnet format --verify-no-changes --verbosity diagnostic
 
-  build:
-    name: Build & Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+  build-windows:
+    name: Build & Test (windows-latest)
+    needs: format
+    runs-on: windows-latest
+    steps:
+      - name: 🚚 Checkout
+        uses: actions/checkout@v4
 
+      - name: 🧲 Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 📦 Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: 📦 Restore
+        run: dotnet restore
+
+      - name: 🔨 Build
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      - name: 🧪 Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+  build-linux:
+    name: Build & Test (ubuntu-latest)
+    needs: build-windows
+    runs-on: ubuntu-latest
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
@@ -64,9 +89,37 @@ jobs:
         run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
       - name: 📊 Upload coverage
-        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: ./coverage/**/coverage.cobertura.xml
           if-no-files-found: warn
+
+  build-macos:
+    name: Build & Test (macos-latest)
+    needs: build-linux
+    runs-on: macos-latest
+    steps:
+      - name: 🚚 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧲 Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 📦 Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: 📦 Restore
+        run: dotnet restore
+
+      - name: 🔨 Build
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      - name: 🧪 Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
