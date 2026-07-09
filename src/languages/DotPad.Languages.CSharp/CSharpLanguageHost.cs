@@ -217,9 +217,10 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         try
         {
-            await _runCts?.CancelAsync()!;
+            if (_runCts is not null)
+                await _runCts.CancelAsync();
         }
-        catch (Exception e)
+        catch (ObjectDisposedException)
         {
             // ignored
         }
