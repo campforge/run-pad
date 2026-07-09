@@ -34,19 +34,30 @@
                 </Style>
 
                 <Style Selector="^:checked /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="BorderBrush">
+                        <Binding Path="CheckedBrush" RelativeSource="{RelativeSource TemplatedParent}" />
+                    </Setter>
                 </Style>
 
                 <Style Selector="^:disabled">
                     <Setter Property="Opacity" Value="0.35"/>
                 </Style>
 
-                <Style Selector="^:checked PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.PlayBrush}"/>
+                <Style Selector="^ /template/ PathIcon">
+                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
                 </Style>
 
-                <Style Selector="PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                <Style Selector="^:checked /template/ PathIcon">
+                    <Setter Property="Foreground">
+                        <Binding Path="CheckedBrush" RelativeSource="{RelativeSource TemplatedParent}" />
+                    </Setter>
+                    <Setter Property="Data">
+                        <MultiBinding Converter="{x:Static templatedControls:IconToggleButton.PreferCheckedIconConverter}">
+                            <Binding Path="CheckedIconData" RelativeSource="{RelativeSource TemplatedParent}" />
+                            <Binding Path="IconData" RelativeSource="{RelativeSource TemplatedParent}" />
+                        </MultiBinding>
+                    </Setter>
                 </Style>
 
             </ControlTheme>

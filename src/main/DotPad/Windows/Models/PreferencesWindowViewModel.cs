@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using DotPad.Avalonia.Themes;
@@ -88,8 +87,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     }
 
     public bool IsSystemMode { get => SelectedMode == ThemeMode.System; set { if (value) SelectedMode = ThemeMode.System; } }
-    public bool IsDarkMode   { get => SelectedMode == ThemeMode.Dark;   set { if (value) SelectedMode = ThemeMode.Dark;   } }
-    public bool IsLightMode  { get => SelectedMode == ThemeMode.Light;  set { if (value) SelectedMode = ThemeMode.Light;  } }
+    public bool IsDarkMode { get => SelectedMode == ThemeMode.Dark; set { if (value) SelectedMode = ThemeMode.Dark; } }
+    public bool IsLightMode { get => SelectedMode == ThemeMode.Light; set { if (value) SelectedMode = ThemeMode.Light; } }
 
     // ── Interface theme ───────────────────────────────────────────────────────
 
@@ -213,6 +212,18 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Keyboard.StepOut;
         set => SetPref(_prefs.Keyboard.StepOut, value, v => _prefs.Keyboard.StepOut = v);
+    }
+
+    public string HotkeyFormat
+    {
+        get => _prefs.Keyboard.Format;
+        set => SetPref(_prefs.Keyboard.Format, value, v => _prefs.Keyboard.Format = v);
+    }
+
+    public string HotkeyGoToLine
+    {
+        get => _prefs.Keyboard.GoToLine;
+        set => SetPref(_prefs.Keyboard.GoToLine, value, v => _prefs.Keyboard.GoToLine = v);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

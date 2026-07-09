@@ -2,8 +2,6 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -19,6 +17,7 @@ using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Resources;
 using DotPad.Services;
+using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
 using ReactiveUI;
@@ -37,6 +36,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
+    private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private bool _disposed;
 
@@ -47,18 +47,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         CSharpReferenceService referenceService,
+        IBuildCacheService buildCache,
         IBrush? editorBackground)
     {
         _themeService = themeService;
         _registry = registry;
         _prefs = prefs;
         _referenceService = referenceService;
+        _buildCache = buildCache;
         _vm = vm;
         DataContext = _vm;
 
         InitializeComponent();
 
-        this.FindControl<DebugPanel>("DebugPanelCtrl")!.DataContext = _vm;
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
         // Register custom font for HTML output panel
@@ -67,7 +68,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var editor = new CodeTextEditor { Background = editorBackground };
         State = new EditorTabState(editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant, themeService.CurrentTheme.Interface.IsDark);
+        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
+            themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
         prefs.Changed += OnPreferencesChanged;
@@ -106,7 +108,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
         // gives us a fresh IBreakpointHitContext (see OnBreakpointHit).
-        _vm.WatchExpressions.CollectionChanged += (_, e) =>
+        _vm.DebugPanel.WatchExpressions.CollectionChanged += (_, e) =>
         {
             if (e.NewItems is not null)
                 foreach (WatchExpression w in e.NewItems)
@@ -114,6 +116,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     w.PropertyChanged += OnWatchExpressionPropertyChanged;
                     _ = EvaluateWatchAsync(w);
                 }
+
             if (e.OldItems is not null)
                 foreach (WatchExpression w in e.OldItems)
                     w.PropertyChanged -= OnWatchExpressionPropertyChanged;
@@ -128,8 +131,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async Task EvaluateWatchAsync(WatchExpression w)
     {
-        if (string.IsNullOrWhiteSpace(w.Expression)) { w.Value = "?"; w.TypeName = ""; return; }
-        if (State.CurrentDebugCtx is not { } ctx) { w.Value = "<not paused>"; w.TypeName = ""; return; }
+        if (string.IsNullOrWhiteSpace(w.Expression))
+        {
+            w.Value = "?";
+            w.TypeName = "";
+            return;
+        }
+
+        if (State.CurrentDebugCtx is not { } ctx)
+        {
+            w.Value = "<not paused>";
+            w.TypeName = "";
+            return;
+        }
 
         try
         {
@@ -163,7 +177,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void SaveIfNeeded()
     {
         if (_vm.FilePath is null) return;
-        try { WriteFile(_vm.FilePath); } catch { /* best-effort */ }
+        try
+        {
+            WriteFile(_vm.FilePath);
+        }
+        catch
+        {
+            /* best-effort */
+        }
     }
 
     private void WriteFile(string path)
@@ -203,7 +224,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (_vm.FilePath is not null)
         {
-            try { WriteFile(_vm.FilePath); }
+            try
+            {
+                WriteFile(_vm.FilePath);
+            }
             catch (Exception ex)
             {
                 AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
@@ -230,11 +254,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var breakpoints = s.Editor.Breakpoints
                 .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
                 .ToList();
-
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
             foreach (var bp in s.Editor.Breakpoints)
-                bp.VerificationState = DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Pending;
+            {
+                bp.VerificationState = BreakpointVerificationState.Pending;
+            }
+
             s.Editor.InvalidateBreakpoints();
 
             await Task.Run(async () =>
@@ -263,8 +289,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 }
             }, s.RunCts.Token);
         }
-        catch (OperationCanceledException) { cancelled = true; }
-        catch (Exception ex) { AppendError(ex); }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+        catch (Exception ex)
+        {
+            AppendError(ex);
+        }
         finally
         {
             s.RunningHost = null;
@@ -320,21 +352,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async void DbgPause_Click(object? sender, RoutedEventArgs e)
     {
-        if (State.RunningHost is not null)
-            await State.RunningHost.PauseAsync();
+        try
+        {
+            if (State.RunningHost is not null)
+                await State.RunningHost.PauseAsync(State.RunCts!.Token);
+        }
+        catch (Exception)
+        {
+            throw; // TODO handle exception
+        }
     }
 
     private async void DbgRunToCursor_Click(object? sender, RoutedEventArgs e)
     {
-        var ctx = State.CurrentDebugCtx;
-        if (ctx is null) return;
-        var line = State.Editor.TextArea.Caret.Line;
-        State.CurrentDebugCtx = null;
-        _vm.RunState = RunState.RunDebug;
-        State.Editor.DebugCurrentLine = null;
-        SetStatus("Process", "DotPad.Status.RunningBrush");
-        UpdateOutputUi();
-        await ctx.RunToCursorAsync(line);
+        try
+        {
+            var ctx = State.CurrentDebugCtx;
+            if (ctx is null) return;
+            var line = State.Editor.TextArea.Caret.Line;
+            State.CurrentDebugCtx = null;
+            _vm.RunState = RunState.RunDebug;
+            State.Editor.DebugCurrentLine = null;
+            SetStatus("Process", "DotPad.Status.RunningBrush");
+            UpdateOutputUi();
+            await ctx.RunToCursorAsync(line);
+        }
+        catch (Exception)
+        {
+            throw; // TODO handle exception
+        }
     }
 
     private async void OnBreakpointRightClicked(int line, DotPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
@@ -342,7 +388,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new DotPad.Windows.ConditionDialog(bp?.Condition);
+        var dialog = new Windows.ConditionDialog(bp?.Condition);
         var result = await dialog.ShowDialog<string?>(owner);
         if (result is null) return; // cancelled
 
@@ -358,6 +404,47 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
             if (newBp is not null) newBp.Condition = condition;
         }
+    }
+
+    // ── Format / navigation ────────────────────────────────────────────────────
+
+    internal async Task FormatAsync()
+    {
+        if (_intelliSense is null) return;
+        var editor = State.Editor;
+        var original = editor.Text;
+        var formatted = await _intelliSense.FormatDocumentAsync(original);
+        if (formatted is null || formatted == original) return;
+
+        // Formatting can shift line/column boundaries (re-indentation), so the caret is restored
+        // on a best-effort basis: same line number (clamped to the new line count), same column
+        // (clamped to that line's new length) rather than a precise offset remap.
+        var caretLine = editor.TextArea.Caret.Line;
+        var caretColumn = editor.TextArea.Caret.Column;
+
+        editor.Document.Text = formatted;
+
+        var line = Math.Min(caretLine, editor.Document.LineCount);
+        var column = Math.Min(caretColumn, editor.Document.GetLineByNumber(line).Length + 1);
+        editor.TextArea.Caret.Line = line;
+        editor.TextArea.Caret.Column = column;
+    }
+
+    internal async void ShowGoToLine()
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var editor = State.Editor;
+        var maxLine = editor.Document.LineCount;
+        var dialog = new Windows.GoToLineDialog(editor.TextArea.Caret.Line, maxLine);
+        var result = await dialog.ShowDialog<int?>(owner);
+        if (result is not { } line) return;
+
+        editor.TextArea.Caret.Line = Math.Clamp(line, 1, maxLine);
+        editor.TextArea.Caret.Column = 1;
+        editor.ScrollToLine(editor.TextArea.Caret.Line);
+        editor.Focus();
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -376,11 +463,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void UpdateOutputUi()
     {
         OutputHtml.Text = $"""
-            <html>
-            <head><style>{State.OutputCss}</style></head>
-            <body>{State.OutputContent}</body>
-            </html>
-            """;
+                           <html>
+                           <head><style>{State.OutputCss}</style></head>
+                           <body>{State.OutputContent}</body>
+                           </html>
+                           """;
 
         ExecStatusBlock.Text = State.ExecStatusText;
         ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
@@ -403,11 +490,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             RenderDump(data);
             return;
         }
+
         if (data.Length > 0 && data[0] == '\x1e')
         {
             RenderDump(data[1..]);
             return;
         }
+
         if (data.StartsWith("DOTPAD_DUMP:", StringComparison.Ordinal))
         {
             RenderDump(data["DOTPAD_DUMP:".Length..]);
@@ -428,7 +517,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         try
         {
-            var html = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
+            var html = Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
             var wrapped = $"\n<div class=\"dp-dump\">{html}</div>";
 
             // DumpContainer (ANALYSIS.md feature #19) re-emits the same data-dp-id on every
@@ -452,6 +541,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
         }
+
         UpdateOutputUi();
     }
 
@@ -473,8 +563,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (editorBp is null) return;
 
         editorBp.VerificationState = verified
-            ? DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Verified
-            : DotPad.Avalonia.CodeTextEditor.BreakpointVerificationState.Unverified;
+            ? BreakpointVerificationState.Verified
+            : BreakpointVerificationState.Unverified;
         editorBp.VerificationMessage = message;
         State.Editor.InvalidateBreakpoints();
     }
@@ -505,24 +595,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ? context.CallStack[0].Line
             : context.Breakpoint.Line;
 
+        // ToDo: перенести это все в DebugPanel
         // Switch to Debugger tab so the user sees variables immediately
         if (_outputTabsControl is { } tc) tc.SelectedIndex = 1;
 
-        _vm.DebugThreads.Clear();
+        _vm.DebugPanel.DebugThreads.Clear();
         foreach (var t in context.Threads)
-            _vm.DebugThreads.Add(new DebugThread(t.Id, t.Name));
+            _vm.DebugPanel.DebugThreads.Add(new DebugThread(t.Id, t.Name));
 
-        _vm.DebugLocals.Clear();
+        _vm.DebugPanel.DebugLocals.Clear();
         foreach (var v in context.LocalVariables)
-            _vm.DebugLocals.Add(CreateDebugLocal(v, context));
+            _vm.DebugPanel.DebugLocals.Add(CreateDebugLocal(v, context));
 
-        _vm.DebugCallStack.Clear();
+        _vm.DebugPanel.DebugCallStack.Clear();
         foreach (var f in context.CallStack)
-            _vm.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
+            _vm.DebugPanel.DebugCallStack.Add(new DebugFrame(f.MethodName, Path.GetFileName(f.FileName), f.Line));
 
         // Watch expressions are evaluated against whichever frame/scope is current, so refresh them
         // for the new stop — stale values from the previous breakpoint hit would be misleading.
-        foreach (var w in _vm.WatchExpressions) _ = EvaluateWatchAsync(w);
+        foreach (var w in _vm.DebugPanel.WatchExpressions) _ = EvaluateWatchAsync(w);
 
         SetStatus("Paused", "DotPad.Status.PausedBrush");
         UpdateOutputUi();
@@ -571,7 +662,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
 
-    // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
     // ── Setup helpers ─────────────────────────────────────────────────────────
 
     private void SetupEditor(CodeTextEditor editor, IIntelliSenseService? intelliSense)
@@ -581,9 +671,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.OverloadTriggers.Add(',');
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
-
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
-
+        // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
         editor.Snippets["for"] = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
         editor.Snippets["foreach"] = "foreach (var item in ${0})\n{\n\t\n}";
         editor.Snippets["while"] = "while (${0})\n{\n\t\n}";
@@ -600,15 +689,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Snippets["ctor"] = "public ${0}()\n{\n\t\n}";
         editor.Snippets["using"] = "using (var resource = ${0})\n{\n\t\n}";
         editor.Snippets["lock"] = "lock (${0})\n{\n\t\n}";
+        editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
         if (intelliSense is null) return;
 
         editor.AsyncCompletionProvider = async e =>
         {
-            var list = await intelliSense.GetCompletionsAsync(
-                State.Editor.Text, e.CaretOffset, CompletionTrigger.Insertion(e.Trigger));
+            var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
+            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
             if (list is null) return;
-            foreach (var item in list.Items) e.Items.Add(new EditorCompletionData(item));
+            foreach (var item in list.Items)
+            {
+                e.Items.Add(new EditorCompletionData(
+                    item.DisplayText,
+                    item.Description ?? string.Empty,
+                    // ToDo: вынести расчет приоритета в языковую модель
+                    item.Kind == CompletionItemKind.Method ? 1.0 : 0.9,
+                    CompletionIcons.GetIcon(item.Kind)
+                ));
+            }
         };
 
         editor.AsyncOverloadProvider = async e =>
@@ -655,13 +754,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
 
-                // Usings go to the .rpad front matter's `usings:` list (a project file, per
+                // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
                 // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
                 // script with no front matter to route them to, where they're folded into the text.
                 var hasProjectFile = State.RpadDocument is not null;
                 var entries = fixes.Select(f => hasProjectFile
-                    ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
-                    : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
+                        ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
+                        : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
                     .ToList();
                 editor.UpdateCodeFixes(entries);
             });
@@ -686,16 +785,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(400, ct);
-                    var offset = await Dispatcher.UIThread.InvokeAsync(
-                        () => editor.GetOffsetFromPoint(pos));
+                    var (offset, text) = await Dispatcher.UIThread.InvokeAsync(
+                        () => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
                     // squiggle is there is usually more useful than the symbol's signature.
-                    var diagnostic = squiggleRenderer.Diagnostics.FirstOrDefault(
-                        d => offset >= d.StartOffset && offset < d.EndOffset);
+                    var diagnostic =
+                        squiggleRenderer.Diagnostics.FirstOrDefault(d =>
+                            offset >= d.StartOffset && offset < d.EndOffset);
                     var content = diagnostic?.Message
-                        ?? (await intelliSense.GetQuickInfoAsync(editor.Text, offset, ct))?.Content;
+                                  ?? (await intelliSense.GetQuickInfoAsync(text, offset, ct))?.Content;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
@@ -703,7 +803,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                             ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                }
             });
         };
 
@@ -728,6 +830,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var raw = File.ReadAllText(filePath);
             rpad = RpadParser.TryParse(raw);
             content = rpad?.RunCode ?? raw;
+
+            // Allocate/reuse this file's persistent build directory now, at open time, rather than
+            // lazily on first Run — see EnsureWorkDirectory/BuildRunOptions for how it's consumed.
+            State.OutputDirectory = _buildCache.EnsureOutputDirectory(filePath, EnsureWorkDirectory());
         }
         else
         {
@@ -742,11 +848,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Shows which kind/target framework the script actually runs as (ANALYSIS.md #29) — helps
         // tell the two compile paths apart (fast path vs. DotnetProcessCompiler) and diagnose
         // compile/run discrepancies between them without having to open the front matter by hand.
-        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetFramework}";
+        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}";
 
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
-        if (rpad?.FrontMatter.Usings is { Count: > 0 })
+        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
     }
 
@@ -756,13 +862,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// in place without any change notification of its own.
     /// </summary>
     internal void RefreshIntelliSensePackages()
-        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, string>());
+        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
+                                                  new Dictionary<string, Package>());
 
-    /// <summary>Pushes this tab's front-matter `usings:` list into its own IntelliSense instance.</summary>
+    /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
-        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Usings ?? []);
+        => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
 
-    // Adds namespaces to the .rpad front matter's `usings:` list (compiled in as `global using` —
+    // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
     // persists + re-syncs IntelliSense immediately so the fix's effect (squiggle gone) is visible
     // right away rather than waiting for the next save/run.
@@ -771,10 +878,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var rpad = State.RpadDocument;
         if (rpad is null) return;
 
-        var fmUsings = rpad.FrontMatter.Usings ??= [];
+        var fmUsings = rpad.FrontMatter.Namespaces ??= [];
         var added = false;
         foreach (var ns in usings)
-            if (!fmUsings.Contains(ns)) { fmUsings.Add(ns); added = true; }
+            if (!fmUsings.Contains(ns))
+            {
+                fmUsings.Add(ns);
+                added = true;
+            }
+
         if (!added) return;
 
         RefreshIntelliSenseUsings();
@@ -824,9 +936,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var rpad = State.RpadDocument;
 
-        // Reused across runs of this tab (allocated once) so DotnetProcessCompiler can detect an
-        // unchanged .csproj and skip NuGet restore — see its Compilation() for the actual check.
-        State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
+        // Reused across runs of this tab (allocated once, normally already set by SetDocumentContent
+        // at file-open time) so DotnetProcessCompiler can detect an unchanged .csproj/source and skip
+        // NuGet restore or the whole build — see its Compilation() for the actual checks. Untitled
+        // tabs (no FilePath) have no stable identity to persist against, so they just get a
+        // session-only random directory, same as before.
+        if (_vm.FilePath is not null)
+        {
+            State.OutputDirectory ??= _buildCache.EnsureOutputDirectory(_vm.FilePath, workDir);
+            _buildCache.Touch(_vm.FilePath);
+        }
+        else
+        {
+            State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
+        }
 
         return new CSharpLanguageHostOptions
         {
@@ -839,17 +962,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             },
             OutputDirectory = State.OutputDirectory,
             RuntimeLibPath = _referenceService.GetExtensionReference(),
-            BreakOnAllExceptions = _vm.BreakOnAllExceptions,
-            BreakOnUncaughtExceptions = _vm.BreakOnUncaughtExceptions,
-            JustMyCode = _vm.JustMyCode,
-            Kind = rpad?.FrontMatter.Kind.ToString() ?? "Statements",
-            TargetFrameworkOverride = rpad?.FrontMatter.TargetSdk,
-            NugetPackages = rpad?.FrontMatter.Packages ?? new Dictionary<string, string>(),
-            GlobalUsings = rpad?.FrontMatter.Usings ?? [],
-            AssemblyReferences = rpad?.FrontMatter.References?
+            BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
+            BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
+            Kind = rpad.FrontMatter.Kind,
+            Packages = rpad.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version),
+            Usings = rpad.FrontMatter.Namespaces ?? [],
+            // это уюрать под капот CSharpLanguageHost
+            AssemblyReferences = rpad.FrontMatter.References?
                 .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
-            ProjectReferences = rpad?.FrontMatter.References?
+            // это уюрать под капот CSharpLanguageHost
+            ProjectReferences = rpad.FrontMatter.References?
                 .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? [],
         };

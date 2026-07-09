@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="clr-namespace:DotPad.UserControls.Models"
              x:Class="DotPad.UserControls.DebugPanel"
-             x:DataType="models:EditorTabItemViewModel">
+             x:DataType="models:DebugPanelViewModel">
 
     <UserControl.Styles>
 
@@ -238,10 +238,6 @@
                           FontSize="12"/>
                 <CheckBox IsChecked="{Binding BreakOnAllExceptions}"
                           Content="Break on all exceptions (including caught)"
-                          FontSize="12"/>
-                <Border Height="1" Margin="0,6" Background="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
-                <CheckBox IsChecked="{Binding JustMyCode}"
-                          Content="Just My Code (don't step into framework code)"
                           FontSize="12"/>
             </StackPanel>
         </TabItem>

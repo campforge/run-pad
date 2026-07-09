@@ -6,10 +6,10 @@ namespace DotPad.Avalonia.CodeTextEditor;
 
 internal sealed class BraceMatchHighlighter : IBackgroundRenderer
 {
-    private static readonly IBrush MatchBrush    = new SolidColorBrush(Color.FromArgb(65, 100, 120, 220));
+    private static readonly IBrush MatchBrush = new SolidColorBrush(Color.FromArgb(65, 100, 120, 220));
     private static readonly IBrush MismatchBrush = new SolidColorBrush(Color.FromArgb(80, 220, 60, 60));
 
-    private int _openPos  = -1;
+    private int _openPos = -1;
     private int _closePos = -1;
     private bool _matched;
 
@@ -18,9 +18,9 @@ internal sealed class BraceMatchHighlighter : IBackgroundRenderer
     /// <summary>Supply matched pair positions; both -1 to clear.</summary>
     public void Update(int openPos, int closePos, bool matched)
     {
-        _openPos  = openPos;
+        _openPos = openPos;
         _closePos = closePos;
-        _matched  = matched;
+        _matched = matched;
     }
 
     public void Clear() => (_openPos, _closePos) = (-1, -1);

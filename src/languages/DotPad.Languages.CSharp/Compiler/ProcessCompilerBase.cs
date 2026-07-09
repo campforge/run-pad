@@ -1,6 +1,5 @@
 using DotPad.Build.Core.Models;
 using DotPad.Contracts.Models;
-using Microsoft.CodeAnalysis;
 
 namespace DotPad.Languages.CSharp.Compiler;
 
@@ -26,7 +25,7 @@ public abstract class ProcessCompilerBase : IDotnetProcessCompiler
         ExecutionOptions = executionOptions;
     }
 
-    public abstract Task<ProcessCompilerResult> Compilation(string code, CancellationToken cancellationToken);
+    public abstract Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx);
 
     public abstract void Dispose();
 }

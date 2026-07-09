@@ -5,6 +5,7 @@ using DotPad.Contracts.IntelliSense;
 
 namespace DotPad.UserControls;
 
+// ToDo: Перенести в DotPad.Avalonia.CodeTextEditor
 internal sealed class SemanticHighlighter : DocumentColorizingTransformer
 {
     private IReadOnlyList<ISemanticToken> _tokens = [];
@@ -35,6 +36,7 @@ internal sealed class SemanticHighlighter : DocumentColorizingTransformer
             ChangeLinePart(s, e, el => el.TextRunProperties.SetForegroundBrush(brush));
         }
     }
+
 
     // VS Code Dark+ palette
     private static IBrush? GetDarkBrush(SemanticTokenKind kind) => kind switch
