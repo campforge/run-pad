@@ -477,6 +477,18 @@ public class CodeTextEditor : TextEditor
         TextArea.Caret.Offset = cursorOffset;
     }
 
+    // True right after a '.' member access (skipping back over the identifier prefix already being
+    // typed) — the same spot completion is triggered by typing '.' itself. Snippets don't make sense
+    // there (nobody wants a `for` snippet offered next to `.Length`/`.Count`), so ShowCompletion uses
+    // this to suppress them on an explicit Ctrl+Space invoke in that context.
+    private bool IsMemberAccessContext(int offset)
+    {
+        var pos = offset;
+        while (pos > 0 && (char.IsLetterOrDigit(Document.GetCharAt(pos - 1)) || Document.GetCharAt(pos - 1) == '_'))
+            pos--;
+        return pos > 0 && Document.GetCharAt(pos - 1) == '.';
+    }
+
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {
         if (e.KeyModifiers != KeyModifiers.Control) return;
@@ -532,8 +544,9 @@ public class CodeTextEditor : TextEditor
             CompletionRequested?.Invoke(this, args);
 
         // Snippets only make sense as statement-level suggestions, so only add them for an
-        // explicit Ctrl+Space invoke — not e.g. after a '.' member access.
-        if (explicitInvoke)
+        // explicit Ctrl+Space invoke — not e.g. after a '.' member access, where regular completion
+        // is what the user is actually after.
+        if (explicitInvoke && !IsMemberAccessContext(args.CaretOffset))
             foreach (var (name, template) in Snippets)
                 args.Items.Add(new SnippetCompletionData(
                     name, template, SnippetIcon, segment => ExpandSnippet(segment.Offset, segment.Length, template)));
