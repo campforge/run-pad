@@ -214,7 +214,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         IPropertySymbol p
             => new SimpleCompletionItem(p.Name, CompletionItemKind.Property, p.ToDisplayString(_briefFormat)),
         IFieldSymbol f when !f.IsImplicitlyDeclared
-            => new SimpleCompletionItem(f.Name, CompletionItemKind.Field, f.ToDisplayString(_briefFormat)),
+            => new SimpleCompletionItem(f.Name,
+                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field,
+                f.ToDisplayString(_briefFormat)),
         IEventSymbol e
             => new SimpleCompletionItem(e.Name, CompletionItemKind.Event, e.ToDisplayString(_briefFormat)),
         ILocalSymbol l
@@ -222,9 +224,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         IParameterSymbol p
             => new SimpleCompletionItem(p.Name, CompletionItemKind.Variable, p.ToDisplayString(_briefFormat)),
         INamedTypeSymbol t
-            => new SimpleCompletionItem(t.Name,
-                t.TypeKind == TypeKind.Interface ? CompletionItemKind.Interface : CompletionItemKind.Class,
-                t.ToDisplayString(_briefFormat)),
+            => new SimpleCompletionItem(t.Name, t.TypeKind switch
+            {
+                TypeKind.Interface => CompletionItemKind.Interface,
+                TypeKind.Enum => CompletionItemKind.Enum,
+                TypeKind.Struct => CompletionItemKind.Struct,
+                _ => CompletionItemKind.Class,
+            }, t.ToDisplayString(_briefFormat)),
         _ => null
     };
 

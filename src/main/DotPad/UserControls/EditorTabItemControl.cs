@@ -661,7 +661,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     item.DisplayText,
                     item.Description ?? string.Empty,
                     // ToDo: вынести расчет приоритета в языковую модель
-                    item.Kind == CompletionItemKind.Method ? 1.0 : 0.9
+                    item.Kind == CompletionItemKind.Method ? 1.0 : 0.9,
+                    CompletionIcons.GetIcon(item.Kind)
                 ));
             }
         };
