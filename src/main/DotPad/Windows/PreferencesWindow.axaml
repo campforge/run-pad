@@ -91,7 +91,7 @@
             </TabItem>
 
             <TabItem Header="Keyboard">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
@@ -120,10 +120,15 @@
                     <TextBox   Grid.Row="5" Grid.Column="1" Margin="0,0,0,6"
                                Text="{Binding HotkeyStepOut, UpdateSourceTrigger=LostFocus}"/>
 
-                    <TextBlock Grid.Row="6" Grid.ColumnSpan="2"
-                               Margin="0,8,0,0" FontSize="11" Opacity="0.55"
-                               Text="Format: F5 · Escape · Ctrl+S · Shift+F11"
-                               TextWrapping="Wrap"/>
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Format Document:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="6" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyFormat, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Go to Line:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="7" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyGoToLine, UpdateSourceTrigger=LostFocus}"/>
                 </Grid>
             </TabItem>
 
