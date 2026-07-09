@@ -4,22 +4,80 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:models="clr-namespace:DotPad.Avalonia.Themes;assembly=DotPad.Avalonia.Themes"
         xmlns:viewModels="clr-namespace:DotPad.Windows.Models"
-        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
+        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="480"
         x:Class="DotPad.Windows.PreferencesWindow"
         Title="Preferences"
-        Width="500" Height="400"
-        MinWidth="400" MinHeight="320"
+        Width="760" Height="480"
+        MinWidth="640" MinHeight="420"
         CanResize="True"
         x:DataType="viewModels:PreferencesWindowViewModel"
         Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"
         >
 
-        <TabControl Margin="2"
-                    Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+    <Window.Styles>
+        <Style Selector="TreeViewItem">
+            <Setter Property="Padding" Value="6,0,6,0"/>
+            <Setter Property="MinHeight" Value="27"/>
+            <Setter Property="Margin" Value="0,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}"/>
+        </Style>
+        <Style Selector="TreeViewItem TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TreeViewItem:focus /template/ Border#PART_LayoutRoot">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </Window.Styles>
 
-            <TabItem Header="Interface">
-                <StackPanel Margin="8" Spacing="6">
+    <Grid ColumnDefinitions="220,Auto,*">
+
+        <!-- ── Settings navigator ────────────────────────────────────────── -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="6">
+            <TextBox Grid.Row="0"
+                     Margin="0,0,0,6"
+                     PlaceholderText="Search settings..."
+                     Text="{Binding FilterText}"/>
+
+            <TreeView Grid.Row="1"
+                      ItemsSource="{Binding Nodes}"
+                      SelectedItem="{Binding SelectedNode}"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Padding="0"
+                      SelectionMode="Single">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate DataType="viewModels:SettingsNode" ItemsSource="{Binding Children}">
+                        <TextBlock Text="{Binding Name}" Margin="0,1"/>
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+
+        <!-- ── Settings pages ────────────────────────────────────────────── -->
+        <ScrollViewer Grid.Column="2">
+            <Panel Margin="16">
+
+                <StackPanel IsVisible="{Binding IsInterfaceSelected}" Spacing="6">
 
                     <!-- Appearance mode -->
                     <TextBlock Text="Appearance:" FontWeight="SemiBold" Margin="0,0,0,2"/>
@@ -60,10 +118,8 @@
                     </ComboBox>
 
                 </StackPanel>
-            </TabItem>
 
-            <TabItem Header="Editor">
-                <StackPanel Margin="8" Spacing="4">
+                <StackPanel IsVisible="{Binding IsEditorSelected}" Spacing="4">
                     <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
                     <CheckBox IsChecked="{Binding ShowFolding}"     Content="Show code folding"/>
                     <CheckBox IsChecked="{Binding ShowTabs}"        Content="Show tabs"/>
@@ -79,19 +135,16 @@
                                        FormatString="0"/>
                     </Grid>
                 </StackPanel>
-            </TabItem>
 
-            <TabItem Header="Debugger">
-                <StackPanel Margin="8" Spacing="4">
+                <StackPanel IsVisible="{Binding IsDebuggerSelected}" Spacing="4">
                     <TextBlock Text="Dotnet path:"/>
                     <TextBox PlaceholderText="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
                     <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>
                     <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
                 </StackPanel>
-            </TabItem>
 
-            <TabItem Header="Keyboard">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                <Grid IsVisible="{Binding IsKeyboardSelected}"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
@@ -130,7 +183,27 @@
                     <TextBox   Grid.Row="7" Grid.Column="1" Margin="0,0,0,6"
                                Text="{Binding HotkeyGoToLine, UpdateSourceTrigger=LostFocus}"/>
                 </Grid>
-            </TabItem>
 
-        </TabControl>
+                <StackPanel IsVisible="{Binding IsLanguagesSelected}">
+                    <TextBlock Text="Select a language from the list to configure its settings."
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsLanguagesCSharpSelected}">
+                    <TextBlock Text="No C#-specific settings yet."
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsLanguagesVisualBasicSelected}">
+                    <TextBlock Text="No Visual Basic&#8211;specific settings yet."
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+            </Panel>
+        </ScrollViewer>
+
+    </Grid>
 </Window>

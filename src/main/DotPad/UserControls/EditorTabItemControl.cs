@@ -15,6 +15,7 @@ using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.VB;
 using DotPad.Resources;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
@@ -247,9 +248,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var workDir = EnsureWorkDirectory();
             var options = BuildRunOptions(platform, workDir);
             var script = s.Editor.Text;
-            // Matches the path DotnetProcessCompiler writes the source to and CSharpDapSession expects
-            // it at (OutputDirectory/{OutputName}.cs) — see ScriptBreakpoint below.
-            var sourceFilePath = Path.Combine(options.OutputDirectory, $"{options.OutputName}.cs");
+            // Matches the path the language's compiler writes the source to and its DapSession
+            // expects it at (OutputDirectory/{OutputName}.{extension}) — see ScriptBreakpoint below.
+            // OutputName is fixed ("RunPadQuery") on every language's options type.
+            var sourceFilePath = Path.Combine(State.OutputDirectory!, $"RunPadQuery{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
                 .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
@@ -265,7 +267,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
             await Task.Run(async () =>
             {
-                await using var host = _registry.Create("csharp", options);
+                await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
@@ -918,6 +920,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _ => ".cs",
     };
 
+    // The id ILanguageHostRegistry.Create/ILanguageHostFactory.Language use — matches
+    // RpadLanguage's own lowercased member name (RpadLanguage.CSharp → "csharp", RpadLanguage.Vb →
+    // "vb") by construction, so no separate mapping table is needed. Defaults to C# for untitled
+    // tabs (no RpadDocument yet — see SetDocumentContent).
+    private string ResolveLanguageId()
+        => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToString().ToLowerInvariant();
+
+    private string SourceExtension() => LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
+
     private static string FormatElapsed(TimeSpan t) => t switch
     {
         { TotalSeconds: < 1 } => $"{t.TotalMilliseconds:F0} ms",
@@ -932,12 +943,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return dir;
     }
 
-    private CSharpLanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
+    private ILanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
     {
         var rpad = State.RpadDocument;
 
         // Reused across runs of this tab (allocated once, normally already set by SetDocumentContent
-        // at file-open time) so DotnetProcessCompiler can detect an unchanged .csproj/source and skip
+        // at file-open time) so the process compiler can detect an unchanged project/source and skip
         // NuGet restore or the whole build — see its Compilation() for the actual checks. Untitled
         // tabs (no FilePath) have no stable identity to persist against, so they just get a
         // session-only random directory, same as before.
@@ -951,32 +962,56 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
         }
 
+        var executionOptions = new ExecutionOptions
+        {
+            WorkingDirectory = workDir,
+            Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
+            Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
+        };
+
+        // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
+        // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
+        var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
+        var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
+        var usings = rpad?.FrontMatter.Namespaces ?? [];
+        var assemblyReferences = rpad?.FrontMatter.References?
+            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .ToList() ?? [];
+        var projectReferences = rpad?.FrontMatter.References?
+            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            .ToList() ?? [];
+
+        if (ResolveLanguageId() == "vb")
+        {
+            return new VbLanguageHostOptions
+            {
+                Platform = platform,
+                ExecutionOptions = executionOptions,
+                OutputDirectory = State.OutputDirectory,
+                RuntimeLibPath = _referenceService.GetExtensionReference(),
+                BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
+                BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
+                Kind = kind,
+                Packages = packages,
+                Usings = usings,
+                AssemblyReferences = assemblyReferences,
+                ProjectReferences = projectReferences,
+            };
+        }
+
         return new CSharpLanguageHostOptions
         {
             Platform = platform,
-            ExecutionOptions = new ExecutionOptions
-            {
-                WorkingDirectory = workDir,
-                Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
-                Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
-            },
+            ExecutionOptions = executionOptions,
             OutputDirectory = State.OutputDirectory,
             RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-            // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
-            // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
-            Kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements,
-            Packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [],
-            Usings = rpad?.FrontMatter.Namespaces ?? [],
-            // это уюрать под капот CSharpLanguageHost
-            AssemblyReferences = rpad?.FrontMatter.References?
-                .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                .ToList() ?? [],
-            // это уюрать под капот CSharpLanguageHost
-            ProjectReferences = rpad?.FrontMatter.References?
-                .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
-                .ToList() ?? [],
+            Kind = kind,
+            Packages = packages,
+            Usings = usings,
+            AssemblyReferences = assemblyReferences,
+            ProjectReferences = projectReferences,
         };
     }
 

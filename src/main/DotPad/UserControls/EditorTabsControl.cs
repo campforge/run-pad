@@ -6,6 +6,7 @@ using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
+using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
@@ -246,8 +247,16 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // Constructing it builds a fresh Roslyn AdhocWorkspace and loads metadata references for
         // every BCL assembly (see CSharpReferenceService.GetDefault) — real disk/CPU work with no
         // Avalonia dependency, so it runs off the UI thread instead of freezing the app on open.
+        //
+        // IntelliSense is C#-only today (see CSharpIntelliSenseService) — peek the file's own front
+        // matter here (the same cheap parse EditorsTabItemControl.SetDocumentContent does again
+        // later) so a non-C# tab never gets a C# IntelliSense instance built for it in the first
+        // place, rather than building one and leaving it unused.
+        var language = PeekLanguage(vm.FilePath);
         var factory = _intelliSenseFactory;
-        var intelliSense = factory is null ? null : await Task.Run(factory.Invoke);
+        var intelliSense = factory is not null && language == RpadLanguage.CSharp
+            ? await Task.Run(factory.Invoke)
+            : null;
 
         // Avalonia controls (CodeTextEditor, InitializeComponent, ...) must be constructed on the
         // UI thread, so the control itself is still created here, synchronously.
@@ -259,6 +268,13 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _referenceService!,
             _buildCache!,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
+    }
+
+    private static RpadLanguage PeekLanguage(string? filePath)
+    {
+        if (filePath is null || !File.Exists(filePath)) return RpadLanguage.CSharp;
+        var raw = File.ReadAllText(filePath);
+        return RpadParser.TryParse(raw)?.FrontMatter.Language ?? RpadLanguage.CSharp;
     }
 
     private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)

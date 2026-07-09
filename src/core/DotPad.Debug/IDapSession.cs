@@ -1,9 +1,9 @@
-namespace DotPad.Languages.CSharp.Debug;
+namespace DotPad.Debug;
 
 /// <summary>
 /// A Debug Adapter Protocol session that orchestrates a full debug run.
 /// </summary>
-internal interface IDapSession : IAsyncDisposable
+public interface IDapSession : IAsyncDisposable
 {
     /// <summary>
     /// Runs the full DAP handshake and event loop until the debuggee exits or
