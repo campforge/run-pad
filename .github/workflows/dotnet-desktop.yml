@@ -175,7 +175,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: build-macos
+    needs: [build-windows, build-linux, build-macos]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
