@@ -188,7 +188,7 @@ internal sealed class AvaloniaAdapter : RAdapter
             var stream = await file.OpenWriteAsync();
 #endif
 
-        ((ImageAdapter)image).Image.Save(stream);
+        ((ImageAdapter)image).Image.Save(stream, PngBitmapEncoderOptions.Default);
 
         await stream.FlushAsync();
     }
