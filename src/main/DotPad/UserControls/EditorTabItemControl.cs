@@ -89,6 +89,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
 
+        // Snippets are per-language (see ILanguageHostFactory.Snippets) — populated here rather than
+        // in SetupEditor because SetupEditor runs before SetDocumentContent, when ResolveLanguageId
+        // can't yet see the real file's language and would default to C#.
+        foreach (var (keyword, template) in _registry.GetSnippets(ResolveLanguageId()) ?? new Dictionary<string, string>())
+            editor.Snippets[keyword] = template;
+
         var themeName = themeService.CurrentTheme.Editor.TextMateName;
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
         onAttached = (s, _) =>
@@ -674,23 +680,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
-        // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
-        editor.Snippets["for"] = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
-        editor.Snippets["foreach"] = "foreach (var item in ${0})\n{\n\t\n}";
-        editor.Snippets["while"] = "while (${0})\n{\n\t\n}";
-        editor.Snippets["do"] = "do\n{\n\t${0}\n} while ();";
-        editor.Snippets["if"] = "if (${0})\n{\n\t\n}";
-        editor.Snippets["ife"] = "if (${0})\n{\n\t\n}\nelse\n{\n\t\n}";
-        editor.Snippets["try"] = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}";
-        editor.Snippets["tryf"] = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}";
-        editor.Snippets["sw"] = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}";
-        editor.Snippets["prop"] = "public ${0} Property { get; set; }";
-        editor.Snippets["propg"] = "public ${0} Property { get; private set; }";
-        editor.Snippets["class"] = "class ${0}\n{\n\t\n}";
-        editor.Snippets["interface"] = "interface I${0}\n{\n\t\n}";
-        editor.Snippets["ctor"] = "public ${0}()\n{\n\t\n}";
-        editor.Snippets["using"] = "using (var resource = ${0})\n{\n\t\n}";
-        editor.Snippets["lock"] = "lock (${0})\n{\n\t\n}";
         editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
         if (intelliSense is null) return;
