@@ -1,113 +1,31 @@
 # DotPad
-сейчас использую
-avalonia ui
 
-Дебаггер:
-https://github.com/Samsung/netcoredbg
+Десктопный C# "scratchpad"/scripting IDE на Avalonia UI (net10.0) — в одном пространстве с LINQPad,
+RoslynPad и NetPad. Редактирует и запускает `.rpad`-файлы: самодокументируемые Markdown-документы с
+YAML front matter и одним исполняемым C#-блоком кода.
 
-Где подглядеть:
-https://github.com/tareqimbasher/NetPad
-https://github.com/roslynpad/roslynpad
+- Архитектура, команды сборки/тестов, стиль кода — `docs/ARCHITECTURE.md`.
+- Известные баги, ограничения и план дальнейшей работы — `ANALYSIS.md` (разбор причин) и `TODO.md`
+  (актуальный список пунктов).
+- Полная спецификация формата `.rpad` — `docs/SpecificationRPad.md`.
 
-DI
-https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-dependency-injection
+## Вдохновение и используемые компоненты
 
-## ToDo 
-* файл-он же проект - done
-* прикрутить отладчик - done 
-* прикрутить nuget - done
-* разобраться со стилем - done
-* добавить настройки - done
+- Отладчик: [netcoredbg](https://github.com/Samsung/netcoredbg) (через DAP).
+- Референсы при проектировании: [NetPad](https://github.com/tareqimbasher/NetPad),
+  [RoslynPad](https://github.com/roslynpad/roslynpad).
+- DI: [Avalonia DI guide](https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-dependency-injection)
+  (`Microsoft.Extensions.DependencyInjection`, композиция — `App.axaml.cs`).
 
-# Особенности
+## Формат файла
 
-## Структура файла
+За основу взят Markdown-формат — это позволяет файлу со скриптом быть самодокументируемым: YAML
+front matter (версия, язык, target SDK, kind, пакеты, референсы, usings) плюс один блок ```` ```csharp run ````
+с самим кодом, остальной Markdown вокруг сохраняется как есть.
 
-За основу взят md формат, это позволят файлу с скриптом быть самодокументируемым
+## Известные проблемы
 
-
-## ошибки
-
-### error CS0009
-(0,0): error CS0009: Не удалось открыть файл метаданных "C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.1\System.IO.Compression.Native.dll" — Образ среды предустановки не содержит управляемые метаданные.
-
-```
-    ---
-    version: "1.0"
-    language: csharp
-    targetSdk: net10.0
-    kind: Statements
-    namespaces:
-    - System
-    ---
-
-    # Query 3
-
-    ```csharp run
-    var i = "test";
-    i.Dump();
-    ```
-
-```
-
-### Нет системных импортов
-Можно всегда делать вот так:
-
-```
-System
-System.Collections
-System.Collections.Generic
-System.Data
-System.Diagnostics
-System.IO
-System.Linq
-System.Linq.Expressions
-System.Reflection
-System.Text
-System.Text.RegularExpressions
-System.Threading
-System.Transactions
-System.Xml
-System.Xml.Linq
-System.Xml.XPath
-```
-### Ошбка вкладки EditorsTabItemControl
-
-```
-fail: DotPad.App[0]
-      Unobserved task exception
-      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
-       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
-         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
-         at Avalonia.Threading.Dispatcher.VerifyAccess()
-         at Avalonia.AvaloniaObject.VerifyAccess()
-         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
-         at AvaloniaEdit.TextEditor.get_Document()
-         at AvaloniaEdit.TextEditor.get_Text()
-         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
-         --- End of inner exception stack trace ---
-fail: DotPad.App[0]
-      Unobserved task exception
-      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
-       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
-         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
-         at Avalonia.Threading.Dispatcher.VerifyAccess()
-         at Avalonia.AvaloniaObject.VerifyAccess()
-         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
-         at AvaloniaEdit.TextEditor.get_Document()
-         at AvaloniaEdit.TextEditor.get_Text()
-         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
-         --- End of inner exception stack trace ---
-fail: DotPad.App[0]
-      Unobserved task exception
-      System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. As a result, the unobserved exception was rethrown by the finalizer thread. (The calling thread cannot access this object because a different thread owns it.)
-       ---> System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.
-         at Avalonia.Threading.Dispatcher.<VerifyAccess>g__ThrowVerifyAccess|17_0()
-         at Avalonia.Threading.Dispatcher.VerifyAccess()
-         at Avalonia.AvaloniaObject.VerifyAccess()
-         at Avalonia.AvaloniaObject.GetValue[T](StyledProperty`1 property)
-         at AvaloniaEdit.TextEditor.get_Document()
-         at AvaloniaEdit.TextEditor.get_Text()
-         at DotPad.UserControls.EditorsTabItemControl.<>c__DisplayClass44_5.<<SetupEditor>b__12>d.MoveNext() in C:\src\dot-pad\src\main\DotPad\UserControls\EditorTabItemControl.cs:line 697
-         --- End of inner exception stack trace ---
-```
+Если при открытии/работе с проектом видите `error CS0009` про метаданные какого-нибудь
+`System.*.dll` (обычно `*.Native.dll`, например `System.IO.Compression.Native.dll`) — это известный,
+пока не исправленный баг в резолюции референсов для IntelliSense на Windows, см. `TODO.md` пункт 44.
+На саму компиляцию/запуск скрипта (`dotnet build`) это не влияет — баг только в редакторе.
