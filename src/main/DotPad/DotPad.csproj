@@ -20,6 +20,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia" />
         <PackageReference Include="Avalonia.Controls.DataGrid" />
         <PackageReference Include="Avalonia.AvaloniaEdit" />
