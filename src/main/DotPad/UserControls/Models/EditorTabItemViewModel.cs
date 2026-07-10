@@ -15,7 +15,18 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     private readonly IPreferencesService _prefs;
 
     public string? FilePath { get; }
-    public RpadFrontMatter? FrontMatter { get; internal set; }
+
+    // Reactive (rather than a plain auto-property) because tab creation loads the Roslyn
+    // workspace/BCL metadata off the UI thread (see EditorTabsControl.CreateControlAsync) — the tab
+    // becomes ActiveTab and is clickable before this is set. Without change notification, opening the
+    // Dependencies window (WindowService.ShowDependenciesAsync) during that window would take a
+    // one-time null snapshot and the "+" buttons would stay disabled for the rest of that dialog's
+    // lifetime even after the front matter became available.
+    public RpadFrontMatter? FrontMatter
+    {
+        get;
+        internal set => this.RaiseAndSetIfChanged(ref field, value);
+    }
 
     public string FileName => FilePath is null ? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
 

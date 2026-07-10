@@ -144,6 +144,16 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         if (sender is not TabControl tc || _vm is null) return;
         var selected = _tabs.FirstOrDefault(kv => kv.Value.Tab == tc.SelectedItem as TabItem).Key;
+
+        // tc.SelectedItem transiently goes null while Items is being mutated — e.g. OpenTab closing
+        // the initial blank tab right after opening a real file removes the blank tab's TabItem
+        // before the new tab's own TabItem exists yet (CreateControlAsync is still loading it off
+        // the UI thread), leaving the TabControl briefly empty. That's not a real "no tab selected"
+        // user action; nulling ActiveTab here would strand it permanently, since the code above that
+        // would normally re-select the new tab once it finishes loading only does so
+        // `if (ReferenceEquals(_vm?.ActiveTab, vm))`.
+        if (selected is null && _vm.Tabs.Count > 0) return;
+
         _vm.ActiveTab = selected;
     }
 

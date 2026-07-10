@@ -40,7 +40,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task OpenDependenciesWindowAsync()
     {
-        await _windowService.ShowDependenciesAsync(ActiveTab?.FrontMatter);
+        await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter));
         DependenciesWindowClosed?.Invoke();
     }
 
