@@ -23,6 +23,9 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         LanguageHostCapabilities.VariableInspection |
         LanguageHostCapabilities.MemoryDump;
 
+    // No VB snippets defined yet — same gap as IntelliSense above.
+    public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>();
+
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {
         var opts = options as VbLanguageHostOptions

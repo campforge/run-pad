@@ -7,6 +7,12 @@ public interface ILanguageHostFactory
 {
     string Language { get; }
     LanguageHostCapabilities Capabilities { get; }
+
+    // Tab-expandable editor snippets for this language: keyword → template with a `${0}` cursor
+    // marker (see DotPad.Avalonia.CodeTextEditor.CodeTextEditor.Snippets). Empty for languages with
+    // none defined yet.
+    IReadOnlyDictionary<string, string> Snippets { get; }
+
     ILanguageHost Create(ILanguageHostOptions? options = null);
 }
 
@@ -19,5 +25,6 @@ public interface ILanguageHostRegistry
     bool IsRegistered(string language);
 
     LanguageHostCapabilities GetCapabilities(string language);
+    IReadOnlyDictionary<string, string> GetSnippets(string language);
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
 }
