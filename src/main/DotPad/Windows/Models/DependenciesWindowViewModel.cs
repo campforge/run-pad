@@ -124,6 +124,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     private string? _errorMessage;
     private string _newUsing = "";
     private CancellationTokenSource? _cts;
+    private bool _disposed;
 
     // ── Search ────────────────────────────────────────────────────────────────
 
@@ -436,6 +437,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _cts?.Cancel();
         _cts?.Dispose();
         GC.SuppressFinalize(this);
