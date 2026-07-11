@@ -69,4 +69,54 @@ public class CodeTextEditorAutoInvokeTests
     {
         Assert.False(CodeTextEditor.IsMemberAccessContext("var x", 5, CSharpIdentifierChars, CSharpTriggerChars));
     }
+
+    [Theory]
+    [InlineData("List<", 5)] // right after a type name — generic type argument
+    [InlineData("x <", 3)] // preceded by a space, not an identifier — plain comparison operator
+    [InlineData("<", 1)] // nothing before it at all
+    public void IsContextualTriggerContext_Should_OnlyBeTrue_RightAfterAnIdentifierCharacter(
+        string text, int caretOffset)
+    {
+        var expected = text == "List<";
+        Assert.Equal(expected, CodeTextEditor.IsContextualTriggerContext(text, caretOffset, CSharpIdentifierChars));
+    }
+
+    [Fact]
+    public void IsWordTriggerContext_Should_BeTrue_RightAfterARegisteredWord()
+    {
+        var wordTriggers = new HashSet<string> { "new" };
+        Assert.True(CodeTextEditor.IsWordTriggerContext("var x = new ", 12, CSharpIdentifierChars, wordTriggers));
+    }
+
+    [Theory]
+    [InlineData("renew ", 6)] // a longer word that happens to end with "new" is a different word
+    [InlineData("foo ", 4)] // an unrelated word
+    public void IsWordTriggerContext_Should_BeFalse_ForADifferentOrUnrelatedWord(string text, int caretOffset)
+    {
+        var wordTriggers = new HashSet<string> { "new" };
+        Assert.False(CodeTextEditor.IsWordTriggerContext(text, caretOffset, CSharpIdentifierChars, wordTriggers));
+    }
+
+    [Fact]
+    public void IsWordTriggerContext_Should_BeFalse_WhenNoWordsAreRegistered()
+    {
+        Assert.False(CodeTextEditor.IsWordTriggerContext("new ", 4, CSharpIdentifierChars, new HashSet<string>()));
+    }
+
+    // Regression guard: ShowCompletion captures the caret offset before `await`-ing the language
+    // service, then reads the document's *current* text afterwards. Typing (or deleting) fast enough
+    // while that request is in flight leaves the captured offset pointing past the now-shorter text —
+    // these methods must clamp instead of indexing out of range (this crashed the app in practice
+    // once auto-invoke made ShowCompletion fire on almost every keystroke instead of only on Ctrl+Space).
+    [Fact]
+    public void AllContextMethods_Should_NotThrow_WhenOffsetIsStaleAndPastTheCurrentTextLength()
+    {
+        const string text = "x";
+        const int staleOffset = 50;
+
+        Assert.False(CodeTextEditor.IsMemberAccessContext(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.True(CodeTextEditor.IsStartOfNewIdentifier(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
+        Assert.False(CodeTextEditor.IsContextualTriggerContext(text, staleOffset, CSharpIdentifierChars));
+        Assert.False(CodeTextEditor.IsWordTriggerContext(text, staleOffset, CSharpIdentifierChars, new HashSet<string> { "new" }));
+    }
 }

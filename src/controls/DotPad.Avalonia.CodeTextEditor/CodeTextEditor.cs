@@ -32,9 +32,6 @@ public class CodeTextEditor : TextEditor
             static (editor, e) => editor.OnShowFoldingChanged((bool?)e.NewValue));
     }
 
-    private static readonly char[] _openBraces = ['(', '[', '{'];
-    private static readonly char[] _closeBraces = [')', ']', '}'];
-
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
     private readonly CodeFixMargin _codeFixMargin;
@@ -51,12 +48,6 @@ public class CodeTextEditor : TextEditor
     private CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
 
-    private static readonly Dictionary<char, char> _bracePairs = new()
-    {
-        ['('] = ')',
-        ['['] = ']',
-        ['{'] = '}',
-    };
 
     public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
     public event EventHandler<BreakpointEventArgs>? BreakpointRemoved;
@@ -122,6 +113,40 @@ public class CodeTextEditor : TextEditor
     /// configures this the same way it configures <see cref="CompletionTriggers"/>; this control
     /// doesn't assume any particular language's lexical rules. See ShowCompletion's 24/7 auto-invoke.</summary>
     public HashSet<char> IdentifierChars { get; } = [];
+
+    /// <summary>Characters that open the completion dropdown only when they immediately follow an
+    /// identifier character — e.g. <c>&lt;</c> for C#'s generic type arguments (<c>List&lt;</c>).
+    /// Kept separate from <see cref="CompletionTriggers"/> (which fires unconditionally) because a
+    /// bare <c>&lt;</c> is also a comparison operator, and firing on every one would be noisy; a
+    /// language whose generics syntax doesn't use this character at all (e.g. VB's <c>(Of ...)</c>)
+    /// simply doesn't register anything here.</summary>
+    public HashSet<char> ContextualTriggers { get; } = [];
+
+    /// <summary>Words that, followed by a space, open the completion dropdown — e.g. <c>"new"</c> in
+    /// C#/VB, to suggest constructible types right where you'd type one. Language-specific (the
+    /// keyword spelling, whether it's case-sensitive), so the app layer configures this.</summary>
+    public HashSet<string> WordTriggers { get; } = [];
+
+    /// <summary>Matching bracket/brace pairs (open → close) — the full set this language recognizes,
+    /// used for brace-match highlighting, Ctrl+] navigation, closing the signature-help insight
+    /// window, and type-through on an already-present closing char. Not every language delimits
+    /// blocks/calls with the same characters, so this control doesn't assume any pair; the app layer
+    /// configures it. See also <see cref="AutoCloseBraces"/> — a pair being recognized here doesn't
+    /// mean it should also be auto-inserted on open.</summary>
+    public Dictionary<char, char> BracePairs { get; } = [];
+
+    /// <summary>Subset of <see cref="BracePairs"/>' opening characters that should also auto-insert
+    /// their closing character when typed. Deliberately not the same set — e.g. C#'s <c>(</c> is
+    /// recognized in <see cref="BracePairs"/> (for matching/navigation) but excluded here: opening a
+    /// call's parameter list is exactly when signature help is about to show the real parameter list
+    /// from any overloads, and an auto-inserted <c>)</c> sitting there fights that instead of helping
+    /// (see ANALYSIS.md TODO #51).</summary>
+    public HashSet<char> AutoCloseBraces { get; } = [];
+
+    /// <summary>Characters that end a statement, closing the signature-help insight window if it's
+    /// still open (e.g. <c>;</c> in C#) — not every language ends statements the same way (VB doesn't
+    /// require one at all), so the app layer configures this.</summary>
+    public HashSet<char> StatementTerminators { get; } = [];
 
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
     public Dictionary<string, string> Snippets { get; } = [];
@@ -365,6 +390,20 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
+    // ch is a closing brace (a value in BracePairs) — returns its opening char. BracePairs only ever
+    // has a handful of entries, so a linear scan for the reverse lookup is not worth a second dict.
+    private bool TryGetOpenBrace(char closeChar, out char openChar)
+    {
+        foreach (var pair in BracePairs)
+        {
+            if (pair.Value != closeChar) continue;
+            openChar = pair.Key;
+            return true;
+        }
+        openChar = default;
+        return false;
+    }
+
     private (int open, int close, bool matched) FindBraceMatch(int caretOffset)
     {
         var doc = Document;
@@ -375,34 +414,34 @@ public class CodeTextEditor : TextEditor
         // Determine which brace to match against: prefer char at caret, then char before caret.
         char ch;
         int checkOffset;
-        int openIdx, closeIdx;
+        bool isOpen, isClose;
+        char closeChar = default, openChar = default;
 
         if (caretOffset < len)
         {
             ch = text[caretOffset];
             checkOffset = caretOffset;
-            openIdx = Array.IndexOf(_openBraces, ch);
-            closeIdx = Array.IndexOf(_closeBraces, ch);
-            if (openIdx < 0 && closeIdx < 0 && caretOffset > 0)
+            isOpen = BracePairs.TryGetValue(ch, out closeChar);
+            isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
+            if (!isOpen && !isClose && caretOffset > 0)
             {
                 ch = text[caretOffset - 1];
                 checkOffset = caretOffset - 1;
-                openIdx = Array.IndexOf(_openBraces, ch);
-                closeIdx = Array.IndexOf(_closeBraces, ch);
+                isOpen = BracePairs.TryGetValue(ch, out closeChar);
+                isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
             }
         }
         else if (caretOffset > 0)
         {
             ch = text[caretOffset - 1];
             checkOffset = caretOffset - 1;
-            openIdx = Array.IndexOf(_openBraces, ch);
-            closeIdx = Array.IndexOf(_closeBraces, ch);
+            isOpen = BracePairs.TryGetValue(ch, out closeChar);
+            isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
         }
         else return (-1, -1, false);
 
-        if (openIdx >= 0) // opening brace — search forward
+        if (isOpen) // opening brace — search forward
         {
-            char closeChar = _closeBraces[openIdx];
             int depth = 1;
             for (int i = checkOffset + 1; i < len; i++)
             {
@@ -412,9 +451,8 @@ public class CodeTextEditor : TextEditor
             }
             return (checkOffset, -1, false); // unmatched open
         }
-        else if (closeIdx >= 0) // closing brace — search backward
+        else if (isClose) // closing brace — search backward
         {
-            char openChar = _openBraces[closeIdx];
             int depth = 1;
             for (int i = checkOffset - 1; i >= 0; i--)
             {
@@ -499,7 +537,10 @@ public class CodeTextEditor : TextEditor
     internal static bool IsMemberAccessContext(
         string text, int offset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
     {
-        var pos = offset;
+        // offset can be stale relative to text — ShowCompletion captures the caret offset before an
+        // await, and the document may have since changed (fast typing/backspacing during that gap) —
+        // clamp instead of indexing past the current end.
+        var pos = Math.Clamp(offset, 0, text.Length);
         while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
             pos--;
         return pos > 0 && triggerChars.Contains(text[pos - 1]);
@@ -519,11 +560,46 @@ public class CodeTextEditor : TextEditor
     internal static bool IsStartOfNewIdentifier(
         string text, int caretOffset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
     {
-        var pos = caretOffset - 1; // the character just typed
+        var pos = Math.Clamp(caretOffset, 0, text.Length) - 1; // the character just typed
         if (pos <= 0) return true;
         var prev = text[pos - 1];
         if (char.IsLetterOrDigit(prev) || identifierChars.Contains(prev)) return false;
         return !triggerChars.Contains(prev);
+    }
+
+    private bool IsContextualTriggerContext() =>
+        IsContextualTriggerContext(Document.Text, TextArea.Caret.Offset, IdentifierChars);
+
+    // True when the character just inserted at caretOffset (one of ContextualTriggers) immediately
+    // follows an identifier — e.g. the '<' in "List<". A free function of (text, caretOffset, ...)
+    // for the same reasons as IsStartOfNewIdentifier above.
+    internal static bool IsContextualTriggerContext(string text, int caretOffset, IReadOnlySet<char> identifierChars)
+    {
+        var pos = Math.Clamp(caretOffset, 0, text.Length) - 1; // the trigger character just typed
+        if (pos <= 0) return false;
+        var prev = text[pos - 1];
+        return char.IsLetterOrDigit(prev) || identifierChars.Contains(prev);
+    }
+
+    private bool IsWordTriggerContext() =>
+        IsWordTriggerContext(Document.Text, TextArea.Caret.Offset, IdentifierChars, WordTriggers);
+
+    // True when the space just inserted at caretOffset immediately follows one of wordTriggers as a
+    // whole word (not, say, "renew " matching "new") — e.g. "new " in C#/VB. A free function of
+    // (text, caretOffset, ...) for the same reasons as IsStartOfNewIdentifier above.
+    internal static bool IsWordTriggerContext(
+        string text, int caretOffset, IReadOnlySet<char> identifierChars, IReadOnlySet<string> wordTriggers)
+    {
+        if (wordTriggers.Count == 0) return false;
+
+        var end = Math.Clamp(caretOffset, 0, text.Length) - 1; // the space just typed
+        if (end <= 0) return false;
+        var start = end;
+        while (start > 0 && (char.IsLetterOrDigit(text[start - 1]) || identifierChars.Contains(text[start - 1])))
+            start--;
+        if (start == end) return false; // no word immediately before the space
+
+        return wordTriggers.Contains(text[start..end]);
     }
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
@@ -541,11 +617,11 @@ public class CodeTextEditor : TextEditor
         var ch = e.Text[0];
 
         // Only close the insight window when exiting the argument list.
-        if (ch == ')' || ch == ';')
+        if (BracePairs.ContainsValue(ch) || StatementTerminators.Contains(ch))
             _insightWindow?.Hide();
 
         // Skip-ahead: if the closing bracket is already at caret, move past it instead of inserting.
-        if (ch is ')' or ']' or '}')
+        if (BracePairs.ContainsValue(ch))
         {
             var offset = TextArea.Caret.Offset;
             if (offset < Document.TextLength && Document.GetCharAt(offset) == ch)
@@ -570,11 +646,17 @@ public class CodeTextEditor : TextEditor
         // more letters are typed (including camelCase — see CompletionList.GetMatchQuality), the same
         // way it already does after a '.' trigger, so this adds no extra per-keystroke language-service
         // calls beyond today's dot-completion.
-        else if (_completionWindow is null && (char.IsLetter(ch) || ch == '_') && IsStartOfNewIdentifier())
+        else if (_completionWindow is null && (char.IsLetter(ch) || IdentifierChars.Contains(ch)) && IsStartOfNewIdentifier())
+            ShowCompletion(ch, explicitInvoke: true);
+        // Generics (TODO.md #51) — e.g. '<' right after "List" opens completion for the type argument.
+        else if (_completionWindow is null && ContextualTriggers.Contains(ch) && IsContextualTriggerContext())
+            ShowCompletion(ch, explicitInvoke: true);
+        // "new " (TODO.md #51) — opens completion right where a constructible type goes.
+        else if (_completionWindow is null && ch == ' ' && IsWordTriggerContext())
             ShowCompletion(ch, explicitInvoke: true);
 
         // Brace completion: insert the matching closing bracket.
-        if (_bracePairs.TryGetValue(ch, out var closing))
+        if (AutoCloseBraces.Contains(ch) && BracePairs.TryGetValue(ch, out var closing))
             Document.Insert(TextArea.Caret.Offset, closing.ToString());
     }
 
