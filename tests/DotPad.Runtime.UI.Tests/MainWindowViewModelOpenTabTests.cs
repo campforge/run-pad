@@ -15,10 +15,12 @@ public class MainWindowViewModelOpenTabTests
     [Fact]
     public void OpenTab_TreatsCaseDifferingPaths_AsDistinctTabs_OnLinux()
     {
-        // This sandbox always runs on Linux, so this exercises the real, previously-broken path —
-        // Windows/macOS already behaved correctly before this fix (case-insensitive by design).
-        Assert.False(OperatingSystem.IsWindows());
-        Assert.False(OperatingSystem.IsMacOS());
+        // Linux-only: _openTabs uses a case-sensitive comparer there (Ordinal), so two paths
+        // differing only by case really are two tabs. On Windows/macOS the comparer is
+        // OrdinalIgnoreCase by design (case-insensitive filesystems), so this assertion wouldn't
+        // hold — skip instead of failing CI on those runners. Same pattern as
+        // SaveIfNeededFailureTests' OS guard.
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) return;
 
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns("/tmp");
