@@ -1,4 +1,5 @@
 using System.Text;
+using DotPad.Runtime;
 using Xunit;
 
 namespace DotPad.Runtime.Tests;
@@ -79,6 +80,32 @@ public class ObjectExtensionsTests
     }
 
     [Fact]
+    public void Dump_NoArgs_LabelsWithSourceExpression()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var myValue = 42;
+
+            // Act — the only shape that auto-labels from the dumped expression.
+            myValue.Dump();
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("myValue", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
     public void Dump_EnablesMethodChaining()
     {
         // Arrange
@@ -99,9 +126,9 @@ public class ObjectExtensionsTests
         }
     }
 
-    // LINQPad compatibility: x.Dump(3) sets depth positionally with a plain int, which the main
-    // Dump(this T o, string? label = null, ...) overload can't accept directly (an int argument
-    // can't bind to that overload's leading string? label parameter).
+    // LINQPad compatibility: x.Dump(3) sets depth positionally with a plain int — its own overload
+    // (Dump<T>(this T o, int depth)) since an int argument can't bind to the label/expression
+    // overload's leading string? parameter.
     [Fact]
     public void Dump_Int_ReturnsOriginalObject_LikeLinqPad()
     {
@@ -136,8 +163,10 @@ public class ObjectExtensionsTests
     }
 
     [Fact]
-    public void Dump_Int_LabelsWithSourceExpression_WhenNoDescriptionGiven()
+    public void Dump_Int_DoesNotAutoLabel_UnlikeTheNoArgOverload()
     {
+        // Auto-labeling from the source expression is only needed for the empty Dump() —
+        // Dump(depth) has no label parameter to fall back from at all.
         var originalOut = Console.Out;
         try
         {
@@ -151,9 +180,8 @@ public class ObjectExtensionsTests
 
             var decoded = DecodeDump(sw.ToString());
 
-            // Assert — same auto-label-from-expression behavior as the no-arg Dump()
-            Assert.Contains("dp-label", decoded);
-            Assert.Contains("myValue", decoded);
+            // Assert
+            Assert.DoesNotContain("dp-label", decoded);
         }
         finally
         {
@@ -172,8 +200,7 @@ public class ObjectExtensionsTests
 
             var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
 
-            // Act — LINQPad's Dump(string description, int depth) shape, via named/positional args
-            // on the main overload (no dedicated overload needed — see ObjectExtensions.cs).
+            // Act — LINQPad's Dump(string description, int depth) shape.
             obj.Dump("my label", 0);
 
             var decoded = DecodeDump(sw.ToString());
@@ -181,6 +208,33 @@ public class ObjectExtensionsTests
             // Assert
             Assert.Contains("dp-label", decoded);
             Assert.Contains("my label", decoded);
+            Assert.Contains("dp-truncated", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void Dump_Options_AppliesEveryDotPadSpecificRenderingOption()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
+
+            // Act
+            obj.Dump(new DumpOptions { Label = "advanced", MaxDepth = 0 });
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("advanced", decoded);
             Assert.Contains("dp-truncated", decoded);
         }
         finally
