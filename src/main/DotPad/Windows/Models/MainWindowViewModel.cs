@@ -20,7 +20,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
 
-    private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(StringComparer.OrdinalIgnoreCase);
+    // OrdinalIgnoreCase matches Windows'/macOS' default case-insensitive filesystem; Linux's is
+    // case-sensitive, where it would incorrectly collapse two distinct files differing only in
+    // case (e.g. Query1.rpad/query1.rpad) into one dictionary entry.
+    private static readonly StringComparer FilePathComparer =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+    private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(FilePathComparer);
     private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
     // Debounce state for watcher-triggered refreshes

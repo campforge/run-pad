@@ -117,6 +117,12 @@ public class CodeTextEditor : TextEditor
     /// <summary>Characters that open the overload insight window.</summary>
     public HashSet<char> OverloadTriggers { get; } = [];
 
+    /// <summary>Characters — beyond letters/digits, which always count — that continue an identifier
+    /// rather than starting a new one (e.g. <c>_</c> in C#/VB). Language-specific, so the app layer
+    /// configures this the same way it configures <see cref="CompletionTriggers"/>; this control
+    /// doesn't assume any particular language's lexical rules. See ShowCompletion's 24/7 auto-invoke.</summary>
+    public HashSet<char> IdentifierChars { get; } = [];
+
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
     public Dictionary<string, string> Snippets { get; } = [];
 
@@ -234,6 +240,11 @@ public class CodeTextEditor : TextEditor
                 else if (e.Key == Key.OemCloseBrackets && e.KeyModifiers == KeyModifiers.Control)
                 {
                     JumpToMatchingBrace();
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Space && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+                {
+                    ShowOverloads('\0');
                     e.Handled = true;
                 }
                 else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
@@ -477,16 +488,42 @@ public class CodeTextEditor : TextEditor
         TextArea.Caret.Offset = cursorOffset;
     }
 
-    // True right after a '.' member access (skipping back over the identifier prefix already being
-    // typed) — the same spot completion is triggered by typing '.' itself. Snippets don't make sense
-    // there (nobody wants a `for` snippet offered next to `.Length`/`.Count`), so ShowCompletion uses
-    // this to suppress them on an explicit Ctrl+Space invoke in that context.
-    private bool IsMemberAccessContext(int offset)
+    // True right after a member-access trigger character (skipping back over the identifier prefix
+    // already being typed) — the same spot completion is triggered by typing that character itself
+    // (see CompletionTriggers). Snippets don't make sense there (nobody wants a `for` snippet offered
+    // next to `.Length`/`.Count`), so ShowCompletion uses this to suppress them on an explicit
+    // Ctrl+Space invoke in that context.
+    private bool IsMemberAccessContext(int offset) =>
+        IsMemberAccessContext(Document.Text, offset, IdentifierChars, CompletionTriggers);
+
+    internal static bool IsMemberAccessContext(
+        string text, int offset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
     {
         var pos = offset;
-        while (pos > 0 && (char.IsLetterOrDigit(Document.GetCharAt(pos - 1)) || Document.GetCharAt(pos - 1) == '_'))
+        while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
             pos--;
-        return pos > 0 && Document.GetCharAt(pos - 1) == '.';
+        return pos > 0 && triggerChars.Contains(text[pos - 1]);
+    }
+
+    private bool IsStartOfNewIdentifier() =>
+        IsStartOfNewIdentifier(Document.Text, TextArea.Caret.Offset, IdentifierChars, CompletionTriggers);
+
+    // True when the character just inserted at caretOffset starts a fresh identifier, not a
+    // continuation of one already being typed (handled by AvaloniaEdit's own client-side filtering,
+    // see OnTextEntered) and not the first letter after an already-registered trigger character
+    // (that spot already re-invokes via CompletionTriggers, with context-specific results — piling
+    // the general symbol list on top one keystroke later would just stomp on it). A free function of
+    // (text, caretOffset, ...) — not just testable without a live Document/TextArea, but also so it
+    // stays free of any particular language's lexical rules (letters/digits are the only universal
+    // baseline; everything else is caller-supplied).
+    internal static bool IsStartOfNewIdentifier(
+        string text, int caretOffset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
+    {
+        var pos = caretOffset - 1; // the character just typed
+        if (pos <= 0) return true;
+        var prev = text[pos - 1];
+        if (char.IsLetterOrDigit(prev) || identifierChars.Contains(prev)) return false;
+        return !triggerChars.Contains(prev);
     }
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
@@ -528,6 +565,13 @@ public class CodeTextEditor : TextEditor
             ShowCompletion(ch);
         else if (OverloadTriggers.Contains(ch))
             ShowOverloads(ch);
+        // 24/7 auto-invoke (TODO.md #51) — fires once, on the first letter of a fresh identifier, not
+        // on every keystroke: AvaloniaEdit's own CompletionWindow re-filters what's already fetched as
+        // more letters are typed (including camelCase — see CompletionList.GetMatchQuality), the same
+        // way it already does after a '.' trigger, so this adds no extra per-keystroke language-service
+        // calls beyond today's dot-completion.
+        else if (_completionWindow is null && (char.IsLetter(ch) || ch == '_') && IsStartOfNewIdentifier())
+            ShowCompletion(ch, explicitInvoke: true);
 
         // Brace completion: insert the matching closing bracket.
         if (_bracePairs.TryGetValue(ch, out var closing))
@@ -621,7 +665,7 @@ public class CodeTextEditor : TextEditor
         _textMateInstallation.SetTheme(_registryOptions.LoadTheme(theme));
     }
 
-    private sealed class OverloadProvider(IReadOnlyList<(string Header, string? Description)> items)
+    private sealed class OverloadProvider(IReadOnlyList<(object Header, object? Content)> items)
         : IOverloadProvider
     {
         private int _selectedIndex;
@@ -632,7 +676,7 @@ public class CodeTextEditor : TextEditor
 
         public object CurrentHeader => items[_selectedIndex].Header;
 
-        public object? CurrentContent => items[_selectedIndex].Description;
+        public object? CurrentContent => items[_selectedIndex].Content;
 
         public int SelectedIndex
         {

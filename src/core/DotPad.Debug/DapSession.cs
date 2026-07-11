@@ -574,7 +574,7 @@ public sealed class DapSession : IDapSession
             {
                 source = new Source { path = _sourceFile, name = _sourceName },
                 breakpoints = _breakpoints
-                    .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+                    .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition, bp.HitCondition))
                     .ToList(),
             },
         }, ct);
@@ -610,7 +610,7 @@ public sealed class DapSession : IDapSession
         if (_sourceFile is null || _sourceName is null) return;
 
         var allBps = _breakpoints
-            .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+            .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition, bp.HitCondition))
             .Concat(_runToCursorLines.Select(l => new SourceBreakpoint(l + _lineOffset)))
             .ToList();
 

@@ -30,7 +30,7 @@ public class CSharpIntelliSenseSignatureHelpTests
 
         Assert.NotNull(result);
         Assert.All(result!.Items, item => Assert.True(item.Parameters.Count <= 3,
-            $"Expected only small Dump overloads, but got: {item.DisplaySignature}"));
+            $"Expected only small Dump overloads, but got: {string.Concat(item.Signature.Select(s => s.Text))}"));
     }
 
     [Fact]

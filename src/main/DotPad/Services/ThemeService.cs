@@ -67,7 +67,7 @@ public sealed class ThemeService : IThemeService, IDisposable
 
     private readonly Application _app;
     private readonly IPreferencesService _prefs;
-    private ActiveTheme _currentTheme = null!;
+    private ActiveTheme _currentTheme;
 
     public ThemeService(Application app, IPreferencesService prefs)
     {
@@ -77,7 +77,11 @@ public sealed class ThemeService : IThemeService, IDisposable
         if (app.PlatformSettings is { } ps)
             ps.ColorValuesChanged += OnColorValuesChanged;
 
-        ApplyCore(); // Synchronous on startup — no UI input events in flight yet
+        // Synchronous on startup — no UI input events in flight yet, and no ThemeChanged
+        // subscribers exist before the constructor returns, so ApplyCore's own notification isn't
+        // needed here — just resolve the initial theme directly.
+        _currentTheme = ResolveCurrentTheme();
+        _app.RequestedThemeVariant = _currentTheme.Interface.Variant;
     }
 
     // ── IThemeService ─────────────────────────────────────────────────────────
@@ -141,15 +145,19 @@ public sealed class ThemeService : IThemeService, IDisposable
 
     private void ApplyCore()
     {
+        _currentTheme = ResolveCurrentTheme();
+        _app.RequestedThemeVariant = _currentTheme.Interface.Variant;
+        ThemeChanged?.Invoke(_currentTheme);
+    }
+
+    private ActiveTheme ResolveCurrentTheme()
+    {
         bool isDark = ResolveIsDark();
         var a = _prefs.Appearance;
 
         var interfaceTheme = ResolveInterface(isDark ? a.DarkInterfaceTheme : a.LightInterfaceTheme, isDark);
         var editorTheme = ResolveEditor(isDark ? a.DarkEditorTheme : a.LightEditorTheme, isDark);
-
-        _currentTheme = new ActiveTheme(interfaceTheme, editorTheme);
-        _app.RequestedThemeVariant = interfaceTheme.Variant;
-        ThemeChanged?.Invoke(_currentTheme);
+        return new ActiveTheme(interfaceTheme, editorTheme);
     }
 
     private bool ResolveIsDark() => _prefs.Appearance.Mode switch
