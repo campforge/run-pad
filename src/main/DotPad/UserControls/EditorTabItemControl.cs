@@ -688,6 +688,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.OverloadTriggers.Add('(');
         editor.OverloadTriggers.Add(',');
         editor.IdentifierChars.Add('_'); // valid in both C# and VB identifiers, beyond letters/digits
+        editor.ContextualTriggers.Add('<'); // generic type arguments, e.g. "List<" (TODO.md #51)
+        editor.WordTriggers.Add("new"); // constructible-type completion after "new " (TODO.md #51)
+        editor.StatementTerminators.Add(';');
+        editor.BracePairs['('] = ')';
+        editor.BracePairs['['] = ']';
+        editor.BracePairs['{'] = '}';
+        editor.AutoCloseBraces.Add('[');
+        editor.AutoCloseBraces.Add('{');
+        // '(' deliberately excluded from AutoCloseBraces — see CodeTextEditor.AutoCloseBraces.
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
