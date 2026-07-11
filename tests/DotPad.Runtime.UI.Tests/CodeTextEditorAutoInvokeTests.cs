@@ -118,5 +118,27 @@ public class CodeTextEditorAutoInvokeTests
         Assert.True(CodeTextEditor.IsStartOfNewIdentifier(text, staleOffset, CSharpIdentifierChars, CSharpTriggerChars));
         Assert.False(CodeTextEditor.IsContextualTriggerContext(text, staleOffset, CSharpIdentifierChars));
         Assert.False(CodeTextEditor.IsWordTriggerContext(text, staleOffset, CSharpIdentifierChars, new HashSet<string> { "new" }));
+        Assert.Equal(0, CodeTextEditor.GetWordStart(text, staleOffset, CSharpIdentifierChars));
+    }
+
+    // Regression guard: the 24/7 auto-invoke opens the completion window one character *after* the
+    // word already started (the trigger fires once the first letter is already in the document), so
+    // without this, accepting a completion item inserted it after the already-typed prefix instead of
+    // replacing the whole word (e.g. "Wri" + selecting "WriteLine" -> "WriWriteLine").
+    [Theory]
+    [InlineData("Wri", 3, 0)] // whole word typed since the window "should" have opened at offset 0
+    [InlineData("x.Wri", 5, 2)] // only back to the '.', not through it — that's the member-access prefix
+    [InlineData("var x", 5, 4)] // back to the last identifier ("x"), not the keyword before it
+    public void GetWordStart_Should_WalkBackToTheStartOfTheWordBeingCompleted(
+        string text, int offset, int expectedStart)
+    {
+        Assert.Equal(expectedStart, CodeTextEditor.GetWordStart(text, offset, CSharpIdentifierChars));
+    }
+
+    [Fact]
+    public void GetWordStart_Should_NotWalkPastANonIdentifierTriggerCharacter()
+    {
+        // Right after '.' (nothing of the member name typed yet) there's nothing to walk back over.
+        Assert.Equal(2, CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
     }
 }

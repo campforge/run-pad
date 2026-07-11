@@ -115,7 +115,8 @@ public sealed class VbLanguageHost : LanguageHostBase
         code = ApplyKindTransform(code);
 
         (VbCompilationResult compilationResult, string? binaryPath) =
-            await CompileInternalAsync(code, cancellationToken);
+            await CompileInternalAsync(code, cancellationToken);
+
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
