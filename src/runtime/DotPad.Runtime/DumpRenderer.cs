@@ -6,26 +6,49 @@ using System.Text;
 
 namespace DotPad.Runtime;
 
-// Bundles the LINQPad-style Dump() options (ANALYSIS.md feature #23) so RenderValue/RenderObject/
-// RenderEnumerable don't have to grow a new positional parameter for each one.
-internal sealed class DumpOptions
+/// <summary>
+/// Full set of rendering options for <c>ObjectExtensions.Dump(this T, DumpOptions)</c> — everyday
+/// calls should prefer the plain <c>Dump()</c>/<c>Dump(label)</c>/<c>Dump(depth)</c> overloads
+/// instead; reach for this only when you need one of the options below (ANALYSIS.md feature #23).
+/// </summary>
+public sealed class DumpOptions
 {
-    public int MaxDepth = 3;
-    public int MaxRows = 1000;
-    public int? CollapseTo;
-    public bool NoTotals;
-    public int? RepeatHeadersAt;
-    public bool IncludePrivateMembers;
-    public bool AlphabetizeMembers;
-    public bool ForceExpansion;
-    public bool UseInvariantCultureForNumbers;
+    /// <summary>Heading shown above the rendered value. <see langword="null"/> renders no heading.</summary>
+    public string? Label { get; set; }
 
-    public IFormatProvider NumberFormat => UseInvariantCultureForNumbers
+    /// <summary>How many levels of nested objects/collections to expand before truncating.</summary>
+    public int MaxDepth { get; set; } = 3;
+
+    /// <summary>Maximum number of rows rendered for a collection/table before truncating.</summary>
+    public int MaxRows { get; set; } = 1000;
+
+    /// <summary>If set, nested objects deeper than this level render collapsed (still expandable by clicking) instead of always expanded.</summary>
+    public int? CollapseTo { get; set; }
+
+    /// <summary>Suppresses the row-count footer under a rendered table.</summary>
+    public bool NoTotals { get; set; }
+
+    /// <summary>Repeats the table header every N rows, for long tables.</summary>
+    public int? RepeatHeadersAt { get; set; }
+
+    /// <summary>Also renders non-public properties/fields.</summary>
+    public bool IncludePrivateMembers { get; set; }
+
+    /// <summary>Renders members alphabetically instead of in declaration order.</summary>
+    public bool AlphabetizeMembers { get; set; }
+
+    /// <summary>Renders already expanded even for types that default to collapsed.</summary>
+    public bool ForceExpansion { get; set; }
+
+    /// <summary>Formats numbers with <see cref="CultureInfo.InvariantCulture"/> instead of the current culture.</summary>
+    public bool UseInvariantCultureForNumbers { get; set; }
+
+    internal IFormatProvider NumberFormat => UseInvariantCultureForNumbers
         ? CultureInfo.InvariantCulture
         : CultureInfo.CurrentCulture;
 
     // ForceExpansion always wins; otherwise collapse once depth passes CollapseTo (if set).
-    public bool ShouldCollapse(int depth) => !ForceExpansion && CollapseTo is { } n && depth >= n;
+    internal bool ShouldCollapse(int depth) => !ForceExpansion && CollapseTo is { } n && depth >= n;
 }
 
 internal static class DumpRenderer
