@@ -283,15 +283,24 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private static RpadLanguage PeekLanguage(string? filePath)
     {
         if (filePath is null || !File.Exists(filePath)) return RpadLanguage.CSharp;
-        try
-        {
-            var raw = File.ReadAllText(filePath);
-            return RpadParser.TryParse(raw)?.FrontMatter.Language ?? RpadLanguage.CSharp;
-        }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
-        {
-            return RpadLanguage.CSharp;
-        }
+        try
+
+        {
+
+            var raw = File.ReadAllText(filePath);
+
+            return RpadParser.TryParse(raw)?.FrontMatter.Language ?? RpadLanguage.CSharp;
+
+        }
+
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+
+        {
+
+            return RpadLanguage.CSharp;
+
+        }
+
     }
 
     private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)

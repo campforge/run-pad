@@ -67,10 +67,14 @@ public sealed class CSharpReferenceService
             // .NET's mainline TFMs are always netX.0 regardless of the runtime's own minor/patch.
             string tfm = $"net{majorVersion}.0";
             return Directory.GetDirectories(refPacksRoot)
-                .Select(d => new { Dir = d, Ver = Version.TryParse(Path.GetFileName(d), out var v) ? v : null })
-                .Where(x => x.Ver is not null)
-                .OrderByDescending(x => x.Ver)
-                .Select(x => Path.Combine(x.Dir, "ref", tfm))
+                .Select(d => new { Dir = d, Ver = Version.TryParse(Path.GetFileName(d), out var v) ? v : null })
+
+                .Where(x => x.Ver is not null)
+
+                .OrderByDescending(x => x.Ver)
+
+                .Select(x => Path.Combine(x.Dir, "ref", tfm))
+
                 .FirstOrDefault(Directory.Exists);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

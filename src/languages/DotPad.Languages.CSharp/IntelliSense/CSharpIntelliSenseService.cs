@@ -49,8 +49,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             "into", "ascending", "descending", "on", "equals", "by", "when", "init", "record",
             "with", "not", "and", "or", "nint", "nuint", "file", "scoped", "required", "global",
         }
+        // Rank 9 — see ScopeRank: keywords sort after every real symbol, so a local/parameter/member
+        // that happens to fuzzy-match the same letters (see ANALYSIS.md TODO #51 follow-up) doesn't
+        // lose a tie-break to a keyword the user isn't actually reaching for.
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(
-            kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)], Summary: null))
+            kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)],
+            Summary: null, SortText: $"9{kw}"))
         .ToArray();
 
     private static readonly string[] _tfmPreference =
@@ -173,6 +177,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
+            if (IsInsideComment(root, pos)) return null;
+
             var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
             // An explicit Ctrl+Space invoke right after a '.' should behave like typing the dot
@@ -255,7 +261,21 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind) =>
         new SimpleCompletionItem(displayText, kind,
-            symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol));
+            symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
+            SortText: $"{ScopeRank(symbol)}{displayText}");
+
+    // Locals/parameters (the innermost scope) sort before members of the containing type, which sort
+    // before other types, which sort before namespaces — so typing a few letters shows what's
+    // actually nearby before it shows something merely imported/visible (TODO.md #51 follow-up: "the
+    // in-scope thing first, then a level up").
+    private static int ScopeRank(ISymbol symbol) => symbol switch
+    {
+        ILocalSymbol or IParameterSymbol => 0,
+        IFieldSymbol or IPropertySymbol or IEventSymbol or IMethodSymbol => 1,
+        INamedTypeSymbol => 2,
+        INamespaceSymbol => 3,
+        _ => 2,
+    };
 
     // ── Signature Help ─────────────────────────────────────────────────────────
 
@@ -275,6 +295,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
+            if (IsInsideComment(root, pos)) return null;
+
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
             var invocation = node.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
             if (invocation == null) return null;
@@ -300,6 +322,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
     }
+
+    // A position inside a // or /* */ comment (including /// doc comments) has nothing to complete —
+    // model.LookupSymbols(pos)/GetSymbolInfo don't know about lexical trivia, so without this guard
+    // they'd happily return whatever's in scope while the user is just typing prose.
+    private static bool IsInsideComment(SyntaxNode root, int position)
+    {
+        // TextSpan.Contains is half-open ([start, end)), so a position sitting exactly at the end of
+        // a comment's span — which is exactly where the caret is while still typing an unterminated
+        // "//..."/"/*..." at the point nothing follows it yet — doesn't count as "inside" by the
+        // first check. Falling back to position - 1 catches that (by far the most common) case.
+        return IsCommentTrivia(root.FindTrivia(position))
+            || (position > 0 && IsCommentTrivia(root.FindTrivia(position - 1)));
+    }
+
+    private static bool IsCommentTrivia(SyntaxTrivia trivia) =>
+        trivia.IsKind(SyntaxKind.SingleLineCommentTrivia)
+            || trivia.IsKind(SyntaxKind.MultiLineCommentTrivia)
+            || trivia.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia)
+            || trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia)
+            || trivia.IsKind(SyntaxKind.DocumentationCommentExteriorTrivia);
 
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
     {
@@ -330,6 +372,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
+            if (IsInsideComment(root, pos)) return null;
+
             var token = root.FindToken(pos);
             if (token == default) return null;
 
@@ -543,10 +587,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind,
-        IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : ICompletionItem
+        IReadOnlyList<DisplayTextSegment> Signature, string? Summary, string SortText) : ICompletionItem
     {
         public string FilterText => DisplayText;
-        public string SortText => DisplayText;
     }
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList

@@ -694,7 +694,29 @@ public class CodeTextEditor : TextEditor
         foreach (var item in args.Items)
             _completionWindow.CompletionList.CompletionData.Add(item);
 
+        // CompletionWindowBase defaults StartOffset to the caret position at construction time — for
+        // a '.' trigger that's correct (nothing of the member name is typed yet), but the 24/7
+        // auto-invoke (and Ctrl+Space pressed mid-word) opens the window *after* part of the word is
+        // already in the document. Left alone, accepting an item would insert the full completion
+        // text right after that already-typed prefix instead of replacing it (e.g. "Wri" + "WriteLine"
+        // -> "WriWriteLine"). Walking back over the already-typed identifier fixes the replace range.
+        _completionWindow.StartOffset = GetWordStart(TextArea.Caret.Offset);
+
         _completionWindow.Show();
+    }
+
+    private int GetWordStart(int offset) => GetWordStart(Document.Text, offset, IdentifierChars);
+
+    // Walks back from offset over already-typed identifier characters to find where the current word
+    // began, so a completion window opened mid-word (or one character late, as with the 24/7
+    // auto-invoke) replaces that whole word instead of just appending after it. A free function of
+    // (text, offset, ...) for the same reasons as IsStartOfNewIdentifier above.
+    internal static int GetWordStart(string text, int offset, IReadOnlySet<char> identifierChars)
+    {
+        var pos = Math.Clamp(offset, 0, text.Length);
+        while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
+            pos--;
+        return pos;
     }
 
     private async void ShowOverloads(char trigger)
