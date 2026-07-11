@@ -57,8 +57,13 @@ public class DependenciesRealTabIntegrationTests
             var referenceService = new CSharpReferenceService();
             var intelliSense = new Mock<IIntelliSenseService>();
 
+            var search = new Mock<IPackageSearchService>();
+            search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IReadOnlyList<PackageSearchResult>)
+                    [new PackageSearchResult("Newtonsoft.Json", "13.0.3", "desc", 100)]);
+
             var services = new ServiceCollection();
-            services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
+            services.AddSingleton(search.Object);
             services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
             services.AddTransient<DependenciesWindowViewModel>();
             services.AddTransient<DependenciesWindow>();
