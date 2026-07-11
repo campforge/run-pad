@@ -313,7 +313,7 @@ vb
 ```
 
 `vb` (Visual Basic) компилируется, запускается и отлаживается так же, как `csharp`, но пока без
-IntelliSense (автодополнение/диагностика/quick-fix) — см. `DotPad.Languages.VisualBasic`.
+IntelliSense (автодополнение/диагностика/quick-fix) — см. `DotPad.Languages.VB`.
 
 ---
 
