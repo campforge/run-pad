@@ -86,7 +86,10 @@ public class SetBreakpointsArguments
 
 public class SourceBreakpoint
 {
-    public SourceBreakpoint(int bpLine, string? condition = null) { line = bpLine; this.condition = condition; }
+    public SourceBreakpoint(int bpLine, string? condition = null, string? hitCondition = null)
+    {
+        line = bpLine; this.condition = condition; this.hitCondition = hitCondition;
+    }
     public int line; public int? column; public string? condition; public string? hitCondition; public string? logMessage;
 }
 

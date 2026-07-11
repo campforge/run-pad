@@ -27,4 +27,8 @@
     <ProjectReference Include="..\..\runtime\DotPad.Runtime\DotPad.Runtime.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
+  </ItemGroup>
+
 </Project>

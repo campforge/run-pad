@@ -8,7 +8,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
 using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
@@ -24,9 +23,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
     private static readonly string[] _basePreambleUsings = ImplicitUsings.Default;
 
+    // Also used for signature-help method/parameter signatures and quick info, not just completion —
+    // IncludeParamsRefOut/IncludeDefaultValue make those read like a real signature (`params object[]
+    // args`, `string? label = null`) instead of just bare "type name" pairs.
     private static readonly SymbolDisplayFormat _briefFormat =
         new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
-            parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName,
+            parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName |
+                SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeDefaultValue,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
@@ -46,7 +49,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             "into", "ascending", "descending", "on", "equals", "by", "when", "init", "record",
             "with", "not", "and", "or", "nint", "nuint", "file", "scoped", "required", "global",
         }
-        .Select(kw => (ICompletionItem)new SimpleCompletionItem(kw, CompletionItemKind.Keyword, null))
+        .Select(kw => (ICompletionItem)new SimpleCompletionItem(
+            kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)], Summary: null))
         .ToArray();
 
     private static readonly string[] _tfmPreference =
@@ -58,7 +62,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
-    private readonly string _nugetRoot = ResolveNuGetRoot();
+    private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
     private string[] _extraPreambleUsings = [];
@@ -66,6 +70,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private int _preambleLength;
     private string _lastCode = "";
     private CancellationTokenSource? _diagnosticsCts;
+
+    // See ReferenceDocumentation — without this, GetDocumentationCommentXml() comes back empty for
+    // every metadata symbol (BCL, NuGet), so TODO.md #50's Summary was silently null for every
+    // completion/signature-help/quick-info item except symbols the script itself defines.
+    private static MetadataReference CreateReference(string path) =>
+        MetadataReference.CreateFromFile(path, documentation: ReferenceDocumentation.Find(path));
 
     public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
     {
@@ -76,7 +86,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var refs = new List<MetadataReference>();
         foreach (var path in referencePaths)
             if (File.Exists(path) && seen.Add(path))
-                refs.Add(MetadataReference.CreateFromFile(path));
+                refs.Add(CreateReference(path));
 
         _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
         _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
@@ -220,29 +230,32 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
     {
         IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension
-            => new SimpleCompletionItem(m.Name, CompletionItemKind.Method, m.ToDisplayString(_briefFormat)),
+            => BuildItem(m, m.Name, CompletionItemKind.Method),
         IPropertySymbol p
-            => new SimpleCompletionItem(p.Name, CompletionItemKind.Property, p.ToDisplayString(_briefFormat)),
+            => BuildItem(p, p.Name, CompletionItemKind.Property),
         IFieldSymbol f when !f.IsImplicitlyDeclared
-            => new SimpleCompletionItem(f.Name,
-                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field,
-                f.ToDisplayString(_briefFormat)),
+            => BuildItem(f, f.Name,
+                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field),
         IEventSymbol e
-            => new SimpleCompletionItem(e.Name, CompletionItemKind.Event, e.ToDisplayString(_briefFormat)),
+            => BuildItem(e, e.Name, CompletionItemKind.Event),
         ILocalSymbol l
-            => new SimpleCompletionItem(l.Name, CompletionItemKind.Variable, l.ToDisplayString(_briefFormat)),
+            => BuildItem(l, l.Name, CompletionItemKind.Variable),
         IParameterSymbol p
-            => new SimpleCompletionItem(p.Name, CompletionItemKind.Variable, p.ToDisplayString(_briefFormat)),
+            => BuildItem(p, p.Name, CompletionItemKind.Variable),
         INamedTypeSymbol t
-            => new SimpleCompletionItem(t.Name, t.TypeKind switch
+            => BuildItem(t, t.Name, t.TypeKind switch
             {
                 TypeKind.Interface => CompletionItemKind.Interface,
                 TypeKind.Enum => CompletionItemKind.Enum,
                 TypeKind.Struct => CompletionItemKind.Struct,
                 _ => CompletionItemKind.Class,
-            }, t.ToDisplayString(_briefFormat)),
+            }),
         _ => null
     };
+
+    private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind) =>
+        new SimpleCompletionItem(displayText, kind,
+            symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol));
 
     // ── Signature Help ─────────────────────────────────────────────────────────
 
@@ -279,7 +292,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             if (methods.Count == 0) return null;
 
-            var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m)).ToList();
+            var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, argIndex)).ToList();
             var selectedIndex = methods.FindIndex(m => m.Parameters.Length >= argCount);
             if (selectedIndex < 0) selectedIndex = methods.Count - 1;
 
@@ -326,7 +339,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             if (symbol == null) return null;
 
-            return new SimpleQuickInfoResult(symbol.ToDisplayString(_briefFormat));
+            return new SimpleQuickInfoResult(
+                symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
@@ -481,7 +495,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             .ToList();
 
         var newRefs = newPaths
-            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .Select(p => (MetadataReference)CreateReference(p))
             .ToList();
 
         var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
@@ -518,21 +532,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
     }
 
-    private static string ResolveNuGetRoot()
-    {
-        try
-        {
-            var settings = Settings.LoadDefaultSettings(root: null);
-            return SettingsUtility.GetGlobalPackagesFolder(settings);
-        }
-        catch
-        {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".nuget", "packages");
-        }
-    }
-
     public void Dispose()
     {
         _diagnosticsCts?.Cancel();
@@ -542,7 +541,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Private model types ────────────────────────────────────────────────────
 
-    private sealed record SimpleCompletionItem(string DisplayText, CompletionItemKind Kind, string? Description) : ICompletionItem
+    private sealed record SimpleCompletionItem(
+        string DisplayText, CompletionItemKind Kind,
+        IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : ICompletionItem
     {
         public string FilterText => DisplayText;
         public string SortText => DisplayText;
@@ -562,29 +563,48 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         public int ArgumentIndex => argumentIndex;
     }
 
-    private sealed class SimpleSignatureHelpItem(IMethodSymbol method) : ISignatureHelpItem
+    private sealed class SimpleSignatureHelpItem : ISignatureHelpItem
     {
-        public string DisplaySignature { get; } = BuildSignature(method);
-        public string? Documentation => null;
-        public IReadOnlyList<ISignatureHelpParameter> Parameters { get; } =
-            method.Parameters.Select(p => (ISignatureHelpParameter)new SimpleSignatureHelpParameter(p)).ToList();
-
-        private static string BuildSignature(IMethodSymbol m)
+        public SimpleSignatureHelpItem(IMethodSymbol method, int argumentIndex)
         {
-            var ps = string.Join(", ", m.Parameters.Select(p =>
-                $"{p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {p.Name}"));
-            return $"{m.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {m.Name}({ps})";
+            Signature = method.ToDisplayParts(_briefFormat).ToSegments(EmphasizedParameter(method, argumentIndex));
+            Summary = XmlDocSummary.GetSummary(method);
+            Parameters = method.Parameters
+                .Select(p => (ISignatureHelpParameter)new SimpleSignatureHelpParameter(method, p))
+                .ToList();
+        }
+
+        public IReadOnlyList<DisplayTextSegment> Signature { get; }
+        public string? Summary { get; }
+        public IReadOnlyList<ISignatureHelpParameter> Parameters { get; }
+
+        // The parameter the caret is currently sitting in, so the UI can bold it in the header the
+        // way LINQPad/VS Code do — a `params` tail parameter stays emphasized past its own index.
+        private static IParameterSymbol? EmphasizedParameter(IMethodSymbol method, int argumentIndex)
+        {
+            if (method.Parameters.Length == 0) return null;
+            if (argumentIndex < method.Parameters.Length) return method.Parameters[argumentIndex];
+            var last = method.Parameters[^1];
+            return last.IsParams ? last : null;
         }
     }
 
-    private sealed class SimpleSignatureHelpParameter(IParameterSymbol parameter) : ISignatureHelpParameter
+    private sealed class SimpleSignatureHelpParameter : ISignatureHelpParameter
     {
-        public string Name => parameter.Name;
-        public string DisplayParts => $"{parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {parameter.Name}";
-        public string? Documentation => null;
+        public SimpleSignatureHelpParameter(IMethodSymbol method, IParameterSymbol parameter)
+        {
+            Name = parameter.Name;
+            Signature = parameter.ToDisplayParts(_briefFormat).ToSegments();
+            Summary = XmlDocSummary.GetParameterSummary(method, parameter.Name);
+        }
+
+        public string Name { get; }
+        public IReadOnlyList<DisplayTextSegment> Signature { get; }
+        public string? Summary { get; }
     }
 
-    private sealed record SimpleQuickInfoResult(string Content) : IQuickInfoResult;
+    private sealed record SimpleQuickInfoResult(
+        IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : IQuickInfoResult;
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,

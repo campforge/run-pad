@@ -188,9 +188,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             WriteFile(_vm.FilePath);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            /* best-effort */
+            // Called on every text change/tab switch/close/app exit — silently eating a real write
+            // failure (disk full, permissions, file deleted/locked externally) meant the user never
+            // found out their edits weren't persisted. Surface it via the same status indicator
+            // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
+            SetStatus($"Save failed: {ex.Message}", "DotPad.Status.ErrorBrush");
         }
     }
 
@@ -260,7 +264,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var sourceFilePath = Path.Combine(State.OutputDirectory!, $"RunPadQuery{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
-                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
+                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
@@ -396,21 +400,27 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new Windows.ConditionDialog(bp?.Condition);
-        var result = await dialog.ShowDialog<string?>(owner);
+        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition);
+        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition)?>(owner);
         if (result is null) return; // cancelled
 
-        var condition = string.IsNullOrWhiteSpace(result) ? null : result;
+        var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
+        var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
 
         if (bp is not null)
         {
             bp.Condition = condition;
+            bp.HitCondition = hitCondition;
         }
-        else if (condition is not null)
+        else if (condition is not null || hitCondition is not null)
         {
             State.Editor.AddBreakpoint(line);
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
-            if (newBp is not null) newBp.Condition = condition;
+            if (newBp is not null)
+            {
+                newBp.Condition = condition;
+                newBp.HitCondition = hitCondition;
+            }
         }
     }
 
@@ -583,8 +593,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
         if (State.SourceFilePath is not { } path) return;
-        var condition = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line)?.Condition;
-        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, condition));
+        var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line);
+        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
     }
 
     private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
@@ -677,6 +687,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.CompletionTriggers.Add('.');
         editor.OverloadTriggers.Add('(');
         editor.OverloadTriggers.Add(',');
+        editor.IdentifierChars.Add('_'); // valid in both C# and VB identifiers, beyond letters/digits
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
@@ -689,11 +700,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
             var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
             if (list is null) return;
+            var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
-                    item.Description ?? string.Empty,
+                    DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     // ToDo: вынести расчет приоритета в языковую модель
                     item.Kind == CompletionItemKind.Method ? 1.0 : 0.9,
                     CompletionIcons.GetIcon(item.Kind)
@@ -706,8 +718,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var result = await intelliSense.GetSignatureHelpAsync(
                 State.Editor.Text, e.CaretOffset, e.Trigger);
             if (result is null) return;
+            var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in result.Items)
-                e.Overloads.Add((item.DisplaySignature, item.Documentation));
+            {
+                var activeParameter = item.Parameters.ElementAtOrDefault(result.ArgumentIndex);
+                e.Overloads.Add((
+                    DisplaySegmentRenderer.BuildSignature(item.Signature, isDark),
+                    BuildOverloadContentText(item.Summary, activeParameter)));
+            }
         };
 
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
@@ -785,13 +803,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     var diagnostic =
                         squiggleRenderer.Diagnostics.FirstOrDefault(d =>
                             offset >= d.StartOffset && offset < d.EndOffset);
-                    var content = diagnostic?.Message
-                                  ?? (await intelliSense.GetQuickInfoAsync(text, offset, ct))?.Content;
+                    var quickInfo = diagnostic is null
+                        ? await intelliSense.GetQuickInfoAsync(text, offset, ct)
+                        : null;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (!ct.IsCancellationRequested)
-                            ToolTip.SetTip(editor.TextArea.TextView, content);
+                        if (ct.IsCancellationRequested) return;
+
+                        // Built here, not above — DisplaySegmentRenderer creates Avalonia controls,
+                        // which must happen on the UI thread, unlike the rest of this background task.
+                        object? content = diagnostic is not null
+                            ? diagnostic.Message
+                            : quickInfo is null
+                                ? null
+                                : DisplaySegmentRenderer.BuildWithSummary(
+                                    quickInfo.Signature, quickInfo.Summary, _themeService.CurrentTheme.Editor.IsDark);
+                        ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
                 catch (OperationCanceledException)
@@ -805,6 +833,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             quickInfoCts.Cancel();
             ToolTip.SetTip(editor.TextArea.TextView, null);
         };
+    }
+
+    // The signature-help header already shows the full (syntax-highlighted) signature with the
+    // active parameter bolded, so the content area below it only needs the descriptive text: the
+    // method's own summary plus the active parameter's own <param> doc, LINQPad/VS Code-style.
+    private static string? BuildOverloadContentText(string? methodSummary, ISignatureHelpParameter? activeParameter)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(methodSummary)) parts.Add(methodSummary);
+        if (!string.IsNullOrEmpty(activeParameter?.Summary)) parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
+        return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
@@ -1004,10 +1043,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
     }
 
-    private sealed class ScriptBreakpoint(string fileName, int line, string? condition) : Contracts.IBreakpoint
+    private sealed class ScriptBreakpoint(string fileName, int line, string? condition, string? hitCondition = null)
+        : Contracts.IBreakpoint
     {
         public string FileName { get; } = fileName;
         public int Line { get; set; } = line;
         public string? Condition { get; } = condition;
+        public string? HitCondition { get; } = hitCondition;
     }
 }

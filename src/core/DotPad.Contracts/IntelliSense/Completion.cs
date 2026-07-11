@@ -27,5 +27,12 @@ public interface ICompletionItem
     string FilterText { get; }
     string SortText { get; }
     CompletionItemKind Kind { get; }
-    string? Description { get; }
+
+    // The member's signature, classified for syntax highlighting (e.g. `string Format(string format,
+    // params object[] args)`) — shown above Summary in the completion tooltip.
+    IReadOnlyList<DisplayTextSegment> Signature { get; }
+
+    // Plain-text XML-doc <summary> (see cref/paramref already resolved to short names), or null if
+    // the symbol has no XML documentation.
+    string? Summary { get; }
 }

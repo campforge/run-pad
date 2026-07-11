@@ -63,4 +63,5 @@ public sealed class SyntheticBreakpoint : IBreakpoint
     public string FileName { get; }
     public int Line { get; set; }
     public string? Condition => null;
+    public string? HitCondition => null;
 }
