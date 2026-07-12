@@ -714,7 +714,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     item.DisplayText,
                     () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     item.Priority,
-                    CompletionIcons.GetIcon(item.Kind)
+                    CompletionIcons.GetIcon(item.Kind),
+                    // Auto-import (TODO.md #28 remainder): non-empty only for a type from an added
+                    // NuGet package that isn't imported yet — accepting it adds the using the same
+                    // way the lightbulb already does (AddGlobalUsings), just without that extra step.
+                    tags: item.UsingsToAdd,
+                    onCommit: AddGlobalUsings
                 ));
             }
         };
