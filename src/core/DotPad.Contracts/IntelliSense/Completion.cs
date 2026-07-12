@@ -18,13 +18,11 @@ public enum CompletionItemKind
 public interface ICompletionList
 {
     IReadOnlyList<ICompletionItem> Items { get; }
-    bool IsExclusive { get; }
 }
 
 public interface ICompletionItem
 {
     string DisplayText { get; }
-    string FilterText { get; }
     string SortText { get; }
     CompletionItemKind Kind { get; }
 
