@@ -385,10 +385,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: []);
     }
 
-    // TODO.md #28 remainder — a type from an added NuGet package that isn't in scope yet. Ranked the
-    // same as an ordinary type (ScopeRank 2); UsingsToAdd is what tells EditorTabItemControl to add
-    // the `using` automatically when this item is accepted (see CompletionRequestedEventArgs's
-    // consumer in EditorTabItemControl.AsyncCompletionProvider).
+    // TODO.md #28 remainder / item 60 point 6 — a type from an added NuGet package that isn't in
+    // scope yet. Own tier (ScopeRank 3, between ordinary types and namespaces) rather than sharing
+    // rank 2 with already-visible types, and carries Detail (the containing namespace) so the
+    // completion list itself shows the ReSharper-style "(in Namespace)" annotation — see
+    // EditorTabItemControl's completion-item construction. UsingsToAdd is what tells
+    // EditorTabItemControl to add the `using` automatically when this item is accepted (see
+    // CompletionRequestedEventArgs's consumer in EditorTabItemControl.AsyncCompletionProvider).
     private static ICompletionItem BuildImportableTypeItem(INamedTypeSymbol type)
     {
         var kind = type.TypeKind switch
@@ -400,14 +403,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _ => CompletionItemKind.Class,
         };
         var ns = type.ContainingNamespace.ToDisplayString();
-        var summary = XmlDocSummary.GetSummary(type);
-        var requiresNote = $"Requires \"using {ns};\"";
-        var combinedSummary = string.IsNullOrEmpty(summary) ? requiresNote : $"{summary}\n\n{requiresNote}";
 
-        const int rank = 2; // same tier as other types, see ScopeRank
+        const int rank = 3; // own tier, see ScopeRank
         return new SimpleCompletionItem(
-            type.Name, kind, type.ToDisplayParts(_briefFormat).ToSegments(), combinedSummary,
-            SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank), UsingsToAdd: [ns]);
+            type.Name, kind, type.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(type),
+            SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank), UsingsToAdd: [ns], Detail: ns);
     }
 
     // Types from added NuGet references (not the full BCL reference pack — see the call site) whose
@@ -474,15 +474,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     // Locals/parameters (the innermost scope) sort before members of the containing type, which sort
-    // before other types, which sort before namespaces — so typing a few letters shows what's
-    // actually nearby before it shows something merely imported/visible (TODO.md #51 follow-up: "the
-    // in-scope thing first, then a level up").
+    // before other (in-scope) types, which sort before not-yet-imported types (rank 3, see
+    // BuildImportableTypeItem — TODO.md item 60 point 6: "visible types → importable types"), which
+    // sort before namespaces — so typing a few letters shows what's actually nearby before it shows
+    // something merely imported/visible, and before something that isn't even imported yet
+    // (TODO.md #51 follow-up: "the in-scope thing first, then a level up").
     private static int ScopeRank(ISymbol symbol) => symbol switch
     {
         ILocalSymbol or IParameterSymbol => 0,
         IFieldSymbol or IPropertySymbol or IEventSymbol or IMethodSymbol => 1,
         INamedTypeSymbol => 2,
-        INamespaceSymbol => 3,
+        INamespaceSymbol => 4,
         _ => 2,
     };
 
@@ -507,6 +509,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         0 => 1.0,  // locals/parameters
         1 => 0.8,  // members
         2 => 0.6,  // types
+        3 => 0.5,  // importable (not-yet-imported) types
         _ => 0.4,  // namespaces
     };
 
@@ -875,7 +878,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
-        string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd) : ICompletionItem;
+        string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd,
+        string? Detail = null) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {

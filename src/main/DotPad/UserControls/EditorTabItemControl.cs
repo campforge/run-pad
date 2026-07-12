@@ -719,7 +719,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     // NuGet package that isn't imported yet — accepting it adds the using the same
                     // way the lightbulb already does (AddGlobalUsings), just without that extra step.
                     tags: item.UsingsToAdd,
-                    onCommit: AddGlobalUsings
+                    onCommit: AddGlobalUsings,
+                    // Item 60 point 6: the list row itself gets a dimmed "(in Namespace)" annotation
+                    // for that same not-yet-imported case; Detail is null for everything else, so
+                    // BuildListRow just wraps the plain name (same TextBlock AvaloniaEdit's own
+                    // default template would've produced for a bare string Content anyway).
+                    content: DisplaySegmentRenderer.BuildListRow(item.DisplayText, item.Detail)
                 ));
             }
         };

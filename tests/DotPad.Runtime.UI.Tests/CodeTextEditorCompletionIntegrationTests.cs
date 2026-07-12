@@ -199,8 +199,12 @@ public class CodeTextEditorCompletionIntegrationTests
         await Task.Delay(20);
 
         // Assert — no completion window ever opened, so Enter just inserts a newline instead of
-        // expanding the "for" snippet.
-        Assert.Equal("f\n", editor.Document.Text);
+        // expanding the "for" snippet. AvaloniaEdit's TextUtilities.GetNewLineFromDocument falls back
+        // to Environment.NewLine when the document has no existing line delimiter to copy (true here
+        // — the document started empty) — "\r\n" on Windows, "\n" on Linux/macOS, so the expected
+        // value can't be a hardcoded "\n" (this exact CI-only mismatch is why the assertion needs to
+        // follow the same platform default rather than assume Unix).
+        Assert.Equal($"f{Environment.NewLine}", editor.Document.Text);
     }
 
     // User-reported bug: an empty completion popup stayed visible (IsOpen/IsVisible both true, zero
