@@ -620,11 +620,14 @@ public class CodeTextEditor : TextEditor
     // request to accept a match (ANALYSIS.md #54: '_' was falling through the old `!IsLetterOrDigit`
     // check). Space is excluded unconditionally too: unlike Visual Studio's default, this matches
     // Rider — committing on space was swapping still-being-typed words for an unrelated prefix match
-    // (e.g. "var ret " -> "var return ", the same class of bug as the earlier var/args report). A
-    // free function of (ch, identifierChars) for the same testability/language-agnosticism reasons
-    // as IsStartOfNewIdentifier above.
+    // (e.g. "var ret " -> "var return ", the same class of bug as the earlier var/args report). '='
+    // is excluded for the same reason — a lambda parameter name (e.g. "list.First(x" then "=" to
+    // start "x => ...") auto-invokes on 'x' like any fresh identifier, and typing '=' right after
+    // used to commit whatever that happened to match instead of just being inserted as the start of
+    // "=>" (user-reported). A free function of (ch, identifierChars) for the same testability/
+    // language-agnosticism reasons as IsStartOfNewIdentifier above.
     internal static bool IsCommitCharacter(char ch, IReadOnlySet<char> identifierChars) =>
-        !char.IsLetterOrDigit(ch) && !identifierChars.Contains(ch) && ch != ' ';
+        !char.IsLetterOrDigit(ch) && !identifierChars.Contains(ch) && ch != ' ' && ch != '=';
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {

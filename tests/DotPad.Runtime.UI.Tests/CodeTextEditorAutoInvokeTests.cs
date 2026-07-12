@@ -145,10 +145,13 @@ public class CodeTextEditorAutoInvokeTests
     // ANALYSIS.md #54: typing '_' mid-identifier used to commit the completion window's selected item
     // (only char.IsLetterOrDigit was excluded, not the language's own IdentifierChars), and space
     // committed unconditionally — swapping a still-being-typed word for an unrelated prefix match
-    // (e.g. "var ret " -> "var return "). Both must never commit.
+    // (e.g. "var ret " -> "var return "). '=' has the same problem for lambda parameters (user-
+    // reported: "list.First(x" then "=" to start "x => ..." committed whatever matched "x"). All
+    // three must never commit.
     [Theory]
     [InlineData('_')] // identifier-continuation char, configured via IdentifierChars
     [InlineData(' ')] // never commits, regardless of IdentifierChars/CompletionTriggers
+    [InlineData('=')] // starting "=>" for a lambda parameter must not commit the parameter name
     [InlineData('a')]
     [InlineData('3')]
     public void IsCommitCharacter_Should_BeFalse_ForIdentifierContinuationOrSpace(char ch)

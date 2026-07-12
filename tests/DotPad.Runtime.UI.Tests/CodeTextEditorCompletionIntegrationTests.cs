@@ -223,4 +223,26 @@ public class CodeTextEditorCompletionIntegrationTests
         // Assert
         Assert.False(editor.IsCompletionWindowOpen);
     }
+
+    // User-reported bug: typing a lambda parameter name (e.g. "list.First(x" then "=" to start
+    // "x => ...") committed the auto-invoked completion's selected match instead of just inserting
+    // '='. 'x' auto-invokes (it's a fresh identifier) and offers whatever happens to match/rank
+    // highest — here a same-named class — and '=' used to be a commit character like any other
+    // punctuation, accepting that match right before the "=>" the user was actually typing.
+    [AvaloniaFact]
+    public async Task TypingEquals_Should_NotCommitTheSelectedItem_WhileStartingALambdaArrow()
+    {
+        // Arrange — "XmlClass" is the only offered item, so it's always selected regardless of
+        // quality/priority ranking; stands in for whatever real symbol happens to match "x".
+        var (window, editor) = CreateEditor("list.First(", ("XmlClass", 1.0));
+
+        // Act
+        window.KeyTextInput("x");
+        await Task.Delay(20);
+        window.KeyTextInput("=");
+        await Task.Delay(20);
+
+        // Assert — '=' must just be inserted, not commit "XmlClass" over the lambda parameter "x".
+        Assert.Equal("list.First(x=", editor.Document.Text);
+    }
 }
