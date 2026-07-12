@@ -57,7 +57,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // lowest of all kinds, see ScopeRankPriority.
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(
             kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)],
-            Summary: null, SortText: $"9{kw}", Priority: 0.1))
+            Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: []))
         .ToArray();
 
     private static readonly string[] _tfmPreference =
@@ -297,13 +297,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             }
 
             var symbols = model.LookupSymbols(pos);
-            var items = symbols
+            var visible = symbols
                 .Select(ToItem)
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
                 .Concat(_keywords)
                 .GroupBy(i => i.DisplayText)
                 .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                .ToList();
+
+            // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
+            // scope yet don't just fail silently — they're offered too, prefixed-matched against
+            // whatever's typed so far, and accepting one adds its "using" automatically (see
+            // EditorCompletionData.UsingsToAdd / EditorTabItemControl.AddGlobalUsings). Scoped to NuGet
+            // references specifically, not the full BCL reference-assembly pack (~167 facades) —
+            // walking every namespace of every default reference on every fresh identifier would
+            // reintroduce the exact latency problem #56 just fixed, and BCL types the user actually
+            // reaches for are already reachable through the default implicit usings anyway.
+            var prefix = GetIdentifierPrefix(code, position);
+            var alreadyVisible = new HashSet<string>(visible.Select(i => i.DisplayText), StringComparer.Ordinal);
+            var importable = FindImportableTypes(model.Compilation, prefix, alreadyVisible)
+                .Select(BuildImportableTypeItem)
+                .ToList();
+
+            var items = visible.Concat(importable)
                 .OrderBy(i => i.SortText, StringComparer.Ordinal)
                 .ToList();
 
@@ -365,7 +382,95 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var rank = ScopeRank(symbol);
         return new SimpleCompletionItem(displayText, kind,
             symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
-            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank));
+            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: []);
+    }
+
+    // TODO.md #28 remainder — a type from an added NuGet package that isn't in scope yet. Ranked the
+    // same as an ordinary type (ScopeRank 2); UsingsToAdd is what tells EditorTabItemControl to add
+    // the `using` automatically when this item is accepted (see CompletionRequestedEventArgs's
+    // consumer in EditorTabItemControl.AsyncCompletionProvider).
+    private static ICompletionItem BuildImportableTypeItem(INamedTypeSymbol type)
+    {
+        var kind = type.TypeKind switch
+        {
+            TypeKind.Interface => CompletionItemKind.Interface,
+            TypeKind.Enum => CompletionItemKind.Enum,
+            TypeKind.Struct => CompletionItemKind.Struct,
+            TypeKind.Delegate => CompletionItemKind.Delegate,
+            _ => CompletionItemKind.Class,
+        };
+        var ns = type.ContainingNamespace.ToDisplayString();
+        var summary = XmlDocSummary.GetSummary(type);
+        var requiresNote = $"Requires \"using {ns};\"";
+        var combinedSummary = string.IsNullOrEmpty(summary) ? requiresNote : $"{summary}\n\n{requiresNote}";
+
+        const int rank = 2; // same tier as other types, see ScopeRank
+        return new SimpleCompletionItem(
+            type.Name, kind, type.ToDisplayParts(_briefFormat).ToSegments(), combinedSummary,
+            SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank), UsingsToAdd: [ns]);
+    }
+
+    // Types from added NuGet references (not the full BCL reference pack — see the call site) whose
+    // simple name starts with what's typed so far and isn't already visible. Candidates that collide
+    // on name — either with something already in scope, or with each other (two different packages
+    // exporting the same type name) — are dropped entirely rather than guessing which one the user
+    // meant; offering the wrong one and silently adding the wrong `using` would be worse than not
+    // offering it at all.
+    private IEnumerable<INamedTypeSymbol> FindImportableTypes(
+        Compilation compilation, string prefix, HashSet<string> alreadyVisible)
+    {
+        if (prefix.Length == 0) yield break;
+
+        var byName = new Dictionary<string, INamedTypeSymbol?>(StringComparer.Ordinal);
+        foreach (var reference in _nugetRefs)
+        {
+            if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) continue;
+
+            foreach (var type in EnumerateNamespaceTypes(assembly.GlobalNamespace))
+            {
+                if (alreadyVisible.Contains(type.Name)) continue;
+                if (!type.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+
+                // First sighting of this name -> tentatively importable; a second, different type
+                // with the same name makes it ambiguous -> null marks it as excluded.
+                byName[type.Name] = byName.TryGetValue(type.Name, out var existing) && existing != null
+                    ? null
+                    : type;
+            }
+        }
+
+        foreach (var type in byName.Values)
+            if (type != null)
+                yield return type;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> EnumerateNamespaceTypes(INamespaceSymbol ns)
+    {
+        foreach (var member in ns.GetMembers())
+        {
+            switch (member)
+            {
+                case INamespaceSymbol childNamespace:
+                    foreach (var type in EnumerateNamespaceTypes(childNamespace))
+                        yield return type;
+                    break;
+                case INamedTypeSymbol { DeclaredAccessibility: Accessibility.Public } type:
+                    yield return type;
+                    break;
+            }
+        }
+    }
+
+    // Walks back from position over identifier characters in the user's own code (not the
+    // preamble-prefixed document Roslyn sees) — the same "what word is being typed" idea as
+    // CodeTextEditor.GetWordStart, just server-side and string-only (no syntax tree needed for this).
+    private static string GetIdentifierPrefix(string code, int position)
+    {
+        var end = Math.Clamp(position, 0, code.Length);
+        var start = end;
+        while (start > 0 && (char.IsLetterOrDigit(code[start - 1]) || code[start - 1] == '_'))
+            start--;
+        return code[start..end];
     }
 
     // Locals/parameters (the innermost scope) sort before members of the containing type, which sort
@@ -770,7 +875,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
-        string? Summary, string SortText, double Priority) : ICompletionItem;
+        string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {

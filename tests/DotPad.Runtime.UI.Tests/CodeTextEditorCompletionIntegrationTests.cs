@@ -245,4 +245,71 @@ public class CodeTextEditorCompletionIntegrationTests
         // Assert — '=' must just be inserted, not commit "XmlClass" over the lambda parameter "x".
         Assert.Equal("list.First(x=", editor.Document.Text);
     }
+
+    // TODO.md #28 remainder: accepting a completion item for a type from an added-but-not-yet-
+    // imported NuGet package (e.g. Newtonsoft.Json's JsonConvert) should auto-add its `using`, same
+    // as the existing lightbulb quick-fix. CodeTextEditor/EditorCompletionData don't know what a
+    // "using" is (language-agnostic control layer) — they just carry opaque tags through to
+    // whatever onCommit callback the language-aware caller (EditorTabItemControl) supplied.
+    [AvaloniaFact]
+    public async Task AcceptingACompletion_Should_InvokeOnCommit_WithTheItemsTags()
+    {
+        // Arrange
+        IReadOnlyList<string>? committedTags = null;
+        var editor = new CodeTextEditor();
+        editor.Document = new TextDocument("");
+        editor.AsyncCompletionProvider = e =>
+        {
+            e.Items.Add(new EditorCompletionData(
+                "JsonConvert", () => "JsonConvert", priority: 1.0,
+                tags: ["Newtonsoft.Json"], onCommit: tags => committedTags = tags));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = editor.Document.TextLength;
+
+        // Act
+        window.KeyTextInput("J");
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        // Assert
+        Assert.Equal("JsonConvert", editor.Document.Text);
+        Assert.NotNull(committedTags);
+        Assert.Contains("Newtonsoft.Json", committedTags!);
+    }
+
+    // Ordinary completion items (no tags — the overwhelming majority) must not pay for, or trigger,
+    // any onCommit machinery at all.
+    [AvaloniaFact]
+    public async Task AcceptingACompletion_Should_NotInvokeOnCommit_WhenTheItemHasNoTags()
+    {
+        // Arrange
+        var onCommitCallCount = 0;
+        var editor = new CodeTextEditor();
+        editor.Document = new TextDocument("");
+        editor.AsyncCompletionProvider = e =>
+        {
+            e.Items.Add(new EditorCompletionData(
+                "Rhino", () => "Rhino", priority: 1.0, onCommit: _ => onCommitCallCount++));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = editor.Document.TextLength;
+
+        // Act
+        window.KeyTextInput("R");
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        // Assert
+        Assert.Equal("Rhino", editor.Document.Text);
+        Assert.Equal(0, onCommitCallCount);
+    }
 }
