@@ -29,7 +29,8 @@ public class EditorTabSnippetsTests
     [AvaloniaFact]
     public async Task Editor_Should_GetCSharpSnippets_When_TabLanguageIsCSharp()
     {
-        var snippets = await OpenTabAndGetSnippetsAsync(RpadLanguage.CSharp);
+        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+        var snippets = ctrl.State.Editor.Snippets;
 
         Assert.NotEmpty(snippets);
         Assert.True(snippets.TryGetValue("for", out var forTemplate));
@@ -42,12 +43,40 @@ public class EditorTabSnippetsTests
     {
         // VbLanguageHostFactory defines no snippets yet — a VB tab must not silently inherit the
         // hardcoded C# ones (the bug this refactor fixes).
-        var snippets = await OpenTabAndGetSnippetsAsync(RpadLanguage.Vb);
+        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
 
-        Assert.Empty(snippets);
+        Assert.Empty(ctrl.State.Editor.Snippets);
     }
 
-    private static async Task<Dictionary<string, string>> OpenTabAndGetSnippetsAsync(RpadLanguage language)
+    // TODO.md #58: the editor's lexical/syntactic profile (triggers, brace pairs, indentation) used
+    // to be a single hardcoded C#-shaped set of calls in EditorTabItemControl.SetupEditor, applied to
+    // every language including VB — now it flows from ILanguageHostFactory.EditorProfile, the same
+    // way Snippets already does (tests above).
+    [AvaloniaFact]
+    public async Task Editor_Should_GetCSharpEditorProfile_When_TabLanguageIsCSharp()
+    {
+        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+        var editor = ctrl.State.Editor;
+
+        Assert.Contains('<', editor.ContextualTriggers); // generic type arguments, e.g. "List<"
+        Assert.Contains("new", editor.WordTriggers);
+        Assert.True(editor.BracePairs.ContainsKey('{'));
+    }
+
+    [AvaloniaFact]
+    public async Task Editor_Should_GetVbEditorProfile_When_TabLanguageIsVb()
+    {
+        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
+        var editor = ctrl.State.Editor;
+
+        // VB has no bare '<' generics trigger (uses "Of") and no brace-delimited blocks — a VB tab
+        // must not silently inherit C#'s profile (the bug TODO.md #58 fixes).
+        Assert.DoesNotContain('<', editor.ContextualTriggers);
+        Assert.False(editor.BracePairs.ContainsKey('{'));
+        Assert.Contains("New", editor.WordTriggers); // VB is case-insensitive
+    }
+
+    private static async Task<EditorsTabItemControl> OpenTabAsync(RpadLanguage language)
     {
         var tmpDir = Directory.CreateTempSubdirectory("dotpad-snippets-test").FullName;
         try
@@ -102,7 +131,7 @@ public class EditorTabSnippetsTests
             var selectedTab = (TabItem)fileTabControl.SelectedItem!;
             var ctrl = (EditorsTabItemControl)selectedTab.Content!;
 
-            return new Dictionary<string, string>(ctrl.State.Editor.Snippets);
+            return ctrl;
         }
         finally
         {

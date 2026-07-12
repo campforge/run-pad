@@ -26,6 +26,26 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     // No VB snippets defined yet — same gap as IntelliSense above.
     public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>();
 
+    // VB's own lexical shape, not C#'s: blocks are `Sub`/`End Sub`, `If`/`End If`, `Class`/`End
+    // Class` — no braces at all, so brace-match/auto-close/fold only make sense for the parens and
+    // array-literal brackets VB does share with C#. Generic type arguments use "Of", not a bare '<'
+    // (which is also VB's comparison operator, same reasoning C# excludes it from
+    // CompletionTriggers). No required statement terminator — a newline ends a statement. VB is
+    // case-insensitive, so "New"/"new" both starting completion is a real language property, not
+    // sloppiness, hence the case-insensitive HashSet.
+    public EditorLanguageProfile EditorProfile { get; } = new()
+    {
+        CompletionTriggers = new HashSet<char> { '.' },
+        OverloadTriggers = new HashSet<char> { '(', ',' },
+        IdentifierChars = new HashSet<char> { '_' },
+        ContextualTriggers = new HashSet<char>(),
+        WordTriggers = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "New" },
+        StatementTerminators = new HashSet<char>(),
+        BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
+        AutoCloseBraces = new HashSet<char> { '[' },
+        IndentationStrategy = IndentationStrategyKind.Default,
+    };
+
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {
         var opts = options as VbLanguageHostOptions
