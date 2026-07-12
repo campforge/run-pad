@@ -24,7 +24,7 @@ public class CodeTextEditorCompletionIntegrationTests
         editor.AsyncCompletionProvider = e =>
         {
             foreach (var (text, priority) in items)
-                e.Items.Add(new EditorCompletionData(text, text, priority));
+                e.Items.Add(new EditorCompletionData(text, () => text, priority));
             return Task.CompletedTask;
         };
 
