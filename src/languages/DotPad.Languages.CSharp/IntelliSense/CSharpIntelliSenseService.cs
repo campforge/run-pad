@@ -49,6 +49,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             "add", "remove", "partial", "where", "select", "from", "let", "orderby", "group", "join",
             "into", "ascending", "descending", "on", "equals", "by", "when", "init", "record",
             "with", "not", "and", "or", "nint", "nuint", "file", "scoped", "required", "global",
+            "nameof", "value", "unmanaged", "notnull",
         }
         // Rank 9 — see ScopeRank: keywords sort after every real symbol, so a local/parameter/member
         // that happens to fuzzy-match the same letters (see ANALYSIS.md TODO #51 follow-up) doesn't
@@ -341,8 +342,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 TypeKind.Interface => CompletionItemKind.Interface,
                 TypeKind.Enum => CompletionItemKind.Enum,
                 TypeKind.Struct => CompletionItemKind.Struct,
+                TypeKind.Delegate => CompletionItemKind.Delegate,
                 _ => CompletionItemKind.Class,
             }),
+        // Type parameters (the `T` in `void Foo<T>(T value)`) were dropped entirely — inside a
+        // generic method/type's own body, `T` is a real, commonly-referenced symbol (ANALYSIS.md
+        // TODO #59), not just declaration-site syntax.
+        ITypeParameterSymbol tp
+            => BuildItem(tp, tp.Name, CompletionItemKind.TypeParameter),
         // Namespaces were silently dropped here despite ScopeRank already carrying a rank for them
         // (3 — below types) — LookupSymbols(pos) does return INamespaceSymbol candidates (e.g. typing
         // "Sys" offers "System" in real VS/Rider), they just never became a completion item
@@ -763,15 +770,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
-        string? Summary, string SortText, double Priority) : ICompletionItem
-    {
-        public string FilterText => DisplayText;
-    }
+        string? Summary, string SortText, double Priority) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {
         public IReadOnlyList<ICompletionItem> Items => items;
-        public bool IsExclusive => false;
     }
 
     private sealed class SimpleSignatureHelpResult(
