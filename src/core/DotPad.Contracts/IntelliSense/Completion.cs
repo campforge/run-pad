@@ -12,7 +12,7 @@ public enum CompletionItemKind
 {
     Text, Method, Function, Constructor, Field, Variable,
     Class, Interface, Module, Property, Enum, Keyword,
-    Snippet, EnumMember, Constant, Struct, Event, Operator, TypeParameter, Reference
+    Snippet, EnumMember, Constant, Struct, Event, Operator, TypeParameter, Reference, Delegate
 }
 
 public interface ICompletionList
