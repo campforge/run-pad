@@ -141,4 +141,36 @@ public class CodeTextEditorAutoInvokeTests
         // Right after '.' (nothing of the member name typed yet) there's nothing to walk back over.
         Assert.Equal(2, CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
     }
+
+    // ANALYSIS.md #54: typing '_' mid-identifier used to commit the completion window's selected item
+    // (only char.IsLetterOrDigit was excluded, not the language's own IdentifierChars), and space
+    // committed unconditionally — swapping a still-being-typed word for an unrelated prefix match
+    // (e.g. "var ret " -> "var return "). Both must never commit.
+    [Theory]
+    [InlineData('_')] // identifier-continuation char, configured via IdentifierChars
+    [InlineData(' ')] // never commits, regardless of IdentifierChars/CompletionTriggers
+    [InlineData('a')]
+    [InlineData('3')]
+    public void IsCommitCharacter_Should_BeFalse_ForIdentifierContinuationOrSpace(char ch)
+    {
+        Assert.False(CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
+    }
+
+    [Theory]
+    [InlineData('.')]
+    [InlineData('(')]
+    [InlineData(';')]
+    [InlineData('<')]
+    public void IsCommitCharacter_Should_BeTrue_ForPunctuationOutsideIdentifierChars(char ch)
+    {
+        Assert.True(CodeTextEditor.IsCommitCharacter(ch, CSharpIdentifierChars));
+    }
+
+    [Fact]
+    public void IsCommitCharacter_Should_BeTrue_ForUnderscore_WhenNotConfiguredAsAnIdentifierChar()
+    {
+        // '_' isn't universal (see IsStartOfNewIdentifier's own underscore test) — a language that
+        // doesn't register it as an identifier char should see it as ordinary punctuation instead.
+        Assert.True(CodeTextEditor.IsCommitCharacter('_', NoExtraChars));
+    }
 }

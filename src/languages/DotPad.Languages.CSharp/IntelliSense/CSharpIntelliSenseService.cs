@@ -51,10 +51,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
         // Rank 9 — see ScopeRank: keywords sort after every real symbol, so a local/parameter/member
         // that happens to fuzzy-match the same letters (see ANALYSIS.md TODO #51 follow-up) doesn't
-        // lose a tie-break to a keyword the user isn't actually reaching for.
+        // lose a tie-break to a keyword the user isn't actually reaching for. Priority matches —
+        // lowest of all kinds, see ScopeRankPriority.
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(
             kw, CompletionItemKind.Keyword, [new DisplayTextSegment(kw, SemanticTokenKind.Keyword)],
-            Summary: null, SortText: $"9{kw}"))
+            Summary: null, SortText: $"9{kw}", Priority: 0.1))
         .ToArray();
 
     private static readonly string[] _tfmPreference =
@@ -129,8 +130,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _preambleLength = _preamble.Length;
     }
 
-
-
     public void UpdateGlobalUsings(IReadOnlyList<string> usings)
     {
         var extra = usings
@@ -177,7 +176,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
-            if (IsInsideComment(root, pos)) return null;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
@@ -188,17 +187,73 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if ((isDotInsertion || trigger.Kind == CompletionTriggerKind.Invoked) && pos > 0)
             {
                 var token = root.FindToken(pos - 1);
+
+                // x.Foo — ordinary member access. x?.Foo — same idea, but the '.' belongs to a
+                // MemberBindingExpression hanging off a ConditionalAccessExpression instead (the
+                // qualifier lives one level up, off the ConditionalAccessExpression itself, not the
+                // MemberBindingExpression — which has no Expression of its own). Without this second
+                // case, "s?." resolved to nothing at all (ANALYSIS.md #52).
                 var memberAccess = token.Parent?.AncestorsAndSelf()
                     .OfType<MemberAccessExpressionSyntax>()
                     .FirstOrDefault();
+                var memberBinding = token.Parent?.AncestorsAndSelf()
+                    .OfType<MemberBindingExpressionSyntax>()
+                    .FirstOrDefault();
+                var qualifier = memberAccess?.Expression
+                    ?? (memberBinding?.Parent as ConditionalAccessExpressionSyntax)?.Expression;
 
-                if (memberAccess != null)
+                if (qualifier != null)
                 {
-                    var typeInfo = model.GetTypeInfo(memberAccess.Expression);
-                    var type = typeInfo.Type ?? typeInfo.ConvertedType;
+                    var qualifierSymbol = model.GetSymbolInfo(qualifier).Symbol;
+
+                    // "System." — the qualifier itself names a namespace, not an expression with a
+                    // value/type. GetTypeInfo has nothing for this (a namespace isn't a type), so
+                    // without this branch it fell through to "nothing sensible to complete" and
+                    // returned null (ANALYSIS.md #52) — LookupNamespacesAndTypes is the correct API
+                    // for offering the namespace's nested namespaces/types instead.
+                    if (qualifierSymbol is INamespaceSymbol containingNamespace)
+                    {
+                        var nsItems = model.LookupNamespacesAndTypes(pos, container: containingNamespace)
+                            .Select(ToItem)
+                            .Where(i => i != null)
+                            .Cast<ICompletionItem>()
+                            .GroupBy(i => i.DisplayText)
+                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                            .OrderBy(i => i.SortText)
+                            .ToList();
+
+                        return nsItems.Count > 0 ? new SimpleCompletionList(nsItems) : null;
+                    }
+
+                    // "DateTime." (the qualifier names the type itself — a static-member access) vs.
+                    // "d." (the qualifier is a value of that type — an instance access): GetSymbolInfo
+                    // tells them apart (only the former resolves the qualifier to the INamedTypeSymbol
+                    // itself), GetTypeInfo does not (a type used as a qualifier has no "type of its
+                    // own" from GetTypeInfo's point of view, which is why the static case used to fall
+                    // through to "nothing to complete" — ANALYSIS.md #52 static/instance mixing).
+                    var isStaticQualifier = qualifierSymbol is INamedTypeSymbol;
+                    ITypeSymbol? type;
+                    if (isStaticQualifier)
+                    {
+                        type = (ITypeSymbol)qualifierSymbol!;
+                    }
+                    else
+                    {
+                        var typeInfo = model.GetTypeInfo(qualifier);
+                        type = typeInfo.Type ?? typeInfo.ConvertedType;
+                    }
+
                     if (type != null)
                     {
-                        var memberItems = model.LookupSymbols(pos, container: type, includeReducedExtensionMethods: true)
+                        // LookupSymbols(container: type) returns every member visible in that type's
+                        // scope regardless of static-ness — "DateTime." used to also offer AddDays
+                        // (instance) and "d." used to also offer Parse (static), see ANALYSIS.md #52.
+                        // Extension methods only make sense in the instance case (the static-qualifier
+                        // "DateTime.SomeExtension()" call form isn't what LookupSymbols' reduced form
+                        // represents), so they're only requested there too.
+                        var memberItems = model
+                            .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
+                            .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
                             .Select(ToItem)
                             .Where(i => i != null)
                             .Cast<ICompletionItem>()
@@ -235,7 +290,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
     {
-        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension
+        // LocalFunction alongside Ordinary/ReducedExtension — top-level statements (this project's
+        // main script shape) use local functions as their primary way to structure code, so leaving
+        // them out meant the single most common non-trivial identifier in a script never completed
+        // (ANALYSIS.md #52).
+        IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
             => BuildItem(m, m.Name, CompletionItemKind.Method),
         IPropertySymbol p
             => BuildItem(p, p.Name, CompletionItemKind.Property),
@@ -256,13 +315,23 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 TypeKind.Struct => CompletionItemKind.Struct,
                 _ => CompletionItemKind.Class,
             }),
+        // Namespaces were silently dropped here despite ScopeRank already carrying a rank for them
+        // (3 — below types) — LookupSymbols(pos) does return INamespaceSymbol candidates (e.g. typing
+        // "Sys" offers "System" in real VS/Rider), they just never became a completion item
+        // (ANALYSIS.md #52). CompletionItemKind has no dedicated "Namespace" entry — Module is the
+        // closest LSP-style stand-in (VS Code/LSP itself uses Module for both).
+        INamespaceSymbol ns
+            => BuildItem(ns, ns.Name, CompletionItemKind.Module),
         _ => null
     };
 
-    private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind) =>
-        new SimpleCompletionItem(displayText, kind,
+    private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind)
+    {
+        var rank = ScopeRank(symbol);
+        return new SimpleCompletionItem(displayText, kind,
             symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
-            SortText: $"{ScopeRank(symbol)}{displayText}");
+            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank));
+    }
 
     // Locals/parameters (the innermost scope) sort before members of the containing type, which sort
     // before other types, which sort before namespaces — so typing a few letters shows what's
@@ -275,6 +344,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         INamedTypeSymbol => 2,
         INamespaceSymbol => 3,
         _ => 2,
+    };
+
+    // Whether a member found via LookupSymbols(container: type) actually belongs on the side of the
+    // dot it was requested for — "DateTime." (static qualifier) vs "d." (instance qualifier),
+    // ANALYSIS.md #52. Nested types are only ever reachable through the type itself (there's no such
+    // thing as `instance.NestedType`), regardless of the nested type's own staticness, hence the
+    // special case rather than just comparing symbol.IsStatic for everything.
+    private static bool MatchesQualifierStaticness(ISymbol symbol, bool isStaticQualifier) => symbol switch
+    {
+        INamedTypeSymbol => isStaticQualifier,
+        _ => symbol.IsStatic == isStaticQualifier,
+    };
+
+    // ICompletionItem.Priority — the editor's tie-break among items of otherwise-equal match quality
+    // (see AvaloniaEdit.CodeCompletion.CompletionList.SelectItem: quality decides first, Priority only
+    // breaks ties). Derived from the same ScopeRank used for SortText, rather than the UI layer's
+    // former Kind == Method ? 1.0 : 0.9 hardcode (ANALYSIS.md #55) — so a local sitting right next to
+    // an equally-good-matching method actually wins the tie-break its ScopeRank already implies.
+    private static double ScopeRankPriority(int rank) => rank switch
+    {
+        0 => 1.0,  // locals/parameters
+        1 => 0.8,  // members
+        2 => 0.6,  // types
+        _ => 0.4,  // namespaces
     };
 
     // ── Signature Help ─────────────────────────────────────────────────────────
@@ -295,22 +388,46 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
-            if (IsInsideComment(root, pos)) return null;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
-            var invocation = node.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
-            if (invocation == null) return null;
 
-            var argIndex = CountArgumentsBefore(invocation.ArgumentList, pos);
-            var argCount = invocation.ArgumentList.Arguments.Count;
+            // "new Foo(" behaves the same as a method call for signature-help purposes — it just
+            // wasn't recognized at all before (ANALYSIS.md #53), so opening a constructor's argument
+            // list never showed its parameters. BaseObjectCreationExpressionSyntax is the shared base
+            // of both `new Foo(...)` and the target-typed `new(...)`.
+            var callLike = node.AncestorsAndSelf()
+                .FirstOrDefault(n => n is InvocationExpressionSyntax or BaseObjectCreationExpressionSyntax);
+            var argumentList = callLike switch
+            {
+                InvocationExpressionSyntax inv => inv.ArgumentList,
+                BaseObjectCreationExpressionSyntax oce => oce.ArgumentList,
+                _ => null,
+            };
+            if (callLike == null || argumentList == null) return null;
 
-            var symInfo = model.GetSymbolInfo(invocation);
+            var argIndex = CountArgumentsBefore(argumentList, pos);
+            var argCount = argumentList.Arguments.Count;
+
+            var symInfo = model.GetSymbolInfo(callLike);
             var methods = (symInfo.Symbol is IMethodSymbol s ? [s] : Array.Empty<IMethodSymbol>())
                 .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
                 .ToList();
 
-            if (methods.Count == 0 && invocation.Expression != null)
-                methods = model.GetMemberGroup(invocation.Expression).OfType<IMethodSymbol>().ToList();
+            if (methods.Count == 0 && callLike is InvocationExpressionSyntax { Expression: { } target })
+                methods = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
+
+            // Overload resolution came up with nothing usable (e.g. still typing, 0 arguments so far)
+            // — fall back to every accessible constructor of the target type, the object-creation
+            // equivalent of the GetMemberGroup fallback above.
+            if (methods.Count == 0 && callLike is BaseObjectCreationExpressionSyntax objectCreation)
+            {
+                var createdType = objectCreation is ObjectCreationExpressionSyntax named
+                    ? model.GetTypeInfo(named.Type).Type
+                    : model.GetTypeInfo(objectCreation).Type; // target-typed `new(...)` — infer from context
+                if (createdType is INamedTypeSymbol namedType)
+                    methods = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
+            }
 
             if (methods.Count == 0) return null;
 
@@ -343,6 +460,31 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             || trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia)
             || trivia.IsKind(SyntaxKind.DocumentationCommentExteriorTrivia);
 
+    // A position inside the text of a string/char literal has nothing to complete either — unlike
+    // comments this isn't trivia, it's an ordinary token (StringLiteralToken etc.), so it needs its
+    // own check rather than falling out of IsInsideComment (ANALYSIS.md #52). Interpolation holes
+    // (the `{expr}` parts of `$"..."`) are deliberately NOT covered — their contents are ordinary
+    // expression tokens (identifiers, dots, ...), not one of the kinds checked here, so completion
+    // still works inside them, same as VS/Rider.
+    private static bool IsInsideStringOrCharLiteral(SyntaxNode root, int position)
+    {
+        // Same half-open-span boundary concern as IsInsideComment: the caret sitting at the very end
+        // of an in-progress, unterminated literal (by far the most common case while typing) is at
+        // the token's end, so also check position - 1.
+        return IsStringOrCharLiteralToken(root.FindToken(position))
+            || (position > 0 && IsStringOrCharLiteralToken(root.FindToken(position - 1)));
+    }
+
+    private static bool IsStringOrCharLiteralToken(SyntaxToken token) =>
+        token.IsKind(SyntaxKind.StringLiteralToken)
+            || token.IsKind(SyntaxKind.CharacterLiteralToken)
+            || token.IsKind(SyntaxKind.InterpolatedStringTextToken)
+            || token.IsKind(SyntaxKind.Utf8StringLiteralToken)
+            || token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken)
+            || token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken)
+            || token.IsKind(SyntaxKind.Utf8SingleLineRawStringLiteralToken)
+            || token.IsKind(SyntaxKind.Utf8MultiLineRawStringLiteralToken);
+
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
     {
         var count = 0;
@@ -372,7 +514,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + _preambleLength;
-            if (IsInsideComment(root, pos)) return null;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
             if (token == default) return null;
@@ -586,8 +728,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ── Private model types ────────────────────────────────────────────────────
 
     private sealed record SimpleCompletionItem(
-        string DisplayText, CompletionItemKind Kind,
-        IReadOnlyList<DisplayTextSegment> Signature, string? Summary, string SortText) : ICompletionItem
+        string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
+        string? Summary, string SortText, double Priority) : ICompletionItem
     {
         public string FilterText => DisplayText;
     }

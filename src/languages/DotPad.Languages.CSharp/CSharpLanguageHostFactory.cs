@@ -41,6 +41,22 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         ["lock"] = "lock (${0})\n{\n\t\n}",
     };
 
+    public EditorLanguageProfile EditorProfile { get; } = new()
+    {
+        CompletionTriggers = new HashSet<char> { '.' },
+        OverloadTriggers = new HashSet<char> { '(', ',' },
+        IdentifierChars = new HashSet<char> { '_' },
+        ContextualTriggers = new HashSet<char> { '<' }, // generic type arguments, e.g. "List<"
+        WordTriggers = new HashSet<string> { "new" }, // constructible-type completion after "new "
+        StatementTerminators = new HashSet<char> { ';' },
+        BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']', ['{'] = '}' },
+        // '(' deliberately excluded — see DotPad.Avalonia.CodeTextEditor.CodeTextEditor.AutoCloseBraces:
+        // opening a call's parameter list is exactly when signature help is about to show the real
+        // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
+        AutoCloseBraces = new HashSet<char> { '[', '{' },
+        IndentationStrategy = IndentationStrategyKind.CStyle,
+    };
+
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {
         var opts = options as CSharpLanguageHostOptions

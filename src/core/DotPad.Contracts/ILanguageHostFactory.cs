@@ -13,6 +13,10 @@ public interface ILanguageHostFactory
     // none defined yet.
     IReadOnlyDictionary<string, string> Snippets { get; }
 
+    // Lexical/syntactic conventions for CodeTextEditor's triggers, brace pairs, and indentation —
+    // see EditorLanguageProfile. Same reasoning as Snippets above (TODO.md #58).
+    EditorLanguageProfile EditorProfile { get; }
+
     ILanguageHost Create(ILanguageHostOptions? options = null);
 }
 
@@ -26,5 +30,6 @@ public interface ILanguageHostRegistry
 
     LanguageHostCapabilities GetCapabilities(string language);
     IReadOnlyDictionary<string, string> GetSnippets(string language);
+    EditorLanguageProfile GetEditorProfile(string language);
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
 }
