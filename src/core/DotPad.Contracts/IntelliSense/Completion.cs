@@ -46,4 +46,10 @@ public interface ICompletionItem
     // a type found in an added reference that isn't imported yet (TODO.md #28 remainder) — ReSharper-
     // style auto-import on completion accept, not just via the lightbulb.
     IReadOnlyList<string> UsingsToAdd { get; }
+
+    // Short annotation shown next to DisplayText in the completion list row itself (not just the
+    // Description tooltip) — e.g. "Newtonsoft.Json" for a type offered via UsingsToAdd, so the list
+    // itself makes clear (ReSharper-style "(in Namespace)") that accepting it does more than just
+    // insert text. Null for anything that needs no annotation.
+    string? Detail { get; }
 }

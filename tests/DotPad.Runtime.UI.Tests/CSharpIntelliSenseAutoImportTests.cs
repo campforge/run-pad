@@ -32,6 +32,32 @@ public class CSharpIntelliSenseAutoImportTests
         Assert.NotNull(result);
         var item = result!.Items.Single(i => i.DisplayText == "JsonConvert");
         Assert.Contains("Newtonsoft.Json", item.UsingsToAdd);
+        // Item 60 point 6 — the list row itself must carry the "(in Namespace)" annotation, not just
+        // the accept-time using-add side effect, so the user can tell before accepting.
+        Assert.Equal("Newtonsoft.Json", item.Detail);
+    }
+
+    [Fact]
+    public async Task GetCompletionsAsync_Should_SortAnUnimportedType_AfterAnOrdinaryVisibleType()
+    {
+        using var service = CreateServiceWithNewtonsoftJson();
+        // A type declared right in the script ("Zebra", ScopeRank 2, genuinely visible/in-scope, not
+        // just a local) is offered alongside the unimported "JsonConvert" (ScopeRank 3) once "JsonConv"
+        // is typed — LookupSymbols returns every visible symbol regardless of what's typed so far, only
+        // the importable-type search is prefix-filtered. "Zebra" sorts alphabetically AFTER
+        // "JsonConvert" on purpose: item 60 point 6 requires visible types before importable ones, so if
+        // both shared one rank tier, alphabetical order would put the package type first — the wrong
+        // way round. Only the separate, lower-tier rank for importable types (3 vs 2) makes "Zebra" win.
+        const string code = "class Zebra { }\nJsonConv;";
+        var position = code.Length - 1;
+
+        var result = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        var items = result!.Items.ToList();
+        var visibleIndex = items.FindIndex(i => i.DisplayText == "Zebra");
+        var importableIndex = items.FindIndex(i => i.DisplayText == "JsonConvert");
+        Assert.True(visibleIndex >= 0 && importableIndex >= 0 && visibleIndex < importableIndex);
     }
 
     [Fact]

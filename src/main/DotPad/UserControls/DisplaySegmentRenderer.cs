@@ -44,4 +44,25 @@ internal static class DisplaySegmentRenderer
             },
         };
     }
+
+    // The completion list row itself (not the Description tooltip) — plain displayText, or
+    // displayText plus a dimmed "(in Detail)" annotation for a not-yet-imported type (TODO.md item
+    // 60 point 6/ICompletionItem.Detail). Same object-typed-Content-is-a-bare-ContentControl trick
+    // as BuildWithSummary/BuildSignature above, applied to EditorCompletionData.Content instead.
+    public static Control BuildListRow(string displayText, string? detail)
+    {
+        var nameBlock = new TextBlock { Text = displayText };
+        if (string.IsNullOrEmpty(detail)) return nameBlock;
+
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children =
+            {
+                nameBlock,
+                new TextBlock { Text = $"(in {detail})", Opacity = 0.6, FontStyle = FontStyle.Italic },
+            },
+        };
+    }
 }

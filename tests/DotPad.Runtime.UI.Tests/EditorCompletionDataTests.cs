@@ -41,4 +41,25 @@ public class EditorCompletionDataTests
 
         Assert.Equal(1, callCount);
     }
+
+    // TODO.md item 60 point 6: the completion list row can show something richer than the bare name
+    // (e.g. a dimmed "(in Namespace)" annotation for a not-yet-imported type — EditorTabItemControl
+    // builds that via DisplaySegmentRenderer.BuildListRow), but what actually gets matched/inserted
+    // must stay exactly the plain name regardless — Text and Content are independent.
+    [Fact]
+    public void Content_Should_UseTheProvidedOverride_WhenGiven()
+    {
+        var data = new EditorCompletionData("JsonConvert", () => "described", priority: 1.0, content: "custom-row");
+
+        Assert.Equal("custom-row", data.Content);
+        Assert.Equal("JsonConvert", data.Text);
+    }
+
+    [Fact]
+    public void Content_Should_FallBackToDisplayText_WhenNoOverrideIsGiven()
+    {
+        var data = new EditorCompletionData("JsonConvert", () => "described", priority: 1.0);
+
+        Assert.Equal("JsonConvert", data.Content);
+    }
 }
