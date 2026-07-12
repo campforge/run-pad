@@ -124,8 +124,12 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Words that, followed by a space, open the completion dropdown — e.g. <c>"new"</c> in
     /// C#/VB, to suggest constructible types right where you'd type one. Language-specific (the
-    /// keyword spelling, whether it's case-sensitive), so the app layer configures this.</summary>
-    public HashSet<string> WordTriggers { get; } = [];
+    /// keyword spelling, whether it's case-sensitive), so the app layer configures this. Settable
+    /// (not just an empty collection to <c>Add</c> into, unlike the other trigger sets on this
+    /// class) so a case-insensitive language (VB) can hand in a set built with
+    /// <see cref="StringComparer.OrdinalIgnoreCase"/> and keep that comparer — copying its entries
+    /// one at a time into a fresh, default-comparer <c>HashSet</c> would silently drop it.</summary>
+    public IReadOnlySet<string> WordTriggers { get; set; } = new HashSet<string>();
 
     /// <summary>Matching bracket/brace pairs (open → close) — the full set this language recognizes,
     /// used for brace-match highlighting, Ctrl+] navigation, closing the signature-help insight

@@ -843,7 +843,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         foreach (var ch in profile.OverloadTriggers) editor.OverloadTriggers.Add(ch);
         foreach (var ch in profile.IdentifierChars) editor.IdentifierChars.Add(ch);
         foreach (var ch in profile.ContextualTriggers) editor.ContextualTriggers.Add(ch);
-        foreach (var word in profile.WordTriggers) editor.WordTriggers.Add(word);
+        // Assigned wholesale, not Add()-ed into the default set, so a case-insensitive language
+        // (VB, see VbLanguageHostFactory.EditorProfile) keeps its comparer — copying entries one at
+        // a time into a fresh default-comparer HashSet would silently drop it (found in code review).
+        editor.WordTriggers = profile.WordTriggers;
         foreach (var ch in profile.StatementTerminators) editor.StatementTerminators.Add(ch);
         foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
         foreach (var ch in profile.AutoCloseBraces) editor.AutoCloseBraces.Add(ch);
