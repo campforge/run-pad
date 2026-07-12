@@ -28,6 +28,13 @@ public interface ICompletionItem
     string SortText { get; }
     CompletionItemKind Kind { get; }
 
+    // Tie-break used by the editor's completion list when two items match the typed prefix equally
+    // well (e.g. both are exact prefix matches) — higher wins. Mirrors the same in-scope-first
+    // ranking as SortText (locals/parameters > members > types > namespaces > keywords), computed by
+    // the language model rather than hardcoded by the UI layer (see EditorTabItemControl, which used
+    // to hardcode Kind == Method ? 1.0 : 0.9 — ANALYSIS.md #55).
+    double Priority { get; }
+
     // The member's signature, classified for syntax highlighting (e.g. `string Format(string format,
     // params object[] args)`) — shown above Summary in the completion tooltip.
     IReadOnlyList<DisplayTextSegment> Signature { get; }

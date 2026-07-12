@@ -89,11 +89,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
 
-        // Snippets are per-language (see ILanguageHostFactory.Snippets) — populated here rather than
-        // in SetupEditor because SetupEditor runs before SetDocumentContent, when ResolveLanguageId
-        // can't yet see the real file's language and would default to C#.
+        // Snippets and the editor's lexical/syntactic profile are both per-language (see
+        // ILanguageHostFactory.Snippets/EditorProfile) — populated here rather than in SetupEditor
+        // because SetupEditor runs before SetDocumentContent, when ResolveLanguageId can't yet see
+        // the real file's language and would default to C#.
         foreach (var (keyword, template) in _registry.GetSnippets(ResolveLanguageId()) ?? new Dictionary<string, string>())
             editor.Snippets[keyword] = template;
+        ApplyEditorLanguageProfile(editor, _registry.GetEditorProfile(ResolveLanguageId()) ?? new EditorLanguageProfile());
 
         var themeName = themeService.CurrentTheme.Editor.TextMateName;
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
@@ -684,21 +686,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void SetupEditor(CodeTextEditor editor, IIntelliSenseService? intelliSense)
     {
-        editor.CompletionTriggers.Add('.');
-        editor.OverloadTriggers.Add('(');
-        editor.OverloadTriggers.Add(',');
-        editor.IdentifierChars.Add('_'); // valid in both C# and VB identifiers, beyond letters/digits
-        editor.ContextualTriggers.Add('<'); // generic type arguments, e.g. "List<" (TODO.md #51)
-        editor.WordTriggers.Add("new"); // constructible-type completion after "new " (TODO.md #51)
-        editor.StatementTerminators.Add(';');
-        editor.BracePairs['('] = ')';
-        editor.BracePairs['['] = ']';
-        editor.BracePairs['{'] = '}';
-        editor.AutoCloseBraces.Add('[');
-        editor.AutoCloseBraces.Add('{');
-        // '(' deliberately excluded from AutoCloseBraces — see CodeTextEditor.AutoCloseBraces.
-        editor.TextArea.IndentationStrategy =
-            new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
+        // Language-specific triggers/brace pairs/indentation are applied later, via
+        // ApplyEditorLanguageProfile — see its call site's comment for why not here.
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
         editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
@@ -715,8 +704,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
                     DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
-                    // ToDo: вынести расчет приоритета в языковую модель
-                    item.Kind == CompletionItemKind.Method ? 1.0 : 0.9,
+                    item.Priority,
                     CompletionIcons.GetIcon(item.Kind)
                 ));
             }
@@ -841,6 +829,30 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             quickInfoCts.Cancel();
             ToolTip.SetTip(editor.TextArea.TextView, null);
+        };
+    }
+
+    // Applies a language's lexical/syntactic conventions (ILanguageHostFactory.EditorProfile) to the
+    // language-agnostic CodeTextEditor — triggers/identifier chars/brace pairs/indentation used to be
+    // a single hardcoded C#-shaped profile applied to every language including VB (TODO.md #58); this
+    // is the same pattern already used for Snippets, just for the rest of the editor's language-aware
+    // configuration.
+    private static void ApplyEditorLanguageProfile(CodeTextEditor editor, EditorLanguageProfile profile)
+    {
+        foreach (var ch in profile.CompletionTriggers) editor.CompletionTriggers.Add(ch);
+        foreach (var ch in profile.OverloadTriggers) editor.OverloadTriggers.Add(ch);
+        foreach (var ch in profile.IdentifierChars) editor.IdentifierChars.Add(ch);
+        foreach (var ch in profile.ContextualTriggers) editor.ContextualTriggers.Add(ch);
+        foreach (var word in profile.WordTriggers) editor.WordTriggers.Add(word);
+        foreach (var ch in profile.StatementTerminators) editor.StatementTerminators.Add(ch);
+        foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
+        foreach (var ch in profile.AutoCloseBraces) editor.AutoCloseBraces.Add(ch);
+
+        editor.TextArea.IndentationStrategy = profile.IndentationStrategy switch
+        {
+            IndentationStrategyKind.CStyle =>
+                new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options),
+            _ => new AvaloniaEdit.Indentation.DefaultIndentationStrategy(),
         };
     }
 
