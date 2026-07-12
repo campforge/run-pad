@@ -32,9 +32,6 @@ public class CodeTextEditor : TextEditor
             static (editor, e) => editor.OnShowFoldingChanged((bool?)e.NewValue));
     }
 
-    private static readonly char[] _openBraces = ['(', '[', '{'];
-    private static readonly char[] _closeBraces = [')', ']', '}'];
-
     private readonly BreakpointStore _breakpointStore;
     private readonly BreakPointMargin _breakpointMargin;
     private readonly CodeFixMargin _codeFixMargin;
@@ -51,12 +48,6 @@ public class CodeTextEditor : TextEditor
     private CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
 
-    private static readonly Dictionary<char, char> _bracePairs = new()
-    {
-        ['('] = ')',
-        ['['] = ']',
-        ['{'] = '}',
-    };
 
     public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
     public event EventHandler<BreakpointEventArgs>? BreakpointRemoved;
@@ -116,6 +107,46 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Characters that open the overload insight window.</summary>
     public HashSet<char> OverloadTriggers { get; } = [];
+
+    /// <summary>Characters — beyond letters/digits, which always count — that continue an identifier
+    /// rather than starting a new one (e.g. <c>_</c> in C#/VB). Language-specific, so the app layer
+    /// configures this the same way it configures <see cref="CompletionTriggers"/>; this control
+    /// doesn't assume any particular language's lexical rules. See ShowCompletion's 24/7 auto-invoke.</summary>
+    public HashSet<char> IdentifierChars { get; } = [];
+
+    /// <summary>Characters that open the completion dropdown only when they immediately follow an
+    /// identifier character — e.g. <c>&lt;</c> for C#'s generic type arguments (<c>List&lt;</c>).
+    /// Kept separate from <see cref="CompletionTriggers"/> (which fires unconditionally) because a
+    /// bare <c>&lt;</c> is also a comparison operator, and firing on every one would be noisy; a
+    /// language whose generics syntax doesn't use this character at all (e.g. VB's <c>(Of ...)</c>)
+    /// simply doesn't register anything here.</summary>
+    public HashSet<char> ContextualTriggers { get; } = [];
+
+    /// <summary>Words that, followed by a space, open the completion dropdown — e.g. <c>"new"</c> in
+    /// C#/VB, to suggest constructible types right where you'd type one. Language-specific (the
+    /// keyword spelling, whether it's case-sensitive), so the app layer configures this.</summary>
+    public HashSet<string> WordTriggers { get; } = [];
+
+    /// <summary>Matching bracket/brace pairs (open → close) — the full set this language recognizes,
+    /// used for brace-match highlighting, Ctrl+] navigation, closing the signature-help insight
+    /// window, and type-through on an already-present closing char. Not every language delimits
+    /// blocks/calls with the same characters, so this control doesn't assume any pair; the app layer
+    /// configures it. See also <see cref="AutoCloseBraces"/> — a pair being recognized here doesn't
+    /// mean it should also be auto-inserted on open.</summary>
+    public Dictionary<char, char> BracePairs { get; } = [];
+
+    /// <summary>Subset of <see cref="BracePairs"/>' opening characters that should also auto-insert
+    /// their closing character when typed. Deliberately not the same set — e.g. C#'s <c>(</c> is
+    /// recognized in <see cref="BracePairs"/> (for matching/navigation) but excluded here: opening a
+    /// call's parameter list is exactly when signature help is about to show the real parameter list
+    /// from any overloads, and an auto-inserted <c>)</c> sitting there fights that instead of helping
+    /// (see ANALYSIS.md TODO #51).</summary>
+    public HashSet<char> AutoCloseBraces { get; } = [];
+
+    /// <summary>Characters that end a statement, closing the signature-help insight window if it's
+    /// still open (e.g. <c>;</c> in C#) — not every language ends statements the same way (VB doesn't
+    /// require one at all), so the app layer configures this.</summary>
+    public HashSet<char> StatementTerminators { get; } = [];
 
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
     public Dictionary<string, string> Snippets { get; } = [];
@@ -236,6 +267,11 @@ public class CodeTextEditor : TextEditor
                     JumpToMatchingBrace();
                     e.Handled = true;
                 }
+                else if (e.Key == Key.Space && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+                {
+                    ShowOverloads('\0');
+                    e.Handled = true;
+                }
                 else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
                 {
                     ShowCompletion('\0', explicitInvoke: true);
@@ -354,6 +390,20 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
+    // ch is a closing brace (a value in BracePairs) — returns its opening char. BracePairs only ever
+    // has a handful of entries, so a linear scan for the reverse lookup is not worth a second dict.
+    private bool TryGetOpenBrace(char closeChar, out char openChar)
+    {
+        foreach (var pair in BracePairs)
+        {
+            if (pair.Value != closeChar) continue;
+            openChar = pair.Key;
+            return true;
+        }
+        openChar = default;
+        return false;
+    }
+
     private (int open, int close, bool matched) FindBraceMatch(int caretOffset)
     {
         var doc = Document;
@@ -364,34 +414,34 @@ public class CodeTextEditor : TextEditor
         // Determine which brace to match against: prefer char at caret, then char before caret.
         char ch;
         int checkOffset;
-        int openIdx, closeIdx;
+        bool isOpen, isClose;
+        char closeChar = default, openChar = default;
 
         if (caretOffset < len)
         {
             ch = text[caretOffset];
             checkOffset = caretOffset;
-            openIdx = Array.IndexOf(_openBraces, ch);
-            closeIdx = Array.IndexOf(_closeBraces, ch);
-            if (openIdx < 0 && closeIdx < 0 && caretOffset > 0)
+            isOpen = BracePairs.TryGetValue(ch, out closeChar);
+            isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
+            if (!isOpen && !isClose && caretOffset > 0)
             {
                 ch = text[caretOffset - 1];
                 checkOffset = caretOffset - 1;
-                openIdx = Array.IndexOf(_openBraces, ch);
-                closeIdx = Array.IndexOf(_closeBraces, ch);
+                isOpen = BracePairs.TryGetValue(ch, out closeChar);
+                isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
             }
         }
         else if (caretOffset > 0)
         {
             ch = text[caretOffset - 1];
             checkOffset = caretOffset - 1;
-            openIdx = Array.IndexOf(_openBraces, ch);
-            closeIdx = Array.IndexOf(_closeBraces, ch);
+            isOpen = BracePairs.TryGetValue(ch, out closeChar);
+            isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
         }
         else return (-1, -1, false);
 
-        if (openIdx >= 0) // opening brace — search forward
+        if (isOpen) // opening brace — search forward
         {
-            char closeChar = _closeBraces[openIdx];
             int depth = 1;
             for (int i = checkOffset + 1; i < len; i++)
             {
@@ -401,9 +451,8 @@ public class CodeTextEditor : TextEditor
             }
             return (checkOffset, -1, false); // unmatched open
         }
-        else if (closeIdx >= 0) // closing brace — search backward
+        else if (isClose) // closing brace — search backward
         {
-            char openChar = _openBraces[closeIdx];
             int depth = 1;
             for (int i = checkOffset - 1; i >= 0; i--)
             {
@@ -477,16 +526,80 @@ public class CodeTextEditor : TextEditor
         TextArea.Caret.Offset = cursorOffset;
     }
 
-    // True right after a '.' member access (skipping back over the identifier prefix already being
-    // typed) — the same spot completion is triggered by typing '.' itself. Snippets don't make sense
-    // there (nobody wants a `for` snippet offered next to `.Length`/`.Count`), so ShowCompletion uses
-    // this to suppress them on an explicit Ctrl+Space invoke in that context.
-    private bool IsMemberAccessContext(int offset)
+    // True right after a member-access trigger character (skipping back over the identifier prefix
+    // already being typed) — the same spot completion is triggered by typing that character itself
+    // (see CompletionTriggers). Snippets don't make sense there (nobody wants a `for` snippet offered
+    // next to `.Length`/`.Count`), so ShowCompletion uses this to suppress them on an explicit
+    // Ctrl+Space invoke in that context.
+    private bool IsMemberAccessContext(int offset) =>
+        IsMemberAccessContext(Document.Text, offset, IdentifierChars, CompletionTriggers);
+
+    internal static bool IsMemberAccessContext(
+        string text, int offset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
     {
-        var pos = offset;
-        while (pos > 0 && (char.IsLetterOrDigit(Document.GetCharAt(pos - 1)) || Document.GetCharAt(pos - 1) == '_'))
+        // offset can be stale relative to text — ShowCompletion captures the caret offset before an
+        // await, and the document may have since changed (fast typing/backspacing during that gap) —
+        // clamp instead of indexing past the current end.
+        var pos = Math.Clamp(offset, 0, text.Length);
+        while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
             pos--;
-        return pos > 0 && Document.GetCharAt(pos - 1) == '.';
+        return pos > 0 && triggerChars.Contains(text[pos - 1]);
+    }
+
+    private bool IsStartOfNewIdentifier() =>
+        IsStartOfNewIdentifier(Document.Text, TextArea.Caret.Offset, IdentifierChars, CompletionTriggers);
+
+    // True when the character just inserted at caretOffset starts a fresh identifier, not a
+    // continuation of one already being typed (handled by AvaloniaEdit's own client-side filtering,
+    // see OnTextEntered) and not the first letter after an already-registered trigger character
+    // (that spot already re-invokes via CompletionTriggers, with context-specific results — piling
+    // the general symbol list on top one keystroke later would just stomp on it). A free function of
+    // (text, caretOffset, ...) — not just testable without a live Document/TextArea, but also so it
+    // stays free of any particular language's lexical rules (letters/digits are the only universal
+    // baseline; everything else is caller-supplied).
+    internal static bool IsStartOfNewIdentifier(
+        string text, int caretOffset, IReadOnlySet<char> identifierChars, IReadOnlySet<char> triggerChars)
+    {
+        var pos = Math.Clamp(caretOffset, 0, text.Length) - 1; // the character just typed
+        if (pos <= 0) return true;
+        var prev = text[pos - 1];
+        if (char.IsLetterOrDigit(prev) || identifierChars.Contains(prev)) return false;
+        return !triggerChars.Contains(prev);
+    }
+
+    private bool IsContextualTriggerContext() =>
+        IsContextualTriggerContext(Document.Text, TextArea.Caret.Offset, IdentifierChars);
+
+    // True when the character just inserted at caretOffset (one of ContextualTriggers) immediately
+    // follows an identifier — e.g. the '<' in "List<". A free function of (text, caretOffset, ...)
+    // for the same reasons as IsStartOfNewIdentifier above.
+    internal static bool IsContextualTriggerContext(string text, int caretOffset, IReadOnlySet<char> identifierChars)
+    {
+        var pos = Math.Clamp(caretOffset, 0, text.Length) - 1; // the trigger character just typed
+        if (pos <= 0) return false;
+        var prev = text[pos - 1];
+        return char.IsLetterOrDigit(prev) || identifierChars.Contains(prev);
+    }
+
+    private bool IsWordTriggerContext() =>
+        IsWordTriggerContext(Document.Text, TextArea.Caret.Offset, IdentifierChars, WordTriggers);
+
+    // True when the space just inserted at caretOffset immediately follows one of wordTriggers as a
+    // whole word (not, say, "renew " matching "new") — e.g. "new " in C#/VB. A free function of
+    // (text, caretOffset, ...) for the same reasons as IsStartOfNewIdentifier above.
+    internal static bool IsWordTriggerContext(
+        string text, int caretOffset, IReadOnlySet<char> identifierChars, IReadOnlySet<string> wordTriggers)
+    {
+        if (wordTriggers.Count == 0) return false;
+
+        var end = Math.Clamp(caretOffset, 0, text.Length) - 1; // the space just typed
+        if (end <= 0) return false;
+        var start = end;
+        while (start > 0 && (char.IsLetterOrDigit(text[start - 1]) || identifierChars.Contains(text[start - 1])))
+            start--;
+        if (start == end) return false; // no word immediately before the space
+
+        return wordTriggers.Contains(text[start..end]);
     }
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
@@ -504,11 +617,11 @@ public class CodeTextEditor : TextEditor
         var ch = e.Text[0];
 
         // Only close the insight window when exiting the argument list.
-        if (ch == ')' || ch == ';')
+        if (BracePairs.ContainsValue(ch) || StatementTerminators.Contains(ch))
             _insightWindow?.Hide();
 
         // Skip-ahead: if the closing bracket is already at caret, move past it instead of inserting.
-        if (ch is ')' or ']' or '}')
+        if (BracePairs.ContainsValue(ch))
         {
             var offset = TextArea.Caret.Offset;
             if (offset < Document.TextLength && Document.GetCharAt(offset) == ch)
@@ -528,9 +641,22 @@ public class CodeTextEditor : TextEditor
             ShowCompletion(ch);
         else if (OverloadTriggers.Contains(ch))
             ShowOverloads(ch);
+        // 24/7 auto-invoke (TODO.md #51) — fires once, on the first letter of a fresh identifier, not
+        // on every keystroke: AvaloniaEdit's own CompletionWindow re-filters what's already fetched as
+        // more letters are typed (including camelCase — see CompletionList.GetMatchQuality), the same
+        // way it already does after a '.' trigger, so this adds no extra per-keystroke language-service
+        // calls beyond today's dot-completion.
+        else if (_completionWindow is null && (char.IsLetter(ch) || IdentifierChars.Contains(ch)) && IsStartOfNewIdentifier())
+            ShowCompletion(ch, explicitInvoke: true);
+        // Generics (TODO.md #51) — e.g. '<' right after "List" opens completion for the type argument.
+        else if (_completionWindow is null && ContextualTriggers.Contains(ch) && IsContextualTriggerContext())
+            ShowCompletion(ch, explicitInvoke: true);
+        // "new " (TODO.md #51) — opens completion right where a constructible type goes.
+        else if (_completionWindow is null && ch == ' ' && IsWordTriggerContext())
+            ShowCompletion(ch, explicitInvoke: true);
 
         // Brace completion: insert the matching closing bracket.
-        if (_bracePairs.TryGetValue(ch, out var closing))
+        if (AutoCloseBraces.Contains(ch) && BracePairs.TryGetValue(ch, out var closing))
             Document.Insert(TextArea.Caret.Offset, closing.ToString());
     }
 
@@ -568,7 +694,29 @@ public class CodeTextEditor : TextEditor
         foreach (var item in args.Items)
             _completionWindow.CompletionList.CompletionData.Add(item);
 
+        // CompletionWindowBase defaults StartOffset to the caret position at construction time — for
+        // a '.' trigger that's correct (nothing of the member name is typed yet), but the 24/7
+        // auto-invoke (and Ctrl+Space pressed mid-word) opens the window *after* part of the word is
+        // already in the document. Left alone, accepting an item would insert the full completion
+        // text right after that already-typed prefix instead of replacing it (e.g. "Wri" + "WriteLine"
+        // -> "WriWriteLine"). Walking back over the already-typed identifier fixes the replace range.
+        _completionWindow.StartOffset = GetWordStart(TextArea.Caret.Offset);
+
         _completionWindow.Show();
+    }
+
+    private int GetWordStart(int offset) => GetWordStart(Document.Text, offset, IdentifierChars);
+
+    // Walks back from offset over already-typed identifier characters to find where the current word
+    // began, so a completion window opened mid-word (or one character late, as with the 24/7
+    // auto-invoke) replaces that whole word instead of just appending after it. A free function of
+    // (text, offset, ...) for the same reasons as IsStartOfNewIdentifier above.
+    internal static int GetWordStart(string text, int offset, IReadOnlySet<char> identifierChars)
+    {
+        var pos = Math.Clamp(offset, 0, text.Length);
+        while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
+            pos--;
+        return pos;
     }
 
     private async void ShowOverloads(char trigger)
@@ -621,7 +769,7 @@ public class CodeTextEditor : TextEditor
         _textMateInstallation.SetTheme(_registryOptions.LoadTheme(theme));
     }
 
-    private sealed class OverloadProvider(IReadOnlyList<(string Header, string? Description)> items)
+    private sealed class OverloadProvider(IReadOnlyList<(object Header, object? Content)> items)
         : IOverloadProvider
     {
         private int _selectedIndex;
@@ -632,7 +780,7 @@ public class CodeTextEditor : TextEditor
 
         public object CurrentHeader => items[_selectedIndex].Header;
 
-        public object? CurrentContent => items[_selectedIndex].Description;
+        public object? CurrentContent => items[_selectedIndex].Content;
 
         public int SelectedIndex
         {

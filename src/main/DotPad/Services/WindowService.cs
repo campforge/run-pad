@@ -13,11 +13,11 @@ public sealed class WindowService : IWindowService
 
     public WindowService(IServiceProvider sp) => _sp = sp;
 
-    public Task ShowDependenciesAsync(RpadFrontMatter? frontMatter = null)
+    public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null)
     {
         var window = _sp.GetRequiredService<DependenciesWindow>();
-        window.SetFrontMatter(frontMatter);
-        return ShowDialogAsync(window);
+        using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
+        await ShowDialogAsync(window);
     }
 
     public Task ShowPreferencesAsync()

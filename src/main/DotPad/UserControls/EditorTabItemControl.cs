@@ -15,6 +15,7 @@ using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.VB;
 using DotPad.Resources;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
@@ -87,6 +88,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // We defer SetLanguage to AttachedToVisualTree so Redraw() works on the
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
+
+        // Snippets are per-language (see ILanguageHostFactory.Snippets) — populated here rather than
+        // in SetupEditor because SetupEditor runs before SetDocumentContent, when ResolveLanguageId
+        // can't yet see the real file's language and would default to C#.
+        foreach (var (keyword, template) in _registry.GetSnippets(ResolveLanguageId()) ?? new Dictionary<string, string>())
+            editor.Snippets[keyword] = template;
 
         var themeName = themeService.CurrentTheme.Editor.TextMateName;
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
@@ -181,9 +188,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             WriteFile(_vm.FilePath);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            /* best-effort */
+            // Called on every text change/tab switch/close/app exit — silently eating a real write
+            // failure (disk full, permissions, file deleted/locked externally) meant the user never
+            // found out their edits weren't persisted. Surface it via the same status indicator
+            // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
+            SetStatus($"Save failed: {ex.Message}", "DotPad.Status.ErrorBrush");
         }
     }
 
@@ -247,12 +258,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var workDir = EnsureWorkDirectory();
             var options = BuildRunOptions(platform, workDir);
             var script = s.Editor.Text;
-            // Matches the path DotnetProcessCompiler writes the source to and CSharpDapSession expects
-            // it at (OutputDirectory/{OutputName}.cs) — see ScriptBreakpoint below.
-            var sourceFilePath = Path.Combine(options.OutputDirectory, $"{options.OutputName}.cs");
+            // Matches the path the language's compiler writes the source to and its DapSession
+            // expects it at (OutputDirectory/{OutputName}.{extension}) — see ScriptBreakpoint below.
+            // OutputName is fixed ("RunPadQuery") on every language's options type.
+            var sourceFilePath = Path.Combine(State.OutputDirectory!, $"RunPadQuery{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
-                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition))
+                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
@@ -265,7 +277,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
             await Task.Run(async () =>
             {
-                await using var host = _registry.Create("csharp", options);
+                await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
@@ -388,21 +400,27 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new Windows.ConditionDialog(bp?.Condition);
-        var result = await dialog.ShowDialog<string?>(owner);
+        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition);
+        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition)?>(owner);
         if (result is null) return; // cancelled
 
-        var condition = string.IsNullOrWhiteSpace(result) ? null : result;
+        var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
+        var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
 
         if (bp is not null)
         {
             bp.Condition = condition;
+            bp.HitCondition = hitCondition;
         }
-        else if (condition is not null)
+        else if (condition is not null || hitCondition is not null)
         {
             State.Editor.AddBreakpoint(line);
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
-            if (newBp is not null) newBp.Condition = condition;
+            if (newBp is not null)
+            {
+                newBp.Condition = condition;
+                newBp.HitCondition = hitCondition;
+            }
         }
     }
 
@@ -575,8 +593,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
         if (State.SourceFilePath is not { } path) return;
-        var condition = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line)?.Condition;
-        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, condition));
+        var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line);
+        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
     }
 
     private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
@@ -669,26 +687,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.CompletionTriggers.Add('.');
         editor.OverloadTriggers.Add('(');
         editor.OverloadTriggers.Add(',');
+        editor.IdentifierChars.Add('_'); // valid in both C# and VB identifiers, beyond letters/digits
+        editor.ContextualTriggers.Add('<'); // generic type arguments, e.g. "List<" (TODO.md #51)
+        editor.WordTriggers.Add("new"); // constructible-type completion after "new " (TODO.md #51)
+        editor.StatementTerminators.Add(';');
+        editor.BracePairs['('] = ')';
+        editor.BracePairs['['] = ']';
+        editor.BracePairs['{'] = '}';
+        editor.AutoCloseBraces.Add('[');
+        editor.AutoCloseBraces.Add('{');
+        // '(' deliberately excluded from AutoCloseBraces — see CodeTextEditor.AutoCloseBraces.
         editor.TextArea.IndentationStrategy =
             new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
         editor.BreakpointRightClicked += OnBreakpointRightClicked;
-        // ToDo: Вынести сниппеты на уровень языка, DotPad.Languages.CSharp
-        editor.Snippets["for"] = "for (int i = 0; i < ${0}; i++)\n{\n\t\n}";
-        editor.Snippets["foreach"] = "foreach (var item in ${0})\n{\n\t\n}";
-        editor.Snippets["while"] = "while (${0})\n{\n\t\n}";
-        editor.Snippets["do"] = "do\n{\n\t${0}\n} while ();";
-        editor.Snippets["if"] = "if (${0})\n{\n\t\n}";
-        editor.Snippets["ife"] = "if (${0})\n{\n\t\n}\nelse\n{\n\t\n}";
-        editor.Snippets["try"] = "try\n{\n\t${0}\n}\ncatch (Exception ex)\n{\n\t\n}";
-        editor.Snippets["tryf"] = "try\n{\n\t${0}\n}\nfinally\n{\n\t\n}";
-        editor.Snippets["sw"] = "switch (${0})\n{\n\tcase :\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}";
-        editor.Snippets["prop"] = "public ${0} Property { get; set; }";
-        editor.Snippets["propg"] = "public ${0} Property { get; private set; }";
-        editor.Snippets["class"] = "class ${0}\n{\n\t\n}";
-        editor.Snippets["interface"] = "interface I${0}\n{\n\t\n}";
-        editor.Snippets["ctor"] = "public ${0}()\n{\n\t\n}";
-        editor.Snippets["using"] = "using (var resource = ${0})\n{\n\t\n}";
-        editor.Snippets["lock"] = "lock (${0})\n{\n\t\n}";
         editor.SnippetIcon = CompletionIcons.GetIcon(CompletionItemKind.Snippet);
 
         if (intelliSense is null) return;
@@ -698,11 +709,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
             var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
             if (list is null) return;
+            var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
-                    item.Description ?? string.Empty,
+                    DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     // ToDo: вынести расчет приоритета в языковую модель
                     item.Kind == CompletionItemKind.Method ? 1.0 : 0.9,
                     CompletionIcons.GetIcon(item.Kind)
@@ -715,8 +727,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var result = await intelliSense.GetSignatureHelpAsync(
                 State.Editor.Text, e.CaretOffset, e.Trigger);
             if (result is null) return;
+            var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in result.Items)
-                e.Overloads.Add((item.DisplaySignature, item.Documentation));
+            {
+                var activeParameter = item.Parameters.ElementAtOrDefault(result.ArgumentIndex);
+                e.Overloads.Add((
+                    DisplaySegmentRenderer.BuildSignature(item.Signature, isDark),
+                    BuildOverloadContentText(item.Summary, activeParameter)));
+            }
         };
 
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
@@ -794,13 +812,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     var diagnostic =
                         squiggleRenderer.Diagnostics.FirstOrDefault(d =>
                             offset >= d.StartOffset && offset < d.EndOffset);
-                    var content = diagnostic?.Message
-                                  ?? (await intelliSense.GetQuickInfoAsync(text, offset, ct))?.Content;
+                    var quickInfo = diagnostic is null
+                        ? await intelliSense.GetQuickInfoAsync(text, offset, ct)
+                        : null;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (!ct.IsCancellationRequested)
-                            ToolTip.SetTip(editor.TextArea.TextView, content);
+                        if (ct.IsCancellationRequested) return;
+
+                        // Built here, not above — DisplaySegmentRenderer creates Avalonia controls,
+                        // which must happen on the UI thread, unlike the rest of this background task.
+                        object? content = diagnostic is not null
+                            ? diagnostic.Message
+                            : quickInfo is null
+                                ? null
+                                : DisplaySegmentRenderer.BuildWithSummary(
+                                    quickInfo.Signature, quickInfo.Summary, _themeService.CurrentTheme.Editor.IsDark);
+                        ToolTip.SetTip(editor.TextArea.TextView, content);
                     });
                 }
                 catch (OperationCanceledException)
@@ -814,6 +842,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             quickInfoCts.Cancel();
             ToolTip.SetTip(editor.TextArea.TextView, null);
         };
+    }
+
+    // The signature-help header already shows the full (syntax-highlighted) signature with the
+    // active parameter bolded, so the content area below it only needs the descriptive text: the
+    // method's own summary plus the active parameter's own <param> doc, LINQPad/VS Code-style.
+    private static string? BuildOverloadContentText(string? methodSummary, ISignatureHelpParameter? activeParameter)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(methodSummary)) parts.Add(methodSummary);
+        if (!string.IsNullOrEmpty(activeParameter?.Summary)) parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
+        return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
@@ -918,6 +957,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _ => ".cs",
     };
 
+    // The id ILanguageHostRegistry.Create/ILanguageHostFactory.Language use — matches
+    // RpadLanguage's own lowercased member name (RpadLanguage.CSharp → "csharp", RpadLanguage.Vb →
+    // "vb") by construction, so no separate mapping table is needed. Defaults to C# for untitled
+    // tabs (no RpadDocument yet — see SetDocumentContent).
+    private string ResolveLanguageId()
+        => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToString().ToLowerInvariant();
+
+    private string SourceExtension() => LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
+
     private static string FormatElapsed(TimeSpan t) => t switch
     {
         { TotalSeconds: < 1 } => $"{t.TotalMilliseconds:F0} ms",
@@ -932,12 +980,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return dir;
     }
 
-    private CSharpLanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
+    private ILanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
     {
         var rpad = State.RpadDocument;
 
         // Reused across runs of this tab (allocated once, normally already set by SetDocumentContent
-        // at file-open time) so DotnetProcessCompiler can detect an unchanged .csproj/source and skip
+        // at file-open time) so the process compiler can detect an unchanged project/source and skip
         // NuGet restore or the whole build — see its Compilation() for the actual checks. Untitled
         // tabs (no FilePath) have no stable identity to persist against, so they just get a
         // session-only random directory, same as before.
@@ -951,39 +999,65 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
         }
 
+        var executionOptions = new ExecutionOptions
+        {
+            WorkingDirectory = workDir,
+            Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
+            Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
+        };
+
+        // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
+        // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
+        var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
+        var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
+        var usings = rpad?.FrontMatter.Namespaces ?? [];
+        var assemblyReferences = rpad?.FrontMatter.References?
+            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .ToList() ?? [];
+        var projectReferences = rpad?.FrontMatter.References?
+            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            .ToList() ?? [];
+
+        if (ResolveLanguageId() == "vb")
+        {
+            return new VbLanguageHostOptions
+            {
+                Platform = platform,
+                ExecutionOptions = executionOptions,
+                OutputDirectory = State.OutputDirectory,
+                RuntimeLibPath = _referenceService.GetExtensionReference(),
+                BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
+                BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
+                Kind = kind,
+                Packages = packages,
+                Usings = usings,
+                AssemblyReferences = assemblyReferences,
+                ProjectReferences = projectReferences,
+            };
+        }
+
         return new CSharpLanguageHostOptions
         {
             Platform = platform,
-            ExecutionOptions = new ExecutionOptions
-            {
-                WorkingDirectory = workDir,
-                Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
-                Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
-            },
+            ExecutionOptions = executionOptions,
             OutputDirectory = State.OutputDirectory,
             RuntimeLibPath = _referenceService.GetExtensionReference(),
             BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-            // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
-            // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
-            Kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements,
-            Packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [],
-            Usings = rpad?.FrontMatter.Namespaces ?? [],
-            // это уюрать под капот CSharpLanguageHost
-            AssemblyReferences = rpad?.FrontMatter.References?
-                .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                .ToList() ?? [],
-            // это уюрать под капот CSharpLanguageHost
-            ProjectReferences = rpad?.FrontMatter.References?
-                .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
-                .ToList() ?? [],
+            Kind = kind,
+            Packages = packages,
+            Usings = usings,
+            AssemblyReferences = assemblyReferences,
+            ProjectReferences = projectReferences,
         };
     }
 
-    private sealed class ScriptBreakpoint(string fileName, int line, string? condition) : Contracts.IBreakpoint
+    private sealed class ScriptBreakpoint(string fileName, int line, string? condition, string? hitCondition = null)
+        : Contracts.IBreakpoint
     {
         public string FileName { get; } = fileName;
         public int Line { get; set; } = line;
         public string? Condition { get; } = condition;
+        public string? HitCondition { get; } = hitCondition;
     }
 }

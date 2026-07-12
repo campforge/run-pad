@@ -1,5 +1,6 @@
 namespace DotPad.Contracts.Models;
 
+// DoTo: это относится к конкретному языку C#/VB/F#
 public class DotnetSdk
 {
     public string Name { get; }

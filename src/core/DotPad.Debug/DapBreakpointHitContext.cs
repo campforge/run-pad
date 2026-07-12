@@ -1,9 +1,9 @@
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
 
-namespace DotPad.Languages.CSharp.Debug;
+namespace DotPad.Debug;
 
-internal sealed class DapBreakpointHitContext : IBreakpointHitContext
+public sealed class DapBreakpointHitContext : IBreakpointHitContext
 {
     private readonly TaskCompletionSource<DebugAction> _tcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -43,7 +43,7 @@ internal sealed class DapBreakpointHitContext : IBreakpointHitContext
     }
 }
 
-internal sealed class DapStackFrame : IStackFrame
+public sealed class DapStackFrame : IStackFrame
 {
     public required string MethodName { get; init; }
     public required string FileName { get; init; }
@@ -51,16 +51,17 @@ internal sealed class DapStackFrame : IStackFrame
     public int Column { get; init; }
 }
 
-internal sealed class DapThreadInfo : IThreadInfo
+public sealed class DapThreadInfo : IThreadInfo
 {
     public int Id { get; init; }
     public required string Name { get; init; }
 }
 
-internal sealed class SyntheticBreakpoint : IBreakpoint
+public sealed class SyntheticBreakpoint : IBreakpoint
 {
     public SyntheticBreakpoint(string fileName, int line) { FileName = fileName; Line = line; }
     public string FileName { get; }
     public int Line { get; set; }
     public string? Condition => null;
+    public string? HitCondition => null;
 }

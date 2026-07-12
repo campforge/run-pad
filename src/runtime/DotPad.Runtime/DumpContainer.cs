@@ -13,15 +13,20 @@ public sealed class DumpContainer
     private object? _content;
     private string? _label;
 
+    /// <summary>The value currently rendered. Setting it re-renders in place (see <see cref="Refresh"/>).</summary>
     public object? Content
     {
         get => _content;
         set { _content = value; Refresh(); }
     }
 
+    /// <summary>Creates an empty container — set <see cref="Content"/> once ready to render.</summary>
     public DumpContainer() { }
+
+    /// <summary>Creates a container already holding <paramref name="content"/>.</summary>
     public DumpContainer(object? content) => _content = content;
 
+    /// <summary>Renders this container for the first time, with an optional heading. Returns this instance so it can be chained like <c>new DumpContainer().Dump()</c>.</summary>
     public DumpContainer Dump(string? label = null)
     {
         _label = label;
@@ -29,6 +34,7 @@ public sealed class DumpContainer
         return this;
     }
 
+    /// <summary>Re-renders the current <see cref="Content"/> in place, without changing the label.</summary>
     public void Refresh() => Emit();
 
     private void Emit()

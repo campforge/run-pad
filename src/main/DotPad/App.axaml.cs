@@ -6,6 +6,7 @@ using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp;
 using DotPad.Languages.CSharp.IntelliSense;
 using DotPad.Languages.CSharp.Sdk;
+using DotPad.Languages.VB;
 using DotPad.Logging;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
@@ -69,6 +70,7 @@ public class App : Application
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             LanguageHostRegistry registry = new();
             registry.Register(new CSharpLanguageHostFactory(loggerFactory));
+            registry.Register(new VbLanguageHostFactory(loggerFactory));
             return registry;
         });
 

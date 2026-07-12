@@ -1,8 +1,8 @@
 using DotPad.Contracts.Models;
 
-namespace DotPad.Languages.CSharp.Debug;
+namespace DotPad.Debug;
 
-internal sealed class DapVariableInfo : IVariableInfo
+public sealed class DapVariableInfo : IVariableInfo
 {
     public required string Name { get; init; }
     public required string Value { get; init; }

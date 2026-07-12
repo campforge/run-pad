@@ -4,7 +4,7 @@ namespace DotPad.Format.RPad;
 
 public static class RpadWriter
 {
-    /// ToDo: надо радоьать со стримом, причем иметь возможность взять непосредственно стрим кода игонрируя заголовки
+    /// ToDo: надо разобраться со стримом, причем иметь возможность взять непосредственно стрим кода игнорируя заголовки
     /// <summary>Serializes the document back to .rpad file content.</summary>
     public static string Write(RpadDocument doc)
     {
