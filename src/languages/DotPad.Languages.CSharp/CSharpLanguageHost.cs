@@ -1,10 +1,10 @@
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
+using DotPad.Debug;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp.Adapters;
 using DotPad.Languages.CSharp.Compiler;
-using DotPad.Languages.CSharp.Debug;
 using Microsoft.Extensions.Logging;
 using DiagnosticSeverity = DotPad.Contracts.Models.DiagnosticSeverity;
 using OutputKind = DotPad.Contracts.Models.OutputKind;
@@ -129,15 +129,16 @@ public sealed class CSharpLanguageHost : LanguageHostBase
         try
         {
             await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
-            await using var session = new CSharpDapSession(
+            await using var session = new DapSession(
                 process,
                 binaryPath,
                 _options.OutputDirectory,
                 ActiveBreakpoints,
+                ".cs",
                 WrapWithDumpDetection(outputHandler),
                 HandleBreakpointHit,
                 lineOffset,
-                _loggerFactory.CreateLogger<CSharpDapSession>(),
+                _loggerFactory.CreateLogger<DapSession>(),
                 _options.BreakOnAllExceptions,
                 _options.BreakOnUncaughtExceptions,
                 OnBreakpointVerified);
@@ -169,7 +170,7 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     // Forward gutter breakpoint edits made during an active debug session to the DAP session, so
     // netcoredbg's own breakpoint set doesn't go stale relative to what's shown in the editor.
     // The resend itself only happens the next time execution naturally stops (see
-    // CSharpDapSession.RequestBreakpointResync) — sending "setBreakpoints" while the debuggee is
+    // DapSession.RequestBreakpointResync) — sending "setBreakpoints" while the debuggee is
     // running would race the session's single message-read loop.
     public override void AddBreakpoint(IBreakpoint breakpoint)
     {

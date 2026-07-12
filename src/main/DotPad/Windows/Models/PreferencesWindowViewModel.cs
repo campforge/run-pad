@@ -10,14 +10,33 @@ namespace DotPad.Windows.Models;
 
 public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 {
+    // ── Settings tree (Rider/VS-style navigator — see PreferencesWindow.axaml) ─
+
+    private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
+    private static readonly SettingsNode EditorNode = new("editor", "Editor");
+    private static readonly SettingsNode DebuggerNode = new("debugger", "Debugger");
+    private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
+    private static readonly SettingsNode LanguagesCSharpNode = new("languages.csharp", "C#");
+    private static readonly SettingsNode LanguagesVbNode = new("languages.vb", "Visual Basic");
+
+    private static readonly SettingsNode LanguagesNode = new(
+        "languages", "Languages", [LanguagesCSharpNode, LanguagesVbNode]);
+
+    private static readonly IReadOnlyList<SettingsNode> FullTree =
+        [InterfaceNode, EditorNode, DebuggerNode, KeyboardNode, LanguagesNode];
+
     private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
 
     private InterfaceTheme? _selectedInterfaceTheme;
     private EditorTheme? _selectedEditorTheme;
+    private string _filterText = "";
+    private SettingsNode? _selectedNode;
 
     public ObservableCollection<InterfaceTheme> AvailableInterfaceThemes { get; } = [];
     public ObservableCollection<EditorTheme> AvailableEditorThemes { get; } = [];
+
+    public ObservableCollection<SettingsNode> Nodes { get; } = [];
 
     public PreferencesWindowViewModel(IThemeService themeService, IPreferencesService prefs)
     {
@@ -34,6 +53,79 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             AvailableEditorThemes.Add(t);
 
         themeService.ThemeChanged += OnThemeChanged;
+
+        RebuildNodes();
+        _selectedNode = InterfaceNode;
+    }
+
+    // ── Settings tree: search/filter + selection ───────────────────────────────
+
+    public string FilterText
+    {
+        get => _filterText;
+        set
+        {
+            if (_filterText == value) return;
+            this.RaiseAndSetIfChanged(ref _filterText, value);
+            RebuildNodes();
+        }
+    }
+
+    public SettingsNode? SelectedNode
+    {
+        get => _selectedNode;
+        set
+        {
+            if (ReferenceEquals(_selectedNode, value)) return;
+            this.RaiseAndSetIfChanged(ref _selectedNode, value);
+            this.RaisePropertyChanged(nameof(IsInterfaceSelected));
+            this.RaisePropertyChanged(nameof(IsEditorSelected));
+            this.RaisePropertyChanged(nameof(IsDebuggerSelected));
+            this.RaisePropertyChanged(nameof(IsKeyboardSelected));
+            this.RaisePropertyChanged(nameof(IsLanguagesSelected));
+            this.RaisePropertyChanged(nameof(IsLanguagesCSharpSelected));
+            this.RaisePropertyChanged(nameof(IsLanguagesVisualBasicSelected));
+        }
+    }
+
+    public bool IsInterfaceSelected => _selectedNode?.Id == "interface";
+    public bool IsEditorSelected => _selectedNode?.Id == "editor";
+    public bool IsDebuggerSelected => _selectedNode?.Id == "debugger";
+    public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
+    public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
+    public bool IsLanguagesCSharpSelected => _selectedNode?.Id == "languages.csharp";
+    public bool IsLanguagesVisualBasicSelected => _selectedNode?.Id == "languages.vb";
+
+    // Rebuilds the displayed (possibly filtered) tree from the fixed full tree. A node survives the
+    // filter if its own name matches or any descendant's does, so e.g. typing "key" still surfaces
+    // "Keyboard", and typing "c#" surfaces "Languages" (for its matching child) even though the
+    // parent's own name doesn't match.
+    private void RebuildNodes()
+    {
+        Nodes.Clear();
+        foreach (var node in FullTree)
+        {
+            var filtered = FilterNode(node);
+            if (filtered is not null) Nodes.Add(filtered);
+        }
+    }
+
+    private SettingsNode? FilterNode(SettingsNode node)
+    {
+        if (string.IsNullOrWhiteSpace(_filterText)) return node;
+
+        var matchingChildren = node.Children
+            .Select(FilterNode)
+            .Where(c => c is not null)
+            .Select(c => c!)
+            .ToList();
+
+        var selfMatches = node.Name.Contains(_filterText, StringComparison.OrdinalIgnoreCase);
+        if (!selfMatches && matchingChildren.Count == 0) return null;
+
+        return matchingChildren.Count == node.Children.Count
+            ? node
+            : new SettingsNode(node.Id, node.Name, matchingChildren);
     }
 
     public void Dispose()

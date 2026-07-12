@@ -17,7 +17,6 @@
                     <SolidColorBrush x:Key="DotPad.Panel.BackgroundBrush"             Color="#F3F3F3" />
                     <SolidColorBrush x:Key="DotPad.StatusBar.BackgroundBrush"         Color="#007ACC" />
                     <SolidColorBrush x:Key="DotPad.StatusBar.ForegroundBrush"         Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="DotPad.StatusBar.DebuggingBrush"          Color="#CC6633" />
                     <SolidColorBrush x:Key="DotPad.Status.RunningBrush"               Color="#4FC1FF" />
                     <SolidColorBrush x:Key="DotPad.Status.CancelledBrush"             Color="#9E9E9E" />
                     <SolidColorBrush x:Key="DotPad.Status.SuccessBrush"               Color="#4EC94E" />
@@ -35,7 +34,6 @@
                     <SolidColorBrush x:Key="DotPad.Icon.PlayBrush"                    Color="#26862B" />
                     <SolidColorBrush x:Key="DotPad.Icon.StopBrush"                    Color="#B80000" />
                     <SolidColorBrush x:Key="DotPad.Icon.DebugBrush"                   Color="#C26500" />
-                    <SolidColorBrush x:Key="DotPad.Icon.PauseBrush"                   Color="#C26500" />
                     <SolidColorBrush x:Key="DotPad.Icon.StepBrush"                    Color="#006BB3" />
                     <SolidColorBrush x:Key="DotPad.Icon.DisabledBrush"               Color="#AAAAAA" />
                     <SolidColorBrush x:Key="DotPad.Margin.BreakpointBrush"           Color="#CC0000" />

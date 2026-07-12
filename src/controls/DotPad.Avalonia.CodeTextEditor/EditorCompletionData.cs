@@ -7,7 +7,7 @@ namespace DotPad.Avalonia.CodeTextEditor;
 
 public sealed class EditorCompletionData(
     string displayText,
-    string description,
+    object description,
     double priority,
     IImage? image = null
 ) : ICompletionData

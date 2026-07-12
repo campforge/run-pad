@@ -1,4 +1,5 @@
 using System.Text;
+using DotPad.Runtime;
 using Xunit;
 
 namespace DotPad.Runtime.Tests;
@@ -65,14 +66,38 @@ public class ObjectExtensionsTests
             // Act
             42.Dump("my label");
 
-            var line = sw.ToString().Trim();
-            var base64 = line.TrimStart(ObjectExtensions.DumpLinePrefixChar);
-            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+            var decoded = DecodeDump(sw.ToString());
 
             // Assert
             Assert.Contains("dp-label", decoded);
             Assert.Contains("dp-number", decoded);
             Assert.Contains("42", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void Dump_NoArgs_LabelsWithSourceExpression()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var myValue = 42;
+
+            // Act — the only shape that auto-labels from the dumped expression.
+            myValue.Dump();
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("myValue", decoded);
         }
         finally
         {
@@ -99,5 +124,135 @@ public class ObjectExtensionsTests
         {
             Console.SetOut(originalOut);
         }
+    }
+
+    // LINQPad compatibility: x.Dump(3) sets depth positionally with a plain int — its own overload
+    // (Dump<T>(this T o, int depth)) since an int argument can't bind to the label/expression
+    // overload's leading string? parameter.
+    [Fact]
+    public void Dump_Int_ReturnsOriginalObject_LikeLinqPad()
+    {
+        var result = 42.Dump(1);
+
+        Assert.Equal(42, result);
+    }
+
+    [Fact]
+    public void Dump_Int_SetsMaxDepth_LikeLinqPadsDumpDepthOverload()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
+
+            // Act — LINQPad-shaped positional depth overload: truncate immediately (depth 0).
+            obj.Dump(0);
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-truncated", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void Dump_Int_DoesNotAutoLabel_UnlikeTheNoArgOverload()
+    {
+        // Auto-labeling from the source expression is only needed for the empty Dump() —
+        // Dump(depth) has no label parameter to fall back from at all.
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var myValue = 42;
+
+            // Act
+            myValue.Dump(1);
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.DoesNotContain("dp-label", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void Dump_StringAndInt_SetsLabelAndMaxDepth_LikeLinqPad()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
+
+            // Act — LINQPad's Dump(string description, int depth) shape.
+            obj.Dump("my label", 0);
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("my label", decoded);
+            Assert.Contains("dp-truncated", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void Dump_Options_AppliesEveryDotPadSpecificRenderingOption()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
+
+            // Act
+            obj.Dump(new DumpOptions { Label = "advanced", MaxDepth = 0 });
+
+            var decoded = DecodeDump(sw.ToString());
+
+            // Assert
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("advanced", decoded);
+            Assert.Contains("dp-truncated", decoded);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    private static string DecodeDump(string consoleOutput)
+    {
+        var line = consoleOutput.Trim();
+        var base64 = line.TrimStart(ObjectExtensions.DumpLinePrefixChar);
+        return Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+    }
+
+    private sealed class Nested
+    {
+        public int Value { get; set; }
+        public Nested? Inner { get; set; }
     }
 }

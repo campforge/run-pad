@@ -6,4 +6,8 @@
     <PackageReference Include="AvaloniaEdit.TextMate" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
+  </ItemGroup>
+
 </Project>

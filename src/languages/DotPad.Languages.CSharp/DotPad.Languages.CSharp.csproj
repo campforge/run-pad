@@ -22,8 +22,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj" />
     <ProjectReference Include="..\..\core\DotPad.Contracts\DotPad.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\DotPad.Debug\DotPad.Debug.csproj" />
     <ProjectReference Include="..\..\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
     <ProjectReference Include="..\..\runtime\DotPad.Runtime\DotPad.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
   </ItemGroup>
 
 </Project>

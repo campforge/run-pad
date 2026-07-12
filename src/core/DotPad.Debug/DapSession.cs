@@ -4,13 +4,17 @@ using System.Text.Json.Serialization;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
-using DotPad.Languages.CSharp.Debug.Protocol;
+using DotPad.Debug.Protocol;
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Languages.CSharp.Debug;
+namespace DotPad.Debug;
 
 /// <summary>
-/// Full VS Code Debug Adapter Protocol session with netcoredbg.
+/// Full VS Code Debug Adapter Protocol session with netcoredbg. Shared by every compiled-.NET
+/// language host (C#, VB, ...) — DAP/netcoredbg debugging works against compiled IL + PDB and
+/// doesn't care what source language produced them; only <paramref name="sourceFileExtension"/>
+/// (the ctor parameter) needs to vary per language, so the compiled source file's fallback path can
+/// be reconstructed correctly.
 ///
 /// Message framing (from reference implementation VSCodeLocalDebuggerClient):
 ///   Send:    Content-Length: {UTF-8-byte-count}\r\n\r\n{JSON-body-no-trailing-newline}
@@ -19,7 +23,7 @@ namespace DotPad.Languages.CSharp.Debug;
 /// Interactive model: on each "stopped" event the session pauses and calls _onBreakpointHit.
 /// The caller must invoke context.Resume(action) to unblock execution.
 /// </summary>
-internal sealed class CSharpDapSession : IDapSession
+public sealed class DapSession : IDapSession
 {
     private const string ContentLengthPrefix = "Content-Length: ";
 
@@ -34,10 +38,11 @@ internal sealed class CSharpDapSession : IDapSession
     private readonly string _programPath;
     private readonly string _workingDirectory;
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
+    private readonly string _sourceFileExtension;
     private readonly OutputReceivedHandler? _outputHandler;
     private readonly Action<IBreakpointHitContext> _onBreakpointHit;
     private readonly Action<IBreakpoint, bool, string?>? _onBreakpointVerified;
-    private readonly ILogger<CSharpDapSession> _logger;
+    private readonly ILogger<DapSession> _logger;
     private readonly bool _breakOnAllExceptions;
     private readonly bool _breakOnUncaughtExceptions;
     private readonly bool _justMyCode;
@@ -77,15 +82,16 @@ internal sealed class CSharpDapSession : IDapSession
     private volatile bool _isPaused;
     private volatile bool _processExited;
 
-    internal CSharpDapSession(
+    public DapSession(
         ChildProcess process,
         string programPath,
         string workingDirectory,
         IReadOnlyList<IBreakpoint> breakpoints,
+        string sourceFileExtension,
         OutputReceivedHandler? outputHandler,
         Action<IBreakpointHitContext> onBreakpointHit,
         int lineOffset,
-        ILogger<CSharpDapSession> logger,
+        ILogger<DapSession> logger,
         bool breakOnAllExceptions = false,
         bool breakOnUncaughtExceptions = true,
         Action<IBreakpoint, bool, string?>? onBreakpointVerified = null,
@@ -95,6 +101,7 @@ internal sealed class CSharpDapSession : IDapSession
         _programPath = programPath;
         _workingDirectory = workingDirectory;
         _breakpoints = breakpoints;
+        _sourceFileExtension = sourceFileExtension;
         _outputHandler = outputHandler;
         _onBreakpointHit = onBreakpointHit;
         _lineOffset = lineOffset;
@@ -545,9 +552,10 @@ internal sealed class CSharpDapSession : IDapSession
         // Prefer the path the breakpoints were actually set against (IBreakpoint.FileName). Fall back
         // to the well-known compiled path when there are no breakpoints yet — e.g. before the first
         // Run to Cursor request arrives, ResendBreakpointsAsync still needs somewhere to send it.
-        // The compiler writes source to _workingDirectory/{name}.cs
+        // The compiler writes source to _workingDirectory/{name}.{sourceFileExtension}
         // but the binary goes to _workingDirectory/bin/{name}.dll.
-        var fallback = Path.Combine(_workingDirectory, Path.GetFileNameWithoutExtension(_programPath) + ".cs");
+        var fallback = Path.Combine(_workingDirectory,
+            Path.GetFileNameWithoutExtension(_programPath) + _sourceFileExtension);
         _sourceFile = _breakpoints.FirstOrDefault()?.FileName is { Length: > 0 } fromBreakpoint
             ? fromBreakpoint
             : fallback;
@@ -566,7 +574,7 @@ internal sealed class CSharpDapSession : IDapSession
             {
                 source = new Source { path = _sourceFile, name = _sourceName },
                 breakpoints = _breakpoints
-                    .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+                    .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition, bp.HitCondition))
                     .ToList(),
             },
         }, ct);
@@ -602,7 +610,7 @@ internal sealed class CSharpDapSession : IDapSession
         if (_sourceFile is null || _sourceName is null) return;
 
         var allBps = _breakpoints
-            .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition))
+            .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition, bp.HitCondition))
             .Concat(_runToCursorLines.Select(l => new SourceBreakpoint(l + _lineOffset)))
             .ToList();
 

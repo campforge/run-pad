@@ -959,13 +959,26 @@ public sealed class HtmlContainerInt : IDisposable
                     }
                 }
             }
-            else
+            else if (TryGetSafeExternalLink(link.HrefLink, out var uri))
             {
-                var nfo = new ProcessStartInfo(link.HrefLink);
+                var nfo = new ProcessStartInfo(uri.AbsoluteUri);
                 nfo.UseShellExecute = true;
                 Process.Start(nfo);
             }
         }
+    }
+
+    // Only ever hand http(s) URLs to the shell — HrefLink comes from whatever the script dumped,
+    // and ShellExecute-ing an arbitrary scheme (file://, a custom protocol some other app
+    // registered, ...) would open it without the user ever typing or approving it.
+    internal static bool TryGetSafeExternalLink(string href, out Uri uri)
+    {
+        if (Uri.TryCreate(href, UriKind.Absolute, out uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            return true;
+
+        uri = null;
+        return false;
     }
 
     /// <summary>

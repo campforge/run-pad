@@ -1,5 +1,4 @@
 using DotPad.Contracts;
-using NuGet.Configuration;
 using NuGet.Versioning;
 
 namespace DotPad.Languages.CSharp;
@@ -8,18 +7,7 @@ public sealed class LocalPackageCacheService : ILocalPackageCacheService
 {
     public IReadOnlyList<CachedPackageInfo> GetCachedPackages()
     {
-        string folder;
-        try
-        {
-            var settings = Settings.LoadDefaultSettings(root: null);
-            folder = SettingsUtility.GetGlobalPackagesFolder(settings);
-        }
-        catch
-        {
-            folder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".nuget", "packages");
-        }
+        var folder = NuGetPaths.GetGlobalPackagesFolder();
 
         if (!Directory.Exists(folder))
             return [];

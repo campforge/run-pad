@@ -20,6 +20,9 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
     public LanguageHostCapabilities GetCapabilities(string language) =>
         GetFactory(language).Capabilities;
 
+    public IReadOnlyDictionary<string, string> GetSnippets(string language) =>
+        GetFactory(language).Snippets;
+
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         GetFactory(language).Create(options);
 
