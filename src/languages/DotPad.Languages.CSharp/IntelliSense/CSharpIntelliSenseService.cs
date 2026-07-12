@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using DotPad.Contracts.IntelliSense;
 using DotPad.Format.RPad;
@@ -74,13 +75,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private string _preamble = "";
     private int _preambleLength;
     private string _lastCode = "";
+    // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
+    // calls — completion/signature-help/quick-info/background-analysis each run on their own
+    // Task.Run, so without this a completion request for the text at keystroke N could race a
+    // still-in-flight background-analysis pass for keystroke N-2 (ANALYSIS.md TODO #56).
+    private readonly object _syncLock = new();
     private CancellationTokenSource? _diagnosticsCts;
+
+    // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
+    // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
+    // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
+    // for the same ~167 default BCL reference assemblies from scratch (ANALYSIS.md TODO #56).
+    internal static readonly ConcurrentDictionary<string, MetadataReference> ReferenceCache =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // See ReferenceDocumentation — without this, GetDocumentationCommentXml() comes back empty for
     // every metadata symbol (BCL, NuGet), so TODO.md #50's Summary was silently null for every
     // completion/signature-help/quick-info item except symbols the script itself defines.
     private static MetadataReference CreateReference(string path) =>
-        MetadataReference.CreateFromFile(path, documentation: ReferenceDocumentation.Find(path));
+        ReferenceCache.GetOrAdd(path,
+            static p => MetadataReference.CreateFromFile(p, documentation: ReferenceDocumentation.Find(p)));
 
     public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
     {
@@ -140,21 +154,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         _extraPreambleUsings = extra;
         RebuildPreamble();
-        _lastCode = "";  // force re-sync with the new preamble on the next analysis pass
+        // force re-sync with the new preamble on the next analysis pass
+        lock (_syncLock) { _lastCode = ""; }
     }
 
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
     {
-        if (_lastCode != code)
+        lock (_syncLock)
         {
-            _lastCode = code;
-            var text = SourceText.From(_preamble + code, Encoding.UTF8);
-            var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
-            _workspace.TryApplyChanges(newSolution);
+            if (_lastCode != code)
+            {
+                var text = SourceText.From(_preamble + code, Encoding.UTF8);
+                var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
+                // Only remember the new code once the workspace actually reflects it — TryApplyChanges
+                // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
+                // updating _lastCode unconditionally used to mean a failed apply left CurrentSolution
+                // showing stale text while _lastCode claimed it was already in sync, permanently
+                // skipping the sync on every later call with that same code.
+                if (_workspace.TryApplyChanges(newSolution))
+                    _lastCode = code;
+            }
+            return _workspace.CurrentSolution.GetDocument(_documentId)!;
         }
-        return _workspace.CurrentSolution.GetDocument(_documentId)!;
     }
 
     // ── Completion ─────────────────────────────────────────────────────────────
@@ -574,6 +597,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void NotifyTextChanged(string code)
     {
         _diagnosticsCts?.Cancel();
+        _diagnosticsCts?.Dispose();
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
@@ -584,41 +608,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 await Task.Delay(500, ct);
                 var document = SyncDocument(code);
                 await Task.WhenAll(
-                    ComputeDiagnosticsAsync(code, document, ct),
-                    ComputeSemanticTokensAsync(code, document, ct),
-                    ComputeCodeFixesAsync(code, document, ct));
+                    ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
+                    ComputeSemanticTokensAsync(code, document, ct));
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
         }, CancellationToken.None);
-    }
-
-    private async Task ComputeDiagnosticsAsync(string code, Document document, CancellationToken ct)
-    {
-        var model = await document.GetSemanticModelAsync(ct);
-        if (model == null) { DiagnosticsChanged?.Invoke(code, []); return; }
-
-        var result = new List<IDiagnosticInfo>();
-        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
-        {
-            if (d.Severity == RoslynSeverity.Hidden) continue;
-            if (!d.Location.IsInSource) continue;
-
-            var span = d.Location.SourceSpan;
-            var start = span.Start - _preambleLength;
-            if (start < 0) continue;
-
-            var end = Math.Max(span.End - _preambleLength, start + 1);
-            var severity = d.Severity switch
-            {
-                RoslynSeverity.Error => ContractSeverity.Error,
-                RoslynSeverity.Warning => ContractSeverity.Warning,
-                _ => ContractSeverity.Info,
-            };
-            result.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
-        }
-
-        DiagnosticsChanged?.Invoke(code, result);
     }
 
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
@@ -644,19 +639,50 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         SemanticTokensChanged?.Invoke(code, result);
     }
 
-    // ── Code fixes (real Roslyn CodeFixProviders — see RoslynCodeFixEngine) ────
+    // ── Diagnostics + code fixes (real Roslyn CodeFixProviders — see RoslynCodeFixEngine) ──────
 
-    private async Task ComputeCodeFixesAsync(string code, Document document, CancellationToken ct)
+    // Combined into one pass — these used to be two separate methods, each independently calling
+    // model.GetDiagnostics(...), which forces Roslyn to re-run the full diagnostic/analyzer engine
+    // over the document; GetSemanticModelAsync itself is cached per document version, but
+    // GetDiagnostics is not, so calling it twice on the same model did the same binding work twice
+    // on every 500ms background tick (ANALYSIS.md TODO #56).
+    private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Document document, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
-        if (model == null) { CodeFixesChanged?.Invoke(code, []); return; }
+        if (model == null)
+        {
+            DiagnosticsChanged?.Invoke(code, []);
+            CodeFixesChanged?.Invoke(code, []);
+            return;
+        }
 
-        var diagnostics = model.GetDiagnostics(cancellationToken: ct)
-            .Where(d => d.Severity != RoslynSeverity.Hidden)
-            .ToList();
+        var visible = new List<IDiagnosticInfo>();
+        var forCodeFixes = new List<Diagnostic>();
+        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
+        {
+            if (d.Severity == RoslynSeverity.Hidden) continue;
+            forCodeFixes.Add(d);
 
-        var result = await _codeFixEngine.ComputeFixesAsync(document, diagnostics, code, _preambleLength, ct);
-        CodeFixesChanged?.Invoke(code, result);
+            if (!d.Location.IsInSource) continue;
+
+            var span = d.Location.SourceSpan;
+            var start = span.Start - _preambleLength;
+            if (start < 0) continue;
+
+            var end = Math.Max(span.End - _preambleLength, start + 1);
+            var severity = d.Severity switch
+            {
+                RoslynSeverity.Error => ContractSeverity.Error,
+                RoslynSeverity.Warning => ContractSeverity.Warning,
+                _ => ContractSeverity.Info,
+            };
+            visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
+        }
+
+        DiagnosticsChanged?.Invoke(code, visible);
+
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, _preambleLength, ct);
+        CodeFixesChanged?.Invoke(code, fixes);
     }
 
     private static SemanticTokenKind ClassifySpan(string type) => type switch
@@ -703,7 +729,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         _workspace.TryApplyChanges(
             project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution);
-        _lastCode = "";  // force re-sync on next analysis pass
+        // force re-sync on next analysis pass
+        lock (_syncLock) { _lastCode = ""; }
     }
 
     private static IEnumerable<string> FindPackageDlls(string nugetRoot, string id, string version)

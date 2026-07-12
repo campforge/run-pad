@@ -712,7 +712,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
-                    DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
+                    () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     item.Priority,
                     CompletionIcons.GetIcon(item.Kind)
                 ));
@@ -791,6 +791,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.PointerMoved += (_, e) =>
         {
             quickInfoCts.Cancel();
+            quickInfoCts.Dispose();
             quickInfoCts = new CancellationTokenSource();
             var ct = quickInfoCts.Token;
             var pos = e.GetPosition(editor);
