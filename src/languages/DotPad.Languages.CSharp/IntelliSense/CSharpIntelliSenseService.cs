@@ -219,7 +219,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                             .Cast<ICompletionItem>()
                             .GroupBy(i => i.DisplayText)
                             .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                            .OrderBy(i => i.SortText)
+                            .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
                         return nsItems.Count > 0 ? new SimpleCompletionList(nsItems) : null;
@@ -259,7 +259,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                             .Cast<ICompletionItem>()
                             .GroupBy(i => i.DisplayText)
                             .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                            .OrderBy(i => i.SortText)
+                            .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
                         return memberItems.Count > 0 ? new SimpleCompletionList(memberItems) : null;
@@ -280,7 +280,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Concat(_keywords)
                 .GroupBy(i => i.DisplayText)
                 .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                .OrderBy(i => i.SortText)
+                .OrderBy(i => i.SortText, StringComparer.Ordinal)
                 .ToList();
 
             return items.Count > 0 ? new SimpleCompletionList(items) : null;
