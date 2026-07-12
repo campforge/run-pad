@@ -602,6 +602,21 @@ public class CodeTextEditor : TextEditor
         return wordTriggers.Contains(text[start..end]);
     }
 
+    private bool IsCommitCharacter(char ch) => IsCommitCharacter(ch, IdentifierChars);
+
+    // True for a just-typed character that should commit the completion window's selected item
+    // (in addition to being inserted itself) rather than continuing to filter the open list.
+    // Anything that can be part of an identifier — letters/digits, plus identifierChars like '_' —
+    // must never commit: mid-identifier characters are just more of the word being typed, not a
+    // request to accept a match (ANALYSIS.md #54: '_' was falling through the old `!IsLetterOrDigit`
+    // check). Space is excluded unconditionally too: unlike Visual Studio's default, this matches
+    // Rider — committing on space was swapping still-being-typed words for an unrelated prefix match
+    // (e.g. "var ret " -> "var return ", the same class of bug as the earlier var/args report). A
+    // free function of (ch, identifierChars) for the same testability/language-agnosticism reasons
+    // as IsStartOfNewIdentifier above.
+    internal static bool IsCommitCharacter(char ch, IReadOnlySet<char> identifierChars) =>
+        !char.IsLetterOrDigit(ch) && !identifierChars.Contains(ch) && ch != ' ';
+
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {
         if (e.KeyModifiers != KeyModifiers.Control) return;
@@ -610,7 +625,7 @@ public class CodeTextEditor : TextEditor
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
     {
-        if (e.Text is { Length: > 0 } && _completionWindow != null && !char.IsLetterOrDigit(e.Text[0]))
+        if (e.Text is { Length: > 0 } && _completionWindow != null && IsCommitCharacter(e.Text[0]))
             _completionWindow.CompletionList.RequestInsertion(e);
 
         if (e.Text is not { Length: 1 } || e.Handled) return;
@@ -703,6 +718,18 @@ public class CodeTextEditor : TextEditor
         _completionWindow.StartOffset = GetWordStart(TextArea.Caret.Offset);
 
         _completionWindow.Show();
+
+        // AvaloniaEdit only (re-)filters and pre-selects the best match from CaretPositionChanged
+        // (see CompletionWindow's source) — which fires on the *next* keystroke, not for text already
+        // typed before the window opened. The 24/7 auto-invoke opens right after the first letter of
+        // the identifier is already in the document (see StartOffset above), so without this the
+        // window would show the full, unfiltered, nothing-selected list for that first letter (see
+        // ANALYSIS.md #55) — camelCase/fuzzy matching and pre-selection only kicking in from the
+        // second letter onward.
+        var alreadyTyped = Document.GetText(
+            _completionWindow.StartOffset, TextArea.Caret.Offset - _completionWindow.StartOffset);
+        if (alreadyTyped.Length > 0)
+            _completionWindow.CompletionList.SelectItem(alreadyTyped);
     }
 
     private int GetWordStart(int offset) => GetWordStart(Document.Text, offset, IdentifierChars);

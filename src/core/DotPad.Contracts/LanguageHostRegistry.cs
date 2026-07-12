@@ -23,6 +23,9 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
     public IReadOnlyDictionary<string, string> GetSnippets(string language) =>
         GetFactory(language).Snippets;
 
+    public EditorLanguageProfile GetEditorProfile(string language) =>
+        GetFactory(language).EditorProfile;
+
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         GetFactory(language).Create(options);
 
