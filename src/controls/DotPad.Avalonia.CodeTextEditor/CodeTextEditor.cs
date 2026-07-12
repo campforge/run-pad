@@ -47,6 +47,8 @@ public class CodeTextEditor : TextEditor
     private Installation? _textMateInstallation;
     private CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
+    private CancellationTokenSource? _completionCts;
+    private CancellationTokenSource? _insightCts;
 
 
     public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
@@ -101,6 +103,9 @@ public class CodeTextEditor : TextEditor
     }
 
     public ElementGenerator InlineControls { get; } = new();
+
+    /// <summary>Whether a completion dropdown is currently showing.</summary>
+    public bool IsCompletionWindowOpen => _completionWindow is not null;
 
     /// <summary>Characters that open the completion dropdown.</summary>
     public HashSet<char> CompletionTriggers { get; } = [];
@@ -681,37 +686,65 @@ public class CodeTextEditor : TextEditor
 
     private async void ShowCompletion(char trigger, bool explicitInvoke = false)
     {
-        var args = new CompletionRequestedEventArgs(trigger, TextArea.Caret.Offset, explicitInvoke);
+        // Fast typing can start a new completion request before the previous one has resolved (e.g.
+        // 'C' triggers the 24/7 auto-invoke, then '.' triggers again before that first request comes
+        // back) — cancelling the previous request's token here means a provider that threads it
+        // through to its own async work (Roslyn's SemanticModel calls) actually stops that work
+        // instead of it running to completion and racing this one (ANALYSIS.md #57).
+        _completionCts?.Cancel();
+        _completionCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _completionCts = cts;
 
-        if (AsyncCompletionProvider != null)
-            await AsyncCompletionProvider(args);
-        else
-            CompletionRequested?.Invoke(this, args);
+        var args = new CompletionRequestedEventArgs(trigger, TextArea.Caret.Offset, explicitInvoke, cts.Token);
+
+        try
+        {
+            if (AsyncCompletionProvider != null)
+                await AsyncCompletionProvider(args);
+            else
+                CompletionRequested?.Invoke(this, args);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer request — nothing to show for a request nobody's waiting on.
+            return;
+        }
+
+        // Belt-and-suspenders: a provider that doesn't observe the token (a test double, or the
+        // synchronous CompletionRequested event) can still return normally after being superseded.
+        if (cts.IsCancellationRequested) return;
 
         // Snippets only make sense as statement-level suggestions, so only add them for an
         // explicit Ctrl+Space invoke — not e.g. after a '.' member access, where regular completion
-        // is what the user is actually after.
-        if (explicitInvoke && !IsMemberAccessContext(args.CaretOffset))
+        // is what the user is actually after — and not when the provider says this position isn't a
+        // valid completion spot at all (e.g. inside a comment/string; see SuppressSnippets).
+        if (explicitInvoke && !IsMemberAccessContext(args.CaretOffset) && !args.SuppressSnippets)
             foreach (var (name, template) in Snippets)
                 args.Items.Add(new SnippetCompletionData(
                     name, template, SnippetIcon, segment => ExpandSnippet(segment.Offset, segment.Length, template)));
 
         if (args.Items.Count == 0) return;
 
-        _completionWindow = new CompletionWindow(TextArea);
-        _completionWindow.Closed += (_, _) => _completionWindow = null;
+        var window = new CompletionWindow(TextArea);
+        _completionWindow = window;
+        // A newer ShowCompletion call can open (and even close) its own window before this one's
+        // Closed event fires — only clear the field if it's still pointing at *this* window, so an
+        // old window's closure can't null out a newer window's reference out from under it
+        // (ANALYSIS.md #57).
+        window.Closed += (_, _) => { if (ReferenceEquals(_completionWindow, window)) _completionWindow = null; };
 
         // The window itself is a bare Popup with no Font/Background/Foreground of its own — the
         // actual visible content is CompletionList, a separate TemplatedControl that doesn't
         // inherit these from this editor through the visual tree, so copy them explicitly instead
         // of falling back to AvaloniaEdit's own default theme.
-        _completionWindow.CompletionList.FontFamily = FontFamily;
-        _completionWindow.CompletionList.FontSize = FontSize;
-        _completionWindow.CompletionList.Background = Background;
-        _completionWindow.CompletionList.Foreground = Foreground;
+        window.CompletionList.FontFamily = FontFamily;
+        window.CompletionList.FontSize = FontSize;
+        window.CompletionList.Background = Background;
+        window.CompletionList.Foreground = Foreground;
 
         foreach (var item in args.Items)
-            _completionWindow.CompletionList.CompletionData.Add(item);
+            window.CompletionList.CompletionData.Add(item);
 
         // CompletionWindowBase defaults StartOffset to the caret position at construction time — for
         // a '.' trigger that's correct (nothing of the member name is typed yet), but the 24/7
@@ -719,9 +752,9 @@ public class CodeTextEditor : TextEditor
         // already in the document. Left alone, accepting an item would insert the full completion
         // text right after that already-typed prefix instead of replacing it (e.g. "Wri" + "WriteLine"
         // -> "WriWriteLine"). Walking back over the already-typed identifier fixes the replace range.
-        _completionWindow.StartOffset = GetWordStart(TextArea.Caret.Offset);
+        window.StartOffset = GetWordStart(TextArea.Caret.Offset);
 
-        _completionWindow.Show();
+        window.Show();
 
         // AvaloniaEdit only (re-)filters and pre-selects the best match from CaretPositionChanged
         // (see CompletionWindow's source) — which fires on the *next* keystroke, not for text already
@@ -730,10 +763,20 @@ public class CodeTextEditor : TextEditor
         // window would show the full, unfiltered, nothing-selected list for that first letter (see
         // ANALYSIS.md #55) — camelCase/fuzzy matching and pre-selection only kicking in from the
         // second letter onward.
-        var alreadyTyped = Document.GetText(
-            _completionWindow.StartOffset, TextArea.Caret.Offset - _completionWindow.StartOffset);
+        var alreadyTyped = Document.GetText(window.StartOffset, TextArea.Caret.Offset - window.StartOffset);
         if (alreadyTyped.Length > 0)
-            _completionWindow.CompletionList.SelectItem(alreadyTyped);
+        {
+            window.CompletionList.SelectItem(alreadyTyped);
+
+            // CompletionWindow's own CaretPositionChanged handler is what normally hides the window
+            // once filtering leaves nothing to show (e.g. none of the offered snippets/symbols start
+            // with what's already typed) — but that handler only runs on the *next* caret move, not
+            // for this direct call made right after Show() (see the comment above). Without
+            // replicating its "nothing matched" check here too, the popup stayed open showing an
+            // empty list instead of closing.
+            if (window.CompletionList.ListBox.ItemCount == 0)
+                window.Hide();
+        }
     }
 
     private int GetWordStart(int offset) => GetWordStart(Document.Text, offset, IdentifierChars);
@@ -752,28 +795,45 @@ public class CodeTextEditor : TextEditor
 
     private async void ShowOverloads(char trigger)
     {
-        var args = new OverloadRequestedEventArgs(trigger, TextArea.Caret.Offset);
+        // Same reasoning as ShowCompletion above — cancel a superseded request instead of racing it.
+        _insightCts?.Cancel();
+        _insightCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _insightCts = cts;
 
-        if (AsyncOverloadProvider != null)
-            await AsyncOverloadProvider(args);
-        else
-            OverloadRequested?.Invoke(this, args);
+        var args = new OverloadRequestedEventArgs(trigger, TextArea.Caret.Offset, cts.Token);
+
+        try
+        {
+            if (AsyncOverloadProvider != null)
+                await AsyncOverloadProvider(args);
+            else
+                OverloadRequested?.Invoke(this, args);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested) return;
 
         if (args.Overloads.Count == 0) return;
 
         _insightWindow?.Close();
-        _insightWindow = new OverloadInsightWindow(TextArea);
-        _insightWindow.Closed += (_, _) => _insightWindow = null;
+        var window = new OverloadInsightWindow(TextArea);
+        _insightWindow = window;
+        // Same ReferenceEquals reasoning as ShowCompletion's window.Closed above.
+        window.Closed += (_, _) => { if (ReferenceEquals(_insightWindow, window)) _insightWindow = null; };
         // Same reasoning as ShowCompletion above — style the popup's actual content control.
-        if (_insightWindow.Child is TemplatedControl content)
+        if (window.Child is TemplatedControl content)
         {
             content.FontFamily = FontFamily;
             content.FontSize = FontSize;
             content.Background = Background;
             content.Foreground = Foreground;
         }
-        _insightWindow.Provider = new OverloadProvider(args.Overloads);
-        _insightWindow.Show();
+        window.Provider = new OverloadProvider(args.Overloads);
+        window.Show();
     }
 
     public int GetOffsetFromPoint(Point point)

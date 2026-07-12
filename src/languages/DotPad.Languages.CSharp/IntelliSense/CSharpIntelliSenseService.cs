@@ -285,6 +285,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
+        // A superseded request (see CodeTextEditor.ShowCompletion/ANALYSIS.md #57) cancels its token —
+        // that's an expected outcome, not a failure, so it must propagate instead of being swallowed by
+        // the general catch below (which would otherwise log it as a spurious warning on every fast
+        // keystroke that supersedes an in-flight request).
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
 
@@ -437,6 +442,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex);
         }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
     }
 
@@ -528,6 +534,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return new SimpleQuickInfoResult(
                 symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol));
         }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
 

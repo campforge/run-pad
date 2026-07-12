@@ -696,8 +696,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AsyncCompletionProvider = async e =>
         {
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
-            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
-            if (list is null) return;
+            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger, e.CancellationToken);
+            if (list is null)
+            {
+                // Null here (outside member access, already excluded separately) means the language
+                // service found this position not worth completing at all — e.g. inside a comment or
+                // string literal (see CSharpIntelliSenseService.IsInsideComment/
+                // IsInsideStringOrCharLiteral) — so snippets shouldn't fall back to filling the list
+                // either; see CompletionRequestedEventArgs.SuppressSnippets.
+                e.SuppressSnippets = true;
+                return;
+            }
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
@@ -713,7 +722,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AsyncOverloadProvider = async e =>
         {
             var result = await intelliSense.GetSignatureHelpAsync(
-                State.Editor.Text, e.CaretOffset, e.Trigger);
+                State.Editor.Text, e.CaretOffset, e.Trigger, e.CancellationToken);
             if (result is null) return;
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in result.Items)
