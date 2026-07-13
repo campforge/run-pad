@@ -70,21 +70,21 @@ public class CodeFixMargin : AbstractMargin
         var candidates = _fixes.Where(f => f.Line == lineNumber).ToList();
         if (candidates.Count == 0) return;
 
-        if (candidates.Count == 1)
+        // Always go through the menu, even for a single candidate — VS/Rider-style, so the lightbulb
+        // never applies anything sight-unseen and there's a consistent place to add more entries later
+        // (Suppress, Fix all in file/project, ...) without a special case for "exactly one fix".
+        var menu = new MenuFlyout();
+        foreach (var fix in candidates)
         {
-            Apply(candidates[0]);
+            var item = new MenuItem { Header = fix.Title };
+            item.Click += (_, _) => Apply(fix);
+            menu.Items.Add(item);
         }
-        else
-        {
-            var menu = new MenuFlyout();
-            foreach (var fix in candidates)
-            {
-                var item = new MenuItem { Header = fix.Title };
-                item.Click += (_, _) => Apply(fix);
-                menu.Items.Add(item);
-            }
-            menu.ShowAt(this);
-        }
+        // showAtPointer: true — anchors the flyout to where the user actually clicked (the lightbulb
+        // icon on this specific line) instead of PopupFlyoutBase's default placement relative to the
+        // whole margin control, which spans the full editor height and made the menu appear pinned to
+        // the bottom-left corner regardless of which line's lightbulb was clicked.
+        menu.ShowAt(this, true);
 
         e.Handled = true;
     }
