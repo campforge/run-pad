@@ -40,8 +40,11 @@ public class CSharpIntelliSenseContextualKeywordTests
     public async Task GetCompletionsAsync_Should_Offer_OrderbyInto_InsideARealQueryExpression()
     {
         using var service = CreateService();
-        const string code = "var q = from n in new[] { 1, 2, 3 }\n         ";
-        var position = code.Length;
+        // Cursor positioned right at the "select" keyword itself (a real, already-parsed token) rather
+        // than at trailing whitespace at end-of-document — an unclosed/incomplete query at EOF resolves
+        // through Roslyn's missing-token recovery in ways too implementation-specific to rely on here.
+        const string code = "var q = from n in new[] { 1, 2, 3 }\n         select n;";
+        var position = code.IndexOf("select", StringComparison.Ordinal);
 
         var result = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
 
