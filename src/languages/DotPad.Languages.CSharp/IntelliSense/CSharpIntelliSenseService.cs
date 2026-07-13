@@ -402,12 +402,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             TypeKind.Delegate => CompletionItemKind.Delegate,
             _ => CompletionItemKind.Class,
         };
-        var ns = type.ContainingNamespace.ToDisplayString();
+        // A type in the global namespace needs no "using" to become visible — treat it as needing no
+        // import rather than emitting an empty namespace, which would otherwise surface as "(in )" in
+        // the list and add an empty entry to the .rpad front matter's namespaces (later producing an
+        // invalid "using ;").
+        var ns = type.ContainingNamespace.IsGlobalNamespace ? null : type.ContainingNamespace.ToDisplayString();
 
         const int rank = 3; // own tier, see ScopeRank
         return new SimpleCompletionItem(
             type.Name, kind, type.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(type),
-            SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank), UsingsToAdd: [ns], Detail: ns);
+            SortText: $"{rank}{type.Name}", Priority: ScopeRankPriority(rank),
+            UsingsToAdd: ns is null ? [] : [ns], Detail: ns);
     }
 
     // Types from added NuGet references (not the full BCL reference pack — see the call site) whose
@@ -426,14 +431,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) continue;
 
-            foreach (var type in EnumerateNamespaceTypes(assembly.GlobalNamespace))
+            foreach (var entry in GetImportableTypeIndex(assembly, reference))
             {
-                if (alreadyVisible.Contains(type.Name)) continue;
-                if (!type.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                if (alreadyVisible.Contains(entry.Name)) continue;
+                if (!entry.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var type = assembly.GetTypeByMetadataName(entry.MetadataName);
+                if (type == null) continue;
 
                 // First sighting of this name -> tentatively importable; a second, different type
                 // with the same name makes it ambiguous -> null marks it as excluded.
-                byName[type.Name] = byName.TryGetValue(type.Name, out var existing) && existing != null
+                byName[entry.Name] = byName.TryGetValue(entry.Name, out var existing) && existing != null
                     ? null
                     : type;
             }
@@ -442,6 +450,37 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         foreach (var type in byName.Values)
             if (type != null)
                 yield return type;
+    }
+
+    // Flattened index of every public importable type in a NuGet-reference assembly, built once per
+    // reference and cached for the process lifetime (shared across every tab/service instance, same
+    // sharing rationale as ReferenceCache — a MetadataReference is immutable, so its type index is
+    // too). Walking the whole namespace tree (EnumerateNamespaceTypes) on every completion keystroke
+    // made latency scale with the assembly's total public-type count; this makes each request a cheap
+    // prefix scan over already-flattened plain strings instead. Entries store the metadata name
+    // rather than the symbol itself, since INamedTypeSymbol instances aren't safe to reuse across
+    // different Compilation instances — FindImportableTypes re-resolves only the (much smaller,
+    // prefix-matched) subset via IAssemblySymbol.GetTypeByMetadataName against the current compilation.
+    private static readonly ConcurrentDictionary<MetadataReference, IReadOnlyList<ImportableTypeEntry>>
+        _importableTypeIndexCache = new();
+
+    private readonly record struct ImportableTypeEntry(string Name, string MetadataName);
+
+    private static IReadOnlyList<ImportableTypeEntry> GetImportableTypeIndex(
+        IAssemblySymbol assembly, MetadataReference reference)
+    {
+        if (_importableTypeIndexCache.TryGetValue(reference, out var cached)) return cached;
+
+        var entries = EnumerateNamespaceTypes(assembly.GlobalNamespace)
+            .Select(t => new ImportableTypeEntry(t.Name, GetFullMetadataName(t)))
+            .ToArray();
+        return _importableTypeIndexCache.GetOrAdd(reference, entries);
+    }
+
+    private static string GetFullMetadataName(INamedTypeSymbol type)
+    {
+        var ns = type.ContainingNamespace;
+        return ns is { IsGlobalNamespace: false } ? $"{ns.ToDisplayString()}.{type.MetadataName}" : type.MetadataName;
     }
 
     private static IEnumerable<INamedTypeSymbol> EnumerateNamespaceTypes(INamespaceSymbol ns)
