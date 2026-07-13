@@ -40,21 +40,20 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseCodeFixesChanged_ForAMissingUsing()
     {
-        using var service = CreateService();
-        IReadOnlyList<ICodeFixInfo>? codeFixes = null;
-        service.CodeFixesChanged += (_, f) => codeFixes = f;
+using var service = CreateService();
+var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+service.CodeFixesChanged += (_, f) =>
+{
+    if (f.Count > 0)
+        tcs.TrySetResult(f);
+};
 
-        // Regex isn't in the implicit-usings preamble, so this is CS0103 fixable by adding
-        // `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
-        service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
+// Regex isn't in the implicit-usings preamble, so this is CS0103 fixable by adding
+// `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
+service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
 
-        for (var i = 0; i < 150 && codeFixes is not { Count: > 0 }; i++)
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-
-        Assert.NotNull(codeFixes);
-        Assert.NotEmpty(codeFixes);
-        Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
-    }
+var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
 
     // ANALYSIS.md TODO #56: SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
     // CurrentSolution was unsynchronized, even though completion/signature-help/quick-info/
