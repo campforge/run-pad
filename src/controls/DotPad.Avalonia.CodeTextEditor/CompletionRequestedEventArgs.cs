@@ -28,5 +28,13 @@ public sealed class CompletionRequestedEventArgs(
     /// provider (which called the language service) knows which case it is.</summary>
     public bool SuppressSnippets { get; set; }
 
+    /// <summary>Set by the provider to tell <see cref="CodeTextEditor.ShowCompletion"/> to show
+    /// overloads instead of a completion list — e.g. because the caret sits in a fresh, not-yet-
+    /// typed call argument (TODO.md #65), where an explicit Ctrl+Space is really asking for
+    /// parameter info rather than a completion list. Only meaningful when <see
+    /// cref="IsExplicitInvoke"/> is true; ShowCompletion ignores <see cref="Items"/> entirely when
+    /// this is set.</summary>
+    public bool RedirectToOverloads { get; set; }
+
     public List<ICompletionData> Items { get; } = [];
 }

@@ -614,6 +614,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var argIndex = CountArgumentsBefore(argumentList, pos);
             var argCount = argumentList.Arguments.Count;
+            var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
 
             var symInfo = model.GetSymbolInfo(callLike);
             var methods = (symInfo.Symbol is IMethodSymbol s ? [s] : Array.Empty<IMethodSymbol>())
@@ -641,7 +642,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var selectedIndex = methods.FindIndex(m => m.Parameters.Length >= argCount);
             if (selectedIndex < 0) selectedIndex = methods.Count - 1;
 
-            return new SimpleSignatureHelpResult(items, selectedIndex, argIndex);
+            return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
         catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
@@ -737,6 +738,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
         return count;
     }
+
+    // TODO.md #65: no argument has been parsed at argIndex at all (right after `(`, or right after a
+    // trailing `,` with nothing typed since — Roslyn's error recovery doesn't produce an Arguments
+    // entry for either), or one has but position sits at or before its own start (caret placed back
+    // at the very start of an already-typed argument, e.g. via Home/click) — either way, nothing has
+    // been typed for this slot yet.
+    private static bool IsArgumentSlotEmpty(ArgumentListSyntax argList, int argIndex, int position)
+        => argIndex >= argList.Arguments.Count || position <= argList.Arguments[argIndex].SpanStart;
 
     // ── Quick Info ─────────────────────────────────────────────────────────────
 
@@ -985,11 +994,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     private sealed class SimpleSignatureHelpResult(
-        IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex) : ISignatureHelpResult
+        IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex, bool isArgumentSlotEmpty)
+        : ISignatureHelpResult
     {
         public IReadOnlyList<ISignatureHelpItem> Items => items;
         public int SelectedItemIndex => selectedIndex;
         public int ArgumentIndex => argumentIndex;
+        public bool IsArgumentSlotEmpty => isArgumentSlotEmpty;
     }
 
     private sealed class SimpleSignatureHelpItem : ISignatureHelpItem
