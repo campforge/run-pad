@@ -378,6 +378,7 @@ public class HtmlControl : Control
         {
             _cachedBitmap?.Dispose();
             _cachedBitmap = null;
+            _renderCache.Invalidate();
             return;
         }
 
