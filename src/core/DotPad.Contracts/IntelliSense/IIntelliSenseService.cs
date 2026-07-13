@@ -44,4 +44,10 @@ public interface IIntelliSenseService : IDisposable
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see ICodeFixInfo.UsingsToAdd.
     void UpdateGlobalUsings(IReadOnlyList<string> usings);
+
+    // Call when the tab's .rpad front-matter `kind:` changes (including once at initial load) so live
+    // analysis mirrors the same kind-specific transform the compiler applies before running/debugging
+    // (e.g. RpadKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
+    // flagged as unused (ANALYSIS.md TODO #66).
+    void UpdateKind(RpadKind kind);
 }

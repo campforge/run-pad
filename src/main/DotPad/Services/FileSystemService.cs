@@ -9,6 +9,7 @@ public interface IFileSystemService : IDisposable
 {
     IReadOnlyList<FileSystemItem> GetFilesTree();
     string CreateNewFile();
+    string CreateNewFolder(string parentDir);
     void StartWatcher();
     void StopWatcher();
 
@@ -56,18 +57,24 @@ public sealed class FileSystemService : IFileSystemService
         return folder;
     }
 
-    private static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(string folder)
+    // internal (not private) + InternalsVisibleTo so tests can exercise this directly against a real
+    // temp directory, instead of going through the public GetFilesTree()/the class's constructor —
+    // which resolves the real Environment.SpecialFolder.MyDocuments as a side effect (see
+    // ANALYSIS.md TODO #69 follow-up).
+    internal static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(string folder)
     {
         var result = new List<FileSystemItem>();
 
-        // Идем сперва по папкам
+        // Идем сперва по папкам. Не пропускаем папки без .rpad-файлов внутри (было раньше, "if
+        // (children.Count > 0)") — иначе только что созданная через TODO #69 пустая папка тут же
+        // исчезала бы из дерева на первом же RefreshNodes(), что и произошло: команда "New Folder"
+        // реально создавала директорию на диске, но GetFilesTreeInternal тут же отфильтровывал её
+        // как "пустую", так что она никогда не попадала в FileTreeViewModel.Nodes, и FindByPath не
+        // мог её найти для входа в режим переименования.
         foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
         {
             var children = GetFilesTreeInternal(dir);
-            if (children.Count > 0)
-            {
-                result.Add(new FileSystemItem(Path.GetFileName(dir), true, dir, children));
-            }
+            result.Add(new FileSystemItem(Path.GetFileName(dir), true, dir, children));
         }
 
         // Потом по файлам
@@ -106,6 +113,24 @@ public sealed class FileSystemService : IFileSystemService
         } while (File.Exists(path));
 
         File.WriteAllText(path, string.Empty);
+        return path;
+    }
+
+    // TODO.md #69: same "probe for a free name" pattern as CreateNewFile, but for a directory —
+    // "New Folder", "New Folder 2", "New Folder 3", ... under the given parent (the caller — see
+    // MainWindowViewModel.CreateFolder — resolves whether that's the selected folder itself, the
+    // selected file's containing folder, or the tree's root).
+    public string CreateNewFolder(string parentDir)
+    {
+        int i = 1;
+        string path;
+        do
+        {
+            path = Path.Combine(parentDir, i == 1 ? "New Folder" : $"New Folder {i}");
+            i++;
+        } while (Directory.Exists(path) || File.Exists(path));
+
+        Directory.CreateDirectory(path);
         return path;
     }
 

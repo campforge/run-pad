@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:htmlRenderer="clr-namespace:DotPad.Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
+             x:Class="DotPad.UserControls.OutputHtmlView">
+
+    <htmlRenderer:HtmlPanel x:Name="OutputHtml"
+                            Background="{DynamicResource DotPad.Output.BackgroundBrush}">
+        <ToolTip.Tip>
+            <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
+                <htmlRenderer:HtmlLabel x:Name="HtmlTooltipLabel"/>
+            </ToolTip>
+        </ToolTip.Tip>
+    </htmlRenderer:HtmlPanel>
+
+</UserControl>

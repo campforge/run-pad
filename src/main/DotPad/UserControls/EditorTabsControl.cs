@@ -262,7 +262,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // matter here (the same cheap parse EditorsTabItemControl.SetDocumentContent does again
         // later) so a non-C# tab never gets a C# IntelliSense instance built for it in the first
         // place, rather than building one and leaving it unused.
-        var language = PeekLanguage(vm.FilePath);
+        var language = RpadFilePeek.PeekLanguage(vm.FilePath);
         var factory = _intelliSenseFactory;
         var intelliSense = factory is not null && language == RpadLanguage.CSharp
             ? await Task.Run(factory.Invoke)
@@ -278,20 +278,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _referenceService!,
             _buildCache!,
             _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
-    }
-
-    private static RpadLanguage PeekLanguage(string? filePath)
-    {
-        if (filePath is null || !File.Exists(filePath)) return RpadLanguage.CSharp;
-        try
-        {
-            var raw = File.ReadAllText(filePath);
-            return RpadParser.TryParse(raw)?.FrontMatter.Language ?? RpadLanguage.CSharp;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return RpadLanguage.CSharp;
-        }
     }
 
     private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)

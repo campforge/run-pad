@@ -60,6 +60,40 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: []))
         .ToArray();
 
+    // TODO.md #59 remainder — contextual keywords with no legal meaning outside a specific syntax
+    // position were being offered everywhere (e.g. "orderby"/"equals" inside an ordinary method body).
+    // `where` is deliberately NOT included here — it's also the generic type-constraint clause keyword
+    // (`where T : class`), which is legal in an ordinary member-declaration position, so filtering it
+    // to "inside a query expression" would hide it somewhere it's actually valid.
+    private static readonly HashSet<string> _queryContinuationKeywords = new(StringComparer.Ordinal)
+    {
+        "from", "join", "into", "let", "orderby", "select", "group", "on", "equals",
+        "ascending", "descending", "by",
+    };
+
+    // get/set/add/remove only mean something inside a property/indexer/event accessor list.
+    // `value` only means something inside a set/add/remove accessor body (the implicit parameter name).
+    private static readonly HashSet<string> _accessorKeywords = new(StringComparer.Ordinal)
+    {
+        "get", "set", "add", "remove",
+    };
+
+    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position)
+    {
+        if (_queryContinuationKeywords.Contains(keyword.DisplayText))
+            return IsInsideQueryExpression(root, position);
+
+        if (keyword.DisplayText == "value")
+            return HasAncestorMatching(root, position, n =>
+                n is AccessorDeclarationSyntax a && a.Kind() is SyntaxKind.SetAccessorDeclaration
+                    or SyntaxKind.AddAccessorDeclaration or SyntaxKind.RemoveAccessorDeclaration);
+
+        if (_accessorKeywords.Contains(keyword.DisplayText))
+            return IsInsideAccessorContext(root, position);
+
+        return true;
+    }
+
     private static readonly string[] _tfmPreference =
     [
         "net10.0", "net9.0", "net8.0", "net7.0", "net6.0", "net5.0",
@@ -75,6 +109,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
+    private RpadKind _kind = RpadKind.Statements;
     private string _lastCode = "";
     // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
     // calls — completion/signature-help/quick-info/background-analysis each run on their own
@@ -159,6 +194,27 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         lock (_syncLock) { _lastCode = ""; }
     }
 
+    public void UpdateKind(RpadKind kind)
+    {
+        if (_kind == kind) return;
+
+        _kind = kind;
+        // force re-sync with the new kind-transform prefix on the next analysis pass
+        lock (_syncLock) { _lastCode = ""; }
+    }
+
+    // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
+    // RpadKind.Program — mirrored here so the live-analysis document contains the same `Main();` call
+    // the compiler will actually emit, otherwise Roslyn correctly (from its own point of view) flags
+    // the user's void Main() as an unused local function (CS8321). Deliberately NOT mirroring
+    // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
+    // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
+    private string KindPrefix => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefix : "";
+
+    // Total offset from the start of the live-analysis document text to the start of the user's own
+    // code — usings preamble plus (for RpadKind.Program) the mirrored `Main();` prefix above.
+    private int HeaderLength => _preambleLength + KindPrefix.Length;
+
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
@@ -167,7 +223,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + code, Encoding.UTF8);
+                var text = SourceText.From(_preamble + KindPrefix + code, Encoding.UTF8);
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
@@ -199,8 +255,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
-            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+            var pos = position + HeaderLength;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)
+                || IsDeclarationNamePosition(root, pos))
+                return null;
 
             var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
@@ -301,7 +359,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Select(ToItem)
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords)
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos)))
                 .GroupBy(i => i.DisplayText)
                 .Select(g => g.OrderBy(i => (int)i.Kind).First())
                 .ToList();
@@ -569,7 +627,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
+            var pos = position + HeaderLength;
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -590,6 +648,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var argIndex = CountArgumentsBefore(argumentList, pos);
             var argCount = argumentList.Arguments.Count;
+            var isArgumentSlotEmpty = IsArgumentSlotEmpty(argumentList, argIndex, pos);
 
             var symInfo = model.GetSymbolInfo(callLike);
             var methods = (symInfo.Symbol is IMethodSymbol s ? [s] : Array.Empty<IMethodSymbol>())
@@ -617,7 +676,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var selectedIndex = methods.FindIndex(m => m.Parameters.Length >= argCount);
             if (selectedIndex < 0) selectedIndex = methods.Count - 1;
 
-            return new SimpleSignatureHelpResult(items, selectedIndex, argIndex);
+            return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
         catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
@@ -668,6 +727,63 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             || token.IsKind(SyntaxKind.Utf8SingleLineRawStringLiteralToken)
             || token.IsKind(SyntaxKind.Utf8MultiLineRawStringLiteralToken);
 
+    // ANALYSIS.md TODO #68: the caret sitting inside the NAME of a fresh declaration (a method/class/
+    // property/variable/parameter the user is currently naming, e.g. "void Mai|" or "private |") isn't
+    // an expression position — LookupSymbols/GetSymbolInfo don't distinguish "referencing an existing
+    // symbol" from "declaring a brand-new one", so without this guard the editor would happily offer
+    // (and auto-commit on the very next keystroke) some unrelated in-scope symbol that merely shares a
+    // prefix with the name being typed, clobbering it. Returning null here means IsCommitCharacter is
+    // safe by construction — there's simply no completion window to close over the declared name.
+    private static bool IsDeclarationNamePosition(SyntaxNode root, int position)
+    {
+        return IsDeclarationIdentifierToken(root.FindToken(position))
+            || (position > 0 && IsDeclarationIdentifierToken(root.FindToken(position - 1)));
+    }
+
+    // Every syntax kind below carries its own declared name as a plain Identifier token (not a
+    // qualified/dotted NameSyntax, unlike e.g. namespace declarations — deliberately not covered here,
+    // out of scope for #68's reported symptom) — checking `== token` (not just "is this kind of node")
+    // rules out completion inside some OTHER part of the same declaration (a method's return type, a
+    // parameter's type, an attribute, ...), where the caret is legitimately in expression/type position.
+    private static bool IsDeclarationIdentifierToken(SyntaxToken token) => token.Parent switch
+    {
+        MethodDeclarationSyntax n => n.Identifier == token,
+        LocalFunctionStatementSyntax n => n.Identifier == token,
+        ClassDeclarationSyntax n => n.Identifier == token,
+        StructDeclarationSyntax n => n.Identifier == token,
+        InterfaceDeclarationSyntax n => n.Identifier == token,
+        RecordDeclarationSyntax n => n.Identifier == token,
+        EnumDeclarationSyntax n => n.Identifier == token,
+        EnumMemberDeclarationSyntax n => n.Identifier == token,
+        PropertyDeclarationSyntax n => n.Identifier == token,
+        VariableDeclaratorSyntax n => n.Identifier == token,
+        ParameterSyntax n => n.Identifier == token,
+        TypeParameterSyntax n => n.Identifier == token,
+        _ => false,
+    };
+
+    // See _queryContinuationKeywords — true when the caret sits anywhere inside a LINQ query
+    // expression (from ... to the final select/group-by clause) or a query continuation
+    // (`into` ... onward), the only place from/join/into/let/orderby/select/group/on/equals/
+    // ascending/descending/by mean anything.
+    private static bool IsInsideQueryExpression(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is QueryExpressionSyntax or QueryContinuationSyntax);
+
+    // See _accessorKeywords — true when the caret sits inside a property/indexer/event's accessor
+    // list (covers the empty "{ }" case, where the closing brace token itself belongs to the
+    // AccessorListSyntax) or inside an already-parsed accessor's own body.
+    private static bool IsInsideAccessorContext(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is AccessorListSyntax or AccessorDeclarationSyntax);
+
+    // Same half-open-span boundary concern as IsInsideComment/IsInsideStringOrCharLiteral above: the
+    // caret while still typing sits at a token's end (exclusive), so also check position - 1.
+    private static bool HasAncestorMatching(SyntaxNode root, int position, Func<SyntaxNode, bool> predicate)
+    {
+        return Check(position) || (position > 0 && Check(position - 1));
+
+        bool Check(int pos) => root.FindToken(pos).Parent?.AncestorsAndSelf().Any(predicate) == true;
+    }
+
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
     {
         var count = 0;
@@ -678,6 +794,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
         return count;
     }
+
+    // TODO.md #65: no argument has been parsed at argIndex at all (right after `(`, or right after a
+    // trailing `,` with nothing typed since — Roslyn's error recovery doesn't produce an Arguments
+    // entry for either), or one has but position sits at or before its own start (caret placed back
+    // at the very start of an already-typed argument, e.g. via Home/click) — either way, nothing has
+    // been typed for this slot yet.
+    private static bool IsArgumentSlotEmpty(ArgumentListSyntax argList, int argIndex, int position)
+        => argIndex >= argList.Arguments.Count || position <= argList.Arguments[argIndex].SpanStart;
 
     // ── Quick Info ─────────────────────────────────────────────────────────────
 
@@ -696,7 +820,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
+            var pos = position + HeaderLength;
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -772,7 +896,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
     {
-        var textLen = _preambleLength + code.Length;
+        var textLen = HeaderLength + code.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -782,9 +906,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var start = span.TextSpan.Start - _preambleLength;
+            var start = span.TextSpan.Start - HeaderLength;
             if (start < 0) continue;
-            var end = Math.Min(span.TextSpan.End - _preambleLength, code.Length);
+            var end = Math.Min(span.TextSpan.End - HeaderLength, code.Length);
             if (start >= end) continue;
 
             result.Add(new SimpleSemanticToken(start, end - start, kind));
@@ -820,10 +944,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (!d.Location.IsInSource) continue;
 
             var span = d.Location.SourceSpan;
-            var start = span.Start - _preambleLength;
+            var start = span.Start - HeaderLength;
             if (start < 0) continue;
 
-            var end = Math.Max(span.End - _preambleLength, start + 1);
+            var end = Math.Max(span.End - HeaderLength, start + 1);
             var severity = d.Severity switch
             {
                 RoslynSeverity.Error => ContractSeverity.Error,
@@ -835,7 +959,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, _preambleLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, HeaderLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
     }
 
@@ -926,11 +1050,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     private sealed class SimpleSignatureHelpResult(
-        IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex) : ISignatureHelpResult
+        IReadOnlyList<ISignatureHelpItem> items, int selectedIndex, int argumentIndex, bool isArgumentSlotEmpty)
+        : ISignatureHelpResult
     {
         public IReadOnlyList<ISignatureHelpItem> Items => items;
         public int SelectedItemIndex => selectedIndex;
         public int ArgumentIndex => argumentIndex;
+        public bool IsArgumentSlotEmpty => isArgumentSlotEmpty;
     }
 
     private sealed class SimpleSignatureHelpItem : ISignatureHelpItem

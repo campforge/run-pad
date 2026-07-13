@@ -116,7 +116,6 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     {
         ThrowIfDisposed();
         var lineOffset = CalcKindOffset();
-        code = ApplyKindTransform(code);
 
         (CSharpCompilationResult compilationResult, string? binaryPath) =
             await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
@@ -236,19 +235,33 @@ public sealed class CSharpLanguageHost : LanguageHostBase
 
     private const char RsPrefix = '\x1e'; // new format: RS + base64
 
-    private string ApplyKindTransform(string code) => _options.Kind switch
+    internal string ApplyKindTransform(string code) => _options.Kind switch
     {
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        RpadKind.Program => $"Main();{code}",
+        RpadKind.Program => $"{RpadKindTransform.ProgramMainCallPrefix}{code}",
         _ => code,
     };
 
-    private int CalcKindOffset() => _options.Kind switch
+    // Lines prepended before the user's first line, both by ApplyKindTransform (below) and by
+    // DotnetProcessCompiler.Compilation, which separately prepends one "using X;" line per front-matter
+    // namespace (see its own "Prepend global usings" step) BEFORE writing the .cs file that's actually
+    // compiled/debugged — a real, per-script, kind-independent source of line drift that was
+    // previously not accounted for at all, on top of the kind-transform bug below (ANALYSIS.md TODO
+    // #66 follow-up: fixing the kind-transform offset alone reduced, but didn't eliminate, a reported
+    // debugger line miss — the residual turned out to be exactly _options.Usings.Count).
+    //
+    // The kind-transform component must match ApplyKindTransform exactly so DapSession can map a
+    // breakpoint set on the user-visible line to the right line in the actually-compiled (transformed)
+    // source. Program's prefix has no trailing newline (it's glued onto the same physical line as the
+    // user's own first line), so it inserts zero new lines — same as Statements' passthrough.
+    // Previously hardcoded to 2 (apparently copy-pasted from VB's analogous-looking but structurally
+    // different two-line "Module Program\nSub Main()\n" wrapper), which misaligned every breakpoint/
+    // stack frame in Program-kind scripts.
+    internal int CalcKindOffset() => _options.Usings.Count + (_options.Kind switch
     {
         RpadKind.Expression => 1,
-        RpadKind.Program => 2,
         _ => 0,
-    };
+    });
 
     private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
     {
