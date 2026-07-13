@@ -217,4 +217,36 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.NotNull(result);
         Assert.True(result!.Items.Count > 0, "expected at least one StringBuilder constructor overload");
     }
+
+    // ANALYSIS.md TODO #59: delegate types (e.g. System.Action) fell into ToItem's default branch and
+    // showed up with the same icon as an ordinary class, indistinguishable in the completion list.
+    [Fact]
+    public async Task GetCompletionsAsync_Should_ClassifyDelegateTypes_Distinctly_NotAsClass()
+    {
+        using var service = CreateService();
+        const string code = "int x = 1;";
+
+        var result = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        var action = result!.Items.Single(i => i.DisplayText == "Action");
+        Assert.Equal(CompletionItemKind.Delegate, action.Kind);
+    }
+
+    // ANALYSIS.md TODO #59: type parameters (the `T` in a generic method's own signature/body) were
+    // dropped entirely by ToItem — inside the method they're a real, referenceable symbol, not just
+    // declaration-site syntax.
+    [Fact]
+    public async Task GetCompletionsAsync_Should_OfferTypeParameters_InsideAGenericLocalFunctionBody()
+    {
+        using var service = CreateService();
+        const string code = "T Identity<T>(T v)\n{\n    return v;\n}";
+        var position = code.IndexOf("return", StringComparison.Ordinal);
+
+        var result = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        var typeParam = result!.Items.Single(i => i.DisplayText == "T");
+        Assert.Equal(CompletionItemKind.TypeParameter, typeParam.Kind);
+    }
 }

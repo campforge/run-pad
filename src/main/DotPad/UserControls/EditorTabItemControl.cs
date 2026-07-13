@@ -511,18 +511,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
-        if (data.Length > 0 && data[0] == '\x1e')
-        {
-            RenderDump(data[1..]);
-            return;
-        }
-
-        if (data.StartsWith("DOTPAD_DUMP:", StringComparison.Ordinal))
-        {
-            RenderDump(data["DOTPAD_DUMP:".Length..]);
-            return;
-        }
-
         if (kind == OutputKind.StandardError)
             State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
         else
@@ -696,16 +684,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AsyncCompletionProvider = async e =>
         {
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
-            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger);
-            if (list is null) return;
+            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger, e.CancellationToken);
+            if (list is null)
+            {
+                // Null here (outside member access, already excluded separately) means the language
+                // service found this position not worth completing at all — e.g. inside a comment or
+                // string literal (see CSharpIntelliSenseService.IsInsideComment/
+                // IsInsideStringOrCharLiteral) — so snippets shouldn't fall back to filling the list
+                // either; see CompletionRequestedEventArgs.SuppressSnippets.
+                e.SuppressSnippets = true;
+                return;
+            }
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
-                    DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
+                    () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     item.Priority,
-                    CompletionIcons.GetIcon(item.Kind)
+                    CompletionIcons.GetIcon(item.Kind),
+                    // Auto-import (TODO.md #28 remainder): non-empty only for a type from an added
+                    // NuGet package that isn't imported yet — accepting it adds the using the same
+                    // way the lightbulb already does (AddGlobalUsings), just without that extra step.
+                    tags: item.UsingsToAdd,
+                    onCommit: AddGlobalUsings,
+                    // Item 60 point 6: the list row itself gets a dimmed "(in Namespace)" annotation
+                    // for that same not-yet-imported case; Detail is null for everything else, so
+                    // BuildListRow just wraps the plain name (same TextBlock AvaloniaEdit's own
+                    // default template would've produced for a bare string Content anyway).
+                    content: DisplaySegmentRenderer.BuildListRow(item.DisplayText, item.Detail)
                 ));
             }
         };
@@ -713,7 +720,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.AsyncOverloadProvider = async e =>
         {
             var result = await intelliSense.GetSignatureHelpAsync(
-                State.Editor.Text, e.CaretOffset, e.Trigger);
+                State.Editor.Text, e.CaretOffset, e.Trigger, e.CancellationToken);
             if (result is null) return;
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in result.Items)
@@ -782,6 +789,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.PointerMoved += (_, e) =>
         {
             quickInfoCts.Cancel();
+            quickInfoCts.Dispose();
             quickInfoCts = new CancellationTokenSource();
             var ct = quickInfoCts.Token;
             var pos = e.GetPosition(editor);
@@ -843,7 +851,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         foreach (var ch in profile.OverloadTriggers) editor.OverloadTriggers.Add(ch);
         foreach (var ch in profile.IdentifierChars) editor.IdentifierChars.Add(ch);
         foreach (var ch in profile.ContextualTriggers) editor.ContextualTriggers.Add(ch);
-        foreach (var word in profile.WordTriggers) editor.WordTriggers.Add(word);
+        // Assigned wholesale, not Add()-ed into the default set, so a case-insensitive language
+        // (VB, see VbLanguageHostFactory.EditorProfile) keeps its comparer — copying entries one at
+        // a time into a fresh default-comparer HashSet would silently drop it (found in code review).
+        editor.WordTriggers = profile.WordTriggers;
         foreach (var ch in profile.StatementTerminators) editor.StatementTerminators.Add(ch);
         foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
         foreach (var ch in profile.AutoCloseBraces) editor.AutoCloseBraces.Add(ch);
