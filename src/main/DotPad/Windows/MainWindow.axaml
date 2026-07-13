@@ -13,7 +13,7 @@
              tree, so FileTreeView's own compiled bindings never see this window's MainWindowViewModel
              as an intermediate (wrong-typed) DataContext. -->
         <DataTemplate x:Key="FileTreeTemplate" x:DataType="ucm:FileTreeViewModel">
-            <uc:FileTreeView Open="FileTree_Open" Delete="FileTree_Delete" Rename="FileTree_Rename" OpenFolder="FileTree_OpenFolder"/>
+            <uc:FileTreeView Open="FileTree_Open" Delete="FileTree_Delete" Rename="FileTree_Rename" OpenFolder="FileTree_OpenFolder" CreateFolder="FileTree_CreateFolder"/>
         </DataTemplate>
     </Window.Resources>
 

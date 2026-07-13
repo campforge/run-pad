@@ -18,6 +18,10 @@ public class FileTreeViewModel
 
     public void RemoveByPath(string filePath) => RemoveNodeByPath(Nodes, filePath);
 
+    /// <summary>Finds the node for <paramref name="filePath"/>, if it's currently in the tree —
+    /// used right after creating a new folder (TODO.md #69) to enter rename mode on it immediately.</summary>
+    public FileTreeViewNode? FindByPath(string filePath) => FindNodeByPath(Nodes, filePath);
+
     private static FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
         ? new FileTreeViewNode(fsi.Name, fsi.FilePath, new ObservableCollection<FileTreeViewNode>((fsi.Children ?? []).Select(MapToNode)))
         : new FileTreeViewNode(fsi.Name, fsi.FilePath);
@@ -72,5 +76,19 @@ public class FileTreeViewModel
         }
 
         return false;
+    }
+
+    private static FileTreeViewNode? FindNodeByPath(ObservableCollection<FileTreeViewNode> nodes, string filePath)
+    {
+        foreach (var node in nodes)
+        {
+            if (string.Equals(node.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
+                return node;
+
+            if (node.SubNodes is { } sub && FindNodeByPath(sub, filePath) is { } found)
+                return found;
+        }
+
+        return null;
     }
 }
