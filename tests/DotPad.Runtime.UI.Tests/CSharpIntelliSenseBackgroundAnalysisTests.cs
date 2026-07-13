@@ -40,64 +40,76 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseCodeFixesChanged_ForAMissingUsing()
     {
-using var service = CreateService();
-var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
-service.CodeFixesChanged += (_, f) =>
-{
-    if (f.Count > 0)
-        tcs.TrySetResult(f);
-};
-
-// Regex isn't in the implicit-usings preamble, so this is CS0103 fixable by adding
-// `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
-service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
-
-var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
-
-    // ANALYSIS.md TODO #56: SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
-    // CurrentSolution was unsynchronized, even though completion/signature-help/quick-info/
-    // background-analysis each call it from their own concurrent Task.Run. A genuine race is timing-
-    // dependent and hard to force deterministically, so this is a smoke test, not a precise
-    // reproduction: many concurrent calls with different code snapshots hitting the shared workspace
-    // at once, past the point where the old unsynchronized version would very plausibly corrupt
-    // shared state (throwing, or desyncing _lastCode from CurrentSolution).
-    [Fact]
-    public async Task GetCompletionsAsync_Should_NotThrow_WhenCalledConcurrently_WithDifferentCodeSnapshots()
-    {
         using var service = CreateService();
 
-        var tasks = Enumerable.Range(0, 20).Select(i =>
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        service.CodeFixesChanged += (_, f) =>
+
         {
-            var code = $"var x{i} = {i};\nx{i}.";
-            return Task.Run(async () =>
+
+            if (f.Count > 0)
+
+                tcs.TrySetResult(f);
+
+        };
+
+
+        // Regex isn't in the implicit-usings preamble, so this is CS0103 fixable by adding
+
+        // `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
+
+        service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
+
+
+        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
+
+
+        // ANALYSIS.md TODO #56: SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
+        // CurrentSolution was unsynchronized, even though completion/signature-help/quick-info/
+        // background-analysis each call it from their own concurrent Task.Run. A genuine race is timing-
+        // dependent and hard to force deterministically, so this is a smoke test, not a precise
+        // reproduction: many concurrent calls with different code snapshots hitting the shared workspace
+        // at once, past the point where the old unsynchronized version would very plausibly corrupt
+        // shared state (throwing, or desyncing _lastCode from CurrentSolution).
+        [Fact]
+        public async Task GetCompletionsAsync_Should_NotThrow_WhenCalledConcurrently_WithDifferentCodeSnapshots()
+        {
+            using var service = CreateService();
+
+            var tasks = Enumerable.Range(0, 20).Select(i =>
             {
-                await service.GetCompletionsAsync(code, code.Length,
-                    CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
-                service.NotifyTextChanged(code);
+                var code = $"var x{i} = {i};\nx{i}.";
+                return Task.Run(async () =>
+                {
+                    await service.GetCompletionsAsync(code, code.Length,
+                        CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
+                    service.NotifyTextChanged(code);
+                });
             });
-        });
 
-        await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks);
+        }
+
+        // ANALYSIS.md TODO #56: MetadataReference.CreateFromFile (PE-header + XML-doc parsing) used to
+        // run again for every one of the ~167 default BCL reference assemblies on every new tab, even
+        // though references are immutable and safe to share across unrelated workspaces. ReferenceCache
+        // is internal (InternalsVisibleTo, same pattern as CSharpReferenceService.IsManagedAssembly —
+        // TODO.md #44) so this can verify the cache directly rather than only inferring it indirectly.
+        [Fact]
+        public void CreateReference_Should_ReturnTheSameCachedInstance_AcrossSeparateServiceInstances()
+        {
+            var referenceService = new CSharpReferenceService();
+            var path = referenceService.GetDefault().First();
+
+            using var service1 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
+            Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterFirst));
+
+            using var service2 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
+            Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterSecond));
+
+            Assert.Same(afterFirst, afterSecond);
+        }
     }
-
-    // ANALYSIS.md TODO #56: MetadataReference.CreateFromFile (PE-header + XML-doc parsing) used to
-    // run again for every one of the ~167 default BCL reference assemblies on every new tab, even
-    // though references are immutable and safe to share across unrelated workspaces. ReferenceCache
-    // is internal (InternalsVisibleTo, same pattern as CSharpReferenceService.IsManagedAssembly —
-    // TODO.md #44) so this can verify the cache directly rather than only inferring it indirectly.
-    [Fact]
-    public void CreateReference_Should_ReturnTheSameCachedInstance_AcrossSeparateServiceInstances()
-    {
-        var referenceService = new CSharpReferenceService();
-        var path = referenceService.GetDefault().First();
-
-        using var service1 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
-        Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterFirst));
-
-        using var service2 = new CSharpIntelliSenseService([path], NullLogger<CSharpIntelliSenseService>.Instance);
-        Assert.True(CSharpIntelliSenseService.ReferenceCache.TryGetValue(path, out var afterSecond));
-
-        Assert.Same(afterFirst, afterSecond);
-    }
-}
