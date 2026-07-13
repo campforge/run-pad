@@ -52,4 +52,11 @@ public interface ICompletionItem
     // itself makes clear (ReSharper-style "(in Namespace)") that accepting it does more than just
     // insert text. Null for anything that needs no annotation.
     string? Detail { get; }
+
+    // How many overloads share this DisplayText and were collapsed down to this single item (TODO.md
+    // #59 remainder) — 1 means "just this one, nothing else hidden". A method name with several
+    // overloads only ever shows up once in the list (the language service already picks one
+    // representative per name), so without this the list gave no indication there was anything else
+    // to see under that name at all.
+    int OverloadCount { get; }
 }
