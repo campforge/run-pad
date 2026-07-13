@@ -20,6 +20,14 @@ public sealed class FileTreeRenameEventArgs(RoutedEvent routedEvent, string file
     public string NewName { get; } = newName;
 }
 
+// ParentPath is null when nothing's selected (create at the tree's root) — see
+// MainWindowViewModel.CreateFolder for how it's resolved into an actual directory.
+public sealed class FileTreeCreateFolderEventArgs(RoutedEvent routedEvent, string? parentPath)
+    : RoutedEventArgs(routedEvent)
+{
+    public string? ParentPath { get; } = parentPath;
+}
+
 public partial class FileTreeView : UserControl
 {
     private readonly TreeView _fileTree;
@@ -45,6 +53,9 @@ public partial class FileTreeView : UserControl
 
     public static readonly RoutedEvent<FileTreeRenameEventArgs> RenameEvent =
         RoutedEvent.Register<FileTreeView, FileTreeRenameEventArgs>(nameof(Rename), RoutingStrategies.Bubble);
+
+    public static readonly RoutedEvent<FileTreeCreateFolderEventArgs> CreateFolderEvent =
+        RoutedEvent.Register<FileTreeView, FileTreeCreateFolderEventArgs>(nameof(CreateFolder), RoutingStrategies.Bubble);
 
     /// <summary>A file node was selected (opened) in the tree.</summary>
     public event EventHandler<FileTreeFileEventArgs>? Open
@@ -72,6 +83,13 @@ public partial class FileTreeView : UserControl
     {
         add => AddHandler(RenameEvent, value);
         remove => RemoveHandler(RenameEvent, value);
+    }
+
+    /// <summary>Create-new-folder command.</summary>
+    public event EventHandler<FileTreeCreateFolderEventArgs>? CreateFolder
+    {
+        add => AddHandler(CreateFolderEvent, value);
+        remove => RemoveHandler(CreateFolderEvent, value);
     }
 
     #endregion
@@ -185,5 +203,19 @@ public partial class FileTreeView : UserControl
     {
         if (_fileTree.SelectedItem is FileTreeViewNode node)
             RaiseEvent(new FileTreeFileEventArgs(OpenFolderEvent, node.FilePath));
+    }
+
+    private void ContextCreateFolder_Click(object? sender, RoutedEventArgs e)
+        => RaiseEvent(new FileTreeCreateFolderEventArgs(
+            CreateFolderEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath));
+
+    /// <summary>Enters rename mode for the node at <paramref name="filePath"/>, if it's currently in
+    /// the tree — called back from MainWindow right after CreateFolder completes, so a freshly
+    /// created folder is immediately ready to be named (VS/Rider/Explorer-style), same UX as the
+    /// existing F2/"Rename" flow.</summary>
+    public void StartRenameForPath(string filePath)
+    {
+        if (DataContext is FileTreeViewModel vm && vm.FindByPath(filePath) is { } node)
+            StartRename(node);
     }
 }

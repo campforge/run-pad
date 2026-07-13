@@ -28,6 +28,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             ? StringComparer.OrdinalIgnoreCase
             : StringComparer.Ordinal;
 
+    // Same case-(in)sensitivity as FilePathComparer above, but as a StringComparison — needed for
+    // "is this tab's path nested inside the folder being deleted/renamed" prefix checks, which
+    // StringComparer (only usable for equality/sorting) can't express.
+    private static readonly StringComparison FilePathComparison =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(FilePathComparer);
     private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
@@ -145,19 +153,55 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── File tree operations ──────────────────────────────────────────────────
 
+    // Tabs for files living inside filePath — used when filePath is a FOLDER being deleted/renamed,
+    // so files nested inside it aren't left with a tab open on a path that's about to disappear out
+    // from under them (File.Delete/File.Move only ever touch a single file, not a whole subtree, so
+    // this has no equivalent in the plain-file case below).
+    private List<KeyValuePair<string, EditorTabItemViewModel>> FindOpenTabsUnder(string folderPath)
+    {
+        var prefix = folderPath + Path.DirectorySeparatorChar;
+        return _openTabs.Where(kv => kv.Key.StartsWith(prefix, FilePathComparison)).ToList();
+    }
+
     public void DeleteFile(string filePath)
     {
-        // Close tab first so SaveIfNeeded writes content, THEN delete the file.
+        // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
+        // throws (silently swallowed below, before this fix), so a folder never actually left disk
+        // even though the tree acted like it had (ANALYSIS.md TODO #69 follow-up).
+        var isDirectory = Directory.Exists(filePath);
+
+        // Close tab(s) first so SaveIfNeeded writes final content before the path disappears —
+        // the file itself, or (for a folder) every tab nested inside it. Tracked before closing
+        // (rather than just checked in the catch) so a failed delete can reopen them, same as
+        // RenameFile — otherwise a failed delete left the tab(s) closed even though the file/folder
+        // was still on disk (code-review finding on the #69/#72-era PR).
+        var hadTab = _openTabs.ContainsKey(filePath);
+        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
         if (_openTabs.TryGetValue(filePath, out var tab))
             CloseTab(tab);
+        foreach (var (_, nestedTab) in nestedTabs)
+            CloseTab(nestedTab);
 
         try
         {
-            File.Delete(filePath);
+            if (isDirectory)
+                Directory.Delete(filePath, recursive: true);
+            else
+                File.Delete(filePath);
         }
-        catch
+        catch (Exception ex)
         {
-            /* ignore */
+            // The tab(s) were already closed above — since the delete didn't happen, the file(s) are
+            // still at the same path(s), so reopen them instead of leaving their tabs silently gone
+            // from the tab bar. Report instead of the previous silent catch-and-ignore — a failed
+            // delete used to leave the tree acting like the folder/file was gone while it was still
+            // on disk, with no way to tell why (ANALYSIS.md TODO #69 follow-up).
+            if (hadTab) OpenTab(filePath);
+            foreach (var (nestedPath, _) in nestedTabs)
+                OpenTab(nestedPath);
+            _ = _windowService.ShowErrorAsync(
+                "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
+            return;
         }
 
         FileTree.RemoveByPath(filePath);
@@ -165,26 +209,39 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void RenameFile(string filePath, string newName)
     {
-        var ext = Path.GetExtension(filePath);
+        // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
+        // so renaming a folder always failed before this fix (ANALYSIS.md TODO #69 follow-up).
+        // A folder's own name has no extension to preserve (unlike a .rpad file's).
+        var isDirectory = Directory.Exists(filePath);
+        var ext = isDirectory ? "" : Path.GetExtension(filePath);
         var dir = Path.GetDirectoryName(filePath)!;
         var newFileName = newName + ext;
         var newPath = Path.Combine(dir, newFileName);
 
-        // Close tab first so SaveIfNeeded writes current content to OLD path.
+        // Close tab(s) first so SaveIfNeeded writes current content to the OLD path — the file
+        // itself, or (for a folder) every tab nested inside it, before the whole subtree moves.
         var hadTab = _openTabs.ContainsKey(filePath);
+        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
         if (_openTabs.TryGetValue(filePath, out var tab))
             CloseTab(tab);
+        foreach (var (_, nestedTab) in nestedTabs)
+            CloseTab(nestedTab);
 
         try
         {
-            File.Move(filePath, newPath);
+            if (isDirectory)
+                Directory.Move(filePath, newPath);
+            else
+                File.Move(filePath, newPath);
         }
         catch (Exception ex)
         {
-            // The tab was already closed above (so SaveIfNeeded could flush to the old path) — since
-            // the rename didn't happen, the file is still at the old path, so reopen it instead of
-            // leaving its tab silently gone from the tab bar.
+            // The tab(s) were already closed above (so SaveIfNeeded could flush to the old path) —
+            // since the rename didn't happen, the file(s) are still at the old path(s), so reopen
+            // them instead of leaving their tabs silently gone from the tab bar.
             if (hadTab) OpenTab(filePath);
+            foreach (var (nestedPath, _) in nestedTabs)
+                OpenTab(nestedPath);
             _ = _windowService.ShowErrorAsync(
                 "Rename Failed",
                 $"Could not rename '{Path.GetFileName(filePath)}' to '{newFileName}':\n{ex.Message}");
@@ -195,6 +252,26 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (hadTab)
             OpenTab(newPath);
+        foreach (var (nestedPath, _) in nestedTabs)
+            OpenTab(Path.Combine(newPath, Path.GetRelativePath(filePath, nestedPath)));
+    }
+
+    // TODO.md #69: creates a new folder next to whatever's selected in the file tree — INSIDE the
+    // selected node if it's itself a folder (matching VS Code/Rider), alongside it (same parent
+    // directory) if it's a file, or at the tree's root if nothing's selected. Returns the new path so
+    // the caller (MainWindow.FileTree_CreateFolder) can immediately enter rename mode on it, like
+    // VS/Rider/Explorer do.
+    public string CreateFolder(string? contextPath)
+    {
+        var parentDir = contextPath is null
+            ? _fileSystemSystemService.Folder
+            : Directory.Exists(contextPath)
+                ? contextPath
+                : Path.GetDirectoryName(contextPath) ?? _fileSystemSystemService.Folder;
+
+        var path = _fileSystemSystemService.CreateNewFolder(parentDir);
+        RefreshNodes();
+        return path;
     }
 
     public void OpenContainingFolder(string filePath)

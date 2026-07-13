@@ -107,6 +107,9 @@ public class CodeTextEditor : TextEditor
     /// <summary>Whether a completion dropdown is currently showing.</summary>
     public bool IsCompletionWindowOpen => _completionWindow is not null;
 
+    /// <summary>Whether the overload/parameter-info insight popup is currently showing.</summary>
+    public bool IsInsightWindowOpen => _insightWindow is not null;
+
     /// <summary>Characters that open the completion dropdown.</summary>
     public HashSet<char> CompletionTriggers { get; } = [];
 
@@ -717,6 +720,14 @@ public class CodeTextEditor : TextEditor
         // Belt-and-suspenders: a provider that doesn't observe the token (a test double, or the
         // synchronous CompletionRequested event) can still return normally after being superseded.
         if (cts.IsCancellationRequested) return;
+
+        // TODO.md #65: the provider found the caret in a fresh, not-yet-typed call argument — the
+        // user's Ctrl+Space is really asking for parameter info there, not a completion list.
+        if (args.RedirectToOverloads)
+        {
+            ShowOverloads(trigger);
+            return;
+        }
 
         // Snippets only make sense as statement-level suggestions, so only add them for an
         // explicit Ctrl+Space invoke — not e.g. after a '.' member access, where regular completion

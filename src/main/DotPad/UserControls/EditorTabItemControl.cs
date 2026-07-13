@@ -63,13 +63,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
-        // Register custom font for HTML output panel
-        OutputHtml.Container.AddFontFamily(
-            new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-
         var editor = new CodeTextEditor { Background = editorBackground };
         State = new EditorTabState(editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
+        ResultsOutput.DataContext = State.Output;
+        State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
             themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
@@ -179,7 +176,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         ApplySelectionColor(State.Editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
+        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
         UpdateOutputUi();
     }
 
@@ -227,7 +224,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
-        s.OutputContent = "";
+        s.Output.Content = "";
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
@@ -482,13 +479,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void UpdateOutputUi()
     {
-        OutputHtml.Text = $"""
-                           <html>
-                           <head><style>{State.OutputCss}</style></head>
-                           <body>{State.OutputContent}</body>
-                           </html>
-                           """;
-
         ExecStatusBlock.Text = State.ExecStatusText;
         ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
             ? Brushes.Transparent
@@ -512,9 +502,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         if (kind == OutputKind.StandardError)
-            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
         else
-            State.OutputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Content += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
         UpdateOutputUi();
     }
 
@@ -535,19 +525,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 var id = idMatch.Groups[1].Value;
                 if (State.DumpContainerBlocks.TryGetValue(id, out var previous))
-                    State.OutputContent = State.OutputContent.Replace(previous, wrapped);
+                    State.Output.Content = State.Output.Content.Replace(previous, wrapped);
                 else
-                    State.OutputContent += wrapped;
+                    State.Output.Content += wrapped;
                 State.DumpContainerBlocks[id] = wrapped;
             }
             else
             {
-                State.OutputContent += wrapped;
+                State.Output.Content += wrapped;
             }
         }
         catch
         {
-            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
+            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
         }
 
         UpdateOutputUi();
@@ -556,9 +546,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void AppendError(Exception ex)
     {
         State.HadRunError = true;
-        State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
+        State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
         if (ex.StackTrace is { } st)
-            State.OutputContent += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
+            State.Output.Content += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
         SetStatus("Error", "DotPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
@@ -683,6 +673,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.AsyncCompletionProvider = async e =>
         {
+            // TODO.md #65: a genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
+            // "new "-word triggers, which also set IsExplicitInvoke but pass the real typed character
+            // as Trigger, never '\0' — see CodeTextEditor.ShowCompletion's call sites) right in a
+            // fresh, not-yet-typed call argument is really asking for parameter info, not a
+            // completion list — matching Rider/VS. Gated on the literal hotkey (not the 24/7 paths)
+            // so this extra signature-help probe never runs on the hot per-keystroke typing path.
+            if (e.IsExplicitInvoke && e.Trigger == '\0')
+            {
+                var signatureHelp = await intelliSense.GetSignatureHelpAsync(
+                    State.Editor.Text, e.CaretOffset, cancellationToken: e.CancellationToken);
+                if (signatureHelp is { IsArgumentSlotEmpty: true })
+                {
+                    e.RedirectToOverloads = true;
+                    return;
+                }
+            }
+
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
             var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger, e.CancellationToken);
             if (list is null)
@@ -912,6 +919,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // compile/run discrepancies between them without having to open the front matter by hand.
         //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}";
 
+        RefreshIntelliSenseKind();
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
@@ -930,6 +938,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
         => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
+
+    // Pushes this tab's front-matter `kind:` into its own IntelliSense instance, unconditionally
+    // (unlike Packages/Namespaces above, Kind always has a meaningful value — there's no "empty" case
+    // to skip) — so live analysis mirrors the same kind-specific transform the compiler applies
+    // (ANALYSIS.md TODO #66).
+    private void RefreshIntelliSenseKind()
+        => _intelliSense?.UpdateKind(State.RpadDocument?.FrontMatter.Kind ?? RpadKind.Statements);
 
     // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
@@ -967,6 +982,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
 
         rpad.FrontMatter.Kind = parsedKind;
+        RefreshIntelliSenseKind();
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
         SaveIfNeeded();
     }
 

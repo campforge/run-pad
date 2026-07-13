@@ -172,6 +172,12 @@ public sealed partial class MainWindow : Window, IDisposable
     private void FileTree_OpenFolder(object? sender, FileTreeFileEventArgs e)
         => GetViewModel().OpenContainingFolder(e.FilePath);
 
+    private void FileTree_CreateFolder(object? sender, FileTreeCreateFolderEventArgs e)
+    {
+        var newPath = GetViewModel().CreateFolder(e.ParentPath);
+        if (sender is FileTreeView view) view.StartRenameForPath(newPath);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private MainWindowViewModel GetViewModel()

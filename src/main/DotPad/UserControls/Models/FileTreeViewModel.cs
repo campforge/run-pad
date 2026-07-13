@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using DotPad.Format.RPad;
 using DotPad.Services;
 
 namespace DotPad.UserControls.Models;
@@ -18,9 +19,17 @@ public class FileTreeViewModel
 
     public void RemoveByPath(string filePath) => RemoveNodeByPath(Nodes, filePath);
 
+    /// <summary>Finds the node for <paramref name="filePath"/>, if it's currently in the tree —
+    /// used right after creating a new folder (TODO.md #69) to enter rename mode on it immediately.</summary>
+    public FileTreeViewNode? FindByPath(string filePath) => FindNodeByPath(Nodes, filePath);
+
+    // Language is peeked once here (TODO.md #70) via the same cheap front-matter parse
+    // EditorTabsControl already uses to pick an IntelliSense factory — not re-peeked on every later
+    // refresh for nodes MergeNodeList preserves, only when a node is freshly built (initial load, or
+    // a path that's new/renamed/moved).
     private static FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
         ? new FileTreeViewNode(fsi.Name, fsi.FilePath, new ObservableCollection<FileTreeViewNode>((fsi.Children ?? []).Select(MapToNode)))
-        : new FileTreeViewNode(fsi.Name, fsi.FilePath);
+        : new FileTreeViewNode(fsi.Name, fsi.FilePath, RpadFilePeek.PeekLanguage(fsi.FilePath));
 
     /// <summary>Merges <paramref name="fresh"/> into <paramref name="current"/> with minimal
     /// ObservableCollection mutations to preserve UI state (selection, expanded folders).</summary>
@@ -72,5 +81,22 @@ public class FileTreeViewModel
         }
 
         return false;
+    }
+
+    private static FileTreeViewNode? FindNodeByPath(ObservableCollection<FileTreeViewNode> nodes, string filePath)
+    {
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        foreach (var node in nodes)
+        {
+            if (string.Equals(node.FilePath, filePath, comparison))
+                return node;
+            if (node.SubNodes is { } sub && FindNodeByPath(sub, filePath) is { } found)
+                return found;
+        }
+
+        return null;
     }
 }

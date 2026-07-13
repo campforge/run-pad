@@ -286,6 +286,44 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Contains("Newtonsoft.Json", committedTags!);
     }
 
+    // TODO.md #65: the provider (EditorTabItemControl) detects a fresh, not-yet-typed call argument
+    // and sets RedirectToOverloads on an explicit-invoke (Ctrl+Space) request — ShowCompletion must
+    // show overloads instead of whatever completion items the provider may (or may not) have added,
+    // not open a completion window at all.
+    [AvaloniaFact]
+    public async Task ShowCompletion_Should_ShowOverloads_WhenProviderRedirects()
+    {
+        // Arrange
+        var overloadProviderCallCount = 0;
+        var editor = new CodeTextEditor();
+        editor.Document = new TextDocument("Foo(");
+        editor.AsyncCompletionProvider = e =>
+        {
+            e.RedirectToOverloads = true;
+            e.Items.Add(new CompletionData("ShouldNeverAppear")); // proves Items is ignored
+            return Task.CompletedTask;
+        };
+        editor.AsyncOverloadProvider = e =>
+        {
+            overloadProviderCallCount++;
+            e.Overloads.Add(("Foo(int x)", "some overload"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = editor.Document.TextLength;
+
+        // Act — the literal Ctrl+Space hotkey (trigger '\0', IsExplicitInvoke true).
+        window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, null);
+        await Task.Delay(20);
+
+        // Assert
+        Assert.Equal(1, overloadProviderCallCount);
+        Assert.True(editor.IsInsightWindowOpen);
+        Assert.False(editor.IsCompletionWindowOpen);
+    }
+
     // Ordinary completion items (no tags — the overwhelming majority) must not pay for, or trigger,
     // any onCommit machinery at all.
     [AvaloniaFact]
