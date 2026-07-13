@@ -222,7 +222,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + HeaderLength;
-            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)
+                || IsDeclarationNamePosition(root, pos))
+                return null;
 
             var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
 
@@ -689,6 +691,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             || token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken)
             || token.IsKind(SyntaxKind.Utf8SingleLineRawStringLiteralToken)
             || token.IsKind(SyntaxKind.Utf8MultiLineRawStringLiteralToken);
+
+    // ANALYSIS.md TODO #68: the caret sitting inside the NAME of a fresh declaration (a method/class/
+    // property/variable/parameter the user is currently naming, e.g. "void Mai|" or "private |") isn't
+    // an expression position — LookupSymbols/GetSymbolInfo don't distinguish "referencing an existing
+    // symbol" from "declaring a brand-new one", so without this guard the editor would happily offer
+    // (and auto-commit on the very next keystroke) some unrelated in-scope symbol that merely shares a
+    // prefix with the name being typed, clobbering it. Returning null here means IsCommitCharacter is
+    // safe by construction — there's simply no completion window to close over the declared name.
+    private static bool IsDeclarationNamePosition(SyntaxNode root, int position)
+    {
+        return IsDeclarationIdentifierToken(root.FindToken(position))
+            || (position > 0 && IsDeclarationIdentifierToken(root.FindToken(position - 1)));
+    }
+
+    // Every syntax kind below carries its own declared name as a plain Identifier token (not a
+    // qualified/dotted NameSyntax, unlike e.g. namespace declarations — deliberately not covered here,
+    // out of scope for #68's reported symptom) — checking `== token` (not just "is this kind of node")
+    // rules out completion inside some OTHER part of the same declaration (a method's return type, a
+    // parameter's type, an attribute, ...), where the caret is legitimately in expression/type position.
+    private static bool IsDeclarationIdentifierToken(SyntaxToken token) => token.Parent switch
+    {
+        MethodDeclarationSyntax n => n.Identifier == token,
+        LocalFunctionStatementSyntax n => n.Identifier == token,
+        ClassDeclarationSyntax n => n.Identifier == token,
+        StructDeclarationSyntax n => n.Identifier == token,
+        InterfaceDeclarationSyntax n => n.Identifier == token,
+        RecordDeclarationSyntax n => n.Identifier == token,
+        EnumDeclarationSyntax n => n.Identifier == token,
+        EnumMemberDeclarationSyntax n => n.Identifier == token,
+        PropertyDeclarationSyntax n => n.Identifier == token,
+        VariableDeclaratorSyntax n => n.Identifier == token,
+        ParameterSyntax n => n.Identifier == token,
+        TypeParameterSyntax n => n.Identifier == token,
+        _ => false,
+    };
 
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
     {
