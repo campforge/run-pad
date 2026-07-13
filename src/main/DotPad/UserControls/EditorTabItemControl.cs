@@ -511,18 +511,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
-        if (data.Length > 0 && data[0] == '\x1e')
-        {
-            RenderDump(data[1..]);
-            return;
-        }
-
-        if (data.StartsWith("DOTPAD_DUMP:", StringComparison.Ordinal))
-        {
-            RenderDump(data["DOTPAD_DUMP:".Length..]);
-            return;
-        }
-
         if (kind == OutputKind.StandardError)
             State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
         else
