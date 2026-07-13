@@ -25,7 +25,11 @@ public partial class OutputHtmlView : UserControl
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
         DataContextChanged += (_, _) => Rebind();
-    }
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _modelSubscription?.Dispose();
+            _modelSubscription = null;
+        };
 
     private void Rebind()
     {
