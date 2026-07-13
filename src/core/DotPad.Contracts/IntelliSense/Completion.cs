@@ -12,19 +12,17 @@ public enum CompletionItemKind
 {
     Text, Method, Function, Constructor, Field, Variable,
     Class, Interface, Module, Property, Enum, Keyword,
-    Snippet, EnumMember, Constant, Struct, Event, Operator, TypeParameter, Reference
+    Snippet, EnumMember, Constant, Struct, Event, Operator, TypeParameter, Reference, Delegate
 }
 
 public interface ICompletionList
 {
     IReadOnlyList<ICompletionItem> Items { get; }
-    bool IsExclusive { get; }
 }
 
 public interface ICompletionItem
 {
     string DisplayText { get; }
-    string FilterText { get; }
     string SortText { get; }
     CompletionItemKind Kind { get; }
 
@@ -42,4 +40,16 @@ public interface ICompletionItem
     // Plain-text XML-doc <summary> (see cref/paramref already resolved to short names), or null if
     // the symbol has no XML documentation.
     string? Summary { get; }
+
+    // Namespaces to add (as `using`/front-matter `namespaces:` entries — see EditorTabItemControl.
+    // AddGlobalUsings) if this item is accepted. Empty for anything already in scope; non-empty for
+    // a type found in an added reference that isn't imported yet (TODO.md #28 remainder) — ReSharper-
+    // style auto-import on completion accept, not just via the lightbulb.
+    IReadOnlyList<string> UsingsToAdd { get; }
+
+    // Short annotation shown next to DisplayText in the completion list row itself (not just the
+    // Description tooltip) — e.g. "Newtonsoft.Json" for a type offered via UsingsToAdd, so the list
+    // itself makes clear (ReSharper-style "(in Namespace)") that accepting it does more than just
+    // insert text. Null for anything that needs no annotation.
+    string? Detail { get; }
 }

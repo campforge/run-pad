@@ -73,7 +73,14 @@ public class EditorTabSnippetsTests
         // must not silently inherit C#'s profile (the bug TODO.md #58 fixes).
         Assert.DoesNotContain('<', editor.ContextualTriggers);
         Assert.False(editor.BracePairs.ContainsKey('{'));
-        Assert.Contains("New", editor.WordTriggers); // VB is case-insensitive
+
+        // VB is case-insensitive (VbLanguageHostFactory.EditorProfile builds WordTriggers with
+        // StringComparer.OrdinalIgnoreCase) — only "New" was ever added, so finding differently-cased
+        // "new" here only works if ApplyEditorLanguageProfile preserved that comparer instead of
+        // Add()-ing entries one at a time into a fresh default-comparer HashSet (bug found in code
+        // review). Same-cased assertions (e.g. Assert.Contains("New", ...)) can't catch this — an
+        // exact match passes regardless of comparer.
+        Assert.Contains("new", editor.WordTriggers);
     }
 
     private static async Task<EditorsTabItemControl> OpenTabAsync(RpadLanguage language)
