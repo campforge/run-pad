@@ -912,6 +912,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // compile/run discrepancies between them without having to open the front matter by hand.
         //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}";
 
+        RefreshIntelliSenseKind();
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
@@ -930,6 +931,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
         => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
+
+    // Pushes this tab's front-matter `kind:` into its own IntelliSense instance, unconditionally
+    // (unlike Packages/Namespaces above, Kind always has a meaningful value — there's no "empty" case
+    // to skip) — so live analysis mirrors the same kind-specific transform the compiler applies
+    // (ANALYSIS.md TODO #66).
+    private void RefreshIntelliSenseKind()
+        => _intelliSense?.UpdateKind(State.RpadDocument?.FrontMatter.Kind ?? RpadKind.Statements);
 
     // Adds namespaces to the .rpad front matter's `namespaces:` list (compiled in as `global using` —
     // see docs/ImplementationPlanRPad.md) instead of inserting `using X;` text into the script, and
@@ -967,6 +975,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
 
         rpad.FrontMatter.Kind = parsedKind;
+        RefreshIntelliSenseKind();
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
         SaveIfNeeded();
     }
 
