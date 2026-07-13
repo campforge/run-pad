@@ -71,20 +71,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "ascending", "descending", "by",
     };
 
-    // get/set/add/remove only mean something inside a property/indexer/event accessor list; `value`
-    // only means something inside a setter/adder/remover's body (the implicit parameter name) — none
-    // of the five have any other legal use as a bare keyword.
+    // get/set/add/remove only mean something inside a property/indexer/event accessor list.
+    // `value` only means something inside a set/add/remove accessor body (the implicit parameter name).
     private static readonly HashSet<string> _accessorKeywords = new(StringComparer.Ordinal)
     {
-        "get", "set", "add", "remove", "value",
+        "get", "set", "add", "remove",
     };
 
     private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position)
     {
         if (_queryContinuationKeywords.Contains(keyword.DisplayText))
             return IsInsideQueryExpression(root, position);
+
+        if (keyword.DisplayText == "value")
+            return HasAncestorMatching(root, position, n =>
+                n is AccessorDeclarationSyntax a && a.Kind() is SyntaxKind.SetAccessorDeclaration
+                    or SyntaxKind.AddAccessorDeclaration or SyntaxKind.RemoveAccessorDeclaration);
+
         if (_accessorKeywords.Contains(keyword.DisplayText))
             return IsInsideAccessorContext(root, position);
+
         return true;
     }
 
