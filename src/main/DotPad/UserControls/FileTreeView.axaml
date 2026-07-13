@@ -38,6 +38,11 @@
                         </MenuItem.Icon>
                     </MenuItem>
                     <Separator />
+                    <MenuItem Header="New Folder" Click="ContextCreateFolder_Click">
+                        <MenuItem.Icon>
+                            <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="16" Height="16" />
+                        </MenuItem.Icon>
+                    </MenuItem>
                     <MenuItem Header="Show in File Manager" Click="ContextOpenFolder_Click">
                         <MenuItem.Icon>
                             <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="16" Height="16" />
