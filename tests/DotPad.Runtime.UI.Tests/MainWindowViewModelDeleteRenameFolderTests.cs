@@ -65,6 +65,45 @@ public class MainWindowViewModelDeleteRenameFolderTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    // Code-review finding on the #69/#72-era PR: DeleteFile closed the tab before attempting the
+    // delete but never reopened it on failure (unlike RenameFile, which already did) — a failed
+    // delete could make a tab disappear even though the file was still on disk. Forces a real delete
+    // failure (Unix permission trick, same precedent as SaveIfNeededFailureTests) rather than mocking
+    // File/Directory statically, since there's no IFileSystemService seam for delete itself.
+    [Fact]
+    public void DeleteFile_Should_ReopenTheTab_WhenTheDeleteFails()
+    {
+        if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
+
+        var root = Directory.CreateTempSubdirectory("dotpad-delete-fail-test").FullName;
+        try
+        {
+            var file = Path.Combine(root, "a.rpad");
+            File.WriteAllText(file, "content");
+
+            var vm = CreateViewModel(root);
+            vm.OpenTab(file);
+            Assert.Contains(vm.Tabs, t => t.FilePath == file);
+
+            // Deleting a file requires write permission on its PARENT directory on Unix (the file's
+            // own permissions don't matter) — stripping it makes File.Delete throw deterministically.
+            File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            try
+            {
+                vm.DeleteFile(file);
+            }
+            finally
+            {
+                File.SetUnixFileMode(root,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+
+            Assert.True(File.Exists(file));
+            Assert.Contains(vm.Tabs, t => t.FilePath == file);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void RenameFile_Should_RenameADirectory()
     {

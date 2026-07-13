@@ -171,12 +171,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var isDirectory = Directory.Exists(filePath);
 
         // Close tab(s) first so SaveIfNeeded writes final content before the path disappears —
-        // the file itself, or (for a folder) every tab nested inside it.
+        // the file itself, or (for a folder) every tab nested inside it. Tracked before closing
+        // (rather than just checked in the catch) so a failed delete can reopen them, same as
+        // RenameFile — otherwise a failed delete left the tab(s) closed even though the file/folder
+        // was still on disk (code-review finding on the #69/#72-era PR).
+        var hadTab = _openTabs.ContainsKey(filePath);
+        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
         if (_openTabs.TryGetValue(filePath, out var tab))
             CloseTab(tab);
-        if (isDirectory)
-            foreach (var (_, nestedTab) in FindOpenTabsUnder(filePath))
-                CloseTab(nestedTab);
+        foreach (var (_, nestedTab) in nestedTabs)
+            CloseTab(nestedTab);
 
         try
         {
@@ -187,9 +191,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            // Report instead of the previous silent catch-and-ignore — a failed delete used to leave
-            // the tree acting like the folder/file was gone while it was still on disk, with no way
-            // to tell why (ANALYSIS.md TODO #69 follow-up).
+            // The tab(s) were already closed above — since the delete didn't happen, the file(s) are
+            // still at the same path(s), so reopen them instead of leaving their tabs silently gone
+            // from the tab bar. Report instead of the previous silent catch-and-ignore — a failed
+            // delete used to leave the tree acting like the folder/file was gone while it was still
+            // on disk, with no way to tell why (ANALYSIS.md TODO #69 follow-up).
+            if (hadTab) OpenTab(filePath);
+            foreach (var (nestedPath, _) in nestedTabs)
+                OpenTab(nestedPath);
             _ = _windowService.ShowErrorAsync(
                 "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
             return;

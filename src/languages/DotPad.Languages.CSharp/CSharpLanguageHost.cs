@@ -257,11 +257,11 @@ public sealed class CSharpLanguageHost : LanguageHostBase
     // Previously hardcoded to 2 (apparently copy-pasted from VB's analogous-looking but structurally
     // different two-line "Module Program\nSub Main()\n" wrapper), which misaligned every breakpoint/
     // stack frame in Program-kind scripts.
-    internal int CalcKindOffset() => _options.Usings.Count + _options.Kind switch
+    internal int CalcKindOffset() => _options.Usings.Count + (_options.Kind switch
     {
         RpadKind.Expression => 1,
         _ => 0,
-    };
+    });
 
     private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
     {

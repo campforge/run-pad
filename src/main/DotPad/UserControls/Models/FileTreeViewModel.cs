@@ -85,13 +85,13 @@ public class FileTreeViewModel
 
     private static FileTreeViewNode? FindNodeByPath(ObservableCollection<FileTreeViewNode> nodes, string filePath)
     {
-        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
         foreach (var node in nodes)
         {
-            if (string.Equals(node.FilePath, filePath, comparison))
+            if (string.Equals(node.FilePath, filePath, comparison))
                 return node;
             if (node.SubNodes is { } sub && FindNodeByPath(sub, filePath) is { } found)
                 return found;
