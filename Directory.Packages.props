@@ -20,6 +20,8 @@
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.0" />
     <!-- TextMate -->
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageVersion Include="Spectre.Console" Version="0.57.2" />
+    <PackageVersion Include="Spectre.Console.Testing" Version="0.57.2" />
     <PackageVersion Include="TextMateSharp" Version="2.0.4" />
     <PackageVersion Include="TextMateSharp.Grammars" Version="2.0.4" />
     <!-- Roslyn / Build (Корректировка версий до реальных превью/стабильных сборщиков) -->
