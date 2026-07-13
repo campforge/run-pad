@@ -10,13 +10,14 @@ internal sealed class EditorTabState
 {
     public CodeTextEditor Editor { get; }
 
-    // Output panel state
-    public string OutputContent { get; set; } = "";
-    public string OutputCss { get; set; } = "";
+    // Output panel state — bound directly to OutputHtmlView's DataContext (see
+    // EditorsTabItemControl's constructor), so setting Output.Content/Output.Css here is itself the
+    // "please redraw" signal; nothing here needs to also call back into the view.
+    public OutputHtmlViewModel Output { get; } = new();
     public bool HadRunError { get; set; }
 
     // Maps a DumpContainer's stable id (data-dp-id) to the exact wrapped block currently sitting in
-    // OutputContent, so a later update from the same container can be found and replaced in place
+    // Output.Content, so a later update from the same container can be found and replaced in place
     // instead of appended as a new block. Cleared at the start of each run.
     public Dictionary<string, string> DumpContainerBlocks { get; } = new();
 

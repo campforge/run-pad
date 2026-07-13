@@ -3,7 +3,6 @@
              xmlns:build="using:DotPad.Contracts.Models"
              xmlns:vm="clr-namespace:DotPad.UserControls.Models"
              xmlns:tc="clr-namespace:DotPad.TemplatedControls"
-             xmlns:htmlRenderer="clr-namespace:DotPad.Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
              xmlns:uc="clr-namespace:DotPad.UserControls"
              x:Class="DotPad.UserControls.EditorsTabItemControl"
              x:DataType="vm:EditorTabItemViewModel">
@@ -194,14 +193,7 @@
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">
 
             <TabItem Header="Results">
-                <htmlRenderer:HtmlPanel x:Name="OutputHtml"
-                              Background="{DynamicResource DotPad.Output.BackgroundBrush}">
-                    <ToolTip.Tip>
-                        <ToolTip BorderBrush="Transparent" Padding="0" ShowDelay="5000">
-                            <htmlRenderer:HtmlLabel x:Name="HtmlTooltipLabel"/>
-                        </ToolTip>
-                    </ToolTip.Tip>
-                </htmlRenderer:HtmlPanel>
+                <uc:OutputHtmlView x:Name="ResultsOutput"/>
             </TabItem>
 
             <TabItem Header="Debugger">
