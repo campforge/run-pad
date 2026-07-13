@@ -295,12 +295,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     // for offering the namespace's nested namespaces/types instead.
                     if (qualifierSymbol is INamespaceSymbol containingNamespace)
                     {
-                        var nsItems = model.LookupNamespacesAndTypes(pos, container: containingNamespace)
-                            .Select(ToItem)
-                            .Where(i => i != null)
-                            .Cast<ICompletionItem>()
-                            .GroupBy(i => i.DisplayText)
-                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                        var nsItems = GroupByDisplayText(model.LookupNamespacesAndTypes(pos, container: containingNamespace)
+                                .Select(ToItem)
+                                .Where(i => i != null)
+                                .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
@@ -333,14 +331,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                         // Extension methods only make sense in the instance case (the static-qualifier
                         // "DateTime.SomeExtension()" call form isn't what LookupSymbols' reduced form
                         // represents), so they're only requested there too.
-                        var memberItems = model
-                            .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
-                            .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
-                            .Select(ToItem)
-                            .Where(i => i != null)
-                            .Cast<ICompletionItem>()
-                            .GroupBy(i => i.DisplayText)
-                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                        var memberItems = GroupByDisplayText(model
+                                .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
+                                .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
+                                .Select(ToItem)
+                                .Where(i => i != null)
+                                .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
@@ -355,14 +351,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             }
 
             var symbols = model.LookupSymbols(pos);
-            var visible = symbols
+            var visible = GroupByDisplayText(symbols
                 .Select(ToItem)
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos)))
-                .GroupBy(i => i.DisplayText)
-                .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                .ToList();
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos))));
 
             // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
@@ -391,6 +384,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
+
+    // Collapses same-named candidates down to one item per DisplayText (the same instance already
+    // won by ScopeRank/Kind ordering everywhere this was called before), stamping the survivor with
+    // OverloadCount when more than one Method-kind candidate shares the name — TODO.md #59 remainder:
+    // without this, accepting a name with several overloads gave no hint there was anything else
+    // under it at all, since only one representative item was ever kept.
+    private static IReadOnlyList<ICompletionItem> GroupByDisplayText(IEnumerable<ICompletionItem> items) =>
+        items
+            .GroupBy(i => i.DisplayText)
+            .Select(g =>
+            {
+                var chosen = g.OrderBy(i => (int)i.Kind).First();
+                var overloadCount = g.Count(i => i.Kind == CompletionItemKind.Method);
+                return overloadCount > 1 && chosen is SimpleCompletionItem simple
+                    ? simple with { OverloadCount = overloadCount }
+                    : chosen;
+            })
+            .ToList();
 
     private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
     {
@@ -1042,7 +1053,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
         string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd,
-        string? Detail = null) : ICompletionItem;
+        string? Detail = null, int OverloadCount = 1) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {

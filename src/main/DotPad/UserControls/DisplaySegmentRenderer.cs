@@ -45,14 +45,19 @@ internal static class DisplaySegmentRenderer
         };
     }
 
-    // The completion list row itself (not the Description tooltip) — plain displayText, or
-    // displayText plus a dimmed "(in Detail)" annotation for a not-yet-imported type (TODO.md item
-    // 60 point 6/ICompletionItem.Detail). Same object-typed-Content-is-a-bare-ContentControl trick
-    // as BuildWithSummary/BuildSignature above, applied to EditorCompletionData.Content instead.
-    public static Control BuildListRow(string displayText, string? detail)
+    // The completion list row itself (not the Description tooltip) — plain displayText, or displayText
+    // plus a dimmed annotation: "(in Detail)" for a not-yet-imported type (TODO.md item 60 point 6/
+    // ICompletionItem.Detail), or "(+N overloads)" when several overloads were collapsed down to this
+    // one item (TODO.md #59 remainder/ICompletionItem.OverloadCount) — the two never co-occur (Detail
+    // is only ever set for importable types, OverloadCount > 1 only for methods), so at most one of
+    // them applies. Same object-typed-Content-is-a-bare-ContentControl trick as BuildWithSummary/
+    // BuildSignature above, applied to EditorCompletionData.Content instead.
+    public static Control BuildListRow(string displayText, string? detail, int overloadCount)
     {
         var nameBlock = new TextBlock { Text = displayText };
-        if (string.IsNullOrEmpty(detail)) return nameBlock;
+        var annotation = overloadCount > 1 ? $"(+{overloadCount - 1} overloads)"
+            : string.IsNullOrEmpty(detail) ? null : $"(in {detail})";
+        if (annotation is null) return nameBlock;
 
         return new StackPanel
         {
@@ -61,7 +66,7 @@ internal static class DisplaySegmentRenderer
             Children =
             {
                 nameBlock,
-                new TextBlock { Text = $"(in {detail})", Opacity = 0.6, FontStyle = FontStyle.Italic },
+                new TextBlock { Text = annotation, Opacity = 0.6, FontStyle = FontStyle.Italic },
             },
         };
     }
