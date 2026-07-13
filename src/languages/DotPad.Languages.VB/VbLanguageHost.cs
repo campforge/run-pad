@@ -239,10 +239,12 @@ public sealed class VbLanguageHost : LanguageHostBase
         _ => code,
     };
 
-    // Lines prepended before the user's first line by ApplyKindTransform, above — must match it
-    // exactly so DapSession can map a breakpoint set on the user-visible line to the right line in
-    // the actually-compiled (wrapped) source.
-    private int CalcKindOffset() => _options.Kind switch
+    // Lines prepended before the user's first line, both by ApplyKindTransform (above) and by
+    // VbProcessCompiler.Compilation, which separately prepends one "Imports X" line per front-matter
+    // namespace before writing the .vb file that's actually compiled/debugged — a real,
+    // kind-independent source of line drift, not accounted for by the kind-transform component alone
+    // (see CSharpLanguageHost.CalcKindOffset's identical fix, ANALYSIS.md TODO #66 follow-up).
+    private int CalcKindOffset() => _options.Usings.Count + _options.Kind switch
     {
         RpadKind.Statements => 2, // "Module Program" + "Sub Main()"
         RpadKind.Expression => 1, // "("

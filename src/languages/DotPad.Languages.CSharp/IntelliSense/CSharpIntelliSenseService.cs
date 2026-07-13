@@ -75,6 +75,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
+    private RpadKind _kind = RpadKind.Statements;
     private string _lastCode = "";
     // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
     // calls — completion/signature-help/quick-info/background-analysis each run on their own
@@ -159,6 +160,27 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         lock (_syncLock) { _lastCode = ""; }
     }
 
+    public void UpdateKind(RpadKind kind)
+    {
+        if (_kind == kind) return;
+
+        _kind = kind;
+        // force re-sync with the new kind-transform prefix on the next analysis pass
+        lock (_syncLock) { _lastCode = ""; }
+    }
+
+    // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
+    // RpadKind.Program — mirrored here so the live-analysis document contains the same `Main();` call
+    // the compiler will actually emit, otherwise Roslyn correctly (from its own point of view) flags
+    // the user's void Main() as an unused local function (CS8321). Deliberately NOT mirroring
+    // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
+    // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
+    private string KindPrefix => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefix : "";
+
+    // Total offset from the start of the live-analysis document text to the start of the user's own
+    // code — usings preamble plus (for RpadKind.Program) the mirrored `Main();` prefix above.
+    private int HeaderLength => _preambleLength + KindPrefix.Length;
+
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
@@ -167,7 +189,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + code, Encoding.UTF8);
+                var text = SourceText.From(_preamble + KindPrefix + code, Encoding.UTF8);
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
@@ -199,7 +221,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
+            var pos = position + HeaderLength;
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var isDotInsertion = trigger.Kind == CompletionTriggerKind.Insertion && trigger.Character == '.';
@@ -569,7 +591,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
+            var pos = position + HeaderLength;
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -696,7 +718,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + _preambleLength;
+            var pos = position + HeaderLength;
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -772,7 +794,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
     {
-        var textLen = _preambleLength + code.Length;
+        var textLen = HeaderLength + code.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -782,9 +804,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var start = span.TextSpan.Start - _preambleLength;
+            var start = span.TextSpan.Start - HeaderLength;
             if (start < 0) continue;
-            var end = Math.Min(span.TextSpan.End - _preambleLength, code.Length);
+            var end = Math.Min(span.TextSpan.End - HeaderLength, code.Length);
             if (start >= end) continue;
 
             result.Add(new SimpleSemanticToken(start, end - start, kind));
@@ -820,10 +842,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (!d.Location.IsInSource) continue;
 
             var span = d.Location.SourceSpan;
-            var start = span.Start - _preambleLength;
+            var start = span.Start - HeaderLength;
             if (start < 0) continue;
 
-            var end = Math.Max(span.End - _preambleLength, start + 1);
+            var end = Math.Max(span.End - HeaderLength, start + 1);
             var severity = d.Severity switch
             {
                 RoslynSeverity.Error => ContractSeverity.Error,
@@ -835,7 +857,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, _preambleLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, HeaderLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
     }
 
