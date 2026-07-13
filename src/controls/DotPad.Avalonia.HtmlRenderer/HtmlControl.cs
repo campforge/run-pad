@@ -16,6 +16,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using Avalonia.Metadata;
 using Avalonia.Threading;
@@ -72,6 +73,12 @@ public class HtmlControl : Control
     /// The last position of the scrollbars to know if it has changed to update mouse
     /// </summary>
     protected Point _lastScrollOffset;
+
+    // TODO.md #72: offscreen cache of the last real paint — Render blits this instead of calling
+    // _htmlContainer.PerformPaint again on every single invalidation (window resize of unrelated
+    // controls, sibling repaints, ...). See LazyRenderCache/InvalidateContent.
+    private readonly LazyRenderCache _renderCache = new();
+    private RenderTargetBitmap? _cachedBitmap;
 
     #endregion
 
@@ -360,28 +367,80 @@ public class HtmlControl : Control
     private Size RenderSize => new Size(Bounds.Width, Bounds.Height);
 
     /// <summary>
-    /// Perform paint of the html in the control.
+    /// Perform paint of the html in the control — reuses the cached offscreen bitmap unless
+    /// content was explicitly invalidated (<see cref="InvalidateContent"/>) or the control was
+    /// resized, in which case it repaints via <see cref="PaintCore"/> first (TODO.md #72).
     /// </summary>
     public override void Render(DrawingContext context)
     {
+        var renderSize = RenderSize;
+        if (renderSize.Width <= 0 || renderSize.Height <= 0)
+        {
+            _cachedBitmap?.Dispose();
+            _cachedBitmap = null;
+            return;
+        }
+
+        if (_renderCache.ShouldRedraw(renderSize))
+        {
+            RepaintCache(renderSize);
+            _renderCache.MarkRedrawn(renderSize);
+        }
+
+        context.DrawImage(_cachedBitmap!, new Rect(renderSize));
+    }
+
+    /// <summary>
+    /// Marks the cached paint stale and requests a redraw. Call this whenever something
+    /// PerformPaint actually depends on changes (new html, scroll offset, image/selection state via
+    /// the Refresh event) — as opposed to Render calls triggered by unrelated invalidations, which
+    /// should just reuse the cache.
+    /// </summary>
+    protected void InvalidateContent()
+    {
+        _renderCache.Invalidate();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Repaints the control into an offscreen bitmap sized to the current device pixel density, so
+    /// Render's common case is just blitting it back rather than re-running the html layout
+    /// engine's PerformPaint (TODO.md #72).
+    /// </summary>
+    private void RepaintCache(Size renderSize)
+    {
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        var pixelSize = new PixelSize(
+            Math.Max(1, (int)Math.Ceiling(renderSize.Width * scaling)),
+            Math.Max(1, (int)Math.Ceiling(renderSize.Height * scaling)));
+
+        _cachedBitmap?.Dispose();
+        _cachedBitmap = new RenderTargetBitmap(pixelSize, new Vector(96 * scaling, 96 * scaling));
+
+        using var cacheContext = _cachedBitmap.CreateDrawingContext();
+        PaintCore(cacheContext, renderSize);
+    }
+
+    private void PaintCore(DrawingContext context, Size renderSize)
+    {
         if (Background is { } background)
-            context.FillRectangle(background, new Rect(RenderSize));
+            context.FillRectangle(background, new Rect(renderSize));
 
         if (BorderThickness != new Thickness(0) && BorderBrush != null)
         {
             var brush = new ImmutableSolidColorBrush(Colors.Black);
             if (BorderThickness.Top > 0)
-                context.FillRectangle(brush, new Rect(0, 0, RenderSize.Width, BorderThickness.Top));
+                context.FillRectangle(brush, new Rect(0, 0, renderSize.Width, BorderThickness.Top));
             if (BorderThickness.Bottom > 0)
-                context.FillRectangle(brush, new Rect(0, RenderSize.Height - BorderThickness.Bottom, RenderSize.Width, BorderThickness.Bottom));
+                context.FillRectangle(brush, new Rect(0, renderSize.Height - BorderThickness.Bottom, renderSize.Width, BorderThickness.Bottom));
             if (BorderThickness.Left > 0)
-                context.FillRectangle(brush, new Rect(0, 0, BorderThickness.Left, RenderSize.Height));
+                context.FillRectangle(brush, new Rect(0, 0, BorderThickness.Left, renderSize.Height));
             if (BorderThickness.Right > 0)
-                context.FillRectangle(brush, new Rect(RenderSize.Width - BorderThickness.Right, 0, BorderThickness.Right, RenderSize.Height));
+                context.FillRectangle(brush, new Rect(renderSize.Width - BorderThickness.Right, 0, BorderThickness.Right, renderSize.Height));
         }
 
-        var htmlWidth = HtmlWidth(RenderSize);
-        var htmlHeight = HtmlHeight(RenderSize);
+        var htmlWidth = HtmlWidth(renderSize);
+        var htmlHeight = HtmlHeight(renderSize);
         if (_htmlContainer != null && htmlWidth > 0 && htmlHeight > 0)
         {
             using (context.PushClip(new Rect(Padding.Left + BorderThickness.Left, Padding.Top + BorderThickness.Top,
@@ -400,6 +459,14 @@ public class HtmlControl : Control
                 InvokeMouseMove();
             }
         }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        _cachedBitmap?.Dispose();
+        _cachedBitmap = null;
+        _renderCache.Invalidate();
     }
 
     void RaiseRouted<T>(RoutedEvent ev, T arg)
@@ -446,7 +513,7 @@ public class HtmlControl : Control
     {
         if (e.Layout)
             InvalidateMeasure();
-        InvalidateVisual();
+        InvalidateContent();
     }
 
     /// <summary>
@@ -507,7 +574,7 @@ public class HtmlControl : Control
             htmlContainer.ScrollOffset = new Point(0, 0);
             htmlContainer.SetHtml((string?)e.NewValue, _baseCssData);
             InvalidateMeasure();
-            InvalidateVisual();
+            InvalidateContent();
 
             if (VisualRoot != null)
             {

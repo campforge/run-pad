@@ -63,13 +63,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
-        // Register custom font for HTML output panel
-        OutputHtml.Container.AddFontFamily(
-            new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
-
         var editor = new CodeTextEditor { Background = editorBackground };
         State = new EditorTabState(editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
+        ResultsOutput.DataContext = State.Output;
+        State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
             themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
@@ -179,7 +176,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         ApplySelectionColor(State.Editor);
-        State.OutputCss = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
+        State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
         UpdateOutputUi();
     }
 
@@ -227,7 +224,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
-        s.OutputContent = "";
+        s.Output.Content = "";
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
@@ -482,13 +479,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private void UpdateOutputUi()
     {
-        OutputHtml.Text = $"""
-                           <html>
-                           <head><style>{State.OutputCss}</style></head>
-                           <body>{State.OutputContent}</body>
-                           </html>
-                           """;
-
         ExecStatusBlock.Text = State.ExecStatusText;
         ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
             ? Brushes.Transparent
@@ -512,9 +502,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         if (kind == OutputKind.StandardError)
-            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
         else
-            State.OutputContent += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Content += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
         UpdateOutputUi();
     }
 
@@ -535,19 +525,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 var id = idMatch.Groups[1].Value;
                 if (State.DumpContainerBlocks.TryGetValue(id, out var previous))
-                    State.OutputContent = State.OutputContent.Replace(previous, wrapped);
+                    State.Output.Content = State.Output.Content.Replace(previous, wrapped);
                 else
-                    State.OutputContent += wrapped;
+                    State.Output.Content += wrapped;
                 State.DumpContainerBlocks[id] = wrapped;
             }
             else
             {
-                State.OutputContent += wrapped;
+                State.Output.Content += wrapped;
             }
         }
         catch
         {
-            State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
+            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
         }
 
         UpdateOutputUi();
@@ -556,9 +546,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void AppendError(Exception ex)
     {
         State.HadRunError = true;
-        State.OutputContent += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
+        State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
         if (ex.StackTrace is { } st)
-            State.OutputContent += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
+            State.Output.Content += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
         SetStatus("Error", "DotPad.Status.ErrorBrush");
         UpdateOutputUi();
     }

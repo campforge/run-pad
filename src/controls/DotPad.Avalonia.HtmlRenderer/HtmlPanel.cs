@@ -325,7 +325,7 @@ public class HtmlPanel : HtmlControl
         if (!newScrollOffset.Equals(_htmlContainer.ScrollOffset))
         {
             _htmlContainer.ScrollOffset = newScrollOffset;
-            InvalidateVisual();
+            InvalidateContent();
         }
     }
 
