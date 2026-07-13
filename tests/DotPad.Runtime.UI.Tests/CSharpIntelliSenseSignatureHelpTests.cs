@@ -45,4 +45,51 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.NotNull(result);
         Assert.Contains(result!.Items, i => i.DisplayText == "Dump");
     }
+
+    // TODO.md #65: EditorTabItemControl uses IsArgumentSlotEmpty to redirect an explicit Ctrl+Space
+    // request to overloads instead of a completion list, right after "(" — this is the underlying
+    // signal that decision is based on.
+    [Fact]
+    public async Task SignatureHelp_Should_ReportArgumentSlotEmpty_RightAfterOpenParen()
+    {
+        using var service = CreateService();
+        const string code = "var x = 42;\nx.Dump(";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsArgumentSlotEmpty);
+    }
+
+    [Fact]
+    public async Task SignatureHelp_Should_ReportArgumentSlotNotEmpty_WhenPartiallyTyped()
+    {
+        using var service = CreateService();
+        // "x" here is a partially-typed identifier argument (not a string literal — signature help
+        // deliberately returns null while inside a string/char literal, a separate, pre-existing
+        // check unrelated to this test), same shape as e.g. typing a variable name into the call.
+        const string code = "var x = 42;\nx.Dump(x";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.False(result!.IsArgumentSlotEmpty);
+    }
+
+    // Right after a "," with nothing typed for the next argument yet — same "fresh slot" as right
+    // after "(", not just the first argument.
+    [Fact]
+    public async Task SignatureHelp_Should_ReportArgumentSlotEmpty_RightAfterComma()
+    {
+        using var service = CreateService();
+        const string code = "var x = 42;\nx.Dump(\"label\", ";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsArgumentSlotEmpty);
+    }
 }

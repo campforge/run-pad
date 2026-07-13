@@ -673,6 +673,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.AsyncCompletionProvider = async e =>
         {
+            // TODO.md #65: a genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
+            // "new "-word triggers, which also set IsExplicitInvoke but pass the real typed character
+            // as Trigger, never '\0' — see CodeTextEditor.ShowCompletion's call sites) right in a
+            // fresh, not-yet-typed call argument is really asking for parameter info, not a
+            // completion list — matching Rider/VS. Gated on the literal hotkey (not the 24/7 paths)
+            // so this extra signature-help probe never runs on the hot per-keystroke typing path.
+            if (e.IsExplicitInvoke && e.Trigger == '\0')
+            {
+                var signatureHelp = await intelliSense.GetSignatureHelpAsync(
+                    State.Editor.Text, e.CaretOffset, cancellationToken: e.CancellationToken);
+                if (signatureHelp is { IsArgumentSlotEmpty: true })
+                {
+                    e.RedirectToOverloads = true;
+                    return;
+                }
+            }
+
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
             var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger, e.CancellationToken);
             if (list is null)
