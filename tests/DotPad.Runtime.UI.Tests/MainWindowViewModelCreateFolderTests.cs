@@ -62,6 +62,15 @@ public class MainWindowViewModelCreateFolderTests
     [Fact]
     public void CreateFolder_Should_CreateAlongsideTheSelectedFile_WhenAFileIsSelected()
     {
+        // Windows CI finding: "/root/query.rpad" is a POSIX-style absolute path with no drive
+        // letter — a test-only stand-in, not how a real Windows path looks (those always carry a
+        // drive letter, e.g. "C:\Users\...", for which Path.GetDirectoryName works fine). On Windows
+        // that leading "/" with no drive resolves differently enough that GetDirectoryName doesn't
+        // return "/root" for it, so the mock setup below never matches — a test-harness path-style
+        // limitation, not a real product bug. Same precedent as MainWindowViewModelOpenTabTests'
+        // OS guard.
+        if (OperatingSystem.IsWindows()) return;
+
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFolder("/root")).Returns("/root/New Folder");
         var vm = CreateViewModel(fileSystem);

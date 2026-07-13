@@ -244,12 +244,12 @@ public sealed class VbLanguageHost : LanguageHostBase
     // namespace before writing the .vb file that's actually compiled/debugged — a real,
     // kind-independent source of line drift, not accounted for by the kind-transform component alone
     // (see CSharpLanguageHost.CalcKindOffset's identical fix, ANALYSIS.md TODO #66 follow-up).
-    private int CalcKindOffset() => _options.Usings.Count + _options.Kind switch
+    private int CalcKindOffset() => _options.Usings.Count + (_options.Kind switch
     {
         RpadKind.Statements => 2, // "Module Program" + "Sub Main()"
         RpadKind.Expression => 1, // "("
         _ => 0,
-    };
+    });
 
     private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
     {
