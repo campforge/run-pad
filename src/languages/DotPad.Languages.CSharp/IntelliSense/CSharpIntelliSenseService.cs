@@ -60,6 +60,34 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: []))
         .ToArray();
 
+    // TODO.md #59 remainder — contextual keywords with no legal meaning outside a specific syntax
+    // position were being offered everywhere (e.g. "orderby"/"equals" inside an ordinary method body).
+    // `where` is deliberately NOT included here — it's also the generic type-constraint clause keyword
+    // (`where T : class`), which is legal in an ordinary member-declaration position, so filtering it
+    // to "inside a query expression" would hide it somewhere it's actually valid.
+    private static readonly HashSet<string> _queryContinuationKeywords = new(StringComparer.Ordinal)
+    {
+        "from", "join", "into", "let", "orderby", "select", "group", "on", "equals",
+        "ascending", "descending", "by",
+    };
+
+    // get/set/add/remove only mean something inside a property/indexer/event accessor list; `value`
+    // only means something inside a setter/adder/remover's body (the implicit parameter name) — none
+    // of the five have any other legal use as a bare keyword.
+    private static readonly HashSet<string> _accessorKeywords = new(StringComparer.Ordinal)
+    {
+        "get", "set", "add", "remove", "value",
+    };
+
+    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position)
+    {
+        if (_queryContinuationKeywords.Contains(keyword.DisplayText))
+            return IsInsideQueryExpression(root, position);
+        if (_accessorKeywords.Contains(keyword.DisplayText))
+            return IsInsideAccessorContext(root, position);
+        return true;
+    }
+
     private static readonly string[] _tfmPreference =
     [
         "net10.0", "net9.0", "net8.0", "net7.0", "net6.0", "net5.0",
@@ -325,7 +353,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Select(ToItem)
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords)
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos)))
                 .GroupBy(i => i.DisplayText)
                 .Select(g => g.OrderBy(i => (int)i.Kind).First())
                 .ToList();
@@ -727,6 +755,28 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         TypeParameterSyntax n => n.Identifier == token,
         _ => false,
     };
+
+    // See _queryContinuationKeywords — true when the caret sits anywhere inside a LINQ query
+    // expression (from ... to the final select/group-by clause) or a query continuation
+    // (`into` ... onward), the only place from/join/into/let/orderby/select/group/on/equals/
+    // ascending/descending/by mean anything.
+    private static bool IsInsideQueryExpression(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is QueryExpressionSyntax or QueryContinuationSyntax);
+
+    // See _accessorKeywords — true when the caret sits inside a property/indexer/event's accessor
+    // list (covers the empty "{ }" case, where the closing brace token itself belongs to the
+    // AccessorListSyntax) or inside an already-parsed accessor's own body.
+    private static bool IsInsideAccessorContext(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is AccessorListSyntax or AccessorDeclarationSyntax);
+
+    // Same half-open-span boundary concern as IsInsideComment/IsInsideStringOrCharLiteral above: the
+    // caret while still typing sits at a token's end (exclusive), so also check position - 1.
+    private static bool HasAncestorMatching(SyntaxNode root, int position, Func<SyntaxNode, bool> predicate)
+    {
+        return Check(position) || (position > 0 && Check(position - 1));
+
+        bool Check(int pos) => root.FindToken(pos).Parent?.AncestorsAndSelf().Any(predicate) == true;
+    }
 
     private static int CountArgumentsBefore(ArgumentListSyntax argList, int position)
     {
