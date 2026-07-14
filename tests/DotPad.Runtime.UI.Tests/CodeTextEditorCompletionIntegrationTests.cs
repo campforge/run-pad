@@ -5,6 +5,10 @@ using Avalonia.Input;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using DotPad.Avalonia.CodeTextEditor;
+using DotPad.Contracts.IntelliSense;
+using DotPad.Languages.CSharp;
+using DotPad.Languages.CSharp.IntelliSense;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
@@ -547,5 +551,56 @@ public class CodeTextEditorCompletionIntegrationTests
 
         // Assert
         Assert.False(editor.IsInsightWindowOpen);
+    }
+
+    // TODO.md #77 — user-reported bug, reproduced end-to-end with the REAL Roslyn-backed
+    // CSharpIntelliSenseService (not a fake AsyncCompletionProvider like every other test in this
+    // file): "var a = new List<string>();" then "a" on its own line then "." replaced "a" with
+    // "args". Root cause was a Roslyn quirk (see CSharpIntelliSenseEndOfBufferTests /
+    // CSharpIntelliSenseService.TrailingPad) — the local variable dropped out of LookupSymbols
+    // entirely at that exact caret position, not a ranking tie-break — so this drives the actual
+    // reported keystrokes through a live completion window to prove the fix holds up under the real
+    // 24/7-auto-invoke + commit-character pipeline, not just at the raw GetCompletionsAsync level.
+    [AvaloniaFact]
+    public async Task TypingDot_Should_CommitTheLocalVariable_NotTheImplicitArgsParameter()
+    {
+        var referenceService = new CSharpReferenceService();
+        var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
+        using var intelliSense = new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+
+        var editor = new CodeTextEditor();
+        editor.CompletionTriggers.Add('.');
+        editor.IdentifierChars.Add('_');
+        editor.Document = new TextDocument("var a = new System.Collections.Generic.List<string>();\n");
+        editor.AsyncCompletionProvider = async e =>
+        {
+            var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
+            var list = await intelliSense.GetCompletionsAsync(editor.Text, e.CaretOffset, trigger, e.CancellationToken);
+            if (list is null) { e.SuppressSnippets = true; return; }
+            foreach (var item in list.Items)
+                e.Items.Add(new EditorCompletionData(item.DisplayText, () => item.DisplayText, item.Priority));
+        };
+
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = editor.Document.TextLength;
+
+        // Act — types "a" (auto-invokes on the fresh identifier's first letter, caret now sits at the
+        // literal end of the document, nothing typed after it), then "." — the exact reported repro.
+        // Unlike every other test in this file, the provider here runs a REAL Roslyn semantic query
+        // (MEF composition, workspace/compilation, binding) instead of resolving instantly, so a fixed
+        // short delay isn't reliable — polling for the window to actually open is what makes this
+        // deterministic regardless of how long that first real query takes.
+        window.KeyTextInput("a");
+        for (var i = 0; i < 250 && !editor.IsCompletionWindowOpen; i++)
+            await Task.Delay(20);
+        Assert.True(editor.IsCompletionWindowOpen);
+
+        window.KeyTextInput(".");
+        await Task.Delay(100);
+
+        // Assert
+        Assert.Equal("var a = new System.Collections.Generic.List<string>();\na.", editor.Document.Text);
     }
 }

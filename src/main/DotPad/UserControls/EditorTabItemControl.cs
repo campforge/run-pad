@@ -891,13 +891,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             _ => new AvaloniaEdit.Indentation.DefaultIndentationStrategy(),
         };
 
-        // TODO.md #49 item 3 — VB's blocks aren't brace-delimited, so the default brace-based folding
-        // strategy folded nothing at all in a .vb file.
-        editor.FoldingStrategy = profile.FoldingStrategy switch
-        {
-            FoldingStrategyKind.VbKeywordBased => new VbFoldingStrategy(),
-            _ => new BraceFoldingStrategy(),
-        };
+        // TODO.md #76: no more switch on a FoldingStrategyKind enum naming a specific concrete type
+        // (e.g. VbFoldingStrategy) — the language plugin hands over its own algorithm as a plain
+        // delegate (or nothing, for the brace-based default), so this main-project file no longer
+        // needs to know which languages exist or what their folding rules look like.
+        editor.FoldingStrategy = profile.FoldingRegionsProvider is { } computeFoldRegions
+            ? new DelegateFoldingStrategy(computeFoldRegions)
+            : new BraceFoldingStrategy();
     }
 
     // The signature-help header already shows the full (syntax-highlighted) signature with the

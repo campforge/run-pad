@@ -475,6 +475,15 @@
     <StreamGeometry x:Key="Icon.Delete">M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v10zM18 4h-2.5l-.71-.71c-.18-.18-.44-.29-.7-.29H9.91c-.26 0-.52.11-.7.29L8.5 4H6c-.55 0-1 .45-1 1s.45 1 1 1h12c.55 0 1-.45 1-1s-.45-1-1-1z</StreamGeometry>
     <StreamGeometry x:Key="Icon.FolderOpen">M20 6h-8l-1.41-1.41C10.21 4.21 9.7 4 9.17 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 12H5c-.55 0-1-.45-1-1V9c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v8c0 .55-.45 1-1 1z</StreamGeometry>
 
+    <!-- TODO.md #79: quick-fix (lightbulb) menu item icon — a hammer, per the user's own request
+         ("как в Rider" — Rider/ReSharper-style, one uniform icon for every fix action, see TODO #79's
+         reasoning on why a single icon suffices today). Hand-drawn as two crossed rectangles (a head
+         perpendicular to a diagonal handle), NOT sourced from Material Design Icons — no exact
+         "hammer" glyph from that library was available/verified here, so this is a plain original
+         pictogram sized to the same 24×24 viewbox as the rest of this file, rendered/checked at both
+         full size and 16px before being committed. -->
+    <StreamGeometry x:Key="Icon.Hammer">M0.05,7.12 L2.88,9.95 L9.95,2.88 L7.12,0.05 Z M4.08,5.92 L5.92,4.08 L22.92,21.08 L21.08,22.92 Z</StreamGeometry>
+
     <!-- File tree per-language icons (TODO.md #70) — sourced from Material Design Icons, same
          convention as the context-menu icons above. -->
     <!-- pictogrammers.com/library/mdi/icon/language-csharp -->
