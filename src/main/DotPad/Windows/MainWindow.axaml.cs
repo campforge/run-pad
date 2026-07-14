@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using DotPad.Format.RPad;
 using DotPad.Services.Preferences;
 using DotPad.UserControls;
 using DotPad.Windows.Models;
@@ -155,8 +156,11 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private void NewRpadFile_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile(); // creates a new .rpad file (Statements kind by default)
+    private void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
+        => GetViewModel().NewRpadFile(RpadLanguage.CSharp); // Statements kind by default
+
+    private void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
+        => GetViewModel().NewRpadFile(RpadLanguage.Vb); // Statements kind by default
 
     // ── File tree ─────────────────────────────────────────────────────────────
 
