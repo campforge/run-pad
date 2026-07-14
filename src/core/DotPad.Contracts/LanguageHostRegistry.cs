@@ -26,6 +26,9 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
     public EditorLanguageProfile GetEditorProfile(string language) =>
         GetFactory(language).EditorProfile;
 
+    public string GetDisplayName(string language) =>
+        GetFactory(language).DisplayName;
+
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         GetFactory(language).Create(options);
 
