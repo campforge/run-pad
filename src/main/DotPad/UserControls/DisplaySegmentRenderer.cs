@@ -50,11 +50,18 @@ internal static class DisplaySegmentRenderer
     // ICompletionItem.Detail), or "(+N overloads)" when several overloads were collapsed down to this
     // one item (TODO.md #59 remainder/ICompletionItem.OverloadCount) — the two never co-occur (Detail
     // is only ever set for importable types, OverloadCount > 1 only for methods), so at most one of
-    // them applies. Same object-typed-Content-is-a-bare-ContentControl trick as BuildWithSummary/
-    // BuildSignature above, applied to EditorCompletionData.Content instead.
-    public static Control BuildListRow(string displayText, string? detail, int overloadCount)
+    // them applies. isOwnMember (TODO.md item 60 point 7, ICompletionItem.IsOwnMember) is orthogonal
+    // to both — a member declared directly on the type being completed renders bold regardless of
+    // whether it also happens to carry one of the other two annotations. Same
+    // object-typed-Content-is-a-bare-ContentControl trick as BuildWithSummary/BuildSignature above,
+    // applied to EditorCompletionData.Content instead.
+    public static Control BuildListRow(string displayText, string? detail, int overloadCount, bool isOwnMember = false)
     {
-        var nameBlock = new TextBlock { Text = displayText };
+        var nameBlock = new TextBlock
+        {
+            Text = displayText,
+            FontWeight = isOwnMember ? FontWeight.Bold : FontWeight.Normal,
+        };
         var annotation = overloadCount > 1 ? $"(+{overloadCount - 1} overloads)"
             : string.IsNullOrEmpty(detail) ? null : $"(in {detail})";
         if (annotation is null) return nameBlock;

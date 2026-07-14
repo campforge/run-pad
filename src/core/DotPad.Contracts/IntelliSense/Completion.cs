@@ -59,4 +59,11 @@ public interface ICompletionItem
     // representative per name), so without this the list gave no indication there was anything else
     // to see under that name at all.
     int OverloadCount { get; }
+
+    // True for a member declared directly on the type being completed (the receiver's type for a
+    // dot-completion, or the type containing the current scope for an unqualified reference) — false
+    // for an inherited member, a local/parameter/type/namespace/keyword, or anything else with no
+    // "declared on this type" notion (TODO.md item 60 point 7, ReSharper 1.1: own members render
+    // bold, inherited ones don't).
+    bool IsOwnMember { get; }
 }
