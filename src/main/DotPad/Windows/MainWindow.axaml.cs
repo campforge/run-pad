@@ -123,14 +123,23 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
 
-        // TODO: должен быть смособ чтобы делать это красиво, сейчас приходится делать WindowDecorations = Full из за этого меню выглядит не красиво
-        // Но если делать WindowDecorations = BorderOnly то меню выглядит красиво, но тогда на Linux нету бордера
+        // TODO.md #42 — with WindowDecorations.Full, the OS now draws its own native titlebar
+        // (icon + title + min/max/close) above our custom title row. A CSD request
+        // (WindowDecorations.BorderOnly, the "pretty menu" branch) was tried first and confirmed —
+        // on a real KDE/KWin/Wayland session — to come back as a bare rectangle with no
+        // border/shadow/corner-radius on Linux, so there's no portable way to get both a native
+        // border AND full CSD control here; Full is the deliberate fallback, not an oversight.
         if (OperatingSystem.IsLinux())
         {
             WindowDecorations = WindowDecorations.Full;
             ExtendClientAreaToDecorationsHint = false;
             if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
-            // ToDO: скрыть еще иконку из меню
+
+            // The native titlebar already renders Window.Icon (see the XAML root element) — our own
+            // AppIconImage duplicates it immediately below, which is the "лишняя иконка" from the
+            // original TODO note. Hide it only where a native titlebar is actually present.
+            var appIcon = this.FindControl<Image>("AppIconImage");
+            if (appIcon is not null) appIcon.IsVisible = false;
         }
         else if (OperatingSystem.IsMacOS())
         {
