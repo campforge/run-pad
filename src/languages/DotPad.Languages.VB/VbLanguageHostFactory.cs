@@ -44,6 +44,9 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
         AutoCloseBraces = new HashSet<char> { '[' },
         IndentationStrategy = IndentationStrategyKind.Default,
+        // TODO.md #49 item 3 — VB's blocks aren't brace-delimited, so the default BraceBased folding
+        // strategy folded nothing at all in a .vb file.
+        FoldingStrategy = FoldingStrategyKind.VbKeywordBased,
     };
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
