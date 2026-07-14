@@ -47,7 +47,9 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         OverloadTriggers = new HashSet<char> { '(', ',' },
         IdentifierChars = new HashSet<char> { '_' },
         ContextualTriggers = new HashSet<char> { '<' }, // generic type arguments, e.g. "List<"
-        WordTriggers = new HashSet<string> { "new" }, // constructible-type completion after "new "
+        // "new " — constructible-type completion; "override " — overridable-member completion with
+        // stub generation (TODO.md item 60 point 8).
+        WordTriggers = new HashSet<string> { "new", "override" },
         StatementTerminators = new HashSet<char> { ';' },
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']', ['{'] = '}' },
         // '(' deliberately excluded — see DotPad.Avalonia.CodeTextEditor.CodeTextEditor.AutoCloseBraces:

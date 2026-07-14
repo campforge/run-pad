@@ -705,6 +705,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
+                // TODO.md item 60 point 8 — an override-member stub carries a multi-line snippet
+                // template instead of a plain name to insert; reuse the exact same
+                // SnippetCompletionData/ExpandSnippet machinery the hand-authored Snippets dictionary
+                // already uses (reindent-to-current-line + ${0} cursor placement), rather than
+                // inventing a second insertion mechanism.
+                if (item.InsertTemplate is { } template)
+                {
+                    e.Items.Add(new SnippetCompletionData(
+                        item.DisplayText, template, CompletionIcons.GetIcon(item.Kind),
+                        segment => editor.ExpandSnippet(segment.Offset, segment.Length, template)));
+                    continue;
+                }
+
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
                     () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
