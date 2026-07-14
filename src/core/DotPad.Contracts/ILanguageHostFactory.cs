@@ -6,6 +6,12 @@ public interface ILanguageHostOptions { }
 public interface ILanguageHostFactory
 {
     string Language { get; }
+
+    // Human-readable name for UI surfaces that list languages (e.g. the Preferences window's
+    // Languages settings tree, TODO.md #49 item 4) — Language itself is the internal registry key
+    // ("csharp"/"vb"), not something to show a user directly.
+    string DisplayName { get; }
+
     LanguageHostCapabilities Capabilities { get; }
 
     // Tab-expandable editor snippets for this language: keyword → template with a `${0}` cursor
@@ -31,5 +37,6 @@ public interface ILanguageHostRegistry
     LanguageHostCapabilities GetCapabilities(string language);
     IReadOnlyDictionary<string, string> GetSnippets(string language);
     EditorLanguageProfile GetEditorProfile(string language);
+    string GetDisplayName(string language);
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
 }

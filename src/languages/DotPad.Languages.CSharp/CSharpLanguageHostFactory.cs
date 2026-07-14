@@ -13,6 +13,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
     }
 
     public string Language => "csharp";
+    public string DisplayName => "C#";
 
     public LanguageHostCapabilities Capabilities =>
         LanguageHostCapabilities.Run |

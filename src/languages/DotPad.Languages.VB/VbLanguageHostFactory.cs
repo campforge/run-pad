@@ -13,6 +13,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     }
 
     public string Language => "vb";
+    public string DisplayName => "Visual Basic";
 
     // No IntelliSense flag yet — VB tabs compile/run/debug but have no autocomplete/diagnostics/
     // quick-fixes (would need a VisualBasicIntelliSenseService against Microsoft.CodeAnalysis.VisualBasic).
