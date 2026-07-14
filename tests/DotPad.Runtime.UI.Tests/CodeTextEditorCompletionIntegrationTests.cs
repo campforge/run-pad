@@ -354,4 +354,50 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Rhino", editor.Document.Text);
         Assert.Equal(0, onCommitCallCount);
     }
+
+    // TODO.md item 60 point 8 — EditorTabItemControl builds a SnippetCompletionData (not a plain
+    // EditorCompletionData) for an override-member stub, reusing CodeTextEditor.ExpandSnippet's
+    // reindent-to-current-line + ${0} cursor placement. This proves accepting one through the real
+    // completion window drives that same path end to end, not just that the service produces the
+    // right template string (covered separately, headlessly, by CSharpIntelliSenseOverrideStubTests).
+    [AvaloniaFact]
+    public async Task AcceptingASnippetCompletionData_Should_ExpandTheTemplate_ReindentedToTheCurrentLine()
+    {
+        // Arrange — caret sits right after 4 spaces of indent on the current (only) line.
+        const string template = "public override void Foo()\n{\n\tbase.Foo();${0}\n}";
+        var editor = new CodeTextEditor();
+        editor.Document = new TextDocument("    ");
+        editor.AsyncCompletionProvider = e =>
+        {
+            e.Items.Add(new SnippetCompletionData(
+                "Foo", template, image: null,
+                segment => editor.ExpandSnippet(segment.Offset, segment.Length, template)));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = editor.Document.TextLength;
+
+        // Act — Ctrl+Space (explicit invoke), type a prefix matching the item so it's actually
+        // selected (mirrors AcceptingACompletion_Should_InvokeOnCommit_WithTheItemsTags above — Enter
+        // with nothing typed/selected doesn't commit anything), then Enter to accept it.
+        window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, null);
+        await Task.Delay(20);
+        window.KeyTextInput("F");
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        // Assert — every line after the first gets the same 4-space indent as the current line, and
+        // the ${0} marker is gone with the caret left exactly where it was (right after "base.Foo();").
+        var tab = editor.Options.IndentationString;
+        var expected = "    public override void Foo()\n" +
+            "    {\n" +
+            $"    {tab}base.Foo();\n" +
+            "    }";
+        Assert.Equal(expected, editor.Document.Text);
+        Assert.Equal(("    public override void Foo()\n    {\n    " + tab + "base.Foo();").Length,
+            editor.TextArea.Caret.Offset);
+    }
 }

@@ -66,4 +66,11 @@ public interface ICompletionItem
     // "declared on this type" notion (TODO.md item 60 point 7, ReSharper 1.1: own members render
     // bold, inherited ones don't).
     bool IsOwnMember { get; }
+
+    // A multi-line snippet template (same `${0}`-cursor-marker/`\t`-indent syntax as
+    // ILanguageHostFactory.Snippets) to insert instead of DisplayText — non-null only for an
+    // override-member stub (TODO.md item 60 point 8: typing "override " lists overridable base
+    // members; accepting one inserts the full "<modifiers> override <returnType> <name>(<params>)
+    // { <body> }" stub, not just the bare method name). Null for every ordinary completion item.
+    string? InsertTemplate { get; }
 }

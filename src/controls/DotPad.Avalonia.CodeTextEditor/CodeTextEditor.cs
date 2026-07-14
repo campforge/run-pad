@@ -509,7 +509,11 @@ public class CodeTextEditor : TextEditor
     // Expands a snippet template at [offset, offset+length) — used by both Tab-expansion above and
     // SnippetCompletionData (completion-list entry) — re-indenting it to match the current line and
     // placing the caret at the ${0} cursor marker (or the end of the expansion if there isn't one).
-    private void ExpandSnippet(int offset, int length, string template)
+    // Public (not just used internally) so a language-aware caller building its own SnippetCompletionData
+    // — e.g. EditorTabItemControl's override-member stubs, TODO.md item 60 point 8 — reuses this same
+    // reindent/cursor-placement logic instead of duplicating it; nothing about the method itself is
+    // C#-specific (the controls stay language-agnostic).
+    public void ExpandSnippet(int offset, int length, string template)
     {
         var caretLine = Document.GetLineByOffset(offset);
         var lineText = Document.GetText(caretLine.Offset, caretLine.Length);
