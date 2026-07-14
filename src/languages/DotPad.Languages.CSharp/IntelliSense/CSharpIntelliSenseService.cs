@@ -78,8 +78,22 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "get", "set", "add", "remove",
     };
 
-    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position)
+    // TODO.md #78: the only keywords that are ever legal as a generic type argument are the predefined
+    // type keywords (`List<int>`, `List<string>`, ...) plus `dynamic`/`nint`/`nuint` — every other
+    // keyword in _keywords (control-flow, modifiers, LINQ, ...) is a syntax error there. `var`/`void`
+    // are deliberately excluded: neither is a legal type argument (`List<var>`/`List<void>` don't
+    // compile), unlike ordinary local-variable/return-type position where they're normally offered.
+    private static readonly HashSet<string> _typeArgumentKeywords = new(StringComparer.Ordinal)
     {
+        "bool", "byte", "char", "decimal", "double", "dynamic", "float", "int", "long", "nint",
+        "nuint", "object", "sbyte", "short", "string", "uint", "ulong", "ushort",
+    };
+
+    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position, bool isTypeArgumentPosition)
+    {
+        if (isTypeArgumentPosition)
+            return _typeArgumentKeywords.Contains(keyword.DisplayText);
+
         if (_queryContinuationKeywords.Contains(keyword.DisplayText))
             return IsInsideQueryExpression(root, position);
 
@@ -93,6 +107,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         return true;
     }
+
+    // TODO.md #78: true anywhere inside a generic type argument list (`List<`, `List<Str`,
+    // `Dictionary<string, `, ...) — the only place where completion should be restricted to type-ish
+    // symbols instead of every in-scope symbol. Reuses the same HasAncestorMatching position-1
+    // fallback as every other "what syntax is the caret inside" check in this file (see
+    // IsInsideQueryExpression/IsInsideAccessorContext above) since the caret while typing sits at a
+    // token's end, not inside it.
+    private static bool IsInsideTypeArgumentList(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is TypeArgumentListSyntax);
 
     private static readonly string[] _tfmPreference =
     [
@@ -369,13 +392,23 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 if (isDotInsertion) return null;
             }
 
-            var symbols = model.LookupSymbols(pos);
+            var isTypeArgumentPosition = IsInsideTypeArgumentList(root, pos);
+
+            // TODO.md #78 repro: `var a = new List<` unconditionally called LookupSymbols and offered
+            // every visible symbol (locals, parameters, methods, ...) mixed in with actual types — this
+            // narrows that to only what can legally appear as a generic type argument. Namespaces stay
+            // in (not just named types/type parameters) so `List<Sys` can still offer "System" and let
+            // the user descend into it with '.' to reach the type they actually want.
+            IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
+            if (isTypeArgumentPosition)
+                symbols = symbols.Where(s => s is INamedTypeSymbol or ITypeParameterSymbol or INamespaceSymbol);
+
             var currentType = GetEnclosingType(model, pos);
             var visible = GroupByDisplayText(symbols
                 .Select(s => ToItem(s, currentType))
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos))));
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition))));
 
             // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
