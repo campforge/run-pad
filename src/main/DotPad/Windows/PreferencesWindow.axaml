@@ -190,14 +190,8 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <StackPanel IsVisible="{Binding IsLanguagesCSharpSelected}">
-                    <TextBlock Text="No C#-specific settings yet."
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-
-                <StackPanel IsVisible="{Binding IsLanguagesVisualBasicSelected}">
-                    <TextBlock Text="No Visual Basic&#8211;specific settings yet."
+                <StackPanel IsVisible="{Binding IsLanguageNodeSelected}">
+                    <TextBlock Text="{Binding SelectedLanguageSettingsPlaceholder}"
                                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>

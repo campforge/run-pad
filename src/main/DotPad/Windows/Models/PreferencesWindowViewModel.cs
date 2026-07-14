@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using DotPad.Avalonia.Themes;
+using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
@@ -12,21 +13,25 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 {
     // ── Settings tree (Rider/VS-style navigator — see PreferencesWindow.axaml) ─
 
+    // Id prefix for a language's own node under Languages (e.g. "languages.csharp") — shared by the
+    // tree-building code below and IsLanguageNodeSelected, so a language's node id always round-trips
+    // through the same prefix rather than two independently-typed literals drifting apart.
+    private const string LanguageNodeIdPrefix = "languages.";
+
     private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
     private static readonly SettingsNode DebuggerNode = new("debugger", "Debugger");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
-    private static readonly SettingsNode LanguagesCSharpNode = new("languages.csharp", "C#");
-    private static readonly SettingsNode LanguagesVbNode = new("languages.vb", "Visual Basic");
-
-    private static readonly SettingsNode LanguagesNode = new(
-        "languages", "Languages", [LanguagesCSharpNode, LanguagesVbNode]);
-
-    private static readonly IReadOnlyList<SettingsNode> FullTree =
-        [InterfaceNode, EditorNode, DebuggerNode, KeyboardNode, LanguagesNode];
 
     private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
+
+    // Built once from the registry in the constructor, not a static — unlike the language-agnostic
+    // nodes above, this genuinely depends on which languages are registered (TODO.md #49 item 4: used
+    // to be two hardcoded SettingsNodes, "languages.csharp"/"languages.vb", so a third registered
+    // language would never show up in this tree without editing this file directly).
+    private readonly SettingsNode _languagesNode;
+    private readonly IReadOnlyList<SettingsNode> _fullTree;
 
     private InterfaceTheme? _selectedInterfaceTheme;
     private EditorTheme? _selectedEditorTheme;
@@ -38,10 +43,17 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<SettingsNode> Nodes { get; } = [];
 
-    public PreferencesWindowViewModel(IThemeService themeService, IPreferencesService prefs)
+    public PreferencesWindowViewModel(
+        IThemeService themeService, IPreferencesService prefs, ILanguageHostRegistry languageRegistry)
     {
         _themeService = themeService;
         _prefs = prefs;
+
+        var languageNodes = languageRegistry.SupportedLanguages
+            .Select(lang => new SettingsNode(LanguageNodeIdPrefix + lang, languageRegistry.GetDisplayName(lang)))
+            .ToList();
+        _languagesNode = new SettingsNode("languages", "Languages", languageNodes);
+        _fullTree = [InterfaceNode, EditorNode, DebuggerNode, KeyboardNode, _languagesNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -83,8 +95,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaisePropertyChanged(nameof(IsDebuggerSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
-            this.RaisePropertyChanged(nameof(IsLanguagesCSharpSelected));
-            this.RaisePropertyChanged(nameof(IsLanguagesVisualBasicSelected));
+            this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
+            this.RaisePropertyChanged(nameof(SelectedLanguageSettingsPlaceholder));
         }
     }
 
@@ -93,8 +105,20 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public bool IsDebuggerSelected => _selectedNode?.Id == "debugger";
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
-    public bool IsLanguagesCSharpSelected => _selectedNode?.Id == "languages.csharp";
-    public bool IsLanguagesVisualBasicSelected => _selectedNode?.Id == "languages.vb";
+
+    // True for one of Languages' own child nodes (e.g. "languages.csharp") — not the "Languages"
+    // parent node itself, which has its own separate placeholder (IsLanguagesSelected). Replaces the
+    // old IsLanguagesCSharpSelected/IsLanguagesVisualBasicSelected pair (TODO.md #49 item 4) — a third
+    // registered language needs no new property and no new XAML panel, just an entry in the registry.
+    public bool IsLanguageNodeSelected =>
+        _selectedNode is not null && _selectedNode.Id != "languages"
+            && _selectedNode.Id.StartsWith(LanguageNodeIdPrefix, StringComparison.Ordinal);
+
+    // "No {Name}-specific settings yet." — the one placeholder message every language shares today
+    // (see PreferencesWindow.axaml); null when no language node is selected, so the bound TextBlock
+    // has nothing to show instead of a stale message from whatever was selected before.
+    public string? SelectedLanguageSettingsPlaceholder =>
+        IsLanguageNodeSelected ? $"No {_selectedNode!.Name}-specific settings yet." : null;
 
     // Rebuilds the displayed (possibly filtered) tree from the fixed full tree. A node survives the
     // filter if its own name matches or any descendant's does, so e.g. typing "key" still surfaces
@@ -103,7 +127,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     private void RebuildNodes()
     {
         Nodes.Clear();
-        foreach (var node in FullTree)
+        foreach (var node in _fullTree)
         {
             var filtered = FilterNode(node);
             if (filtered is not null) Nodes.Add(filtered);
