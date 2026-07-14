@@ -889,6 +889,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options),
             _ => new AvaloniaEdit.Indentation.DefaultIndentationStrategy(),
         };
+
+        // TODO.md #49 item 3 — VB's blocks aren't brace-delimited, so the default brace-based folding
+        // strategy folded nothing at all in a .vb file.
+        editor.FoldingStrategy = profile.FoldingStrategy switch
+        {
+            FoldingStrategyKind.VbKeywordBased => new VbFoldingStrategy(),
+            _ => new BraceFoldingStrategy(),
+        };
     }
 
     // The signature-help header already shows the full (syntax-highlighted) signature with the

@@ -3,7 +3,7 @@ using AvaloniaEdit.Folding;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
-internal sealed class BraceFoldingStrategy
+public sealed class BraceFoldingStrategy : IFoldingStrategy
 {
     public char OpeningBrace { get; set; } = '{';
     public char ClosingBrace { get; set; } = '}';

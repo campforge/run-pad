@@ -37,7 +37,6 @@ public class CodeTextEditor : TextEditor
     private readonly CodeFixMargin _codeFixMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
-    private readonly BraceFoldingStrategy _foldingStrategy = new();
     private readonly DispatcherTimer _foldingTimer;
     private FoldingManager? _foldingManager;
     private VsCodeFoldingMargin? _foldingMargin;
@@ -164,6 +163,11 @@ public class CodeTextEditor : TextEditor
     /// still open (e.g. <c>;</c> in C#) — not every language ends statements the same way (VB doesn't
     /// require one at all), so the app layer configures this.</summary>
     public HashSet<char> StatementTerminators { get; } = [];
+
+    /// <summary>Which code-folding algorithm to run — not every language delimits blocks with braces
+    /// (e.g. VB's Sub/End Sub, If/End If), so the app layer configures this per language (TODO.md #49
+    /// item 3). Defaults to brace-based, matching this control's previous hardcoded behavior.</summary>
+    public IFoldingStrategy FoldingStrategy { get; set; } = new BraceFoldingStrategy();
 
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
     public Dictionary<string, string> Snippets { get; } = [];
@@ -409,7 +413,7 @@ public class CodeTextEditor : TextEditor
     private void UpdateFoldings()
     {
         if (_foldingManager is null || Document is null) return;
-        _foldingStrategy.UpdateFoldings(_foldingManager, Document);
+        FoldingStrategy.UpdateFoldings(_foldingManager, Document);
         _foldingMargin?.InvalidateVisual();
     }
 
