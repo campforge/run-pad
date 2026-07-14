@@ -296,7 +296,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     if (qualifierSymbol is INamespaceSymbol containingNamespace)
                     {
                         var nsItems = GroupByDisplayText(model.LookupNamespacesAndTypes(pos, container: containingNamespace)
-                                .Select(ToItem)
+                                .Select(s => ToItem(s, currentType: null))
                                 .Where(i => i != null)
                                 .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
@@ -334,7 +334,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                         var memberItems = GroupByDisplayText(model
                                 .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
                                 .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
-                                .Select(ToItem)
+                                .Select(s => ToItem(s, currentType: type))
                                 .Where(i => i != null)
                                 .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
@@ -351,8 +351,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             }
 
             var symbols = model.LookupSymbols(pos);
+            var currentType = GetEnclosingType(model, pos);
             var visible = GroupByDisplayText(symbols
-                .Select(ToItem)
+                .Select(s => ToItem(s, currentType))
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
                 .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos))));
@@ -387,37 +388,62 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Collapses same-named candidates down to one item per DisplayText (the same instance already
     // won by ScopeRank/Kind ordering everywhere this was called before), stamping the survivor with
-    // OverloadCount when more than one Method-kind candidate shares the name — TODO.md #59 remainder:
+    // OverloadCount when more than one Method-kind candidate shares the name (TODO.md #59 remainder —
     // without this, accepting a name with several overloads gave no hint there was anything else
-    // under it at all, since only one representative item was ever kept.
+    // under it at all) and with IsOwnMember if ANY grouped candidate is declared directly on the
+    // current/receiver type (TODO.md item 60 point 7) — e.g. Derived.Foo(int) shadowing
+    // Base.Foo(string) should still render bold even though ScopeRank/Kind ordering might pick the
+    // base one as the group's representative.
     private static IReadOnlyList<ICompletionItem> GroupByDisplayText(IEnumerable<ICompletionItem> items) =>
         items
             .GroupBy(i => i.DisplayText)
             .Select(g =>
             {
                 var chosen = g.OrderBy(i => (int)i.Kind).First();
+                if (chosen is not SimpleCompletionItem simple) return chosen;
+
                 var overloadCount = g.Count(i => i.Kind == CompletionItemKind.Method);
-                return overloadCount > 1 && chosen is SimpleCompletionItem simple
-                    ? simple with { OverloadCount = overloadCount }
-                    : chosen;
+                var isOwnMember = g.Any(i => i.IsOwnMember);
+                return simple with
+                {
+                    OverloadCount = overloadCount > 1 ? overloadCount : simple.OverloadCount,
+                    IsOwnMember = isOwnMember,
+                };
             })
             .ToList();
 
-    private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
+    // The INamedTypeSymbol containing the given position — used for the general (non-dot) completion
+    // branch's "is this an own member" check (TODO.md item 60 point 7). Walks up from
+    // GetEnclosingSymbol rather than assuming a fixed nesting depth, since top-level statements (this
+    // project's primary script shape) land inside a compiler-synthesized Program class one level
+    // deeper than an ordinary explicit class body would.
+    private static INamedTypeSymbol? GetEnclosingType(SemanticModel model, int position)
+    {
+        var symbol = model.GetEnclosingSymbol(position);
+        while (symbol is not null and not INamedTypeSymbol)
+            symbol = symbol.ContainingSymbol;
+        return symbol as INamedTypeSymbol;
+    }
+
+    private static bool IsOwnMember(ISymbol symbol, ITypeSymbol? currentType) =>
+        currentType is not null && SymbolEqualityComparer.Default.Equals(symbol.ContainingType, currentType);
+
+    private static ICompletionItem? ToItem(ISymbol symbol, ITypeSymbol? currentType) => symbol switch
     {
         // LocalFunction alongside Ordinary/ReducedExtension — top-level statements (this project's
         // main script shape) use local functions as their primary way to structure code, so leaving
         // them out meant the single most common non-trivial identifier in a script never completed
         // (ANALYSIS.md #52).
         IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
-            => BuildItem(m, m.Name, CompletionItemKind.Method),
+            => BuildItem(m, m.Name, CompletionItemKind.Method, IsOwnMember(m, currentType)),
         IPropertySymbol p
-            => BuildItem(p, p.Name, CompletionItemKind.Property),
+            => BuildItem(p, p.Name, CompletionItemKind.Property, IsOwnMember(p, currentType)),
         IFieldSymbol f when !f.IsImplicitlyDeclared
             => BuildItem(f, f.Name,
-                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field),
+                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field,
+                IsOwnMember(f, currentType)),
         IEventSymbol e
-            => BuildItem(e, e.Name, CompletionItemKind.Event),
+            => BuildItem(e, e.Name, CompletionItemKind.Event, IsOwnMember(e, currentType)),
         ILocalSymbol l
             => BuildItem(l, l.Name, CompletionItemKind.Variable),
         IParameterSymbol p
@@ -446,12 +472,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _ => null
     };
 
-    private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind)
+    private static ICompletionItem BuildItem(
+        ISymbol symbol, string displayText, CompletionItemKind kind, bool isOwnMember = false)
     {
         var rank = ScopeRank(symbol);
         return new SimpleCompletionItem(displayText, kind,
             symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
-            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: []);
+            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: [],
+            IsOwnMember: isOwnMember);
     }
 
     // TODO.md #28 remainder / item 60 point 6 — a type from an added NuGet package that isn't in
@@ -1053,7 +1081,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
         string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd,
-        string? Detail = null, int OverloadCount = 1) : ICompletionItem;
+        string? Detail = null, int OverloadCount = 1, bool IsOwnMember = false) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {
