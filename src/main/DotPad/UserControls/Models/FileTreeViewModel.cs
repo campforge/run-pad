@@ -1,17 +1,30 @@
 using System.Collections.ObjectModel;
 using DotPad.Format.RPad;
 using DotPad.Services;
+using DotPad.Services.Preferences;
 
 namespace DotPad.UserControls.Models;
 
 public class FileTreeViewModel
 {
-    public FileTreeViewModel()
+    private readonly IPreferencesService _prefs;
+
+    public FileTreeViewModel(IPreferencesService prefs)
     {
+        _prefs = prefs;
         Nodes = [];
     }
 
     public ObservableCollection<FileTreeViewNode> Nodes { get; }
+
+    // TODO.md #80: FileTreeView's F2/Delete handling used to check literal Key.F2/Key.Delete directly
+    // — FileTreeView itself has no DI (it's instantiated by a plain XAML DataTemplate, not resolved
+    // through the service container, so it can't take IPreferencesService as a constructor
+    // parameter) — routed through this view model (its DataContext) instead, read live on every
+    // keypress the same way MainWindow.OnWindowKeyDown re-reads _prefs.Keyboard fresh each time,
+    // rather than a value snapshotted once at construction.
+    public string RenameGesture => _prefs.Keyboard.RenameFile;
+    public string DeleteGesture => _prefs.Keyboard.DeleteFile;
 
     /// <summary>Rebuilds <see cref="Nodes"/> from disk, preserving existing node
     /// objects where possible so selection and expand state survive small changes.</summary>

@@ -1,6 +1,8 @@
 using DotPad.Format.RPad;
 using DotPad.Services;
+using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
+using Moq;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
@@ -10,10 +12,20 @@ namespace DotPad.Runtime.UI.Tests;
 // FileTreeView.StartRenameForPath / MainWindow.FileTree_CreateFolder.
 public class FileTreeViewModelTests
 {
+    // TODO.md #80: FileTreeViewModel now reads RenameFile/DeleteFile gestures from IPreferencesService
+    // (routed through here since FileTreeView itself has no DI) — a plain KeyboardSettings default is
+    // enough for these tests, none of which touch RenameGesture/DeleteGesture directly.
+    private static FileTreeViewModel CreateViewModel()
+    {
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        return new FileTreeViewModel(prefs.Object);
+    }
+
     [Fact]
     public void FindByPath_Should_FindATopLevelNode()
     {
-        var vm = new FileTreeViewModel();
+        var vm = CreateViewModel();
         vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
 
         var found = vm.FindByPath("/root/a.rpad");
@@ -25,7 +37,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void FindByPath_Should_FindANestedNode_InsideAFolder()
     {
-        var vm = new FileTreeViewModel();
+        var vm = CreateViewModel();
         vm.Refresh([
             new FileSystemItem("Sub", true, "/root/Sub", [
                 new FileSystemItem("b.rpad", false, "/root/Sub/b.rpad", null),
@@ -41,7 +53,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void FindByPath_Should_ReturnNull_WhenThePathIsNotInTheTree()
     {
-        var vm = new FileTreeViewModel();
+        var vm = CreateViewModel();
         vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
 
         Assert.Null(vm.FindByPath("/root/missing.rpad"));
@@ -60,7 +72,7 @@ public class FileTreeViewModelTests
             var file = Path.Combine(root, "a.rpad");
             File.WriteAllText(file, RpadWriter.NewFile("Demo"));
 
-            var vm = new FileTreeViewModel();
+            var vm = CreateViewModel();
             vm.Refresh([
                 new FileSystemItem("Sub", true, sub, []),
                 new FileSystemItem("a.rpad", false, file, null),
@@ -84,7 +96,7 @@ public class FileTreeViewModelTests
             File.WriteAllText(vbFile,
                 "---\nversion: \"1.0\"\nlanguage: vb\ntargetSdk: net10.0\nkind: Statements\n---\n\n# VB Demo\n\n```vb run\nConsole.WriteLine(\"hi\")\n```\n");
 
-            var vm = new FileTreeViewModel();
+            var vm = CreateViewModel();
             vm.Refresh([
                 new FileSystemItem("cs.rpad", false, csharpFile, null),
                 new FileSystemItem("vb.rpad", false, vbFile, null),

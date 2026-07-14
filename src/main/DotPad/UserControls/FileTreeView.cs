@@ -119,19 +119,35 @@ public partial class FileTreeView : UserControl
 
     // ── File tree — F2 / Delete hotkeys ──────────────────────────────────────
 
+    // TODO.md #80: used to check literal Key.F2/Key.Delete — this control has no DI (see
+    // FileTreeViewModel's own doc comment on why), so the gestures are read from its DataContext
+    // instead, live on every keypress rather than a value cached at construction.
     private void FileTree_KeyDown(object? sender, KeyEventArgs e)
     {
         if (_fileTree.SelectedItem is not FileTreeViewNode node) return;
+        if (DataContext is not FileTreeViewModel vm) return;
 
-        if (e.Key == Key.F2)
+        if (Match(e, vm.RenameGesture))
         {
             StartRename(node);
             e.Handled = true;
         }
-        else if (e.Key == Key.Delete)
+        else if (Match(e, vm.DeleteGesture))
         {
             RaiseEvent(new FileTreeFileEventArgs(DeleteEvent, node.FilePath));
             e.Handled = true;
+        }
+    }
+
+    private static bool Match(KeyEventArgs e, string gesture)
+    {
+        try
+        {
+            return KeyGesture.Parse(gesture).Matches(e);
+        }
+        catch
+        {
+            return false;
         }
     }
 

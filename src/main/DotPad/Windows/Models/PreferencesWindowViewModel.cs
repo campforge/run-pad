@@ -342,6 +342,32 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Keyboard.GoToLine, value, v => _prefs.Keyboard.GoToLine = v);
     }
 
+    // TODO.md #80: these 4 used to be literal Key.XXX checks in MainWindow.axaml.cs/FileTreeView.cs,
+    // not editable here at all — same pattern as the 7 above, just newly wired up.
+    public string HotkeyOpenDependencies
+    {
+        get => _prefs.Keyboard.OpenDependencies;
+        set => SetPref(_prefs.Keyboard.OpenDependencies, value, v => _prefs.Keyboard.OpenDependencies = v);
+    }
+
+    public string HotkeyCloseTab
+    {
+        get => _prefs.Keyboard.CloseTab;
+        set => SetPref(_prefs.Keyboard.CloseTab, value, v => _prefs.Keyboard.CloseTab = v);
+    }
+
+    public string HotkeyRenameFile
+    {
+        get => _prefs.Keyboard.RenameFile;
+        set => SetPref(_prefs.Keyboard.RenameFile, value, v => _prefs.Keyboard.RenameFile = v);
+    }
+
+    public string HotkeyDeleteFile
+    {
+        get => _prefs.Keyboard.DeleteFile;
+        set => SetPref(_prefs.Keyboard.DeleteFile, value, v => _prefs.Keyboard.DeleteFile = v);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private void SetPref<T>(T current, T value, Action<T> assign, [CallerMemberName] string? name = null)

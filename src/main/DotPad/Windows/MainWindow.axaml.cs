@@ -75,12 +75,12 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.GoToLineActive();
             e.Handled = true;
         }
-        else if (e.Key == Key.F4)
+        else if (Match(e, kb.OpenDependencies))
         {
             vm.OpenDependenciesWindow();
             e.Handled = true;
         }
-        else if (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        else if (Match(e, kb.CloseTab))
         {
             vm.CloseActiveTab();
             e.Handled = true;

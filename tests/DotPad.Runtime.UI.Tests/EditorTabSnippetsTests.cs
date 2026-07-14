@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using DotPad.Avalonia.CodeTextEditor;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -81,6 +82,40 @@ public class EditorTabSnippetsTests
         // review). Same-cased assertions (e.g. Assert.Contains("New", ...)) can't catch this — an
         // exact match passes regardless of comparer.
         Assert.Contains("new", editor.WordTriggers);
+    }
+
+    // TODO.md #76: EditorTabItemControl.ApplyEditorLanguageProfile used to switch on a
+    // FoldingStrategyKind enum and instantiate `new VbFoldingStrategy()` directly by name — a
+    // main-project file hardcoding a concrete, VB-specific type. It now picks a language-agnostic
+    // DelegateFoldingStrategy whenever EditorLanguageProfile.FoldingRegionsProvider is set, falling
+    // back to BraceFoldingStrategy when it's null (C#'s case) — these prove the right one is
+    // actually selected per language, not just that the enum/property still compiles.
+    [AvaloniaFact]
+    public async Task Editor_Should_UseBraceFoldingStrategy_When_TabLanguageIsCSharp()
+    {
+        var ctrl = await OpenTabAsync(RpadLanguage.CSharp);
+
+        Assert.IsType<BraceFoldingStrategy>(ctrl.State.Editor.FoldingStrategy);
+    }
+
+    [AvaloniaFact]
+    public async Task Editor_Should_UseDelegateFoldingStrategy_When_TabLanguageIsVb()
+    {
+        var ctrl = await OpenTabAsync(RpadLanguage.Vb);
+        var editor = ctrl.State.Editor;
+
+        Assert.IsType<DelegateFoldingStrategy>(editor.FoldingStrategy);
+
+        // Not just the right TYPE — the right ALGORITHM: exercise it end-to-end against a real
+        // FoldingManager with VB code that only VbFoldingRegions.Compute (not the brace-based
+        // default, which would find zero foldings here) can fold correctly.
+        editor.Document.Text = "Public Sub Foo()\n    Console.WriteLine(1)\nEnd Sub\n";
+        var foldingManager = AvaloniaEdit.Folding.FoldingManager.Install(editor.TextArea);
+        editor.FoldingStrategy.UpdateFoldings(foldingManager, editor.Document);
+
+        var folding = Assert.Single(foldingManager.AllFoldings);
+        Assert.Equal(1, editor.Document.GetLineByOffset(folding.StartOffset).LineNumber);
+        Assert.Equal(3, editor.Document.GetLineByOffset(folding.EndOffset).LineNumber);
     }
 
     private static async Task<EditorsTabItemControl> OpenTabAsync(RpadLanguage language)

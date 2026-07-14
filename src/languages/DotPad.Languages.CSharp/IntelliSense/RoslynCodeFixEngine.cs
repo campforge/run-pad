@@ -103,7 +103,7 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
-                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, ct);
+                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
                 if (materialized is null) continue;
                 var (newCode, usingsToAdd) = materialized.Value;
                 if (newCode == userCode && usingsToAdd.Count == 0) continue;
@@ -118,7 +118,7 @@ internal sealed class RoslynCodeFixEngine
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
     private static async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
-        CodeAction action, Document originalDocument, int preambleLength, CancellationToken ct)
+        CodeAction action, Document originalDocument, int preambleLength, int userCodeLength, CancellationToken ct)
     {
         try
         {
@@ -130,7 +130,8 @@ internal sealed class RoslynCodeFixEngine
             if (newDocument is null) return null;
 
             var changes = (await newDocument.GetTextChangesAsync(originalDocument, ct)).ToList();
-            return ApplyRelocatingPreambleEdits(changes, await originalDocument.GetTextAsync(ct), preambleLength);
+            return ApplyRelocatingPreambleEdits(
+                changes, await originalDocument.GetTextAsync(ct), preambleLength, userCodeLength);
         }
         catch { return null; }
     }
@@ -140,18 +141,36 @@ internal sealed class RoslynCodeFixEngine
     // Splits a set of TextChanges expressed against the synthetic `_preamble + code` document into
     // "usings to add" (lifted out of the preamble) and "the rest" (shifted back onto the user's
     // code). See the class doc comment for why this can't be a plain substring cut.
+    //
+    // TODO.md #77: the "rest" used to be reconstructed as everything from preambleLength to
+    // originalFullText.Length — correct only as long as nothing follows the user's own code in the
+    // synced document. CSharpIntelliSenseService now appends a one-character TrailingPad after it
+    // (so a query position sitting at the very end of the user's code no longer coincides with the
+    // document's true end — see HeaderLength's doc comment for the underlying Roslyn quirk this
+    // works around), so the end of "the user's code" has to be the caller-supplied, actually-known
+    // userCodeLength instead of however long the live document happens to be. A fix that removes/
+    // replaces the LAST token of the user's code (e.g. "remove unused variable" on the final
+    // statement) removes that token's full span including trailing trivia — which now extends into
+    // TrailingPad, since a synthetic space right after the last real token attaches to it as trailing
+    // trivia the same as any other trailing whitespace. Each change's span is clamped to
+    // preambleLength + userCodeLength for exactly this reason: the clamped-off tail is guaranteed to
+    // be nothing but that synthetic pad (never meaningful user content), so silently dropping it from
+    // what gets deleted/replaced is safe — NewText itself is untouched, only how much of the
+    // (padding-only) tail end of the input span gets consumed is shortened.
     private static (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
-        List<TextChange> changes, SourceText originalFullText, int preambleLength)
+        List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {
         var usingsToAdd = new List<string>();
         var userCodeChanges = new List<TextChange>();
+        var userCodeEnd = preambleLength + userCodeLength;
 
         foreach (var change in changes.OrderBy(c => c.Span.Start))
         {
             if (change.Span.Start >= preambleLength)
             {
+                var clampedLength = Math.Max(0, Math.Min(change.Span.End, userCodeEnd) - change.Span.Start);
                 userCodeChanges.Add(new TextChange(
-                    new TextSpan(change.Span.Start - preambleLength, change.Span.Length), change.NewText ?? ""));
+                    new TextSpan(change.Span.Start - preambleLength, clampedLength), change.NewText ?? ""));
                 continue;
             }
 
@@ -167,7 +186,7 @@ internal sealed class RoslynCodeFixEngine
             usingsToAdd.Add(match.Groups[1].Value);
         }
 
-        var userText = originalFullText.GetSubText(new TextSpan(preambleLength, originalFullText.Length - preambleLength));
+        var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
         return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
     }
 

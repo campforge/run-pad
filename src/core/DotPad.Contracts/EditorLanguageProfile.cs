@@ -14,21 +14,6 @@ public enum IndentationStrategyKind
     CStyle,
 }
 
-// Which built-in CodeTextEditor code-folding algorithm a language wants — kept as an enum for the
-// same UI-framework-independence reason as IndentationStrategyKind; EditorTabItemControl maps it to
-// the real DotPad.Avalonia.CodeTextEditor.IFoldingStrategy implementation.
-public enum FoldingStrategyKind
-{
-    // Folds between a language's matching open/close brace characters — correct default for a
-    // brace-delimited language (C#'s { }), wrong for a keyword-delimited one (VB's Sub/End Sub).
-    BraceBased,
-
-    // Folds between VB's keyword-delimited block pairs (Sub/End Sub, If/End If, For/Next, ...) — see
-    // DotPad.Avalonia.CodeTextEditor.VbFoldingStrategy for exactly which constructs (TODO.md #49
-    // item 3).
-    VbKeywordBased,
-}
-
 // The editor-level lexical/syntactic conventions a language plugin wants applied to
 // DotPad.Avalonia.CodeTextEditor, which is itself deliberately language-agnostic (see its own XML
 // docs on IdentifierChars/ContextualTriggers/WordTriggers/BracePairs/AutoCloseBraces/
@@ -52,5 +37,18 @@ public sealed class EditorLanguageProfile
     public IReadOnlyDictionary<char, char> BracePairs { get; init; } = new Dictionary<char, char>();
     public IReadOnlySet<char> AutoCloseBraces { get; init; } = new HashSet<char>();
     public IndentationStrategyKind IndentationStrategy { get; init; } = IndentationStrategyKind.Default;
-    public FoldingStrategyKind FoldingStrategy { get; init; } = FoldingStrategyKind.BraceBased;
+
+    // TODO.md #76: used to be a FoldingStrategyKind enum (BraceBased/VbKeywordBased) that
+    // EditorTabItemControl (main UI project) switched on to hardcode `new VbFoldingStrategy()` — a
+    // main-project file directly naming a concrete VB-specific type. Replaced with the language
+    // plugin handing over the actual algorithm as a plain delegate instead: text in, fold-region
+    // offset pairs out. Plain string/int/tuple types only (no AvaloniaEdit types), so this stays as
+    // UI-framework-independent as the rest of DotPad.Contracts while still letting a language project
+    // own its own folding algorithm (see DotPad.Languages.VB.VbFoldingRegions.Compute) without
+    // DotPad.Contracts or DotPad.Languages.* needing a reference to DotPad.Avalonia.CodeTextEditor —
+    // which would otherwise force DotPad.Cli (references DotPad.Languages.CSharp/.VB directly, no
+    // Avalonia today) to pull in the whole Avalonia UI stack just to run a .vb script. Null means
+    // "no language-specific algorithm" — EditorTabItemControl falls back to brace-based folding,
+    // correct for C#'s { }-delimited blocks.
+    public Func<string, IReadOnlyList<(int Start, int End)>>? FoldingRegionsProvider { get; init; }
 }

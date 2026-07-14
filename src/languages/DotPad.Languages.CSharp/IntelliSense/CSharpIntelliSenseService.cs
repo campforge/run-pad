@@ -238,6 +238,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // code — usings preamble plus (for RpadKind.Program) the mirrored `Main();` prefix above.
     private int HeaderLength => _preambleLength + KindPrefix.Length;
 
+    // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
+    // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
+    // the exact reported repro: `var a = ...;` then `a` on its own line, nothing typed after it yet)
+    // coincides with the true end of the whole synced document. Roslyn's SemanticModel.LookupSymbols
+    // silently stops finding block-scoped locals/parameters right at that exact boundary — confirmed
+    // directly against Roslyn (position == EndOfFileToken, whose parent is the bare CompilationUnit
+    // rather than any enclosing statement) — so the just-declared local `a` dropped out of the
+    // completion list entirely, leaving the implicit top-level-statement `args` parameter (which
+    // isn't affected by this boundary — it resolves from a different binder chain) as the only
+    // remaining "a"-prefixed candidate. A single trailing space, appended once here, moves every
+    // legitimate query position (which can only ever be <= HeaderLength + code.Length) strictly
+    // before the document's new true end, sidestepping the boundary entirely — confirmed empirically
+    // to restore the local for that same repro. Purely whitespace, so it can't itself introduce new
+    // diagnostics/tokens; RoslynCodeFixEngine is the one consumer that reconstructs "the user's code"
+    // by measuring from the document's end rather than from the known userCode.Length, so it takes an
+    // explicit adjustment (see ApplyRelocatingPreambleEdits) to not leak this pad into a fix's output.
+    private const string TrailingPad = " ";
+
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
@@ -246,7 +264,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + KindPrefix + code, Encoding.UTF8);
+                var text = SourceText.From(_preamble + KindPrefix + code + TrailingPad, Encoding.UTF8);
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and

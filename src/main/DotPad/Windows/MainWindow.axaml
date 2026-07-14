@@ -72,7 +72,8 @@
                             </MenuItem>
                         </MenuItem>
                         <MenuItem Header="Edit">
-                            <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"/>
+                            <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"
+                                      InputGesture="{Binding OpenDependenciesGesture}"/>
                             <Separator/>
                             <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>
