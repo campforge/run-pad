@@ -58,6 +58,51 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
     }
 
+    // TODO.md #75: ICodeFixInfo.Severity used to not exist at all — RoslynCodeFixEngine discarded
+    // Diagnostic.Severity when building each fix, so the lightbulb margin had no way to color an
+    // error-fixing action differently from a warning-fixing one. CS0103 (undefined "Regex") is a
+    // real compiler ERROR, so the "add using" fix for it must carry Error through.
+    [Fact]
+    public async Task NotifyTextChanged_Should_MarkMissingUsingFix_AsErrorSeverity()
+    {
+        using var service = CreateService();
+
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CodeFixesChanged += (_, f) =>
+        {
+            if (f.Count > 0)
+                tcs.TrySetResult(f);
+        };
+
+        service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
+
+        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var fix = codeFixes.First(f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
+        Assert.Equal(DiagnosticSeverity.Error, fix.Severity);
+    }
+
+    // Same idea, opposite severity: CS0168 ("variable declared but never used") is a compiler
+    // WARNING, not an error — Microsoft's own CSharpRemoveUnusedVariableCodeFixProvider (composed
+    // via MEF like every other fix here) offers to remove it. Proves Severity isn't just always
+    // Error (which the Regex test alone couldn't rule out).
+    [Fact]
+    public async Task NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity()
+    {
+        using var service = CreateService();
+
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CodeFixesChanged += (_, f) =>
+        {
+            if (f.Count > 0)
+                tcs.TrySetResult(f);
+        };
+
+        service.NotifyTextChanged("int unused;\n");
+
+        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Contains(codeFixes, f => f.Severity == DiagnosticSeverity.Warning);
+    }
+
     // ANALYSIS.md TODO #56: SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
     // CurrentSolution was unsynchronized, even though completion/signature-help/quick-info/
     // background-analysis each call it from their own concurrent Task.Run. A genuine race is timing-

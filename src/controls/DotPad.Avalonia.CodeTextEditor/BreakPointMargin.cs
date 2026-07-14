@@ -185,18 +185,9 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     {
         if (TextView is null) return 0;
         if (!ShowLineNumbers) return TextView.DefaultLineHeight;
-        return Math.Max(TextView.DefaultLineHeight, MeasureMaxLineNumberWidth() + HorizontalPadding * 2);
-    }
-
-    private double MeasureMaxLineNumberWidth()
-    {
-        if (_editor is null || TextView?.Document is null) return 0;
-        var digits = Math.Max(2, TextView.Document.LineCount.ToString(CultureInfo.InvariantCulture).Length);
-        var probe = new string('8', digits);
-        var typeface = new Typeface(_editor.FontFamily);
-        var text = new FormattedText(probe, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            typeface, _editor.FontSize, Brushes.Black);
-        return text.Width;
+        if (_editor is null || TextView.Document is null)
+            return Math.Max(TextView.DefaultLineHeight, HorizontalPadding * 2);
+        return GutterMetrics.LineNumberColumnWidth(_editor, TextView, HorizontalPadding);
     }
 
     private void DrawLineNumber(DrawingContext ctx, int lineNo, IBrush? brush, double yTop, double lineH)
