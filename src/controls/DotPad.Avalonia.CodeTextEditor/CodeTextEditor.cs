@@ -251,14 +251,6 @@ public class CodeTextEditor : TextEditor
         // Ctrl+Space already uses for ShowCompletion's explicit invoke — is unused by the trigger
         // character on this path (TryGetSignatureHelpAsync doesn't branch on it, only on position).
         TextArea.Caret.PositionChanged += (_, _) => { if (IsInsightWindowOpen) ShowOverloads('\0'); };
-        // TODO.md #53 remainder: the active (bold) parameter used to update only when a "," was
-        // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
-        // the window opened. ShowOverloads is a stateless "recompute from the current caret position"
-        // request (TryGetSignatureHelpAsync derives argIndex purely from position), so simply
-        // re-triggering it on every caret move while the window is already open is enough — no
-        // separate incremental-update path needed. '\0' — same "not a real typed character" sentinel
-        // Ctrl+Space already uses for ShowCompletion's explicit invoke — is unused by the trigger
-        // character on this path (TryGetSignatureHelpAsync doesn't branch on it, only on position).
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;
