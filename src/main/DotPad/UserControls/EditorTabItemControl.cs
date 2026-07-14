@@ -22,6 +22,7 @@ using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
 using ReactiveUI;
+using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
 
 namespace DotPad.UserControls;
 
@@ -796,8 +797,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 // script with no front matter to route them to, where they're folded into the text.
                 var hasProjectFile = State.RpadDocument is not null;
                 var entries = fixes.Select(f => hasProjectFile
-                        ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd)
-                        : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), []))
+                        ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd, ToMarginSeverity(f.Severity))
+                        : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), [], ToMarginSeverity(f.Severity)))
                     .ToList();
                 editor.UpdateCodeFixes(entries);
             });
@@ -1014,6 +1015,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
+
+    // TODO.md #75: DotPad.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
+    // DotPad.Contracts.IntelliSense.DiagnosticSeverity rather than referencing it (the control stays
+    // dependency-free from DotPad.Contracts — see CodeFixEntry's doc comment), so this is the one
+    // place the two enums need mapping between them.
+    private static CodeFixSeverity ToMarginSeverity(ContractSeverity severity) => severity switch
+    {
+        ContractSeverity.Error => CodeFixSeverity.Error,
+        ContractSeverity.Warning => CodeFixSeverity.Warning,
+        _ => CodeFixSeverity.Info,
+    };
 
     private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
     {

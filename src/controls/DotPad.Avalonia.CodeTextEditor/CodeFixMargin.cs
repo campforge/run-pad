@@ -47,19 +47,43 @@ public class CodeFixMargin : AbstractMargin
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
         if (_bulbGeo is null) return;
 
-        var brush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
-
         foreach (var vl in TextView.VisualLines)
         {
             var lineNo = vl.FirstDocumentLine.LineNumber;
-            if (!_fixes.Any(f => f.Line == lineNo)) continue;
+            var worst = WorstSeverityOnLine(lineNo);
+            if (worst is null) continue;
 
+            var brush = LoadThemedResource<IBrush>(SeverityBrushKey(worst.Value));
             var lineH = vl.Height;
             var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
                           - TextView.VerticalOffset;
             DrawCentered(context, _bulbGeo, brush, yTop, lineH);
         }
     }
+
+    // TODO.md #75: several fixes can share one line (e.g. multiple "using X;" candidates for the
+    // same unresolved type) at different severities — the icon shows whichever is worse, same
+    // priority order BreakPointMargin's own debug-arrow/breakpoint overlap uses (an error is more
+    // worth the user's attention than a warning sitting on the same line). Internal (not private) +
+    // InternalsVisibleTo (see the csproj), same pattern as CSharpReferenceService.IsManagedAssembly
+    // (TODO.md #44) — so this and SeverityBrushKey can be tested directly without a live TextView.
+    internal CodeFixSeverity? WorstSeverityOnLine(int lineNo)
+    {
+        CodeFixSeverity? worst = null;
+        foreach (var f in _fixes)
+        {
+            if (f.Line != lineNo) continue;
+            if (worst is null || f.Severity > worst) worst = f.Severity;
+        }
+        return worst;
+    }
+
+    internal static string SeverityBrushKey(CodeFixSeverity severity) => severity switch
+    {
+        CodeFixSeverity.Error => "DotPad.Margin.CodeFixErrorBrush",
+        CodeFixSeverity.Warning => "DotPad.Margin.CodeFixWarningBrush",
+        _ => "DotPad.Margin.DebugArrowBrush",
+    };
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
@@ -97,8 +121,21 @@ public class CodeFixMargin : AbstractMargin
             UsingsToAddRequested?.Invoke(fix.UsingsToAdd);
     }
 
+    // TODO.md #75: matches BreakPointMargin's own line-number-column width (via the shared
+    // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two
+    // margins sit right next to each other in the gutter, so a mismatched width made the lightbulb
+    // and the line-number/debug-arrow icons look like two misaligned columns instead of one gutter.
     protected override Size MeasureOverride(Size availableSize)
-        => TextView != null ? new Size(TextView.DefaultLineHeight * 0.8, 0) : new Size(0, 0);
+    {
+        if (TextView is null) return new Size(0, 0);
+        if (TextView.Document is null) return new Size(TextView.DefaultLineHeight, 0);
+        return new Size(GutterMetrics.LineNumberColumnWidth(_editor, TextView, GutterHorizontalPadding), 0);
+    }
+
+    // Same padding constant as BreakPointMargin.HorizontalPadding — kept as a separate private
+    // constant (rather than a shared public one) since the two margins have no other reason to
+    // reference each other's internals; GutterMetrics is the only intentional coupling point.
+    private const double GutterHorizontalPadding = 6.0;
 
     private void DrawCentered(DrawingContext ctx, StreamGeometry geo, IBrush? brush, double yTop, double lineH)
     {

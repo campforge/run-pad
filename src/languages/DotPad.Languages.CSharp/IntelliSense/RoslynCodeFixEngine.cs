@@ -7,6 +7,8 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace DotPad.Languages.CSharp.IntelliSense;
 
@@ -105,7 +107,7 @@ internal sealed class RoslynCodeFixEngine
                 if (materialized is null) continue;
                 var (newCode, usingsToAdd) = materialized.Value;
                 if (newCode == userCode && usingsToAdd.Count == 0) continue;
-                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd));
+                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ToContractSeverity(diagnostic.Severity)));
             }
         }
     }
@@ -178,5 +180,16 @@ internal sealed class RoslynCodeFixEngine
         return line;
     }
 
-    private sealed record RoslynCodeFix(int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd) : ICodeFixInfo;
+    // Same mapping as CSharpIntelliSenseService's diagnostics pipeline (Hidden has no ICodeFixInfo
+    // equivalent to fall back to — a fix is never offered for a Hidden-severity diagnostic in the
+    // first place — so it folds into Info rather than needing a fourth case here).
+    private static ContractSeverity ToContractSeverity(RoslynSeverity severity) => severity switch
+    {
+        RoslynSeverity.Error => ContractSeverity.Error,
+        RoslynSeverity.Warning => ContractSeverity.Warning,
+        _ => ContractSeverity.Info,
+    };
+
+    private sealed record RoslynCodeFix(
+        int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd, ContractSeverity Severity) : ICodeFixInfo;
 }
