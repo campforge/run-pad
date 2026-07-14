@@ -13,6 +13,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     }
 
     public string Language => "vb";
+    public string DisplayName => "Visual Basic";
 
     // No IntelliSense flag yet — VB tabs compile/run/debug but have no autocomplete/diagnostics/
     // quick-fixes (would need a VisualBasicIntelliSenseService against Microsoft.CodeAnalysis.VisualBasic).
@@ -44,6 +45,9 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
         AutoCloseBraces = new HashSet<char> { '[' },
         IndentationStrategy = IndentationStrategyKind.Default,
+        // TODO.md #49 item 3 — VB's blocks aren't brace-delimited, so the default BraceBased folding
+        // strategy folded nothing at all in a .vb file.
+        FoldingStrategy = FoldingStrategyKind.VbKeywordBased,
     };
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)

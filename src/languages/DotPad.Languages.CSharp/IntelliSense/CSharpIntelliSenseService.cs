@@ -256,6 +256,25 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (root == null) return null;
 
             var pos = position + HeaderLength;
+
+            // TODO.md item 60 point 8 — checked before the position guards below: "override" is a
+            // reserved keyword that can only ever be a modifier, so if it's literally the word right
+            // before the caret, this is unambiguously an override-stub request regardless of what the
+            // (necessarily incomplete, not-yet-typed-past-it) surrounding syntax looks like to
+            // Roslyn's error recovery — e.g. IsDeclarationNamePosition has no reason to fire here, but
+            // there's no need to depend on that holding.
+            if (IsAfterOverrideModifier(code, position))
+            {
+                var overrideType = GetEnclosingType(model, pos);
+                if (overrideType?.BaseType is null) return null;
+
+                var overrideItems = GetOverridableMethods(overrideType)
+                    .Select(m => BuildOverrideStubItem(m, model, pos))
+                    .OrderBy(i => i.SortText, StringComparer.Ordinal)
+                    .ToList();
+                return overrideItems.Count > 0 ? new SimpleCompletionList(overrideItems) : null;
+            }
+
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)
                 || IsDeclarationNamePosition(root, pos))
                 return null;
@@ -295,12 +314,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     // for offering the namespace's nested namespaces/types instead.
                     if (qualifierSymbol is INamespaceSymbol containingNamespace)
                     {
-                        var nsItems = model.LookupNamespacesAndTypes(pos, container: containingNamespace)
-                            .Select(ToItem)
-                            .Where(i => i != null)
-                            .Cast<ICompletionItem>()
-                            .GroupBy(i => i.DisplayText)
-                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                        var nsItems = GroupByDisplayText(model.LookupNamespacesAndTypes(pos, container: containingNamespace)
+                                .Select(s => ToItem(s, currentType: null))
+                                .Where(i => i != null)
+                                .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
@@ -333,14 +350,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                         // Extension methods only make sense in the instance case (the static-qualifier
                         // "DateTime.SomeExtension()" call form isn't what LookupSymbols' reduced form
                         // represents), so they're only requested there too.
-                        var memberItems = model
-                            .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
-                            .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
-                            .Select(ToItem)
-                            .Where(i => i != null)
-                            .Cast<ICompletionItem>()
-                            .GroupBy(i => i.DisplayText)
-                            .Select(g => g.OrderBy(i => (int)i.Kind).First())
+                        var memberItems = GroupByDisplayText(model
+                                .LookupSymbols(pos, container: type, includeReducedExtensionMethods: !isStaticQualifier)
+                                .Where(s => MatchesQualifierStaticness(s, isStaticQualifier))
+                                .Select(s => ToItem(s, currentType: type))
+                                .Where(i => i != null)
+                                .Cast<ICompletionItem>())
                             .OrderBy(i => i.SortText, StringComparer.Ordinal)
                             .ToList();
 
@@ -355,14 +370,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             }
 
             var symbols = model.LookupSymbols(pos);
-            var visible = symbols
-                .Select(ToItem)
+            var currentType = GetEnclosingType(model, pos);
+            var visible = GroupByDisplayText(symbols
+                .Select(s => ToItem(s, currentType))
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos)))
-                .GroupBy(i => i.DisplayText)
-                .Select(g => g.OrderBy(i => (int)i.Kind).First())
-                .ToList();
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos))));
 
             // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
@@ -392,21 +405,178 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Completions failed"); return null; }
     }
 
-    private static ICompletionItem? ToItem(ISymbol symbol) => symbol switch
+    // Collapses same-named candidates down to one item per DisplayText (the same instance already
+    // won by ScopeRank/Kind ordering everywhere this was called before), stamping the survivor with
+    // OverloadCount when more than one Method-kind candidate shares the name (TODO.md #59 remainder —
+    // without this, accepting a name with several overloads gave no hint there was anything else
+    // under it at all) and with IsOwnMember if ANY grouped candidate is declared directly on the
+    // current/receiver type (TODO.md item 60 point 7) — e.g. Derived.Foo(int) shadowing
+    // Base.Foo(string) should still render bold even though ScopeRank/Kind ordering might pick the
+    // base one as the group's representative.
+    private static IReadOnlyList<ICompletionItem> GroupByDisplayText(IEnumerable<ICompletionItem> items) =>
+        items
+            .GroupBy(i => i.DisplayText)
+            .Select(g =>
+            {
+                var chosen = g.OrderBy(i => (int)i.Kind).First();
+                if (chosen is not SimpleCompletionItem simple) return chosen;
+
+                var overloadCount = g.Count(i => i.Kind == CompletionItemKind.Method);
+                var isOwnMember = g.Any(i => i.IsOwnMember);
+                return simple with
+                {
+                    OverloadCount = overloadCount > 1 ? overloadCount : simple.OverloadCount,
+                    IsOwnMember = isOwnMember,
+                };
+            })
+            .ToList();
+
+    // The INamedTypeSymbol containing the given position — used for the general (non-dot) completion
+    // branch's "is this an own member" check (TODO.md item 60 point 7). Walks up from
+    // GetEnclosingSymbol rather than assuming a fixed nesting depth, since top-level statements (this
+    // project's primary script shape) land inside a compiler-synthesized Program class one level
+    // deeper than an ordinary explicit class body would.
+    private static INamedTypeSymbol? GetEnclosingType(SemanticModel model, int position)
+    {
+        var symbol = model.GetEnclosingSymbol(position);
+        while (symbol is not null and not INamedTypeSymbol)
+            symbol = symbol.ContainingSymbol;
+        return symbol as INamedTypeSymbol;
+    }
+
+    private static bool IsOwnMember(ISymbol symbol, ITypeSymbol? currentType) =>
+        currentType is not null && SymbolEqualityComparer.Default.Equals(symbol.ContainingType, currentType);
+
+    // ── Override-member stubs (TODO.md item 60 point 8) ────────────────────────
+
+    // True when the word immediately before position — skipping back over the trigger space itself —
+    // is the whole word "override" (not e.g. "myoverride"). Deliberately a raw string scan, not a
+    // syntax-tree check: at this position nothing has been typed for the member yet, so there's no
+    // stable node to anchor a tree-based check to (same rationale as GetIdentifierPrefix elsewhere in
+    // this file).
+    private static bool IsAfterOverrideModifier(string code, int position)
+    {
+        var end = Math.Clamp(position, 0, code.Length);
+        while (end > 0 && code[end - 1] is ' ' or '\t') end--;
+
+        const string keyword = "override";
+        if (end < keyword.Length) return false;
+        var start = end - keyword.Length;
+        if (!code.AsSpan(start, keyword.Length).SequenceEqual(keyword)) return false;
+
+        return start == 0 || !(char.IsLetterOrDigit(code[start - 1]) || code[start - 1] == '_');
+    }
+
+    // Every method in currentType's base chain that's still overridable — virtual, abstract, or a
+    // non-sealed override further up (itself still a valid slot to override again) — deduplicated to
+    // the most-derived occurrence of each signature (walking from BaseType upward, the first hit for
+    // a given OriginalDefinition wins), and excluding anything currentType has already overridden
+    // itself. A sealed override is excluded outright rather than falling through to a less-derived,
+    // still-overridable declaration of the same signature — sealed really does mean "stop offering
+    // this one here", not "offer the next-best thing instead".
+    private static IEnumerable<IMethodSymbol> GetOverridableMethods(INamedTypeSymbol currentType)
+    {
+        var alreadyOverridden = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+        foreach (var own in currentType.GetMembers().OfType<IMethodSymbol>().Where(m => m.IsOverride))
+            for (var overridden = own.OverriddenMethod; overridden != null; overridden = overridden.OverriddenMethod)
+                alreadyOverridden.Add(overridden.OriginalDefinition);
+
+        var seen = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+        for (var type = currentType.BaseType; type != null; type = type.BaseType)
+        {
+            foreach (var m in type.GetMembers().OfType<IMethodSymbol>())
+            {
+                if (m.MethodKind != MethodKind.Ordinary) continue;
+                if (!m.IsVirtual && !m.IsAbstract && !m.IsOverride) continue;
+                if (m.IsSealed) continue;
+                if (!seen.Add(m.OriginalDefinition)) continue;
+                if (alreadyOverridden.Contains(m.OriginalDefinition)) continue;
+
+                yield return m;
+            }
+        }
+    }
+
+    // An override's accessibility must match the overridden member's exactly — C# doesn't allow
+    // changing it — so this only ever needs to round-trip Accessibility back to the keyword(s) that
+    // produced it, not handle every possible value (private/NotApplicable can't reach here: an
+    // overridable member is never private).
+    private static string AccessibilityKeyword(Accessibility accessibility) => accessibility switch
+    {
+        Accessibility.Public => "public",
+        Accessibility.Protected => "protected",
+        Accessibility.ProtectedOrInternal => "protected internal",
+        Accessibility.ProtectedAndInternal => "private protected",
+        Accessibility.Internal => "internal",
+        _ => "protected",
+    };
+
+    private static string FormatOverrideParameter(IParameterSymbol p, SemanticModel model, int pos)
+    {
+        var refPrefix = p.RefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.Out => "out ",
+            RefKind.In => "in ",
+            _ => "",
+        };
+        var paramsPrefix = p.IsParams ? "params " : "";
+        return $"{paramsPrefix}{refPrefix}{p.Type.ToMinimalDisplayString(model, pos)} {p.Name}";
+    }
+
+    private static string ForwardOverrideArgument(IParameterSymbol p) => p.RefKind switch
+    {
+        RefKind.Ref => $"ref {p.Name}",
+        RefKind.Out => $"out {p.Name}",
+        RefKind.In => $"in {p.Name}",
+        _ => p.Name,
+    };
+
+    // The stub template — same "${0}" cursor-marker/tab-indent syntax CodeTextEditor.ExpandSnippet
+    // already expands for the hand-authored Snippets dictionary (ILanguageHostFactory.Snippets), so
+    // no new insertion mechanism is needed on the editor side. An abstract member has no base
+    // implementation to call, so it gets a NotImplementedException stub instead — calling base.M(...)
+    // there wouldn't compile.
+    private static ICompletionItem BuildOverrideStubItem(IMethodSymbol method, SemanticModel model, int pos)
+    {
+        var returnType = method.ReturnsVoid ? "void" : method.ReturnType.ToMinimalDisplayString(model, pos);
+        var parameters = string.Join(
+            ", ", method.Parameters.Select(p => FormatOverrideParameter(p, model, pos)));
+        var arguments = string.Join(", ", method.Parameters.Select(ForwardOverrideArgument));
+        var call = method.IsAbstract
+            ? "throw new NotImplementedException();"
+            : method.ReturnsVoid
+                ? $"base.{method.Name}({arguments});"
+                : $"return base.{method.Name}({arguments});";
+
+        var template =
+            $"{AccessibilityKeyword(method.DeclaredAccessibility)} override {returnType} {method.Name}({parameters})\n" +
+            "{\n" +
+            $"\t{call}${{0}}\n" +
+            "}";
+
+        return new SimpleCompletionItem(
+            method.Name, CompletionItemKind.Method,
+            method.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(method),
+            SortText: method.Name, Priority: 1.0, UsingsToAdd: [], InsertTemplate: template);
+    }
+
+    private static ICompletionItem? ToItem(ISymbol symbol, ITypeSymbol? currentType) => symbol switch
     {
         // LocalFunction alongside Ordinary/ReducedExtension — top-level statements (this project's
         // main script shape) use local functions as their primary way to structure code, so leaving
         // them out meant the single most common non-trivial identifier in a script never completed
         // (ANALYSIS.md #52).
         IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
-            => BuildItem(m, m.Name, CompletionItemKind.Method),
+            => BuildItem(m, m.Name, CompletionItemKind.Method, IsOwnMember(m, currentType)),
         IPropertySymbol p
-            => BuildItem(p, p.Name, CompletionItemKind.Property),
+            => BuildItem(p, p.Name, CompletionItemKind.Property, IsOwnMember(p, currentType)),
         IFieldSymbol f when !f.IsImplicitlyDeclared
             => BuildItem(f, f.Name,
-                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field),
+                f.ContainingType?.TypeKind == TypeKind.Enum ? CompletionItemKind.EnumMember : CompletionItemKind.Field,
+                IsOwnMember(f, currentType)),
         IEventSymbol e
-            => BuildItem(e, e.Name, CompletionItemKind.Event),
+            => BuildItem(e, e.Name, CompletionItemKind.Event, IsOwnMember(e, currentType)),
         ILocalSymbol l
             => BuildItem(l, l.Name, CompletionItemKind.Variable),
         IParameterSymbol p
@@ -435,12 +605,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _ => null
     };
 
-    private static ICompletionItem BuildItem(ISymbol symbol, string displayText, CompletionItemKind kind)
+    private static ICompletionItem BuildItem(
+        ISymbol symbol, string displayText, CompletionItemKind kind, bool isOwnMember = false)
     {
         var rank = ScopeRank(symbol);
         return new SimpleCompletionItem(displayText, kind,
             symbol.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(symbol),
-            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: []);
+            SortText: $"{rank}{displayText}", Priority: ScopeRankPriority(rank), UsingsToAdd: [],
+            IsOwnMember: isOwnMember);
     }
 
     // TODO.md #28 remainder / item 60 point 6 — a type from an added NuGet package that isn't in
@@ -673,13 +845,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (methods.Count == 0) return null;
 
             var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, argIndex)).ToList();
-            var selectedIndex = methods.FindIndex(m => m.Parameters.Length >= argCount);
-            if (selectedIndex < 0) selectedIndex = methods.Count - 1;
+            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, model);
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
         catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
+    }
+
+    // TODO.md #53 remainder: picking the highlighted overload by argument COUNT alone means e.g.
+    // Foo(1, "x") highlights Foo(int, int) over Foo(int, string) whenever the int-int overload sorts
+    // first — the arg count matches either way, but only one of them actually type-checks. This is a
+    // lightweight approximation of real overload resolution, not a reimplementation of it: it prefers
+    // the first candidate where every already-typed argument has an implicit (or identity) conversion
+    // to the corresponding parameter, and falls back to the pre-existing count-only match — unchanged
+    // — for anything that approximation can't confidently call (params/named/optional arguments,
+    // nothing typed yet, or no candidate type-checks perfectly).
+    private static int SelectBestOverloadIndex(
+        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, SemanticModel model)
+    {
+        var typeAware = methods.FindIndex(m =>
+        {
+            if (m.Parameters.Length < argCount) return false;
+            for (var i = 0; i < argCount; i++)
+            {
+                var argType = model.GetTypeInfo(argumentList.Arguments[i].Expression).ConvertedType;
+                if (argType == null) continue; // couldn't infer (e.g. still typing) — don't penalize
+                if (!model.Compilation.ClassifyConversion(argType, m.Parameters[i].Type).IsImplicit)
+                    return false;
+            }
+            return true;
+        });
+        if (typeAware >= 0) return typeAware;
+
+        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount);
+        return arityOnly >= 0 ? arityOnly : methods.Count - 1;
     }
 
     // A position inside a // or /* */ comment (including /// doc comments) has nothing to complete —
@@ -1042,7 +1242,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleCompletionItem(
         string DisplayText, CompletionItemKind Kind, IReadOnlyList<DisplayTextSegment> Signature,
         string? Summary, string SortText, double Priority, IReadOnlyList<string> UsingsToAdd,
-        string? Detail = null) : ICompletionItem;
+        string? Detail = null, int OverloadCount = 1, bool IsOwnMember = false,
+        string? InsertTemplate = null) : ICompletionItem;
 
     private sealed class SimpleCompletionList(IReadOnlyList<ICompletionItem> items) : ICompletionList
     {

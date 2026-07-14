@@ -705,6 +705,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
+                // TODO.md item 60 point 8 — an override-member stub carries a multi-line snippet
+                // template instead of a plain name to insert; reuse the exact same
+                // SnippetCompletionData/ExpandSnippet machinery the hand-authored Snippets dictionary
+                // already uses (reindent-to-current-line + ${0} cursor placement), rather than
+                // inventing a second insertion mechanism.
+                if (item.InsertTemplate is { } template)
+                {
+                    e.Items.Add(new SnippetCompletionData(
+                        item.DisplayText, template, CompletionIcons.GetIcon(item.Kind),
+                        segment => editor.ExpandSnippet(segment.Offset, segment.Length, template)));
+                    continue;
+                }
+
                 e.Items.Add(new EditorCompletionData(
                     item.DisplayText,
                     () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
@@ -715,11 +728,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     // way the lightbulb already does (AddGlobalUsings), just without that extra step.
                     tags: item.UsingsToAdd,
                     onCommit: AddGlobalUsings,
-                    // Item 60 point 6: the list row itself gets a dimmed "(in Namespace)" annotation
-                    // for that same not-yet-imported case; Detail is null for everything else, so
-                    // BuildListRow just wraps the plain name (same TextBlock AvaloniaEdit's own
-                    // default template would've produced for a bare string Content anyway).
-                    content: DisplaySegmentRenderer.BuildListRow(item.DisplayText, item.Detail)
+                    // Item 60 points 6/7 / TODO #59 remainder: the list row itself gets a dimmed
+                    // "(in Namespace)"/"(+N overloads)" annotation for a not-yet-imported type or a
+                    // name collapsing several overloads, and renders bold when the member is declared
+                    // directly on the type being completed rather than inherited; all default to
+                    // "no annotation, normal weight" for everything else, so BuildListRow just wraps
+                    // the plain name (same TextBlock AvaloniaEdit's own default template would've
+                    // produced for a bare string Content anyway).
+                    content: DisplaySegmentRenderer.BuildListRow(
+                        item.DisplayText, item.Detail, item.OverloadCount, item.IsOwnMember)
                 ));
             }
         };
@@ -871,6 +888,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             IndentationStrategyKind.CStyle =>
                 new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options),
             _ => new AvaloniaEdit.Indentation.DefaultIndentationStrategy(),
+        };
+
+        // TODO.md #49 item 3 — VB's blocks aren't brace-delimited, so the default brace-based folding
+        // strategy folded nothing at all in a .vb file.
+        editor.FoldingStrategy = profile.FoldingStrategy switch
+        {
+            FoldingStrategyKind.VbKeywordBased => new VbFoldingStrategy(),
+            _ => new BraceFoldingStrategy(),
         };
     }
 

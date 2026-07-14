@@ -14,6 +14,21 @@ public enum IndentationStrategyKind
     CStyle,
 }
 
+// Which built-in CodeTextEditor code-folding algorithm a language wants — kept as an enum for the
+// same UI-framework-independence reason as IndentationStrategyKind; EditorTabItemControl maps it to
+// the real DotPad.Avalonia.CodeTextEditor.IFoldingStrategy implementation.
+public enum FoldingStrategyKind
+{
+    // Folds between a language's matching open/close brace characters — correct default for a
+    // brace-delimited language (C#'s { }), wrong for a keyword-delimited one (VB's Sub/End Sub).
+    BraceBased,
+
+    // Folds between VB's keyword-delimited block pairs (Sub/End Sub, If/End If, For/Next, ...) — see
+    // DotPad.Avalonia.CodeTextEditor.VbFoldingStrategy for exactly which constructs (TODO.md #49
+    // item 3).
+    VbKeywordBased,
+}
+
 // The editor-level lexical/syntactic conventions a language plugin wants applied to
 // DotPad.Avalonia.CodeTextEditor, which is itself deliberately language-agnostic (see its own XML
 // docs on IdentifierChars/ContextualTriggers/WordTriggers/BracePairs/AutoCloseBraces/
@@ -37,4 +52,5 @@ public sealed class EditorLanguageProfile
     public IReadOnlyDictionary<char, char> BracePairs { get; init; } = new Dictionary<char, char>();
     public IReadOnlySet<char> AutoCloseBraces { get; init; } = new HashSet<char>();
     public IndentationStrategyKind IndentationStrategy { get; init; } = IndentationStrategyKind.Default;
+    public FoldingStrategyKind FoldingStrategy { get; init; } = FoldingStrategyKind.BraceBased;
 }
