@@ -845,13 +845,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (methods.Count == 0) return null;
 
             var items = methods.Select(m => (ISignatureHelpItem)new SimpleSignatureHelpItem(m, argIndex)).ToList();
-            var selectedIndex = methods.FindIndex(m => m.Parameters.Length >= argCount);
-            if (selectedIndex < 0) selectedIndex = methods.Count - 1;
+            var selectedIndex = SelectBestOverloadIndex(methods, argumentList, argCount, model);
 
             return new SimpleSignatureHelpResult(items, selectedIndex, argIndex, isArgumentSlotEmpty);
         }
         catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
+    }
+
+    // TODO.md #53 remainder: picking the highlighted overload by argument COUNT alone means e.g.
+    // Foo(1, "x") highlights Foo(int, int) over Foo(int, string) whenever the int-int overload sorts
+    // first — the arg count matches either way, but only one of them actually type-checks. This is a
+    // lightweight approximation of real overload resolution, not a reimplementation of it: it prefers
+    // the first candidate where every already-typed argument has an implicit (or identity) conversion
+    // to the corresponding parameter, and falls back to the pre-existing count-only match — unchanged
+    // — for anything that approximation can't confidently call (params/named/optional arguments,
+    // nothing typed yet, or no candidate type-checks perfectly).
+    private static int SelectBestOverloadIndex(
+        List<IMethodSymbol> methods, ArgumentListSyntax argumentList, int argCount, SemanticModel model)
+    {
+        var typeAware = methods.FindIndex(m =>
+        {
+            if (m.Parameters.Length < argCount) return false;
+            for (var i = 0; i < argCount; i++)
+            {
+                var argType = model.GetTypeInfo(argumentList.Arguments[i].Expression).ConvertedType;
+                if (argType == null) continue; // couldn't infer (e.g. still typing) — don't penalize
+                if (!model.Compilation.ClassifyConversion(argType, m.Parameters[i].Type).IsImplicit)
+                    return false;
+            }
+            return true;
+        });
+        if (typeAware >= 0) return typeAware;
+
+        var arityOnly = methods.FindIndex(m => m.Parameters.Length >= argCount);
+        return arityOnly >= 0 ? arityOnly : methods.Count - 1;
     }
 
     // A position inside a // or /* */ comment (including /// doc comments) has nothing to complete —

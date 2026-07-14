@@ -92,4 +92,59 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.NotNull(result);
         Assert.True(result!.IsArgumentSlotEmpty);
     }
+
+    // TODO.md #53 remainder: the highlighted overload used to be picked by argument COUNT alone —
+    // Foo(1, "x") would highlight Foo(int, int) over Foo(int, string) whenever the former happened to
+    // sort first, even though only the latter actually type-checks.
+    [Fact]
+    public async Task SignatureHelp_Should_SelectTheOverload_WhoseParameterTypesMatchTheTypedArguments()
+    {
+        using var service = CreateService();
+        // The string argument is typed FIRST and the cursor sits after the second (numeric) one —
+        // SelectBestOverloadIndex checks every already-parsed argument regardless of where the caret
+        // currently is, and ending on a numeric literal avoids IsInsideStringOrCharLiteral's own
+        // position-1 boundary fallback (meant for an in-progress, unterminated literal) misfiring
+        // right at a just-closed string's last quote.
+        const string code = "class C\n{\n    void Foo(int a, int b) { }\n    void Foo(string a, int b) { }\n}\n" +
+            "var c = new C();\nc.Foo(\"x\", 1";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        var selected = result!.Items[result.SelectedItemIndex];
+        Assert.Contains("string a", string.Concat(selected.Signature.Select(s => s.Text)));
+    }
+
+    [Fact]
+    public async Task SignatureHelp_Should_SelectTheIntIntOverload_WhenBothArgumentsAreInts()
+    {
+        using var service = CreateService();
+        const string code = "class C\n{\n    void Foo(int a, int b) { }\n    void Foo(int a, string b) { }\n}\n" +
+            "var c = new C();\nc.Foo(1, 2";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        var selected = result!.Items[result.SelectedItemIndex];
+        Assert.Contains("int b", string.Concat(selected.Signature.Select(s => s.Text)));
+    }
+
+    // No candidate's parameter types match perfectly (bool isn't implicitly convertible to either int
+    // or string) — must fall back to the pre-existing arity-only match rather than throwing or
+    // returning an out-of-range index.
+    [Fact]
+    public async Task SignatureHelp_Should_FallBackToArityOnly_WhenNoOverloadTypeChecksPerfectly()
+    {
+        using var service = CreateService();
+        const string code = "class C\n{\n    void Foo(int a, int b) { }\n    void Foo(int a, string b) { }\n}\n" +
+            "var c = new C();\nc.Foo(1, true";
+        var position = code.Length;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.InRange(result!.SelectedItemIndex, 0, result.Items.Count - 1);
+    }
 }

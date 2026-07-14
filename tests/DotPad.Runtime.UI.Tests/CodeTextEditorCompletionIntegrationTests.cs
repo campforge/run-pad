@@ -400,4 +400,152 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal(("    public override void Foo()\n    {\n    " + tab + "base.Foo();").Length,
             editor.TextArea.Caret.Offset);
     }
+
+    // TODO.md #53 remainder: the active parameter used to update only on a typed "," — clicking,
+    // arrow keys, Home/End left it stuck on whatever slot was active when the window opened.
+    [AvaloniaFact]
+    public async Task ShowOverloads_Should_ReRequest_WhenTheCaretMovesWhileTheWindowIsOpen()
+    {
+        // Arrange
+        var callCount = 0;
+        var editor = new CodeTextEditor();
+        editor.OverloadTriggers.Add('(');
+        editor.Document = new TextDocument("Foo");
+        editor.AsyncOverloadProvider = e =>
+        {
+            callCount++;
+            e.Overloads.Add(("Foo(int a, int b)", "desc"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = 3;
+
+        // Act — open the insight window via the trigger character, then move the caret without
+        // typing anything (simulating a click/arrow-key navigation, not a "," trigger).
+        window.KeyTextInput("(");
+        await Task.Delay(20);
+        Assert.True(editor.IsInsightWindowOpen);
+        var callsAfterOpen = callCount;
+
+        editor.TextArea.Caret.Offset = 1;
+        await Task.Delay(20);
+
+        // Assert — a second request went out purely from the caret move.
+        Assert.True(callCount > callsAfterOpen);
+    }
+
+    // Companion to the test above — once a re-request comes back with no overloads at all, the
+    // now-stale window must close instead of continuing to show the old call's parameters (the gap
+    // ShowOverloads' pre-existing "Overloads.Count == 0 -> just return" left open). Triggered here via
+    // a second typed "," rather than a caret move: an AvaloniaFact investigation for this same fix
+    // found that AvaloniaEdit's own OverloadInsightWindow already closes itself on any caret move
+    // regardless of this fix (confirmed empirically — the window closed even with the fix reverted),
+    // which would make a caret-move-driven version of this test pass either way and prove nothing.
+    // The typed-"," path doesn't go through caret-move re-triggering at all (it's the pre-existing
+    // OverloadTriggers path in OnTextEntered), so it isolates ShowOverloads' own empty-result handling
+    // from that separate, already-present AvaloniaEdit behavior.
+    [AvaloniaFact]
+    public async Task ShowOverloads_Should_CloseTheWindow_WhenARequestComesBackWithNoOverloads()
+    {
+        // Arrange
+        var returnOverload = true;
+        var editor = new CodeTextEditor();
+        editor.OverloadTriggers.Add('(');
+        editor.OverloadTriggers.Add(',');
+        editor.Document = new TextDocument("Foo1");
+        editor.AsyncOverloadProvider = e =>
+        {
+            if (returnOverload) e.Overloads.Add(("Foo(int a, int b)", "desc"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = 3;
+
+        window.KeyTextInput("(");
+        await Task.Delay(20);
+        Assert.True(editor.IsInsightWindowOpen);
+
+        // Act — a second trigger character, but this time the provider finds nothing (e.g. the
+        // service determined the caret is no longer inside any call).
+        returnOverload = false;
+        window.KeyTextInput(",");
+        await Task.Delay(20);
+
+        // Assert
+        Assert.False(editor.IsInsightWindowOpen);
+    }
+
+    // TODO.md #53 remainder: any closing bracket used to hide the window unconditionally, including
+    // one closing a bracket NESTED inside an already-typed argument — e.g. typing the "}" that closes
+    // an array-literal argument (Foo(new[] { 1, 2 }) incorrectly hid the window for Foo's own,
+    // still-open call.
+    [AvaloniaFact]
+    public async Task InsightWindow_Should_StayOpen_WhenClosingABracketNestedInsideAnArgument()
+    {
+        // Arrange
+        var editor = new CodeTextEditor();
+        editor.OverloadTriggers.Add('(');
+        editor.BracePairs['('] = ')';
+        editor.BracePairs['{'] = '}';
+        editor.Document = new TextDocument("Foo");
+        editor.AsyncOverloadProvider = e =>
+        {
+            e.Overloads.Add(("Foo(int[] xs)", "desc"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = 3;
+
+        // Act — open the call, type a nested "{" (e.g. the start of an array-literal argument), then
+        // its closing "}".
+        window.KeyTextInput("(");
+        await Task.Delay(20);
+        Assert.True(editor.IsInsightWindowOpen);
+
+        window.KeyTextInput("{");
+        await Task.Delay(20);
+        window.KeyTextInput("}");
+        await Task.Delay(20);
+
+        // Assert — the OUTER call's window is still showing (it never should have closed at all).
+        Assert.True(editor.IsInsightWindowOpen);
+    }
+
+    // Companion regression guard — closing the call's OWN bracket (nothing nested pending) must still
+    // hide the window immediately, same as before this fix.
+    [AvaloniaFact]
+    public async Task InsightWindow_Should_Close_WhenClosingTheCallsOwnBracket()
+    {
+        // Arrange
+        var editor = new CodeTextEditor();
+        editor.OverloadTriggers.Add('(');
+        editor.BracePairs['('] = ')';
+        editor.Document = new TextDocument("Foo");
+        editor.AsyncOverloadProvider = e =>
+        {
+            e.Overloads.Add(("Foo(int x)", "desc"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = 3;
+
+        // Act
+        window.KeyTextInput("(");
+        await Task.Delay(20);
+        Assert.True(editor.IsInsightWindowOpen);
+
+        window.KeyTextInput(")");
+        await Task.Delay(20);
+
+        // Assert
+        Assert.False(editor.IsInsightWindowOpen);
+    }
 }

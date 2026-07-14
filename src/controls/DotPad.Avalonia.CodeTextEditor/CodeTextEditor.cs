@@ -49,6 +49,11 @@ public class CodeTextEditor : TextEditor
     private OverloadInsightWindow? _insightWindow;
     private CancellationTokenSource? _completionCts;
     private CancellationTokenSource? _insightCts;
+    // The caret offset right after the "(" that opened the currently-showing insight window — set
+    // once, on the transition from closed to open, not touched by the caret-move/comma re-requests
+    // that keep refreshing the SAME session (TODO.md #53 remainder — see OnTextEntering's nesting
+    // check below, the reason this is tracked at all).
+    private int? _insightAnchorOffset;
 
 
     public event EventHandler<BreakpointEventArgs>? BreakpointAdded;
@@ -233,6 +238,23 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.BackgroundRenderers.Add(_debugLineHighlighter);
         TextArea.TextView.BackgroundRenderers.Add(_braceMatchHighlighter);
         TextArea.Caret.PositionChanged += (_, _) => UpdateBraceMatch();
+        // TODO.md #53 remainder: the active (bold) parameter used to update only when a "," was
+        // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
+        // the window opened. ShowOverloads is a stateless "recompute from the current caret position"
+        // request (TryGetSignatureHelpAsync derives argIndex purely from position), so simply
+        // re-triggering it on every caret move while the window is already open is enough — no
+        // separate incremental-update path needed. '\0' — same "not a real typed character" sentinel
+        // Ctrl+Space already uses for ShowCompletion's explicit invoke — is unused by the trigger
+        // character on this path (TryGetSignatureHelpAsync doesn't branch on it, only on position).
+        TextArea.Caret.PositionChanged += (_, _) => { if (IsInsightWindowOpen) ShowOverloads('\0'); };
+        // TODO.md #53 remainder: the active (bold) parameter used to update only when a "," was
+        // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
+        // the window opened. ShowOverloads is a stateless "recompute from the current caret position"
+        // request (TryGetSignatureHelpAsync derives argIndex purely from position), so simply
+        // re-triggering it on every caret move while the window is already open is enough — no
+        // separate incremental-update path needed. '\0' — same "not a real typed character" sentinel
+        // Ctrl+Space already uses for ShowCompletion's explicit invoke — is unused by the trigger
+        // character on this path (TryGetSignatureHelpAsync doesn't branch on it, only on position).
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;
@@ -650,9 +672,18 @@ public class CodeTextEditor : TextEditor
         if (e.Text is not { Length: 1 } || e.Handled) return;
         var ch = e.Text[0];
 
-        // Only close the insight window when exiting the argument list.
-        if (BracePairs.ContainsValue(ch) || StatementTerminators.Contains(ch))
+        // Only close the insight window when exiting the argument list — not when closing a bracket
+        // NESTED inside one of its already-typed arguments (TODO.md #53 remainder: "Foo(new[] { 1, 2 }"
+        // used to hide the window for Foo's still-open call on the array literal's own "}"). A
+        // statement terminator has no such nesting concept — it always ends the whole statement.
+        if (StatementTerminators.Contains(ch))
+        {
             _insightWindow?.Hide();
+        }
+        else if (BracePairs.ContainsValue(ch) && !IsClosingANestedBracket())
+        {
+            _insightWindow?.Hide();
+        }
 
         // Skip-ahead: if the closing bracket is already at caret, move past it instead of inserting.
         if (BracePairs.ContainsValue(ch))
@@ -664,6 +695,29 @@ public class CodeTextEditor : TextEditor
                 e.Handled = true;
             }
         }
+    }
+
+    // True when the about-to-be-typed closing bracket closes something opened AFTER the insight
+    // window's call started (TODO.md #53 remainder) — i.e. a nested bracket inside an argument, not
+    // the call's own closing bracket. A plain running depth count from the anchor to the caret, not a
+    // real matched-pair scan: this only has to decide "hide or don't", and over/under-counting on
+    // genuinely malformed in-progress code is an acceptable approximation for that, same spirit as the
+    // rest of this file's position-based checks.
+    private bool IsClosingANestedBracket()
+    {
+        if (_insightAnchorOffset is not { } anchor) return false;
+        var caret = Math.Min(TextArea.Caret.Offset, Document.TextLength);
+        if (caret <= anchor) return false;
+
+        var depth = 0;
+        for (var i = anchor; i < caret; i++)
+        {
+            var c = Document.GetCharAt(i);
+            if (BracePairs.ContainsKey(c)) depth++;
+            else if (BracePairs.ContainsValue(c) && depth > 0) depth--;
+        }
+
+        return depth > 0;
     }
 
     private void OnTextEntered(object? sender, TextInputEventArgs e)
@@ -819,7 +873,16 @@ public class CodeTextEditor : TextEditor
         var cts = new CancellationTokenSource();
         _insightCts = cts;
 
-        var args = new OverloadRequestedEventArgs(trigger, TextArea.Caret.Offset, cts.Token);
+        // Captured synchronously, before the await below — not after it (TODO.md #53 remainder). Two
+        // ShowOverloads calls can be in flight back to back (e.g. a caret-move re-request superseded
+        // by another one right after — see ShowCompletion's own note on this), and checking
+        // "_insightWindow is null" only after each one's own await left a window for the later call to
+        // still see a stale non-null _insightWindow from the FIRST call's not-yet-applied result,
+        // wrongly treating what should be a fresh session as a mere refresh (or vice versa) and
+        // corrupting the nesting-depth anchor below.
+        var isNewSession = _insightWindow is null;
+        var caretOffset = TextArea.Caret.Offset;
+        var args = new OverloadRequestedEventArgs(trigger, caretOffset, cts.Token);
 
         try
         {
@@ -835,8 +898,26 @@ public class CodeTextEditor : TextEditor
 
         if (cts.IsCancellationRequested) return;
 
-        if (args.Overloads.Count == 0) return;
+        // The caret can now be re-requesting from a position outside any call at all (TODO.md #53
+        // remainder — this runs on every caret move while the window is open, not just on a typed
+        // ","), in which case the provider correctly comes back empty — close the now-stale window
+        // instead of leaving it open and showing parameters for wherever it last was.
+        if (args.Overloads.Count == 0)
+        {
+            _insightWindow?.Close();
+            _insightAnchorOffset = null;
+            return;
+        }
 
+        if (isNewSession) _insightAnchorOffset = args.CaretOffset;
+        // Constructing a new OverloadInsightWindow while the previous one is still showing closes
+        // that previous one as a side effect (an AvaloniaEdit/Popup implementation detail, not
+        // something this code triggers directly) — and its Closed event fires synchronously, DURING
+        // this very call, before _insightWindow below gets reassigned. A Closed handler that nulled
+        // _insightAnchorOffset (the way it nulls _insightWindow) would catch that self-close and wipe
+        // out the anchor this same call just set two lines above, for a window transition nobody
+        // asked for. Left for _insightWindow only, whose staleness is otherwise harmless (a null
+        // check gate everywhere it's read) — the anchor has no such gate, so it can't absorb this.
         _insightWindow?.Close();
         var window = new OverloadInsightWindow(TextArea);
         _insightWindow = window;
