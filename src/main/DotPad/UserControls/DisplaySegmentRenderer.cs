@@ -62,7 +62,8 @@ internal static class DisplaySegmentRenderer
             Text = displayText,
             FontWeight = isOwnMember ? FontWeight.Bold : FontWeight.Normal,
         };
-        var annotation = overloadCount > 1 ? $"(+{overloadCount - 1} overloads)"
+        var hiddenOverloads = overloadCount - 1;
+        var annotation = overloadCount > 1 ? $"(+{hiddenOverloads} overload{(hiddenOverloads == 1 ? "" : "s")})"
             : string.IsNullOrEmpty(detail) ? null : $"(in {detail})";
         if (annotation is null) return nameBlock;
 
