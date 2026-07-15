@@ -1,6 +1,7 @@
 using DotPad.Contracts.IntelliSense;
 using DotPad.Languages.CSharp;
 using DotPad.Languages.CSharp.IntelliSense;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -13,23 +14,46 @@ namespace DotPad.Runtime.UI.Tests;
 // sure both events still fire correctly off the shared computation.
 public class CSharpIntelliSenseBackgroundAnalysisTests
 {
-    // Windows CI (GH Actions windows-latest) observed NotifyTextChanged_Should_MarkUnusedVariableFix_
-    // AsWarningSeverity below time out at the old 10s budget while the identically-shaped "missing
-    // using" tests in this same class passed in ~1s right next to it — this exercises real Roslyn MEF
-    // codefix discovery plus (for CS0168) a full dataflow/unused-variable analysis pass, not just
-    // symbol binding, and GH Actions' windows-latest runners are well documented to run .NET CPU-bound
-    // work several times slower than the ubuntu-latest ones this suite is normally developed against
-    // (weaker CPU allocation + Windows Defender real-time scanning of freshly-JITted/loaded Roslyn
-    // assemblies) — this ran in ~2s locally on Linux with no flakiness across dozens of full-suite
-    // runs, so there's no evidence of an actual hang, just insufficient headroom for a loaded/slow CI
-    // machine. Shared by all three WaitAsync calls below so they stay consistent.
+    // NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity below has been observed
+    // reproducibly timing out on Windows CI (GH Actions windows-latest) while every sibling test in
+    // this class passes quickly, right next to it, in the same run. Two rounds of investigation
+    // ruled out the obvious explanations rather than confirming either: bumping this budget from the
+    // original 10s to 30s did NOT make it pass (still times out, just later) — so it isn't simply "CI
+    // is slower, give it more headroom". A suspected NotifyTextChanged background-Task.Run-leaked-
+    // past-Dispose() issue was found and fixed (Dispose now joins it) as a genuine correctness
+    // improvement, but a doctrinal revert of that fix did NOT reproduce a failure locally either — so
+    // that wasn't confirmed as the cause. Kept at 30s (real, if unconfirmed, headroom) while
+    // NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity below is instrumented to
+    // surface actual diagnostics on the next CI failure instead of a bare TimeoutException.
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
 
-    private static CSharpIntelliSenseService CreateService()
+    private static CSharpIntelliSenseService CreateService(ILogger<CSharpIntelliSenseService>? logger = null)
     {
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+        return new CSharpIntelliSenseService(refs, logger ?? NullLogger<CSharpIntelliSenseService>.Instance);
+    }
+
+    // Captures every log message regardless of level/IsEnabled — CSharpIntelliSenseService/
+    // RoslynCodeFixEngine both log swallowed exceptions at Debug level (routine-looking, e.g. "this
+    // fix provider doesn't apply here"), which NullLogger (used everywhere else in this file)
+    // discards entirely. If a fix provider is genuinely throwing on Windows and nowhere else, this is
+    // the only way any evidence of that would ever reach a CI log.
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        private readonly List<string> _messages = [];
+        public IReadOnlyList<string> Messages => _messages;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            var message = formatter(state, exception);
+            lock (_messages)
+                _messages.Add(exception is null ? $"[{logLevel}] {message}" : $"[{logLevel}] {message} :: {exception}");
+        }
     }
 
     [Fact]
@@ -97,21 +121,58 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     // WARNING, not an error — Microsoft's own CSharpRemoveUnusedVariableCodeFixProvider (composed
     // via MEF like every other fix here) offers to remove it. Proves Severity isn't just always
     // Error (which the Regex test alone couldn't rule out).
+    //
+    // Instrumented (see class doc comment) rather than a plain WaitAsync: this specific test is the
+    // one reproducibly timing out on Windows CI with no local repro and no confirmed cause yet after
+    // two rounds of investigation. Records every DiagnosticsChanged/CodeFixesChanged firing plus a
+    // real (not Null) logger's captured messages, and reports all of it in the failure message if the
+    // wait times out — so the next CI failure shows, at minimum: whether CS0168 was even detected at
+    // all, how many CodeFixesChanged batches fired and their sizes, and any swallowed exception a fix
+    // provider threw (RoslynCodeFixEngine logs those at Debug, which NullLogger normally discards).
     [Fact]
     public async Task NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity()
     {
-        using var service = CreateService();
+        var logger = new CapturingLogger<CSharpIntelliSenseService>();
+        using var service = CreateService(logger);
 
+        var diagnosticsBatches = new List<IReadOnlyList<IDiagnosticInfo>>();
+        var codeFixBatches = new List<IReadOnlyList<ICodeFixInfo>>();
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        service.DiagnosticsChanged += (_, d) => { lock (diagnosticsBatches) diagnosticsBatches.Add(d); };
         service.CodeFixesChanged += (_, f) =>
         {
+            lock (codeFixBatches) codeFixBatches.Add(f);
             if (f.Count > 0)
                 tcs.TrySetResult(f);
         };
 
         service.NotifyTextChanged("int unused;\n");
 
-        var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        IReadOnlyList<ICodeFixInfo> codeFixes;
+        try
+        {
+            codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            var diagSummary = diagnosticsBatches.Count == 0
+                ? "(none — DiagnosticsChanged never fired at all)"
+                : string.Join(" | ", diagnosticsBatches.Select((d, i) =>
+                    $"batch{i}=[{string.Join(", ", d.Select(x => $"{x.Severity}:{x.Message}"))}]"));
+            var fixSummary = codeFixBatches.Count == 0
+                ? "(none — CodeFixesChanged never fired at all)"
+                : string.Join(" | ", codeFixBatches.Select((f, i) => $"batch{i}=count:{f.Count}"));
+            var logSummary = logger.Messages.Count == 0 ? "(none)" : string.Join(" | ", logger.Messages);
+
+            Assert.Fail(
+                $"Timed out after {BackgroundAnalysisTimeout} waiting for a non-empty CodeFixesChanged. "
+                + $"DiagnosticsChanged fired {diagnosticsBatches.Count} time(s): {diagSummary}. "
+                + $"CodeFixesChanged fired {codeFixBatches.Count} time(s): {fixSummary}. "
+                + $"Logger messages: {logSummary}");
+            throw; // unreachable — Assert.Fail always throws
+        }
+
         Assert.Contains(codeFixes, f => f.Severity == DiagnosticSeverity.Warning);
     }
 
