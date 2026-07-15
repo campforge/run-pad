@@ -126,6 +126,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
+
+    // Test-only visibility (InternalsVisibleTo) — confirms the FormattingOptions.NewLine override
+    // below actually takes effect on the workspace's live option set. Environment.NewLine can't be
+    // forced to '\r\n' on a non-Windows dev/CI machine, so this is the closest local check for the
+    // fix without a real Windows run.
+    internal string FormattingNewLineOptionForTests
+        => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
     private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -171,6 +178,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 refs.Add(CreateReference(path));
 
         _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+
+        // Root cause of a Windows-CI-only bug (chased down via extensive logging — see
+        // RoslynCodeFixEngine's own comments): _preamble/KindPrefix/TrailingPad are all built with
+        // literal '\n' regardless of OS, but Roslyn's own FormattingOptions.NewLine defaults to
+        // Environment.NewLine ('\r\n' on Windows, '\n' on Linux/macOS) whenever a workspace doesn't
+        // set it explicitly. A code fix that reformats whitespace it touches (RemoveUnusedVariable
+        // normalizing the blank line before the statement it deletes, observed in production) then
+        // emits '\r\n' where the document only ever had '\n' — on Windows this makes the fix's edit
+        // span start earlier than expected (each extra newline byte shifts it back one more),
+        // straddling across preambleLength by just enough to trip RoslynCodeFixEngine.
+        // ApplyRelocatingPreambleEdits' "any preamble-touching edit that isn't a pure `using X;`
+        // insertion is unsafe, discard the whole fix" safety check — so the fix silently vanishes
+        // instead of applying, string-identical logic and all, depending only on which OS happens to
+        // be running it. Forcing '\n' here makes Roslyn's own formatting match what this document
+        // actually contains everywhere, independent of OS.
+        _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(
+            _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
+
         _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
 
         var projectId = ProjectId.CreateNewId("DotPadScript");

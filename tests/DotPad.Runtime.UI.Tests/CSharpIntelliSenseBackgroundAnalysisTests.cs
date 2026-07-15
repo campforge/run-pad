@@ -14,17 +14,20 @@ namespace DotPad.Runtime.UI.Tests;
 // sure both events still fire correctly off the shared computation.
 public class CSharpIntelliSenseBackgroundAnalysisTests
 {
-    // NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity below has been observed
-    // reproducibly timing out on Windows CI (GH Actions windows-latest) while every sibling test in
-    // this class passes quickly, right next to it, in the same run. Two rounds of investigation
-    // ruled out the obvious explanations rather than confirming either: bumping this budget from the
-    // original 10s to 30s did NOT make it pass (still times out, just later) — so it isn't simply "CI
-    // is slower, give it more headroom". A suspected NotifyTextChanged background-Task.Run-leaked-
-    // past-Dispose() issue was found and fixed (Dispose now joins it) as a genuine correctness
-    // improvement, but a doctrinal revert of that fix did NOT reproduce a failure locally either — so
-    // that wasn't confirmed as the cause. Kept at 30s (real, if unconfirmed, headroom) while
-    // NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity below is instrumented to
-    // surface actual diagnostics on the next CI failure instead of a bare TimeoutException.
+    // NotifyTextChanged_Should_MarkUnusedVariableFix_AsWarningSeverity below was reproducibly timing
+    // out on Windows CI (GH Actions windows-latest) only, while every sibling test in this class
+    // passed quickly right next to it. Root cause, confirmed via logging added across several rounds
+    // (see that test's own comment for the full story and the CI log evidence): Roslyn's
+    // RemoveUnusedVariableCodeFixProvider reformats the blank line before the statement it deletes,
+    // and that reformatting fell back to FormattingOptions.NewLine's default — Environment.NewLine,
+    // i.e. "\r\n" on Windows — while CSharpIntelliSenseService's synthetic document is built entirely
+    // with literal '\n'. The resulting edit's span landed 2 bytes earlier than expected, straddling
+    // into the preamble just enough to trip RoslynCodeFixEngine's "unsafe preamble edit, discard the
+    // whole fix" safety check — invisible on Linux/macOS, where Environment.NewLine already happens
+    // to be "\n". Fixed by having CSharpIntelliSenseService force FormattingOptions.NewLine to "\n"
+    // explicitly on its workspace. Kept the 30s budget (real headroom for a genuinely CPU-heavier
+    // pass than the sibling tests, independent of the bug above) and the instrumentation on that test
+    // — both are still useful defenses if a *different* cause ever produces a similar symptom.
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
 
     private static CSharpIntelliSenseService CreateService(ILogger<CSharpIntelliSenseService>? logger = null)
@@ -174,6 +177,31 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         }
 
         Assert.Contains(codeFixes, f => f.Severity == DiagnosticSeverity.Warning);
+    }
+
+    // Root cause of the timeout above, confirmed via the logging added in the two rounds above: on
+    // Windows CI, RemoveUnusedVariableCodeFixProvider's edit also reformats the blank line right
+    // before the statement it deletes, and that reformatting used Roslyn's FormattingOptions.NewLine
+    // default — Environment.NewLine, i.e. "\r\n" on Windows — while _preamble/KindPrefix/TrailingPad
+    // are all built with literal '\n' regardless of OS. The resulting edit's span, 1 byte longer per
+    // newline than expected, straddled across preambleLength just enough to trip
+    // RoslynCodeFixEngine.ApplyRelocatingPreambleEdits' preamble-safety check and discard the whole
+    // fix — logged CI evidence: "TextChange(s): [160..175) -> \"\r\n\r\n\"" then "Discarding fix:
+    // preamble-touching change [160..175) ... preambleLength=162". CSharpIntelliSenseService now
+    // forces FormattingOptions.NewLine to "\n" explicitly so Roslyn's own formatting always matches
+    // what the synthetic document actually contains, independent of OS.
+    //
+    // Can't force Environment.NewLine to "\r\n" on this (non-Windows) machine to reproduce the actual
+    // failure, so this checks the one thing verifiable here: the workspace's option is genuinely "\n"
+    // rather than silently falling back to Environment.NewLine (which happens to already be "\n" on
+    // Linux/macOS — a doctrinal revert here wouldn't fail on THIS machine either, which is exactly
+    // why the bug was invisible locally in the first place).
+    [Fact]
+    public void Constructor_Should_ForceFormattingNewLineOption_ToLineFeed()
+    {
+        using var service = CreateService();
+
+        Assert.Equal("\n", service.FormattingNewLineOptionForTests);
     }
 
     // Investigated as a SUSPECTED (not confirmed) contributor to the Windows-CI-only timeout on the
