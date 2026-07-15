@@ -20,6 +20,13 @@
     <!-- Gutter margin icons (24×24 viewbox) -->
     <StreamGeometry x:Key="Icon.Breakpoint">M12,3 A9,9,0,0,1,21,12 A9,9,0,0,1,12,21 A9,9,0,0,1,3,12 A9,9,0,0,1,12,3 Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.DebugArrow">M2,9 L13,9 L13,4 L22,12 L13,20 L13,15 L2,15 Z</StreamGeometry>
+    <!-- TODO.md #83: small diamond badge overlaid on Icon.Breakpoint's bottom-right corner for a
+         conditional/hit-count breakpoint (IBreakpoint.Condition/HitCondition), (Code)Rider-style —
+         drawn with the same centering transform as the base circle (BreakPointMargin.DrawCentered),
+         so its bottom-right position within this same 24×24 viewbox lines up as an overlay rather
+         than a second independent icon. Verified/checked at both full size and 16px (gutter size)
+         before being committed, same technique as TODO #79's hammer icon. -->
+    <StreamGeometry x:Key="Icon.BreakpointCondition">M18,13.5 L22.5,18 L18,22.5 L13.5,18 Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.Lightbulb">M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.SidebarLeft">M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H9V6H4M11,6V18H20V6H11Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.PanelBottom">M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,13V18H20V13H4M4,6V11H20V6H4Z</StreamGeometry>

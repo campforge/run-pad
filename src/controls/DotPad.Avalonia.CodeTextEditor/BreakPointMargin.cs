@@ -34,6 +34,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     // Loaded once from app resources; geometries are immutable
     private StreamGeometry? _breakpointGeo;
     private StreamGeometry? _debugArrowGeo;
+    private StreamGeometry? _conditionBadgeGeo;
 
     public int? DebugLine { get; set; }
 
@@ -71,11 +72,13 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
         _breakpointGeo ??= LoadResource<StreamGeometry>("Icon.Breakpoint");
         _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
+        _conditionBadgeGeo ??= LoadResource<StreamGeometry>("Icon.BreakpointCondition");
 
         var bpBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
         var verifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointVerifiedBrush");
         var unverifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointUnverifiedBrush");
         var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
+        var conditionBadgeBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointConditionBadgeBrush");
         var arrowBrush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
         var lineNumberBrush = LoadThemedResource<IBrush>("DotPad.Margin.LineNumberBrush");
 
@@ -97,13 +100,27 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             }
             else if (hasBp && _breakpointGeo is not null)
             {
-                var stateBrush = bpAtLine!.VerificationState switch
+                var plan = ComputeBreakpointIconPlan(bpAtLine!);
+
+                // TODO.md #83: unverified used to be the same filled disc, just recolored amber —
+                // now a hollow ring (VS Code's own convention for a not-yet-bound breakpoint), an
+                // actual shape difference rather than color alone.
+                if (plan.DrawOutline)
+                    DrawCenteredOutline(context, _breakpointGeo, unverifiedBrush ?? bpBrush, yTop, lineH);
+                else
                 {
-                    BreakpointVerificationState.Verified => verifiedBrush ?? bpBrush,
-                    BreakpointVerificationState.Unverified => unverifiedBrush ?? bpBrush,
-                    _ => bpBrush,
-                };
-                DrawCentered(context, _breakpointGeo, stateBrush, yTop, lineH);
+                    var stateBrush = bpAtLine!.VerificationState == BreakpointVerificationState.Verified
+                        ? verifiedBrush ?? bpBrush
+                        : bpBrush;
+                    DrawCentered(context, _breakpointGeo, stateBrush, yTop, lineH);
+                }
+
+                // TODO.md #83: conditional/hit-count breakpoints (IBreakpoint.Condition/HitCondition,
+                // TODO #45) used to be visually identical to a plain breakpoint — small diamond
+                // overlay, (Code)Rider-style, drawn with the same centering transform so it lands in
+                // the base icon's bottom-right corner regardless of verification state above.
+                if (plan.DrawConditionBadge && _conditionBadgeGeo is not null)
+                    DrawCentered(context, _conditionBadgeGeo, conditionBadgeBrush, yTop, lineH);
             }
             else if (isHover && _breakpointGeo is not null)
             {
@@ -208,6 +225,16 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    // TODO.md #83: which icon variant a breakpoint's state maps to — pulled out of Render's drawing
+    // code (which needs a live DrawingContext/TextView and so isn't unit-testable on its own) into a
+    // plain function of IBreakpoint, same "extract the decision from the drawing" precedent as
+    // CodeFixMargin.ComputeIconTransform (TODO #75/#82).
+    internal readonly record struct BreakpointIconPlan(bool DrawOutline, bool DrawConditionBadge);
+
+    internal static BreakpointIconPlan ComputeBreakpointIconPlan(IBreakpoint bp) => new(
+        DrawOutline: bp.VerificationState == BreakpointVerificationState.Unverified,
+        DrawConditionBadge: bp.Condition is not null || bp.HitCondition is not null);
+
     // ── Drawing helpers ───────────────────────────────────────────────────────
 
     // Icons are defined in a 24×24 viewbox.
@@ -221,6 +248,20 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var cy = yTop + lineH / 2 - 12 * s;
         using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
             ctx.DrawGeometry(brush, null, geo);
+    }
+
+    // TODO.md #83: unverified breakpoints — stroke-only instead of DrawCentered's fill, same
+    // centering transform so the ring lands exactly where the filled disc otherwise would.
+    private void DrawCenteredOutline(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
+                                      double yTop, double lineH)
+    {
+        if (brush is null) return;
+        var s = Bounds.Width * 0.72 / 24.0;
+        var cx = Bounds.Width / 2 - 12 * s;
+        var cy = yTop + lineH / 2 - 12 * s;
+        var pen = new Pen(brush, 2.2);
+        using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
+            ctx.DrawGeometry(null, pen, geo);
     }
 
     private void DrawFullWidth(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
