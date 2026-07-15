@@ -1034,12 +1034,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _ => ".cs",
     };
 
-    // The id ILanguageHostRegistry.Create/ILanguageHostFactory.Language use — matches
-    // RpadLanguage's own lowercased member name (RpadLanguage.CSharp → "csharp", RpadLanguage.Vb →
-    // "vb") by construction, so no separate mapping table is needed. Defaults to C# for untitled
-    // tabs (no RpadDocument yet — see SetDocumentContent).
+    // Defaults to C# for untitled tabs (no RpadDocument yet — see SetDocumentContent).
     private string ResolveLanguageId()
-        => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToString().ToLowerInvariant();
+        => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToLanguageId();
 
     private string SourceExtension() => LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
 

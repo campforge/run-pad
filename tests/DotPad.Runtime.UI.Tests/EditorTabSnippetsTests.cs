@@ -154,7 +154,8 @@ public class EditorTabSnippetsTests
                 sdkProviders: [],
                 fileSystemSystemService: fileSystem.Object,
                 windowService: new Mock<IWindowService>().Object,
-                prefs: prefs.Object);
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, registry, prefs.Object, () => intelliSense.Object,

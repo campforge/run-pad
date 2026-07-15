@@ -54,7 +54,8 @@ public class MainWindowHotkeysTests
             sdkProviders: [],
             fileSystemSystemService: fileSystem.Object,
             windowService: windowService.Object,
-            prefs: prefs.Object);
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
             theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,

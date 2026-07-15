@@ -1,7 +1,11 @@
+using DotPad.Contracts;
 using DotPad.Format.RPad;
+using DotPad.Languages.CSharp;
+using DotPad.Languages.VB;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -15,11 +19,18 @@ public class FileTreeViewModelTests
     // TODO.md #80: FileTreeViewModel now reads RenameFile/DeleteFile gestures from IPreferencesService
     // (routed through here since FileTreeView itself has no DI) — a plain KeyboardSettings default is
     // enough for these tests, none of which touch RenameGesture/DeleteGesture directly.
+    // TODO.md #81: also needs ILanguageHostRegistry (per-language file icon) — a real registry with
+    // both real factories registered (not mocked), same precedent as
+    // PreferencesWindowViewModelTests.CreateRealRegistry, so LanguageIconKey resolution below is
+    // exercised end to end rather than assuming what a mock would return.
     private static FileTreeViewModel CreateViewModel()
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
-        return new FileTreeViewModel(prefs.Object);
+        var registry = new LanguageHostRegistry();
+        registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
+        registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
+        return new FileTreeViewModel(prefs.Object, registry);
     }
 
     [Fact]
@@ -119,16 +130,46 @@ public class FileTreeViewModelTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // Both known languages have an icon today, so this exercises the fallback branch directly on the
-    // node (no file I/O needed) — the whole point of LanguageIconKey/ShowGenericFileIcon being a
-    // generic mechanism rather than one flag per language is that a language with no icon entry yet
-    // (RpadLanguage.Unknown here, standing in for "some future language") isn't a special case.
+    // ShowGenericFileIcon is a plain computed property (!IsFolder && LanguageIconKey is null) — this
+    // guards just that, independent of how LanguageIconKey got resolved.
     [Fact]
-    public void ShowGenericFileIcon_Should_BeTrue_ForALanguageWithNoIconEntry()
+    public void ShowGenericFileIcon_Should_BeTrue_WhenLanguageIconKeyIsNull()
     {
-        var node = new FileTreeViewNode("x.rpad", "/root/x.rpad", RpadLanguage.Unknown);
+        var node = new FileTreeViewNode("x.rpad", "/root/x.rpad", RpadLanguage.Vb) { LanguageIconKey = null };
 
-        Assert.Null(node.LanguageIconKey);
         Assert.True(node.ShowGenericFileIcon);
+    }
+
+    // TODO.md #81: MapFileNode's actual fallback — a language whose id isn't registered in
+    // ILanguageHostRegistry at all (any future RpadLanguage with no ILanguageHostFactory yet) — falls
+    // back to the generic file icon instead of throwing (GetEditorProfile throws for an unregistered
+    // id, hence the IsRegistered guard in FileTreeViewModel.MapFileNode). Registers only C# here to
+    // simulate "vb" being such a language, rather than inventing an impossible RpadLanguage value —
+    // RpadParser.TryParse already normalizes RpadLanguage.Unknown to CSharp before this code ever
+    // sees it (RpadParser.cs:54), so Unknown itself can't reach MapFileNode from a real file.
+    [Fact]
+    public void Refresh_Should_FallBackToGenericIcon_ForALanguageNotRegisteredInTheRegistry()
+    {
+        var root = Directory.CreateTempSubdirectory("dotpad-filetree-test").FullName;
+        try
+        {
+            var vbFile = Path.Combine(root, "vb.rpad");
+            File.WriteAllText(vbFile,
+                "---\nversion: \"1.0\"\nlanguage: vb\ntargetSdk: net10.0\nkind: Statements\n---\n\n# VB Demo\n\n```vb run\nConsole.WriteLine(\"hi\")\n```\n");
+
+            var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+            var registry = new LanguageHostRegistry();
+            registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
+            var vm = new FileTreeViewModel(prefs.Object, registry);
+
+            vm.Refresh([new FileSystemItem("vb.rpad", false, vbFile, null)]);
+
+            var vbNode = vm.FindByPath(vbFile)!;
+            Assert.Equal(RpadLanguage.Vb, vbNode.Language);
+            Assert.Null(vbNode.LanguageIconKey);
+            Assert.True(vbNode.ShowGenericFileIcon);
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 }

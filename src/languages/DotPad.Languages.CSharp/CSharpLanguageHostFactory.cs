@@ -58,6 +58,8 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
         AutoCloseBraces = new HashSet<char> { '[', '{' },
         IndentationStrategy = IndentationStrategyKind.CStyle,
+        // TODO.md #81: file tree's per-language icon (TODO.md #70) — pictogrammers.com/library/mdi/icon/language-csharp.
+        IconResourceKey = "Icon.LanguageCSharp",
     };
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)

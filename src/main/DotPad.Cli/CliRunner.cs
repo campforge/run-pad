@@ -44,9 +44,7 @@ public static class CliRunner
             return 1;
         }
 
-        // Mirrors EditorTabItemControl.ResolveLanguageId exactly — relies on RpadLanguage's member
-        // spelling matching each ILanguageHostFactory.Language id (case-insensitively).
-        var languageId = document.FrontMatter.Language.ToString().ToLowerInvariant();
+        var languageId = document.FrontMatter.Language.ToLanguageId();
 
         var registry = new LanguageHostRegistry();
         registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));

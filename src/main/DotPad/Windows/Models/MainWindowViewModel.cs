@@ -314,15 +314,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         IEnumerable<ISdkProvider> sdkProviders,
         IFileSystemService fileSystemSystemService,
         IWindowService windowService,
-        IPreferencesService prefs)
+        IPreferencesService prefs,
+        ILanguageHostRegistry languageRegistry)
     {
         _fileSystemSystemService = fileSystemSystemService;
         _windowService = windowService;
         _prefs = prefs;
-        // TODO.md #80: FileTreeViewModel now needs IPreferencesService (RenameGesture/DeleteGesture),
-        // so this moves from a property initializer (which would run before _prefs is assigned above)
-        // into the constructor body.
-        FileTree = new FileTreeViewModel(_prefs);
+        // TODO.md #80/#81: FileTreeViewModel now needs IPreferencesService (RenameGesture/
+        // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
+        // property initializer (which would run before _prefs is assigned above) into the
+        // constructor body.
+        FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);

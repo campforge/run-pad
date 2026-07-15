@@ -54,7 +54,8 @@ public class EditorTabsControlTests
                 sdkProviders: [],
                 fileSystemSystemService: fileSystem.Object,
                 windowService: new Mock<IWindowService>().Object,
-                prefs: prefs.Object);
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
@@ -116,7 +117,8 @@ public class EditorTabsControlTests
                 sdkProviders: [],
                 fileSystemSystemService: fileSystem.Object,
                 windowService: new Mock<IWindowService>().Object,
-                prefs: prefs.Object);
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,

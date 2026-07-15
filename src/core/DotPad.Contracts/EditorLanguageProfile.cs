@@ -51,4 +51,12 @@ public sealed class EditorLanguageProfile
     // "no language-specific algorithm" — EditorTabItemControl falls back to brace-based folding,
     // correct for C#'s { }-delimited blocks.
     public Func<string, IReadOnlyList<(int Start, int End)>>? FoldingRegionsProvider { get; init; }
+
+    // TODO.md #81: used to be a `switch` on RpadLanguage hardcoded in FileTreeViewNode.LanguageIconKey
+    // (main UI project) — same class of problem as FoldingRegionsProvider above, same fix: the
+    // language plugin names its own icon instead of the UI layer knowing about every language by name.
+    // A resource key into src/main/DotPad/Resources/Icons.axaml (StreamGeometry, resolved at bind time
+    // via ResourceKeyToGeometryConverter); null means "no icon for this language yet" — the file tree
+    // falls back to its generic file icon (FileTreeViewNode.ShowGenericFileIcon).
+    public string? IconResourceKey { get; init; }
 }

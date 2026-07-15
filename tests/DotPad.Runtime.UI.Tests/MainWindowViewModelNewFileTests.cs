@@ -1,3 +1,4 @@
+using DotPad.Contracts;
 using DotPad.Format.RPad;
 using DotPad.Services;
 using DotPad.Services.Preferences;
@@ -30,7 +31,8 @@ public class MainWindowViewModelNewFileTests
             sdkProviders: [],
             fileSystemSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
-            prefs: prefs.Object);
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
 
         return (vm, path);
     }
