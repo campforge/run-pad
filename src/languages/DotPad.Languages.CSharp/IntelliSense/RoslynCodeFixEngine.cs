@@ -106,7 +106,12 @@ internal sealed class RoslynCodeFixEngine
                 var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
                 if (materialized is null) continue;
                 var (newCode, usingsToAdd) = materialized.Value;
-                if (newCode == userCode && usingsToAdd.Count == 0) continue;
+                if (newCode == userCode && usingsToAdd.Count == 0)
+                {
+                    _logger.LogDebug("Discarding fix {Title} for {Id}: materialized to a no-op (NewCode == userCode, no usings)",
+                        leaf.Title, diagnostic.Id);
+                    continue;
+                }
                 result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ToContractSeverity(diagnostic.Severity)));
             }
         }
@@ -121,12 +126,13 @@ internal sealed class RoslynCodeFixEngine
     // logging, unlike CollectFixesAsync's own catch around RegisterCodeFixesAsync right above (which
     // does log at Debug) — found only by chasing a Windows-CI-only "CodeFixesChanged fires with an
     // empty list, no log output at all" symptom (NotifyTextChanged_Should_MarkUnusedVariableFix_
-    // AsWarningSeverity) back through every catch block in this pipeline: this was the one place a
-    // silently-swallowed exception here would produce exactly that symptom with zero trace. Whatever
-    // actually throws here (this method spans GetOperationsAsync — arbitrary third-party CodeAction
-    // code — through ApplyRelocatingPreambleEdits' own span math) was never confirmed locally despite
-    // direct reproduction attempts (dumped the real TextChanges RemoveUnusedVariableCodeFixProvider
-    // produces here — clamps and applies cleanly on Linux), so this logs rather than guesses further.
+    // AsWarningSeverity) back through every catch block in this pipeline. That alone wasn't enough
+    // though — a first round of this same logging still showed zero messages on the next CI failure,
+    // meaning the real culprit isn't an exception here at all: ApplyRelocatingPreambleEdits itself has
+    // two `return null;` paths that never throw (see its own doc comment) — a discard-by-design that
+    // looks IDENTICAL to "no fix existed" from the outside. Logs the raw TextChanges unconditionally
+    // now, before anything can discard them, since that's the one piece of data neither round of
+    // logging so far has captured.
     private async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
         CodeAction action, Document originalDocument, int preambleLength, int userCodeLength, CancellationToken ct)
     {
@@ -134,12 +140,25 @@ internal sealed class RoslynCodeFixEngine
         {
             var operations = await action.GetOperationsAsync(ct);
             var applyOp = operations.OfType<ApplyChangesOperation>().FirstOrDefault();
-            if (applyOp is null) return null;
+            if (applyOp is null)
+            {
+                _logger.LogDebug("Fix {Title}: no ApplyChangesOperation among {Count} operation(s)",
+                    action.Title, operations.Length);
+                return null;
+            }
 
             var newDocument = applyOp.ChangedSolution.GetDocument(originalDocument.Id);
-            if (newDocument is null) return null;
+            if (newDocument is null)
+            {
+                _logger.LogDebug("Fix {Title}: ApplyChangesOperation's solution has no document for {DocId}",
+                    action.Title, originalDocument.Id);
+                return null;
+            }
 
             var changes = (await newDocument.GetTextChangesAsync(originalDocument, ct)).ToList();
+            _logger.LogDebug("Fix {Title}: {Count} TextChange(s): {Changes}", action.Title, changes.Count,
+                string.Join(" | ", changes.Select(c => $"[{c.Span.Start}..{c.Span.End}) -> \"{Truncate(c.NewText)}\"")));
+
             return ApplyRelocatingPreambleEdits(
                 changes, await originalDocument.GetTextAsync(ct), preambleLength, userCodeLength);
         }
@@ -149,6 +168,12 @@ internal sealed class RoslynCodeFixEngine
             _logger.LogDebug(ex, "Materializing fix {Title} failed", action.Title);
             return null;
         }
+    }
+
+    private static string Truncate(string? text)
+    {
+        text = (text ?? "").Replace("\r", "\\r").Replace("\n", "\\n");
+        return text.Length > 40 ? text[..40] + "…" : text;
     }
 
     private static readonly Regex _usingInsertionRegex = new(@"^\s*using\s+([\w.]+)\s*;\s*$", RegexOptions.Compiled);
@@ -172,7 +197,7 @@ internal sealed class RoslynCodeFixEngine
     // be nothing but that synthetic pad (never meaningful user content), so silently dropping it from
     // what gets deleted/replaced is safe — NewText itself is untouched, only how much of the
     // (padding-only) tail end of the input span gets consumed is shortened.
-    private static (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
+    private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
         List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {
         var usingsToAdd = new List<string>();
@@ -194,10 +219,21 @@ internal sealed class RoslynCodeFixEngine
             // the user's code, or inserts something that isn't a plain using directive) can't be
             // represented without risking corruption, so bail out entirely.
             if (change.Span.Length > 0 || change.Span.End > preambleLength)
+            {
+                _logger.LogDebug(
+                    "Discarding fix: preamble-touching change [{Start}..{End}) (len={Len}) isn't a pure "
+                    + "zero-length insertion at/before preambleLength={PreambleLength}",
+                    change.Span.Start, change.Span.End, change.Span.Length, preambleLength);
                 return null;
+            }
 
             var match = _usingInsertionRegex.Match(change.NewText ?? "");
-            if (!match.Success) return null;
+            if (!match.Success)
+            {
+                _logger.LogDebug("Discarding fix: preamble insertion \"{NewText}\" isn't a pure using directive",
+                    Truncate(change.NewText));
+                return null;
+            }
             usingsToAdd.Add(match.Groups[1].Value);
         }
 
