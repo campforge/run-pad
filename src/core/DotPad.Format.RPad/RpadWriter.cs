@@ -23,7 +23,7 @@ public static class RpadWriter
         RpadKind kind = RpadKind.Statements,
         RpadLanguage language = RpadLanguage.CSharp)
     {
-        var languageId = language.ToString().ToLowerInvariant();
+        var languageId = language.ToLanguageId();
         var code = (language, kind) switch
         {
             (RpadLanguage.Vb, RpadKind.Program) =>
