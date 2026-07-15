@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using DotPad.Contracts;
 using DotPad.Format.RPad;
 using DotPad.Services;
 using DotPad.Services.Preferences;
@@ -8,10 +9,12 @@ namespace DotPad.UserControls.Models;
 public class FileTreeViewModel
 {
     private readonly IPreferencesService _prefs;
+    private readonly ILanguageHostRegistry _languages;
 
-    public FileTreeViewModel(IPreferencesService prefs)
+    public FileTreeViewModel(IPreferencesService prefs, ILanguageHostRegistry languages)
     {
         _prefs = prefs;
+        _languages = languages;
         Nodes = [];
     }
 
@@ -39,14 +42,24 @@ public class FileTreeViewModel
     // Language is peeked once here (TODO.md #70) via the same cheap front-matter parse
     // EditorTabsControl already uses to pick an IntelliSense factory — not re-peeked on every later
     // refresh for nodes MergeNodeList preserves, only when a node is freshly built (initial load, or
-    // a path that's new/renamed/moved).
-    private static FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
+    // a path that's new/renamed/moved). No longer static (TODO.md #81) — needs _languages to resolve
+    // the node's icon key off the owning ILanguageHostFactory instead of switching on RpadLanguage.
+    private FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
         ? new FileTreeViewNode(fsi.Name, fsi.FilePath, new ObservableCollection<FileTreeViewNode>((fsi.Children ?? []).Select(MapToNode)))
-        : new FileTreeViewNode(fsi.Name, fsi.FilePath, RpadFilePeek.PeekLanguage(fsi.FilePath));
+        : MapFileNode(fsi);
+
+    private FileTreeViewNode MapFileNode(FileSystemItem fsi)
+    {
+        var language = RpadFilePeek.PeekLanguage(fsi.FilePath);
+        var iconKey = language is { } lang && _languages.IsRegistered(lang.ToLanguageId())
+            ? _languages.GetEditorProfile(lang.ToLanguageId()).IconResourceKey
+            : null;
+        return new FileTreeViewNode(fsi.Name, fsi.FilePath, language) { LanguageIconKey = iconKey };
+    }
 
     /// <summary>Merges <paramref name="fresh"/> into <paramref name="current"/> with minimal
     /// ObservableCollection mutations to preserve UI state (selection, expanded folders).</summary>
-    private static void MergeNodeList(ObservableCollection<FileTreeViewNode> current, IReadOnlyList<FileSystemItem> fresh)
+    private void MergeNodeList(ObservableCollection<FileTreeViewNode> current, IReadOnlyList<FileSystemItem> fresh)
     {
         // Build a lookup of fresh paths for O(1) access
         var freshByPath = fresh.ToDictionary(n => n.FilePath, StringComparer.OrdinalIgnoreCase);

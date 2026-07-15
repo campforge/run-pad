@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.UserControls;
@@ -25,7 +26,7 @@ public class FileTreeViewHotkeysTests
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Keyboard).Returns(keyboard);
 
-        var vm = new FileTreeViewModel(prefs.Object);
+        var vm = new FileTreeViewModel(prefs.Object, new LanguageHostRegistry());
         vm.Refresh([new FileSystemItem("a.rpad", false, "/root/a.rpad", null)]);
         var node = vm.Nodes[0];
 
