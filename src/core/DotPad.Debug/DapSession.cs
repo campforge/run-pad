@@ -27,7 +27,7 @@ public sealed class DapSession : IDapSession
 {
     private const string ContentLengthPrefix = "Content-Length: ";
 
-    private static readonly JsonSerializerOptions JsonOpts = new()
+    private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         IncludeFields = true,
         PropertyNameCaseInsensitive = true,
@@ -388,7 +388,7 @@ public sealed class DapSession : IDapSession
         var root = doc.RootElement;
         if (!root.TryGetProperty("body", out var body)) return [];
         if (!body.TryGetProperty("threads", out var el)) return [];
-        return JsonSerializer.Deserialize<List<DapThread>>(el.GetRawText(), JsonOpts) ?? [];
+        return JsonSerializer.Deserialize<List<DapThread>>(el.GetRawText(), _jsonOpts) ?? [];
     }
 
     private async Task<List<StackFrame>> QueryStackTraceAsync(int threadId, CancellationToken ct)
@@ -404,7 +404,7 @@ public sealed class DapSession : IDapSession
         var root = doc.RootElement;
         if (!root.TryGetProperty("body", out var body)) return [];
         if (!body.TryGetProperty("stackFrames", out var el)) return [];
-        return JsonSerializer.Deserialize<List<StackFrame>>(el.GetRawText(), JsonOpts) ?? [];
+        return JsonSerializer.Deserialize<List<StackFrame>>(el.GetRawText(), _jsonOpts) ?? [];
     }
 
     private async Task<IReadOnlyList<IVariableInfo>> QueryAllScopesAsync(long frameId, CancellationToken ct)
@@ -421,7 +421,7 @@ public sealed class DapSession : IDapSession
         if (!scopesRoot.TryGetProperty("body", out var scopesBody)) return [];
         if (!scopesBody.TryGetProperty("scopes", out var scopesEl)) return [];
 
-        var scopes = JsonSerializer.Deserialize<List<Scope>>(scopesEl.GetRawText(), JsonOpts) ?? [];
+        var scopes = JsonSerializer.Deserialize<List<Scope>>(scopesEl.GetRawText(), _jsonOpts) ?? [];
         var usableScopes = scopes.Where(s => s.expensive != true && s.variablesReference is > 0).ToList();
         if (usableScopes.Count == 0) return [];
 
@@ -454,7 +454,7 @@ public sealed class DapSession : IDapSession
             if (!varsRoot.TryGetProperty("body", out var varsBody)) continue;
             if (!varsBody.TryGetProperty("variables", out var varsEl)) continue;
 
-            var vars = JsonSerializer.Deserialize<List<Variable>>(varsEl.GetRawText(), JsonOpts) ?? [];
+            var vars = JsonSerializer.Deserialize<List<Variable>>(varsEl.GetRawText(), _jsonOpts) ?? [];
             result.AddRange(vars.Select(v => (IVariableInfo)new DapVariableInfo
             {
                 Name = v.name ?? "",
@@ -485,7 +485,7 @@ public sealed class DapSession : IDapSession
             if (!root.TryGetProperty("body", out var body)) return [];
             if (!body.TryGetProperty("variables", out var el)) return [];
 
-            var vars = JsonSerializer.Deserialize<List<Variable>>(el.GetRawText(), JsonOpts) ?? [];
+            var vars = JsonSerializer.Deserialize<List<Variable>>(el.GetRawText(), _jsonOpts) ?? [];
             return vars.Select(v => (IVariableInfo)new DapVariableInfo
             {
                 Name = v.name ?? "",
@@ -692,7 +692,7 @@ public sealed class DapSession : IDapSession
 
     private async Task SendAsync(object request, CancellationToken ct)
     {
-        var json = JsonSerializer.Serialize(request, request.GetType(), JsonOpts);
+        var json = JsonSerializer.Serialize(request, request.GetType(), _jsonOpts);
         _logger.LogDebug("[dap →] {Snippet}", json[..Math.Min(200, json.Length)]);
         var body = Encoding.UTF8.GetBytes(json);
         var header = Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n");

@@ -319,8 +319,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             s.RunStopwatch.Stop();
             s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
-            if (cancelled) SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
-            else if (!s.HadRunError) SetStatus("Success", "DotPad.Status.SuccessBrush");
+            if (cancelled)
+            {
+                SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
+            }
+            else if (!s.HadRunError)
+            {
+                SetStatus("Success", "DotPad.Status.SuccessBrush");
+            }
 
             UpdateOutputUi();
         }
@@ -1126,7 +1132,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
     }
 
-    private sealed class ScriptBreakpoint(string fileName, int line, string? condition, string? hitCondition = null)
+    private sealed class ScriptBreakpoint(
+        string fileName,
+        int line,
+        string? condition,
+        string? hitCondition = null)
         : Contracts.IBreakpoint
     {
         public string FileName { get; } = fileName;

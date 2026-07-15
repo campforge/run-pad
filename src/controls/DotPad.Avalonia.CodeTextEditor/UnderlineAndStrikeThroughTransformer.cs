@@ -8,7 +8,10 @@ public sealed class UnderlineAndStrikeThroughTransformer : DocumentColorizingTra
 {
     protected override void ColorizeLine(DocumentLine line)
     {
-        if (line.LineNumber != 2) return;
+        if (line.LineNumber != 2)
+        {
+            return;
+        }
 
         var text = CurrentContext.Document.GetText(line);
         Highlight(line, text, "underline", TextDecorations.Underline);
@@ -18,7 +21,10 @@ public sealed class UnderlineAndStrikeThroughTransformer : DocumentColorizingTra
     private void Highlight(DocumentLine line, string text, string word, TextDecorationCollection decoration)
     {
         int index = text.IndexOf(word, StringComparison.Ordinal);
-        if (index == -1) return;
+        if (index == -1)
+        {
+            return;
+        }
 
         ChangeLinePart(line.Offset + index, line.Offset + index + word.Length, vl =>
         {

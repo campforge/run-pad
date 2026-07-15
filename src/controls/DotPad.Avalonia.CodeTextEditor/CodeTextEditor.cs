@@ -39,7 +39,7 @@ public class CodeTextEditor : TextEditor
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
     private readonly DispatcherTimer _foldingTimer;
     private FoldingManager? _foldingManager;
-    private VsCodeFoldingMargin? _foldingMargin;
+    private FoldingMargin? _foldingMargin;
     private bool _isLoaded;
     private CodeTextEditorOptions _editorOptions = new();
     private RegistryOptions? _registryOptions;
@@ -379,12 +379,12 @@ public class CodeTextEditor : TextEditor
 
         // Replace AvaloniaEdit's default FoldingMargin with our VS Code-style one.
         // FoldingManager.Install adds a FoldingMargin; we swap it out immediately.
-        var defaultMargin = TextArea.LeftMargins.OfType<FoldingMargin>().FirstOrDefault();
+        var defaultMargin = TextArea.LeftMargins.OfType<AvaloniaEdit.Folding.FoldingMargin>().FirstOrDefault();
         if (defaultMargin is not null)
         {
             var idx = TextArea.LeftMargins.IndexOf(defaultMargin);
             TextArea.LeftMargins.Remove(defaultMargin);
-            _foldingMargin = new VsCodeFoldingMargin(_foldingManager);
+            _foldingMargin = new FoldingMargin(_foldingManager);
             TextArea.LeftMargins.Insert(idx, _foldingMargin);
         }
 
@@ -682,15 +682,11 @@ public class CodeTextEditor : TextEditor
         }
 
         // Skip-ahead: if the closing bracket is already at caret, move past it instead of inserting.
-        if (BracePairs.ContainsValue(ch))
-        {
-            var offset = TextArea.Caret.Offset;
-            if (offset < Document.TextLength && Document.GetCharAt(offset) == ch)
-            {
-                TextArea.Caret.Offset = offset + 1;
-                e.Handled = true;
-            }
-        }
+        if (!BracePairs.ContainsValue(ch)) return;
+        var offset = TextArea.Caret.Offset;
+        if (offset >= Document.TextLength || Document.GetCharAt(offset) != ch) return;
+        TextArea.Caret.Offset = offset + 1;
+        e.Handled = true;
     }
 
     // True when the about-to-be-typed closing bracket closes something opened AFTER the insight
