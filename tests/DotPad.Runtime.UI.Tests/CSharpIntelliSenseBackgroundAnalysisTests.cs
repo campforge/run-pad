@@ -13,6 +13,18 @@ namespace DotPad.Runtime.UI.Tests;
 // sure both events still fire correctly off the shared computation.
 public class CSharpIntelliSenseBackgroundAnalysisTests
 {
+    // Windows CI (GH Actions windows-latest) observed NotifyTextChanged_Should_MarkUnusedVariableFix_
+    // AsWarningSeverity below time out at the old 10s budget while the identically-shaped "missing
+    // using" tests in this same class passed in ~1s right next to it — this exercises real Roslyn MEF
+    // codefix discovery plus (for CS0168) a full dataflow/unused-variable analysis pass, not just
+    // symbol binding, and GH Actions' windows-latest runners are well documented to run .NET CPU-bound
+    // work several times slower than the ubuntu-latest ones this suite is normally developed against
+    // (weaker CPU allocation + Windows Defender real-time scanning of freshly-JITted/loaded Roslyn
+    // assemblies) — this ran in ~2s locally on Linux with no flakiness across dozens of full-suite
+    // runs, so there's no evidence of an actual hang, just insufficient headroom for a loaded/slow CI
+    // machine. Shared by all three WaitAsync calls below so they stay consistent.
+    private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
+
     private static CSharpIntelliSenseService CreateService()
     {
         var referenceService = new CSharpReferenceService();
@@ -54,7 +66,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         // `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
         service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
 
-        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
     }
 
@@ -76,7 +88,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
 
         service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
 
-        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         var fix = codeFixes.First(f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
         Assert.Equal(DiagnosticSeverity.Error, fix.Severity);
     }
@@ -99,7 +111,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
 
         service.NotifyTextChanged("int unused;\n");
 
-        var codeFixes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(codeFixes, f => f.Severity == DiagnosticSeverity.Warning);
     }
 
