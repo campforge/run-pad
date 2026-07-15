@@ -117,7 +117,17 @@ internal sealed class RoslynCodeFixEngine
     private static IEnumerable<CodeAction> Flatten(CodeAction action) =>
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
-    private static async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
+    // No longer static — needs _logger. Used to be a bare `catch { return null; }` with zero
+    // logging, unlike CollectFixesAsync's own catch around RegisterCodeFixesAsync right above (which
+    // does log at Debug) — found only by chasing a Windows-CI-only "CodeFixesChanged fires with an
+    // empty list, no log output at all" symptom (NotifyTextChanged_Should_MarkUnusedVariableFix_
+    // AsWarningSeverity) back through every catch block in this pipeline: this was the one place a
+    // silently-swallowed exception here would produce exactly that symptom with zero trace. Whatever
+    // actually throws here (this method spans GetOperationsAsync — arbitrary third-party CodeAction
+    // code — through ApplyRelocatingPreambleEdits' own span math) was never confirmed locally despite
+    // direct reproduction attempts (dumped the real TextChanges RemoveUnusedVariableCodeFixProvider
+    // produces here — clamps and applies cleanly on Linux), so this logs rather than guesses further.
+    private async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
         CodeAction action, Document originalDocument, int preambleLength, int userCodeLength, CancellationToken ct)
     {
         try
@@ -133,7 +143,12 @@ internal sealed class RoslynCodeFixEngine
             return ApplyRelocatingPreambleEdits(
                 changes, await originalDocument.GetTextAsync(ct), preambleLength, userCodeLength);
         }
-        catch { return null; }
+        catch (OperationCanceledException) { throw; } // routine — superseded by the next keystroke
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Materializing fix {Title} failed", action.Title);
+            return null;
+        }
     }
 
     private static readonly Regex _usingInsertionRegex = new(@"^\s*using\s+([\w.]+)\s*;\s*$", RegexOptions.Compiled);
