@@ -8,7 +8,7 @@ real and which were dead weight, produced before deleting the dead set (see "Old
 
 ## Active set — `Icon.*` `StreamGeometry` (Material-Design-style, 24×24 viewbox)
 
-All 21 keys below are used. `PathIcon`/`IconData`/`Data` bindings are XAML; "code-behind" means the
+All keys below are used. `PathIcon`/`IconData`/`Data` bindings are XAML; "code-behind" means the
 key string is looked up at runtime via `TryGetResource`/`LoadResource<T>` rather than bound in XAML.
 
 | Key | Used in |
@@ -24,6 +24,7 @@ key string is looked up at runtime via `TryGetResource`/`LoadResource<T>` rather
 | `Icon.DebugStepOut` | `EditorTabItemControl.axaml:144` |
 | `Icon.RunToCursor` | `EditorTabItemControl.axaml:159` |
 | `Icon.Breakpoint` | `BreakPointMargin.cs:72` (code-behind) |
+| `Icon.BreakpointCondition` | `BreakPointMargin.cs:75` (code-behind) |
 | `Icon.DebugArrow` | `BreakPointMargin.cs:73` (code-behind) |
 | `Icon.Lightbulb` | `CodeFixMargin.cs:48` (code-behind) |
 | `Icon.Hammer` | `CodeFixMargin.cs:121` (code-behind) — quick-fix menu item icon, TODO #79 |
