@@ -155,6 +155,21 @@ internal sealed class RoslynCodeFixEngine
                 return null;
             }
 
+            // Some fix providers reformat whitespace they merely touch (e.g. RemoveUnusedVariable
+            // normalizing the blank line before the statement it deletes) using Roslyn's own line-ending
+            // default, which is "\r\n" on Windows independent of the workspace-level FormattingOptions.
+            // NewLine override in CSharpIntelliSenseService's ctor — that override doesn't reliably reach
+            // every fix provider's internal Formatter.Format call. This synthetic document only ever
+            // contains literal '\n', so a stray "\r\n" inflates the diff against originalDocument by one
+            // byte per touched newline, which can shift a change's span just enough to straddle
+            // preambleLength below and get the whole fix discarded even though the real edit never
+            // touches the preamble. Normalizing back to '\n' before diffing keeps the diff to the actual
+            // semantic edit, independent of OS.
+            var newDocumentText = (await newDocument.GetTextAsync(ct)).ToString();
+            var normalizedText = newDocumentText.Replace("\r\n", "\n");
+            if (normalizedText != newDocumentText)
+                newDocument = newDocument.WithText(SourceText.From(normalizedText));
+
             var changes = (await newDocument.GetTextChangesAsync(originalDocument, ct)).ToList();
             _logger.LogDebug("Fix {Title}: {Count} TextChange(s): {Changes}", action.Title, changes.Count,
                 string.Join(" | ", changes.Select(c => $"[{c.Span.Start}..{c.Span.End}) -> \"{Truncate(c.NewText)}\"")));
