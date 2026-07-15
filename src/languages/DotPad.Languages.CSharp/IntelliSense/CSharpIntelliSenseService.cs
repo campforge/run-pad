@@ -141,6 +141,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly object _syncLock = new();
     private CancellationTokenSource? _diagnosticsCts;
 
+    // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
+    // see Dispose's own comment for why this matters beyond just "clean shutdown".
+    private Task? _backgroundAnalysisTask;
+
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
     // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
     // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
@@ -1130,7 +1134,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
-        Task.Run(async () =>
+        _backgroundAnalysisTask = Task.Run(async () =>
         {
             try
             {
@@ -1281,9 +1285,23 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
     }
 
+    // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can
+    // still be mid-flight (e.g. deep inside RoslynCodeFixEngine.ComputeFixesAsync, which doesn't poll
+    // the token between individual CodeFixProviders) when this method would otherwise return
+    // immediately, racing _workspace.Dispose() right below and continuing to burn CPU on a ThreadPool
+    // thread after this service is considered "gone" by its caller. Observed as a same-process,
+    // cross-test CPU-starvation flake in CI (background analysis from an earlier, already-disposed
+    // test's service still running while a later test's own NotifyTextChanged competes for ThreadPool
+    // capacity) — worse on Windows CI's weaker/more contended runners, but a real bug regardless of
+    // platform: any caller that disposes right after only DiagnosticsChanged fires (which happens
+    // *before* the codefix half of the same background pass, see ComputeDiagnosticsAndCodeFixesAsync)
+    // was already at risk of this. Bounded, not unbounded — a pathological provider that truly never
+    // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
         _diagnosticsCts?.Cancel();
+        try { _backgroundAnalysisTask?.Wait(TimeSpan.FromSeconds(5)); }
+        catch { /* already logged from inside the task itself */ }
         _diagnosticsCts?.Dispose();
         _workspace.Dispose();
     }
