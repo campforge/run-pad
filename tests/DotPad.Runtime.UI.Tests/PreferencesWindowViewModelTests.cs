@@ -30,6 +30,7 @@ public class PreferencesWindowViewModelTests
         theme.Setup(t => t.EditorThemes).Returns([]);
 
         var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         return new PreferencesWindowViewModel(theme.Object, prefs.Object, registry);
     }
@@ -41,6 +42,36 @@ public class PreferencesWindowViewModelTests
         registry.Register(new CSharpLanguageHostFactory(loggerFactory));
         registry.Register(new VbLanguageHostFactory(loggerFactory));
         return registry;
+    }
+
+    // TODO.md #80: these 4 properties are newly wired (F4/Ctrl+W/F2/Delete used to be hardcoded,
+    // not editable here at all) — a real KeyboardSettings instance (not a further mock) so the
+    // round-trip through SetPref is genuinely observable on the same object MainWindow/FileTreeView
+    // read from.
+    [Fact]
+    public void HotkeyProperties_Should_RoundTrip_ThroughTheUnderlyingKeyboardSettings()
+    {
+        var keyboard = new KeyboardSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.HotkeyOpenDependencies = "Ctrl+Alt+D";
+        vm.HotkeyCloseTab = "Ctrl+Shift+W";
+        vm.HotkeyRenameFile = "Ctrl+R";
+        vm.HotkeyDeleteFile = "Ctrl+Delete";
+
+        Assert.Equal("Ctrl+Alt+D", keyboard.OpenDependencies);
+        Assert.Equal("Ctrl+Shift+W", keyboard.CloseTab);
+        Assert.Equal("Ctrl+R", keyboard.RenameFile);
+        Assert.Equal("Ctrl+Delete", keyboard.DeleteFile);
+        prefs.Verify(p => p.Save(), Times.Exactly(4));
     }
 
     [Fact]

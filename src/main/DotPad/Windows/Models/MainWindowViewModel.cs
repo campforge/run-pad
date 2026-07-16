@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
@@ -47,6 +48,23 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAboutCommand { get; }
+
+    // TODO.md #80: the F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
+    // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
+    // no WPF-style InputGestureText string property; InputGesture takes a real KeyGesture and renders
+    // its own formatted text, same as CodeTextEditor.CreateEditMenuItem's Copy/Cut/Paste items — TODO
+    // #34). Not re-evaluated live on a Preferences edit (unlike EditorTabItemViewModel's tooltip
+    // labels, which do resubscribe to _prefs.Changed) — a known, minor gap: the menu hint can go
+    // stale until restart if the user rebinds this gesture, while the actual keyboard dispatch always
+    // reads the current value fresh on every keypress regardless.
+    public KeyGesture? OpenDependenciesGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.OpenDependencies); }
+            catch { return null; }
+        }
+    }
 
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
@@ -97,11 +115,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
-    public void NewRpadFile()
+    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp)
     {
         var path = _fileSystemSystemService.CreateNewFile();
         var title = Path.GetFileNameWithoutExtension(path);
-        File.WriteAllText(path, RpadWriter.NewFile(title), System.Text.Encoding.UTF8);
+        File.WriteAllText(path, RpadWriter.NewFile(title, language: language), System.Text.Encoding.UTF8);
 
         RefreshNodes();
         OpenTab(path);
@@ -288,7 +306,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── File tree ─────────────────────────────────────────────────────────────
 
-    public FileTreeViewModel FileTree { get; } = new();
+    public FileTreeViewModel FileTree { get; }
 
     public List<DotnetSdk> AvailableSdks { get; }
 
@@ -296,11 +314,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         IEnumerable<ISdkProvider> sdkProviders,
         IFileSystemService fileSystemSystemService,
         IWindowService windowService,
-        IPreferencesService prefs)
+        IPreferencesService prefs,
+        ILanguageHostRegistry languageRegistry)
     {
         _fileSystemSystemService = fileSystemSystemService;
         _windowService = windowService;
         _prefs = prefs;
+        // TODO.md #80/#81: FileTreeViewModel now needs IPreferencesService (RenameGesture/
+        // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
+        // property initializer (which would run before _prefs is assigned above) into the
+        // constructor body.
+        FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);

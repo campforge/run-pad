@@ -121,11 +121,33 @@ public sealed class VbProcessCompiler : IDisposable
         await Task.WhenAll(taskOut, taskErr);
         await _process.WaitForExitAsync(ctx);
 
+        var success = _process.ExitCode == 0;
+
+        // TODO.md #73: a failed build must not leave a stale, previously-successful outputDll
+        // sitting in bin/ — MSBuild only overwrites it on a successful compile, so a failing build
+        // otherwise leaves the OLD binary in place. Without this, the next run with this same
+        // (still broken) source hits the hot path above (source/vbproj unchanged, outputDll still
+        // exists) and silently reruns the old binary instead of retrying the build or reporting the
+        // same error again. Same fix as DotnetProcessCompiler (CSharp host).
+        if (!success) TryDeleteStaleOutput(outputDll);
+
         return new ProcessCompilerResult(
-            Path.Combine(binDirectory, $"{_outputName}.dll"),
-            _process.ExitCode == 0,
+            outputDll,
+            success,
             taskOut.Result.Item1,
             taskOut.Result.Item2);
+    }
+
+    private void TryDeleteStaleOutput(string outputDll)
+    {
+        try
+        {
+            if (File.Exists(outputDll)) File.Delete(outputDll);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete stale build output {OutputDll} after a failed build", outputDll);
+        }
     }
 
     private async Task<(List<ResultItem>, List<ResultItem>)> DrainStdout(CancellationToken cancellationToken)

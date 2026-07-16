@@ -40,10 +40,16 @@ public class DependenciesWindowViewModelTests
         var searchBox = window.GetVisualDescendants().OfType<TextBox>().First();
         searchBox.Focus();
         window.KeyTextInput("Newtonsoft.Json");
-        await Task.Delay(600); // debounce (350ms) inside DependenciesWindowViewModel.TriggerSearch
 
-        var addButton = window.GetVisualDescendants().OfType<Button>()
-            .FirstOrDefault(b => b.Content as string == "+");
+        // Poll instead of a fixed delay: debounce (350ms) inside DependenciesWindowViewModel.TriggerSearch
+        // plus rendering can comfortably exceed a fixed wait under slower/loaded CI (esp. Windows).
+        Button? addButton = null;
+        for (var i = 0; i < 250 && addButton is null; i++)
+        {
+            await Task.Delay(20);
+            addButton = window.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => b.Content as string == "+");
+        }
         Assert.NotNull(addButton);
         var clickPoint = addButton!.TranslatePoint(
             new Point(addButton.Bounds.Width / 2, addButton.Bounds.Height / 2), window)!.Value;

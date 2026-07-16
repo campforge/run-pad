@@ -39,16 +39,12 @@ public class FileTreeViewNode : ReactiveObject
 
     // Resource key (Resources/Icons.axaml) of the Material Design icon for this file's language, if
     // one exists — null falls back to the tree's generic file icon (FileTreeView.axaml resolves the
-    // key to an actual Geometry via ResourceKeyToGeometryConverter, so a language with no icon here
-    // needs no XAML change at all, just no entry in this switch). Vb uses the Visual Studio logo as
-    // a stand-in (user's choice — Material Design Icons has no per-language Visual Basic icon at
-    // all, see Icons.axaml's comment on Icon.LanguageVb).
-    public string? LanguageIconKey => Language switch
-    {
-        RpadLanguage.CSharp => "Icon.LanguageCSharp",
-        RpadLanguage.Vb => "Icon.LanguageVb",
-        _ => null,
-    };
+    // key to an actual Geometry via ResourceKeyToGeometryConverter). TODO.md #81: used to be a
+    // `switch` on RpadLanguage hardcoded right here in the main UI project — now supplied by
+    // FileTreeViewModel.MapToNode, which reads it off the owning ILanguageHostFactory's
+    // EditorLanguageProfile.IconResourceKey (same seam TODO #76 used for FoldingRegionsProvider), so
+    // this class no longer needs to know any language's identity to pick its own icon.
+    public string? LanguageIconKey { get; init; }
 
     // The tree's fallback "plain document" icon — shown for a file whose language has no entry
     // above (any future RpadLanguage not yet given an icon) instead of leaving nothing rendered.

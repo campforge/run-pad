@@ -1,4 +1,5 @@
 using Avalonia.Headless.XUnit;
+using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Windows.Models;
@@ -27,7 +28,8 @@ public class MainWindowViewModelTests
                 sdkProviders: [],
                 fileSystemSystemService: fileService.Object,
                 windowService: new Mock<IWindowService>().Object,
-                prefs: prefs.Object);
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
 
             // Act
             vm.ToggleSidebarCommand.Execute().Subscribe();

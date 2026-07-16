@@ -14,4 +14,10 @@ public interface ICodeFixInfo
     string Title { get; }
     string NewCode { get; }
     IReadOnlyList<string> UsingsToAdd { get; }
+
+    // TODO.md #75: the lightbulb margin used to paint every fix with the same neutral color
+    // regardless of whether it fixes a compiler error or a mere warning — this is the diagnostic's
+    // own severity (Diagnostics.cs' DiagnosticSeverity, reused rather than a second enum), carried
+    // through so the margin can color the icon accordingly.
+    DiagnosticSeverity Severity { get; }
 }

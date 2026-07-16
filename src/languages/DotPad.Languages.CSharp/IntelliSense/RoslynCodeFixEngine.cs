@@ -7,6 +7,8 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace DotPad.Languages.CSharp.IntelliSense;
 
@@ -101,11 +103,16 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
-                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, ct);
+                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
                 if (materialized is null) continue;
                 var (newCode, usingsToAdd) = materialized.Value;
-                if (newCode == userCode && usingsToAdd.Count == 0) continue;
-                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd));
+                if (newCode == userCode && usingsToAdd.Count == 0)
+                {
+                    _logger.LogDebug("Discarding fix {Title} for {Id}: materialized to a no-op (NewCode == userCode, no usings)",
+                        leaf.Title, diagnostic.Id);
+                    continue;
+                }
+                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ToContractSeverity(diagnostic.Severity)));
             }
         }
     }
@@ -115,22 +122,73 @@ internal sealed class RoslynCodeFixEngine
     private static IEnumerable<CodeAction> Flatten(CodeAction action) =>
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
-    private static async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
-        CodeAction action, Document originalDocument, int preambleLength, CancellationToken ct)
+    // No longer static — needs _logger. Used to be a bare `catch { return null; }` with zero
+    // logging, unlike CollectFixesAsync's own catch around RegisterCodeFixesAsync right above (which
+    // does log at Debug) — found only by chasing a Windows-CI-only "CodeFixesChanged fires with an
+    // empty list, no log output at all" symptom (NotifyTextChanged_Should_MarkUnusedVariableFix_
+    // AsWarningSeverity) back through every catch block in this pipeline. That alone wasn't enough
+    // though — a first round of this same logging still showed zero messages on the next CI failure,
+    // meaning the real culprit isn't an exception here at all: ApplyRelocatingPreambleEdits itself has
+    // two `return null;` paths that never throw (see its own doc comment) — a discard-by-design that
+    // looks IDENTICAL to "no fix existed" from the outside. Logs the raw TextChanges unconditionally
+    // now, before anything can discard them, since that's the one piece of data neither round of
+    // logging so far has captured.
+    private async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
+        CodeAction action, Document originalDocument, int preambleLength, int userCodeLength, CancellationToken ct)
     {
         try
         {
             var operations = await action.GetOperationsAsync(ct);
             var applyOp = operations.OfType<ApplyChangesOperation>().FirstOrDefault();
-            if (applyOp is null) return null;
+            if (applyOp is null)
+            {
+                _logger.LogDebug("Fix {Title}: no ApplyChangesOperation among {Count} operation(s)",
+                    action.Title, operations.Length);
+                return null;
+            }
 
             var newDocument = applyOp.ChangedSolution.GetDocument(originalDocument.Id);
-            if (newDocument is null) return null;
+            if (newDocument is null)
+            {
+                _logger.LogDebug("Fix {Title}: ApplyChangesOperation's solution has no document for {DocId}",
+                    action.Title, originalDocument.Id);
+                return null;
+            }
+
+            // Some fix providers reformat whitespace they merely touch (e.g. RemoveUnusedVariable
+            // normalizing the blank line before the statement it deletes) using Roslyn's own line-ending
+            // default, which is "\r\n" on Windows independent of the workspace-level FormattingOptions.
+            // NewLine override in CSharpIntelliSenseService's ctor — that override doesn't reliably reach
+            // every fix provider's internal Formatter.Format call. This synthetic document only ever
+            // contains literal '\n', so a stray "\r\n" inflates the diff against originalDocument by one
+            // byte per touched newline, which can shift a change's span just enough to straddle
+            // preambleLength below and get the whole fix discarded even though the real edit never
+            // touches the preamble. Normalizing back to '\n' before diffing keeps the diff to the actual
+            // semantic edit, independent of OS.
+            var newDocumentText = (await newDocument.GetTextAsync(ct)).ToString();
+            var normalizedText = newDocumentText.Replace("\r\n", "\n");
+            if (normalizedText != newDocumentText)
+                newDocument = newDocument.WithText(SourceText.From(normalizedText));
 
             var changes = (await newDocument.GetTextChangesAsync(originalDocument, ct)).ToList();
-            return ApplyRelocatingPreambleEdits(changes, await originalDocument.GetTextAsync(ct), preambleLength);
+            _logger.LogDebug("Fix {Title}: {Count} TextChange(s): {Changes}", action.Title, changes.Count,
+                string.Join(" | ", changes.Select(c => $"[{c.Span.Start}..{c.Span.End}) -> \"{Truncate(c.NewText)}\"")));
+
+            return ApplyRelocatingPreambleEdits(
+                changes, await originalDocument.GetTextAsync(ct), preambleLength, userCodeLength);
         }
-        catch { return null; }
+        catch (OperationCanceledException) { throw; } // routine — superseded by the next keystroke
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Materializing fix {Title} failed", action.Title);
+            return null;
+        }
+    }
+
+    private static string Truncate(string? text)
+    {
+        text = (text ?? "").Replace("\r", "\\r").Replace("\n", "\\n");
+        return text.Length > 40 ? text[..40] + "…" : text;
     }
 
     private static readonly Regex _usingInsertionRegex = new(@"^\s*using\s+([\w.]+)\s*;\s*$", RegexOptions.Compiled);
@@ -138,18 +196,36 @@ internal sealed class RoslynCodeFixEngine
     // Splits a set of TextChanges expressed against the synthetic `_preamble + code` document into
     // "usings to add" (lifted out of the preamble) and "the rest" (shifted back onto the user's
     // code). See the class doc comment for why this can't be a plain substring cut.
-    private static (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
-        List<TextChange> changes, SourceText originalFullText, int preambleLength)
+    //
+    // TODO.md #77: the "rest" used to be reconstructed as everything from preambleLength to
+    // originalFullText.Length — correct only as long as nothing follows the user's own code in the
+    // synced document. CSharpIntelliSenseService now appends a one-character TrailingPad after it
+    // (so a query position sitting at the very end of the user's code no longer coincides with the
+    // document's true end — see HeaderLength's doc comment for the underlying Roslyn quirk this
+    // works around), so the end of "the user's code" has to be the caller-supplied, actually-known
+    // userCodeLength instead of however long the live document happens to be. A fix that removes/
+    // replaces the LAST token of the user's code (e.g. "remove unused variable" on the final
+    // statement) removes that token's full span including trailing trivia — which now extends into
+    // TrailingPad, since a synthetic space right after the last real token attaches to it as trailing
+    // trivia the same as any other trailing whitespace. Each change's span is clamped to
+    // preambleLength + userCodeLength for exactly this reason: the clamped-off tail is guaranteed to
+    // be nothing but that synthetic pad (never meaningful user content), so silently dropping it from
+    // what gets deleted/replaced is safe — NewText itself is untouched, only how much of the
+    // (padding-only) tail end of the input span gets consumed is shortened.
+    private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
+        List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {
         var usingsToAdd = new List<string>();
         var userCodeChanges = new List<TextChange>();
+        var userCodeEnd = preambleLength + userCodeLength;
 
         foreach (var change in changes.OrderBy(c => c.Span.Start))
         {
             if (change.Span.Start >= preambleLength)
             {
+                var clampedLength = Math.Max(0, Math.Min(change.Span.End, userCodeEnd) - change.Span.Start);
                 userCodeChanges.Add(new TextChange(
-                    new TextSpan(change.Span.Start - preambleLength, change.Span.Length), change.NewText ?? ""));
+                    new TextSpan(change.Span.Start - preambleLength, clampedLength), change.NewText ?? ""));
                 continue;
             }
 
@@ -158,14 +234,25 @@ internal sealed class RoslynCodeFixEngine
             // the user's code, or inserts something that isn't a plain using directive) can't be
             // represented without risking corruption, so bail out entirely.
             if (change.Span.Length > 0 || change.Span.End > preambleLength)
+            {
+                _logger.LogDebug(
+                    "Discarding fix: preamble-touching change [{Start}..{End}) (len={Len}) isn't a pure "
+                    + "zero-length insertion at/before preambleLength={PreambleLength}",
+                    change.Span.Start, change.Span.End, change.Span.Length, preambleLength);
                 return null;
+            }
 
             var match = _usingInsertionRegex.Match(change.NewText ?? "");
-            if (!match.Success) return null;
+            if (!match.Success)
+            {
+                _logger.LogDebug("Discarding fix: preamble insertion \"{NewText}\" isn't a pure using directive",
+                    Truncate(change.NewText));
+                return null;
+            }
             usingsToAdd.Add(match.Groups[1].Value);
         }
 
-        var userText = originalFullText.GetSubText(new TextSpan(preambleLength, originalFullText.Length - preambleLength));
+        var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
         return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
     }
 
@@ -178,5 +265,16 @@ internal sealed class RoslynCodeFixEngine
         return line;
     }
 
-    private sealed record RoslynCodeFix(int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd) : ICodeFixInfo;
+    // Same mapping as CSharpIntelliSenseService's diagnostics pipeline (Hidden has no ICodeFixInfo
+    // equivalent to fall back to — a fix is never offered for a Hidden-severity diagnostic in the
+    // first place — so it folds into Info rather than needing a fourth case here).
+    private static ContractSeverity ToContractSeverity(RoslynSeverity severity) => severity switch
+    {
+        RoslynSeverity.Error => ContractSeverity.Error,
+        RoslynSeverity.Warning => ContractSeverity.Warning,
+        _ => ContractSeverity.Info,
+    };
+
+    private sealed record RoslynCodeFix(
+        int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd, ContractSeverity Severity) : ICodeFixInfo;
 }
