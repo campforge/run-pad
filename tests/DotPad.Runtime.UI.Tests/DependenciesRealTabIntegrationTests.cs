@@ -80,7 +80,8 @@ public class DependenciesRealTabIntegrationTests
                 sdkProviders: [],
                 fileSystemSystemService: fileSystem.Object,
                 windowService: windowService,
-                prefs: prefs.Object);
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
                 theme, registry.Object, prefs.Object, () => intelliSense.Object, referenceService, buildCache.Object);

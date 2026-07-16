@@ -144,7 +144,7 @@
                 </StackPanel>
 
                 <Grid IsVisible="{Binding IsKeyboardSelected}"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
@@ -182,6 +182,26 @@
                                VerticalAlignment="Center" Margin="0,0,8,6"/>
                     <TextBox   Grid.Row="7" Grid.Column="1" Margin="0,0,0,6"
                                Text="{Binding HotkeyGoToLine, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Open Dependencies:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="8" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyOpenDependencies, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="9" Grid.Column="0" Text="Close Tab:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="9" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyCloseTab, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Rename File:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="10" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyRenameFile, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="11" Grid.Column="0" Text="Delete File:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="11" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyDeleteFile, UpdateSourceTrigger=LostFocus}"/>
                 </Grid>
 
                 <StackPanel IsVisible="{Binding IsLanguagesSelected}">

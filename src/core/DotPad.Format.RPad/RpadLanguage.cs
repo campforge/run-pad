@@ -9,3 +9,13 @@ public enum RpadLanguage
     CSharp = 1,
     Vb = 2,
 }
+
+public static class RpadLanguageExtensions
+{
+    // TODO.md #81: three call sites (EditorTabItemControl.ResolveLanguageId, DotPad.Cli.CliRunner,
+    // and FileTreeViewModel's language-icon lookup) each hand-rolled this same
+    // `.ToString().ToLowerInvariant()` conversion independently — centralized here since it's really a
+    // fact about RpadLanguage's own naming convention (see the enum's doc comment above), not
+    // something each call site should re-derive.
+    public static string ToLanguageId(this RpadLanguage language) => language.ToString().ToLowerInvariant();
+}

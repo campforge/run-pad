@@ -1,3 +1,4 @@
+using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Windows.Models;
@@ -24,7 +25,8 @@ public class MainWindowViewModelCreateFolderTests
             sdkProviders: [],
             fileSystemSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
-            prefs: prefs.Object);
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
     }
 
     [Fact]

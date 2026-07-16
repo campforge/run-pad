@@ -56,7 +56,7 @@
                 <!-- Left: app icon + menu -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0" chrome:WindowDecorationProperties.ElementRole="User">
 
-                    <Image Source="/Assets/icon.ico" Width="16" Height="16" Margin="10,0,4,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                    <Image x:Name="AppIconImage" Source="/Assets/icon.ico" Width="16" Height="16" Margin="10,0,4,0" IsHitTestVisible="False" VerticalAlignment="Center"/>
 
                     <Menu Background="Transparent" VerticalAlignment="Center">
                         <Menu.Styles>
@@ -66,10 +66,14 @@
                             </Style>
                         </Menu.Styles>
                         <MenuItem Header="File">
-                            <MenuItem Header="New _RPad File" Click="NewRpadFile_Click"/>
+                            <MenuItem Header="New _RPad File">
+                                <MenuItem Header="C#" Click="NewRpadFileCSharp_Click"/>
+                                <MenuItem Header="Visual Basic" Click="NewRpadFileVb_Click"/>
+                            </MenuItem>
                         </MenuItem>
                         <MenuItem Header="Edit">
-                            <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"/>
+                            <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"
+                                      InputGesture="{Binding OpenDependenciesGesture}"/>
                             <Separator/>
                             <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>

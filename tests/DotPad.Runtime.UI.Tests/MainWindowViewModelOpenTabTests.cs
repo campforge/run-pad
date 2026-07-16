@@ -1,3 +1,4 @@
+using DotPad.Contracts;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Windows.Models;
@@ -33,7 +34,8 @@ public class MainWindowViewModelOpenTabTests
             sdkProviders: [],
             fileSystemSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
-            prefs: prefs.Object);
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
 
         vm.OpenTab("/tmp/Query1.rpad");
         vm.OpenTab("/tmp/query1.rpad");
@@ -55,7 +57,8 @@ public class MainWindowViewModelOpenTabTests
             sdkProviders: [],
             fileSystemSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
-            prefs: prefs.Object);
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
 
         vm.OpenTab("/tmp/Query1.rpad");
         var firstTab = vm.ActiveTab;

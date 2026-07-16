@@ -5,8 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotPad.Contracts\DotPad.Contracts.csproj" />
     <ProjectReference Include="..\DotPad.Build.Core\DotPad.Build.Core.csproj" />
+    <ProjectReference Include="..\DotPad.Contracts\DotPad.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

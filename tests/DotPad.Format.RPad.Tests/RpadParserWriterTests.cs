@@ -106,6 +106,46 @@ public class RpadParserWriterTests
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
     }
 
+    // TODO.md #49 item 2 — NewFile used to hardcode `language: csharp` and the ```csharp fence
+    // regardless of caller intent, so a new .vb file could only be made by hand-editing an existing
+    // C# file's front matter afterward.
+    [Theory]
+    [InlineData(RpadKind.Statements)]
+    [InlineData(RpadKind.Program)]
+    [InlineData(RpadKind.Expression)]
+    public void NewFile_WithVbLanguage_ThenParse_ProducesVbLanguageAndFence(RpadKind kind)
+    {
+        var text = RpadWriter.NewFile("Untitled", "net10.0", kind, RpadLanguage.Vb);
+
+        Assert.Contains("```vb run", text);
+        var parsed = RpadParser.TryParse(text);
+
+        Assert.NotNull(parsed);
+        Assert.Equal(RpadLanguage.Vb, parsed!.FrontMatter.Language);
+        Assert.Equal(kind, parsed.FrontMatter.Kind);
+    }
+
+    [Fact]
+    public void NewFile_DefaultsToCSharp_UnchangedFromBeforeTheLanguageParameterExisted()
+    {
+        var text = RpadWriter.NewFile("Untitled", "net10.0", RpadKind.Statements);
+
+        Assert.Contains("language: csharp", text);
+        Assert.Contains("```csharp run", text);
+        Assert.Contains("Console.WriteLine(\"Hello, RPad!\");", text);
+    }
+
+    // VB has no statement-terminating semicolon — a C#-shaped default snippet would be a syntax
+    // error the very first time a new VB file is run.
+    [Fact]
+    public void NewFile_WithVbLanguage_StatementsDefault_HasNoTrailingSemicolon()
+    {
+        var text = RpadWriter.NewFile("Untitled", "net10.0", RpadKind.Statements, RpadLanguage.Vb);
+
+        Assert.Contains("Console.WriteLine(\"Hello, RPad!\")\n", text);
+        Assert.DoesNotContain("Console.WriteLine(\"Hello, RPad!\");", text);
+    }
+
     // ── Malformed / missing values ────────────────────────────────────────────
 
     [Fact]

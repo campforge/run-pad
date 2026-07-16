@@ -78,8 +78,22 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "get", "set", "add", "remove",
     };
 
-    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position)
+    // TODO.md #78: the only keywords that are ever legal as a generic type argument are the predefined
+    // type keywords (`List<int>`, `List<string>`, ...) plus `dynamic`/`nint`/`nuint` — every other
+    // keyword in _keywords (control-flow, modifiers, LINQ, ...) is a syntax error there. `var`/`void`
+    // are deliberately excluded: neither is a legal type argument (`List<var>`/`List<void>` don't
+    // compile), unlike ordinary local-variable/return-type position where they're normally offered.
+    private static readonly HashSet<string> _typeArgumentKeywords = new(StringComparer.Ordinal)
     {
+        "bool", "byte", "char", "decimal", "double", "dynamic", "float", "int", "long", "nint",
+        "nuint", "object", "sbyte", "short", "string", "uint", "ulong", "ushort",
+    };
+
+    private static bool IsKeywordApplicable(ICompletionItem keyword, SyntaxNode root, int position, bool isTypeArgumentPosition)
+    {
+        if (isTypeArgumentPosition)
+            return _typeArgumentKeywords.Contains(keyword.DisplayText);
+
         if (_queryContinuationKeywords.Contains(keyword.DisplayText))
             return IsInsideQueryExpression(root, position);
 
@@ -94,6 +108,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         return true;
     }
 
+    // TODO.md #78: true anywhere inside a generic type argument list (`List<`, `List<Str`,
+    // `Dictionary<string, `, ...) — the only place where completion should be restricted to type-ish
+    // symbols instead of every in-scope symbol. Reuses the same HasAncestorMatching position-1
+    // fallback as every other "what syntax is the caret inside" check in this file (see
+    // IsInsideQueryExpression/IsInsideAccessorContext above) since the caret while typing sits at a
+    // token's end, not inside it.
+    private static bool IsInsideTypeArgumentList(SyntaxNode root, int position) =>
+        HasAncestorMatching(root, position, n => n is TypeArgumentListSyntax);
+
     private static readonly string[] _tfmPreference =
     [
         "net10.0", "net9.0", "net8.0", "net7.0", "net6.0", "net5.0",
@@ -103,6 +126,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
+
+    // Test-only visibility (InternalsVisibleTo) — confirms the FormattingOptions.NewLine override
+    // below actually takes effect on the workspace's live option set. Environment.NewLine can't be
+    // forced to '\r\n' on a non-Windows dev/CI machine, so this is the closest local check for the
+    // fix without a real Windows run.
+    internal string FormattingNewLineOptionForTests
+        => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
     private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -117,6 +147,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // still-in-flight background-analysis pass for keystroke N-2 (ANALYSIS.md TODO #56).
     private readonly object _syncLock = new();
     private CancellationTokenSource? _diagnosticsCts;
+
+    // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
+    // see Dispose's own comment for why this matters beyond just "clean shutdown".
+    private Task? _backgroundAnalysisTask;
 
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
     // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
@@ -144,6 +178,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 refs.Add(CreateReference(path));
 
         _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+
+        // Root cause of a Windows-CI-only bug (chased down via extensive logging — see
+        // RoslynCodeFixEngine's own comments): _preamble/KindPrefix/TrailingPad are all built with
+        // literal '\n' regardless of OS, but Roslyn's own FormattingOptions.NewLine defaults to
+        // Environment.NewLine ('\r\n' on Windows, '\n' on Linux/macOS) whenever a workspace doesn't
+        // set it explicitly. A code fix that reformats whitespace it touches (RemoveUnusedVariable
+        // normalizing the blank line before the statement it deletes, observed in production) then
+        // emits '\r\n' where the document only ever had '\n' — on Windows this makes the fix's edit
+        // span start earlier than expected (each extra newline byte shifts it back one more),
+        // straddling across preambleLength by just enough to trip RoslynCodeFixEngine.
+        // ApplyRelocatingPreambleEdits' "any preamble-touching edit that isn't a pure `using X;`
+        // insertion is unsafe, discard the whole fix" safety check — so the fix silently vanishes
+        // instead of applying, string-identical logic and all, depending only on which OS happens to
+        // be running it. Forcing '\n' here makes Roslyn's own formatting match what this document
+        // actually contains everywhere, independent of OS.
+        _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(
+            _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
+
         _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
 
         var projectId = ProjectId.CreateNewId("DotPadScript");
@@ -215,6 +267,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // code — usings preamble plus (for RpadKind.Program) the mirrored `Main();` prefix above.
     private int HeaderLength => _preambleLength + KindPrefix.Length;
 
+    // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
+    // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
+    // the exact reported repro: `var a = ...;` then `a` on its own line, nothing typed after it yet)
+    // coincides with the true end of the whole synced document. Roslyn's SemanticModel.LookupSymbols
+    // silently stops finding block-scoped locals/parameters right at that exact boundary — confirmed
+    // directly against Roslyn (position == EndOfFileToken, whose parent is the bare CompilationUnit
+    // rather than any enclosing statement) — so the just-declared local `a` dropped out of the
+    // completion list entirely, leaving the implicit top-level-statement `args` parameter (which
+    // isn't affected by this boundary — it resolves from a different binder chain) as the only
+    // remaining "a"-prefixed candidate. A single trailing space, appended once here, moves every
+    // legitimate query position (which can only ever be <= HeaderLength + code.Length) strictly
+    // before the document's new true end, sidestepping the boundary entirely — confirmed empirically
+    // to restore the local for that same repro. Purely whitespace, so it can't itself introduce new
+    // diagnostics/tokens; RoslynCodeFixEngine is the one consumer that reconstructs "the user's code"
+    // by measuring from the document's end rather than from the known userCode.Length, so it takes an
+    // explicit adjustment (see ApplyRelocatingPreambleEdits) to not leak this pad into a fix's output.
+    private const string TrailingPad = " ";
+
     // ── Document sync ──────────────────────────────────────────────────────────
 
     private Document SyncDocument(string code)
@@ -223,7 +293,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + KindPrefix + code, Encoding.UTF8);
+                var text = SourceText.From(_preamble + KindPrefix + code + TrailingPad, Encoding.UTF8);
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
@@ -369,13 +439,23 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 if (isDotInsertion) return null;
             }
 
-            var symbols = model.LookupSymbols(pos);
+            var isTypeArgumentPosition = IsInsideTypeArgumentList(root, pos);
+
+            // TODO.md #78 repro: `var a = new List<` unconditionally called LookupSymbols and offered
+            // every visible symbol (locals, parameters, methods, ...) mixed in with actual types — this
+            // narrows that to only what can legally appear as a generic type argument. Namespaces stay
+            // in (not just named types/type parameters) so `List<Sys` can still offer "System" and let
+            // the user descend into it with '.' to reach the type they actually want.
+            IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
+            if (isTypeArgumentPosition)
+                symbols = symbols.Where(s => s is INamedTypeSymbol or ITypeParameterSymbol or INamespaceSymbol);
+
             var currentType = GetEnclosingType(model, pos);
             var visible = GroupByDisplayText(symbols
                 .Select(s => ToItem(s, currentType))
                 .Where(i => i != null)
                 .Cast<ICompletionItem>()
-                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos))));
+                .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition))));
 
             // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
@@ -1079,7 +1159,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
-        Task.Run(async () =>
+        _backgroundAnalysisTask = Task.Run(async () =>
         {
             try
             {
@@ -1230,9 +1310,23 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
     }
 
+    // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can
+    // still be mid-flight (e.g. deep inside RoslynCodeFixEngine.ComputeFixesAsync, which doesn't poll
+    // the token between individual CodeFixProviders) when this method would otherwise return
+    // immediately, racing _workspace.Dispose() right below and continuing to burn CPU on a ThreadPool
+    // thread after this service is considered "gone" by its caller. Observed as a same-process,
+    // cross-test CPU-starvation flake in CI (background analysis from an earlier, already-disposed
+    // test's service still running while a later test's own NotifyTextChanged competes for ThreadPool
+    // capacity) — worse on Windows CI's weaker/more contended runners, but a real bug regardless of
+    // platform: any caller that disposes right after only DiagnosticsChanged fires (which happens
+    // *before* the codefix half of the same background pass, see ComputeDiagnosticsAndCodeFixesAsync)
+    // was already at risk of this. Bounded, not unbounded — a pathological provider that truly never
+    // checks its token shouldn't be able to hang Dispose (or, in production, a tab close) forever.
     public void Dispose()
     {
         _diagnosticsCts?.Cancel();
+        try { _backgroundAnalysisTask?.Wait(TimeSpan.FromSeconds(5)); }
+        catch { /* already logged from inside the task itself */ }
         _diagnosticsCts?.Dispose();
         _workspace.Dispose();
     }

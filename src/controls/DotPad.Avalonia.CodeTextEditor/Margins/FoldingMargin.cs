@@ -8,7 +8,7 @@ using AvaloniaEdit.Rendering;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
-internal sealed class VsCodeFoldingMargin : AbstractMargin
+internal sealed class FoldingMargin : AbstractMargin
 {
     private readonly FoldingManager _manager;
     private FoldingSection? _hovered;
@@ -16,10 +16,10 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
     private const double W = 16.0; // gutter width — wide enough to hit easily
 
     // Open-stroke chevrons in a 10×10 space; scaled at render time
-    private static readonly StreamGeometry ExpandedGeo = BuildChevron(down: true);
-    private static readonly StreamGeometry CollapsedGeo = BuildChevron(down: false);
+    private static readonly StreamGeometry _expandedGeo = BuildChevron(down: true);
+    private static readonly StreamGeometry _collapsedGeo = BuildChevron(down: false);
 
-    public VsCodeFoldingMargin(FoldingManager manager)
+    public FoldingMargin(FoldingManager manager)
     {
         _manager = manager;
         Cursor = new Cursor(StandardCursorType.Arrow);
@@ -98,7 +98,7 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
 
             IBrush brush = (isHover ? hoverBrush : chevronBrush)
                            ?? new SolidColorBrush(isHover ? Colors.White : Color.FromRgb(100, 100, 100));
-            var geo = section.IsFolded ? CollapsedGeo : ExpandedGeo;
+            var geo = section.IsFolded ? _collapsedGeo : _expandedGeo;
 
             // Scale 10×10 chevron to (W-4)×(W-4) and centre it vertically
             var s = (W - 4.0) / 10.0;
@@ -204,7 +204,7 @@ internal sealed class VsCodeFoldingMargin : AbstractMargin
     private static T? LoadThemedResource<T>(string key) where T : class
     {
         object? res = null;
-        Application.Current?.TryGetResource(key, Application.Current?.ActualThemeVariant, out res);
+        Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out res);
         return res as T;
     }
 }

@@ -14,16 +14,28 @@ public static class RpadWriter
     }
 
     /// <summary>Generates the content for a brand-new .rpad file.</summary>
-    public static string NewFile(string title = "Untitled", string targetSdk = "net10.0", RpadKind kind = RpadKind.Statements)
+    // TODO.md #49 item 2 — language param added so "new file" can produce a .vb script too; the
+    // enum member's own lowercased name is both the YAML `language:` value and the code-fence tag
+    // (see RpadLanguage.cs), so it doubles as languageId here.
+    public static string NewFile(
+        string title = "Untitled",
+        string targetSdk = "net10.0",
+        RpadKind kind = RpadKind.Statements,
+        RpadLanguage language = RpadLanguage.CSharp)
     {
-        var code = kind switch
+        var languageId = language.ToLanguageId();
+
+        var code = (language, kind) switch
         {
-            RpadKind.Program => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
-            RpadKind.Expression => "\"Hello, RPad!\"\n",
+            (RpadLanguage.Vb, RpadKind.Program) =>
+                "Module Program\nSub Main()\n\nEnd Sub\nEnd Module\n\n' You can define other methods, fields, classes and namespaces here\n",
+            (RpadLanguage.Vb, RpadKind.Expression) => "\"Hello, RPad!\"\n",
+            (RpadLanguage.Vb, _) => "Console.WriteLine(\"Hello, RPad!\")\n",
+            (_, RpadKind.Program) => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
+            (_, RpadKind.Expression) => "\"Hello, RPad!\"\n",
             _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
-        return $"---\nversion: \"1.0\"\nlanguage: csharp\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```csharp run\n{code}```\n";
-
+        return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm)

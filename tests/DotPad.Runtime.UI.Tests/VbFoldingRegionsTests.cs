@@ -1,27 +1,31 @@
-using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
+using DotPad.Languages.VB;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO.md #49 item 3: BraceFoldingStrategy folds nothing at all in a .vb file, since VB's
-// blocks are keyword-delimited (Sub/End Sub, If/End If, ...), not brace-delimited. Tests go straight
-// at VbFoldingStrategy.CreateFoldings — a plain TextDocument in, fold regions out — no
-// FoldingManager/live TextArea needed, same split already used for CodeTextEditor's own pure
-// position-based checks.
-public class VbFoldingStrategyTests
+// TODO.md #76: VbFoldingRegions.Compute moved here from DotPad.Avalonia.CodeTextEditor's
+// VbFoldingStrategy — a language-agnostic control project directly hosting VB-specific folding
+// regexes — into DotPad.Languages.VB, the project that actually owns VB's language rules. Framework-
+// free (plain string in, (Start, End) character-offset pairs out), so these tests need no
+// TextDocument/FoldingManager/live editor at all — line numbers are derived from raw offsets with a
+// plain string scan instead.
+public class VbFoldingRegionsTests
 {
-    private static IReadOnlyList<(int StartLine, int EndLine)> GetFoldedLineRanges(string code)
+    private static int LineNumberAtOffset(string text, int offset)
     {
-        var document = new TextDocument(code);
-        return VbFoldingStrategy.CreateFoldings(document)
-            .Select(f => (document.GetLineByOffset(f.StartOffset).LineNumber,
-                document.GetLineByOffset(f.EndOffset).LineNumber))
-            .ToList();
+        var line = 1;
+        for (var i = 0; i < offset && i < text.Length; i++)
+            if (text[i] == '\n') line++;
+        return line;
     }
 
+    private static IReadOnlyList<(int StartLine, int EndLine)> GetFoldedLineRanges(string code) =>
+        VbFoldingRegions.Compute(code)
+            .Select(f => (LineNumberAtOffset(code, f.Start), LineNumberAtOffset(code, f.End)))
+            .ToList();
+
     [Fact]
-    public void CreateFoldings_Should_FoldASub()
+    public void Compute_Should_FoldASub()
     {
         const string code = "Public Sub Foo()\n    Console.WriteLine(1)\nEnd Sub\n";
 
@@ -31,7 +35,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldAFunction()
+    public void Compute_Should_FoldAFunction()
     {
         const string code = "Public Function Foo() As Integer\n    Return 1\nEnd Function\n";
 
@@ -41,7 +45,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldNestedBlocks()
+    public void Compute_Should_FoldNestedBlocks()
     {
         const string code =
             "Public Class C\n" +
@@ -58,7 +62,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldForNext()
+    public void Compute_Should_FoldForNext()
     {
         const string code = "For i = 1 To 10\n    Console.WriteLine(i)\nNext i\n";
 
@@ -68,7 +72,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldDoLoop()
+    public void Compute_Should_FoldDoLoop()
     {
         const string code = "Do While x < 10\n    x += 1\nLoop\n";
 
@@ -78,7 +82,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldSelectCase()
+    public void Compute_Should_FoldSelectCase()
     {
         const string code = "Select Case x\n    Case 1\n        Foo()\nEnd Select\n";
 
@@ -88,7 +92,7 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_FoldTryCatch()
+    public void Compute_Should_FoldTryCatch()
     {
         const string code = "Try\n    Foo()\nCatch ex As Exception\n    Bar()\nEnd Try\n";
 
@@ -100,7 +104,7 @@ public class VbFoldingStrategyTests
     // Regression guard: an auto-property ("Public Property Foo As Integer") must not produce a
     // never-closed fold — Property is deliberately excluded from the opening-keyword set.
     [Fact]
-    public void CreateFoldings_Should_NotFold_AnAutoProperty()
+    public void Compute_Should_NotFold_AnAutoProperty()
     {
         const string code = "Public Class C\n    Public Property Foo As Integer\nEnd Class\n";
 
@@ -112,7 +116,7 @@ public class VbFoldingStrategyTests
     // Regression guard: "Exit Sub" must not be read as opening a second, unrelated block — it would
     // otherwise desynchronize every fold region for the rest of the file.
     [Fact]
-    public void CreateFoldings_Should_NotTreatExitSub_AsANewOpener()
+    public void Compute_Should_NotTreatExitSub_AsANewOpener()
     {
         const string code =
             "Public Sub Foo()\n" +
@@ -129,7 +133,7 @@ public class VbFoldingStrategyTests
     // Regression guard: "ElseIf ... Then" continues the SAME If block, it must not be read as
     // starting a brand new one.
     [Fact]
-    public void CreateFoldings_Should_TreatElseIf_AsPartOfTheSameIfBlock()
+    public void Compute_Should_TreatElseIf_AsPartOfTheSameIfBlock()
     {
         const string code =
             "If x = 1 Then\n" +
@@ -146,7 +150,7 @@ public class VbFoldingStrategyTests
     // Regression guard: a single-line If ("If x Then Foo()") has no matching End If and must not
     // open a fold at all.
     [Fact]
-    public void CreateFoldings_Should_NotFold_ASingleLineIf()
+    public void Compute_Should_NotFold_ASingleLineIf()
     {
         const string code = "Public Sub Foo()\n    If True Then Console.WriteLine(1)\nEnd Sub\n";
 
@@ -156,12 +160,26 @@ public class VbFoldingStrategyTests
     }
 
     [Fact]
-    public void CreateFoldings_Should_ReturnNothing_ForCodeWithNoBlocks()
+    public void Compute_Should_ReturnNothing_ForCodeWithNoBlocks()
     {
         const string code = "Dim x = 1\nConsole.WriteLine(x)\n";
 
         var folds = GetFoldedLineRanges(code);
 
         Assert.Empty(folds);
+    }
+
+    // New coverage — the original test suite exercised this indirectly via TextDocument's own line
+    // splitting; the pure re-implementation does its own manual \r\n-vs-\n offset math (see
+    // VbFoldingRegions.Compute), so it needs its own direct check that CRLF line endings don't shift
+    // fold offsets by one relative to LF.
+    [Fact]
+    public void Compute_Should_HandleCrlfLineEndings_TheSameAsLf()
+    {
+        const string code = "Public Sub Foo()\r\n    Console.WriteLine(1)\r\nEnd Sub\r\n";
+
+        var folds = GetFoldedLineRanges(code);
+
+        Assert.Equal([(1, 3)], folds);
     }
 }
