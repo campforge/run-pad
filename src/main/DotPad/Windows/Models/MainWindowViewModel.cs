@@ -128,11 +128,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
-    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp)
+    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
     {
         var path = _fileSystemService.CreateNewFile();
         var title = Path.GetFileNameWithoutExtension(path);
-        File.WriteAllText(path, RpadWriter.NewFile(title, language: language), System.Text.Encoding.UTF8);
+        File.WriteAllText(path, RpadWriter.NewFile(title, language: language, kind: kind), System.Text.Encoding.UTF8);
 
         RefreshNodes();
         OpenTab(path);

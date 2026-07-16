@@ -2,43 +2,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DotPad.Windows.ConditionDialog"
         Title="Conditional Breakpoint"
-        Width="440" Height="220"
-        MinWidth="320" MinHeight="200"
+        Width="440" Height="250"
+        MinWidth="320" MinHeight="230"
         CanResize="False"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="16">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
 
-        <TextBlock Grid.Row="0"
+        <CheckBox x:Name="EnabledBox"
+                  Grid.Row="0"
+                  Content="Enabled"
+                  Margin="0,0,0,10"/>
+
+        <TextBlock Grid.Row="1"
                    Text="Break when this condition is true:"
                    FontSize="12"
                    Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>
 
         <TextBox x:Name="ConditionBox"
-                 Grid.Row="1"
+                 Grid.Row="2"
                  FontSize="13"
                  FontFamily="Consolas,Menlo,Courier New,monospace"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
 
-        <TextBlock Grid.Row="2"
+        <TextBlock Grid.Row="3"
                    Text="Break only when the hit count matches (optional, e.g. &quot;= 5&quot;, &quot;&gt;= 3&quot;, &quot;% 2&quot;):"
                    FontSize="12"
                    Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>
 
         <TextBox x:Name="HitConditionBox"
-                 Grid.Row="3"
+                 Grid.Row="4"
                  FontSize="13"
                  FontFamily="Consolas,Menlo,Courier New,monospace"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
 
-        <StackPanel Grid.Row="4"
+        <StackPanel Grid.Row="5"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">

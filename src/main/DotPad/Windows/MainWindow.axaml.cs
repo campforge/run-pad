@@ -165,11 +165,19 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile(RpadLanguage.CSharp); // Statements kind by default
+    private async void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
+        => await NewRpadFileWithKindAsync(RpadLanguage.CSharp);
 
-    private void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile(RpadLanguage.Vb); // Statements kind by default
+    private async void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
+        => await NewRpadFileWithKindAsync(RpadLanguage.Vb);
+
+    private async Task NewRpadFileWithKindAsync(RpadLanguage language)
+    {
+        var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
+        if (kind is null) return; // cancelled
+
+        GetViewModel().NewRpadFile(language, kind.Value);
+    }
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

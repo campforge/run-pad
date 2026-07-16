@@ -44,7 +44,7 @@ public sealed class DapSession : IDapSession
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private readonly ChildProcess _process;
+    private readonly IChildProcess _process;
     private readonly string _programPath;
     private readonly string _workingDirectory;
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
@@ -93,33 +93,26 @@ public sealed class DapSession : IDapSession
     private volatile bool _processExited;
 
     public DapSession(
-        ChildProcess process,
-        string programPath,
-        string workingDirectory,
-        IReadOnlyList<IBreakpoint> breakpoints,
-        string sourceFileExtension,
+        IChildProcess process,
+        DapSessionOptions options,
         OutputReceivedHandler? outputHandler,
         Action<IBreakpointHitContext> onBreakpointHit,
-        int lineOffset,
         ILogger<DapSession> logger,
-        bool breakOnAllExceptions = false,
-        bool breakOnUncaughtExceptions = true,
-        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null,
-        bool justMyCode = false)
+        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null)
     {
         _process = process;
-        _programPath = programPath;
-        _workingDirectory = workingDirectory;
-        _breakpoints = breakpoints;
-        _sourceFileExtension = sourceFileExtension;
+        _programPath = options.ProgramPath;
+        _workingDirectory = options.WorkingDirectory;
+        _breakpoints = options.Breakpoints;
+        _sourceFileExtension = options.SourceFileExtension;
         _outputHandler = outputHandler;
         _onBreakpointHit = onBreakpointHit;
-        _lineOffset = lineOffset;
+        _lineOffset = options.LineOffset;
         _logger = logger;
-        _breakOnAllExceptions = breakOnAllExceptions;
-        _breakOnUncaughtExceptions = breakOnUncaughtExceptions;
+        _breakOnAllExceptions = options.BreakOnAllExceptions;
+        _breakOnUncaughtExceptions = options.BreakOnUncaughtExceptions;
         _onBreakpointVerified = onBreakpointVerified;
-        _justMyCode = justMyCode;
+        _justMyCode = options.JustMyCode;
     }
 
     // ─── External control ────────────────────────────────────────────────────

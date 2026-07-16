@@ -23,8 +23,11 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
 
     protected override DotnetLanguageProjectProfile ProjectProfile => VbProjectProfile.Instance;
 
-    internal VbLanguageHost(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory)
-        : base(options, loggerFactory)
+    internal VbLanguageHost(
+        CompiledDotnetLanguageHostOptions options,
+        ILoggerFactory loggerFactory,
+        DotnetProcessCompilerFactory? compilerFactory = null)
+        : base(options, loggerFactory, compilerFactory)
     {
     }
 

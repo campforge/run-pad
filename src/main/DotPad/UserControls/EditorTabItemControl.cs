@@ -269,6 +269,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 State.OutputDirectory!, $"{LanguageHostOptionsDefaults.OutputName}{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
+                .Where(bp => bp.IsEnabled) // TODO.md #83.3 — disabled breakpoints stay in the gutter but never reach the debugger
                 .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
@@ -424,19 +425,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition);
-        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition)?>(owner);
+        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true);
+        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
         if (result is null) return; // cancelled
 
         var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
         var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
+        var enabled = result.Value.Enabled;
 
         if (bp is not null)
         {
             bp.Condition = condition;
             bp.HitCondition = hitCondition;
+            bp.IsEnabled = enabled;
+            State.Editor.InvalidateBreakpoints();
         }
-        else if (condition is not null || hitCondition is not null)
+        else if (condition is not null || hitCondition is not null || !enabled)
         {
             State.Editor.AddBreakpoint(line);
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
@@ -444,6 +448,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 newBp.Condition = condition;
                 newBp.HitCondition = hitCondition;
+                newBp.IsEnabled = enabled;
+                State.Editor.InvalidateBreakpoints();
             }
         }
     }

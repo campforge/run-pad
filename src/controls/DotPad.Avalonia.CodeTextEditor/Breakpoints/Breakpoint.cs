@@ -7,4 +7,5 @@ public class Breakpoint : IBreakpoint
     public string? HitCondition { get; set; }
     public BreakpointVerificationState VerificationState { get; set; } = BreakpointVerificationState.Pending;
     public string? VerificationMessage { get; set; }
+    public bool IsEnabled { get; set; } = true;
 }
