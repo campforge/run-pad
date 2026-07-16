@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -133,6 +135,109 @@ public class EditorTabsControlTests
                 await Task.Delay(20);
 
             intelliSense.Verify(x => x.UpdateKind(RpadKind.Program), Times.AtLeastOnce);
+        }
+        finally
+        {
+            Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
+    // Reported by user 2026-07-16: opening/creating enough scripts that the tab headers no longer
+    // fit used to make them overlap (WrapPanel capped to a single row's height via MaxHeight="30",
+    // see EditorTabsControl.axaml) instead of being reachable at all. FileTabControl's ItemsPanel is
+    // now a non-wrapping horizontal StackPanel wrapped in a horizontally-scrolling ScrollViewer — this
+    // exercises real (headless, but genuine) layout to prove the fix: enough tabs to overflow a
+    // narrow window still land on a single row (no second-row overlap) and the surrounding
+    // ScrollViewer's content is actually wider than its viewport (so the overflow is reachable by
+    // scrolling, not just silently clipped).
+    [AvaloniaFact]
+    public async Task FileTabControl_Should_KeepTabsOnOneRowAndMakeThemScrollable_WhenTooManyToFit()
+    {
+        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-overflow-test").FullName;
+        try
+        {
+            const int tabCount = 25;
+            var paths = new List<string>();
+            for (var i = 0; i < tabCount; i++)
+            {
+                var path = Path.Combine(tmpDir, $"Query {i}.rpad");
+                File.WriteAllText(path, RpadWriter.NewFile($"Query {i}"));
+                paths.Add(path);
+            }
+
+            var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+
+            var fileSystem = new Mock<IFileSystemService>();
+            fileSystem.Setup(f => f.Folder).Returns(tmpDir);
+            fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+
+            var theme = new Mock<IThemeService>();
+            theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+                new InterfaceTheme("Test", ThemeVariant.Dark, true),
+                new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+            var registry = new Mock<ILanguageHostRegistry>();
+            var buildCache = new Mock<IBuildCacheService>();
+            var intelliSense = new Mock<IIntelliSenseService>();
+
+            var mainVm = new MainWindowViewModel(
+                sdkProviders: [],
+                fileSystemService: fileSystem.Object,
+                windowService: new Mock<IWindowService>().Object,
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
+
+            var editorTabs = new EditorTabsControl(
+                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                new CSharpReferenceService(), buildCache.Object);
+
+            // Narrow enough that 25 tab headers can't possibly fit on one screen's width unscrolled —
+            // the point is to force the overflow condition deterministically, not to match a real
+            // window size.
+            var host = new Window { Content = editorTabs, Width = 600, Height = 400 };
+            host.Show();
+            editorTabs.Attach(mainVm); // opens the initial blank tab
+
+            foreach (var path in paths)
+                mainVm.OpenTab(path);
+
+            var fileTabControl = editorTabs.GetVisualDescendants().OfType<TabControl>()
+                .First(t => t.Name == "FileTabControl");
+
+            // Not pinned to an exact count: whether the initial blank tab survives opening the first
+            // real file is an unrelated timing detail (see OnFileTabSelectionChanged's own comments)
+            // — all that matters here is that every one of the tabs actually opened.
+            for (var i = 0; i < 200 && fileTabControl.Items.Count < tabCount; i++)
+                await Task.Delay(20);
+
+            // Item count alone doesn't mean layout has actually run for the newly realized
+            // containers — flush the dispatcher at Background priority (below Layout) so any queued
+            // measure/arrange work finishes before Bounds is read below.
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+            var tabItems = fileTabControl.GetVisualDescendants().OfType<TabItem>().ToList();
+            Assert.True(tabItems.Count >= tabCount,
+                $"Expected at least {tabCount} realized tab headers, found {tabItems.Count}.");
+
+            // Guards the two checks below against passing vacuously against never-laid-out (all-zero)
+            // Bounds — if this ever fails, it means the dispatcher flush above stopped being enough
+            // to wait for a real layout pass, not that the fix itself regressed.
+            Assert.All(tabItems, t => Assert.True(t.Bounds.Width > 0));
+
+            // All tab headers share the same Y — none of them got pushed onto a clipped/overlapping
+            // second row.
+            var distinctTops = tabItems.Select(t => t.Bounds.Y).Distinct().ToList();
+            Assert.Single(distinctTops);
+
+            // The scroll viewer wrapping the tab strip actually has overflow content to scroll to —
+            // proves the extra tabs are reachable, not just clipped off past the visible width.
+            var scrollViewer = fileTabControl.GetVisualDescendants().OfType<ScrollViewer>()
+                .First(s => s.Name == "PART_TabStripScrollViewer");
+            Assert.True(scrollViewer.Extent.Width > scrollViewer.Viewport.Width,
+                $"Extent={scrollViewer.Extent}, Viewport={scrollViewer.Viewport} — the tab strip should overflow its own viewport for this many tabs in a {host.Width}px-wide window.");
         }
         finally
         {
