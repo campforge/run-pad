@@ -39,7 +39,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        RpadKind.Program => $"{RpadKindTransform.ProgramMainCallPrefix}{code}",
+        RpadKind.Program => $"{RpadKindTransform.ProgramMainCallPrefixFor(code)}{code}",
         _ => code,
     };
 

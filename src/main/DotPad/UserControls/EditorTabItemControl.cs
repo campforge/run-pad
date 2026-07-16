@@ -972,6 +972,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.RpadDocument = rpad;
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
+
+        // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
+        // editor.Document below fires TextChanged synchronously, which is what actually triggers the
+        // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
+        // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
+        // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
+        // UpdateGlobalUsings only invalidate the cached analysis document, they don't themselves
+        // trigger a fresh pass. For a Program-kind file, that meant a spurious "declared but never
+        // used" CS8321 on the user's own Main sitting in the diagnostics panel until their next
+        // keystroke; for a file with front-matter packages/usings, spurious "type not found"
+        // squiggles for anything only resolvable through them.
+        RefreshIntelliSenseKind();
+        if (rpad?.FrontMatter.Packages is { Count: > 0 })
+            RefreshIntelliSensePackages();
+        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
+            RefreshIntelliSenseUsings();
+
         editor.Document = new TextDocument(content);
 
         // Shows which kind/target framework the script actually runs as (archived ANALYSIS.md #29) —
@@ -979,12 +996,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // having to open the front matter by hand. Was left commented out with the XAML control
         // itself missing (ANALYSIS.md #95) — both restored.
         UpdateProjectInfoBlock();
-
-        RefreshIntelliSenseKind();
-        if (rpad?.FrontMatter.Packages is { Count: > 0 })
-            RefreshIntelliSensePackages();
-        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
-            RefreshIntelliSenseUsings();
     }
 
     /// <summary>
