@@ -2,6 +2,7 @@ using DotPad.Build.Core.Models;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -21,7 +22,7 @@ public class CSharpLanguageHostKindTransformTests
     private static CSharpLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
         outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
-        var options = new CSharpLanguageHostOptions
+        var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
             ExecutionOptions = new ExecutionOptions

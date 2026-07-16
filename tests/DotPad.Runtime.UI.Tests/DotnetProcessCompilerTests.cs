@@ -1,28 +1,34 @@
 using DotPad.Build.Core.Models;
 using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Compiler;
 using DotPad.Languages.CSharp.Sdk;
-using DotPad.Languages.VB.Compiler;
+using DotPad.Languages.DotnetCommon.Compiler;
+using DotPad.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
 
-// TODO.md #73 — the hot-path cache-skip check (source/csproj unchanged + outputDll still on disk)
-// didn't distinguish "unchanged because nothing to do" from "unchanged because the last build for
-// this exact source failed": MSBuild only overwrites outputDll on a SUCCESSFUL compile, so a failing
-// build left the previous, no-longer-matching binary sitting in bin/ untouched. The next run of the
-// SAME still-broken source then hit the hot path and silently reran the stale OLD binary instead of
-// retrying the build or reporting the same error again. This is a real dotnet-build integration test
-// (no mocking of the compiler) — the bug is entirely about MSBuild's actual on-disk behavior on a
-// failed compile, which pure-logic unit testing can't stand in for.
+// TODO.md #73 — the hot-path cache-skip check (source/project file unchanged + outputDll still on
+// disk) didn't distinguish "unchanged because nothing to do" from "unchanged because the last build
+// for this exact source failed": MSBuild only overwrites outputDll on a SUCCESSFUL compile, so a
+// failing build left the previous, no-longer-matching binary sitting in bin/ untouched. The next run
+// of the SAME still-broken source then hit the hot path and silently reran the stale OLD binary
+// instead of retrying the build or reporting the same error again. This is a real dotnet-build
+// integration test (no mocking of the compiler) — the bug is entirely about MSBuild's actual on-disk
+// behavior on a failed compile, which pure-logic unit testing can't stand in for.
+//
+// ANALYSIS.md #86: DotnetProcessCompiler/VbProcessCompiler were unified into one
+// MsBuildProcessCompiler parameterized by DotnetLanguageProjectProfile — the two profiles below
+// still each get their own real-build proof, not just an assumption that they behave the same way
+// through the shared implementation.
 public class DotnetProcessCompilerTests
 {
-    private static DotnetProcessCompiler CreateCompiler(string outputDir)
+    private static MsBuildProcessCompiler CreateCompiler(string outputDir)
     {
         var sdk = new DotnetSdkProvider().Get().First(); // real installed SDK, same resolution as production
         var runtimeLib = new CSharpReferenceService().GetExtensionReference();
-        return new DotnetProcessCompiler(
+        return new MsBuildProcessCompiler(
+            CSharpProjectProfile.Instance,
             sdk: sdk,
             executionOptions: new ExecutionOptions
             {
@@ -37,7 +43,7 @@ public class DotnetProcessCompilerTests
             usings: [],
             assemblyReferences: [],
             projectReferences: [],
-            logger: NullLogger<DotnetProcessCompiler>.Instance);
+            logger: NullLogger<MsBuildProcessCompiler>.Instance);
     }
 
     [Fact]
@@ -57,9 +63,9 @@ public class DotnetProcessCompilerTests
             Assert.False(brokenResult.Success);
             Assert.False(File.Exists(brokenResult.OutputBinaryFile)); // stale v1 binary must be gone
 
-            // Same broken source again — before the fix, the hot path found the same source/csproj
-            // as last time plus a (stale) outputDll still on disk, and returned Success = true using
-            // the old v1 binary instead of retrying the build.
+            // Same broken source again — before the fix, the hot path found the same source/project
+            // file as last time plus a (stale) outputDll still on disk, and returned Success = true
+            // using the old v1 binary instead of retrying the build.
             var secondBrokenResult = await compiler.Compilation(brokenCode, CancellationToken.None);
             Assert.False(secondBrokenResult.Success);
         }
@@ -91,14 +97,12 @@ public class DotnetProcessCompilerTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // VbProcessCompiler duplicates DotnetProcessCompiler's hot-path logic rather than sharing it
-    // (two separate classes, not a shared base for this part) — TODO.md #73's fix was applied to
-    // both, so both need their own real-build proof, not just an assumption that they match.
-    private static VbProcessCompiler CreateVbCompiler(string outputDir)
+    private static MsBuildProcessCompiler CreateVbCompiler(string outputDir)
     {
         var sdk = new DotnetSdkProvider().Get().First();
         var runtimeLib = new CSharpReferenceService().GetExtensionReference();
-        return new VbProcessCompiler(
+        return new MsBuildProcessCompiler(
+            VbProjectProfile.Instance,
             sdk: sdk,
             executionOptions: new ExecutionOptions
             {
@@ -113,7 +117,7 @@ public class DotnetProcessCompilerTests
             usings: [],
             assemblyReferences: [],
             projectReferences: [],
-            logger: NullLogger<VbProcessCompiler>.Instance);
+            logger: NullLogger<MsBuildProcessCompiler>.Instance);
     }
 
     [Fact]

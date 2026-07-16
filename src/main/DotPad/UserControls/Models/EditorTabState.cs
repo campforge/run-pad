@@ -36,7 +36,7 @@ internal sealed class EditorTabState
     public RpadDocument? RpadDocument { get; set; }
 
     // Compile output directory, reused across runs of this tab (allocated once, on first run).
-    // Lets DotnetProcessCompiler skip NuGet restore when packages/references haven't changed —
+    // Lets MsBuildProcessCompiler skip NuGet restore when packages/references haven't changed —
     // see EditorTabItemControl.BuildRunOptions.
     public string? OutputDirectory { get; set; }
 

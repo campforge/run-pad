@@ -40,43 +40,38 @@ public static class RpadWriter
 
     private static string SerializeFm(RpadFrontMatter fm)
     {
+        // Explicit '\n' throughout, not StringBuilder.AppendLine (which appends the *running
+        // machine's* Environment.NewLine) — otherwise the very same document produced identical
+        // byte-for-byte on Linux/macOS came out with CRLF front matter on Windows, needlessly
+        // diverging from Write()'s own literal "\n" fences around it (ANALYSIS.md #93).
         var sb = new StringBuilder();
-        sb.AppendLine($"version: {fm.Version}");
-        sb.AppendLine($"language: {fm.Language.ToString().ToLowerInvariant()}");
-        sb.AppendLine($"targetSdk: {fm.TargetSdk}");
-        sb.Append($"kind: {fm.Kind}");
+        sb.Append("version: ").Append(fm.Version).Append('\n');
+        sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
+        sb.Append("targetSdk: ").Append(fm.TargetSdk).Append('\n');
+        sb.Append("kind: ").Append(fm.Kind);
 
         if (fm.Packages?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("packages:");
+            sb.Append('\n').Append("packages:");
             foreach (var (k, v) in fm.Packages)
-            {
-                sb.AppendLine();
-                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v.Version)}");
-            }
+                sb.Append('\n').Append("  ").Append(YamlEscape(k)).Append(": ").Append(YamlEscape(v.Version));
         }
 
         if (fm.References?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("references:");
+            sb.Append('\n').Append("references:");
             foreach (var r in fm.References)
-            {
-                sb.AppendLine();
-                sb.Append($"  - {r}");
-            }
+                // Unescaped, a reference path containing ": " or starting with a YAML-special
+                // character (e.g. one that happens to start with '#') broke the round trip
+                // (ANALYSIS.md #93) — same escaping already applied to packages: above.
+                sb.Append('\n').Append("  - ").Append(YamlEscape(r));
         }
 
         if (fm.Namespaces?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("namespaces:");
+            sb.Append('\n').Append("namespaces:");
             foreach (var u in fm.Namespaces)
-            {
-                sb.AppendLine();
-                sb.Append($"  - {u}");
-            }
+                sb.Append('\n').Append("  - ").Append(YamlEscape(u));
         }
 
         return sb.ToString();

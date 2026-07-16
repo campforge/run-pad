@@ -11,15 +11,28 @@ using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 
 namespace DotPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly IFileSystemService _fileSystemSystemService;
+    private readonly IFileSystemService _fileSystemService;
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
+    private readonly ILogger<MainWindowViewModel> _logger;
+
+    // Debounce before persisting a resized sidebar width to preferences — avoids writing to disk on
+    // every intermediate drag frame (same reasoning as EditorTabItemViewModel.LayoutSaveThrottle,
+    // ANALYSIS.md #94).
+    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
+
+    // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
+    // several FileSystemWatcher events in quick succession; wait for them to settle before
+    // rebuilding the tree once.
+    private static readonly TimeSpan WatcherRefreshDebounce = TimeSpan.FromMilliseconds(300);
 
     // OrdinalIgnoreCase matches Windows'/macOS' default case-insensitive filesystem; Linux's is
     // case-sensitive, where it would incorrectly collapse two distinct files differing only in
@@ -117,7 +130,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp)
     {
-        var path = _fileSystemSystemService.CreateNewFile();
+        var path = _fileSystemService.CreateNewFile();
         var title = Path.GetFileNameWithoutExtension(path);
         File.WriteAllText(path, RpadWriter.NewFile(title, language: language), System.Text.Encoding.UTF8);
 
@@ -282,12 +295,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public string CreateFolder(string? contextPath)
     {
         var parentDir = contextPath is null
-            ? _fileSystemSystemService.Folder
+            ? _fileSystemService.Folder
             : Directory.Exists(contextPath)
                 ? contextPath
-                : Path.GetDirectoryName(contextPath) ?? _fileSystemSystemService.Folder;
+                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
 
-        var path = _fileSystemSystemService.CreateNewFolder(parentDir);
+        var path = _fileSystemService.CreateNewFolder(parentDir);
         RefreshNodes();
         return path;
     }
@@ -296,7 +309,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            _fileSystemSystemService.OpenFolder(filePath);
+            _fileSystemService.OpenFolder(filePath);
         }
         catch (Exception ex)
         {
@@ -312,14 +325,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
-        IFileSystemService fileSystemSystemService,
+        IFileSystemService fileSystemService,
         IWindowService windowService,
         IPreferencesService prefs,
-        ILanguageHostRegistry languageRegistry)
+        ILanguageHostRegistry languageRegistry,
+        // Optional with a null-object fallback (rather than a required DI parameter) so the many
+        // existing tests constructing this type directly don't all need updating just to supply a
+        // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
+        // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
+        // provider regardless of the parameter having a default (ANALYSIS.md #94).
+        ILogger<MainWindowViewModel>? logger = null)
     {
-        _fileSystemSystemService = fileSystemSystemService;
+        _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
+        _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
         // TODO.md #80/#81: FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
@@ -328,9 +348,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
-        OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
-        OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
-        OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
+        // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
+        // vanish with no trace at all.
+        OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
+        OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
+        OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed
@@ -340,7 +362,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
         this.WhenAnyValue(x => x.SidebarColumnWidth)
             .Skip(1)
-            .Throttle(TimeSpan.FromMilliseconds(400), RxApp.MainThreadScheduler)
+            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
             .Subscribe(w =>
             {
                 _prefs.Layout.SidebarCollapsed = w.Value <= 0;
@@ -350,32 +372,32 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         RefreshNodes();
 
-        _fileSystemSystemService.WatcherEvent += OnWatcherEvent;
-        _fileSystemSystemService.StartWatcher();
+        _fileSystemService.WatcherEvent += OnWatcherEvent;
+        _fileSystemService.StartWatcher();
     }
 
     // ── Watcher ───────────────────────────────────────────────────────────────
 
     private void OnWatcherEvent(object? sender, FileSystemEventArgs e)
     {
-        // Version-based debounce: capture current version, wait 300 ms,
+        // Version-based debounce: capture current version, wait for WatcherRefreshDebounce,
         // then refresh only if no newer event arrived.
         var version = Interlocked.Increment(ref _debounceVersion);
-        Task.Delay(300).ContinueWith(_ =>
+        Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
                 Dispatcher.UIThread.Post(RefreshNodes);
         });
     }
 
-    private void RefreshNodes() => FileTree.Refresh(_fileSystemSystemService.GetFilesTree());
+    private void RefreshNodes() => FileTree.Refresh(_fileSystemService.GetFilesTree());
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 
     public void Dispose()
     {
-        _fileSystemSystemService.WatcherEvent -= OnWatcherEvent;
-        _fileSystemSystemService.StopWatcher();
+        _fileSystemService.WatcherEvent -= OnWatcherEvent;
+        _fileSystemService.StopWatcher();
         foreach (var d in _closeSubscriptions.Values)
         {
             d.Dispose();

@@ -1,20 +1,33 @@
 using System.Diagnostics;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using DotPad.Build.Core.Models;
 using DotPad.Contracts.Models;
 using Microsoft.Extensions.Logging;
+using ExecutionOptions = DotPad.Build.Core.Models.ExecutionOptions;
 
-namespace DotPad.Languages.CSharp.Compiler;
+namespace DotPad.Languages.DotnetCommon.Compiler;
 
-public sealed class DotnetProcessCompiler : ProcessCompilerBase
+/// <summary>
+/// Writes a throwaway single-file MSBuild project + source file for one compiled .NET language and
+/// shells out to <c>dotnet build</c> — parameterized by <see cref="DotnetLanguageProjectProfile"/>
+/// instead of being duplicated per language (was DotnetProcessCompiler + VbProcessCompiler,
+/// ~95% identical including both regexes and every comment — ANALYSIS.md #86).
+/// </summary>
+public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
 {
     private const string BinDir = "bin";
 
+    private readonly DotnetLanguageProjectProfile _profile;
+    private readonly DotnetSdk _sdk;
+    private readonly ExecutionOptions _executionOptions;
+    private readonly string _outputDir;
+    private readonly string _dotPadRuntimeLib;
+    private readonly string _outputName;
     private readonly string _sourceCodePath;
     private readonly string _fileProjPath;
     private readonly Encoding _encoding = Encoding.UTF8;
-    private readonly ILogger<DotnetProcessCompiler> _logger;
+    private readonly ILogger<MsBuildProcessCompiler> _logger;
 
     private readonly IReadOnlyDictionary<string, string> _nugetPackages;
     private readonly IReadOnlyList<string> _usings;
@@ -26,7 +39,8 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
 
     private Process? _process;
 
-    public DotnetProcessCompiler(
+    public MsBuildProcessCompiler(
+        DotnetLanguageProjectProfile profile,
         DotnetSdk sdk,
         ExecutionOptions executionOptions,
         string outputDir,
@@ -36,42 +50,45 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         IReadOnlyList<string> usings,
         IReadOnlyList<string> assemblyReferences,
         IReadOnlyList<string> projectReferences,
-        ILogger<DotnetProcessCompiler> logger)
-        : base(sdk, executionOptions, outputDir, dotPadRuntimeLib, outputName)
+        ILogger<MsBuildProcessCompiler> logger)
     {
+        _profile = profile;
+        _sdk = sdk;
+        _executionOptions = executionOptions;
+        _outputDir = outputDir;
+        _dotPadRuntimeLib = dotPadRuntimeLib;
+        _outputName = outputName;
         _nugetPackages = nugetPackages;
         _usings = usings;
         _assemblyReferences = assemblyReferences;
         _projectReferences = projectReferences;
         _logger = logger;
-        _sourceCodePath = Path.Combine(OutputDir, $"{OutputName}.cs");
-        _fileProjPath = Path.Combine(OutputDir, $"{OutputName}.csproj");
+        _sourceCodePath = Path.Combine(_outputDir, $"{_outputName}{_profile.SourceFileExtension}");
+        _fileProjPath = Path.Combine(_outputDir, $"{_outputName}{_profile.ProjectFileExtension}");
     }
 
-    public override async Task<ProcessCompilerResult> Compilation(
-        string code,
-        CancellationToken ctx)
+    public async Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx)
     {
-        // Prepend global usings from .rpad front matter
+        // Prepend global usings/imports from .rpad front matter, in this language's own syntax.
         if (_usings.Count > 0)
         {
-            var usingsText = string.Join("\n", _usings.Select(u => $"using {u};"));
-            code = usingsText + "\n" + code;
+            var importsText = string.Join("\n", _usings.Select(_profile.FormatImportStatement));
+            code = importsText + "\n" + code;
         }
 
-        var tfm = Sdk.TargetFrameworkMoniker;
-        var allAssemblyRefs = new[] { DotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
-        var projectFile = Resources.GetProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
+        var tfm = _sdk.TargetFrameworkMoniker;
+        var allAssemblyRefs = new[] { _dotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
+        var projectFile = BuildProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
 
-        var binDirectory = Path.Join(OutputDir, BinDir);
-        var outputDll = Path.Combine(binDirectory, $"{OutputName}.dll");
+        var binDirectory = Path.Join(_outputDir, BinDir);
+        var outputDll = Path.Combine(binDirectory, $"{_outputName}.dll");
 
         var previousSource = File.Exists(_sourceCodePath) ? await File.ReadAllTextAsync(_sourceCodePath, ctx) : null;
         var previousProjectFile = File.Exists(_fileProjPath) ? await File.ReadAllTextAsync(_fileProjPath, ctx) : null;
         var projectUnchanged = previousProjectFile == projectFile;
 
-        // Hot path: source, csproj and the binary from the last build in this directory are all
-        // still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
+        // Hot path: source, project file and the binary from the last build in this directory are
+        // all still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
         // rather than just skipping restore.
         if (projectUnchanged && previousSource == code && File.Exists(outputDll))
             return new ProcessCompilerResult(outputDll, true, [], []);
@@ -79,22 +96,22 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
         await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, ctx);
 
-        // OutputDir is reused across runs of the same tab (see EditorTabState.OutputDirectory) so
+        // _outputDir is reused across runs of the same tab (see EditorTabState.OutputDirectory) so
         // that MSBuild/NuGet's own incremental caches under obj/ survive between runs. If the
-        // .csproj we just wrote is byte-for-byte identical to what was already there — i.e.
+        // project file we just wrote is byte-for-byte identical to what was already there — i.e.
         // packages/references/target framework haven't changed since the last run in this
         // directory — restore already ran for this exact input and can safely be skipped, cutting
         // build time roughly in half for the common "just edited the code" case.
-        var canSkipRestore = projectUnchanged && File.Exists(Path.Combine(OutputDir, "obj", "project.assets.json"));
+        var canSkipRestore = projectUnchanged && File.Exists(Path.Combine(_outputDir, "obj", "project.assets.json"));
 
         Directory.CreateDirectory(binDirectory);
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = ExecutionOptions.Runtime.RuntimePath,
+            FileName = _executionOptions.Runtime.RuntimePath,
             Arguments =
                 @$"build -o ""./{BinDir}"" -c Debug --nologo --no-dependencies --tl:off{(canSkipRestore ? " --no-restore" : "")}",
-            WorkingDirectory = OutputDir,
+            WorkingDirectory = _outputDir,
             CreateNoWindow = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -108,7 +125,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
         _process.StartInfo = startInfo;
 
         if (!_process.Start())
-            throw new Exception("DotnetProcessCompiler failed to start");
+            throw new InvalidOperationException("MsBuildProcessCompiler failed to start");
 
         var taskOut = DrainStdout(ctx);
         var taskErr = DrainStderr(ctx);
@@ -118,12 +135,12 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
 
         var success = _process.ExitCode == 0;
 
-        // TODO.md #73: a failed build must not leave a stale, previously-successful outputDll
-        // sitting in bin/ — MSBuild only overwrites it on a successful compile, so a failing build
-        // otherwise leaves the OLD binary in place. Without this, the next run with this same
-        // (still broken) source hits the hot path above (source/csproj unchanged, outputDll still
-        // exists) and silently reruns the old binary instead of retrying the build or reporting the
-        // same error again.
+        // A failed build must not leave a stale, previously-successful outputDll sitting in bin/ —
+        // MSBuild only overwrites it on a successful compile, so a failing build otherwise leaves
+        // the OLD binary in place. Without this, the next run with this same (still broken) source
+        // hits the hot path above (source/project file unchanged, outputDll still exists) and
+        // silently reruns the old binary instead of retrying the build or reporting the same error
+        // again.
         if (!success) TryDeleteStaleOutput(outputDll);
 
         return new ProcessCompilerResult(
@@ -131,6 +148,53 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
             success,
             taskOut.Result.Item1,
             taskOut.Result.Item2);
+    }
+
+    private string BuildProjectFile(
+        string targetFramework,
+        string[] assemblyReferences,
+        IReadOnlyList<string> projectReferences,
+        IReadOnlyDictionary<string, string> nugetPackages)
+    {
+        var extraProperties = string.Concat(_profile.ExtraPropertyGroupElements.Select(e => $"\n        {e}"));
+
+        var imports = _profile.DefaultImportNamespaces.Select(ns =>
+            $"""
+                    <Import Include="{SecurityElement.Escape(ns)}" />
+            """);
+
+        var asmRefs = assemblyReferences.Select(r =>
+            $"""
+                    <Reference Include="{SecurityElement.Escape(Path.GetFileNameWithoutExtension(r))}">
+                        <HintPath>{SecurityElement.Escape(r)}</HintPath>
+                    </Reference>
+            """);
+
+        var projRefs = projectReferences.Select(r =>
+            $"""
+                    <ProjectReference Include="{SecurityElement.Escape(r)}" />
+            """);
+
+        var pkgRefs = nugetPackages.Select(kv =>
+            $"""
+                    <PackageReference Include="{SecurityElement.Escape(kv.Key)}" Version="{SecurityElement.Escape(kv.Value)}" />
+            """);
+
+        return $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+                <PropertyGroup>
+                    <OutputType>Exe</OutputType>
+                    <TargetFramework>{targetFramework}</TargetFramework>{extraProperties}
+                    <EmbedAllSources>true</EmbedAllSources>
+                </PropertyGroup>
+                <ItemGroup>
+            {string.Join("\n", imports)}
+            {string.Join("\n", asmRefs)}
+            {string.Join("\n", projRefs)}
+            {string.Join("\n", pkgRefs)}
+                </ItemGroup>
+            </Project>
+            """;
     }
 
     private void TryDeleteStaleOutput(string outputDll)
@@ -174,7 +238,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
                 _logger.LogWarning("build stderr: {Line}", line);
     }
 
-    public override void Dispose()
+    public void Dispose()
     {
         if (_process == null) return;
         try
@@ -192,7 +256,7 @@ public sealed class DotnetProcessCompiler : ProcessCompilerBase
 
     private ResultItem ParseMatch(Match match)
     {
-        var file = match.Groups["1"].Value.Replace(OutputDir, "");
+        var file = match.Groups["1"].Value.Replace(_outputDir, "");
         var linePart = match.Groups["2"].Value;
         var code = match.Groups["3"].Value;
         var message = match.Groups["4"].Value.Replace($" [{_fileProjPath}]", "");

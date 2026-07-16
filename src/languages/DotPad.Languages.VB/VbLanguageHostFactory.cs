@@ -1,4 +1,5 @@
 using DotPad.Contracts;
+using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.VB;
@@ -15,14 +16,8 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     public string Language => "vb";
     public string DisplayName => "Visual Basic";
 
-    // No IntelliSense flag yet — VB tabs compile/run/debug but have no autocomplete/diagnostics/
-    // quick-fixes (would need a VisualBasicIntelliSenseService against Microsoft.CodeAnalysis.VisualBasic).
-    public LanguageHostCapabilities Capabilities =>
-        LanguageHostCapabilities.Run |
-        LanguageHostCapabilities.Debug |
-        LanguageHostCapabilities.Breakpoints |
-        LanguageHostCapabilities.VariableInspection |
-        LanguageHostCapabilities.MemoryDump;
+    // See VbLanguageHost.SupportedCapabilities — single source of truth (ANALYSIS.md #96).
+    public LanguageHostCapabilities Capabilities => VbLanguageHost.SupportedCapabilities;
 
     // No VB snippets defined yet — same gap as IntelliSense above.
     public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>();
@@ -60,9 +55,9 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {
-        var opts = options as VbLanguageHostOptions
+        var opts = options as CompiledDotnetLanguageHostOptions
             ?? throw new ArgumentException(
-                $"Expected {nameof(VbLanguageHostOptions)}.", nameof(options));
+                $"Expected {nameof(CompiledDotnetLanguageHostOptions)}.", nameof(options));
         return new VbLanguageHost(opts, _loggerFactory);
     }
 }

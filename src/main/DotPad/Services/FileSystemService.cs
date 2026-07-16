@@ -99,7 +99,6 @@ public sealed class FileSystemService : IFileSystemService
             _logger.LogError(e, "Can not build FilesTree");
             throw;
         }
-        // return new List<FileSystemItem>();
     }
 
 

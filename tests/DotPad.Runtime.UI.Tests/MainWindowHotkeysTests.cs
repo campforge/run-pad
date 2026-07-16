@@ -52,7 +52,7 @@ public class MainWindowHotkeysTests
 
         var mainVm = new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: windowService.Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());

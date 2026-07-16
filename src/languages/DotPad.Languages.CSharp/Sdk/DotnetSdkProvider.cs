@@ -7,6 +7,12 @@ namespace DotPad.Languages.CSharp.Sdk;
 
 public sealed class DotnetSdkProvider : ISdkProvider
 {
+    // .NET 5 and earlier are out of Microsoft support
+    // (https://dotnet.microsoft.com/platform/support/policy/dotnet-core) and predate this project's
+    // own minimum-supported language surface — not worth offering as a script target even if
+    // somehow still installed alongside newer SDKs (ANALYSIS.md #94).
+    private const int MinSupportedSdkMajorVersion = 6;
+
     public IReadOnlyList<DotnetSdk> Get()
     {
         List<(string tfm, NuGetVersion version)> versions = [];
@@ -20,7 +26,7 @@ public sealed class DotnetSdkProvider : ISdkProvider
             if (spaceIdx < 0) continue;
 
             string versionStr = trimmed[..spaceIdx];
-            if (!NuGetVersion.TryParse(versionStr, out NuGetVersion? v) || v.Major <= 5) continue;
+            if (!NuGetVersion.TryParse(versionStr, out NuGetVersion? v) || v.Major < MinSupportedSdkMajorVersion) continue;
 
             versions.Add(($"net{v.Major}.{v.Minor}", v));
         }

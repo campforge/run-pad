@@ -123,6 +123,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "netcoreapp3.1", "netstandard2.1", "netstandard2.0",
     ];
 
+    // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
+    // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
+    // still feel live (ANALYSIS.md #94).
+    private static readonly TimeSpan _backgroundAnalysisDebounce = TimeSpan.FromMilliseconds(500);
+
+    // How long Dispose waits for an in-flight background analysis pass to actually observe
+    // cancellation before giving up — see Dispose's own comment for why this is bounded rather than
+    // unbounded.
+    private static readonly TimeSpan _backgroundAnalysisDisposeTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
@@ -1154,8 +1164,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public void NotifyTextChanged(string code)
     {
+        // Not disposed here — a superseded background analysis pass (Task.Run below) can still be
+        // mid-flight past this point (e.g. inside RoslynCodeFixEngine, which doesn't poll the token
+        // between individual CodeFixProviders — see Dispose's own comment), and registering/reading
+        // against an already-disposed CancellationTokenSource throws ObjectDisposedException
+        // (ANALYSIS.md #89). A CancellationTokenSource whose WaitHandle is never touched holds no
+        // unmanaged resources, so leaving the superseded one for the GC is safe; Dispose() below
+        // (this instance's own teardown, after _backgroundAnalysisTask is awaited/timed out) still
+        // disposes the final one.
         _diagnosticsCts?.Cancel();
-        _diagnosticsCts?.Dispose();
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
@@ -1163,7 +1180,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             try
             {
-                await Task.Delay(500, ct);
+                await Task.Delay(_backgroundAnalysisDebounce, ct);
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
@@ -1325,7 +1342,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void Dispose()
     {
         _diagnosticsCts?.Cancel();
-        try { _backgroundAnalysisTask?.Wait(TimeSpan.FromSeconds(5)); }
+        try { _backgroundAnalysisTask?.Wait(_backgroundAnalysisDisposeTimeout); }
         catch { /* already logged from inside the task itself */ }
         _diagnosticsCts?.Dispose();
         _workspace.Dispose();

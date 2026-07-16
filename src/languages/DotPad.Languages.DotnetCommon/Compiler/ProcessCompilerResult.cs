@@ -1,4 +1,9 @@
-namespace DotPad.Languages.CSharp.Compiler;
+namespace DotPad.Languages.DotnetCommon.Compiler;
+
+public interface IDotnetProcessCompiler : IDisposable
+{
+    Task<ProcessCompilerResult> Compilation(string code, CancellationToken ctx);
+}
 
 public record ProcessCompilerResult(
     string OutputBinaryFile,
