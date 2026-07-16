@@ -52,6 +52,7 @@
     <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj"/>
     <ProjectReference Include="..\..\languages\DotPad.Languages.CSharp\DotPad.Languages.CSharp.csproj"/>
     <ProjectReference Include="..\..\languages\DotPad.Languages.VB\DotPad.Languages.VB.csproj"/>
+    <ProjectReference Include="..\..\languages\DotPad.Languages.DotnetCommon\DotPad.Languages.DotnetCommon.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

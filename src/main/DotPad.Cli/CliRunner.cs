@@ -5,6 +5,7 @@ using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Languages.CSharp.Sdk;
+using DotPad.Languages.DotnetCommon;
 using DotPad.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
 using Spectre.Console;
@@ -66,7 +67,7 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("dotpad-cli-").FullName;
         try
         {
-            var options = BuildOptions(document.FrontMatter, languageId, platform, outputDirectory);
+            var options = BuildOptions(document.FrontMatter, platform, outputDirectory);
 
             var hadError = false;
             await using var host = registry.Create(languageId, options);
@@ -105,8 +106,11 @@ public static class CliRunner
         }
     }
 
+    // languageId is no longer needed here — every compiled .NET language now shares the same
+    // options type (ANALYSIS.md #86/#87); the caller still resolves it separately to pick the
+    // ILanguageHostFactory itself (see registry.Create above).
     internal static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, string languageId, DotnetSdk platform, string outputDirectory)
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory)
     {
         var runtimeLibPath = new CSharpReferenceService().GetExtensionReference();
         var executionOptions = new ExecutionOptions
@@ -128,23 +132,9 @@ public static class CliRunner
                 || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
             .ToList() ?? [];
 
-        if (languageId == "vb")
-        {
-            return new VbLanguageHostOptions
-            {
-                Platform = platform,
-                ExecutionOptions = executionOptions,
-                OutputDirectory = outputDirectory,
-                RuntimeLibPath = runtimeLibPath,
-                Kind = frontMatter.Kind,
-                Packages = packages,
-                Usings = usings,
-                AssemblyReferences = assemblyReferences,
-                ProjectReferences = projectReferences,
-            };
-        }
-
-        return new CSharpLanguageHostOptions
+        // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — languageId no
+        // longer needs to select between two identical option-object shapes here.
+        return new CompiledDotnetLanguageHostOptions
         {
             Platform = platform,
             ExecutionOptions = executionOptions,

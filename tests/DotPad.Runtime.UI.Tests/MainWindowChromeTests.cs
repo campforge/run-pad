@@ -44,7 +44,7 @@ public class MainWindowChromeTests
 
         var mainVm = new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());

@@ -204,7 +204,7 @@
 
         <!-- Row 4: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
         <Grid Grid.Row="4"
-              ColumnDefinitions="Auto,Auto,*,Auto"
+              ColumnDefinitions="Auto,Auto,Auto,*,Auto"
               Background="{DynamicResource DotPad.StatusBar.BackgroundBrush}">
             <TextBlock x:Name="ExecStatusBlock"
                        Grid.Column="0"
@@ -219,8 +219,16 @@
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
+            <!-- "{Kind} · {TargetSdk}" for the currently open .rpad — set in SetDocumentContent. -->
+            <TextBlock x:Name="ProjectInfoBlock"
+                       Grid.Column="2"
+                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Margin="12,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="12"/>
+
             <TextBlock x:Name="StatusLine"
-                       Grid.Column="3"
+                       Grid.Column="4"
                        Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
                        Margin="0,0,8,0"
                        VerticalAlignment="Center"

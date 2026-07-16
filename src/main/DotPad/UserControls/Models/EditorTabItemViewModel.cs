@@ -12,6 +12,10 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
+    // Debounce before persisting a resized output panel height to preferences — avoids writing to
+    // disk on every intermediate drag frame (ANALYSIS.md #94).
+    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
+
     private readonly IPreferencesService _prefs;
 
     public string? FilePath { get; }
@@ -169,7 +173,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         ToggleOutputPanelCommand = ReactiveCommand.Create(ToggleOutputPanel);
         this.WhenAnyValue(x => x.OutputPanelHeight)
             .Skip(1)
-            .Throttle(TimeSpan.FromMilliseconds(400), RxApp.MainThreadScheduler)
+            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
             .Subscribe(h =>
             {
                 _prefs.Layout.DebugPanelCollapsed = h.Value <= 0;

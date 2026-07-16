@@ -114,6 +114,10 @@ public sealed class UsingItemViewModel
 
 public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 {
+    // Debounce before firing a NuGet search after the user stops typing — avoids a request per
+    // keystroke (ANALYSIS.md #94).
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(350);
+
     private readonly IPackageSearchService _search;
     private readonly ILocalPackageCacheService _cache;
     private RpadFrontMatter? _frontMatter;
@@ -397,7 +401,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
         try
         {
-            await Task.Delay(350, ct);
+            await Task.Delay(SearchDebounce, ct);
         }
         catch (OperationCanceledException)
         {

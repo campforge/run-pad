@@ -26,7 +26,7 @@ public class MainWindowViewModelTests
 
             var vm = new MainWindowViewModel(
                 sdkProviders: [],
-                fileSystemSystemService: fileService.Object,
+                fileSystemService: fileService.Object,
                 windowService: new Mock<IWindowService>().Object,
                 prefs: prefs.Object,
                 languageRegistry: new LanguageHostRegistry());

@@ -37,6 +37,10 @@ public class CodeTextEditor : TextEditor
     private readonly CodeFixMargin _codeFixMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
+    // Debounce before recomputing folding regions after a text change — long enough that fast
+    // typing doesn't re-run the folding strategy on every keystroke (ANALYSIS.md #94).
+    private static readonly TimeSpan FoldingDebounce = TimeSpan.FromMilliseconds(400);
+
     private readonly DispatcherTimer _foldingTimer;
     private FoldingManager? _foldingManager;
     private FoldingMargin? _foldingMargin;
@@ -222,7 +226,7 @@ public class CodeTextEditor : TextEditor
         TextArea.LeftMargins.Add(_codeFixMargin);
         _debugLineHighlighter = new DebugLineHighlighter();
 
-        _foldingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _foldingTimer = new DispatcherTimer { Interval = FoldingDebounce };
         _foldingTimer.Tick += (_, _) => { _foldingTimer.Stop(); UpdateFoldings(); };
 
         // Remove DeleteLine — conflicts with our line-based workflow
@@ -747,8 +751,13 @@ public class CodeTextEditor : TextEditor
         // back) — cancelling the previous request's token here means a provider that threads it
         // through to its own async work (Roslyn's SemanticModel calls) actually stops that work
         // instead of it running to completion and racing this one (ANALYSIS.md #57).
+        // Deliberately NOT disposed here (ANALYSIS.md #89): the superseded request's provider call
+        // may still be mid-flight past this point (e.g. suspended on an await inside
+        // AsyncCompletionProvider), and any later attempt to register a callback against — or read
+        // certain members of — an already-disposed CancellationTokenSource throws
+        // ObjectDisposedException. A CancellationTokenSource that never has its WaitHandle touched
+        // holds no unmanaged resources, so leaving it for the GC is safe.
         _completionCts?.Cancel();
-        _completionCts?.Dispose();
         var cts = new CancellationTokenSource();
         _completionCts = cts;
 
@@ -860,8 +869,8 @@ public class CodeTextEditor : TextEditor
     private async void ShowOverloads(char trigger)
     {
         // Same reasoning as ShowCompletion above — cancel a superseded request instead of racing it.
+        // Not disposed here either — see ShowCompletion's comment (ANALYSIS.md #89).
         _insightCts?.Cancel();
-        _insightCts?.Dispose();
         var cts = new CancellationTokenSource();
         _insightCts = cts;
 

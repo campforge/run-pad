@@ -1,13 +1,13 @@
 using DotPad.Contracts.Models;
-using DotPad.Languages.VB.Compiler;
+using DotPad.Languages.DotnetCommon.Compiler;
 
-namespace DotPad.Languages.VB.Adapters;
+namespace DotPad.Languages.DotnetCommon.Adapters;
 
-internal sealed class VbDiagnostic : IDiagnostic
+internal sealed class CompiledDotnetDiagnostic : IDiagnostic
 {
     private readonly ResultItem _item;
 
-    internal VbDiagnostic(ResultItem item, DiagnosticSeverity severity)
+    internal CompiledDotnetDiagnostic(ResultItem item, DiagnosticSeverity severity)
     {
         _item = item;
         Severity = severity;

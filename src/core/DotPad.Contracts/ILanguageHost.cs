@@ -56,6 +56,9 @@ public interface ILanguageHost : IAsyncDisposable
     /// <summary>Raised once the debugger confirms whether a requested breakpoint actually bound to a location. Requires <see cref="LanguageHostCapabilities.Breakpoints"/>.</summary>
     event BreakpointVerifiedHandler? BreakpointVerified;
 
-    /// <summary>Captures the managed heap of the paused process. Requires <see cref="LanguageHostCapabilities.MemoryDump"/>.</summary>
+    /// <summary>
+    /// Snapshots the local variables from the most recent breakpoint hit (not a full managed-heap
+    /// dump). Requires <see cref="LanguageHostCapabilities.MemoryDump"/>.
+    /// </summary>
     Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken);
 }

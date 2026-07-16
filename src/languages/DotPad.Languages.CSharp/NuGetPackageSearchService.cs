@@ -8,6 +8,11 @@ namespace DotPad.Languages.CSharp;
 
 public sealed class NuGetPackageSearchService : IPackageSearchService
 {
+    // Cap per-source result count — the Dependencies window's search box only ever shows the top
+    // handful of matches, and multiple configured feeds are already queried in parallel and merged
+    // (ANALYSIS.md #94).
+    private const int MaxResultsPerSource = 20;
+
     private readonly IReadOnlyList<SourceRepository> _repositories;
 
     public NuGetPackageSearchService()
@@ -45,7 +50,7 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
             try
             {
                 var resource = await repository.GetResourceAsync<PackageSearchResource>(ct);
-                return await resource.SearchAsync(query, filter, skip: 0, take: 20, NullLogger.Instance, ct);
+                return await resource.SearchAsync(query, filter, skip: 0, take: MaxResultsPerSource, NullLogger.Instance, ct);
             }
             catch
             {
