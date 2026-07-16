@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Local fork (TODO.md #61) — was Avalonia.AvaloniaEdit 12.0.0 from NuGet, now a
+         ProjectReference so DotPad can customize it directly instead of waiting on upstream.
+         net10.0 only (was net8.0;net10.0) — this repo builds one TFM everywhere
+         (Directory.Build.props), the extra multi-targeting served no purpose here. -->
+    <!-- Upstream source predates nullable reference type annotations throughout — this repo's
+         Directory.Build.props otherwise turns Nullable on solution-wide, which would mean either
+         a wave of unrelated CS86xx warnings under -warnaserror or a large annotation effort neither
+         asked for here; opt this fork back out instead, matching upstream's own authoring style. -->
+    <Nullable>disable</Nullable>
+    <WarningsNotAsErrors>0612,0618</WarningsNotAsErrors>
+    <PackageId>Avalonia.AvaloniaEdit</PackageId>
+    <PackageDescription>This project is a port of AvalonEdit, a WPF-based text editor for Avalonia.</PackageDescription>
+    <PackageTags>editor;code-editor;avalonia;text-editor;netstandard</PackageTags>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="**\*.xshd;**\*.resx;" Exclude="bin\**;obj\**;**\*.xproj;packages\**;@(EmbeddedResource)" />
+    <AvaloniaResource Include="**\*.xaml;Assets\*;" Exclude="bin\**;obj\**;**\*.xproj;packages\**;@(EmbeddedResource)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="SR.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>SR.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="SR.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>SR.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
