@@ -29,8 +29,10 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     internal CSharpLanguageHost(
         CompiledDotnetLanguageHostOptions options,
         ILoggerFactory loggerFactory,
-        DotnetProcessCompilerFactory? compilerFactory = null)
-        : base(options, loggerFactory, compilerFactory)
+        DotnetProcessCompilerFactory? compilerFactory = null,
+        ExecutionChildProcessFactory? executionProcessFactory = null,
+        DebuggerChildProcessFactory? debuggerProcessFactory = null)
+        : base(options, loggerFactory, compilerFactory, executionProcessFactory, debuggerProcessFactory)
     {
     }
 

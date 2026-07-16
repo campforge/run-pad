@@ -1,3 +1,4 @@
+using DotPad.Build.Core.Models;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
 using DotPad.Contracts.Models;
@@ -18,6 +19,19 @@ public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
     DotnetLanguageProjectProfile profile, CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
 
 /// <summary>
+/// Builds the <see cref="IChildProcess"/> a <see cref="CompiledDotnetLanguageHostBase"/> runs a compiled
+/// assembly in — injectable seam (ANALYSIS.md #88 remainder), mirroring <see cref="DotnetProcessCompilerFactory"/>,
+/// so tests can substitute a fake process instead of always shelling out to <c>dotnet</c>.
+/// </summary>
+public delegate IChildProcess ExecutionChildProcessFactory(ExecutionOptions options, string assemblyPath, string parentPid);
+
+/// <summary>
+/// Builds the <see cref="IChildProcess"/> a <see cref="CompiledDotnetLanguageHostBase"/> runs netcoredbg
+/// in for a debug session — same rationale as <see cref="ExecutionChildProcessFactory"/>.
+/// </summary>
+public delegate IChildProcess DebuggerChildProcessFactory(ExecutionOptions options);
+
+/// <summary>
 /// Shared compile/run/debug orchestration for every .NET language compiled the same way (via
 /// <c>dotnet build</c> against a throwaway single-file project, with debugging over DAP against
 /// netcoredbg) — was duplicated near-verbatim between CSharpLanguageHost and VbLanguageHost before
@@ -34,6 +48,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     private readonly CompiledDotnetLanguageHostOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly DotnetProcessCompilerFactory _compilerFactory;
+    private readonly ExecutionChildProcessFactory _executionProcessFactory;
+    private readonly DebuggerChildProcessFactory _debuggerProcessFactory;
     private CancellationTokenSource? _runCts;
     private IDapSession? _currentSession;
 
@@ -63,11 +79,15 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     protected CompiledDotnetLanguageHostBase(
         CompiledDotnetLanguageHostOptions options,
         ILoggerFactory loggerFactory,
-        DotnetProcessCompilerFactory? compilerFactory = null)
+        DotnetProcessCompilerFactory? compilerFactory = null,
+        ExecutionChildProcessFactory? executionProcessFactory = null,
+        DebuggerChildProcessFactory? debuggerProcessFactory = null)
     {
         _options = options;
         _loggerFactory = loggerFactory;
         _compilerFactory = compilerFactory ?? CreateDefaultCompiler;
+        _executionProcessFactory = executionProcessFactory ?? ChildProcess.ForExecution;
+        _debuggerProcessFactory = debuggerProcessFactory ?? ChildProcess.ForDebugger;
         Directory.CreateDirectory(options.OutputDirectory);
     }
 
@@ -124,7 +144,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
         try
         {
-            await using var process = ChildProcess.ForExecution(
+            await using var process = _executionProcessFactory(
                 _options.ExecutionOptions,
                 binaryPath,
                 Environment.ProcessId.ToString());
@@ -162,7 +182,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
         try
         {
-            await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
+            await using var process = _debuggerProcessFactory(_options.ExecutionOptions);
             var sessionOptions = new DapSessionOptions(
                 ProgramPath: binaryPath,
                 WorkingDirectory: _options.OutputDirectory,
