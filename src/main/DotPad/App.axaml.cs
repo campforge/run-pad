@@ -123,7 +123,13 @@ public class App : Application
         {
             lb.AddConsole();
             lb.AddProvider(new FileLoggerProvider(Path.Combine(logDir)));
+            // Debug-level logging includes DAP traffic and snippets of the user's own script code —
+            // fine for a debug build, too invasive to write to disk unconditionally in a release one.
+#if DEBUG
             lb.SetMinimumLevel(LogLevel.Debug);
+#else
+            lb.SetMinimumLevel(LogLevel.Information);
+#endif
         });
     }
 }

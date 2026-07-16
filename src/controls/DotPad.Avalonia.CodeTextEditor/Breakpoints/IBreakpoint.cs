@@ -10,4 +10,8 @@ public interface IBreakpoint
     string? HitCondition { get; set; }
     BreakpointVerificationState VerificationState { get; set; }
     string? VerificationMessage { get; set; }
+
+    // TODO.md #83: a disabled breakpoint stays in the gutter (contour-only icon) but is left out of
+    // the setBreakpoints request built at run start — unlike Remove, it's not forgotten.
+    bool IsEnabled { get; set; }
 }

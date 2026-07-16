@@ -222,8 +222,18 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // ── "+" button ─────────────────────────────────────────────────────────────
 
-    private void AddFile_Click(object? sender, RoutedEventArgs e)
-        => _vm?.NewRpadFile();
+    private async void AddFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var kind = await new Windows.NewFileKindDialog().ShowDialog<RpadKind?>(owner);
+        if (kind is null) return; // cancelled
+
+        _vm.NewRpadFile(kind: kind.Value);
+    }
 
     // ── IDisposable ────────────────────────────────────────────────────────────
 

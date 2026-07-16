@@ -14,12 +14,14 @@ public class BreakPointMarginTests
     private static Breakpoint MakeBreakpoint(
         BreakpointVerificationState state = BreakpointVerificationState.Pending,
         string? condition = null,
-        string? hitCondition = null) => new()
+        string? hitCondition = null,
+        bool enabled = true) => new()
         {
             Line = 1,
             VerificationState = state,
             Condition = condition,
             HitCondition = hitCondition,
+            IsEnabled = enabled,
         };
 
     [Theory]
@@ -76,5 +78,25 @@ public class BreakPointMarginTests
 
         Assert.True(plan.DrawOutline);
         Assert.True(plan.DrawConditionBadge);
+    }
+
+    // TODO.md #83.3: a disabled breakpoint gets the same contour-only treatment as an unverified
+    // one, even when otherwise fully verified — disabled is a reason to hollow the icon on its own.
+    [Fact]
+    public void ComputeBreakpointIconPlan_Should_DrawOutline_ForADisabledBreakpoint_EvenIfVerified()
+    {
+        var plan = BreakPointMargin.ComputeBreakpointIconPlan(
+            MakeBreakpoint(BreakpointVerificationState.Verified, enabled: false));
+
+        Assert.True(plan.DrawOutline);
+    }
+
+    [Fact]
+    public void ComputeBreakpointIconPlan_Should_NotDrawOutline_ForAnEnabledVerifiedBreakpoint()
+    {
+        var plan = BreakPointMargin.ComputeBreakpointIconPlan(
+            MakeBreakpoint(BreakpointVerificationState.Verified, enabled: true));
+
+        Assert.False(plan.DrawOutline);
     }
 }

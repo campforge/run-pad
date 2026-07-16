@@ -10,6 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace DotPad.Languages.DotnetCommon;
 
 /// <summary>
+/// Builds the <see cref="IDotnetProcessCompiler"/> a <see cref="CompiledDotnetLanguageHostBase"/> uses
+/// to compile a given run — injectable seam (ANALYSIS.md #88) so tests can substitute a fake compiler
+/// instead of always shelling out to a real <c>dotnet build</c>.
+/// </summary>
+public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
+    DotnetLanguageProjectProfile profile, CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
+
+/// <summary>
 /// Shared compile/run/debug orchestration for every .NET language compiled the same way (via
 /// <c>dotnet build</c> against a throwaway single-file project, with debugging over DAP against
 /// netcoredbg) — was duplicated near-verbatim between CSharpLanguageHost and VbLanguageHost before
@@ -25,6 +33,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
     private readonly CompiledDotnetLanguageHostOptions _options;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly DotnetProcessCompilerFactory _compilerFactory;
     private CancellationTokenSource? _runCts;
     private IDapSession? _currentSession;
 
@@ -51,12 +60,31 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     /// </summary>
     public abstract int CalcKindOffset();
 
-    protected CompiledDotnetLanguageHostBase(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory)
+    protected CompiledDotnetLanguageHostBase(
+        CompiledDotnetLanguageHostOptions options,
+        ILoggerFactory loggerFactory,
+        DotnetProcessCompilerFactory? compilerFactory = null)
     {
         _options = options;
         _loggerFactory = loggerFactory;
+        _compilerFactory = compilerFactory ?? CreateDefaultCompiler;
         Directory.CreateDirectory(options.OutputDirectory);
     }
+
+    private static IDotnetProcessCompiler CreateDefaultCompiler(
+        DotnetLanguageProjectProfile profile, CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory) =>
+        new MsBuildProcessCompiler(
+            profile,
+            sdk: options.Platform,
+            executionOptions: options.ExecutionOptions,
+            outputDir: options.OutputDirectory,
+            dotPadRuntimeLib: options.RuntimeLibPath,
+            outputName: options.OutputName,
+            nugetPackages: options.Packages,
+            usings: options.Usings,
+            assemblyReferences: options.AssemblyReferences,
+            projectReferences: options.ProjectReferences,
+            logger: loggerFactory.CreateLogger<MsBuildProcessCompiler>());
 
     // ── Compile ──────────────────────────────────────────────────────────────
 
@@ -70,18 +98,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     private async Task<(CompiledDotnetCompilationResult result, string? binaryPath)> CompileInternalAsync(
         string code, CancellationToken ct)
     {
-        using var compiler = new MsBuildProcessCompiler(
-            ProjectProfile,
-            sdk: _options.Platform,
-            executionOptions: _options.ExecutionOptions,
-            outputDir: _options.OutputDirectory,
-            dotPadRuntimeLib: _options.RuntimeLibPath,
-            outputName: _options.OutputName,
-            nugetPackages: _options.Packages,
-            usings: _options.Usings,
-            assemblyReferences: _options.AssemblyReferences,
-            projectReferences: _options.ProjectReferences,
-            logger: _loggerFactory.CreateLogger<MsBuildProcessCompiler>());
+        using var compiler = _compilerFactory(ProjectProfile, _options, _loggerFactory);
 
         ProcessCompilerResult raw = await compiler.Compilation(code, ct);
         CompiledDotnetCompilationResult result = new(raw);
@@ -146,18 +163,20 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         try
         {
             await using var process = ChildProcess.ForDebugger(_options.ExecutionOptions);
+            var sessionOptions = new DapSessionOptions(
+                ProgramPath: binaryPath,
+                WorkingDirectory: _options.OutputDirectory,
+                Breakpoints: ActiveBreakpoints,
+                SourceFileExtension: ProjectProfile.SourceFileExtension,
+                LineOffset: lineOffset,
+                BreakOnAllExceptions: _options.BreakOnAllExceptions,
+                BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions);
             await using var session = new DapSession(
                 process,
-                binaryPath,
-                _options.OutputDirectory,
-                ActiveBreakpoints,
-                ProjectProfile.SourceFileExtension,
+                sessionOptions,
                 WrapWithDumpDetection(outputHandler),
                 HandleBreakpointHit,
-                lineOffset,
                 _loggerFactory.CreateLogger<DapSession>(),
-                _options.BreakOnAllExceptions,
-                _options.BreakOnUncaughtExceptions,
                 OnBreakpointVerified);
 
             _currentSession = session;

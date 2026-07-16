@@ -5,9 +5,10 @@ namespace DotPad.Windows;
 
 public partial class ConditionDialog : Window
 {
-    public ConditionDialog(string? initialCondition = null, string? initialHitCondition = null)
+    public ConditionDialog(string? initialCondition = null, string? initialHitCondition = null, bool initialEnabled = true)
     {
         InitializeComponent();
+        EnabledBox.IsChecked = initialEnabled;
         ConditionBox.Text = initialCondition ?? "";
         HitConditionBox.Text = initialHitCondition ?? "";
         Opened += (_, _) =>
@@ -18,7 +19,7 @@ public partial class ConditionDialog : Window
     }
 
     private void OkButton_Click(object? sender, RoutedEventArgs e)
-        => Close(((string?, string?)?)(ConditionBox.Text ?? "", HitConditionBox.Text ?? ""));
+        => Close(((string?, string?, bool)?)(ConditionBox.Text ?? "", HitConditionBox.Text ?? "", EnabledBox.IsChecked ?? true));
 
     private void CancelButton_Click(object? sender, RoutedEventArgs e)
         => Close(null);
