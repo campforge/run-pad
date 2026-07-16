@@ -36,7 +36,8 @@ public class FileTreeViewHotkeysTests
 
         var treeView = view.FindControl<TreeView>("FileTree")!;
         treeView.SelectedItem = node;
-// TreeView itself isn't Focusable (same situation as CodeTextEditor not being Focusable while
+        // TreeView itself isn't Focusable (same situation as CodeTextEditor not being Focusable while
+
         // TreeViewItem container for the selected node is what actually needs focus for KeyDown
         // (bound on the TreeView, bubbling up from wherever real keyboard focus sits) to fire at all.
         ((TreeViewItem)treeView.ContainerFromItem(node)!).Focus();
