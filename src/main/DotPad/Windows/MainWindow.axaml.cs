@@ -87,7 +87,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (Match(e, kb.CloseTab))
         {
-            vm.CloseActiveTab();
+            _editorTabs.CloseActiveTab();
             e.Handled = true;
         }
     }

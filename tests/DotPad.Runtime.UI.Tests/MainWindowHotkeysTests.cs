@@ -3,6 +3,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
+using Avalonia.VisualTree;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
@@ -130,5 +131,34 @@ public class MainWindowHotkeysTests
         window.KeyPress(Key.Q, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.Q, null);
 
         Assert.Equal(tabCountBefore - 1, vm.Tabs.Count);
+    }
+
+    // TODO.md, "Жизненный цикл вкладок (остаток)": Ctrl+W used to call MainWindowViewModel.
+    // CloseActiveTab directly, bypassing whatever EditorTabsControl.RequestCloseTabAsync does —
+    // confirms the hotkey path now goes through the same unsaved-changes confirmation as the tab's
+    // own [x] button (see EditorTabsControlCloseConfirmationTests for the confirmation flow itself).
+    [AvaloniaFact]
+    public async Task PressingCtrlW_OnADirtyUntitledTab_Should_AskBeforeClosing()
+    {
+        var (window, vm, windowService) = CreateMainWindow(new KeyboardSettings());
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+        EditorsTabItemControl? ctrl = null;
+        for (var i = 0; i < 100 && ctrl is null; i++)
+        {
+            ctrl = window.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>().FirstOrDefault();
+            if (ctrl is null) await Task.Delay(20);
+        }
+        Assert.NotNull(ctrl);
+        ctrl!.State.Editor.Text = "Console.WriteLine(1);";
+        var tabCountBefore = vm.Tabs.Count;
+
+        window.KeyPress(Key.W, RawInputModifiers.Control, PhysicalKey.W, null);
+        await Task.Delay(50);
+
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+        Assert.Equal(tabCountBefore, vm.Tabs.Count); // Cancel — still open
     }
 }
