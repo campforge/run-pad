@@ -1164,8 +1164,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
         var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
         var usings = rpad?.FrontMatter.Namespaces ?? [];
+        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros (TODO.md #63) — expanded
+        // here so both the debug and non-debug run paths get them, since they share this method.
         var assemblyReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
         // Both .csproj and .vbproj — a VB script's own project-reference should work the same as a
         // C# one's does (this used to only match .csproj, silently dropping .vbproj references for
@@ -1173,6 +1176,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var projectReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
                 || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
 
         // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — used to be a

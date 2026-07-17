@@ -66,6 +66,49 @@ public class CliRunnerTests
         Assert.Empty(csharpOptions.ProjectReferences);
     }
 
+    // TODO.md #63: $(CurrentQueryPath) resolves against the currentQueryPath parameter threaded in
+    // from RunAsync's own filePath — mirrors EditorTabItemControl.BuildRunOptions's use of
+    // _vm.FilePath for the same macro (see ReferencePathMacros.Expand).
+    [Fact]
+    public void BuildOptions_Should_ExpandCurrentQueryPathMacro_InReferences()
+    {
+        var frontMatter = new RpadFrontMatter
+        {
+            References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
+        };
+
+        var options = CliRunner.BuildOptions(
+            frontMatter, Platform, "/tmp/out", "/home/user/scripts/query.rpad");
+
+        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+        Assert.Equal(["/home/user/scripts/Lib.dll"], csharpOptions.AssemblyReferences);
+        Assert.Equal(["/home/user/scripts/Shared.csproj"], csharpOptions.ProjectReferences);
+    }
+
+    [Fact]
+    public void BuildOptions_Should_LeaveCurrentQueryPathMacroUnexpanded_WhenNoFilePathGiven()
+    {
+        var frontMatter = new RpadFrontMatter { References = ["$(CurrentQueryPath)/Lib.dll"] };
+
+        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out");
+
+        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+        Assert.Equal(["$(CurrentQueryPath)/Lib.dll"], csharpOptions.AssemblyReferences);
+    }
+
+    [Fact]
+    public void BuildOptions_Should_ExpandRuntimeDirectoryAndMyDocumentsMacros_InReferences()
+    {
+        var frontMatter = new RpadFrontMatter { References = ["$(RuntimeDirectory)/System.dll"] };
+
+        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out");
+
+        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+        var expanded = Assert.Single(csharpOptions.AssemblyReferences);
+        Assert.DoesNotContain("$(RuntimeDirectory)", expanded);
+        Assert.EndsWith("/System.dll", expanded);
+    }
+
     [Fact]
     public async Task RunAsync_Should_ReturnError_WhenNoArgsGiven()
     {
