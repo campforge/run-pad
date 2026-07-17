@@ -328,6 +328,49 @@ public partial class EditorTabsControl : UserControl, IDisposable
         return null;
     }
 
+    // ── "Show all open tabs" dropdown ───────────────────────────────────────────
+
+    private void ShowAllTabs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (BuildAllTabsMenu() is not { } menu || sender is not Control anchor) return;
+        anchor.ContextMenu = menu;
+        menu.Open(anchor);
+    }
+
+    // internal (not private): lets tests inspect the built menu's items/headers/click-wiring
+    // directly, rather than only through the ContextMenu popup interaction itself, which headless
+    // Avalonia has no reliable way to drive. TODO.md, "Полоса вкладок": built fresh on every click
+    // (not a persistent binding — this control doesn't set its own DataContext to the ViewModel, it
+    // talks to it through _vm directly everywhere else too) rather than keeping one around that
+    // would go stale the moment a tab opens/closes.
+    internal ContextMenu? BuildAllTabsMenu()
+    {
+        if (_vm is null) return null;
+
+        var menu = new ContextMenu();
+        foreach (var tabVm in _vm.Tabs)
+        {
+            // Fully qualified with global:: on top — Control (an EditorTabsControl base class) has
+            // its own inherited FontWeight instance property, shadowing the enum type name throughout
+            // this whole class ("cannot be accessed with an instance reference" without the
+            // qualification); and DotPad.Avalonia is itself a real sibling namespace here
+            // (DotPad.Avalonia.Themes etc.), so plain "Avalonia.Media" would resolve relative to
+            // DotPad first and fail to find it, rather than falling back to the global Avalonia.
+            var weight = ReferenceEquals(tabVm, _vm.ActiveTab)
+                ? global::Avalonia.Media.FontWeight.Bold
+                : global::Avalonia.Media.FontWeight.Normal;
+            var header = new TextBlock { Text = tabVm.FileName, FontWeight = weight };
+            if (tabVm.IsDirty && _themeService?.GetBrush("DotPad.Tab.DirtyBrush") is { } dirtyBrush)
+                header.Foreground = dirtyBrush;
+
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => _vm.ActiveTab = tabVm;
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
     // ── "+" button ─────────────────────────────────────────────────────────────
 
     private async void AddFile_Click(object? sender, RoutedEventArgs e)
