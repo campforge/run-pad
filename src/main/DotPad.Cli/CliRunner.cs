@@ -67,7 +67,7 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("dotpad-cli-").FullName;
         try
         {
-            var options = BuildOptions(document.FrontMatter, platform, outputDirectory);
+            var options = BuildOptions(document.FrontMatter, platform, outputDirectory, filePath);
 
             var hadError = false;
             await using var host = registry.Create(languageId, options);
@@ -110,7 +110,7 @@ public static class CliRunner
     // options type (ANALYSIS.md #86/#87); the caller still resolves it separately to pick the
     // ILanguageHostFactory itself (see registry.Create above).
     internal static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory)
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string? currentQueryPath = null)
     {
         var runtimeLibPath = new CSharpReferenceService().GetExtensionReference();
         var executionOptions = new ExecutionOptions
@@ -124,12 +124,16 @@ public static class CliRunner
 
         var packages = frontMatter.Packages.ToDictionary(p => p.Key, p => p.Value.Version);
         var usings = frontMatter.Namespaces ?? [];
+        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros (TODO.md #63) — must stay
+        // equivalent to EditorTabItemControl.BuildRunOptions's own expansion (see CliRunnerTests.cs).
         var assemblyReferences = frontMatter.References?
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
             .ToList() ?? [];
         var projectReferences = frontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
                 || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
             .ToList() ?? [];
 
         // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — languageId no
