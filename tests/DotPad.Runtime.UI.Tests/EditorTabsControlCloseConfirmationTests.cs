@@ -228,4 +228,141 @@ public class EditorTabsControlCloseConfirmationTests
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
+
+    // ── App-exit confirmation (MainWindow.Closing → HasUnsavedUntitledTabs/ConfirmCloseAllUnsavedTabsAsync) ──
+
+    [AvaloniaFact]
+    public async Task HasUnsavedUntitledTabs_Should_BeFalse_ForAPristineUntitledTab()
+    {
+        var (editorTabs, _, _, rootFolder) = CreateHarness();
+        try
+        {
+            await GetSoleControlAsync(editorTabs);
+            Assert.False(editorTabs.HasUnsavedUntitledTabs());
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task HasUnsavedUntitledTabs_Should_BeTrue_OnceTheUntitledTabIsEdited()
+    {
+        var (editorTabs, _, _, rootFolder) = CreateHarness();
+        try
+        {
+            var ctrl = await GetSoleControlAsync(editorTabs);
+            ctrl.State.Editor.Text = "Console.WriteLine(1);";
+
+            Assert.True(editorTabs.HasUnsavedUntitledTabs());
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnTrue_AndAskNothing_WhenNothingIsDirty()
+    {
+        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            await GetSoleControlAsync(editorTabs);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.True(canClose);
+            windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnFalse_WhenUserCancels()
+    {
+        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            var ctrl = await GetSoleControlAsync(editorTabs);
+            ctrl.State.Editor.Text = "Console.WriteLine(1);";
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.False(canClose);
+            Assert.Single(mainVm.Tabs); // untouched — the tab itself isn't closed by this method either
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnTrue_WhenUserChoosesDontSave()
+    {
+        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            var ctrl = await GetSoleControlAsync(editorTabs);
+            ctrl.State.Editor.Text = "Console.WriteLine(1);";
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.DontSave);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.True(canClose);
+            Assert.Empty(Directory.GetFiles(rootFolder)); // discarded, nothing written
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_SaveIt_WhenUserChoosesSave()
+    {
+        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            var ctrl = await GetSoleControlAsync(editorTabs);
+            ctrl.State.Editor.Text = "Console.WriteLine(1);";
+            var chosenPath = Path.Combine(rootFolder, "Saved.rpad");
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Save);
+            windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), rootFolder))
+                .ReturnsAsync(chosenPath);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.True(canClose);
+            Assert.True(File.Exists(chosenPath));
+            Assert.Contains("Console.WriteLine(1);", File.ReadAllText(chosenPath));
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_AskAboutEveryDirtyUntitledTab_NotJustTheFirst()
+    {
+        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            var firstCtrl = await GetSoleControlAsync(editorTabs);
+            firstCtrl.State.Editor.Text = "Console.WriteLine(1);";
+
+            mainVm.NewRpadFile();
+            EditorsTabItemControl? secondCtrl = null;
+            for (var i = 0; i < 100 && secondCtrl is null; i++)
+            {
+                secondCtrl = editorTabs.GetVisualDescendants().OfType<TabItem>()
+                    .Select(t => t.Content).OfType<EditorsTabItemControl>()
+                    .FirstOrDefault(c => !ReferenceEquals(c, firstCtrl));
+                if (secondCtrl is null) await Task.Delay(20);
+            }
+            Assert.NotNull(secondCtrl);
+            secondCtrl!.State.Editor.Text = "Console.WriteLine(2);";
+
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.DontSave);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.True(canClose);
+            windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Exactly(2));
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
 }
