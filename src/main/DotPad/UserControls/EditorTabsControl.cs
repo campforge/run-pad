@@ -75,7 +75,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
 
-        vm.OpenTab(filePath: null);
+        // TODO.md, "Жизненный цикл вкладок (остаток)": restores the previous session's open tabs
+        // (in order) + active tab instead of always starting from one blank tab.
+        vm.RestoreSession();
     }
 
     // Dependencies window mutates the active tab's RpadFrontMatter in place, in memory only.
