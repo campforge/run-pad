@@ -223,9 +223,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void AddTab(EditorTabItemViewModel vm)
     {
+        // CloseCommand is deliberately NOT subscribed here — unlike OpenContainingFolderCommand, it
+        // needs EditorsTabItemControl.WriteFile (to save an untitled-but-dirty tab's content when the
+        // user picks "Save" from the confirmation dialog), which only the View layer has. See
+        // EditorTabsControl.RequestCloseTabAsync, subscribed there instead.
         var subs = new CompositeDisposable
         {
-            vm.CloseCommand.Subscribe(_ => CloseTab(vm)),
             vm.OpenContainingFolderCommand.Subscribe(_ =>
             {
                 if (vm.FilePath is { } path) OpenContainingFolder(path);
@@ -303,12 +306,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenTab(newPath);
     }
 
-    internal void CloseActiveTab()
-    {
-        if (_activeTab != null) CloseTab(_activeTab);
-    }
+    // Asks whether to save an untitled-but-dirty tab's content before its close discards it — see
+    // EditorTabsControl.RequestCloseTabAsync, the sole caller (both the tab's [x] button and Ctrl+W
+    // route through it). A thin passthrough to _windowService, which EditorTabsControl doesn't have
+    // its own reference to.
+    public Task<UnsavedChangesResult> ConfirmDiscardUnsavedChangesAsync(string fileName)
+        => _windowService.ShowUnsavedChangesDialogAsync(fileName);
 
-    private void CloseTab(EditorTabItemViewModel vm)
+    // internal (not private): EditorTabsControl.RequestCloseTabAsync calls this directly once the
+    // close is actually confirmed (or didn't need confirming) — the View-layer orchestration around
+    // it (the confirmation dialog, needing ctrl.WriteFile for "Save") can't live here, see AddTab's
+    // comment on why CloseCommand itself isn't subscribed in this class.
+    internal void CloseTab(EditorTabItemViewModel vm)
     {
         if (_closeSubscriptions.TryGetValue(vm, out var d))
         {

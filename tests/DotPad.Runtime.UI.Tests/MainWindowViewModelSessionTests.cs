@@ -187,8 +187,14 @@ public class MainWindowViewModelSessionTests
             vm.OpenTab(pathB);
             Assert.Equal(pathB, vm.ActiveTab?.FilePath); // B is active; closing A below doesn't touch it
 
+            // CloseCommand itself isn't subscribed at this (ViewModel-only) level any more — closing
+            // now needs EditorsTabItemControl.WriteFile for the unsaved-changes confirmation dialog's
+            // "Save" choice, so the real subscription lives in EditorTabsControl. CloseTab is the
+            // lower-level primitive that subscription calls once a close is actually confirmed —
+            // exactly what this test means to exercise (see EditorTabsControlTests for the
+            // confirmation flow itself, which does go through a real EditorTabsControl).
             var tabA = vm.Tabs.Single(t => t.FilePath == pathA);
-            tabA.CloseCommand.Execute().Subscribe();
+            vm.CloseTab(tabA);
 
             Assert.Equal([pathB], session.OpenTabs);
         }

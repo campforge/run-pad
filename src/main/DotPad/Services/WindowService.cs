@@ -48,6 +48,16 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    public async Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return UnsavedChangesResult.Cancel;
+
+        var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
+        return result ?? UnsavedChangesResult.Cancel;
+    }
+
     private static Task ShowDialogAsync(Window dialog)
     {
         var owner = (Application.Current?.ApplicationLifetime
