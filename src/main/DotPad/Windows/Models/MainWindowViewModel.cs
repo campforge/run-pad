@@ -137,7 +137,55 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public EditorTabItemViewModel? ActiveTab
     {
         get => _activeTab;
-        set => this.RaiseAndSetIfChanged(ref _activeTab, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _activeTab, value);
+            PersistSession();
+        }
+    }
+
+    // Remembers which files are open (and in what order) plus which one is active, so the next
+    // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
+    // disk, so there's no path to remember them by (TODO.md, "Жизненный цикл вкладок (остаток)").
+    // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
+    // action, not worth the debounce SidebarColumnWidth's drag-frame writes need.
+    private void PersistSession()
+    {
+        _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
+        _prefs.Session.ActiveTabPath = ActiveTab?.FilePath;
+        _prefs.Save();
+    }
+
+    // Replaces the old unconditional "open one blank tab" at startup (EditorTabsControl.Attach) —
+    // restores every previously-open, still-on-disk tab in its saved order, then re-selects whichever
+    // one was active. Falls back to a single blank tab when there's nothing to restore (first run, or
+    // every saved path has since been deleted/moved).
+    public void RestoreSession()
+    {
+        // Captured before the loop below, not re-read after it: each OpenTab call inside the loop
+        // makes its own tab the active one, which fires PersistSession (via the ActiveTab setter) and
+        // overwrites _prefs.Session.ActiveTabPath with whatever was JUST opened — reading the property
+        // again afterward would always see the last-restored tab instead of the one actually active
+        // when the session was saved.
+        var savedActivePath = _prefs.Session.ActiveTabPath;
+        var savedOpenTabs = _prefs.Session.OpenTabs.ToList();
+
+        var restoredAny = false;
+        foreach (var path in savedOpenTabs)
+        {
+            if (!File.Exists(path)) continue;
+            OpenTab(path);
+            restoredAny = true;
+        }
+
+        if (!restoredAny)
+        {
+            OpenTab(null);
+            return;
+        }
+
+        if (savedActivePath is { } activePath && _openTabs.TryGetValue(activePath, out var activeVm))
+            ActiveTab = activeVm;
     }
 
     // Deliberately doesn't touch disk (TODO.md, "Жизненный цикл вкладок") — a new script starts
@@ -186,7 +234,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         _closeSubscriptions[vm] = subs;
 
         Tabs.Add(vm);
-        ActiveTab = vm;
+        ActiveTab = vm; // also persists the session (see the setter) — covers the Tabs.Add above too
     }
 
     // Called after a Save As (or the first Save of a brand-new, never-saved tab) actually writes
@@ -214,6 +262,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         vm.IsDirty = false;
         _openTabs[newPath] = vm;
         RefreshNodes();
+        // Neither Tabs nor ActiveTab changed (same vm, same position) but the path list did —
+        // PersistSession's usual triggers (the ActiveTab setter, CloseTab) won't fire here.
+        PersistSession();
     }
 
     // Tab context menu's "Duplicate" — copies the tab's CURRENT (possibly unsaved) content to a new,
@@ -269,7 +320,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         bool wasActive = ActiveTab == vm;
         Tabs.Remove(vm);
-        if (wasActive) ActiveTab = Tabs.LastOrDefault();
+        if (wasActive)
+            ActiveTab = Tabs.LastOrDefault(); // also persists the session (see the setter)
+        else
+            PersistSession(); // ActiveTab unchanged, so its setter won't fire — persist explicitly
     }
 
     // ── File tree operations ──────────────────────────────────────────────────

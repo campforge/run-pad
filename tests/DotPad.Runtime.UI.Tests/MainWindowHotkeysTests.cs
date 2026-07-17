@@ -31,6 +31,7 @@ public class MainWindowHotkeysTests
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(keyboard);
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
 

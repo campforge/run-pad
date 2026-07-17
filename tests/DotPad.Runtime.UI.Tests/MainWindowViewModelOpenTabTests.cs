@@ -28,6 +28,7 @@ public class MainWindowViewModelOpenTabTests
         fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         var vm = new MainWindowViewModel(
@@ -51,6 +52,7 @@ public class MainWindowViewModelOpenTabTests
         fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         var vm = new MainWindowViewModel(
