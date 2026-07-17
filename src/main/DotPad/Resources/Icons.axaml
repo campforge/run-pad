@@ -37,6 +37,8 @@
     <!-- Tab context menu: Save As / Duplicate (TODO.md, "Жизненный цикл вкладок") -->
     <StreamGeometry x:Key="Icon.Save">M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3M19,19H5V5H16.17L19,7.83V19M12,12A3,3 0 0,0 9,15A3,3 0 0,0 12,18A3,3 0 0,0 15,15A3,3 0 0,0 12,12M6,6H15V10H6V6Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.Duplicate">M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z</StreamGeometry>
+    <!-- Tab strip "show all open tabs" dropdown (TODO.md, "Полоса вкладок: ... выпадающий список") -->
+    <StreamGeometry x:Key="Icon.ChevronDown">M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z</StreamGeometry>
 
     <!-- TODO.md #79: quick-fix (lightbulb) menu item icon — a hammer, per the user's own request
          ("как в Rider" — Rider/ReSharper-style, one uniform icon for every fix action, see TODO #79's

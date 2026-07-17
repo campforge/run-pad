@@ -127,14 +127,24 @@
 
     <Panel>
         <TabControl Name="FileTabControl" Padding="0"/>
-        <templatedControls:IconButton
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Width="30" Height="30"
-            Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
-            IconData="{StaticResource Icon.Plus}"
-            Click="AddFile_Click"
-            ToolTip.Tip="New file"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+            <!-- TODO.md, "Полоса вкладок": horizontal scroll (already wired on the TabControl's own
+                 template above) solves the overlap problem; this is the other half of what the user
+                 originally asked for — quick access to a tab that's scrolled out of view without
+                 having to scroll to find it. -->
+            <templatedControls:IconButton
+                Width="30" Height="30"
+                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                IconData="{StaticResource Icon.ChevronDown}"
+                Click="ShowAllTabs_Click"
+                ToolTip.Tip="Show all open tabs"/>
+            <templatedControls:IconButton
+                Width="30" Height="30"
+                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                IconData="{StaticResource Icon.Plus}"
+                Click="AddFile_Click"
+                ToolTip.Tip="New file"/>
+        </StackPanel>
     </Panel>
 
 </UserControl>
