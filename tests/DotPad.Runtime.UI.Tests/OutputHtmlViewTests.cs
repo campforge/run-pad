@@ -19,7 +19,8 @@ public class OutputHtmlViewTests
     public async Task Binding_Should_WrapCssAndContent_IntoAnHtmlDocument()
     {
         var view = new OutputHtmlView();
-        var vm = new OutputHtmlViewModel { Css = "body { color: red; }", Content = "<div>hi</div>" };
+        var vm = new OutputHtmlViewModel { Css = "body { color: red; }" };
+        vm.Append("<div>hi</div>");
 
         view.DataContext = vm;
         await FlushPendingApply();
@@ -41,11 +42,15 @@ public class OutputHtmlViewTests
         await FlushPendingApply(); // let the initial bind's apply run before the burst below
 
         for (var i = 0; i < 1000; i++)
-            vm.Content = $"<div>{i}</div>";
+            vm.Append($"<div>{i}</div>");
         await FlushPendingApply();
 
         Assert.Equal(2, view.ApplyCount); // one for the initial bind, one for the whole burst
-        Assert.Contains("<body><div>999</div></body>", view.RenderedHtml);
+        // Content accumulates (real AppendOutput usage) rather than being replaced each time — the
+        // burst's very first and very last lines both being present confirms nothing in the middle
+        // was skipped by the coalescing, only that the intermediate APPLIES were coalesced.
+        Assert.Contains("<body><div>0</div>", view.RenderedHtml);
+        Assert.Contains("<div>999</div></body>", view.RenderedHtml);
     }
 
     // The real apply runs at Background dispatcher priority — awaiting a no-op posted at the same

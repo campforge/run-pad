@@ -246,7 +246,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
-        s.Output.Content = "";
+        s.Output.Clear();
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
@@ -550,9 +550,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         if (kind == OutputKind.StandardError)
-            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>");
         else
-            State.Output.Content += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Append($"\n<div>{HttpUtility.HtmlEncode(data)}</div>");
         UpdateOutputUi();
     }
 
@@ -573,19 +573,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 var id = idMatch.Groups[1].Value;
                 if (State.DumpContainerBlocks.TryGetValue(id, out var previous))
-                    State.Output.Content = State.Output.Content.Replace(previous, wrapped);
+                    State.Output.Replace(previous, wrapped);
                 else
-                    State.Output.Content += wrapped;
+                    State.Output.Append(wrapped);
                 State.DumpContainerBlocks[id] = wrapped;
             }
             else
             {
-                State.Output.Content += wrapped;
+                State.Output.Append(wrapped);
             }
         }
         catch
         {
-            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>");
         }
 
         UpdateOutputUi();
@@ -594,9 +594,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void AppendError(Exception ex)
     {
         State.HadRunError = true;
-        State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
+        State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>");
         if (ex.StackTrace is { } st)
-            State.Output.Content += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
+            State.Output.Append($"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>");
         SetStatus("Error", "DotPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
