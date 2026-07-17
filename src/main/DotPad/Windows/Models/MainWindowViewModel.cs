@@ -80,6 +80,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Feeds MainWindow.axaml's File > Save MenuItem.InputGesture — same rationale as
+    // OpenDependenciesGesture above.
+    public KeyGesture? SaveGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.Save); }
+            catch { return null; }
+        }
+    }
+
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;

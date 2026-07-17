@@ -82,6 +82,148 @@ public class EditorTabsControlTests
         }
     }
 
+    // Bug report 2026-07-17: "if I save a file, IsDirty doesn't reset" — root cause was that there
+    // was no actual Save action anywhere (no Ctrl+S, no menu item; only implicit saves on tab
+    // close/Run/etc., or the always-dialog "Save As"), so pressing Ctrl+S out of habit matched no
+    // gesture and silently did nothing — IsDirty correctly never cleared because nothing was ever
+    // written. EditorTabsControl.SaveActive (wired to the new Ctrl+S gesture) is the fix; this
+    // exercises it end-to-end against a real EditorsTabItemControl/CodeTextEditor, not just the
+    // ViewModel-level IsDirty flag.
+    [AvaloniaFact]
+    public async Task SaveActive_Should_WriteToDiskAndClearIsDirty_ForATabWithAPath()
+    {
+        var tmpDir = Directory.CreateTempSubdirectory("dotpad-save-active-test").FullName;
+        try
+        {
+            var filePath = Path.Combine(tmpDir, "demo.rpad");
+            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+
+            var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+
+            var fileSystem = new Mock<IFileSystemService>();
+            fileSystem.Setup(f => f.Folder).Returns(tmpDir);
+            fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+
+            var theme = new Mock<IThemeService>();
+            theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+                new InterfaceTheme("Test", ThemeVariant.Dark, true),
+                new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+            var registry = new Mock<ILanguageHostRegistry>();
+            var buildCache = new Mock<IBuildCacheService>();
+            var intelliSense = new Mock<IIntelliSenseService>();
+
+            var mainVm = new MainWindowViewModel(
+                sdkProviders: [],
+                fileSystemService: fileSystem.Object,
+                windowService: new Mock<IWindowService>().Object,
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
+
+            var editorTabs = new EditorTabsControl(
+                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                new CSharpReferenceService(), buildCache.Object);
+
+            var host = new Window { Content = editorTabs };
+            host.Show();
+            editorTabs.Attach(mainVm);
+
+            mainVm.OpenTab(filePath);
+            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
+                await Task.Delay(20);
+            var tab = mainVm.ActiveTab!;
+
+            // OpenTab already closed the initial blank tab (opening a real file over a single blank
+            // tab), so exactly one realized control is expected here.
+            var ctrl = editorTabs.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>().Single();
+
+            ctrl.State.Editor.Text = "Console.WriteLine(2);";
+            Assert.True(tab.IsDirty);
+
+            editorTabs.SaveActive();
+
+            Assert.False(tab.IsDirty);
+            var written = RpadParser.TryParse(File.ReadAllText(filePath));
+            Assert.NotNull(written);
+            Assert.Contains("Console.WriteLine(2);", written!.RunCode);
+        }
+        finally
+        {
+            Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveActive_Should_FallBackToSaveAsDialog_ForAnUntitledTab()
+    {
+        var tmpDir = Directory.CreateTempSubdirectory("dotpad-save-active-untitled-test").FullName;
+        try
+        {
+            var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+
+            var fileSystem = new Mock<IFileSystemService>();
+            fileSystem.Setup(f => f.Folder).Returns(tmpDir);
+            fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+
+            var chosenPath = Path.Combine(tmpDir, "NewScript.rpad");
+            var windowService = new Mock<IWindowService>();
+            windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), tmpDir))
+                .ReturnsAsync(chosenPath);
+
+            var theme = new Mock<IThemeService>();
+            theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+                new InterfaceTheme("Test", ThemeVariant.Dark, true),
+                new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+            var registry = new Mock<ILanguageHostRegistry>();
+            var buildCache = new Mock<IBuildCacheService>();
+            var intelliSense = new Mock<IIntelliSenseService>();
+
+            var mainVm = new MainWindowViewModel(
+                sdkProviders: [],
+                fileSystemService: fileSystem.Object,
+                windowService: windowService.Object,
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
+
+            var editorTabs = new EditorTabsControl(
+                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                new CSharpReferenceService(), buildCache.Object);
+
+            var host = new Window { Content = editorTabs };
+            host.Show();
+            editorTabs.Attach(mainVm); // opens the initial untitled tab — no dialog wait needed, no disk file to parse
+            for (var i = 0; i < 100 && editorTabs.GetVisualDescendants().OfType<TabItem>()
+                     .Select(t => t.Content).OfType<EditorsTabItemControl>().SingleOrDefault() is null; i++)
+                await Task.Delay(20);
+
+            var tab = Assert.Single(mainVm.Tabs);
+            var ctrl = editorTabs.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>().Single();
+            ctrl.State.Editor.Text = "Console.WriteLine(1);";
+            Assert.True(tab.IsDirty);
+
+            editorTabs.SaveActive();
+            for (var i = 0; i < 100 && !File.Exists(chosenPath); i++)
+                await Task.Delay(20);
+
+            Assert.True(File.Exists(chosenPath));
+            Assert.Equal(chosenPath, tab.FilePath);
+            Assert.False(tab.IsDirty);
+        }
+        finally
+        {
+            Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
     // ANALYSIS.md TODO #66: EditorTabItemControl now pushes the tab's front-matter `kind:` into its
     // IntelliSense instance (mirroring the existing RefreshIntelliSensePackages/RefreshIntelliSenseUsings
     // pattern) so CSharpIntelliSenseService's live-analysis document can mirror the same kind-specific

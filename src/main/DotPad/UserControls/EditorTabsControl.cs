@@ -218,6 +218,23 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
     }
 
+    // Explicit Save (Ctrl+S) — the gap a user hit as "IsDirty doesn't reset when I save" (2026-07-17):
+    // there was no actual Save action anywhere, only implicit saves (tab close/Run/etc.) or the
+    // always-dialog "Save As", so Ctrl+S out of muscle memory matched nothing and silently did
+    // nothing. A tab with a real path just writes in place (SaveIfNeeded — despite the name, it
+    // writes unconditionally whenever FilePath is set, IsDirty or not, which is exactly explicit-Save
+    // semantics); an untitled tab has nowhere to write to yet, so it falls through to the same
+    // Save As flow as the tab context menu — matching every other editor's Ctrl+S-on-untitled
+    // behavior.
+    public void SaveActive()
+    {
+        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
+        if (vm.FilePath is not null)
+            ctrl.SaveIfNeeded();
+        else
+            _ = _vm.SaveTabAsAsync(vm, ctrl.WriteFile);
+    }
+
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
 

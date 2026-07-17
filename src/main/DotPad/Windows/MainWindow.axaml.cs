@@ -75,6 +75,11 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.GoToLineActive();
             e.Handled = true;
         }
+        else if (Match(e, kb.Save))
+        {
+            _editorTabs.SaveActive();
+            e.Handled = true;
+        }
         else if (Match(e, kb.OpenDependencies))
         {
             vm.OpenDependenciesWindow();
@@ -178,6 +183,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
         GetViewModel().NewRpadFile(language, kind.Value);
     }
+
+    private void Save_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveActive();
 
     // ── File tree ─────────────────────────────────────────────────────────────
 
