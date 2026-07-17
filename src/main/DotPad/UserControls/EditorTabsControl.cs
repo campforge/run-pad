@@ -282,6 +282,45 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _vm.CloseTab(vm);
     }
 
+    // TODO.md, "Жизненный цикл вкладок (остаток)": the per-tab confirmation above only fires when a
+    // SPECIFIC tab is closed — quitting the whole app skipped it entirely, discarding every unsaved
+    // untitled tab's content at once with no warning. MainWindow's Closing handler checks this first
+    // (cheap, synchronous) before deciding whether it even needs to cancel the close and await
+    // ConfirmCloseAllUnsavedTabsAsync below.
+    public bool HasUnsavedUntitledTabs()
+        => _vm?.Tabs.Any(t => t.FilePath is null && t.IsDirty) ?? false;
+
+    // Walks every dirty untitled tab (not just the active one) asking the same Save/Don't
+    // Save/Cancel question RequestCloseTabAsync asks for a single tab — stops at the first Cancel
+    // (or the first Save whose own Save As dialog gets cancelled) rather than working through the
+    // rest, same as VS Code's behavior on quit. Deliberately doesn't remove tabs from Tabs or touch
+    // _tabs itself — the whole window is about to close either way, so there's nothing to tidy up in
+    // the UI, only content to not lose.
+    public async Task<bool> ConfirmCloseAllUnsavedTabsAsync()
+    {
+        if (_vm is null) return true;
+
+        // Snapshotted: nothing in this loop removes a tab, but SaveTabAsAsync does rebind FilePath —
+        // iterating a live view of Tabs while that happens is asking for trouble even if today's
+        // mutation pattern happens not to invalidate the enumerator.
+        foreach (var vm in _vm.Tabs.ToList())
+        {
+            if (vm.FilePath is not null || !vm.IsDirty) continue;
+            if (!_tabs.TryGetValue(vm, out var entry)) continue;
+
+            var choice = await _vm.ConfirmDiscardUnsavedChangesAsync(vm.FileName);
+            if (choice == UnsavedChangesResult.Cancel) return false;
+
+            if (choice == UnsavedChangesResult.Save)
+            {
+                await _vm.SaveTabAsAsync(vm, entry.Control.WriteFile);
+                if (vm.FilePath is null) return false; // Save As was itself cancelled/failed
+            }
+        }
+
+        return true;
+    }
+
     private EditorsTabItemControl? GetActiveControl()
     {
         if (_vm?.ActiveTab is { } vm && _tabs.TryGetValue(vm, out var entry))

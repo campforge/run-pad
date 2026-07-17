@@ -13,6 +13,11 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
 
+    // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
+    // clicked the confirmed, second time through" apart from the very first Closing that it itself
+    // cancels to go ask about unsaved untitled tabs.
+    private bool _confirmedClose;
+
     public MainWindow(
         IPreferencesService prefs,
         EditorTabsControl editorTabsCtrl,
@@ -31,6 +36,26 @@ public sealed partial class MainWindow : Window, IDisposable
 
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
+
+        Closing += OnClosing;
+    }
+
+    // TODO.md, "Жизненный цикл вкладок (остаток)": quitting the app used to skip the per-tab
+    // unsaved-changes confirmation entirely, discarding every unsaved untitled tab's content at
+    // once. Window.Closing can't itself await a dialog — it has to cancel synchronously first, then
+    // (if the user actually wants to proceed) call Close() again for real once the async
+    // confirmation resolves; _confirmedClose tells that second, real close apart from the first one
+    // this handler itself cancelled.
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_confirmedClose) return;
+        if (!_editorTabs.HasUnsavedUntitledTabs()) return;
+
+        e.Cancel = true;
+        if (!await _editorTabs.ConfirmCloseAllUnsavedTabsAsync()) return;
+
+        _confirmedClose = true;
+        Close();
     }
 
     // ── Global keyboard shortcuts ─────────────────────────────────────────────
