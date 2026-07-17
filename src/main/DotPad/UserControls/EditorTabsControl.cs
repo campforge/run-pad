@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Reactive.Disposables;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
@@ -19,7 +20,7 @@ namespace DotPad.UserControls;
 
 public partial class EditorTabsControl : UserControl, IDisposable
 {
-    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
+    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control, IDisposable CommandSubs)> _tabs = new();
     private IDisposable? _activeTabSub;
     private bool _disposed;
 
@@ -114,7 +115,16 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 }
 
                 var tab = AddTabItem(ctrl, vm, fileTabControl);
-                _tabs[vm] = (tab, ctrl);
+                // Save As/Duplicate need the View layer (ctrl.WriteFile serializes this tab's live
+                // editor content), unlike CloseCommand/OpenContainingFolderCommand — which stay
+                // subscribed from MainWindowViewModel itself, since neither needs it — so they're
+                // wired here instead, where both vm and ctrl are already in hand.
+                var commandSubs = new CompositeDisposable
+                {
+                    vm.SaveAsCommand.Subscribe(unit => { _ = _vm!.SaveTabAsAsync(vm, ctrl.WriteFile); }),
+                    vm.DuplicateCommand.Subscribe(unit => _vm!.DuplicateTab(vm, ctrl.WriteFile)),
+                };
+                _tabs[vm] = (tab, ctrl, commandSubs);
 
                 // ActiveTab may already have been set to vm (e.g. it's the tab that was just
                 // opened) before this entry existed — OnActiveTabChanged no-ops in that case, so
@@ -130,6 +140,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             {
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
                 entry.Control.SaveIfNeeded();
+                entry.CommandSubs.Dispose();
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
@@ -170,7 +181,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private void OnThemeChanged(ActiveTheme theme)
     {
-        foreach (var (_, ctrl) in _tabs.Values)
+        foreach (var (_, ctrl, _) in _tabs.Values)
             ctrl.ApplyTheme(theme);
     }
 
@@ -249,9 +260,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
         }
         _activeTabSub?.Dispose();
 
-        foreach (var (tabVm, (_, ctrl)) in _tabs)
+        foreach (var (tabVm, (_, ctrl, commandSubs)) in _tabs)
         {
             ctrl.SaveIfNeeded();
+            commandSubs.Dispose();
             ctrl.Dispose();
             tabVm.Dispose();
         }
@@ -271,8 +283,13 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // IntelliSense is C#-only today (see CSharpIntelliSenseService) — peek the file's own front
         // matter here (the same cheap parse EditorsTabItemControl.SetDocumentContent does again
         // later) so a non-C# tab never gets a C# IntelliSense instance built for it in the first
-        // place, rather than building one and leaving it unused.
-        var language = RpadFilePeek.PeekLanguage(vm.FilePath);
+        // place, rather than building one and leaving it unused. A brand-new, never-saved tab
+        // (vm.FilePath is null) has no file to peek — PeekLanguage(null) always answers C#, which
+        // used to be harmless only because "New File" wrote the real front matter to disk before
+        // ever opening a tab (see NewRpadFile's old eager-write). Now that creation is deferred (see
+        // NewRpadFile), a new VB tab would otherwise get a live C# IntelliSense instance wired up
+        // against VB source text until its first save — read the tab's own pending choice instead.
+        var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekLanguage(vm.FilePath);
         var factory = _intelliSenseFactory;
         var intelliSense = factory is not null && language == RpadLanguage.CSharp
             ? await Task.Run(factory.Invoke)

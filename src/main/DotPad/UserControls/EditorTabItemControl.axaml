@@ -10,7 +10,27 @@
     <UserControl.Resources>
         <DataTemplate x:Key="TabHeaderTemplate" x:DataType="vm:EditorTabItemViewModel">
             <StackPanel Orientation="Horizontal" Spacing="4">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Save As..." Command="{Binding SaveAsCommand}">
+                            <MenuItem.Icon>
+                                <PathIcon Data="{StaticResource Icon.Save}" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" IsEnabled="{Binding HasFilePath}">
+                            <MenuItem.Icon>
+                                <PathIcon Data="{StaticResource Icon.Duplicate}" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Open Containing Folder" Command="{Binding OpenContainingFolderCommand}" IsEnabled="{Binding HasFilePath}">
+                            <MenuItem.Icon>
+                                <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <TextBlock Text="{Binding FileName}"
+                           Classes.dirty="{Binding IsDirty}"
                            VerticalAlignment="Center"
                            FontSize="12"/>
                 <Button Classes="TabClose"

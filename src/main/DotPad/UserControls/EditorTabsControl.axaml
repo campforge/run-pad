@@ -111,6 +111,18 @@
             <Setter Property="Opacity" Value="1"/>
         </Style>
 
+        <!-- Dirty indicator (TODO.md, "Жизненный цикл вкладок") — the header's TextBlock lives here,
+             not in EditorTabItemControl.axaml: TabHeaderTemplate is fetched from that UserControl's
+             own Resources but applied as THIS TabControl's TabItem.HeaderTemplate (see
+             EditorTabsControl.AddTabItem), so the realized TextBlock ends up in this control's visual
+             tree, where TabItem's own Style above lives — not inside EditorsTabItemControl's (that
+             one only ever becomes the TabItem's Content, a sibling of the header, not an ancestor of
+             it). A Style scoped to EditorTabItemControl.axaml's own UserControl.Styles would simply
+             never match. -->
+        <Style Selector="TabControl#FileTabControl TextBlock.dirty">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Tab.DirtyBrush}"/>
+        </Style>
+
     </UserControl.Styles>
 
     <Panel>

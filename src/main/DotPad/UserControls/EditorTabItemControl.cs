@@ -93,6 +93,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
 
+        // Dirty indicator (TODO.md, "Жизненный цикл вкладок") — attached only AFTER the initial
+        // SetDocumentContent call above, not before: setting editor.Document there fires TextChanged
+        // synchronously (see the comment inside SetDocumentContent on RefreshIntelliSenseKind's
+        // ordering for the same fact), which would otherwise flag a just-opened, untouched tab as
+        // dirty on its very first frame — including a brand-new empty tab, which has nothing
+        // unsaved yet until the user actually types something.
+        editor.TextChanged += (_, _) => _vm.IsDirty = true;
+
         // Snippets and the editor's lexical/syntactic profile are both per-language (see
         // ILanguageHostFactory.Snippets/EditorProfile) — populated here rather than in SetupEditor
         // because SetupEditor runs before SetDocumentContent, when ResolveLanguageId can't yet see
@@ -187,12 +195,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
+    // Deliberately a no-op for a tab with no FilePath yet (TODO.md, "Жизненный цикл вкладок") — an
+    // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
+    // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
     internal void SaveIfNeeded()
     {
         if (_vm.FilePath is null) return;
         try
         {
             WriteFile(_vm.FilePath);
+            _vm.IsDirty = false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -204,7 +216,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private void WriteFile(string path)
+    // internal (not private): reused by MainWindowViewModel.SaveTabAsAsync/DuplicateTab (via
+    // EditorTabsControl, which wires the tab's SaveAsCommand/DuplicateCommand to it) to write this
+    // tab's current content to a path other than _vm.FilePath — the exact same serialization
+    // SaveIfNeeded already uses for the normal save path, just parameterized on the target path.
+    internal void WriteFile(string path)
     {
         if (State.RpadDocument is { } rpad)
         {
@@ -243,6 +259,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 WriteFile(_vm.FilePath);
+                _vm.IsDirty = false;
             }
             catch (Exception ex)
             {
@@ -952,7 +969,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (filePath is null)
         {
-            content = ResourceLoader.LoadSampleFile(string.Empty);
+            // Deferred creation (TODO.md, "Жизненный цикл вкладок") — a brand-new tab is genuinely
+            // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
+            // Save/Save As. It still gets a real (in-memory) RpadDocument built from the language/kind
+            // chosen in NewFileKindDialog (_vm.NewFileLanguage/NewFileKind) rather than staying null —
+            // that's what lets the toolbar's kind combobox, IntelliSense's kind-aware analysis, and
+            // Run/Debug all already behave correctly for the chosen language/kind before the first
+            // save, the same as they do for a file freshly loaded from disk.
+            content = "";
+            rpad = RpadParser.TryParse(RpadWriter.NewFile(
+                title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind, code: content));
         }
         else if (File.Exists(filePath))
         {
