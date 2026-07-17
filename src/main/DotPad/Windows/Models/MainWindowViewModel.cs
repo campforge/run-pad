@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -128,14 +129,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _activeTab, value);
     }
 
+    // Deliberately doesn't touch disk (TODO.md, "Жизненный цикл вкладок") — a new script starts
+    // empty and in-memory-only; it only becomes a real file the first time the user does Save or
+    // Save As (SaveTabAsAsync below). language/kind are carried on the tab itself
+    // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet
+    // for EditorsTabItemControl.SetDocumentContent/EditorTabsControl.CreateControlAsync to read them
+    // from.
     public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
     {
-        var path = _fileSystemService.CreateNewFile();
-        var title = Path.GetFileNameWithoutExtension(path);
-        File.WriteAllText(path, RpadWriter.NewFile(title, language: language, kind: kind), System.Text.Encoding.UTF8);
-
-        RefreshNodes();
-        OpenTab(path);
+        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, language, kind);
+        AddTab(vm);
     }
 
     public void OpenTab(string? filePath)
@@ -152,14 +155,90 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs);
-        _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
-
         if (filePath is not null) _openTabs[filePath] = vm;
-        Tabs.Add(vm);
-        ActiveTab = vm;
+        AddTab(vm);
 
         if (blankToClose is not null)
             CloseTab(blankToClose);
+    }
+
+    private void AddTab(EditorTabItemViewModel vm)
+    {
+        var subs = new CompositeDisposable
+        {
+            vm.CloseCommand.Subscribe(_ => CloseTab(vm)),
+            vm.OpenContainingFolderCommand.Subscribe(_ =>
+            {
+                if (vm.FilePath is { } path) OpenContainingFolder(path);
+            }),
+        };
+        _closeSubscriptions[vm] = subs;
+
+        Tabs.Add(vm);
+        ActiveTab = vm;
+    }
+
+    // Called after a Save As (or the first Save of a brand-new, never-saved tab) actually writes
+    // `newPath` to disk — rebinds the tab from "untitled" (or its old path) to the new one, the same
+    // bookkeeping RenameFile already does for a file-tree rename, just triggered from the tab side
+    // instead of the tree.
+    public async Task SaveTabAsAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
+    {
+        var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
+        if (newPath is null) return; // cancelled
+
+        try
+        {
+            writeToPath(newPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _windowService.ShowErrorAsync(
+                "Save Failed", $"Could not save '{Path.GetFileName(newPath)}':\n{ex.Message}");
+            return;
+        }
+
+        if (vm.FilePath is { } oldPath) _openTabs.Remove(oldPath);
+        vm.FilePath = newPath;
+        vm.IsDirty = false;
+        _openTabs[newPath] = vm;
+        RefreshNodes();
+    }
+
+    // Tab context menu's "Duplicate" — copies the tab's CURRENT (possibly unsaved) content to a new,
+    // free filename next to the original, then opens it as its own tab. Only meaningful for a tab
+    // that already has a home on disk (see EditorTabItemViewModel.HasFilePath, which gates the menu
+    // item itself) — an untitled tab has no "next to" to duplicate into.
+    public void DuplicateTab(EditorTabItemViewModel vm, Action<string> writeToPath)
+    {
+        if (vm.FilePath is not { } sourcePath) return;
+
+        var dir = Path.GetDirectoryName(sourcePath)!;
+        var baseName = Path.GetFileNameWithoutExtension(sourcePath);
+        var ext = Path.GetExtension(sourcePath);
+
+        string newPath;
+        var i = 1;
+        do
+        {
+            var suffix = i == 1 ? " copy" : $" copy {i}";
+            newPath = Path.Combine(dir, $"{baseName}{suffix}{ext}");
+            i++;
+        } while (File.Exists(newPath));
+
+        try
+        {
+            writeToPath(newPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _windowService.ShowErrorAsync(
+                "Duplicate Failed", $"Could not create '{Path.GetFileName(newPath)}':\n{ex.Message}");
+            return;
+        }
+
+        RefreshNodes();
+        OpenTab(newPath);
     }
 
     internal void CloseActiveTab()

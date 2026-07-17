@@ -142,6 +142,78 @@ public class EditorTabsControlTests
         }
     }
 
+    // TODO.md, "Жизненный цикл вкладок": CreateControlAsync used to always RpadFilePeek.PeekLanguage
+    // (vm.FilePath) to decide whether to build a C# IntelliSense instance — harmless while every new
+    // file was written to disk (with correct front matter) before its tab ever opened, since
+    // PeekLanguage would then read the real language back off disk. Now that file creation is
+    // deferred (NewRpadFile no longer touches disk), PeekLanguage(null) always answers C# regardless
+    // of what the user actually picked, which would wire a live C# IntelliSense instance up against
+    // VB source text for a brand-new VB tab until its first save.
+    [AvaloniaFact]
+    public async Task NewRpadFile_ForVb_Should_NotBuildACSharpIntelliSenseInstance()
+    {
+        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-vb-newfile-test").FullName;
+        try
+        {
+            var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+            prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+            prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+
+            var fileSystem = new Mock<IFileSystemService>();
+            fileSystem.Setup(f => f.Folder).Returns(tmpDir);
+            fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+
+            var theme = new Mock<IThemeService>();
+            theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+                new InterfaceTheme("Test", ThemeVariant.Dark, true),
+                new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+            var registry = new Mock<ILanguageHostRegistry>();
+            var buildCache = new Mock<IBuildCacheService>();
+            var intelliSense = new Mock<IIntelliSenseService>();
+            var intelliSenseFactoryCalls = 0;
+
+            var mainVm = new MainWindowViewModel(
+                sdkProviders: [],
+                fileSystemService: fileSystem.Object,
+                windowService: new Mock<IWindowService>().Object,
+                prefs: prefs.Object,
+                languageRegistry: new LanguageHostRegistry());
+
+            var editorTabs = new EditorTabsControl(
+                theme.Object, registry.Object, prefs.Object,
+                () => { intelliSenseFactoryCalls++; return intelliSense.Object; },
+                new CSharpReferenceService(), buildCache.Object);
+
+            var host = new Window { Content = editorTabs };
+            host.Show();
+            editorTabs.Attach(mainVm); // opens the initial (C#) blank tab — 1 factory call expected
+
+            // Wait for the initial blank (C#) tab's own factory call — it runs its Task.Run off the
+            // UI thread (see CreateControlAsync), so it isn't guaranteed to have landed the instant
+            // Attach() returns above.
+            for (var i = 0; i < 100 && intelliSenseFactoryCalls < 1; i++)
+                await Task.Delay(20);
+            Assert.Equal(1, intelliSenseFactoryCalls);
+
+            mainVm.NewRpadFile(RpadLanguage.Vb);
+            for (var i = 0; i < 100 && mainVm.Tabs.Count < 2; i++)
+                await Task.Delay(20);
+
+            // The VB tab's own CreateControlAsync never hits a real await (PeekLanguage-equivalent
+            // resolves to Vb synchronously, see the comment above), so there's no async gap to wait
+            // out here — but poll a little longer anyway rather than assert immediately, in case that
+            // assumption ever stops holding.
+            await Task.Delay(50);
+            Assert.Equal(1, intelliSenseFactoryCalls);
+        }
+        finally
+        {
+            Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
     // Reported by user 2026-07-16: opening/creating enough scripts that the tab headers no longer
     // fit used to make them overlap (WrapPanel capped to a single row's height via MaxHeight="30",
     // see EditorTabsControl.axaml) instead of being reachable at all. FileTabControl's ItemsPanel is

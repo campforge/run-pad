@@ -21,11 +21,17 @@ public static class RpadWriter
         string title = "Untitled",
         string targetSdk = "net10.0",
         RpadKind kind = RpadKind.Statements,
-        RpadLanguage language = RpadLanguage.CSharp)
+        RpadLanguage language = RpadLanguage.CSharp,
+        // Overrides the per-kind/language "Hello, RPad!" sample below with caller-supplied code
+        // (e.g. empty string) — used for a brand-new, never-saved tab (see
+        // MainWindowViewModel.NewRpadFile), which should start genuinely empty rather than with
+        // boilerplate the user didn't ask for. null (default) preserves the sample for every other
+        // caller (CLI/tests/the pre-deferred-creation "New RPad File" menu behavior).
+        string? code = null)
     {
         var languageId = language.ToLanguageId();
 
-        var code = (language, kind) switch
+        code ??= (language, kind) switch
         {
             (RpadLanguage.Vb, RpadKind.Program) =>
                 "Module Program\nSub Main()\n\nEnd Sub\nEnd Module\n\n' You can define other methods, fields, classes and namespaces here\n",
@@ -35,6 +41,14 @@ public static class RpadWriter
             (_, RpadKind.Expression) => "\"Hello, RPad!\"\n",
             _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
+
+        // Every built-in sample above already ends with '\n', but a caller-supplied override (e.g.
+        // "" for a brand-new empty tab) might not — without a trailing newline (even an empty code
+        // block needs one), the closing fence below lands glued onto the same physical line as the
+        // code instead of starting its own line, which RpadParser.FindClosingFence requires to
+        // recognize it as a closing fence at all. Same guard Write() already applies to RunCode for
+        // the same reason.
+        if (!code.EndsWith('\n')) code += "\n";
         return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
