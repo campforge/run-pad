@@ -827,6 +827,11 @@ public class CodeTextEditor : TextEditor
         // -> "WriWriteLine"). Walking back over the already-typed identifier fixes the replace range.
         window.StartOffset = GetWordStart(TextArea.Caret.Offset);
 
+        // TODO.md #60.5: Tab should replace any pre-existing remainder of the word the caret is
+        // inside (e.g. "Cons|ole" -> accepting "Console" via Tab should produce "Console", not
+        // "Consoleole"), while Enter leaves it alone — see CompletionWindow.WordEndOffsetProvider.
+        window.WordEndOffsetProvider = GetWordEnd;
+
         window.Show();
 
         // AvaloniaEdit only (re-)filters and pre-selects the best match from CaretPositionChanged
@@ -863,6 +868,19 @@ public class CodeTextEditor : TextEditor
         var pos = Math.Clamp(offset, 0, text.Length);
         while (pos > 0 && (char.IsLetterOrDigit(text[pos - 1]) || identifierChars.Contains(text[pos - 1])))
             pos--;
+        return pos;
+    }
+
+    private int GetWordEnd(int offset) => GetWordEnd(Document.Text, offset, IdentifierChars);
+
+    // Mirrors GetWordStart, walking forward instead — finds where a pre-existing remainder of the
+    // word at offset ends, so a Tab-triggered commit (CompletionWindow.WordEndOffsetProvider) can
+    // consume it instead of leaving it dangling after the inserted completion text.
+    internal static int GetWordEnd(string text, int offset, IReadOnlySet<char> identifierChars)
+    {
+        var pos = Math.Clamp(offset, 0, text.Length);
+        while (pos < text.Length && (char.IsLetterOrDigit(text[pos]) || identifierChars.Contains(text[pos])))
+            pos++;
         return pos;
     }
 

@@ -920,19 +920,38 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
                 .ToList();
 
-            if (methods.Count == 0 && callLike is InvocationExpressionSyntax { Expression: { } target })
-                methods = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
-
-            // Overload resolution came up with nothing usable (e.g. still typing, 0 arguments so far)
-            // — fall back to every accessible constructor of the target type, the object-creation
-            // equivalent of the GetMemberGroup fallback above.
-            if (methods.Count == 0 && callLike is BaseObjectCreationExpressionSyntax objectCreation)
+            // TODO.md #60.9 ("все перегрузки"): Roslyn only populates CandidateSymbols when
+            // resolution is ambiguous — a call already typed correctly and unambiguously resolves
+            // straight to one Symbol, which used to collapse "all overloads" down to just that one
+            // even when the method has siblings (the insight window's up/down cycling had nothing
+            // to cycle through for the single most common case: sitting inside an already-valid
+            // call). Always try the full member/constructor group instead of only when methods is
+            // still empty, falling back to whatever GetSymbolInfo alone found only if the group
+            // lookup itself comes up empty (e.g. invoking through a delegate-typed local, which has
+            // no "group" to speak of). SelectBestOverloadIndex below re-derives which entry actually
+            // matches what's typed, so widening this list doesn't change what starts out highlighted.
+            if (callLike is InvocationExpressionSyntax { Expression: { } target })
             {
-                var createdType = objectCreation is ObjectCreationExpressionSyntax named
-                    ? model.GetTypeInfo(named.Type).Type
-                    : model.GetTypeInfo(objectCreation).Type; // target-typed `new(...)` — infer from context
+                var group = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
+                if (group.Count > 0) methods = group;
+            }
+            else if (callLike is BaseObjectCreationExpressionSyntax objectCreation)
+            {
+                // GetTypeInfo on the object-creation EXPRESSION itself, not its .Type child node —
+                // the latter (what this used to read) comes back null for a type declared in the
+                // same document being analyzed (reproduced by TryGetSignatureHelpAsync's own tests:
+                // a locally-declared class's constructor overloads never showed up at all, only a
+                // referenced-assembly type's like System.Text.StringBuilder's did) — apparently a
+                // quirk of this in-memory AdhocWorkspace setup, not something specific to
+                // target-typed `new(...)` (which has no .Type node to read in the first place, the
+                // original reason this expression-based lookup existed at all, just not used
+                // unconditionally).
+                var createdType = model.GetTypeInfo(objectCreation).Type;
                 if (createdType is INamedTypeSymbol namedType)
-                    methods = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
+                {
+                    var ctors = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
+                    if (ctors.Count > 0) methods = ctors;
+                }
             }
 
             if (methods.Count == 0) return null;

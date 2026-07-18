@@ -131,6 +131,45 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.Contains("int b", string.Concat(selected.Signature.Select(s => s.Text)));
     }
 
+    // TODO.md #60.9: a call already typed correctly and unambiguously used to collapse the overload
+    // list down to just the one Roslyn resolved to (SymbolInfo.CandidateSymbols is only populated
+    // for ambiguous/unresolved calls) — leaving the insight window's up/down cycling with nothing to
+    // cycle through for the single most common case: reviewing/editing an already-valid call.
+    [Fact]
+    public async Task SignatureHelp_Should_ShowEveryOverload_ForAnAlreadyValidAndUnambiguousCall()
+    {
+        using var service = CreateService();
+        // Closed argument list, single ambiguity-free argument — this resolves to exactly one
+        // Symbol (unlike the other tests above, which all use an unclosed "(" specifically to keep
+        // resolution ambiguous), so this is the case that used to show only 1 of the 2 overloads.
+        const string code = "class C\n{\n    void Foo(int a) { }\n    void Foo(int a, int b) { }\n}\n" +
+            "var c = new C();\nc.Foo(1)";
+        var position = code.Length - 1; // inside the parens, right after "1"
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Items.Count);
+        var selected = result.Items[result.SelectedItemIndex];
+        Assert.DoesNotContain("int b", string.Concat(selected.Signature.Select(s => s.Text)));
+    }
+
+    // Same fix, constructor side — "new C(1)" resolves unambiguously to one constructor, but C has
+    // an overload.
+    [Fact]
+    public async Task SignatureHelp_Should_ShowEveryConstructorOverload_ForAnAlreadyValidAndUnambiguousCall()
+    {
+        using var service = CreateService();
+        const string code = "class C\n{\n    public C(int a) { }\n    public C(int a, int b) { }\n}\n" +
+            "var c = new C(1)";
+        var position = code.Length - 1;
+
+        var result = await service.GetSignatureHelpAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Items.Count);
+    }
+
     // No candidate's parameter types match perfectly (bool isn't implicitly convertible to either int
     // or string) — must fall back to the pre-existing arity-only match rather than throwing or
     // returning an out-of-range index.

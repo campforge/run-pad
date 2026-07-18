@@ -19,10 +19,15 @@ public class ReferencePathMacrosTests
     [Fact]
     public void Expand_Should_ReplaceCurrentQueryPath_WithTheContainingDirectory_NotTheFilePathItself()
     {
-        var expanded = ReferencePathMacros.Expand(
-            "$(CurrentQueryPath)/Lib.dll", currentQueryPath: "/home/user/scripts/query.rpad");
+        // Built via Path.Combine/GetDirectoryName rather than a hardcoded "/home/user/..." literal —
+        // GetDirectoryName normalizes to the platform's own separator (backslashes on Windows), so a
+        // forward-slash-only expected string here would fail on Windows CI while passing on Linux/Mac.
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var expectedDir = Path.GetDirectoryName(currentQueryPath);
 
-        Assert.Equal("/home/user/scripts/Lib.dll", expanded);
+        var expanded = ReferencePathMacros.Expand("$(CurrentQueryPath)/Lib.dll", currentQueryPath);
+
+        Assert.Equal(expectedDir + "/Lib.dll", expanded);
     }
 
     [Fact]
@@ -36,11 +41,14 @@ public class ReferencePathMacrosTests
     [Fact]
     public void Expand_Should_ExpandMultipleMacrosInTheSameReference()
     {
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var expectedDir = Path.GetDirectoryName(currentQueryPath);
+
         var expanded = ReferencePathMacros.Expand(
-            "$(CurrentQueryPath)/../$(MyDocuments)/Foo.dll", currentQueryPath: "/home/user/scripts/query.rpad");
+            "$(CurrentQueryPath)/../$(MyDocuments)/Foo.dll", currentQueryPath);
 
         Assert.DoesNotContain("$(CurrentQueryPath)", expanded);
         Assert.DoesNotContain("$(MyDocuments)", expanded);
-        Assert.StartsWith("/home/user/scripts/../", expanded);
+        Assert.StartsWith(expectedDir + "/../", expanded);
     }
 }
