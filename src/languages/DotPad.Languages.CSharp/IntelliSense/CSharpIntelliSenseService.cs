@@ -1151,6 +1151,72 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
 
+    // ── Document Highlights ──────────────────────────────────────────────────────
+
+    // TODO.md #62 "подсветка вхождений": Roslyn ships a ready-made IDocumentHighlightsService for
+    // exactly this, but it (and its result types DocumentHighlights/HighlightSpan) are internal to
+    // Microsoft.CodeAnalysis.Features — not reachable from here even though that assembly is already
+    // loaded into DotPadRoslynHost's MEF composition (confirmed directly: referencing the type by
+    // name fails to compile with CS0122, "inaccessible due to its protection level"). Reimplemented
+    // with only public Roslyn API instead: find the symbol under the caret, then scan every
+    // identifier token in the document for one that resolves to the same symbol.
+    public Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<IDocumentHighlightSpan>?> TryGetDocumentHighlightsAsync(
+        string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var pos = position + HeaderLength(code);
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+            var token = root.FindToken(pos);
+            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+            var symbol = ResolveTokenSymbol(model, token);
+            if (symbol == null) return null;
+
+            var header = HeaderLength(code);
+            var highlights = new List<IDocumentHighlightSpan>();
+            foreach (var candidate in root.DescendantTokens())
+            {
+                ct.ThrowIfCancellationRequested();
+                // Cheap text check before the semantic lookup — most identifiers in the document
+                // aren't even textually the same name, no need to ask the semantic model about them.
+                if (!candidate.IsKind(SyntaxKind.IdentifierToken) || candidate.ValueText != token.ValueText)
+                    continue;
+
+                var candidateSymbol = ResolveTokenSymbol(model, candidate);
+                if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
+                    continue;
+
+                var userStart = candidate.SpanStart - header;
+                if (userStart < 0) continue; // inside the prepended usings preamble, not user code
+                highlights.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
+            }
+
+            return highlights;
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Document highlights failed"); return null; }
+    }
+
+    // Shared by both the caret's own token and every candidate token scanned against it — a
+    // declaration site (e.g. the identifier in "var x = ...") has no GetSymbolInfo result of its
+    // own (that call is for usages/references), only GetDeclaredSymbol; a usage is the opposite.
+    // Trying both, in this order, covers either kind of identifier token uniformly.
+    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token) =>
+        model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+
     // ── Format ─────────────────────────────────────────────────────────────────
 
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
@@ -1437,6 +1503,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleQuickInfoResult(
         IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : IQuickInfoResult;
+
+    private sealed record SimpleDocumentHighlightSpan(int Start, int Length) : IDocumentHighlightSpan;
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,

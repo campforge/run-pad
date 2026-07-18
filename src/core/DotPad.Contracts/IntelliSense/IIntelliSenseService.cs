@@ -21,6 +21,14 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // TODO.md #62 "подсветка вхождений": every occurrence of the symbol at position, elsewhere in
+    // the same document (for highlighting them all while the caret sits on one) — null when
+    // position isn't on an identifier that resolves to any symbol.
+    Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.
