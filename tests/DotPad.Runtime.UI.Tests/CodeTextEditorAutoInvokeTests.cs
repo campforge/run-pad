@@ -142,6 +142,25 @@ public class CodeTextEditorAutoInvokeTests
         Assert.Equal(2, CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
     }
 
+    // TODO.md #60.5: a Tab-triggered commit consumes any pre-existing remainder of the word the
+    // caret is inside — GetWordEnd finds where that remainder stops, mirroring GetWordStart above.
+    [Theory]
+    [InlineData("Console", 4, 7)] // "Cons|ole" — caret mid-word, "ole" is the remainder to consume
+    [InlineData("Console", 7, 7)] // caret already at the end — nothing left to walk over
+    [InlineData("my_field", 2, 8)] // '_' only counts as part of the remainder when configured
+    public void GetWordEnd_Should_WalkForwardToTheEndOfTheWordBeingCompleted(
+        string text, int offset, int expectedEnd)
+    {
+        Assert.Equal(expectedEnd, CodeTextEditor.GetWordEnd(text, offset, CSharpIdentifierChars));
+    }
+
+    [Fact]
+    public void GetWordEnd_Should_NotWalkPastANonIdentifierCharacter()
+    {
+        // "Cons|.Wri" — a '.' right after the caret isn't part of the remainder.
+        Assert.Equal(4, CodeTextEditor.GetWordEnd("Cons.Wri", 4, CSharpIdentifierChars));
+    }
+
     // ANALYSIS.md #54: typing '_' mid-identifier used to commit the completion window's selected item
     // (only char.IsLetterOrDigit was excluded, not the language's own IdentifierChars), and space
     // committed unconditionally — swapping a still-being-typed word for an unrelated prefix match

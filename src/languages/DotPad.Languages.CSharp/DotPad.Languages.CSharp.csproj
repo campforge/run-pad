@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\core\DotPad.Debug\DotPad.Debug.csproj" />
     <ProjectReference Include="..\..\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
     <ProjectReference Include="..\..\runtime\DotPad.Runtime\DotPad.Runtime.csproj" />
+    <ProjectReference Include="..\DotPad.Languages.DotnetCommon\DotPad.Languages.DotnetCommon.csproj" />
   </ItemGroup>
 
   <ItemGroup>

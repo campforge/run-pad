@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Reactive.Disposables;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
@@ -19,7 +20,7 @@ namespace DotPad.UserControls;
 
 public partial class EditorTabsControl : UserControl, IDisposable
 {
-    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
+    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control, IDisposable CommandSubs)> _tabs = new();
     private IDisposable? _activeTabSub;
     private bool _disposed;
 
@@ -74,7 +75,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
 
-        vm.OpenTab(filePath: null);
+        // TODO.md, "Жизненный цикл вкладок (остаток)": restores the previous session's open tabs
+        // (in order) + active tab instead of always starting from one blank tab.
+        vm.RestoreSession();
     }
 
     // Dependencies window mutates the active tab's RpadFrontMatter in place, in memory only.
@@ -114,7 +117,18 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 }
 
                 var tab = AddTabItem(ctrl, vm, fileTabControl);
-                _tabs[vm] = (tab, ctrl);
+                // Save As/Duplicate/Close all need the View layer (ctrl.WriteFile serializes this
+                // tab's live editor content — Close needs it too now, for the "Save" choice in the
+                // unsaved-changes confirmation dialog), unlike OpenContainingFolderCommand, which
+                // stays subscribed from MainWindowViewModel itself since it doesn't — so they're
+                // wired here instead, where both vm and ctrl are already in hand.
+                var commandSubs = new CompositeDisposable
+                {
+                    vm.SaveAsCommand.Subscribe(unit => { _ = _vm!.SaveTabAsAsync(vm, ctrl.WriteFile); }),
+                    vm.DuplicateCommand.Subscribe(unit => _vm!.DuplicateTab(vm, ctrl.WriteFile)),
+                    vm.CloseCommand.Subscribe(unit => _ = RequestCloseTabAsync(vm, ctrl)),
+                };
+                _tabs[vm] = (tab, ctrl, commandSubs);
 
                 // ActiveTab may already have been set to vm (e.g. it's the tab that was just
                 // opened) before this entry existed — OnActiveTabChanged no-ops in that case, so
@@ -130,6 +144,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             {
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
                 entry.Control.SaveIfNeeded();
+                entry.CommandSubs.Dispose();
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
@@ -170,7 +185,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private void OnThemeChanged(ActiveTheme theme)
     {
-        foreach (var (_, ctrl) in _tabs.Values)
+        foreach (var (_, ctrl, _) in _tabs.Values)
             ctrl.ApplyTheme(theme);
     }
 
@@ -207,11 +222,104 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
     }
 
+    // Explicit Save (Ctrl+S) — the gap a user hit as "IsDirty doesn't reset when I save" (2026-07-17):
+    // there was no actual Save action anywhere, only implicit saves (tab close/Run/etc.) or the
+    // always-dialog "Save As", so Ctrl+S out of muscle memory matched nothing and silently did
+    // nothing. A tab with a real path just writes in place (SaveIfNeeded — despite the name, it
+    // writes unconditionally whenever FilePath is set, IsDirty or not, which is exactly explicit-Save
+    // semantics); an untitled tab has nowhere to write to yet, so it falls through to the same
+    // Save As flow as the tab context menu — matching every other editor's Ctrl+S-on-untitled
+    // behavior.
+    public void SaveActive()
+    {
+        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
+        if (vm.FilePath is not null)
+            ctrl.SaveIfNeeded();
+        else
+            _ = _vm.SaveTabAsAsync(vm, ctrl.WriteFile);
+    }
+
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
 
     public void GoToLineActive()
         => GetActiveControl()?.ShowGoToLine();
+
+    // Ctrl+W's entry point — replaces the old direct vm.CloseActiveTab() call (MainWindow.axaml.cs)
+    // now that closing needs to go through the same confirmation as the tab's own [x] button below.
+    public void CloseActiveTab()
+    {
+        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is not { } ctrl) return;
+        _ = RequestCloseTabAsync(vm, ctrl);
+    }
+
+    // TODO.md, "Жизненный цикл вкладок (остаток)": closing an untitled tab with real typed content
+    // used to discard it silently (SaveIfNeeded is a no-op without a FilePath) — same risk the
+    // original always-blank startup tab always had, just now hitting any untitled tab, not just one.
+    // Prompts Save/Don't Save/Cancel, same three-way choice every other editor gives here. Only the
+    // untitled+dirty case prompts at all — a tab with a real path already gets saved on close
+    // (EditorTabsControl.OnTabsCollectionChanged's OldItems branch calls SaveIfNeeded unconditionally),
+    // and a pristine untitled tab has nothing worth asking about.
+    private async Task RequestCloseTabAsync(EditorTabItemViewModel vm, EditorsTabItemControl ctrl)
+    {
+        if (_vm is null) return;
+
+        if (vm.FilePath is null && vm.IsDirty)
+        {
+            var choice = await _vm.ConfirmDiscardUnsavedChangesAsync(vm.FileName);
+            if (choice == UnsavedChangesResult.Cancel) return;
+
+            if (choice == UnsavedChangesResult.Save)
+            {
+                await _vm.SaveTabAsAsync(vm, ctrl.WriteFile);
+                // SaveTabAsAsync only assigns FilePath on success — still null means the Save As
+                // dialog it opens was itself cancelled (or the write failed), so treat that as
+                // "changed my mind about closing" rather than closing with the content lost anyway.
+                if (vm.FilePath is null) return;
+            }
+        }
+
+        _vm.CloseTab(vm);
+    }
+
+    // TODO.md, "Жизненный цикл вкладок (остаток)": the per-tab confirmation above only fires when a
+    // SPECIFIC tab is closed — quitting the whole app skipped it entirely, discarding every unsaved
+    // untitled tab's content at once with no warning. MainWindow's Closing handler checks this first
+    // (cheap, synchronous) before deciding whether it even needs to cancel the close and await
+    // ConfirmCloseAllUnsavedTabsAsync below.
+    public bool HasUnsavedUntitledTabs()
+        => _vm?.Tabs.Any(t => t.FilePath is null && t.IsDirty) ?? false;
+
+    // Walks every dirty untitled tab (not just the active one) asking the same Save/Don't
+    // Save/Cancel question RequestCloseTabAsync asks for a single tab — stops at the first Cancel
+    // (or the first Save whose own Save As dialog gets cancelled) rather than working through the
+    // rest, same as VS Code's behavior on quit. Deliberately doesn't remove tabs from Tabs or touch
+    // _tabs itself — the whole window is about to close either way, so there's nothing to tidy up in
+    // the UI, only content to not lose.
+    public async Task<bool> ConfirmCloseAllUnsavedTabsAsync()
+    {
+        if (_vm is null) return true;
+
+        // Snapshotted: nothing in this loop removes a tab, but SaveTabAsAsync does rebind FilePath —
+        // iterating a live view of Tabs while that happens is asking for trouble even if today's
+        // mutation pattern happens not to invalidate the enumerator.
+        foreach (var vm in _vm.Tabs.ToList())
+        {
+            if (vm.FilePath is not null || !vm.IsDirty) continue;
+            if (!_tabs.TryGetValue(vm, out var entry)) continue;
+
+            var choice = await _vm.ConfirmDiscardUnsavedChangesAsync(vm.FileName);
+            if (choice == UnsavedChangesResult.Cancel) return false;
+
+            if (choice == UnsavedChangesResult.Save)
+            {
+                await _vm.SaveTabAsAsync(vm, entry.Control.WriteFile);
+                if (vm.FilePath is null) return false; // Save As was itself cancelled/failed
+            }
+        }
+
+        return true;
+    }
 
     private EditorsTabItemControl? GetActiveControl()
     {
@@ -220,10 +328,63 @@ public partial class EditorTabsControl : UserControl, IDisposable
         return null;
     }
 
+    // ── "Show all open tabs" dropdown ───────────────────────────────────────────
+
+    private void ShowAllTabs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (BuildAllTabsMenu() is not { } menu || sender is not Control anchor) return;
+        anchor.ContextMenu = menu;
+        menu.Open(anchor);
+    }
+
+    // internal (not private): lets tests inspect the built menu's items/headers/click-wiring
+    // directly, rather than only through the ContextMenu popup interaction itself, which headless
+    // Avalonia has no reliable way to drive. TODO.md, "Полоса вкладок": built fresh on every click
+    // (not a persistent binding — this control doesn't set its own DataContext to the ViewModel, it
+    // talks to it through _vm directly everywhere else too) rather than keeping one around that
+    // would go stale the moment a tab opens/closes.
+    internal ContextMenu? BuildAllTabsMenu()
+    {
+        if (_vm is null) return null;
+
+        var menu = new ContextMenu();
+        foreach (var tabVm in _vm.Tabs)
+        {
+            // Fully qualified with global:: on top — Control (an EditorTabsControl base class) has
+            // its own inherited FontWeight instance property, shadowing the enum type name throughout
+            // this whole class ("cannot be accessed with an instance reference" without the
+            // qualification); and DotPad.Avalonia is itself a real sibling namespace here
+            // (DotPad.Avalonia.Themes etc.), so plain "Avalonia.Media" would resolve relative to
+            // DotPad first and fail to find it, rather than falling back to the global Avalonia.
+            var weight = ReferenceEquals(tabVm, _vm.ActiveTab)
+                ? global::Avalonia.Media.FontWeight.Bold
+                : global::Avalonia.Media.FontWeight.Normal;
+            var header = new TextBlock { Text = tabVm.FileName, FontWeight = weight };
+            if (tabVm.IsDirty && _themeService?.GetBrush("DotPad.Tab.DirtyBrush") is { } dirtyBrush)
+                header.Foreground = dirtyBrush;
+
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => _vm.ActiveTab = tabVm;
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
     // ── "+" button ─────────────────────────────────────────────────────────────
 
-    private void AddFile_Click(object? sender, RoutedEventArgs e)
-        => _vm?.NewRpadFile();
+    private async void AddFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var kind = await new Windows.NewFileKindDialog().ShowDialog<RpadKind?>(owner);
+        if (kind is null) return; // cancelled
+
+        _vm.NewRpadFile(kind: kind.Value);
+    }
 
     // ── IDisposable ────────────────────────────────────────────────────────────
 
@@ -239,9 +400,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
         }
         _activeTabSub?.Dispose();
 
-        foreach (var (tabVm, (_, ctrl)) in _tabs)
+        foreach (var (tabVm, (_, ctrl, commandSubs)) in _tabs)
         {
             ctrl.SaveIfNeeded();
+            commandSubs.Dispose();
             ctrl.Dispose();
             tabVm.Dispose();
         }
@@ -261,8 +423,13 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // IntelliSense is C#-only today (see CSharpIntelliSenseService) — peek the file's own front
         // matter here (the same cheap parse EditorsTabItemControl.SetDocumentContent does again
         // later) so a non-C# tab never gets a C# IntelliSense instance built for it in the first
-        // place, rather than building one and leaving it unused.
-        var language = RpadFilePeek.PeekLanguage(vm.FilePath);
+        // place, rather than building one and leaving it unused. A brand-new, never-saved tab
+        // (vm.FilePath is null) has no file to peek — PeekLanguage(null) always answers C#, which
+        // used to be harmless only because "New File" wrote the real front matter to disk before
+        // ever opening a tab (see NewRpadFile's old eager-write). Now that creation is deferred (see
+        // NewRpadFile), a new VB tab would otherwise get a live C# IntelliSense instance wired up
+        // against VB source text until its first save — read the tab's own pending choice instead.
+        var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekLanguage(vm.FilePath);
         var factory = _intelliSenseFactory;
         var intelliSense = factory is not null && language == RpadLanguage.CSharp
             ? await Task.Run(factory.Invoke)

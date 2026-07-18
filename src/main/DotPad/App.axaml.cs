@@ -23,6 +23,10 @@ namespace DotPad;
 
 public class App : Application
 {
+    // How long a script's build-cache directory can sit unused before PruneStale reclaims it
+    // (ANALYSIS.md #94).
+    private static readonly TimeSpan BuildCacheMaxAge = TimeSpan.FromDays(14);
+
     private ServiceProvider? _serviceProvider;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -106,7 +110,7 @@ public class App : Application
 
         // Reclaim build-cache directories for files that haven't been run in a while, so
         // %TEMP%\DotPad doesn't grow unbounded now that directories persist across restarts.
-        _ = Task.Run(() => provider.GetRequiredService<IBuildCacheService>().PruneStale(TimeSpan.FromDays(14)));
+        _ = Task.Run(() => provider.GetRequiredService<IBuildCacheService>().PruneStale(BuildCacheMaxAge));
 
         return provider;
     }
@@ -119,7 +123,13 @@ public class App : Application
         {
             lb.AddConsole();
             lb.AddProvider(new FileLoggerProvider(Path.Combine(logDir)));
+            // Debug-level logging includes DAP traffic and snippets of the user's own script code —
+            // fine for a debug build, too invasive to write to disk unconditionally in a release one.
+#if DEBUG
             lb.SetMinimumLevel(LogLevel.Debug);
+#else
+            lb.SetMinimumLevel(LogLevel.Information);
+#endif
         });
     }
 }

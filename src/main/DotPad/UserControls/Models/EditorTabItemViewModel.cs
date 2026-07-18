@@ -12,9 +12,52 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
+    // Debounce before persisting a resized output panel height to preferences — avoids writing to
+    // disk on every intermediate drag frame (ANALYSIS.md #94).
+    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
+
     private readonly IPreferencesService _prefs;
 
-    public string? FilePath { get; }
+    // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
+    // give a previously untitled tab a real path in place, instead of needing to close/reopen a new
+    // EditorTabItemViewModel — FileName/HasFilePath both derive from this, so both need to react too.
+    public string? FilePath
+    {
+        get;
+        internal set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(FileName));
+            this.RaisePropertyChanged(nameof(HasFilePath));
+        }
+    }
+
+    // Whether this tab has ever been saved anywhere — used to enable/disable tab context-menu items
+    // (Duplicate/Open Containing Folder) that need a real file on disk to act on.
+    public bool HasFilePath => FilePath is not null;
+
+    // Front matter this tab should be created with the first time it's actually written to disk
+    // (Save/Save As) — only meaningful while FilePath is null (a brand-new, never-saved tab; see
+    // MainWindowViewModel.NewRpadFile and EditorsTabItemControl.SetDocumentContent's null-FilePath
+    // branch). Once saved, the file's own front matter (State.RpadDocument) is the source of truth
+    // and these are no longer consulted.
+    public RpadLanguage NewFileLanguage { get; }
+    public RpadKind NewFileKind { get; }
+
+    // Whether the editor's text has changed since this tab was last written to disk — starts false
+    // (a freshly opened/created tab has nothing unsaved yet) and flips true on the first real edit;
+    // see EditorsTabItemControl's constructor for why the TextChanged subscription that sets this is
+    // attached only after the initial SetDocumentContent call, not before. Cleared back to false by
+    // every successful write (SaveIfNeeded, the pre-run save in RunAsync, Save As).
+    public bool IsDirty
+    {
+        get;
+        internal set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ReactiveCommand<Unit, Unit> SaveAsCommand { get; }
+    public ReactiveCommand<Unit, Unit> DuplicateCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenContainingFolderCommand { get; }
 
     // Reactive (rather than a plain auto-property) because tab creation loads the Roslyn
     // workspace/BCL metadata off the UI thread (see EditorTabsControl.CreateControlAsync) — the tab
@@ -153,14 +196,24 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    public EditorTabItemViewModel(string? filePath, List<DotnetSdk> sdks, IPreferencesService prefs)
+    public EditorTabItemViewModel(
+        string? filePath,
+        List<DotnetSdk> sdks,
+        IPreferencesService prefs,
+        RpadLanguage newFileLanguage = RpadLanguage.CSharp,
+        RpadKind newFileKind = RpadKind.Statements)
     {
         FilePath = filePath;
         AvailableSdks = sdks;
         _selectedSdk = sdks.FirstOrDefault();
         _prefs = prefs;
+        NewFileLanguage = newFileLanguage;
+        NewFileKind = newFileKind;
 
         CloseCommand = ReactiveCommand.Create(() => { });
+        SaveAsCommand = ReactiveCommand.Create(() => { });
+        DuplicateCommand = ReactiveCommand.Create(() => { });
+        OpenContainingFolderCommand = ReactiveCommand.Create(() => { });
 
         OutputPanelHeight = _prefs.Layout.DebugPanelCollapsed
             ? new GridLength(0)
@@ -169,7 +222,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         ToggleOutputPanelCommand = ReactiveCommand.Create(ToggleOutputPanel);
         this.WhenAnyValue(x => x.OutputPanelHeight)
             .Skip(1)
-            .Throttle(TimeSpan.FromMilliseconds(400), RxApp.MainThreadScheduler)
+            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
             .Subscribe(h =>
             {
                 _prefs.Layout.DebugPanelCollapsed = h.Value <= 0;

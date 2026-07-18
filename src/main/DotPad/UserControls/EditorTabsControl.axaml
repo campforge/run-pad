@@ -5,13 +5,42 @@
 
     <UserControl.Styles>
 
+        <!-- Default TabControl lays tab headers out in a WrapPanel, wrapping onto extra rows once
+             they no longer fit — but that WrapPanel used to be capped to a single row's height
+             (MaxHeight="30"), so once enough tabs were open, rows beyond the first just overlapped
+             whatever sits below them instead of being reachable at all (TODO.md, reported by user).
+             ItemsPanel swaps that WrapPanel for a plain non-wrapping horizontal StackPanel, and the
+             custom Template below wraps it in a horizontally-scrolling ScrollViewer instead — tabs
+             that don't fit are reachable by scrolling (wheel/scrollbar/drag), never clipped or
+             overlapping. -->
         <Style Selector="TabControl#FileTabControl">
             <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
-        </Style>
-
-        <Style Selector="TabControl#FileTabControl WrapPanel">
-            <Setter Property="MaxHeight" Value="30"/>
+            <Setter Property="ItemsPanel">
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TabControl">
+                    <Border Background="{TemplateBinding Background}">
+                        <DockPanel>
+                            <ScrollViewer Name="PART_TabStripScrollViewer"
+                                          DockPanel.Dock="Top"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled">
+                                <ItemsPresenter Name="PART_ItemsPresenter"
+                                                ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                            </ScrollViewer>
+                            <ContentPresenter Name="PART_SelectedContentHost"
+                                              Content="{TemplateBinding SelectedContent}"
+                                              ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </DockPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
         </Style>
 
         <Style Selector="TabControl#FileTabControl > TabItem">
@@ -82,18 +111,40 @@
             <Setter Property="Opacity" Value="1"/>
         </Style>
 
+        <!-- Dirty indicator (TODO.md, "Жизненный цикл вкладок") — the header's TextBlock lives here,
+             not in EditorTabItemControl.axaml: TabHeaderTemplate is fetched from that UserControl's
+             own Resources but applied as THIS TabControl's TabItem.HeaderTemplate (see
+             EditorTabsControl.AddTabItem), so the realized TextBlock ends up in this control's visual
+             tree, where TabItem's own Style above lives — not inside EditorsTabItemControl's (that
+             one only ever becomes the TabItem's Content, a sibling of the header, not an ancestor of
+             it). A Style scoped to EditorTabItemControl.axaml's own UserControl.Styles would simply
+             never match. -->
+        <Style Selector="TabControl#FileTabControl TextBlock.dirty">
+            <Setter Property="Foreground" Value="{DynamicResource DotPad.Tab.DirtyBrush}"/>
+        </Style>
+
     </UserControl.Styles>
 
     <Panel>
         <TabControl Name="FileTabControl" Padding="0"/>
-        <templatedControls:IconButton
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Width="30" Height="30"
-            Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
-            IconData="{StaticResource Icon.Plus}"
-            Click="AddFile_Click"
-            ToolTip.Tip="New file"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+            <!-- TODO.md, "Полоса вкладок": horizontal scroll (already wired on the TabControl's own
+                 template above) solves the overlap problem; this is the other half of what the user
+                 originally asked for — quick access to a tab that's scrolled out of view without
+                 having to scroll to find it. -->
+            <templatedControls:IconButton
+                Width="30" Height="30"
+                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                IconData="{StaticResource Icon.ChevronDown}"
+                Click="ShowAllTabs_Click"
+                ToolTip.Tip="Show all open tabs"/>
+            <templatedControls:IconButton
+                Width="30" Height="30"
+                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                IconData="{StaticResource Icon.Plus}"
+                Click="AddFile_Click"
+                ToolTip.Tip="New file"/>
+        </StackPanel>
     </Panel>
 
 </UserControl>

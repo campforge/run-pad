@@ -7,6 +7,7 @@ public interface IPreferencesService
     DebuggerSettings Debugger { get; }
     KeyboardSettings Keyboard { get; }
     LayoutSettings Layout { get; }
+    SessionSettings Session { get; }
 
     void Save();
 

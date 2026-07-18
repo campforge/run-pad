@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
 using DotPad.Format.RPad;
 using DotPad.Windows;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,34 @@ public sealed class WindowService : IWindowService
 
     public Task ShowAboutAsync()
         => ShowDialogAsync(new AboutWindow());
+
+    public async Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save As",
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = "rpad",
+            SuggestedStartLocation = startLocation,
+            FileTypeChoices = [new FilePickerFileType("RPad Script") { Patterns = ["*.rpad"] }],
+        });
+        return file is null ? null : file.TryGetLocalPath();
+    }
+
+    public async Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return UnsavedChangesResult.Cancel;
+
+        var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
+        return result ?? UnsavedChangesResult.Cancel;
+    }
 
     private static Task ShowDialogAsync(Window dialog)
     {

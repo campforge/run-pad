@@ -22,11 +22,12 @@ public class MainWindowViewModelDeleteRenameFolderTests
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         return new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());

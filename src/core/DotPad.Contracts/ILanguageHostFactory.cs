@@ -3,6 +3,18 @@ namespace DotPad.Contracts;
 // Marker interface — extend with language-specific settings.
 public interface ILanguageHostOptions { }
 
+// Shared default for every concrete ILanguageHostOptions' own OutputName property (the base name a
+// language's compiler writes its throwaway source/project/binary under, inside a script's temp or
+// persistent build-cache output directory) — a leftover generic identifier from the project's
+// pre-DotPad name, kept only as an internal build-artifact name (never shown to the user), not
+// worth renaming and touching every persisted build-cache directory's on-disk file names. Was
+// previously the same string literal duplicated independently across both language options classes
+// and EditorTabItemControl's own sourceFilePath computation (ANALYSIS.md #94).
+public static class LanguageHostOptionsDefaults
+{
+    public const string OutputName = "RunPadQuery";
+}
+
 public interface ILanguageHostFactory
 {
     string Language { get; }

@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DotPad.Build.Core;
@@ -26,77 +24,66 @@ public class CommandExecutionException : Exception
 
 public static class Utils
 {
-    public static IEnumerable<string> Shell(string commandText, string? args = null, Encoding? encoding = null)
-    {
-        var results = ShellCore(commandText, args, encoding).ToArray();
-        return new CmdResults(results);
-    }
+    public static IEnumerable<string> Shell(string commandText, string? args = null, Encoding? encoding = null) =>
+        ShellCore(commandText, args, encoding).ToArray();
 
     private static IEnumerable<string> ShellCore(string commandText, string? args, Encoding? encoding)
     {
-        var process = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? GetWindowsProcess(commandText, args, encoding)
-            : (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                ? GetUnixProcess(commandText, args, encoding)
-                : null;
+        var arguments = SplitArguments(commandText);
+        if (!string.IsNullOrEmpty(args))
+            arguments.AddRange(SplitArguments(args));
 
+        if (arguments.Count == 0)
+            yield break;
+
+        var fileName = arguments[0];
+        arguments.RemoveAt(0);
+
+        using var process = StartProcess(fileName, arguments, encoding);
         if (process is null)
             yield break;
 
-        using (process)
+        var errors = new StringBuilder();
+        var locker = new object();
+
+        process.ErrorDataReceived += (_, e) =>
         {
-            var errors = new StringBuilder();
-            var locker = new object();
+            if (e.Data is null) return;
+            lock (locker) errors.AppendLine(e.Data);
+        };
+        process.BeginErrorReadLine();
 
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data is null) return;
-                lock (locker) errors.AppendLine(e.Data);
-            };
-            process.BeginErrorReadLine();
+        string? line;
+        while ((line = process.StandardOutput.ReadLine()) is not null)
+            yield return line;
 
-            string? line;
-            while ((line = process.StandardOutput.ReadLine()) is not null)
-                yield return line;
+        process.WaitForExit();
 
-            process.WaitForExit();
-
-            if (process.ExitCode != 0 && errors.Length > 0)
-                throw new CommandExecutionException(errors.ToString(), process.ExitCode);
-        }
+        if (process.ExitCode != 0)
+            throw new CommandExecutionException(errors.ToString(), process.ExitCode);
     }
 
-    private static Process? GetWindowsProcess(string cmdText, string? args, Encoding? encoding)
-    {
-        cmdText = cmdText.Trim();
-        if (cmdText.Contains(' '))
-            cmdText = $"\"{cmdText}\"";
-        var prefix = encoding?.EncodingName == "Unicode" ? "/u /c" : "/c";
-        var arguments = string.IsNullOrEmpty(args) ? $"{prefix} {cmdText}" : $"{prefix} {cmdText} {args}";
-        return StartProcess("cmd.exe", arguments, encoding);
-    }
+    // No shell involved, so no quoting rules to worry about — this only needs to match how the
+    // (currently sole) caller passes a plain space-separated command like "dotnet --list-sdks".
+    private static List<string> SplitArguments(string text) =>
+        text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
 
-    private static Process? GetUnixProcess(string cmdText, string? args, Encoding? encoding)
-    {
-        cmdText = cmdText.Trim();
-        var full = string.IsNullOrEmpty(args) ? cmdText : $"{cmdText} {args}";
-        var escaped = full.Replace("\"", "\\\"");
-        return StartProcess("/bin/sh", $"-c \"{escaped}\"", encoding);
-    }
-
-    private static Process? StartProcess(string fileName, string arguments, Encoding? encoding)
+    private static Process? StartProcess(string fileName, IReadOnlyList<string> arguments, Encoding? encoding)
     {
         var info = new ProcessStartInfo
         {
             FileName = fileName,
-            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
+            StandardOutputEncoding = encoding ?? Encoding.UTF8,
             StandardErrorEncoding = encoding ?? Encoding.UTF8,
         };
+
+        foreach (var arg in arguments)
+            info.ArgumentList.Add(arg);
 
         try
         {
@@ -111,12 +98,4 @@ public static class Utils
 
         return Process.Start(info);
     }
-}
-
-internal sealed class CmdResults : IEnumerable<string>
-{
-    private readonly IEnumerable<string> _items;
-    internal CmdResults(IEnumerable<string> items) => _items = items;
-    public IEnumerator<string> GetEnumerator() => _items.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

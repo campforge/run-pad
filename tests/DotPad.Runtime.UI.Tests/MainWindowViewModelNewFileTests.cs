@@ -8,80 +8,96 @@ using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
 
-// TODO.md #49 item 2 — NewRpadFile always called RpadWriter.NewFile with no language, so the "new
-// file" button/menu could only ever produce a C# script; a .vb file could only be made by
-// hand-editing an existing C# file's front matter afterward.
+// TODO.md, "Жизненный цикл вкладок": NewRpadFile used to write a real (sample-boilerplate-filled)
+// file to disk immediately via IFileSystemService.CreateNewFile — a script only started existing on
+// disk (and in the file tree) once the user explicitly saved it. language/kind are now carried on
+// the tab itself (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter
+// on disk yet to read them back from.
 public class MainWindowViewModelNewFileTests
 {
-    private static (MainWindowViewModel Vm, string Path) CreateViewModelWithPendingNewFile(string rootFolder)
+    private static (MainWindowViewModel Vm, Mock<IFileSystemService> FileSystem) CreateViewModel(string rootFolder)
     {
-        var path = Path.Combine(rootFolder, "Query 1.rpad");
-        File.WriteAllText(path, string.Empty); // mirrors IFileSystemService.CreateNewFile's own behavior
-
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns(rootFolder);
         fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
-        fileSystem.Setup(f => f.CreateNewFile()).Returns(path);
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         var vm = new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
 
-        return (vm, path);
+        return (vm, fileSystem);
     }
 
     [Fact]
-    public void NewRpadFile_Should_DefaultToCSharp_WhenNoLanguageIsSpecified()
+    public void NewRpadFile_Should_NotTouchDisk()
     {
         var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
         try
         {
-            var (vm, path) = CreateViewModelWithPendingNewFile(rootFolder);
+            var (vm, fileSystem) = CreateViewModel(rootFolder);
 
             vm.NewRpadFile();
 
-            var parsed = RpadParser.TryParse(File.ReadAllText(path));
-            Assert.NotNull(parsed);
-            Assert.Equal(RpadLanguage.CSharp, parsed!.FrontMatter.Language);
+            fileSystem.Verify(f => f.CreateNewFile(), Times.Never);
+            Assert.Empty(Directory.GetFiles(rootFolder));
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
     [Fact]
-    public void NewRpadFile_Should_WriteAVbFile_WhenVbLanguageIsRequested()
+    public void NewRpadFile_Should_OpenAnUntitledTab_DefaultingToCSharpStatements()
     {
         var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
         try
         {
-            var (vm, path) = CreateViewModelWithPendingNewFile(rootFolder);
+            var (vm, _) = CreateViewModel(rootFolder);
 
-            vm.NewRpadFile(RpadLanguage.Vb);
+            vm.NewRpadFile();
 
-            var parsed = RpadParser.TryParse(File.ReadAllText(path));
-            Assert.NotNull(parsed);
-            Assert.Equal(RpadLanguage.Vb, parsed!.FrontMatter.Language);
+            var tab = Assert.Single(vm.Tabs, t => t.FilePath is null);
+            Assert.Equal(RpadLanguage.CSharp, tab.NewFileLanguage);
+            Assert.Equal(RpadKind.Statements, tab.NewFileKind);
+            Assert.False(tab.HasFilePath);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
     [Fact]
-    public void NewRpadFile_Should_OpenATabForTheNewFile()
+    public void NewRpadFile_Should_CarryTheRequestedLanguageAndKind_OnTheNewTab()
     {
         var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
         try
         {
-            var (vm, path) = CreateViewModelWithPendingNewFile(rootFolder);
+            var (vm, _) = CreateViewModel(rootFolder);
+
+            vm.NewRpadFile(RpadLanguage.Vb, RpadKind.Program);
+
+            var tab = Assert.Single(vm.Tabs, t => t.FilePath is null && t.NewFileLanguage == RpadLanguage.Vb);
+            Assert.Equal(RpadKind.Program, tab.NewFileKind);
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [Fact]
+    public void NewRpadFile_Should_MakeTheNewTabActive()
+    {
+        var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
+        try
+        {
+            var (vm, _) = CreateViewModel(rootFolder);
 
             vm.NewRpadFile(RpadLanguage.Vb);
 
-            Assert.Contains(vm.Tabs, t => t.FilePath == path);
+            Assert.Same(vm.Tabs[^1], vm.ActiveTab);
+            Assert.Null(vm.ActiveTab!.FilePath);
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }

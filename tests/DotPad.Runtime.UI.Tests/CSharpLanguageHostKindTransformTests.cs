@@ -2,6 +2,7 @@ using DotPad.Build.Core.Models;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -21,7 +22,7 @@ public class CSharpLanguageHostKindTransformTests
     private static CSharpLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
         outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
-        var options = new CSharpLanguageHostOptions
+        var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
             ExecutionOptions = new ExecutionOptions
@@ -110,6 +111,56 @@ public class CSharpLanguageHostKindTransformTests
         try
         {
             Assert.Equal(usings.Count + kindOnlyOffset, host.CalcKindOffset());
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // TODO.md #63 (async Task Main): the Program-kind prefix used to always be "Main();" — a
+    // fire-and-forget call that discards a Task-returning Main's result, silently losing any
+    // exception thrown inside it. ApplyKindTransform now picks between "Main();" and
+    // "await Main();" based on Main's own declared return type.
+    [Theory]
+    [InlineData("void Main() { }", "Main();void Main() { }")]
+    [InlineData("async Task Main() { }", "await Main();async Task Main() { }")]
+    [InlineData("Task Main() { return Task.CompletedTask; }", "await Main();Task Main() { return Task.CompletedTask; }")]
+    [InlineData("async Task<int> Main() { return 0; }", "await Main();async Task<int> Main() { return 0; }")]
+    [InlineData("async System.Threading.Tasks.Task Main() { }", "await Main();async System.Threading.Tasks.Task Main() { }")]
+    public void ApplyKindTransform_Should_AwaitMain_OnlyWhenMainIsTaskReturning(string code, string expected)
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            Assert.Equal(expected, host.ApplyKindTransform(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // Regression guard: a real AST (not a text/regex sniff) shouldn't be fooled by "Main" showing up
+    // somewhere that isn't the actual entry point's signature.
+    [Fact]
+    public void ApplyKindTransform_Should_NotAwaitMain_WhenTaskMainOnlyAppearsInAComment()
+    {
+        const string code = "// async Task Main() { }\nvoid Main() { }";
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            Assert.StartsWith(RpadKindTransform.ProgramMainCallPrefix, host.ApplyKindTransform(code), StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // Both prefixes are a single physical line with no trailing '\n' — CalcKindOffset's Program case
+    // must stay 0 regardless of which one ApplyKindTransform actually picked.
+    [Theory]
+    [InlineData("void Main() { }")]
+    [InlineData("async Task Main() { }")]
+    public void CalcKindOffset_Should_StayZeroForProgram_RegardlessOfWhichMainPrefixWasUsed(string code)
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            Assert.Equal(0, host.CalcKindOffset());
+            Assert.DoesNotContain('\n', host.ApplyKindTransform(code)[..host.ApplyKindTransform(code).IndexOf(code, StringComparison.Ordinal)]);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

@@ -106,6 +106,50 @@ public class RpadParserWriterTests
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
     }
 
+    // TODO.md, "Жизненный цикл вкладок": a brand-new, never-saved tab wants genuinely empty code
+    // (not the "Hello, RPad!" sample below), via NewFile's optional code override. An empty code
+    // block glues the closing fence onto the same line as the (empty) code instead of its own line —
+    // RpadParser.FindClosingFence requires a closing fence to start its own line, so without
+    // RpadWriter.NewFile normalizing a trailing newline the same way Write() already does for
+    // RunCode, this used to parse back with a mangled RunCode containing the literal closing-fence
+    // text and an unclosed fence in BodyAfterCode — i.e. genuinely invalid Markdown once saved back
+    // out via RpadWriter.Write, not just a cosmetic parsing quirk.
+    [Theory]
+    [InlineData(RpadKind.Statements)]
+    [InlineData(RpadKind.Program)]
+    [InlineData(RpadKind.Expression)]
+    public void NewFile_WithEmptyCodeOverride_ThenParse_RoundTripsCleanlyThroughWrite(RpadKind kind)
+    {
+        var text = RpadWriter.NewFile("Untitled", "net10.0", kind, code: "");
+
+        var parsed = RpadParser.TryParse(text);
+        Assert.NotNull(parsed);
+        Assert.Equal(kind, parsed!.FrontMatter.Kind);
+        Assert.DoesNotContain('`', parsed.RunCode);
+
+        // The real-world path: SetDocumentContent parses this once, the user never types anything,
+        // and the tab gets closed/saved as-is — WriteFile always overwrites RunCode with whatever's
+        // in the editor first, so simulate that explicitly rather than relying on the parsed
+        // (possibly already-empty) RunCode.
+        parsed.RunCode = "";
+        var written = RpadWriter.Write(parsed);
+        var reparsed = RpadParser.TryParse(written);
+
+        Assert.NotNull(reparsed);
+        Assert.Equal(kind, reparsed!.FrontMatter.Kind);
+        Assert.DoesNotContain('`', reparsed.RunCode);
+
+        // A THIRD round trip (write what was just reparsed, parse it again) stays just as clean —
+        // guards against the closing fence silently getting swallowed into RunCode on one pass (the
+        // bug this test targets), which would only show up as corruption one save later, not on the
+        // first save alone.
+        var written2 = RpadWriter.Write(reparsed);
+        var reparsed2 = RpadParser.TryParse(written2);
+        Assert.NotNull(reparsed2);
+        Assert.Equal(kind, reparsed2!.FrontMatter.Kind);
+        Assert.DoesNotContain('`', reparsed2.RunCode);
+    }
+
     // TODO.md #49 item 2 — NewFile used to hardcode `language: csharp` and the ```csharp fence
     // regardless of caller intent, so a new .vb file could only be made by hand-editing an existing
     // C# file's front matter afterward.

@@ -113,7 +113,10 @@ internal static class DumpRenderer
         RenderObject(sb, value, type, depth, options);
     }
 
-    private static string RenderCollapsible(StringBuilder outer, int depth, DumpOptions options, Action<StringBuilder> renderInner)
+    // void, not string — every call site invokes this as a statement, and materializing outer's
+    // entire accumulated buffer via ToString() on every nesting level (as the old signature required)
+    // meant O(n^2) allocations for a deep/wide dump (ANALYSIS.md #94).
+    private static void RenderCollapsible(StringBuilder outer, int depth, DumpOptions options, Action<StringBuilder> renderInner)
     {
         var inner = new StringBuilder();
         renderInner(inner);
@@ -126,7 +129,6 @@ internal static class DumpRenderer
         {
             outer.Append(inner);
         }
-        return outer.ToString();
     }
 
     // ── Primitives ────────────────────────────────────────────────────────────
@@ -338,6 +340,10 @@ internal static class DumpRenderer
             }
 
             if (hasMore)
+                // colspan="99" is a deliberately oversized value, not a real column count — browsers
+                // clamp it to however many columns the row's table actually has, so this spans the
+                // full width regardless of whether the row came from the primitive-value branch (2
+                // columns) or the property-grid branch (however many properties there are).
                 inner.Append("<tr><td class=\"dp-td dp-truncated\" colspan=\"99\">… more items</td></tr>");
             inner.Append("</tbody></table>");
         });
