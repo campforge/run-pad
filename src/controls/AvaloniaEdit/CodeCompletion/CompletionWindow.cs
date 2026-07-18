@@ -39,6 +39,17 @@ public class CompletionWindow : CompletionWindowBase
     public CompletionList CompletionList { get; }
 
     /// <summary>
+    /// Optional hook a host can set to extend the replacement range on a Tab-triggered commit:
+    /// given the offset EndOffset would otherwise use, returns the end of whatever word/identifier
+    /// occupies that position (walking forward from it), so committing mid-word consumes any
+    /// pre-existing remainder instead of leaving it dangling after the inserted text (e.g. accepting
+    /// "Console" with the caret at "Cons|ole" should produce "Console", not "Consoleole"). Left null,
+    /// Tab behaves exactly like Enter/any other commit — DotPad TODO #60.5; kept as a delegate rather
+    /// than a hardcoded identifier-character set to stay language-agnostic here.
+    /// </summary>
+    public Func<int, int> WordEndOffsetProvider { get; set; }
+
+    /// <summary>
     /// Creates a new code completion window.
     /// </summary>
     public CompletionWindow(TextArea textArea) : base(textArea)
@@ -145,7 +156,12 @@ public class CompletionWindow : CompletionWindowBase
         // The window must close before Complete() is called.
         // If the Complete callback pushes stacked input handlers, we don't want to pop those when the CC window closes.
         var item = CompletionList.SelectedItem;
-        item?.Complete(TextArea, new AnchorSegment(TextArea.Document, StartOffset, EndOffset - StartOffset), e);
+
+        var endOffset = EndOffset;
+        if (e is KeyEventArgs { Key: Key.Tab } && WordEndOffsetProvider is { } getWordEnd)
+            endOffset = Math.Max(endOffset, getWordEnd(endOffset));
+
+        item?.Complete(TextArea, new AnchorSegment(TextArea.Document, StartOffset, endOffset - StartOffset), e);
     }
 
     private void CompletionList_SizeChanged(object sender, SizeChangedEventArgs e)

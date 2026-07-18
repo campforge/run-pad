@@ -72,17 +72,21 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ExpandCurrentQueryPathMacro_InReferences()
     {
+        // Path.GetDirectoryName normalizes to the platform's own separator (backslashes on
+        // Windows) — computing the expected directory the same way, rather than hardcoding a
+        // forward-slash-only "/home/user/..." literal, keeps this correct on every CI OS.
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+        var expectedDir = Path.GetDirectoryName(currentQueryPath);
         var frontMatter = new RpadFrontMatter
         {
             References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
         };
 
-        var options = CliRunner.BuildOptions(
-            frontMatter, Platform, "/tmp/out", "/home/user/scripts/query.rpad");
+        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", currentQueryPath);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
-        Assert.Equal(["/home/user/scripts/Lib.dll"], csharpOptions.AssemblyReferences);
-        Assert.Equal(["/home/user/scripts/Shared.csproj"], csharpOptions.ProjectReferences);
+        Assert.Equal([expectedDir + "/Lib.dll"], csharpOptions.AssemblyReferences);
+        Assert.Equal([expectedDir + "/Shared.csproj"], csharpOptions.ProjectReferences);
     }
 
     [Fact]
