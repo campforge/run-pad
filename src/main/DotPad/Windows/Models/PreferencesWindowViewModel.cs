@@ -278,6 +278,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.WordWrap, value, v => _prefs.Editor.WordWrap = v);
     }
 
+    public bool CommitCharactersEnabled
+    {
+        get => _prefs.Editor.CommitCharactersEnabled;
+        set => SetPref(_prefs.Editor.CommitCharactersEnabled, value, v => _prefs.Editor.CommitCharactersEnabled = v);
+    }
+
     public double FontSize
     {
         get => _prefs.Editor.FontSize;
