@@ -74,6 +74,29 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Exactly(4));
     }
 
+    // TODO.md #60.4: newly wired global switch — same round-trip pattern as the hotkey properties
+    // above.
+    [Fact]
+    public void CommitCharactersEnabled_Should_RoundTrip_ThroughTheUnderlyingEditorSettings()
+    {
+        var editorSettings = new EditorSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Editor).Returns(editorSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.CommitCharactersEnabled = false;
+
+        Assert.False(editorSettings.CommitCharactersEnabled);
+        prefs.Verify(p => p.Save(), Times.Once);
+    }
+
     [Fact]
     public void Constructor_Should_BuildOneLanguageChildNode_PerRegisteredLanguage()
     {

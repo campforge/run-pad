@@ -99,6 +99,38 @@ public class CodeTextEditorCompletionIntegrationTests
     }
 
     [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_AcceptTheSelection_ByDefault()
+    {
+        var (window, editor) = CreateEditor("", ("Rhino", 1.0));
+
+        window.KeyTextInput("R");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // ';' both commits the selection ("R" -> "Rhino") and is itself inserted as typed.
+        Assert.Equal("Rhino;", editor.Document.Text);
+    }
+
+    // TODO.md #60.4: a user who finds punctuation unpredictably accepting completions can turn
+    // this off — Enter/Tab/click still commit either way (untouched by this switch), only the
+    // "typing punctuation also commits" convenience path is gated.
+    [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_NotAcceptTheSelection_WhenCommitCharactersAreDisabled()
+    {
+        var (window, editor) = CreateEditor("", ("Rhino", 1.0));
+        editor.CommitCharactersEnabled = false;
+
+        window.KeyTextInput("R");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // No commit happened — ';' was just inserted after the still-partial "R".
+        Assert.Equal("R;", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public async Task AutoInvoke_Should_PreSelectTheBestMatch_FromTheFirstLetterTyped()
     {
         // Arrange — "Zebra" is added first (so it'd win if the window opened with no filtering/

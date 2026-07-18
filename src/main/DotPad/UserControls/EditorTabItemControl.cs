@@ -705,6 +705,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Options.ColumnRulerPositions = s.ShowColumnRuler
             ? [s.ColumnRulerPosition]
             : [];
+        editor.CommitCharactersEnabled = s.CommitCharactersEnabled;
     }
 
 

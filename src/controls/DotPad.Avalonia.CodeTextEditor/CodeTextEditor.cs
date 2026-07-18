@@ -121,6 +121,16 @@ public class CodeTextEditor : TextEditor
     /// <summary>Characters that open the completion dropdown.</summary>
     public HashSet<char> CompletionTriggers { get; } = [];
 
+    /// <summary>
+    /// Whether typing a commit character (see <see cref="IsCommitCharacter(char, IReadOnlySet{char})"/>)
+    /// accepts the completion window's current selection, on top of always inserting the character
+    /// itself. Defaults to <see langword="true"/> (today's only behavior); a user who finds
+    /// punctuation unpredictably accepting a completion can turn this off (TODO.md #60.4's global
+    /// switch) — Enter/Tab/click still commit either way, this only gates the "typing punctuation
+    /// also commits" convenience path.
+    /// </summary>
+    public bool CommitCharactersEnabled { get; set; } = true;
+
     /// <summary>Characters that open the overload insight window.</summary>
     public HashSet<char> OverloadTriggers { get; } = [];
 
@@ -666,7 +676,7 @@ public class CodeTextEditor : TextEditor
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
     {
-        if (e.Text is { Length: > 0 } && _completionWindow != null && IsCommitCharacter(e.Text[0]))
+        if (CommitCharactersEnabled && e.Text is { Length: > 0 } && _completionWindow != null && IsCommitCharacter(e.Text[0]))
             _completionWindow.CompletionList.RequestInsertion(e);
 
         if (e.Text is not { Length: 1 } || e.Handled) return;
