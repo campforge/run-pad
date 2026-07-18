@@ -130,6 +130,48 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("R;", editor.Document.Text);
     }
 
+    // TODO.md #60.3: "MyContext" only substring-matches "Con" (no prefix — GetMatchQuality's
+    // "match start" tier, quality >= 5, never fires), so it's only soft-selected: shown
+    // highlighted, but not confident enough for a typed commit character to accept automatically.
+    [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_NotAcceptASoftSelectedMatch()
+    {
+        var (window, editor) = CreateEditor("", ("MyContext", 1.0));
+
+        window.KeyTextInput("C");
+        await Task.Delay(20);
+        window.KeyTextInput("o");
+        await Task.Delay(20);
+        window.KeyTextInput("n");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // No commit happened — ';' was just inserted after the still-partial "Con".
+        Assert.Equal("Con;", editor.Document.Text);
+    }
+
+    // Same soft-selected match as above, but committed via Enter — an explicit accept gesture
+    // always wins regardless of confidence; only the "typing punctuation also commits" convenience
+    // path (CompletionWindow.CompletionList_InsertionRequested's TextInputEventArgs check) is
+    // gated by soft-selection.
+    [AvaloniaFact]
+    public async Task PressingEnter_Should_AcceptASoftSelectedMatch()
+    {
+        var (window, editor) = CreateEditor("", ("MyContext", 1.0));
+
+        window.KeyTextInput("C");
+        await Task.Delay(20);
+        window.KeyTextInput("o");
+        await Task.Delay(20);
+        window.KeyTextInput("n");
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        Assert.Equal("MyContext", editor.Document.Text);
+    }
+
     [AvaloniaFact]
     public async Task AutoInvoke_Should_PreSelectTheBestMatch_FromTheFirstLetterTyped()
     {
