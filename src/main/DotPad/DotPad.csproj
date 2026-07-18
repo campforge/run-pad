@@ -5,7 +5,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>DotPad</Product>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>coddwrench</Authors>
     <Company>coddwrench</Company>
     <Copyright>© coddwrench</Copyright>
