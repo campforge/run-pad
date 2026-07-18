@@ -250,6 +250,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
+        IlOutput.Text = "";
         SetStatus("Process", "DotPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
         UpdateOutputUi();
@@ -302,6 +303,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
+                host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
@@ -512,6 +514,85 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Focus();
     }
 
+    // TODO.md #62 "умное переименование" — F2 (CodeTextEditor.RenameSymbolRequested).
+    private async Task ShowRenameSymbolAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var caretOffset = editor.TextArea.Caret.Offset;
+        var info = await intelliSense.GetRenameInfoAsync(State.Editor.Text, caretOffset, CancellationToken.None);
+        if (info is null || info.Spans.Count == 0) return; // nothing renameable at the caret
+
+        var dialog = new Windows.RenameSymbolDialog(info.CurrentName);
+        var newName = await dialog.ShowDialog<string?>(owner);
+        if (string.IsNullOrEmpty(newName) || newName == info.CurrentName) return;
+
+        ApplyRenameEdits(editor.Document, info.Spans, newName);
+        editor.Focus();
+    }
+
+    // Split out from ShowRenameSymbolAsync so the actual edit-application logic (order-of-operations
+    // and undo-grouping, both easy to get subtly wrong) can be tested directly against a plain
+    // TextDocument, without needing a real modal dialog in the loop.
+    internal static void ApplyRenameEdits(TextDocument document, IReadOnlyList<IDocumentHighlightSpan> spans, string newName)
+    {
+        // Descending order so replacing one span never shifts the offsets of spans still to come —
+        // Document.Replace is purely offset-based and doesn't adjust sibling calls for you.
+        // RunUpdate groups the whole sequence into a single undo step (Ctrl+Z undoes the entire
+        // rename, not one occurrence at a time).
+        using (document.RunUpdate())
+        {
+            foreach (var span in spans.OrderByDescending(s => s.Start))
+                document.Replace(span.Start, span.Length, newName);
+        }
+    }
+
+    // TODO.md #62 "find references" — Shift+F12 (CodeTextEditor.FindReferencesRequested). Reuses
+    // GetDocumentHighlightsAsync (same "every occurrence of the symbol under the caret" data the
+    // highlight-occurrences feature already computes) rather than a separate service call — a
+    // single-file scratchpad's "references" list and "highlights" list are the same set, they just
+    // get shown differently (a clickable menu here vs. inline highlighting there).
+    private async Task ShowFindReferencesAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var caretOffset = editor.TextArea.Caret.Offset;
+        var highlights = await intelliSense.GetDocumentHighlightsAsync(
+            State.Editor.Text, caretOffset, CancellationToken.None);
+        if (highlights is null || highlights.Count == 0) return; // nothing to list
+
+        if (BuildFindReferencesMenu(highlights, editor) is not { } menu) return;
+        editor.ContextMenu = menu;
+        menu.Open(editor);
+    }
+
+    // internal (not private): same rationale as EditorTabsControl.BuildAllTabsMenu — lets tests
+    // inspect the built menu's items/click-wiring directly, since headless Avalonia has no reliable
+    // way to drive an actual popup open/click interaction.
+    internal static ContextMenu? BuildFindReferencesMenu(
+        IReadOnlyList<IDocumentHighlightSpan> highlights, CodeTextEditor editor)
+    {
+        if (highlights.Count == 0) return null;
+
+        var menu = new ContextMenu();
+        foreach (var span in highlights.OrderBy(h => h.Start))
+        {
+            var line = editor.Document.GetLineByOffset(span.Start);
+            var lineText = editor.Document.GetText(line).Trim();
+            var header = new TextBlock { Text = $"Line {line.LineNumber}: {lineText}" };
+
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) =>
+            {
+                editor.TextArea.Caret.Offset = span.Start;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            };
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     internal void ResumeDebug(DebugAction action)
@@ -613,6 +694,24 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             : BreakpointVerificationState.Unverified;
         editorBp.VerificationMessage = message;
         State.Editor.InvalidateBreakpoints();
+    }
+
+    // Runs on the ILanguageHost.Compiled event, itself raised on the RunAsync's own Task.Run
+    // background thread (not the UI thread) — so the disassembly work below happens off-UI already;
+    // only the resulting string needs to be marshalled back for display.
+    private void UpdateIlOutput(string binaryPath)
+    {
+        string il;
+        try
+        {
+            il = IlDisassembler.Disassemble(binaryPath);
+        }
+        catch (Exception ex)
+        {
+            il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
+        }
+
+        Dispatcher.UIThread.Post(() => IlOutput.Text = il);
     }
 
     // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise
@@ -813,6 +912,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             foreach (var h in highlights)
                 e.Spans.Add((h.Start, h.Length));
         };
+
+        editor.RenameSymbolRequested += async (_, _) => await ShowRenameSymbolAsync(editor, intelliSense);
+        editor.FindReferencesRequested += async (_, _) => await ShowFindReferencesAsync(editor, intelliSense);
 
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
         var squiggleRenderer = new SquiggleRenderer();

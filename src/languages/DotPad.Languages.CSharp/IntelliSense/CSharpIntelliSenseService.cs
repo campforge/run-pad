@@ -1169,45 +1169,80 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         try
         {
-            var document = SyncDocument(code);
-            var model = await document.GetSemanticModelAsync(ct);
-            if (model == null) return null;
-
-            var root = await document.GetSyntaxRootAsync(ct);
-            if (root == null) return null;
-
-            var pos = position + HeaderLength(code);
-            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
-
-            var token = root.FindToken(pos);
-            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
-
-            var symbol = ResolveTokenSymbol(model, token);
-            if (symbol == null) return null;
-
-            var header = HeaderLength(code);
-            var highlights = new List<IDocumentHighlightSpan>();
-            foreach (var candidate in root.DescendantTokens())
-            {
-                ct.ThrowIfCancellationRequested();
-                // Cheap text check before the semantic lookup — most identifiers in the document
-                // aren't even textually the same name, no need to ask the semantic model about them.
-                if (!candidate.IsKind(SyntaxKind.IdentifierToken) || candidate.ValueText != token.ValueText)
-                    continue;
-
-                var candidateSymbol = ResolveTokenSymbol(model, candidate);
-                if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
-                    continue;
-
-                var userStart = candidate.SpanStart - header;
-                if (userStart < 0) continue; // inside the prepended usings preamble, not user code
-                highlights.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
-            }
-
-            return highlights;
+            var found = await FindSymbolAndOccurrencesAsync(code, position, ct);
+            return found?.Spans;
         }
         catch (OperationCanceledException) { throw; } // see the Completions catch above
         catch (Exception ex) { _logger.LogWarning(ex, "Document highlights failed"); return null; }
+    }
+
+    // ── Rename ────────────────────────────────────────────────────────────────────
+
+    public Task<IRenameInfo?> GetRenameInfoAsync(string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
+
+    private async Task<IRenameInfo?> TryGetRenameInfoAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var found = await FindSymbolAndOccurrencesAsync(code, position, ct);
+            if (found is not { } result) return null;
+
+            // Only symbols the user's own script actually declares can be renamed — a metadata/
+            // framework symbol (e.g. "WriteLine" in Console.WriteLine) has no source location to
+            // rename AT; renaming its call sites in the script without renaming the framework
+            // method itself would just turn correct code into a compile error.
+            if (!result.Symbol.Locations.Any(l => l.IsInSource)) return null;
+
+            return new SimpleRenameInfo(result.Symbol.Name, result.Spans);
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Rename info failed"); return null; }
+    }
+
+    // Shared by GetDocumentHighlightsAsync and GetRenameInfoAsync — both are "find the symbol under
+    // the caret, then every identifier token elsewhere in the document that resolves to that same
+    // symbol"; they only differ in what they do with the result afterward (highlight vs. offer to
+    // rename, the latter additionally filtering to source-declared symbols only).
+    private async Task<(ISymbol Symbol, List<IDocumentHighlightSpan> Spans)?> FindSymbolAndOccurrencesAsync(
+        string code, int position, CancellationToken ct)
+    {
+        var document = SyncDocument(code);
+        var model = await document.GetSemanticModelAsync(ct);
+        if (model == null) return null;
+
+        var root = await document.GetSyntaxRootAsync(ct);
+        if (root == null) return null;
+
+        var pos = position + HeaderLength(code);
+        if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+        var token = root.FindToken(pos);
+        if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+        var symbol = ResolveTokenSymbol(model, token);
+        if (symbol == null) return null;
+
+        var header = HeaderLength(code);
+        var spans = new List<IDocumentHighlightSpan>();
+        foreach (var candidate in root.DescendantTokens())
+        {
+            ct.ThrowIfCancellationRequested();
+            // Cheap text check before the semantic lookup — most identifiers in the document
+            // aren't even textually the same name, no need to ask the semantic model about them.
+            if (!candidate.IsKind(SyntaxKind.IdentifierToken) || candidate.ValueText != token.ValueText)
+                continue;
+
+            var candidateSymbol = ResolveTokenSymbol(model, candidate);
+            if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
+                continue;
+
+            var userStart = candidate.SpanStart - header;
+            if (userStart < 0) continue; // inside the prepended usings preamble, not user code
+            spans.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
+        }
+
+        return (symbol, spans);
     }
 
     // Shared by both the caret's own token and every candidate token scanned against it — a
@@ -1505,6 +1540,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : IQuickInfoResult;
 
     private sealed record SimpleDocumentHighlightSpan(int Start, int Length) : IDocumentHighlightSpan;
+
+    private sealed record SimpleRenameInfo(
+        string CurrentName, IReadOnlyList<IDocumentHighlightSpan> Spans) : IRenameInfo;
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,

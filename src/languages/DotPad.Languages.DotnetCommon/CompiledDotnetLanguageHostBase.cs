@@ -122,6 +122,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
         ProcessCompilerResult raw = await compiler.Compilation(code, ct);
         CompiledDotnetCompilationResult result = new(raw);
+        if (raw.Success)
+            OnCompiled(raw.OutputBinaryFile);
         return (result, raw.Success ? raw.OutputBinaryFile : null);
     }
 
