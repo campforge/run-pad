@@ -805,6 +805,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
         };
 
+        editor.AsyncOccurrencesProvider = async e =>
+        {
+            var highlights = await intelliSense.GetDocumentHighlightsAsync(
+                State.Editor.Text, e.CaretOffset, e.CancellationToken);
+            if (highlights is null) return;
+            foreach (var h in highlights)
+                e.Spans.Add((h.Start, h.Length));
+        };
+
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
         var squiggleRenderer = new SquiggleRenderer();
         editor.TextArea.TextView.BackgroundRenderers.Add(squiggleRenderer);
