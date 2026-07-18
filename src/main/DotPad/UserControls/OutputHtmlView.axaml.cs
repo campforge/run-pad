@@ -24,6 +24,14 @@ public partial class OutputHtmlView : UserControl
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
         DataContextChanged += (_, _) => Rebind();
+        // DataContext (State.Output, EditorTabItemControl.cs) is set exactly once per tab and never
+        // reassigned — but switching tabs (either the outer file tabs or this control's own
+        // Results/Debugger tabs, EditorTabItemControl.axaml) detaches this control from the visual
+        // tree without ever touching DataContext. Without also rebinding here, a script that keeps
+        // running while its tab isn't the visible one writes into a model nobody's listening to
+        // anymore — output silently stops updating from the first tab switch onward (live bug
+        // report: "переодически пропадает вывод в results если ... переключать вкладки").
+        AttachedToVisualTree += (_, _) => Rebind();
         DetachedFromVisualTree += (_, _) => Unbind();
     }
 

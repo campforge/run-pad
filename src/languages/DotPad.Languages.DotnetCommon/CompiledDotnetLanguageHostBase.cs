@@ -139,7 +139,12 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // No `using` here (ANALYSIS.md #99, same pattern as #89's CTS Cancel+Dispose fix) —
+        // TerminateAsync can call _runCts.Cancel() from another thread (a "Stop" click racing this
+        // method's own natural completion); disposing here would let that call land on an
+        // already-disposed CTS and throw ObjectDisposedException. A CTS with no timer holds no
+        // resources, so simply never disposing it is safe.
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _runCts = cts;
 
         try
@@ -177,7 +182,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // See RunAsync's own linked CTS above for why this isn't a `using` too.
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _runCts = cts;
 
         try
@@ -272,15 +278,10 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
     public override async ValueTask DisposeAsync()
     {
-        try
-        {
-            if (_runCts is not null)
-                await _runCts.CancelAsync();
-        }
-        catch (ObjectDisposedException)
-        {
-            // ignored
-        }
+        // RunAsync/RunDebugAsync never dispose _runCts themselves (see the comment where it's
+        // created), so there's nothing here that can throw ObjectDisposedException anymore.
+        if (_runCts is not null)
+            await _runCts.CancelAsync();
 
         await base.DisposeAsync();
     }
