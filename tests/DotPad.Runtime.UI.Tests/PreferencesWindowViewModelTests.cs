@@ -97,19 +97,27 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Once);
     }
 
+    // TODO.md "Реорганизация Preferences": every registered language today is .NET-based, so they
+    // all nest one level deeper, under a ".NET" runtime-family group — Languages -> .NET -> C#/VB —
+    // rather than sitting directly under Languages the way they used to.
     [Fact]
     public void Constructor_Should_BuildOneLanguageChildNode_PerRegisteredLanguage()
     {
         var vm = CreateViewModel(CreateRealRegistry());
 
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
-        Assert.Equal(2, languagesNode.Children.Count);
-        Assert.Contains(languagesNode.Children, c => c.Id == "languages.csharp" && c.Name == "C#");
-        Assert.Contains(languagesNode.Children, c => c.Id == "languages.vb" && c.Name == "Visual Basic");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet" && n.Name == ".NET");
+        Assert.Equal(2, dotnetNode.Children.Count);
+        Assert.Contains(dotnetNode.Children, c => c.Id == "languages.csharp" && c.Name == "C#");
+        Assert.Contains(dotnetNode.Children, c => c.Id == "languages.vb" && c.Name == "Visual Basic");
     }
 
     // A third registered language needs no new property/XAML panel — it just has to show up as
-    // another child node, which is the whole point of deriving the tree from the registry.
+    // another child node, which is the whole point of deriving the tree from the registry. (It
+    // lands under the same ".NET" group as C#/VB today — see the constructor's own comment on why a
+    // real per-language RuntimeFamily isn't built until there's an actual non-.NET language to need
+    // it — so this fake, not itself .NET-based, is still asserted as a ".NET" child; that's the
+    // known, documented interim state, not what this test is checking.)
     [Fact]
     public void Constructor_Should_IncludeAThirdLanguage_WithNoCodeChangeBeyondRegistering()
     {
@@ -119,8 +127,9 @@ public class PreferencesWindowViewModelTests
         var vm = CreateViewModel(registry);
 
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
-        Assert.Equal(3, languagesNode.Children.Count);
-        Assert.Contains(languagesNode.Children, c => c.Id == "languages.fake" && c.Name == "Fake Lang");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet");
+        Assert.Equal(3, dotnetNode.Children.Count);
+        Assert.Contains(dotnetNode.Children, c => c.Id == "languages.fake" && c.Name == "Fake Lang");
     }
 
     [Fact]
@@ -136,16 +145,35 @@ public class PreferencesWindowViewModelTests
         Assert.Null(vm.SelectedLanguageSettingsPlaceholder);
     }
 
+    // The ".NET" group node itself is not a language node (IsLanguageNodeSelected) — it has its own
+    // real settings panel (SDK/debugger paths, IsDotnetSelected), not the generic "no settings yet"
+    // placeholder every actual language shares.
+    [Fact]
+    public void IsDotnetSelected_Should_BeTrue_AndIsLanguageNodeSelected_BeFalse_WhenTheDotnetGroupNodeIsSelected()
+    {
+        var vm = CreateViewModel(CreateRealRegistry());
+        var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet");
+
+        vm.SelectedNode = dotnetNode;
+
+        Assert.True(vm.IsDotnetSelected);
+        Assert.False(vm.IsLanguageNodeSelected);
+        Assert.Null(vm.SelectedLanguageSettingsPlaceholder);
+    }
+
     [Fact]
     public void IsLanguageNodeSelected_Should_BeTrue_WhenACSharpChildNodeIsSelected()
     {
         var vm = CreateViewModel(CreateRealRegistry());
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
-        var csharpNode = Assert.Single(languagesNode.Children, c => c.Id == "languages.csharp");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet");
+        var csharpNode = Assert.Single(dotnetNode.Children, c => c.Id == "languages.csharp");
 
         vm.SelectedNode = csharpNode;
 
         Assert.False(vm.IsLanguagesSelected);
+        Assert.False(vm.IsDotnetSelected);
         Assert.True(vm.IsLanguageNodeSelected);
         Assert.Equal("No C#-specific settings yet.", vm.SelectedLanguageSettingsPlaceholder);
     }
@@ -155,7 +183,8 @@ public class PreferencesWindowViewModelTests
     {
         var vm = CreateViewModel(CreateRealRegistry());
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
-        var vbNode = Assert.Single(languagesNode.Children, c => c.Id == "languages.vb");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet");
+        var vbNode = Assert.Single(dotnetNode.Children, c => c.Id == "languages.vb");
 
         vm.SelectedNode = vbNode;
 
@@ -164,15 +193,16 @@ public class PreferencesWindowViewModelTests
     }
 
     [Fact]
-    public void FilterText_MatchingALanguageName_Should_StillSurfaceTheParentLanguagesNode()
+    public void FilterText_MatchingALanguageName_Should_StillSurfaceTheParentLanguagesAndDotnetNodes()
     {
         var vm = CreateViewModel(CreateRealRegistry());
 
         vm.FilterText = "c#";
 
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
-        Assert.Single(languagesNode.Children, c => c.Id == "languages.csharp");
-        Assert.DoesNotContain(languagesNode.Children, c => c.Id == "languages.vb");
+        var dotnetNode = Assert.Single(languagesNode.Children, n => n.Id == "dotnet");
+        Assert.Single(dotnetNode.Children, c => c.Id == "languages.csharp");
+        Assert.DoesNotContain(dotnetNode.Children, c => c.Id == "languages.vb");
     }
 
     private sealed class FakeThirdLanguageFactory : ILanguageHostFactory
