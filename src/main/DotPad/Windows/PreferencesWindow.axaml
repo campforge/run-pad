@@ -138,7 +138,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel IsVisible="{Binding IsDebuggerSelected}" Spacing="4">
+                <StackPanel IsVisible="{Binding IsDotnetSelected}" Spacing="4">
                     <TextBlock Text="Dotnet path:"/>
                     <TextBox PlaceholderText="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
                     <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>

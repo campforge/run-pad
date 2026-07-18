@@ -18,9 +18,15 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // through the same prefix rather than two independently-typed literals drifting apart.
     private const string LanguageNodeIdPrefix = "languages.";
 
+    // Deliberately NOT prefixed with "languages." (unlike the language nodes themselves) — that
+    // prefix is what IsLanguageNodeSelected uses to distinguish "a language's own node" from
+    // everything else under Languages; giving this node that same prefix would make selecting it
+    // incorrectly satisfy that check too and show the wrong placeholder instead of the real
+    // SDK/debugger fields.
+    private const string DotnetNodeId = "dotnet";
+
     private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
-    private static readonly SettingsNode DebuggerNode = new("debugger", "Debugger");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
 
     private readonly IThemeService _themeService;
@@ -49,11 +55,19 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _themeService = themeService;
         _prefs = prefs;
 
+        // Every registered language today is .NET-based (C#, VB — see TODO.md's "Реорганизация
+        // Preferences" note), so they all nest under one ".NET" runtime-family group carrying the
+        // shared SDK/debugger path fields (still backed by the same DebuggerSettings/AppSettings.
+        // Debugger — this is a pure tree-shape change, no settings.json migration). A future non-
+        // .NET language would need a real RuntimeFamily concept on ILanguageHostFactory to pick its
+        // own group instead of hardcoding ".NET" here — deliberately not built until there's a
+        // second runtime family to actually distinguish (same reasoning as TODO #87's deferral).
         var languageNodes = languageRegistry.SupportedLanguages
             .Select(lang => new SettingsNode(LanguageNodeIdPrefix + lang, languageRegistry.GetDisplayName(lang)))
             .ToList();
-        _languagesNode = new SettingsNode("languages", "Languages", languageNodes);
-        _fullTree = [InterfaceNode, EditorNode, DebuggerNode, KeyboardNode, _languagesNode];
+        var dotnetNode = new SettingsNode(DotnetNodeId, ".NET", languageNodes);
+        _languagesNode = new SettingsNode("languages", "Languages", [dotnetNode]);
+        _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -92,7 +106,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaiseAndSetIfChanged(ref _selectedNode, value);
             this.RaisePropertyChanged(nameof(IsInterfaceSelected));
             this.RaisePropertyChanged(nameof(IsEditorSelected));
-            this.RaisePropertyChanged(nameof(IsDebuggerSelected));
+            this.RaisePropertyChanged(nameof(IsDotnetSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
@@ -102,7 +116,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     public bool IsInterfaceSelected => _selectedNode?.Id == "interface";
     public bool IsEditorSelected => _selectedNode?.Id == "editor";
-    public bool IsDebuggerSelected => _selectedNode?.Id == "debugger";
+    public bool IsDotnetSelected => _selectedNode?.Id == DotnetNodeId;
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
 
@@ -147,7 +161,16 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         var selfMatches = node.Name.Contains(_filterText, StringComparison.OrdinalIgnoreCase);
         if (!selfMatches && matchingChildren.Count == 0) return null;
 
-        return matchingChildren.Count == node.Children.Count
+        // Comparing counts alone (the original check here) wrongly treated "every child slot still
+        // has SOME node in it" as "nothing changed anywhere below" — true whenever a node has
+        // exactly one child and that child survives filtering, REGARDLESS of whether filtering
+        // rewrote something further down inside that child (e.g. Languages -> .NET -> C#/VB: with
+        // only ".NET" as Languages' one child, ".NET" surviving with just C# left inside it still
+        // "counted" as 1 == 1, so Languages kept pointing at the original, unfiltered ".NET" node —
+        // discovered via FilterText_MatchingALanguageName_Should_StillSurfaceTheParentLanguagesAnd
+        // DotnetNodes once nesting one language group under another made a 1-child case reachable).
+        // Reference-comparing the actual child nodes catches this at any depth.
+        return matchingChildren.SequenceEqual(node.Children)
             ? node
             : new SettingsNode(node.Id, node.Name, matchingChildren);
     }
