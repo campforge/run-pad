@@ -101,4 +101,43 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // TODO.md #62 — the "IL" output tab reads the compiled binary path off ILanguageHost.Compiled.
+    [Fact]
+    public async Task CompileAsync_Should_RaiseCompiledEvent_WithTheOutputBinaryPath_OnSuccess()
+    {
+        var result = new ProcessCompilerResult("out.dll", true, [], []);
+        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        try
+        {
+            string? received = null;
+            host.Compiled += path => received = path;
+
+            await host.CompileAsync("int x = 1;", TestContext.Current.CancellationToken);
+
+            Assert.Equal("out.dll", received);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CompileAsync_Should_NotRaiseCompiledEvent_OnFailure()
+    {
+        var result = new ProcessCompilerResult(
+            OutputBinaryFile: "",
+            Success: false,
+            Errors: [new ResultItem("CS0000", "Program.cs", new LineSymbol(1, 1), "boom")],
+            Warnings: []);
+        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        try
+        {
+            var raised = false;
+            host.Compiled += _ => raised = true;
+
+            await host.CompileAsync("this is not valid C#", TestContext.Current.CancellationToken);
+
+            Assert.False(raised);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }

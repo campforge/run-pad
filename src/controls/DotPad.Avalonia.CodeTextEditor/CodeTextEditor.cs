@@ -86,6 +86,17 @@ public class CodeTextEditor : TextEditor
     /// #62) — re-queried on every caret move (see the ctor's own PositionChanged wiring).</summary>
     public Func<OccurrencesRequestedEventArgs, Task>? AsyncOccurrencesProvider { get; set; }
 
+    /// <summary>Fired on F2 (TODO.md #62 "умное переименование") — the host resolves what's
+    /// renameable at the current caret position and drives the actual rename UI/edit; this control
+    /// only recognizes the keypress and hands off, the same shape as
+    /// <see cref="BreakpointRightClicked"/>.</summary>
+    public event EventHandler? RenameSymbolRequested;
+
+    /// <summary>Fired on Shift+F12 ("Find All References", TODO.md #62) — same hand-off shape as
+    /// <see cref="RenameSymbolRequested"/>: this control only recognizes the keypress, the host
+    /// resolves and shows the actual reference list.</summary>
+    public event EventHandler? FindReferencesRequested;
+
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
     public void AddBreakpoint(int line) => _breakpointStore.Add(line);
@@ -309,8 +320,13 @@ public class CodeTextEditor : TextEditor
 
         AddHandler(PointerWheelChangedEvent, OnFontSizeScroll, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // Intercept Tab (snippet expansion) and Ctrl+] (brace navigation) before
-        // AvaloniaEdit's built-in KeyBinding handlers fire.
+        // Intercept Tab (snippet expansion), Ctrl+] (brace navigation) and F2 (rename symbol)
+        // before AvaloniaEdit's built-in KeyBinding handlers fire. Attached to TextArea, not the
+        // Window — this is deliberately how F2 here avoids colliding with FileTreeView's own F2
+        // (rename FILE, KeyboardSettings.RenameFile): that handler is likewise scoped to the file
+        // tree's own TreeView, so ordinary Avalonia routing (starting from whichever control
+        // actually has keyboard focus) keeps the two from ever double-firing on the same keypress —
+        // no explicit focus check needed on either side (TODO.md #62 "умное переименование").
         TextArea.AddHandler(
             KeyDownEvent,
             (object? _, KeyEventArgs e) =>
@@ -330,6 +346,16 @@ public class CodeTextEditor : TextEditor
                 else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
                 {
                     ShowCompletion('\0', explicitInvoke: true);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F2 && e.KeyModifiers == KeyModifiers.None)
+                {
+                    RenameSymbolRequested?.Invoke(this, EventArgs.Empty);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.Shift)
+                {
+                    FindReferencesRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
             },

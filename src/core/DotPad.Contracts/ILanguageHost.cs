@@ -24,6 +24,13 @@ public interface ILanguageHost : IAsyncDisposable
     /// <summary>Compiles <paramref name="code"/> without running it. Always available.</summary>
     Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Raised after every successful compile (from <see cref="CompileAsync"/>, <see cref="RunAsync"/>,
+    /// or <see cref="RunDebugAsync"/>) with the path to the compiled assembly on disk — lets UI surface
+    /// e.g. an IL disassembly view (TODO.md #62). Always available.
+    /// </summary>
+    event CompiledHandler? Compiled;
+
     /// <summary>Compiles and runs <paramref name="code"/>, streaming stdout/stderr/dump output to <paramref name="outputHandler"/>. Always available.</summary>
     Task RunAsync(string code,
         OutputReceivedHandler outputHandler,

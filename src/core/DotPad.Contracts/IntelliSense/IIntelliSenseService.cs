@@ -29,6 +29,14 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // TODO.md #62 "умное переименование": resolves what an F2 rename at position should do — null
+    // when there's nothing renameable there (not on an identifier, or the symbol isn't declared in
+    // the user's own script — see IRenameInfo).
+    Task<IRenameInfo?> GetRenameInfoAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.

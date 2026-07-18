@@ -7,6 +7,7 @@ public abstract class LanguageHostBase : ILanguageHost
     private readonly List<IBreakpoint> _breakpoints = new();
     private BreakpointHitHandler? _breakpointHit;
     private BreakpointVerifiedHandler? _breakpointVerified;
+    private CompiledHandler? _compiled;
     private bool _disposed;
 
     public abstract string Language { get; }
@@ -17,6 +18,12 @@ public abstract class LanguageHostBase : ILanguageHost
     // --- Core: must be implemented by every host ---
 
     public abstract Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
+
+    public virtual event CompiledHandler? Compiled
+    {
+        add => _compiled += value;
+        remove => _compiled -= value;
+    }
 
     public abstract Task RunAsync(
         string code,
@@ -107,6 +114,8 @@ public abstract class LanguageHostBase : ILanguageHost
 
     protected void OnBreakpointVerified(IBreakpoint breakpoint, bool verified, string? message)
         => _breakpointVerified?.Invoke(breakpoint, verified, message);
+
+    protected void OnCompiled(string binaryPath) => _compiled?.Invoke(binaryPath);
 
     protected void EnsureCapability(LanguageHostCapabilities required)
     {
