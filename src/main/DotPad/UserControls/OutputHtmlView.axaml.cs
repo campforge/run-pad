@@ -1,9 +1,8 @@
-using System.Reactive.Disposables;
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DotPad.UserControls.Models;
-using ReactiveUI;
 
 namespace DotPad.UserControls;
 
@@ -14,7 +13,7 @@ namespace DotPad.UserControls;
 // custom output font are both a concern of this control, not the editor tab.
 public partial class OutputHtmlView : UserControl
 {
-    private CompositeDisposable? _modelSubscription;
+    private OutputHtmlViewModel? _boundModel;
     private bool _applyScheduled;
 
     public OutputHtmlView()
@@ -25,27 +24,45 @@ public partial class OutputHtmlView : UserControl
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
         DataContextChanged += (_, _) => Rebind();
-        DetachedFromVisualTree += (_, _) =>
-        {
-            _modelSubscription?.Dispose();
-            _modelSubscription = null;
-        };
+        // DataContext (State.Output, EditorTabItemControl.cs) is set exactly once per tab and never
+        // reassigned — but switching tabs (either the outer file tabs or this control's own
+        // Results/Debugger tabs, EditorTabItemControl.axaml) detaches this control from the visual
+        // tree without ever touching DataContext. Without also rebinding here, a script that keeps
+        // running while its tab isn't the visible one writes into a model nobody's listening to
+        // anymore — output silently stops updating from the first tab switch onward (live bug
+        // report: "переодически пропадает вывод в results если ... переключать вкладки").
+        AttachedToVisualTree += (_, _) => Rebind();
+        DetachedFromVisualTree += (_, _) => Unbind();
     }
 
     private void Rebind()
     {
-        _modelSubscription?.Dispose();
-        _modelSubscription = null;
+        Unbind();
 
         if (DataContext is not OutputHtmlViewModel vm) return;
 
-        // WhenAnyValue emits the current value immediately on subscribe, so binding to a
-        // freshly-created OutputHtmlViewModel schedules an initial apply for free — no separate
-        // "push the starting state" call needed.
-        _modelSubscription = new CompositeDisposable(
-            vm.WhenAnyValue(x => x.Css).Subscribe(_ => ScheduleApply()),
-            vm.WhenAnyValue(x => x.Content).Subscribe(_ => ScheduleApply()));
+        _boundModel = vm;
+        vm.PropertyChanged += OnModelPropertyChanged;
+
+        // Plain PropertyChanged subscriptions don't replay on subscribe (unlike WhenAnyValue, used
+        // here before ANALYSIS.md #94's fix) — schedule explicitly so binding to a freshly-created
+        // OutputHtmlViewModel still shows its current state without a separate "push the starting
+        // state" call.
+        ScheduleApply();
     }
+
+    private void Unbind()
+    {
+        if (_boundModel is not null) _boundModel.PropertyChanged -= OnModelPropertyChanged;
+        _boundModel = null;
+    }
+
+    // Deliberately not evaluating e.PropertyName — Css and Content are the only two properties on
+    // OutputHtmlViewModel, and both should trigger the same reapply. Crucially, this never touches
+    // vm.Content itself (that would call OutputHtmlViewModel's ToString() on every single Append,
+    // right back to the O(n²) cost ANALYSIS.md #94 removed) — only ApplyPendingContent reads it,
+    // and only once per coalesced burst.
+    private void OnModelPropertyChanged(object? sender, PropertyChangedEventArgs e) => ScheduleApply();
 
     // Content changes once per output line while a script is running (EditorTabItemControl's
     // AppendOutput sets State.Output.Content on every single line) — applying every single change
@@ -65,7 +82,7 @@ public partial class OutputHtmlView : UserControl
     private void ApplyPendingContent()
     {
         _applyScheduled = false;
-        if (DataContext is not OutputHtmlViewModel vm) return;
+        if (_boundModel is not { } vm) return;
 
         ApplyCount++;
         OutputHtml.Text = $"""

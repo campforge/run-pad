@@ -1,4 +1,5 @@
 using DotPad.Contracts;
+using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Languages.CSharp;
@@ -15,12 +16,8 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
     public string Language => "csharp";
     public string DisplayName => "C#";
 
-    public LanguageHostCapabilities Capabilities =>
-        LanguageHostCapabilities.Run |
-        LanguageHostCapabilities.Debug |
-        LanguageHostCapabilities.Breakpoints |
-        LanguageHostCapabilities.VariableInspection |
-        LanguageHostCapabilities.MemoryDump;
+    // See CSharpLanguageHost.SupportedCapabilities — single source of truth (ANALYSIS.md #96).
+    public LanguageHostCapabilities Capabilities => CSharpLanguageHost.SupportedCapabilities;
 
     public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>
     {
@@ -64,9 +61,9 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {
-        var opts = options as CSharpLanguageHostOptions
+        var opts = options as CompiledDotnetLanguageHostOptions
             ?? throw new ArgumentException(
-                $"Expected {nameof(CSharpLanguageHostOptions)}.", nameof(options));
+                $"Expected {nameof(CompiledDotnetLanguageHostOptions)}.", nameof(options));
         return new CSharpLanguageHost(opts, _loggerFactory);
     }
 }

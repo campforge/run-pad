@@ -13,6 +13,11 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
 
+    // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
+    // clicked the confirmed, second time through" apart from the very first Closing that it itself
+    // cancels to go ask about unsaved untitled tabs.
+    private bool _confirmedClose;
+
     public MainWindow(
         IPreferencesService prefs,
         EditorTabsControl editorTabsCtrl,
@@ -31,6 +36,26 @@ public sealed partial class MainWindow : Window, IDisposable
 
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
+
+        Closing += OnClosing;
+    }
+
+    // TODO.md, "Жизненный цикл вкладок (остаток)": quitting the app used to skip the per-tab
+    // unsaved-changes confirmation entirely, discarding every unsaved untitled tab's content at
+    // once. Window.Closing can't itself await a dialog — it has to cancel synchronously first, then
+    // (if the user actually wants to proceed) call Close() again for real once the async
+    // confirmation resolves; _confirmedClose tells that second, real close apart from the first one
+    // this handler itself cancelled.
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_confirmedClose) return;
+        if (!_editorTabs.HasUnsavedUntitledTabs()) return;
+
+        e.Cancel = true;
+        if (!await _editorTabs.ConfirmCloseAllUnsavedTabsAsync()) return;
+
+        _confirmedClose = true;
+        Close();
     }
 
     // ── Global keyboard shortcuts ─────────────────────────────────────────────
@@ -75,6 +100,11 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.GoToLineActive();
             e.Handled = true;
         }
+        else if (Match(e, kb.Save))
+        {
+            _editorTabs.SaveActive();
+            e.Handled = true;
+        }
         else if (Match(e, kb.OpenDependencies))
         {
             vm.OpenDependenciesWindow();
@@ -82,7 +112,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (Match(e, kb.CloseTab))
         {
-            vm.CloseActiveTab();
+            _editorTabs.CloseActiveTab();
             e.Handled = true;
         }
     }
@@ -165,11 +195,21 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile(RpadLanguage.CSharp); // Statements kind by default
+    private async void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
+        => await NewRpadFileWithKindAsync(RpadLanguage.CSharp);
 
-    private void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
-        => GetViewModel().NewRpadFile(RpadLanguage.Vb); // Statements kind by default
+    private async void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
+        => await NewRpadFileWithKindAsync(RpadLanguage.Vb);
+
+    private async Task NewRpadFileWithKindAsync(RpadLanguage language)
+    {
+        var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
+        if (kind is null) return; // cancelled
+
+        GetViewModel().NewRpadFile(language, kind.Value);
+    }
+
+    private void Save_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveActive();
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

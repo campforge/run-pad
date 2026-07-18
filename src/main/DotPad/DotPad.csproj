@@ -5,7 +5,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>DotPad</Product>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>coddwrench</Authors>
     <Company>coddwrench</Company>
     <Copyright>© coddwrench</Copyright>
@@ -26,8 +26,6 @@
   <ItemGroup>
     <PackageReference Include="Avalonia"/>
     <PackageReference Include="Avalonia.Controls.DataGrid"/>
-    <PackageReference Include="Avalonia.AvaloniaEdit"/>
-    <PackageReference Include="AvaloniaEdit.TextMate"/>
     <PackageReference Include="TextMateSharp.Grammars"/>
 
     <PackageReference Include="Avalonia.Browser"/>
@@ -45,6 +43,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Local fork (TODO.md #61) — was Avalonia.AvaloniaEdit/AvaloniaEdit.TextMate NuGet packages;
+         DotPad's own code (EditorTabItemControl/SquiggleRenderer/SemanticHighlighter) uses AvaloniaEdit
+         types directly, not just through DotPad.Avalonia.CodeTextEditor, hence the direct reference. -->
+    <ProjectReference Include="..\..\controls\AvaloniaEdit\AvaloniaEdit.csproj"/>
+    <ProjectReference Include="..\..\controls\AvaloniaEdit.TextMate\AvaloniaEdit.TextMate.csproj"/>
     <ProjectReference Include="..\..\controls\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj"/>
     <ProjectReference Include="..\..\controls\DotPad.Avalonia.Themes\DotPad.Avalonia.Themes.csproj"/>
     <ProjectReference Include="..\..\controls\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj"/>
@@ -52,6 +55,7 @@
     <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj"/>
     <ProjectReference Include="..\..\languages\DotPad.Languages.CSharp\DotPad.Languages.CSharp.csproj"/>
     <ProjectReference Include="..\..\languages\DotPad.Languages.VB\DotPad.Languages.VB.csproj"/>
+    <ProjectReference Include="..\..\languages\DotPad.Languages.DotnetCommon\DotPad.Languages.DotnetCommon.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

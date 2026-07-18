@@ -15,6 +15,7 @@ using DotPad.Contracts.IntelliSense;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
+using DotPad.Languages.DotnetCommon;
 using DotPad.Languages.VB;
 using DotPad.Resources;
 using DotPad.Services;
@@ -41,6 +42,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private bool _disposed;
+
+    // Debounce before firing a Quick Info request after the pointer stops moving — long enough
+    // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
+    // (ANALYSIS.md #94).
+    private static readonly TimeSpan QuickInfoHoverDelay = TimeSpan.FromMilliseconds(400);
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -86,6 +92,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // We defer SetLanguage to AttachedToVisualTree so Redraw() works on the
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
+
+        // Dirty indicator (TODO.md, "Жизненный цикл вкладок") — attached only AFTER the initial
+        // SetDocumentContent call above, not before: setting editor.Document there fires TextChanged
+        // synchronously (see the comment inside SetDocumentContent on RefreshIntelliSenseKind's
+        // ordering for the same fact), which would otherwise flag a just-opened, untouched tab as
+        // dirty on its very first frame — including a brand-new empty tab, which has nothing
+        // unsaved yet until the user actually types something.
+        editor.TextChanged += (_, _) => _vm.IsDirty = true;
 
         // Snippets and the editor's lexical/syntactic profile are both per-language (see
         // ILanguageHostFactory.Snippets/EditorProfile) — populated here rather than in SetupEditor
@@ -181,12 +195,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
+    // Deliberately a no-op for a tab with no FilePath yet (TODO.md, "Жизненный цикл вкладок") — an
+    // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
+    // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
     internal void SaveIfNeeded()
     {
         if (_vm.FilePath is null) return;
         try
         {
             WriteFile(_vm.FilePath);
+            _vm.IsDirty = false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -198,7 +216,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private void WriteFile(string path)
+    // internal (not private): reused by MainWindowViewModel.SaveTabAsAsync/DuplicateTab (via
+    // EditorTabsControl, which wires the tab's SaveAsCommand/DuplicateCommand to it) to write this
+    // tab's current content to a path other than _vm.FilePath — the exact same serialization
+    // SaveIfNeeded already uses for the normal save path, just parameterized on the target path.
+    internal void WriteFile(string path)
     {
         if (State.RpadDocument is { } rpad)
         {
@@ -220,12 +242,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
-        // ToDo: сделать отдельный проект rpad ранннер, который будет запускать код с консоли без отладки
         var s = State;
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
-        s.Output.Content = "";
+        s.Output.Clear();
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
@@ -238,6 +259,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 WriteFile(_vm.FilePath);
+                _vm.IsDirty = false;
             }
             catch (Exception ex)
             {
@@ -260,10 +282,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var script = s.Editor.Text;
             // Matches the path the language's compiler writes the source to and its DapSession
             // expects it at (OutputDirectory/{OutputName}.{extension}) — see ScriptBreakpoint below.
-            // OutputName is fixed ("RunPadQuery") on every language's options type.
-            var sourceFilePath = Path.Combine(State.OutputDirectory!, $"RunPadQuery{SourceExtension()}");
+            var sourceFilePath = Path.Combine(
+                State.OutputDirectory!, $"{LanguageHostOptionsDefaults.OutputName}{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
+                .Where(bp => bp.IsEnabled) // TODO.md #83.3 — disabled breakpoints stay in the gutter but never reach the debugger
                 .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
@@ -375,9 +398,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (State.RunningHost is not null)
                 await State.RunningHost.PauseAsync(State.RunCts!.Token);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            throw; // TODO handle exception
+            // The run stopped on its own (e.g. debuggee exited) while Pause was in flight — not a
+            // real failure, nothing to report.
+        }
+        catch (Exception ex)
+        {
+            // async void — an uncaught exception here would crash the whole process (ANALYSIS.md
+            // #90). Surface it the same way a failed Run does, instead of losing it entirely.
+            AppendError(ex);
         }
     }
 
@@ -395,9 +425,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             UpdateOutputUi();
             await ctx.RunToCursorAsync(line);
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            throw; // TODO handle exception
+            // The run stopped on its own while Run to Cursor was in flight — not a real failure.
+        }
+        catch (Exception ex)
+        {
+            // async void — an uncaught exception here would crash the whole process (ANALYSIS.md
+            // #90). Surface it the same way a failed Run does, instead of losing it entirely.
+            AppendError(ex);
         }
     }
 
@@ -406,19 +442,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
 
-        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition);
-        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition)?>(owner);
+        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true);
+        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
         if (result is null) return; // cancelled
 
         var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
         var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
+        var enabled = result.Value.Enabled;
 
         if (bp is not null)
         {
             bp.Condition = condition;
             bp.HitCondition = hitCondition;
+            bp.IsEnabled = enabled;
+            State.Editor.InvalidateBreakpoints();
         }
-        else if (condition is not null || hitCondition is not null)
+        else if (condition is not null || hitCondition is not null || !enabled)
         {
             State.Editor.AddBreakpoint(line);
             var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
@@ -426,6 +465,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 newBp.Condition = condition;
                 newBp.HitCondition = hitCondition;
+                newBp.IsEnabled = enabled;
+                State.Editor.InvalidateBreakpoints();
             }
         }
     }
@@ -509,9 +550,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         if (kind == OutputKind.StandardError)
-            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(data)}</div>");
         else
-            State.Output.Content += $"\n<div>{HttpUtility.HtmlEncode(data)}</div>";
+            State.Output.Append($"\n<div>{HttpUtility.HtmlEncode(data)}</div>");
         UpdateOutputUi();
     }
 
@@ -532,19 +573,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 var id = idMatch.Groups[1].Value;
                 if (State.DumpContainerBlocks.TryGetValue(id, out var previous))
-                    State.Output.Content = State.Output.Content.Replace(previous, wrapped);
+                    State.Output.Replace(previous, wrapped);
                 else
-                    State.Output.Content += wrapped;
+                    State.Output.Append(wrapped);
                 State.DumpContainerBlocks[id] = wrapped;
             }
             else
             {
-                State.Output.Content += wrapped;
+                State.Output.Append(wrapped);
             }
         }
         catch
         {
-            State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>";
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(base64)}</div>");
         }
 
         UpdateOutputUi();
@@ -553,9 +594,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void AppendError(Exception ex)
     {
         State.HadRunError = true;
-        State.Output.Content += $"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>";
+        State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>");
         if (ex.StackTrace is { } st)
-            State.Output.Content += $"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>";
+            State.Output.Append($"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>");
         SetStatus("Error", "DotPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
@@ -819,8 +860,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.TextArea.TextView.PointerMoved += (_, e) =>
         {
+            // Not disposed here — a superseded hover's background Task.Run may still be mid-flight
+            // past this point, and registering/reading against an already-disposed
+            // CancellationTokenSource throws ObjectDisposedException (ANALYSIS.md #89). A
+            // CancellationTokenSource whose WaitHandle is never touched holds no unmanaged
+            // resources, so leaving the old one for the GC is safe.
             quickInfoCts.Cancel();
-            quickInfoCts.Dispose();
             quickInfoCts = new CancellationTokenSource();
             var ct = quickInfoCts.Token;
             var pos = e.GetPosition(editor);
@@ -829,7 +874,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 try
                 {
-                    await Task.Delay(400, ct);
+                    await Task.Delay(QuickInfoHoverDelay, ct);
                     var (offset, text) = await Dispatcher.UIThread.InvokeAsync(
                         () => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
@@ -924,7 +969,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (filePath is null)
         {
-            content = ResourceLoader.LoadSampleFile(string.Empty);
+            // Deferred creation (TODO.md, "Жизненный цикл вкладок") — a brand-new tab is genuinely
+            // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
+            // Save/Save As. It still gets a real (in-memory) RpadDocument built from the language/kind
+            // chosen in NewFileKindDialog (_vm.NewFileLanguage/NewFileKind) rather than staying null —
+            // that's what lets the toolbar's kind combobox, IntelliSense's kind-aware analysis, and
+            // Run/Debug all already behave correctly for the chosen language/kind before the first
+            // save, the same as they do for a file freshly loaded from disk.
+            content = "";
+            rpad = RpadParser.TryParse(RpadWriter.NewFile(
+                title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind, code: content));
         }
         else if (File.Exists(filePath))
         {
@@ -944,18 +998,30 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.RpadDocument = rpad;
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
-        editor.Document = new TextDocument(content);
 
-        // Shows which kind/target framework the script actually runs as (ANALYSIS.md #29) — helps
-        // tell the two compile paths apart (fast path vs. DotnetProcessCompiler) and diagnose
-        // compile/run discrepancies between them without having to open the front matter by hand.
-        //ProjectInfoBlock.Text = rpad is null ? "" : $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}";
-
+        // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
+        // editor.Document below fires TextChanged synchronously, which is what actually triggers the
+        // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
+        // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
+        // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
+        // UpdateGlobalUsings only invalidate the cached analysis document, they don't themselves
+        // trigger a fresh pass. For a Program-kind file, that meant a spurious "declared but never
+        // used" CS8321 on the user's own Main sitting in the diagnostics panel until their next
+        // keystroke; for a file with front-matter packages/usings, spurious "type not found"
+        // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
         if (rpad?.FrontMatter.Packages is { Count: > 0 })
             RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
+
+        editor.Document = new TextDocument(content);
+
+        // Shows which kind/target framework the script actually runs as (archived ANALYSIS.md #29) —
+        // helps tell the two compile paths apart and diagnose compile/run discrepancies without
+        // having to open the front matter by hand. Was left commented out with the XAML control
+        // itself missing (ANALYSIS.md #95) — both restored.
+        UpdateProjectInfoBlock();
     }
 
     /// <summary>
@@ -1015,9 +1081,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         rpad.FrontMatter.Kind = parsedKind;
         RefreshIntelliSenseKind();
+        UpdateProjectInfoBlock();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
         SaveIfNeeded();
     }
+
+    // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad (ANALYSIS.md #95) —
+    // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
+    private void UpdateProjectInfoBlock()
+        => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
+            ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
+            : "";
 
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
@@ -1035,7 +1109,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
     {
-        "fsharp" => ".fs",
         "vb" => ".vb",
         _ => ".cs",
     };
@@ -1091,32 +1164,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
         var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
         var usings = rpad?.FrontMatter.Namespaces ?? [];
+        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros (TODO.md #63) — expanded
+        // here so both the debug and non-debug run paths get them, since they share this method.
         var assemblyReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
+        // Both .csproj and .vbproj — a VB script's own project-reference should work the same as a
+        // C# one's does (this used to only match .csproj, silently dropping .vbproj references for
+        // VB scripts even though CliRunner.BuildOptions already matched both — ANALYSIS.md #91).
         var projectReferences = rpad?.FrontMatter.References?
-            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
+                || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
 
-        if (ResolveLanguageId() == "vb")
-        {
-            return new VbLanguageHostOptions
-            {
-                Platform = platform,
-                ExecutionOptions = executionOptions,
-                OutputDirectory = State.OutputDirectory,
-                RuntimeLibPath = _referenceService.GetExtensionReference(),
-                BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
-                BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-                Kind = kind,
-                Packages = packages,
-                Usings = usings,
-                AssemblyReferences = assemblyReferences,
-                ProjectReferences = projectReferences,
-            };
-        }
-
-        return new CSharpLanguageHostOptions
+        // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — used to be a
+        // per-language if/else building two byte-for-byte identical option objects under different
+        // type names.
+        return new CompiledDotnetLanguageHostOptions
         {
             Platform = platform,
             ExecutionOptions = executionOptions,

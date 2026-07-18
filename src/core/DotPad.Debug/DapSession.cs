@@ -27,6 +27,16 @@ public sealed class DapSession : IDapSession
 {
     private const string ContentLengthPrefix = "Content-Length: ";
 
+    // How long to wait for netcoredbg to acknowledge "disconnect" (and then actually exit) after the
+    // debuggee finished, before giving up and force-killing it — ANALYSIS.md #94 (named, not a bare
+    // literal, since both used to be unexplained "2" seconds).
+    private static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan DisconnectWaitForExitTimeout = TimeSpan.FromSeconds(2);
+
+    // Truncation length for DAP request/response bodies in debug-level logs — long enough to show
+    // which command/event a log line is about, short enough not to dump entire variable trees.
+    private const int LogSnippetLength = 200;
+
     private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         IncludeFields = true,
@@ -34,7 +44,7 @@ public sealed class DapSession : IDapSession
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private readonly ChildProcess _process;
+    private readonly IChildProcess _process;
     private readonly string _programPath;
     private readonly string _workingDirectory;
     private readonly IReadOnlyList<IBreakpoint> _breakpoints;
@@ -83,33 +93,26 @@ public sealed class DapSession : IDapSession
     private volatile bool _processExited;
 
     public DapSession(
-        ChildProcess process,
-        string programPath,
-        string workingDirectory,
-        IReadOnlyList<IBreakpoint> breakpoints,
-        string sourceFileExtension,
+        IChildProcess process,
+        DapSessionOptions options,
         OutputReceivedHandler? outputHandler,
         Action<IBreakpointHitContext> onBreakpointHit,
-        int lineOffset,
         ILogger<DapSession> logger,
-        bool breakOnAllExceptions = false,
-        bool breakOnUncaughtExceptions = true,
-        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null,
-        bool justMyCode = false)
+        Action<IBreakpoint, bool, string?>? onBreakpointVerified = null)
     {
         _process = process;
-        _programPath = programPath;
-        _workingDirectory = workingDirectory;
-        _breakpoints = breakpoints;
-        _sourceFileExtension = sourceFileExtension;
+        _programPath = options.ProgramPath;
+        _workingDirectory = options.WorkingDirectory;
+        _breakpoints = options.Breakpoints;
+        _sourceFileExtension = options.SourceFileExtension;
         _outputHandler = outputHandler;
         _onBreakpointHit = onBreakpointHit;
-        _lineOffset = lineOffset;
+        _lineOffset = options.LineOffset;
         _logger = logger;
-        _breakOnAllExceptions = breakOnAllExceptions;
-        _breakOnUncaughtExceptions = breakOnUncaughtExceptions;
+        _breakOnAllExceptions = options.BreakOnAllExceptions;
+        _breakOnUncaughtExceptions = options.BreakOnUncaughtExceptions;
         _onBreakpointVerified = onBreakpointVerified;
-        _justMyCode = justMyCode;
+        _justMyCode = options.JustMyCode;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -130,7 +133,11 @@ public sealed class DapSession : IDapSession
 
     public async Task RunAsync(CancellationToken ct)
     {
-        _process.Start();
+        // Failing fast here with a clear message beats the confusing exception (e.g.
+        // InvalidOperationException from a stream never redirected) that would otherwise surface
+        // later out of RunProtocolAsync's first read/write attempt (ANALYSIS.md #92).
+        if (!_process.Start())
+            throw new InvalidOperationException("Failed to start the debugger process.");
         var stderrTask = DrainStderrAsync(ct);
         try
         {
@@ -143,13 +150,13 @@ public sealed class DapSession : IDapSession
                 // Debuggee finished, but netcoredbg is still running waiting for disconnect.
                 try
                 {
-                    using var dCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    using var dCts = new CancellationTokenSource(DisconnectTimeout);
                     await SendAsync(new DisconnectRequest
                     {
                         seq = NextSeq(),
                         arguments = new DisconnectArguments { terminateDebuggee = true },
                     }, dCts.Token);
-                    using var wCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    using var wCts = new CancellationTokenSource(DisconnectWaitForExitTimeout);
                     await _process.WaitForExitAsync(wCts.Token);
                 }
                 catch { }
@@ -363,8 +370,16 @@ public sealed class DapSession : IDapSession
         var verified = bpEl.TryGetProperty("verified", out var v) && v.GetBoolean();
         var msg = bpEl.TryGetProperty("message", out var m) ? m.GetString() : null;
         var userLine = lineEl.GetInt32() - _lineOffset;
+        var sourcePath = bpEl.TryGetProperty("source", out var srcEl) && srcEl.TryGetProperty("path", out var pathEl)
+            ? pathEl.GetString()
+            : null;
 
-        var matched = _breakpoints.FirstOrDefault(bp => bp.Line == userLine);
+        // Same tolerant FileName match as HandleStoppedAsync (ANALYSIS.md #92) — matching on Line
+        // alone would misattribute this event to the wrong breakpoint if two source files
+        // coincidentally used the same line number.
+        var matched = _breakpoints.FirstOrDefault(bp => bp.Line == userLine
+            && (string.IsNullOrEmpty(bp.FileName) || sourcePath is null
+                || string.Equals(bp.FileName, sourcePath, StringComparison.OrdinalIgnoreCase)));
         if (matched is null) return;
 
         _logger.LogDebug("[dap bp] (event) verified={Verified} line={Line}{Msg}", verified, userLine, msg is not null ? $" msg={msg}" : "");
@@ -671,8 +686,10 @@ public sealed class DapSession : IDapSession
         {
             if (content[i] != '\n') continue;
             var line = content.Substring(start, i - start).TrimEnd('\r');
-            if (line.Length > 0)
-                _outputHandler?.Invoke(line, kind);
+            // A blank line (e.g. a bare Console.WriteLine()) is real output — dropping it here made
+            // debug runs lose blank lines that a non-debug run (DrainReaderAsync, which forwards
+            // every ReadLineAsync result unconditionally) keeps (ANALYSIS.md #92).
+            _outputHandler?.Invoke(line, kind);
             start = i + 1;
         }
         buf.Clear();
@@ -683,9 +700,15 @@ public sealed class DapSession : IDapSession
     public void FlushOutputBuffers()
     {
         if (_stdoutBuf.Length > 0)
+        {
             _outputHandler?.Invoke(_stdoutBuf.ToString(), OutputKind.StandardOutput);
+            _stdoutBuf.Clear();
+        }
         if (_stderrBuf.Length > 0)
+        {
             _outputHandler?.Invoke(_stderrBuf.ToString(), OutputKind.StandardError);
+            _stderrBuf.Clear();
+        }
     }
 
     // ─── Send ────────────────────────────────────────────────────────────────
@@ -693,7 +716,7 @@ public sealed class DapSession : IDapSession
     private async Task SendAsync(object request, CancellationToken ct)
     {
         var json = JsonSerializer.Serialize(request, request.GetType(), _jsonOpts);
-        _logger.LogDebug("[dap →] {Snippet}", json[..Math.Min(200, json.Length)]);
+        _logger.LogDebug("[dap →] {Snippet}", json[..Math.Min(LogSnippetLength, json.Length)]);
         var body = Encoding.UTF8.GetBytes(json);
         var header = Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n");
         var message = new byte[header.Length + body.Length];
@@ -803,13 +826,13 @@ public sealed class DapSession : IDapSession
             try
             {
                 var doc = JsonDocument.Parse(bodyBytes.AsMemory(0, contentLength));
-                var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(200, contentLength));
+                var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(LogSnippetLength, contentLength));
                 _logger.LogDebug("[dap ←] {Snippet}", snippet);
                 return doc;
             }
             catch (JsonException ex)
             {
-                var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(200, contentLength));
+                var snippet = Encoding.UTF8.GetString(bodyBytes, 0, Math.Min(LogSnippetLength, contentLength));
                 _logger.LogWarning(ex, "DAP parse error | raw: {Raw}", snippet);
                 _outputHandler?.Invoke($"[dbg parse error] {ex.Message} | raw: {snippet}", OutputKind.StandardError);
                 return null;

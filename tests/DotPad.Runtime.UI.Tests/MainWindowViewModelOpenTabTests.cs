@@ -28,11 +28,12 @@ public class MainWindowViewModelOpenTabTests
         fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         var vm = new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
@@ -51,11 +52,12 @@ public class MainWindowViewModelOpenTabTests
         fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
 
         var vm = new MainWindowViewModel(
             sdkProviders: [],
-            fileSystemSystemService: fileSystem.Object,
+            fileSystemService: fileSystem.Object,
             windowService: new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());

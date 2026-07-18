@@ -83,4 +83,78 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.NotNull(result);
         Assert.Contains(result!.Items, i => i.DisplayText == "WriteLine");
     }
+
+    // TODO.md #63 (async Task Main): ApplyKindTransform now mirrors "await Main();" instead of
+    // "Main();" when the user's Main is Task-returning — SyncDocument has to mirror that same,
+    // longer, code-dependent prefix or this async-Main script would hit the exact same false-positive
+    // CS8321 the two tests above were written to prevent for the plain void Main() case.
+    private const string AsyncProgramKindScript =
+        "async Task Main()\n{\n    await Task.Delay(1);\n    Console.WriteLine(\"hi\");\n}\n";
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenMainIsAsyncTask()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript);
+
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
+    }
+
+    // Same position-math sanity check as GetCompletionsAsync_Should_ResolveCorrectPosition_WhenKindIsProgram
+    // above, but against the longer "await Main();" prefix — HeaderLength must reflect whichever
+    // prefix SyncDocument actually mirrored for this exact code, not a fixed length.
+    [Fact]
+    public async Task GetCompletionsAsync_Should_ResolveCorrectPosition_WhenMainIsAsyncTask()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+
+        const string code = "async Task Main()\n{\n    Console.Wr\n}\n";
+        var position = code.IndexOf("Console.Wr", StringComparison.Ordinal) + "Console.Wr".Length;
+
+        var result = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Contains(result!.Items, i => i.DisplayText == "WriteLine");
+    }
+
+    // Reported by user 2026-07-16, live in the editor (not in an actual compile — DotPad.Cli/a real
+    // `dotnet build` were both already clean): opening an existing Program-kind file whose Main is
+    // `async Task Main()` showed a false-positive "declared but never used" CS8321 in the diagnostics
+    // panel that never went away on its own. Root cause was in EditorTabItemControl.SetDocumentContent,
+    // not here — it used to set editor.Document (which synchronously fires TextChanged, which is what
+    // actually calls NotifyTextChanged below) BEFORE calling RefreshIntelliSenseKind() (UpdateKind).
+    // UpdateKind only invalidates the cached analysis document; it doesn't itself trigger a fresh
+    // pass — so the very first analysis for a freshly opened file always ran under the stale default
+    // (RpadKind.Statements), and nothing re-ran it until the user's next edit. These two tests pin the
+    // ordering that actually matters, one call to NotifyTextChanged each, no service-level fix needed.
+    [Fact]
+    public async Task NotifyTextChanged_Should_NotFlagAsyncMainAsUnused_OnItsVeryFirstPass_WhenKindIsAppliedFirst()
+    {
+        using var service = CreateService();
+
+        // Mirrors EditorTabItemControl.SetDocumentContent's fixed ordering: RefreshIntelliSenseKind()
+        // (UpdateKind) now runs before editor.Document is ever assigned.
+        service.UpdateKind(RpadKind.Program);
+        var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript);
+
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
+    }
+
+    // Regression guard proving the ordering above is what actually matters, not just calling
+    // UpdateKind at some point: the exact same script and the exact same eventual UpdateKind call,
+    // just in SetDocumentContent's old (buggy) order — kind applied only after the first pass already
+    // ran and reported the false positive. If this ever starts passing, the bug is back.
+    [Fact]
+    public async Task NotifyTextChanged_Should_LeaveAStaleAsyncMainWarning_WhenKindIsAppliedAfterTheFirstPass()
+    {
+        using var service = CreateService();
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, AsyncProgramKindScript); // kind still Statements
+        service.UpdateKind(RpadKind.Program); // too late for the pass that already ran
+
+        Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
+    }
 }

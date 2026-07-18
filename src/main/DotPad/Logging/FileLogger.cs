@@ -6,6 +6,10 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
 {
     private static readonly object _lock = new();
 
+    // Keep the active day-file bounded; one ".1" backup is kept alongside it, so worst case is
+    // roughly 2x this per day rather than an unbounded, ever-growing file.
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024;
+
     // Trim namespace prefix: "DotPad.Debug.DapSession" → "DapSession"
     private readonly string _shortCategory = category.Contains('.')
         ? category[(category.LastIndexOf('.') + 1)..]
@@ -48,7 +52,21 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
 
         lock (_lock)
         {
+            RotateIfTooLarge(file);
             File.AppendAllText(file, logLine + Environment.NewLine);
         }
+    }
+
+    private static void RotateIfTooLarge(string file)
+    {
+        var info = new FileInfo(file);
+        if (!info.Exists || info.Length < MaxFileSizeBytes) return;
+
+        var rotated = Path.Combine(
+            Path.GetDirectoryName(file)!,
+            $"{Path.GetFileNameWithoutExtension(file)}.1{Path.GetExtension(file)}");
+
+        File.Delete(rotated);
+        File.Move(file, rotated);
     }
 }

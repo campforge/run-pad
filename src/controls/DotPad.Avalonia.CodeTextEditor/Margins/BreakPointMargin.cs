@@ -232,7 +232,10 @@ public class BreakPointMargin : AbstractMargin, IDisposable
     internal readonly record struct BreakpointIconPlan(bool DrawOutline, bool DrawConditionBadge);
 
     internal static BreakpointIconPlan ComputeBreakpointIconPlan(IBreakpoint bp) => new(
-        DrawOutline: bp.VerificationState == BreakpointVerificationState.Unverified,
+        // TODO.md #83.3: disabled breakpoints get the same contour-only treatment as unverified
+        // ones — a hollow ring reads as "not currently active" regardless of which of the two
+        // reasons applies, without needing a second brush/geometry just to tell them apart.
+        DrawOutline: !bp.IsEnabled || bp.VerificationState == BreakpointVerificationState.Unverified,
         DrawConditionBadge: bp.Condition is not null || bp.HitCondition is not null);
 
     // ── Drawing helpers ───────────────────────────────────────────────────────

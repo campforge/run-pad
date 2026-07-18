@@ -21,11 +21,17 @@ public static class RpadWriter
         string title = "Untitled",
         string targetSdk = "net10.0",
         RpadKind kind = RpadKind.Statements,
-        RpadLanguage language = RpadLanguage.CSharp)
+        RpadLanguage language = RpadLanguage.CSharp,
+        // Overrides the per-kind/language "Hello, RPad!" sample below with caller-supplied code
+        // (e.g. empty string) — used for a brand-new, never-saved tab (see
+        // MainWindowViewModel.NewRpadFile), which should start genuinely empty rather than with
+        // boilerplate the user didn't ask for. null (default) preserves the sample for every other
+        // caller (CLI/tests/the pre-deferred-creation "New RPad File" menu behavior).
+        string? code = null)
     {
         var languageId = language.ToLanguageId();
 
-        var code = (language, kind) switch
+        code ??= (language, kind) switch
         {
             (RpadLanguage.Vb, RpadKind.Program) =>
                 "Module Program\nSub Main()\n\nEnd Sub\nEnd Module\n\n' You can define other methods, fields, classes and namespaces here\n",
@@ -35,48 +41,51 @@ public static class RpadWriter
             (_, RpadKind.Expression) => "\"Hello, RPad!\"\n",
             _ => "Console.WriteLine(\"Hello, RPad!\");\n",
         };
+
+        // Every built-in sample above already ends with '\n', but a caller-supplied override (e.g.
+        // "" for a brand-new empty tab) might not — without a trailing newline (even an empty code
+        // block needs one), the closing fence below lands glued onto the same physical line as the
+        // code instead of starting its own line, which RpadParser.FindClosingFence requires to
+        // recognize it as a closing fence at all. Same guard Write() already applies to RunCode for
+        // the same reason.
+        if (!code.EndsWith('\n')) code += "\n";
         return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
     private static string SerializeFm(RpadFrontMatter fm)
     {
+        // Explicit '\n' throughout, not StringBuilder.AppendLine (which appends the *running
+        // machine's* Environment.NewLine) — otherwise the very same document produced identical
+        // byte-for-byte on Linux/macOS came out with CRLF front matter on Windows, needlessly
+        // diverging from Write()'s own literal "\n" fences around it (ANALYSIS.md #93).
         var sb = new StringBuilder();
-        sb.AppendLine($"version: {fm.Version}");
-        sb.AppendLine($"language: {fm.Language.ToString().ToLowerInvariant()}");
-        sb.AppendLine($"targetSdk: {fm.TargetSdk}");
-        sb.Append($"kind: {fm.Kind}");
+        sb.Append("version: ").Append(fm.Version).Append('\n');
+        sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
+        sb.Append("targetSdk: ").Append(fm.TargetSdk).Append('\n');
+        sb.Append("kind: ").Append(fm.Kind);
 
         if (fm.Packages?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("packages:");
+            sb.Append('\n').Append("packages:");
             foreach (var (k, v) in fm.Packages)
-            {
-                sb.AppendLine();
-                sb.Append($"  {YamlEscape(k)}: {YamlEscape(v.Version)}");
-            }
+                sb.Append('\n').Append("  ").Append(YamlEscape(k)).Append(": ").Append(YamlEscape(v.Version));
         }
 
         if (fm.References?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("references:");
+            sb.Append('\n').Append("references:");
             foreach (var r in fm.References)
-            {
-                sb.AppendLine();
-                sb.Append($"  - {r}");
-            }
+                // Unescaped, a reference path containing ": " or starting with a YAML-special
+                // character (e.g. one that happens to start with '#') broke the round trip
+                // (ANALYSIS.md #93) — same escaping already applied to packages: above.
+                sb.Append('\n').Append("  - ").Append(YamlEscape(r));
         }
 
         if (fm.Namespaces?.Count > 0)
         {
-            sb.AppendLine();
-            sb.Append("namespaces:");
+            sb.Append('\n').Append("namespaces:");
             foreach (var u in fm.Namespaces)
-            {
-                sb.AppendLine();
-                sb.Append($"  - {u}");
-            }
+                sb.Append('\n').Append("  - ").Append(YamlEscape(u));
         }
 
         return sb.ToString();

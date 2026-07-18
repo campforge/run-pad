@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -11,15 +12,28 @@ using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
 using DotPad.UserControls.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 
 namespace DotPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly IFileSystemService _fileSystemSystemService;
+    private readonly IFileSystemService _fileSystemService;
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
+    private readonly ILogger<MainWindowViewModel> _logger;
+
+    // Debounce before persisting a resized sidebar width to preferences — avoids writing to disk on
+    // every intermediate drag frame (same reasoning as EditorTabItemViewModel.LayoutSaveThrottle,
+    // ANALYSIS.md #94).
+    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
+
+    // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
+    // several FileSystemWatcher events in quick succession; wait for them to settle before
+    // rebuilding the tree once.
+    private static readonly TimeSpan WatcherRefreshDebounce = TimeSpan.FromMilliseconds(300);
 
     // OrdinalIgnoreCase matches Windows'/macOS' default case-insensitive filesystem; Linux's is
     // case-sensitive, where it would incorrectly collapse two distinct files differing only in
@@ -62,6 +76,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         get
         {
             try { return KeyGesture.Parse(_prefs.Keyboard.OpenDependencies); }
+            catch { return null; }
+        }
+    }
+
+    // Feeds MainWindow.axaml's File > Save MenuItem.InputGesture — same rationale as
+    // OpenDependenciesGesture above.
+    public KeyGesture? SaveGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.Save); }
             catch { return null; }
         }
     }
@@ -112,17 +137,67 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public EditorTabItemViewModel? ActiveTab
     {
         get => _activeTab;
-        set => this.RaiseAndSetIfChanged(ref _activeTab, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _activeTab, value);
+            PersistSession();
+        }
     }
 
-    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp)
+    // Remembers which files are open (and in what order) plus which one is active, so the next
+    // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
+    // disk, so there's no path to remember them by (TODO.md, "Жизненный цикл вкладок (остаток)").
+    // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
+    // action, not worth the debounce SidebarColumnWidth's drag-frame writes need.
+    private void PersistSession()
     {
-        var path = _fileSystemSystemService.CreateNewFile();
-        var title = Path.GetFileNameWithoutExtension(path);
-        File.WriteAllText(path, RpadWriter.NewFile(title, language: language), System.Text.Encoding.UTF8);
+        _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
+        _prefs.Session.ActiveTabPath = ActiveTab?.FilePath;
+        _prefs.Save();
+    }
 
-        RefreshNodes();
-        OpenTab(path);
+    // Replaces the old unconditional "open one blank tab" at startup (EditorTabsControl.Attach) —
+    // restores every previously-open, still-on-disk tab in its saved order, then re-selects whichever
+    // one was active. Falls back to a single blank tab when there's nothing to restore (first run, or
+    // every saved path has since been deleted/moved).
+    public void RestoreSession()
+    {
+        // Captured before the loop below, not re-read after it: each OpenTab call inside the loop
+        // makes its own tab the active one, which fires PersistSession (via the ActiveTab setter) and
+        // overwrites _prefs.Session.ActiveTabPath with whatever was JUST opened — reading the property
+        // again afterward would always see the last-restored tab instead of the one actually active
+        // when the session was saved.
+        var savedActivePath = _prefs.Session.ActiveTabPath;
+        var savedOpenTabs = _prefs.Session.OpenTabs.ToList();
+
+        var restoredAny = false;
+        foreach (var path in savedOpenTabs)
+        {
+            if (!File.Exists(path)) continue;
+            OpenTab(path);
+            restoredAny = true;
+        }
+
+        if (!restoredAny)
+        {
+            OpenTab(null);
+            return;
+        }
+
+        if (savedActivePath is { } activePath && _openTabs.TryGetValue(activePath, out var activeVm))
+            ActiveTab = activeVm;
+    }
+
+    // Deliberately doesn't touch disk (TODO.md, "Жизненный цикл вкладок") — a new script starts
+    // empty and in-memory-only; it only becomes a real file the first time the user does Save or
+    // Save As (SaveTabAsAsync below). language/kind are carried on the tab itself
+    // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet
+    // for EditorsTabItemControl.SetDocumentContent/EditorTabsControl.CreateControlAsync to read them
+    // from.
+    public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
+    {
+        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, language, kind);
+        AddTab(vm);
     }
 
     public void OpenTab(string? filePath)
@@ -139,22 +214,110 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs);
-        _closeSubscriptions[vm] = vm.CloseCommand.Subscribe(_ => CloseTab(vm));
-
         if (filePath is not null) _openTabs[filePath] = vm;
-        Tabs.Add(vm);
-        ActiveTab = vm;
+        AddTab(vm);
 
         if (blankToClose is not null)
             CloseTab(blankToClose);
     }
 
-    internal void CloseActiveTab()
+    private void AddTab(EditorTabItemViewModel vm)
     {
-        if (_activeTab != null) CloseTab(_activeTab);
+        // CloseCommand is deliberately NOT subscribed here — unlike OpenContainingFolderCommand, it
+        // needs EditorsTabItemControl.WriteFile (to save an untitled-but-dirty tab's content when the
+        // user picks "Save" from the confirmation dialog), which only the View layer has. See
+        // EditorTabsControl.RequestCloseTabAsync, subscribed there instead.
+        var subs = new CompositeDisposable
+        {
+            vm.OpenContainingFolderCommand.Subscribe(_ =>
+            {
+                if (vm.FilePath is { } path) OpenContainingFolder(path);
+            }),
+        };
+        _closeSubscriptions[vm] = subs;
+
+        Tabs.Add(vm);
+        ActiveTab = vm; // also persists the session (see the setter) — covers the Tabs.Add above too
     }
 
-    private void CloseTab(EditorTabItemViewModel vm)
+    // Called after a Save As (or the first Save of a brand-new, never-saved tab) actually writes
+    // `newPath` to disk — rebinds the tab from "untitled" (or its old path) to the new one, the same
+    // bookkeeping RenameFile already does for a file-tree rename, just triggered from the tab side
+    // instead of the tree.
+    public async Task SaveTabAsAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
+    {
+        var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
+        if (newPath is null) return; // cancelled
+
+        try
+        {
+            writeToPath(newPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _windowService.ShowErrorAsync(
+                "Save Failed", $"Could not save '{Path.GetFileName(newPath)}':\n{ex.Message}");
+            return;
+        }
+
+        if (vm.FilePath is { } oldPath) _openTabs.Remove(oldPath);
+        vm.FilePath = newPath;
+        vm.IsDirty = false;
+        _openTabs[newPath] = vm;
+        RefreshNodes();
+        // Neither Tabs nor ActiveTab changed (same vm, same position) but the path list did —
+        // PersistSession's usual triggers (the ActiveTab setter, CloseTab) won't fire here.
+        PersistSession();
+    }
+
+    // Tab context menu's "Duplicate" — copies the tab's CURRENT (possibly unsaved) content to a new,
+    // free filename next to the original, then opens it as its own tab. Only meaningful for a tab
+    // that already has a home on disk (see EditorTabItemViewModel.HasFilePath, which gates the menu
+    // item itself) — an untitled tab has no "next to" to duplicate into.
+    public void DuplicateTab(EditorTabItemViewModel vm, Action<string> writeToPath)
+    {
+        if (vm.FilePath is not { } sourcePath) return;
+
+        var dir = Path.GetDirectoryName(sourcePath)!;
+        var baseName = Path.GetFileNameWithoutExtension(sourcePath);
+        var ext = Path.GetExtension(sourcePath);
+
+        string newPath;
+        var i = 1;
+        do
+        {
+            var suffix = i == 1 ? " copy" : $" copy {i}";
+            newPath = Path.Combine(dir, $"{baseName}{suffix}{ext}");
+            i++;
+        } while (File.Exists(newPath));
+
+        try
+        {
+            writeToPath(newPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _windowService.ShowErrorAsync(
+                "Duplicate Failed", $"Could not create '{Path.GetFileName(newPath)}':\n{ex.Message}");
+            return;
+        }
+
+        RefreshNodes();
+        OpenTab(newPath);
+    }
+
+    // Asks whether to save an untitled-but-dirty tab's content before its close discards it — see
+    // EditorTabsControl.RequestCloseTabAsync, the sole caller (both the tab's [x] button and Ctrl+W
+    // route through it). A thin passthrough to _windowService, which EditorTabsControl doesn't have
+    // its own reference to.
+    public Task<UnsavedChangesResult> ConfirmDiscardUnsavedChangesAsync(string fileName)
+        => _windowService.ShowUnsavedChangesDialogAsync(fileName);
+
+    // internal (not private): EditorTabsControl.RequestCloseTabAsync calls this directly once the
+    // close is actually confirmed (or didn't need confirming) — the View-layer orchestration around
+    // it (the confirmation dialog, needing ctrl.WriteFile for "Save") can't live here, see AddTab's
+    // comment on why CloseCommand itself isn't subscribed in this class.
+    internal void CloseTab(EditorTabItemViewModel vm)
     {
         if (_closeSubscriptions.TryGetValue(vm, out var d))
         {
@@ -166,7 +329,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         bool wasActive = ActiveTab == vm;
         Tabs.Remove(vm);
-        if (wasActive) ActiveTab = Tabs.LastOrDefault();
+        if (wasActive)
+            ActiveTab = Tabs.LastOrDefault(); // also persists the session (see the setter)
+        else
+            PersistSession(); // ActiveTab unchanged, so its setter won't fire — persist explicitly
     }
 
     // ── File tree operations ──────────────────────────────────────────────────
@@ -282,12 +448,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public string CreateFolder(string? contextPath)
     {
         var parentDir = contextPath is null
-            ? _fileSystemSystemService.Folder
+            ? _fileSystemService.Folder
             : Directory.Exists(contextPath)
                 ? contextPath
-                : Path.GetDirectoryName(contextPath) ?? _fileSystemSystemService.Folder;
+                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
 
-        var path = _fileSystemSystemService.CreateNewFolder(parentDir);
+        var path = _fileSystemService.CreateNewFolder(parentDir);
         RefreshNodes();
         return path;
     }
@@ -296,7 +462,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            _fileSystemSystemService.OpenFolder(filePath);
+            _fileSystemService.OpenFolder(filePath);
         }
         catch (Exception ex)
         {
@@ -312,14 +478,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel(
         IEnumerable<ISdkProvider> sdkProviders,
-        IFileSystemService fileSystemSystemService,
+        IFileSystemService fileSystemService,
         IWindowService windowService,
         IPreferencesService prefs,
-        ILanguageHostRegistry languageRegistry)
+        ILanguageHostRegistry languageRegistry,
+        // Optional with a null-object fallback (rather than a required DI parameter) so the many
+        // existing tests constructing this type directly don't all need updating just to supply a
+        // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
+        // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
+        // provider regardless of the parameter having a default (ANALYSIS.md #94).
+        ILogger<MainWindowViewModel>? logger = null)
     {
-        _fileSystemSystemService = fileSystemSystemService;
+        _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
+        _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
         // TODO.md #80/#81: FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
@@ -328,9 +501,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
-        OpenDependenciesCommand.ThrownExceptions.Subscribe(_ => { });
-        OpenPreferencesCommand.ThrownExceptions.Subscribe(_ => { });
-        OpenAboutCommand.ThrownExceptions.Subscribe(_ => { });
+        // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
+        // vanish with no trace at all.
+        OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
+        OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
+        OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed
@@ -340,7 +515,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
         this.WhenAnyValue(x => x.SidebarColumnWidth)
             .Skip(1)
-            .Throttle(TimeSpan.FromMilliseconds(400), RxApp.MainThreadScheduler)
+            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
             .Subscribe(w =>
             {
                 _prefs.Layout.SidebarCollapsed = w.Value <= 0;
@@ -350,32 +525,32 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
         RefreshNodes();
 
-        _fileSystemSystemService.WatcherEvent += OnWatcherEvent;
-        _fileSystemSystemService.StartWatcher();
+        _fileSystemService.WatcherEvent += OnWatcherEvent;
+        _fileSystemService.StartWatcher();
     }
 
     // ── Watcher ───────────────────────────────────────────────────────────────
 
     private void OnWatcherEvent(object? sender, FileSystemEventArgs e)
     {
-        // Version-based debounce: capture current version, wait 300 ms,
+        // Version-based debounce: capture current version, wait for WatcherRefreshDebounce,
         // then refresh only if no newer event arrived.
         var version = Interlocked.Increment(ref _debounceVersion);
-        Task.Delay(300).ContinueWith(_ =>
+        Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
                 Dispatcher.UIThread.Post(RefreshNodes);
         });
     }
 
-    private void RefreshNodes() => FileTree.Refresh(_fileSystemSystemService.GetFilesTree());
+    private void RefreshNodes() => FileTree.Refresh(_fileSystemService.GetFilesTree());
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 
     public void Dispose()
     {
-        _fileSystemSystemService.WatcherEvent -= OnWatcherEvent;
-        _fileSystemSystemService.StopWatcher();
+        _fileSystemService.WatcherEvent -= OnWatcherEvent;
+        _fileSystemService.StopWatcher();
         foreach (var d in _closeSubscriptions.Values)
         {
             d.Dispose();

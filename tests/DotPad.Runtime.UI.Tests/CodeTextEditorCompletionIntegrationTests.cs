@@ -117,6 +117,46 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Rhino", editor.Document.Text);
     }
 
+    // TODO.md #60.5: committing via Tab with the caret mid-word ("Cons|ole") must consume the
+    // pre-existing remainder ("ole"), producing exactly the accepted item's text — not leave it
+    // dangling after the inserted text (e.g. "Consoleole").
+    [AvaloniaFact]
+    public async Task CommittingWithTab_Should_ReplaceTheRemainderOfTheWordAfterTheCaret()
+    {
+        // Arrange — the whole word "Console" is already in the document; the caret is moved back to
+        // its middle, as if the user had clicked back into an already-typed identifier.
+        var (window, editor) = CreateEditor("Console", ("Console", 1.0));
+        editor.TextArea.Caret.Offset = 4; // "Cons|ole"
+
+        // Act — Ctrl+Space (explicit invoke) pre-selects "Console" from the "Cons" already typed
+        // before the caret (same SelectItem(alreadyTyped) mechanism as the auto-invoke pre-selection
+        // above), then Tab commits it.
+        window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, null);
+        await Task.Delay(20);
+        window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+        await Task.Delay(20);
+
+        // Assert
+        Assert.Equal("Console", editor.Document.Text);
+    }
+
+    // Same setup as above, but committing via Enter — the spec (TODO.md #60.5) deliberately keeps
+    // Enter's existing "insert, don't touch what follows the caret" behavior, only Tab replaces the
+    // remainder.
+    [AvaloniaFact]
+    public async Task CommittingWithEnter_Should_NotTouchTheRemainderAfterTheCaret()
+    {
+        var (window, editor) = CreateEditor("Console", ("Console", 1.0));
+        editor.TextArea.Caret.Offset = 4; // "Cons|ole"
+
+        window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.Space, null);
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        Assert.Equal("Consoleole", editor.Document.Text);
+    }
+
     // ANALYSIS.md #57: fast typing can start a second completion request before the first one
     // resolves (e.g. the 24/7 auto-invoke on a letter, immediately followed by '.'). If the first
     // (now stale) request happens to resolve *after* the second, newer one — plausible, since async
@@ -477,6 +517,39 @@ public class CodeTextEditorCompletionIntegrationTests
         // service determined the caret is no longer inside any call).
         returnOverload = false;
         window.KeyTextInput(",");
+        await Task.Delay(20);
+
+        // Assert
+        Assert.False(editor.IsInsightWindowOpen);
+    }
+
+    // TODO.md #60.9: Esc closing the insight window — already worked via
+    // CompletionWindowBase.OnKeyDown's fully generic Key.Escape handler (OverloadInsightWindow calls
+    // base.OnKeyDown first, before its own Up/Down cycling), but had no regression test locking that
+    // behavior in.
+    [AvaloniaFact]
+    public async Task Escape_Should_CloseTheInsightWindow()
+    {
+        // Arrange
+        var editor = new CodeTextEditor();
+        editor.OverloadTriggers.Add('(');
+        editor.Document = new TextDocument("Foo");
+        editor.AsyncOverloadProvider = e =>
+        {
+            e.Overloads.Add(("Foo(int a, int b)", "desc"));
+            return Task.CompletedTask;
+        };
+        var window = new Window { Content = editor };
+        window.Show();
+        editor.TextArea.Focus();
+        editor.TextArea.Caret.Offset = 3;
+
+        window.KeyTextInput("(");
+        await Task.Delay(20);
+        Assert.True(editor.IsInsightWindowOpen);
+
+        // Act
+        window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
         await Task.Delay(20);
 
         // Assert

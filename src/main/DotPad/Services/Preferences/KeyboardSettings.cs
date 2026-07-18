@@ -10,6 +10,12 @@ public sealed class KeyboardSettings
     public string Format { get; set; } = "Shift+Alt+F";
     public string GoToLine { get; set; } = "Ctrl+G";
 
+    // Bug report 2026-07-17: there was no explicit Save action anywhere (only implicit saves on tab
+    // close/Run/etc., or the always-dialog "Save As") — pressing Ctrl+S out of muscle memory matched
+    // no gesture and silently did nothing, so IsDirty (correctly) never cleared. See
+    // EditorTabsControl.SaveActive.
+    public string Save { get; set; } = "Ctrl+S";
+
     // TODO.md #80: these 4 used to be literal Key.XXX checks — MainWindow.axaml.cs (F4/Ctrl+W) and
     // FileTreeView.cs (F2/Delete) — sitting right next to the gestures above but not going through
     // this settings object at all, so they weren't shown as a tooltip/menu hint, weren't editable in

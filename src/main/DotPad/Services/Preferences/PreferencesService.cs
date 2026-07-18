@@ -19,6 +19,7 @@ public sealed class PreferencesService : IPreferencesService
     public DebuggerSettings Debugger => _settings.Debugger;
     public KeyboardSettings Keyboard => _settings.Keyboard;
     public LayoutSettings Layout => _settings.Layout;
+    public SessionSettings Session => _settings.Session;
 
     public event Action? Changed;
 

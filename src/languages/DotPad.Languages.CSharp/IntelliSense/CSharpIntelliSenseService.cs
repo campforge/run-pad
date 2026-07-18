@@ -123,6 +123,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "netcoreapp3.1", "netstandard2.1", "netstandard2.0",
     ];
 
+    // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
+    // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
+    // still feel live (ANALYSIS.md #94).
+    private static readonly TimeSpan _backgroundAnalysisDebounce = TimeSpan.FromMilliseconds(500);
+
+    // How long Dispose waits for an in-flight background analysis pass to actually observe
+    // cancellation before giving up — see Dispose's own comment for why this is bounded rather than
+    // unbounded.
+    private static readonly TimeSpan _backgroundAnalysisDisposeTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ILogger<CSharpIntelliSenseService> _logger;
     private readonly AdhocWorkspace _workspace;
     private readonly DocumentId _documentId;
@@ -261,11 +271,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // the user's void Main() as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
     // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
-    private string KindPrefix => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefix : "";
+    // Code-dependent since ProgramMainCallPrefixFor picks between "Main();" and "await Main();"
+    // based on whether the user's own Main is Task-returning (TODO.md #63) — every call site already
+    // has `code` in scope (it's what's being analyzed), so this just threads it through.
+    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefixFor(code) : "";
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
-    // code — usings preamble plus (for RpadKind.Program) the mirrored `Main();` prefix above.
-    private int HeaderLength => _preambleLength + KindPrefix.Length;
+    // code — usings preamble plus (for RpadKind.Program) the mirrored Main-call prefix above.
+    private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
     // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
     // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
@@ -293,7 +306,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + KindPrefix + code + TrailingPad, Encoding.UTF8);
+                var text = SourceText.From(_preamble + KindPrefix(code) + code + TrailingPad, Encoding.UTF8);
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
@@ -325,7 +338,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength;
+            var pos = position + HeaderLength(code);
 
             // TODO.md item 60 point 8 — checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right
@@ -879,7 +892,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength;
+            var pos = position + HeaderLength(code);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -907,19 +920,38 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
                 .ToList();
 
-            if (methods.Count == 0 && callLike is InvocationExpressionSyntax { Expression: { } target })
-                methods = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
-
-            // Overload resolution came up with nothing usable (e.g. still typing, 0 arguments so far)
-            // — fall back to every accessible constructor of the target type, the object-creation
-            // equivalent of the GetMemberGroup fallback above.
-            if (methods.Count == 0 && callLike is BaseObjectCreationExpressionSyntax objectCreation)
+            // TODO.md #60.9 ("все перегрузки"): Roslyn only populates CandidateSymbols when
+            // resolution is ambiguous — a call already typed correctly and unambiguously resolves
+            // straight to one Symbol, which used to collapse "all overloads" down to just that one
+            // even when the method has siblings (the insight window's up/down cycling had nothing
+            // to cycle through for the single most common case: sitting inside an already-valid
+            // call). Always try the full member/constructor group instead of only when methods is
+            // still empty, falling back to whatever GetSymbolInfo alone found only if the group
+            // lookup itself comes up empty (e.g. invoking through a delegate-typed local, which has
+            // no "group" to speak of). SelectBestOverloadIndex below re-derives which entry actually
+            // matches what's typed, so widening this list doesn't change what starts out highlighted.
+            if (callLike is InvocationExpressionSyntax { Expression: { } target })
             {
-                var createdType = objectCreation is ObjectCreationExpressionSyntax named
-                    ? model.GetTypeInfo(named.Type).Type
-                    : model.GetTypeInfo(objectCreation).Type; // target-typed `new(...)` — infer from context
+                var group = model.GetMemberGroup(target).OfType<IMethodSymbol>().ToList();
+                if (group.Count > 0) methods = group;
+            }
+            else if (callLike is BaseObjectCreationExpressionSyntax objectCreation)
+            {
+                // GetTypeInfo on the object-creation EXPRESSION itself, not its .Type child node —
+                // the latter (what this used to read) comes back null for a type declared in the
+                // same document being analyzed (reproduced by TryGetSignatureHelpAsync's own tests:
+                // a locally-declared class's constructor overloads never showed up at all, only a
+                // referenced-assembly type's like System.Text.StringBuilder's did) — apparently a
+                // quirk of this in-memory AdhocWorkspace setup, not something specific to
+                // target-typed `new(...)` (which has no .Type node to read in the first place, the
+                // original reason this expression-based lookup existed at all, just not used
+                // unconditionally).
+                var createdType = model.GetTypeInfo(objectCreation).Type;
                 if (createdType is INamedTypeSymbol namedType)
-                    methods = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
+                {
+                    var ctors = namedType.Constructors.Where(c => !c.IsImplicitlyDeclared).ToList();
+                    if (ctors.Count > 0) methods = ctors;
+                }
             }
 
             if (methods.Count == 0) return null;
@@ -1100,7 +1132,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength;
+            var pos = position + HeaderLength(code);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1154,8 +1186,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public void NotifyTextChanged(string code)
     {
+        // Not disposed here — a superseded background analysis pass (Task.Run below) can still be
+        // mid-flight past this point (e.g. inside RoslynCodeFixEngine, which doesn't poll the token
+        // between individual CodeFixProviders — see Dispose's own comment), and registering/reading
+        // against an already-disposed CancellationTokenSource throws ObjectDisposedException
+        // (ANALYSIS.md #89). A CancellationTokenSource whose WaitHandle is never touched holds no
+        // unmanaged resources, so leaving the superseded one for the GC is safe; Dispose() below
+        // (this instance's own teardown, after _backgroundAnalysisTask is awaited/timed out) still
+        // disposes the final one.
         _diagnosticsCts?.Cancel();
-        _diagnosticsCts?.Dispose();
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
@@ -1163,7 +1202,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             try
             {
-                await Task.Delay(500, ct);
+                await Task.Delay(_backgroundAnalysisDebounce, ct);
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
@@ -1176,7 +1215,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
     {
-        var textLen = HeaderLength + code.Length;
+        var headerLength = HeaderLength(code);
+        var textLen = headerLength + code.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -1186,9 +1226,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var start = span.TextSpan.Start - HeaderLength;
+            var start = span.TextSpan.Start - headerLength;
             if (start < 0) continue;
-            var end = Math.Min(span.TextSpan.End - HeaderLength, code.Length);
+            var end = Math.Min(span.TextSpan.End - headerLength, code.Length);
             if (start >= end) continue;
 
             result.Add(new SimpleSemanticToken(start, end - start, kind));
@@ -1214,6 +1254,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
+        var headerLength = HeaderLength(code);
         var visible = new List<IDiagnosticInfo>();
         var forCodeFixes = new List<Diagnostic>();
         foreach (var d in model.GetDiagnostics(cancellationToken: ct))
@@ -1224,10 +1265,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (!d.Location.IsInSource) continue;
 
             var span = d.Location.SourceSpan;
-            var start = span.Start - HeaderLength;
+            var start = span.Start - headerLength;
             if (start < 0) continue;
 
-            var end = Math.Max(span.End - HeaderLength, start + 1);
+            var end = Math.Max(span.End - headerLength, start + 1);
             var severity = d.Severity switch
             {
                 RoslynSeverity.Error => ContractSeverity.Error,
@@ -1239,7 +1280,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, HeaderLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, headerLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
     }
 
@@ -1325,7 +1366,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void Dispose()
     {
         _diagnosticsCts?.Cancel();
-        try { _backgroundAnalysisTask?.Wait(TimeSpan.FromSeconds(5)); }
+        try { _backgroundAnalysisTask?.Wait(_backgroundAnalysisDisposeTimeout); }
         catch { /* already logged from inside the task itself */ }
         _diagnosticsCts?.Dispose();
         _workspace.Dispose();
