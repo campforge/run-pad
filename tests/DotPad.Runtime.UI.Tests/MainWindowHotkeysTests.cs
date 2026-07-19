@@ -51,6 +51,15 @@ public class MainWindowHotkeysTests
         var windowService = new Mock<IWindowService>();
         windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<DotPad.Format.RPad.RpadFrontMatter?>?>()))
             .Returns(Task.CompletedTask);
+        // Ctrl+W's close path asks this whenever the active tab is untitled+dirty (EditorTabsControl.
+        // RequestCloseTabAsync) — an unstubbed loose mock defaults an unconfigured Task<enum> call to
+        // Task.FromResult(default(TEnum)), and UnsavedChangesResult's own default (0) is Save, not
+        // Cancel/DontSave. That silently steers RequestCloseTabAsync into its Save branch, which then
+        // calls the equally-unstubbed ShowSaveFileDialogAsync (defaults to a null path = "dialog
+        // cancelled"), so the tab never actually closes — exactly the shape of the CI-only failure
+        // this stub fixes. Explicit here rather than relying on Moq's default either way.
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.DontSave);
 
         var mainVm = new MainWindowViewModel(
             sdkProviders: [],
@@ -66,6 +75,29 @@ public class MainWindowHotkeysTests
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
         window.Show();
         return (window, mainVm, windowService);
+    }
+
+    // EditorTabsControl.OnTabsCollectionChanged builds each tab's EditorsTabItemControl
+    // asynchronously (CreateControlAsync's own Task.Run hop for the IntelliSense factory, even a
+    // trivial mocked one, still needs a real thread-pool round trip back to the UI thread) — a test
+    // that presses a key immediately after CreateMainWindow returns races that completion. Harmless
+    // for gestures that only touch the ViewModel (F4/OpenDependencies), but CloseActiveTab needs
+    // GetActiveControl() to find the actual control, so on a slow/loaded CI runner (observed on
+    // Windows CI) the control can still not exist yet — the close silently no-ops instead of
+    // asserting anything, which is why this surfaced as "tab didn't close" rather than a crash.
+    // Lifted out of PressingCtrlW_OnADirtyUntitledTab_Should_AskBeforeClosing, which already had to
+    // solve this same race for itself.
+    private static async Task<EditorsTabItemControl?> WaitForActiveTabControlAsync(Window window)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            if (window.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>().FirstOrDefault() is { } ctrl)
+                return ctrl;
+            await Task.Delay(20);
+        }
+
+        return null;
     }
 
     [AvaloniaFact]
@@ -99,9 +131,10 @@ public class MainWindowHotkeysTests
     }
 
     [AvaloniaFact]
-    public void PressingTheDefaultCtrlW_Should_CloseTheActiveTab()
+    public async Task PressingTheDefaultCtrlW_Should_CloseTheActiveTab()
     {
         var (window, vm, _) = CreateMainWindow(new KeyboardSettings());
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
         Assert.True(tabCountBefore > 0); // the initial blank tab EditorTabsControl.Attach creates
 
@@ -111,9 +144,10 @@ public class MainWindowHotkeysTests
     }
 
     [AvaloniaFact]
-    public void PressingCtrlW_Should_NotCloseTheActiveTab_WhenTheGestureHasBeenRebound()
+    public async Task PressingCtrlW_Should_NotCloseTheActiveTab_WhenTheGestureHasBeenRebound()
     {
         var (window, vm, _) = CreateMainWindow(new KeyboardSettings { CloseTab = "Ctrl+Shift+Q" });
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
 
         window.KeyPress(Key.W, RawInputModifiers.Control, PhysicalKey.W, null);
@@ -122,9 +156,10 @@ public class MainWindowHotkeysTests
     }
 
     [AvaloniaFact]
-    public void PressingTheReboundGesture_Should_CloseTheActiveTab()
+    public async Task PressingTheReboundGesture_Should_CloseTheActiveTab()
     {
         var (window, vm, _) = CreateMainWindow(new KeyboardSettings { CloseTab = "Ctrl+Shift+Q" });
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
         Assert.True(tabCountBefore > 0);
 
@@ -144,13 +179,7 @@ public class MainWindowHotkeysTests
         windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
             .ReturnsAsync(UnsavedChangesResult.Cancel);
 
-        EditorsTabItemControl? ctrl = null;
-        for (var i = 0; i < 100 && ctrl is null; i++)
-        {
-            ctrl = window.GetVisualDescendants().OfType<TabItem>()
-                .Select(t => t.Content).OfType<EditorsTabItemControl>().FirstOrDefault();
-            if (ctrl is null) await Task.Delay(20);
-        }
+        var ctrl = await WaitForActiveTabControlAsync(window);
         Assert.NotNull(ctrl);
         ctrl!.State.Editor.Text = "Console.WriteLine(1);";
         var tabCountBefore = vm.Tabs.Count;
