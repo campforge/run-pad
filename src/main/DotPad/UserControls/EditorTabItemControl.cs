@@ -593,15 +593,39 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return menu;
     }
 
-    // TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — CodeTextEditor.
-    // GoToDefinitionRequested. A symbol declared in the script itself is a same-document caret jump
-    // (single-file scratchpad, no cross-file navigation to speak of); anything else has no source to
-    // jump to, so it's decompiled instead and shown in a separate, non-modal window (explicit user
-    // request: NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/
-    // ILSpy show a decompiled member without disturbing whatever else is open).
+    // TODO.md #62 "Go to Definition"/"Go to Implementation" (F12, user request 2026-07-19) —
+    // CodeTextEditor.GoToDefinitionRequested. A single F12 binding covers both: implementations take
+    // priority when the symbol has any (same as pressing "Go to Implementation" in VS/Rider, minus a
+    // separate Ctrl+F12 — dropped after user feedback 2026-07-19 that modifier+F-key combos collide
+    // with desktop-environment global shortcuts often enough on Linux, e.g. KDE Plasma, that adding
+    // another one isn't a safe default); falling back to the symbol's own definition otherwise. A
+    // symbol declared in the script itself is a same-document caret jump (single-file scratchpad, no
+    // cross-file navigation to speak of); a definition outside the script has no source to jump to,
+    // so it's decompiled instead and shown in a separate, non-modal window (explicit user request:
+    // NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/ILSpy show a
+    // decompiled member without disturbing whatever else is open).
     private async Task ShowGoToDefinitionAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
     {
         var caretOffset = editor.TextArea.Caret.Offset;
+
+        var implementations = await intelliSense.GetImplementationsAsync(
+            State.Editor.Text, caretOffset, CancellationToken.None);
+        if (implementations is { Count: > 0 })
+        {
+            if (implementations.Count == 1)
+            {
+                editor.TextArea.Caret.Offset = implementations[0].Offset;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            }
+            else if (BuildGoToImplementationMenu(implementations, editor) is { } menu)
+            {
+                editor.ContextMenu = menu;
+                menu.Open(editor);
+            }
+            return;
+        }
+
         var definition = await intelliSense.GetDefinitionAsync(State.Editor.Text, caretOffset, CancellationToken.None);
         if (definition is null) return;
 
@@ -627,6 +651,30 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var window = new Windows.DecompiledViewWindow(_themeService, decompiled.Title, decompiled.Text, decompiled.Line);
         if (owner is not null) window.Show(owner);
         else window.Show();
+    }
+
+    // internal (not private): same rationale as BuildFindReferencesMenu — lets tests inspect the
+    // built menu's items/click-wiring directly, since headless Avalonia has no reliable way to drive
+    // an actual popup open/click interaction.
+    internal static ContextMenu? BuildGoToImplementationMenu(
+        IReadOnlyList<IImplementationLocation> implementations, CodeTextEditor editor)
+    {
+        if (implementations.Count == 0) return null;
+
+        var menu = new ContextMenu();
+        foreach (var impl in implementations.OrderBy(i => i.Offset))
+        {
+            var item = new MenuItem { Header = impl.DisplayName };
+            item.Click += (_, _) =>
+            {
+                editor.TextArea.Caret.Offset = impl.Offset;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            };
+            menu.Items.Add(item);
+        }
+
+        return menu;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

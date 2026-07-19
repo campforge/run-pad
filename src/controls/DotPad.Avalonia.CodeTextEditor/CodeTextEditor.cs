@@ -97,9 +97,13 @@ public class CodeTextEditor : TextEditor
     /// resolves and shows the actual reference list.</summary>
     public event EventHandler? FindReferencesRequested;
 
-    /// <summary>Fired on plain F12 ("Go to Definition", TODO.md #62, user request 2026-07-19) — same
-    /// hand-off shape as <see cref="RenameSymbolRequested"/>: this control only recognizes the
-    /// keypress, the host resolves the symbol and either jumps to it in-script or decompiles it.</summary>
+    /// <summary>Fired on plain F12 ("Go to Definition"/"Go to Implementation", TODO.md #62, user
+    /// request 2026-07-19) — same hand-off shape as <see cref="RenameSymbolRequested"/>: this control
+    /// only recognizes the keypress, the host decides where to go (prefers implementations when the
+    /// symbol has any, falls back to the symbol's own definition otherwise). Deliberately a single
+    /// binding, not a separate Ctrl+F12 for implementations — modifier+F-key combos collide with
+    /// desktop-environment-level global shortcuts often enough on Linux (user feedback 2026-07-19,
+    /// after trying Ctrl+F12 here) that it isn't a safe default to add another one.</summary>
     public event EventHandler? GoToDefinitionRequested;
 
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
