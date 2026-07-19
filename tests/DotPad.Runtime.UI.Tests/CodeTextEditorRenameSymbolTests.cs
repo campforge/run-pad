@@ -75,4 +75,30 @@ public class CodeTextEditorRenameSymbolTests
 
         Assert.Equal(0, raised);
     }
+
+    // TODO.md #62 "Go to Definition" (user request 2026-07-19) — same hand-off shape again, plain F12
+    // this time (Shift+F12 stays "Find All References", see above).
+    [AvaloniaFact]
+    public void PressingPlainF12_Should_RaiseGoToDefinitionRequested()
+    {
+        var (window, editor) = CreateEditor("value");
+        var raised = 0;
+        editor.GoToDefinitionRequested += (_, _) => raised++;
+
+        window.KeyPress(Key.F12, RawInputModifiers.None, PhysicalKey.F12, null);
+
+        Assert.Equal(1, raised);
+    }
+
+    [AvaloniaFact]
+    public void PressingShiftF12_Should_NotRaiseGoToDefinitionRequested()
+    {
+        var (window, editor) = CreateEditor("value");
+        var raised = 0;
+        editor.GoToDefinitionRequested += (_, _) => raised++;
+
+        window.KeyPress(Key.F12, RawInputModifiers.Shift, PhysicalKey.F12, null);
+
+        Assert.Equal(0, raised);
+    }
 }

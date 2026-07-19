@@ -97,6 +97,11 @@ public class CodeTextEditor : TextEditor
     /// resolves and shows the actual reference list.</summary>
     public event EventHandler? FindReferencesRequested;
 
+    /// <summary>Fired on plain F12 ("Go to Definition", TODO.md #62, user request 2026-07-19) — same
+    /// hand-off shape as <see cref="RenameSymbolRequested"/>: this control only recognizes the
+    /// keypress, the host resolves the symbol and either jumps to it in-script or decompiles it.</summary>
+    public event EventHandler? GoToDefinitionRequested;
+
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
     public void AddBreakpoint(int line) => _breakpointStore.Add(line);
@@ -356,6 +361,11 @@ public class CodeTextEditor : TextEditor
                 else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.Shift)
                 {
                     FindReferencesRequested?.Invoke(this, EventArgs.Empty);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.None)
+                {
+                    GoToDefinitionRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
             },

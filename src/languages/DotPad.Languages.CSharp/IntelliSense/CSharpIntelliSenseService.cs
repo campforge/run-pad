@@ -1200,6 +1200,86 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Rename info failed"); return null; }
     }
 
+    // ── Go to Definition (F12) ───────────────────────────────────────────────────
+
+    public Task<IDefinitionResult?> GetDefinitionAsync(string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
+
+    private async Task<IDefinitionResult?> TryGetDefinitionAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var header = HeaderLength(code);
+            var pos = position + header;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+            var token = root.FindToken(pos);
+            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+            var symbol = ResolveTokenSymbol(model, token);
+            if (symbol == null) return null;
+
+            if (symbol.Locations.FirstOrDefault(l => l.IsInSource) is { } sourceLocation)
+            {
+                var offset = sourceLocation.SourceSpan.Start - header;
+                if (offset < 0) return null; // declared inside the prepended preamble, not user code
+                return new SimpleDefinitionResult(
+                    IsInSource: true, Offset: offset,
+                    AssemblyPath: null, ContainingTypeFullName: null, MemberName: null,
+                    ParameterTypeNames: [], DisplayName: symbol.Name);
+            }
+
+            // Extension methods resolve to their REDUCED form (receiver dropped from Parameters) —
+            // metadata (and so the decompiler's own type system) only knows the original static
+            // method, receiver included as parameter 0. Un-reduce before reading Name/Parameters so
+            // the parameter list CSharpDecompilerService is asked to match against reflects reality.
+            if (symbol is IMethodSymbol { ReducedFrom: { } original })
+                symbol = original;
+
+            var containingType = symbol is INamedTypeSymbol selfType ? selfType : symbol.ContainingType;
+            if (containingType is null) return null; // e.g. a namespace — nothing to decompile
+
+            var reference = model.Compilation.GetMetadataReference(containingType.ContainingAssembly);
+            if (reference is not PortableExecutableReference { FilePath: { } assemblyPath }) return null;
+
+            var isTypeItself = SymbolEqualityComparer.Default.Equals(symbol, containingType);
+            var parameterTypeNames = symbol is IMethodSymbol { Parameters: var parameters }
+                ? parameters.Select(p => p.Type.Name).ToArray()
+                : [];
+
+            return new SimpleDefinitionResult(
+                IsInSource: false, Offset: 0,
+                AssemblyPath: assemblyPath,
+                ContainingTypeFullName: GetReflectionTypeName(containingType.OriginalDefinition),
+                MemberName: isTypeItself ? null : symbol.Name,
+                ParameterTypeNames: parameterTypeNames,
+                DisplayName: symbol.ToDisplayString());
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Go to definition failed"); return null; }
+    }
+
+    // Reflection-style name (Namespace.Type`Arity+Nested`Arity) — what ICSharpCode.Decompiler's
+    // FullTypeName(string) constructor expects. INamedTypeSymbol.MetadataName already carries the
+    // `Arity suffix for open generics; OriginalDefinition (applied by the caller) strips any
+    // constructed-generic type arguments first (e.g. List<int> -> List<T>) since a FullTypeName names
+    // the open generic definition, not one particular instantiation.
+    private static string GetReflectionTypeName(INamedTypeSymbol type)
+    {
+        if (type.ContainingType is { } outer)
+            return GetReflectionTypeName(outer.OriginalDefinition) + "+" + type.MetadataName;
+        return type.ContainingNamespace is { IsGlobalNamespace: false } ns
+            ? ns.ToDisplayString() + "." + type.MetadataName
+            : type.MetadataName;
+    }
+
     // Shared by GetDocumentHighlightsAsync and GetRenameInfoAsync — both are "find the symbol under
     // the caret, then every identifier token elsewhere in the document that resolves to that same
     // symbol"; they only differ in what they do with the result afterward (highlight vs. offer to
@@ -1543,6 +1623,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleRenameInfo(
         string CurrentName, IReadOnlyList<IDocumentHighlightSpan> Spans) : IRenameInfo;
+
+    private sealed record SimpleDefinitionResult(
+        bool IsInSource, int Offset, string? AssemblyPath, string? ContainingTypeFullName,
+        string? MemberName, IReadOnlyList<string> ParameterTypeNames, string DisplayName) : IDefinitionResult;
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,
