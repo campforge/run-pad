@@ -34,7 +34,17 @@ public static class CSharpDecompilerService
         }
 
         var settings = new DecompilerSettings();
-        var peFile = new PEFile(assemblyPath);
+
+        // Own this PEFile ourselves (passed into CSharpDecompiler's (MetadataFile, ...) overload
+        // below) instead of the convenience CSharpDecompiler(string, ...) constructor, which opens an
+        // internal one we'd have no handle to dispose. PEFile.Dispose() releases the FileStream it
+        // opens on assemblyPath — held for the method's whole body (typeSystem reads metadata tables
+        // throughout, not just at construction), then disposed on return. An undisposed one outlives
+        // the call on any OS that enforces exclusive file locks (Windows; POSIX allows unlinking/
+        // rebuilding an open file, so this never surfaced there — live Windows CI report, 2026-07-19,
+        // on the same leak in IlDisassembler.Disassemble).
+        using var peFile = new PEFile(assemblyPath);
+
         // The default single-arg CSharpDecompiler(path, settings) ctor builds its own resolver, but
         // that resolver's search-path heuristics (well-known install locations, DOTNET_ROOT, etc.)
         // don't find every real-world .NET install — e.g. dotnet installed via linuxbrew at a
@@ -43,7 +53,7 @@ public static class CSharpDecompilerService
         var resolver = new UniversalAssemblyResolver(
             assemblyPath, throwOnError: false, peFile.DetectTargetFrameworkId());
         resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-        var decompiler = new CSharpDecompiler(assemblyPath, resolver, settings);
+        var decompiler = new CSharpDecompiler(peFile, resolver, settings);
 
         var fullTypeName = new FullTypeName(typeName);
         var typeDef = decompiler.TypeSystem.FindType(fullTypeName).GetDefinition();

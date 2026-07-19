@@ -13,7 +13,11 @@ public static class IlDisassembler
 {
     public static string Disassemble(string assemblyPath)
     {
-        var peFile = new PEFile(assemblyPath);
+        // PEFile.Dispose() releases the FileStream it opens on assemblyPath internally (PEReader ->
+        // FileStream) — without this, the handle outlives the call on any OS that enforces exclusive
+        // file locks (Windows; POSIX allows unlinking/rebuilding an open file, so this never surfaced
+        // there — live Windows CI report, 2026-07-19).
+        using var peFile = new PEFile(assemblyPath);
         var output = new PlainTextOutput();
         var disassembler = new ReflectionDisassembler(output, CancellationToken.None);
         disassembler.WriteModuleContents(peFile);
