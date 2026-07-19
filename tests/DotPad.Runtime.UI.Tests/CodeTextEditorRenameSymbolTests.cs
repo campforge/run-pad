@@ -101,4 +101,21 @@ public class CodeTextEditorRenameSymbolTests
 
         Assert.Equal(0, raised);
     }
+
+    // TODO.md #62 — Ctrl+F12 was briefly bound to a separate "Go to Implementation" request, then
+    // dropped (user feedback 2026-07-19: modifier+F-key combos collide with desktop-environment
+    // global shortcuts often enough on Linux, e.g. KDE Plasma, that it isn't a safe default). Plain
+    // F12 (EditorTabItemControl.ShowGoToDefinitionAsync) now covers both by checking implementations
+    // first — this guards against silently re-adding an intercepted Ctrl+F12 binding.
+    [AvaloniaFact]
+    public void PressingCtrlF12_Should_NotRaiseGoToDefinitionRequested()
+    {
+        var (window, editor) = CreateEditor("value");
+        var raised = 0;
+        editor.GoToDefinitionRequested += (_, _) => raised++;
+
+        window.KeyPress(Key.F12, RawInputModifiers.Control, PhysicalKey.F12, null);
+
+        Assert.Equal(0, raised);
+    }
 }

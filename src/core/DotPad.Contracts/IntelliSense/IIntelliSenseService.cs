@@ -45,6 +45,15 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // TODO.md #62 "Go to Implementation" (Ctrl+F12): every implementation (interface member) or
+    // override (abstract/virtual member) of the symbol at position, declared in the script itself —
+    // null when position isn't on an identifier, the symbol isn't implementable/overridable, or no
+    // implementations exist in this script. See IImplementationLocation.
+    Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.

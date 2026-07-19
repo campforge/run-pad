@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
@@ -1280,6 +1281,73 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             : type.MetadataName;
     }
 
+    // ── Go to Implementation (Ctrl+F12) ──────────────────────────────────────────
+
+    public Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<IImplementationLocation>?> TryGetImplementationsAsync(
+        string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var header = HeaderLength(code);
+            var pos = position + header;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+            var token = root.FindToken(pos);
+            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+            var symbol = ResolveTokenSymbol(model, token);
+            if (symbol == null) return null;
+
+            var solution = document.Project.Solution;
+
+            // FindImplementationsAsync only covers interface members/types — an abstract or virtual
+            // member (not on an interface) needs FindOverridesAsync instead. A single-file script's
+            // own AdhocWorkspace only ever contains the script itself, so either call can only ever
+            // surface OTHER declarations inside that same document — never metadata.
+            IEnumerable<ISymbol> found = symbol is INamedTypeSymbol namedType
+                ? await SymbolFinder.FindImplementationsAsync(namedType, solution, cancellationToken: ct)
+                : await SymbolFinder.FindImplementationsAsync(symbol, solution, cancellationToken: ct);
+            var implementations = found.ToList();
+
+            if (implementations.Count == 0 && IsOverridable(symbol))
+                implementations = (await SymbolFinder.FindOverridesAsync(symbol, solution, cancellationToken: ct)).ToList();
+
+            if (implementations.Count == 0) return null;
+
+            var results = new List<IImplementationLocation>();
+            foreach (var impl in implementations)
+            {
+                if (impl.Locations.FirstOrDefault(l => l.IsInSource) is not { } location) continue;
+                var offset = location.SourceSpan.Start - header;
+                if (offset < 0) continue; // inside the prepended usings preamble, not user code
+                results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
+            }
+
+            return results.Count == 0 ? null : results;
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Go to implementation failed"); return null; }
+    }
+
+    private static bool IsOverridable(ISymbol symbol) => symbol switch
+    {
+        IMethodSymbol m => m.IsAbstract || m.IsVirtual,
+        IPropertySymbol p => p.IsAbstract || p.IsVirtual,
+        IEventSymbol e => e.IsAbstract || e.IsVirtual,
+        _ => false,
+    };
+
     // Shared by GetDocumentHighlightsAsync and GetRenameInfoAsync — both are "find the symbol under
     // the caret, then every identifier token elsewhere in the document that resolves to that same
     // symbol"; they only differ in what they do with the result afterward (highlight vs. offer to
@@ -1627,6 +1695,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleDefinitionResult(
         bool IsInSource, int Offset, string? AssemblyPath, string? ContainingTypeFullName,
         string? MemberName, IReadOnlyList<string> ParameterTypeNames, string DisplayName) : IDefinitionResult;
+
+    private sealed record SimpleImplementationLocation(int Offset, string DisplayName) : IImplementationLocation;
 
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,
