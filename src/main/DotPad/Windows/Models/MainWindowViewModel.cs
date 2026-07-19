@@ -62,6 +62,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAboutCommand { get; }
+    public ReactiveCommand<Unit, Unit> ImportLinqFileCommand { get; }
 
     // TODO.md #80: the F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
     // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
@@ -306,6 +307,58 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenTab(newPath);
     }
 
+    // "File → Import LINQPad Query..." (TODO.md #63) — converts a .linq file (picked via a native
+    // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
+    // a sibling .rpad next to it, then opens that as a real tab. Not written into the CURRENT
+    // workspace folder even if the .linq happens to live elsewhere — mirrors DuplicateTab's own
+    // "next to the original" convention rather than always landing inside whatever workspace happens
+    // to be open; if that means the new file isn't under the tracked folder, RefreshNodes below just
+    // won't show it in the sidebar (the tab itself still opens and works fine either way).
+    public async Task ImportLinqFileAsync()
+    {
+        var linqPath = await _windowService.ShowOpenLinqFileDialogAsync(_fileSystemService.Folder);
+        if (linqPath is null) return;
+
+        RpadDocument converted;
+        try
+        {
+            var linqText = await File.ReadAllTextAsync(linqPath);
+            converted = LinqConverter.Convert(linqText, title: Path.GetFileNameWithoutExtension(linqPath));
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            await _windowService.ShowErrorAsync(
+                "Import Failed", $"Could not import '{Path.GetFileName(linqPath)}':\n{ex.Message}");
+            return;
+        }
+
+        var dir = Path.GetDirectoryName(linqPath)!;
+        var baseName = Path.GetFileNameWithoutExtension(linqPath);
+
+        string newPath;
+        var i = 1;
+        do
+        {
+            var suffix = i == 1 ? "" : $" {i}";
+            newPath = Path.Combine(dir, $"{baseName}{suffix}.rpad");
+            i++;
+        } while (File.Exists(newPath));
+
+        try
+        {
+            await File.WriteAllTextAsync(newPath, RpadWriter.Write(converted));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _windowService.ShowErrorAsync(
+                "Import Failed", $"Could not create '{Path.GetFileName(newPath)}':\n{ex.Message}");
+            return;
+        }
+
+        RefreshNodes();
+        OpenTab(newPath);
+    }
+
     // Asks whether to save an untitled-but-dirty tab's content before its close discards it — see
     // EditorTabsControl.RequestCloseTabAsync, the sole caller (both the tab's [x] button and Ctrl+W
     // route through it). A thin passthrough to _windowService, which EditorTabsControl doesn't have
@@ -501,11 +554,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
+        ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
         // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
         // vanish with no trace at all.
         OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
         OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
         OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
+        ImportLinqFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "ImportLinqFileCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed

@@ -20,6 +20,13 @@ public interface IWindowService
     Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder);
 
     /// <summary>
+    /// Shows a native Open dialog filtered to <c>.linq</c> files, defaulting to
+    /// <paramref name="startFolder"/> (TODO.md #63, "File → Import LINQPad Query..."). Returns the
+    /// chosen local file path, or null if the dialog was cancelled or unavailable.
+    /// </summary>
+    Task<string?> ShowOpenLinqFileDialogAsync(string startFolder);
+
+    /// <summary>
     /// Asks whether to save a tab's unsaved changes before discarding them (closing an untitled tab
     /// with real typed content — see EditorTabsControl.RequestCloseTabAsync). Closing the dialog
     /// without picking a button (e.g. the window's own [X], or a null owner window meaning it
