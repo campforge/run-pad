@@ -37,6 +37,14 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // TODO.md #62 "Go to Definition" (F12): resolves what F12 at position should do — null when
+    // position isn't on an identifier that resolves to any symbol. See IDefinitionResult for the
+    // in-source-vs-external split.
+    Task<IDefinitionResult?> GetDefinitionAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.

@@ -593,6 +593,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return menu;
     }
 
+    // TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — CodeTextEditor.
+    // GoToDefinitionRequested. A symbol declared in the script itself is a same-document caret jump
+    // (single-file scratchpad, no cross-file navigation to speak of); anything else has no source to
+    // jump to, so it's decompiled instead and shown in a separate, non-modal window (explicit user
+    // request: NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/
+    // ILSpy show a decompiled member without disturbing whatever else is open).
+    private async Task ShowGoToDefinitionAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var caretOffset = editor.TextArea.Caret.Offset;
+        var definition = await intelliSense.GetDefinitionAsync(State.Editor.Text, caretOffset, CancellationToken.None);
+        if (definition is null) return;
+
+        if (definition.IsInSource)
+        {
+            editor.TextArea.Caret.Offset = definition.Offset;
+            editor.ScrollToLine(editor.TextArea.Caret.Line);
+            editor.Focus();
+            return;
+        }
+
+        DecompiledMemberResult decompiled;
+        try
+        {
+            decompiled = await Task.Run(() => CSharpDecompilerService.Decompile(definition));
+        }
+        catch (Exception ex)
+        {
+            decompiled = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, definition.DisplayName);
+        }
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        var window = new Windows.DecompiledViewWindow(_themeService, decompiled.Title, decompiled.Text, decompiled.Line);
+        if (owner is not null) window.Show(owner);
+        else window.Show();
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     internal void ResumeDebug(DebugAction action)
@@ -915,6 +951,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.RenameSymbolRequested += async (_, _) => await ShowRenameSymbolAsync(editor, intelliSense);
         editor.FindReferencesRequested += async (_, _) => await ShowFindReferencesAsync(editor, intelliSense);
+        editor.GoToDefinitionRequested += async (_, _) => await ShowGoToDefinitionAsync(editor, intelliSense);
 
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
         var squiggleRenderer = new SquiggleRenderer();
