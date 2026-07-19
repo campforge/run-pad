@@ -8,6 +8,7 @@ public abstract class LanguageHostBase : ILanguageHost
     private BreakpointHitHandler? _breakpointHit;
     private BreakpointVerifiedHandler? _breakpointVerified;
     private CompiledHandler? _compiled;
+    private InputRequestedHandler? _inputRequested;
     private bool _disposed;
 
     public abstract string Language { get; }
@@ -31,6 +32,14 @@ public abstract class LanguageHostBase : ILanguageHost
         CancellationToken cancellationToken);
 
     public abstract Task TerminateAsync(CancellationToken cancellationToken);
+
+    public virtual event InputRequestedHandler? InputRequested
+    {
+        add => _inputRequested += value;
+        remove => _inputRequested -= value;
+    }
+
+    public abstract Task SendInputAsync(string text, CancellationToken cancellationToken);
 
     // --- Debug: virtual, throws if capability not declared ---
 
@@ -116,6 +125,8 @@ public abstract class LanguageHostBase : ILanguageHost
         => _breakpointVerified?.Invoke(breakpoint, verified, message);
 
     protected void OnCompiled(string binaryPath) => _compiled?.Invoke(binaryPath);
+
+    protected void OnInputRequested(string? prompt, bool isPassword) => _inputRequested?.Invoke(prompt, isPassword);
 
     protected void EnsureCapability(LanguageHostCapabilities required)
     {

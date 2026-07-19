@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using DotPad.Build.Core.Models;
 using DotPad.Build.Core.ProcessRunners;
 using DotPad.Contracts;
@@ -45,6 +47,9 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // New format: Record Separator + base64 — see DotPad.Runtime.ObjectExtensions.DumpLinePrefixChar.
     private const char RsPrefix = '\x1e';
 
+    // ASCII Unit Separator + base64 JSON — see DotPad.Runtime.Util.InputRequestPrefixChar.
+    private const char InputRequestPrefix = '\x1f';
+
     private readonly CompiledDotnetLanguageHostOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly DotnetProcessCompilerFactory _compilerFactory;
@@ -52,6 +57,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     private readonly DebuggerChildProcessFactory _debuggerProcessFactory;
     private CancellationTokenSource? _runCts;
     private IDapSession? _currentSession;
+    private Stream? _currentInputStream;
 
     private IReadOnlyList<IVariableInfo> _lastDebugVariables = [];
 
@@ -158,14 +164,16 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
             if (!process.Start()) return;
 
+            _currentInputStream = process.InputStream;
             await Task.WhenAll(
                 DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput,
-                    WrapWithDumpDetection(outputHandler), cts.Token),
+                    WrapWithSentinelDetection(outputHandler), cts.Token),
                 DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
         }
         finally
         {
             _runCts = null;
+            _currentInputStream = null;
         }
     }
 
@@ -202,7 +210,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             await using var session = new DapSession(
                 process,
                 sessionOptions,
-                WrapWithDumpDetection(outputHandler),
+                WrapWithSentinelDetection(outputHandler),
                 HandleBreakpointHit,
                 _loggerFactory.CreateLogger<DapSession>(),
                 OnBreakpointVerified);
@@ -288,18 +296,63 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         await base.DisposeAsync();
     }
 
+    // ── Interactive input ────────────────────────────────────────────────────
+
+    // No-op if nothing is running via RunAsync — RunDebugAsync never sets _currentInputStream
+    // (see WrapWithSentinelDetection), so this can never race a real send with a torn-down process.
+    public override async Task SendInputAsync(string text, CancellationToken cancellationToken)
+    {
+        if (_currentInputStream is not { } stream) return;
+        var bytes = Encoding.UTF8.GetBytes(text + "\n");
+        await stream.WriteAsync(bytes, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static OutputReceivedHandler? WrapWithDumpDetection(OutputReceivedHandler? handler)
+    // Recognizes both sentinel-prefixed lines a running script can emit on stdout: RsPrefix for
+    // ObjectExtensions.Dump (DumpHtml, unconditional) and InputRequestPrefix for Util.ReadLine/
+    // GetPassword (only while _currentInputStream is set, i.e. a real RunAsync process — RunDebugAsync
+    // shares this same wrapper but never sets that field, so a script calling Util.ReadLine under the
+    // debugger falls through to the plain-output branch instead of firing an unanswerable request).
+    private OutputReceivedHandler? WrapWithSentinelDetection(OutputReceivedHandler? handler)
     {
         if (handler is null) return null;
         return (data, kind) =>
         {
             if (data.Length > 0 && data[0] == RsPrefix)
+            {
                 handler(data[1..], OutputKind.DumpHtml);
+            }
+            else if (data.Length > 0 && data[0] == InputRequestPrefix && _currentInputStream is not null)
+            {
+                (string? prompt, bool isPassword) = ParseInputRequest(data[1..]);
+                OnInputRequested(prompt, isPassword);
+            }
             else
+            {
                 handler(data, kind);
+            }
         };
+    }
+
+    private static (string? Prompt, bool IsPassword) ParseInputRequest(string base64)
+    {
+        try
+        {
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var prompt = root.TryGetProperty("Prompt", out var p) && p.ValueKind == JsonValueKind.String
+                ? p.GetString()
+                : null;
+            var isPassword = root.TryGetProperty("IsPassword", out var ip) && ip.ValueKind == JsonValueKind.True;
+            return (prompt, isPassword);
+        }
+        catch (Exception)
+        {
+            return (null, false);
+        }
     }
 
     private static void EmitDiagnostics(IReadOnlyList<IDiagnostic> diagnostics, OutputReceivedHandler? handler)

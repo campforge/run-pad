@@ -2,6 +2,7 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -304,6 +305,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
                 host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
+                host.InputRequested += (prompt, isPassword) =>
+                    Dispatcher.UIThread.Post(() => ShowInputPrompt(prompt, isPassword));
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
@@ -338,6 +341,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             s.RunningHost = null;
             await s.RunCts.CancelAsync();
+            HideInputPrompt();
 
             _vm.RunState = RunState.Idle;
             State.Editor.DebugCurrentLine = null;
@@ -796,6 +800,58 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         Dispatcher.UIThread.Post(() => IlOutput.Text = il);
+    }
+
+    // TODO.md #63 "интерактивный типизированный ввод" — ILanguageHost.InputRequested (Util.ReadLine/
+    // GetPassword). Always called on the UI thread (see the Dispatcher.UIThread.Post at the
+    // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
+    // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
+    // real running script asking for input).
+    internal void ShowInputPrompt(string? prompt, bool isPassword)
+    {
+        InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
+        InputPromptBox.PasswordChar = isPassword ? '●' : default;
+        InputPromptBox.Text = "";
+        InputPromptBar.IsVisible = true;
+        InputPromptBox.Focus();
+    }
+
+    internal void HideInputPrompt()
+    {
+        InputPromptBar.IsVisible = false;
+    }
+
+    internal bool IsInputPromptVisible => InputPromptBar.IsVisible;
+    internal string? InputPromptLabelText => InputPromptLabel.Text;
+    internal bool IsInputPromptMasked => InputPromptBox.PasswordChar != default;
+
+    internal string? InputPromptBoxText
+    {
+        get => InputPromptBox.Text;
+        set => InputPromptBox.Text = value;
+    }
+
+    private void InputPromptBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        e.Handled = true;
+        _ = SubmitInputPromptAsync();
+    }
+
+    internal async Task SubmitInputPromptAsync()
+    {
+        if (State.RunningHost is not { } host) return;
+
+        var text = InputPromptBox.Text ?? "";
+        var isPassword = InputPromptBox.PasswordChar != default;
+        HideInputPrompt();
+
+        // Echo what was submitted into the output, the same way a real console would — except a
+        // password, which a real console never echoes either.
+        if (!isPassword)
+            AppendOutput(text, OutputKind.StandardOutput);
+
+        await host.SendInputAsync(text, CancellationToken.None);
     }
 
     // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise

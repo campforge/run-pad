@@ -4,6 +4,9 @@ using Xunit;
 
 namespace DotPad.Runtime.Tests;
 
+// Redirects Console.Out — see ConsoleTestCollection for why this needs to run sequentially relative
+// to every other test doing the same (UtilTests).
+[Collection(ConsoleTestCollection.Name)]
 public class ObjectExtensionsTests
 {
     [Fact]
