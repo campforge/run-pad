@@ -35,7 +35,7 @@ public partial class DecompiledViewWindow : Window
         onAttached = (_, _) =>
         {
             editor.AttachedToVisualTree -= onAttached;
-            // TODO: наверное стоит устаналиватьподсветку в зависимоти от того что вернут декомпилятор, а не просто .cs. Но пока что пусть будет так, чтобы хоть что-то подсвечивалось
+            // TODO: наверное стоит устанавливать подсветку в зависимости от того, что вернёт декомпилятор, а не просто .cs. Но пока пусть будет так, чтобы хоть что-то подсвечивалось.
             editor.SetLanguage(themeService.CurrentTheme.Editor.TextMateName, ".cs");
             editor.TextArea.Caret.Line = line;
             editor.TextArea.Caret.Column = 1;
