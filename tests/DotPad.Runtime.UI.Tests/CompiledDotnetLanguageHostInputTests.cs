@@ -160,10 +160,8 @@ public class CompiledDotnetLanguageHostInputTests
         {
             var runTask = host.RunAsync("int x = 1;", cancellationToken: TestContext.Current.CancellationToken);
 
-            // Let RunAsync actually reach its blocking read before sending — same "wait for in-flight"
-            // technique as CompiledDotnetLanguageHostTerminateAsyncTests.
-            for (var i = 0; i < 100 && runTask.IsCompleted; i++)
-                await Task.Delay(10, TestContext.Current.CancellationToken);
+            // Yield once so RunAsync can start and set up its streams before we send input.
+            await Task.Yield();
 
             await host.SendInputAsync("Alice", TestContext.Current.CancellationToken);
 
