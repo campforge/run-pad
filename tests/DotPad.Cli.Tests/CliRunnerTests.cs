@@ -200,7 +200,12 @@ public class CliRunnerTests
         {
             var linqPath = Path.Combine(dir, "MyQuery.linq");
             await File.WriteAllTextAsync(linqPath, ValidLinq, CancellationToken.None);
+            // Wide enough that Spectre's line-wrapping never splits the "Wrote <path>" message —
+            // TestConsole defaults to an 80-column width, and the machine's temp directory (which
+            // varies by username/profile) can easily push that single unbroken path past 80 chars,
+            // making the plain Assert.Contains below fail non-deterministically depending on machine.
             var stdout = new TestConsole();
+            stdout.Profile.Width = 4096;
             var stderr = new TestConsole();
 
             var exitCode = await CliRunner.RunAsync(["convert", linqPath], stdout, stderr, CancellationToken.None);
