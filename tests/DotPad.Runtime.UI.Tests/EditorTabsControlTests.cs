@@ -61,7 +61,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
@@ -126,7 +126,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
@@ -197,7 +197,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
@@ -269,7 +269,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
@@ -329,7 +329,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
                 () => { intelliSenseFactoryCalls++; return intelliSense.Object; },
                 new CSharpReferenceService(), buildCache.Object);
 
@@ -411,7 +411,7 @@ public class EditorTabsControlTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             // Narrow enough that 25 tab headers can't possibly fit on one screen's width unscrolled —

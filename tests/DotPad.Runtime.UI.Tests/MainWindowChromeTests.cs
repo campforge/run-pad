@@ -51,7 +51,7 @@ public class MainWindowChromeTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
             new CSharpReferenceService(), buildCache.Object);
 
         return new MainWindow(prefs.Object, editorTabs, mainVm);

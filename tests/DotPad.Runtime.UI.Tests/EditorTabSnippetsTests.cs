@@ -159,7 +159,7 @@ public class EditorTabSnippetsTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, registry, prefs.Object, () => intelliSense.Object,
+                theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object, () => intelliSense.Object,
                 new CSharpReferenceService(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };

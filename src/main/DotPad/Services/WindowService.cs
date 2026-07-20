@@ -75,6 +75,35 @@ public sealed class WindowService : IWindowService
         return result ?? UnsavedChangesResult.Cancel;
     }
 
+    public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Browse Assembly",
+            AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = [new FilePickerFileType(".NET Assembly") { Patterns = ["*.dll"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
+    public Task ShowAssemblyExplorerAsync(string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+        var window = new AssemblyExplorerWindow(
+            _sp.GetRequiredService<IThemeService>(), this, startFolder);
+        if (owner is not null) window.Show(owner);
+        else window.Show();
+        return Task.CompletedTask;
+    }
+
     private static Task ShowDialogAsync(Window dialog)
     {
         var owner = (Application.Current?.ApplicationLifetime
