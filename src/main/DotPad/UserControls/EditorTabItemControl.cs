@@ -51,6 +51,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // (ANALYSIS.md #94).
     private static readonly TimeSpan QuickInfoHoverDelay = TimeSpan.FromMilliseconds(400);
 
+    // Same rationale as QuickInfoHoverDelay, for refactorings (TODO.md #74) — caret moves far more
+    // often than the pointer stops over a symbol (every arrow key press, every click), so this needs
+    // the same debounce discipline diagnostics/inlay hints already get from NotifyTextChanged's own
+    // 500ms — refactorings just can't share that pass (see GetRefactoringsAsync's own doc comment on
+    // IIntelliSenseService: availability depends on caret position, not on what changed in the text).
+    private static readonly TimeSpan RefactoringDebounceDelay = TimeSpan.FromMilliseconds(400);
+
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
         IThemeService themeService,
@@ -1112,25 +1119,76 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 editor.TextArea.TextView.Redraw();
             });
 
-        // ── Code fixes (lightbulb: real Roslyn CodeFixProviders) ────────────────
+        // ── Code fixes (lightbulb: real Roslyn CodeFixProviders + CodeRefactoringProviders) ─────
+        // Two independent sources feed the same lightbulb margin (TODO.md #74): diagnostic-driven
+        // fixes (CodeFixesChanged, pushed from NotifyTextChanged's background pass whenever the text
+        // changes) and caret-position-driven refactorings (GetRefactoringsAsync, pulled below on
+        // caret move — a refactoring isn't tied to any diagnostic, so it has no reason to recompute
+        // just because the text changed elsewhere in the document). CodeFixMargin itself is unaware
+        // of the split — it just renders whatever flat list UpdateLightbulb hands it — so each source
+        // keeps its own last-known list here and remerges on every update from either one.
+        List<CodeFixEntry> diagnosticFixEntries = [];
+        List<CodeFixEntry> refactoringFixEntries = [];
+
+        List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes)
+        {
+            // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
+            // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
+            // script with no front matter to route them to, where they're folded into the text.
+            var hasProjectFile = State.RpadDocument is not null;
+            return fixes.Select(f => hasProjectFile
+                    ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd, ToMarginSeverity(f.Severity))
+                    : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), [], ToMarginSeverity(f.Severity)))
+                .ToList();
+        }
+
+        void UpdateLightbulb() => editor.UpdateCodeFixes([.. diagnosticFixEntries, .. refactoringFixEntries]);
+
         intelliSense.CodeFixesChanged += (code, fixes) =>
             Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-
-                // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
-                // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
-                // script with no front matter to route them to, where they're folded into the text.
-                var hasProjectFile = State.RpadDocument is not null;
-                var entries = fixes.Select(f => hasProjectFile
-                        ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd, ToMarginSeverity(f.Severity))
-                        : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), [], ToMarginSeverity(f.Severity)))
-                    .ToList();
-                editor.UpdateCodeFixes(entries);
+                diagnosticFixEntries = ToEntries(fixes);
+                UpdateLightbulb();
             });
 
         editor.UsingsToAddRequested += AddGlobalUsings;
+
+        // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
+        var refactoringCts = new CancellationTokenSource();
+
+        editor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            // Same not-disposed-here rationale as quickInfoCts below — a superseded fetch's
+            // background Task.Run can still be mid-flight past this point.
+            refactoringCts.Cancel();
+            refactoringCts = new CancellationTokenSource();
+            var ct = refactoringCts.Token;
+            var offset = editor.TextArea.Caret.Offset;
+            var text = editor.Text;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(RefactoringDebounceDelay, ct);
+                    var refactorings = await intelliSense.GetRefactoringsAsync(text, offset, ct);
+                    if (ct.IsCancellationRequested) return;
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_disposed || ct.IsCancellationRequested) return;
+                        if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
+                        refactoringFixEntries = refactorings is null ? [] : ToEntries(refactorings);
+                        UpdateLightbulb();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            });
+        };
 
         editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
 
