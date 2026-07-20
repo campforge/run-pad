@@ -36,6 +36,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private TabControl? _outputTabsControl;
 
     private readonly IThemeService _themeService;
+    private readonly IWindowService _windowService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
     private IIntelliSenseService? _intelliSense;
@@ -52,6 +53,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
         IThemeService themeService,
+        IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
@@ -60,6 +62,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IBrush? editorBackground)
     {
         _themeService = themeService;
+        _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
         _referenceService = referenceService;
@@ -652,7 +655,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         var owner = TopLevel.GetTopLevel(this) as Window;
-        var window = new Windows.DecompiledViewWindow(_themeService, decompiled.Title, decompiled.Text, decompiled.Line);
+        var window = new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
         if (owner is not null) window.Show(owner);
         else window.Show();
     }

@@ -63,6 +63,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAboutCommand { get; }
     public ReactiveCommand<Unit, Unit> ImportLinqFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenAssemblyExplorerCommand { get; }
 
     // TODO.md #80: the F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
     // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
@@ -555,12 +556,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
         ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
+        OpenAssemblyExplorerCommand = ReactiveCommand.CreateFromTask(
+            () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
         // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
         // vanish with no trace at all.
         OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
         OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
         OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
         ImportLinqFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "ImportLinqFileCommand failed"));
+        OpenAssemblyExplorerCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAssemblyExplorerCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
         SidebarColumnWidth = _prefs.Layout.SidebarCollapsed

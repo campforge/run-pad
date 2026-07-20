@@ -56,7 +56,7 @@ public class MainWindowClosingTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
             new CSharpReferenceService(), buildCache.Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);

@@ -48,7 +48,7 @@ public class EditorTabLifecycleTests
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
 
-        var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, registry.Object, prefs.Object,
+        var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
             intelliSense: null, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
         var host = new Window { Content = ctrl };
         host.Show();

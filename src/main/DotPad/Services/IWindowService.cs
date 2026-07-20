@@ -27,6 +27,21 @@ public interface IWindowService
     Task<string?> ShowOpenLinqFileDialogAsync(string startFolder);
 
     /// <summary>
+    /// Shows a native Open dialog filtered to <c>.dll</c> files, defaulting to
+    /// <paramref name="startFolder"/> (TODO.md #62, ILSpy-style assembly explorer, user request
+    /// 2026-07-19). Returns the chosen local file path, or null if the dialog was cancelled or
+    /// unavailable.
+    /// </summary>
+    Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder);
+
+    /// <summary>
+    /// Opens a new, non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
+    /// the script keep running/editable behind it, same rationale as <c>DecompiledViewWindow</c> not
+    /// being another tab.
+    /// </summary>
+    Task ShowAssemblyExplorerAsync(string startFolder);
+
+    /// <summary>
     /// Asks whether to save a tab's unsaved changes before discarding them (closing an untitled tab
     /// with real typed content — see EditorTabsControl.RequestCloseTabAsync). Closing the dialog
     /// without picking a button (e.g. the window's own [X], or a null owner window meaning it
