@@ -39,6 +39,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IWindowService _windowService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
+    private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
@@ -922,7 +923,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // ── Editor preferences ────────────────────────────────────────────────────
 
     private void OnPreferencesChanged()
-        => Dispatcher.UIThread.Post(() => ApplyEditorSettings(State.Editor, _prefs.Editor));
+        => Dispatcher.UIThread.Post(() =>
+        {
+            ApplyEditorSettings(State.Editor, _prefs.Editor);
+
+            if (_inlayHintRenderer is { } renderer && renderer.IsEnabled != _prefs.CSharp.InlayHintsEnabled)
+            {
+                renderer.IsEnabled = _prefs.CSharp.InlayHintsEnabled;
+                State.Editor.TextArea.TextView.Redraw();
+            }
+        });
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -1085,6 +1095,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
                 semanticHighlighter.Update(tokens);
+                editor.TextArea.TextView.Redraw();
+            });
+
+        // ── Inlay hints (inferred `var`/`foreach (var ...)` types) ─────────────
+        var inlayHintRenderer = new InlayHintRenderer { IsEnabled = _prefs.CSharp.InlayHintsEnabled };
+        editor.TextArea.TextView.ElementGenerators.Add(inlayHintRenderer);
+        _inlayHintRenderer = inlayHintRenderer;
+
+        intelliSense.InlayHintsChanged += (code, hints) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+                inlayHintRenderer.Update(hints);
                 editor.TextArea.TextView.Redraw();
             });
 

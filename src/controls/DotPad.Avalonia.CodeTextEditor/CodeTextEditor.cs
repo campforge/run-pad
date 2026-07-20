@@ -512,12 +512,18 @@ public class CodeTextEditor : TextEditor
         {
             return;
         }
-        catch (Exception)
-        {
-            _occurrenceHighlighter.Clear();
-            TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
-            return;
-        }
+        catch (Exception)
+
+        {
+
+            _occurrenceHighlighter.Clear();
+
+            TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+
+            return;
+
+        }
+
 
         if (cts.IsCancellationRequested) return;
 
