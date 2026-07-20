@@ -165,6 +165,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
+    private readonly RoslynAnalyzerEngine _analyzerEngine;
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
@@ -226,6 +227,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
 
         _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
+        _analyzerEngine = new RoslynAnalyzerEngine(logger);
 
         var projectId = ProjectId.CreateNewId("DotPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
@@ -1607,13 +1609,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
+        // TODO.md #74 "Пайплайн анализаторов" — Roslyn's own IDE-style analyzers ("use var", "make
+        // readonly", ...) alongside the compiler's own diagnostics. GetCompilationAsync is the same
+        // cached compilation model.GetDiagnostics() already reads from (Roslyn caches per Project
+        // version), not a second build.
+        var compilation = await document.Project.GetCompilationAsync(ct);
+        var analyzerDiagnostics = compilation is null
+            ? []
+            : await _analyzerEngine.ComputeAsync(compilation, ct);
+
         var headerLength = HeaderLength(code);
         var visible = new List<IDiagnosticInfo>();
         var forCodeFixes = new List<Diagnostic>();
-        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
+        foreach (var d in model.GetDiagnostics(cancellationToken: ct).Concat(analyzerDiagnostics))
         {
-            if (d.Severity == RoslynSeverity.Hidden) continue;
+            // Unlike compiler diagnostics (never actually Hidden in practice), most of the analyzer
+            // diagnostics above fire at Hidden severity BY DESIGN — no squiggle, only a CodeFixProvider
+            // keyed to that same diagnostic ID becoming available (RoslynAnalyzerEngine's own doc
+            // comment). Still added to forCodeFixes either way — only excluded from the visible list.
             forCodeFixes.Add(d);
+            if (d.Severity == RoslynSeverity.Hidden) continue;
 
             if (!d.Location.IsInSource) continue;
 
