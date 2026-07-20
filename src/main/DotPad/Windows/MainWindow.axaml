@@ -70,12 +70,14 @@
                                 <MenuItem Header="C#" Click="NewRpadFileCSharp_Click"/>
                                 <MenuItem Header="Visual Basic" Click="NewRpadFileVb_Click"/>
                             </MenuItem>
+                            <MenuItem Header="_Import LINQPad Query..." Command="{Binding ImportLinqFileCommand}"/>
                             <Separator/>
                             <MenuItem Header="_Save" Click="Save_Click" InputGesture="{Binding SaveGesture}"/>
                         </MenuItem>
                         <MenuItem Header="Edit">
                             <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"
                                       InputGesture="{Binding OpenDependenciesGesture}"/>
+                            <MenuItem Header="_Assembly Explorer..." Command="{Binding OpenAssemblyExplorerCommand}"/>
                             <Separator/>
                             <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>

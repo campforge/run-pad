@@ -7,6 +7,8 @@ public abstract class LanguageHostBase : ILanguageHost
     private readonly List<IBreakpoint> _breakpoints = new();
     private BreakpointHitHandler? _breakpointHit;
     private BreakpointVerifiedHandler? _breakpointVerified;
+    private CompiledHandler? _compiled;
+    private InputRequestedHandler? _inputRequested;
     private bool _disposed;
 
     public abstract string Language { get; }
@@ -18,12 +20,26 @@ public abstract class LanguageHostBase : ILanguageHost
 
     public abstract Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
 
+    public virtual event CompiledHandler? Compiled
+    {
+        add => _compiled += value;
+        remove => _compiled -= value;
+    }
+
     public abstract Task RunAsync(
         string code,
         OutputReceivedHandler outputHandler,
         CancellationToken cancellationToken);
 
     public abstract Task TerminateAsync(CancellationToken cancellationToken);
+
+    public virtual event InputRequestedHandler? InputRequested
+    {
+        add => _inputRequested += value;
+        remove => _inputRequested -= value;
+    }
+
+    public abstract Task SendInputAsync(string text, CancellationToken cancellationToken);
 
     // --- Debug: virtual, throws if capability not declared ---
 
@@ -107,6 +123,10 @@ public abstract class LanguageHostBase : ILanguageHost
 
     protected void OnBreakpointVerified(IBreakpoint breakpoint, bool verified, string? message)
         => _breakpointVerified?.Invoke(breakpoint, verified, message);
+
+    protected void OnCompiled(string binaryPath) => _compiled?.Invoke(binaryPath);
+
+    protected void OnInputRequested(string? prompt, bool isPassword) => _inputRequested?.Invoke(prompt, isPassword);
 
     protected void EnsureCapability(LanguageHostCapabilities required)
     {

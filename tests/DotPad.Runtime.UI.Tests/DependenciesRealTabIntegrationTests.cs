@@ -43,6 +43,7 @@ public class DependenciesRealTabIntegrationTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
             prefs.Setup(p => p.Debugger).Returns(new DebuggerSettings());
             prefs.Setup(p => p.Appearance).Returns(new AppearanceSettings());
 
@@ -85,7 +86,8 @@ public class DependenciesRealTabIntegrationTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme, registry.Object, prefs.Object, () => intelliSense.Object, referenceService, buildCache.Object);
+                theme, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
+                () => intelliSense.Object, referenceService, buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();

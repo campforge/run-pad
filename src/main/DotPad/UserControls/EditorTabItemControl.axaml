@@ -70,6 +70,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="5"/>
             <RowDefinition Height="{Binding OutputPanelHeight, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="22"/>
         </Grid.RowDefinitions>
 
@@ -220,10 +221,46 @@
                 <ContentControl Content="{Binding DebugPanel}" ContentTemplate="{StaticResource DebugPanelTemplate}"/>
             </TabItem>
 
+            <!-- LINQPad-style "IL" tab (TODO.md #62) — raw IL disassembly of the last successful
+                 compile, refreshed via ILanguageHost.Compiled. Plain read-only TextBox rather than a
+                 full CodeTextEditor: no IntelliSense/breakpoints/folding are meaningful here, this is
+                 just monospace text with its own scrollbars. -->
+            <TabItem Header="IL">
+                <TextBox x:Name="IlOutput"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         BorderThickness="0"
+                         FontFamily="Consolas,Menlo,Courier New,monospace"
+                         FontSize="12"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            </TabItem>
+
         </TabControl>
 
-        <!-- Row 4: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
-        <Grid Grid.Row="4"
+        <!-- Row 4: interactive input (TODO.md #63, Util.ReadLine/GetPassword) — hidden until the
+             running script actually asks for input; ShowInputPrompt/HideInputPrompt toggle it. -->
+        <Border x:Name="InputPromptBar"
+                Grid.Row="4"
+                IsVisible="False"
+                Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
+                BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="8,6">
+            <DockPanel LastChildFill="True">
+                <TextBlock x:Name="InputPromptLabel"
+                           DockPanel.Dock="Left"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           FontWeight="SemiBold"/>
+                <TextBox x:Name="InputPromptBox" KeyDown="InputPromptBox_KeyDown"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
+        <Grid Grid.Row="5"
               ColumnDefinitions="Auto,Auto,Auto,*,Auto"
               Background="{DynamicResource DotPad.StatusBar.BackgroundBrush}">
             <TextBlock x:Name="ExecStatusBlock"

@@ -156,4 +156,114 @@ public class CliRunnerTests
         }
         finally { File.Delete(path); }
     }
+
+    // ── convert (TODO.md #63) ────────────────────────────────────────────────────
+
+    private const string ValidLinq = """
+        <Query Kind="Statements">
+          <NuGetReference>Newtonsoft.Json</NuGetReference>
+        </Query>
+
+        Console.WriteLine("hi");
+        """;
+
+    [Fact]
+    public async Task ConvertLinqAsync_Should_ReturnError_WhenNoInputPathGiven()
+    {
+        var stdout = new TestConsole();
+        var stderr = new TestConsole();
+
+        var exitCode = await CliRunner.RunAsync(["convert"], stdout, stderr, CancellationToken.None);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Usage:", stderr.Output);
+    }
+
+    [Fact]
+    public async Task ConvertLinqAsync_Should_ReturnError_WhenTheInputFileDoesNotExist()
+    {
+        var stdout = new TestConsole();
+        var stderr = new TestConsole();
+
+        var exitCode = await CliRunner.RunAsync(
+            ["convert", "/no/such/file.linq"], stdout, stderr, CancellationToken.None);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("File not found", stderr.Output);
+    }
+
+    [Fact]
+    public async Task ConvertLinqAsync_Should_WriteASiblingRpad_WhenNoOutputPathGiven()
+    {
+        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        try
+        {
+            var linqPath = Path.Combine(dir, "MyQuery.linq");
+            await File.WriteAllTextAsync(linqPath, ValidLinq, CancellationToken.None);
+            // Wide enough that Spectre's line-wrapping never splits the "Wrote <path>" message —
+            // TestConsole defaults to an 80-column width, and the machine's temp directory (which
+            // varies by username/profile) can easily push that single unbroken path past 80 chars,
+            // making the plain Assert.Contains below fail non-deterministically depending on machine.
+            var stdout = new TestConsole();
+            stdout.Profile.Width = 4096;
+            var stderr = new TestConsole();
+
+            var exitCode = await CliRunner.RunAsync(["convert", linqPath], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(0, exitCode);
+            var expectedOutputPath = Path.Combine(dir, "MyQuery.rpad");
+            Assert.True(File.Exists(expectedOutputPath));
+            Assert.Contains(expectedOutputPath, stdout.Output);
+
+            var parsed = RpadParser.TryParse(await File.ReadAllTextAsync(expectedOutputPath, CancellationToken.None));
+            Assert.NotNull(parsed);
+            Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
+            Assert.Contains("Newtonsoft.Json", parsed.FrontMatter.Packages.Keys);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task ConvertLinqAsync_Should_WriteToTheGivenOutputPath_AndOverwriteIt()
+    {
+        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        try
+        {
+            var linqPath = Path.Combine(dir, "MyQuery.linq");
+            await File.WriteAllTextAsync(linqPath, ValidLinq, CancellationToken.None);
+            var outputPath = Path.Combine(dir, "Somewhere.rpad");
+            await File.WriteAllTextAsync(outputPath, "will be overwritten", CancellationToken.None);
+            var stdout = new TestConsole();
+            var stderr = new TestConsole();
+
+            var exitCode = await CliRunner.RunAsync(
+                ["convert", linqPath, outputPath], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(0, exitCode);
+            var written = await File.ReadAllTextAsync(outputPath, CancellationToken.None);
+            Assert.DoesNotContain("will be overwritten", written);
+            Assert.NotNull(RpadParser.TryParse(written));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task ConvertLinqAsync_Should_ReturnError_ForAnUnsupportedQueryKind()
+    {
+        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        try
+        {
+            var linqPath = Path.Combine(dir, "MyQuery.linq");
+            await File.WriteAllTextAsync(linqPath, "<Query Kind=\"SQL\" />\n\nSELECT 1\n", CancellationToken.None);
+            var stdout = new TestConsole();
+            var stderr = new TestConsole();
+
+            var exitCode = await CliRunner.RunAsync(["convert", linqPath], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("SQL", stderr.Output);
+            Assert.False(File.Exists(Path.Combine(dir, "MyQuery.rpad")));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
 }

@@ -35,6 +35,7 @@ public class EditorTabsControlCloseConfirmationTests
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+        prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
 
         var fileSystem = new Mock<IFileSystemService>();
@@ -59,7 +60,7 @@ public class EditorTabsControlCloseConfirmationTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
             new CSharpReferenceService(), buildCache.Object);
 
         var host = new Window { Content = editorTabs };

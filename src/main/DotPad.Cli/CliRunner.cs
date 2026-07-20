@@ -27,8 +27,16 @@ public static class CliRunner
         if (args.Length == 0)
         {
             stderr.WriteLine("Usage: dotpad <path-to.rpad>");
+            stderr.WriteLine("       dotpad convert <input.linq> [output.rpad]");
             return 1;
         }
+
+        // TODO.md #63 — the GUI's "File → Import LINQPad Query..." (девяносто третий проход) equivalent
+        // for scripting/batch use. Unlike the GUI, overwrites the destination outright rather than
+        // picking a free "Foo 2.rpad" — a CLI tool re-run with the same arguments should be idempotent,
+        // not silently rename around a leftover file from a previous run.
+        if (string.Equals(args[0], "convert", StringComparison.OrdinalIgnoreCase))
+            return await ConvertLinqAsync(args, stdout, stderr, cancellationToken);
 
         var filePath = Path.GetFullPath(args[0]);
         if (!File.Exists(filePath))
@@ -104,6 +112,43 @@ public static class CliRunner
             try { Directory.Delete(outputDirectory, recursive: true); }
             catch (IOException) { /* best-effort cleanup — a locked file here isn't worth failing the run over */ }
         }
+    }
+
+    internal static async Task<int> ConvertLinqAsync(
+        string[] args, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
+    {
+        if (args.Length < 2)
+        {
+            stderr.WriteLine("Usage: dotpad convert <input.linq> [output.rpad]");
+            return 1;
+        }
+
+        var linqPath = Path.GetFullPath(args[1]);
+        if (!File.Exists(linqPath))
+        {
+            stderr.WriteLine($"File not found: {linqPath}");
+            return 1;
+        }
+
+        var outputPath = args.Length >= 3
+            ? Path.GetFullPath(args[2])
+            : Path.Combine(Path.GetDirectoryName(linqPath)!, Path.GetFileNameWithoutExtension(linqPath) + ".rpad");
+
+        RpadDocument document;
+        try
+        {
+            var linqText = await File.ReadAllTextAsync(linqPath, cancellationToken);
+            document = LinqConverter.Convert(linqText, title: Path.GetFileNameWithoutExtension(linqPath));
+        }
+        catch (FormatException ex)
+        {
+            stderr.WriteLine($"Failed to convert '{linqPath}': {ex.Message}");
+            return 1;
+        }
+
+        await File.WriteAllTextAsync(outputPath, RpadWriter.Write(document), cancellationToken);
+        stdout.WriteLine($"Wrote {outputPath}");
+        return 0;
     }
 
     // languageId is no longer needed here — every compiled .NET language now shares the same

@@ -99,6 +99,80 @@ public class CodeTextEditorCompletionIntegrationTests
     }
 
     [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_AcceptTheSelection_ByDefault()
+    {
+        var (window, editor) = CreateEditor("", ("Rhino", 1.0));
+
+        window.KeyTextInput("R");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // ';' both commits the selection ("R" -> "Rhino") and is itself inserted as typed.
+        Assert.Equal("Rhino;", editor.Document.Text);
+    }
+
+    // TODO.md #60.4: a user who finds punctuation unpredictably accepting completions can turn
+    // this off — Enter/Tab/click still commit either way (untouched by this switch), only the
+    // "typing punctuation also commits" convenience path is gated.
+    [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_NotAcceptTheSelection_WhenCommitCharactersAreDisabled()
+    {
+        var (window, editor) = CreateEditor("", ("Rhino", 1.0));
+        editor.CommitCharactersEnabled = false;
+
+        window.KeyTextInput("R");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // No commit happened — ';' was just inserted after the still-partial "R".
+        Assert.Equal("R;", editor.Document.Text);
+    }
+
+    // TODO.md #60.3: "MyContext" only substring-matches "Con" (no prefix — GetMatchQuality's
+    // "match start" tier, quality >= 5, never fires), so it's only soft-selected: shown
+    // highlighted, but not confident enough for a typed commit character to accept automatically.
+    [AvaloniaFact]
+    public async Task TypingACommitCharacter_Should_NotAcceptASoftSelectedMatch()
+    {
+        var (window, editor) = CreateEditor("", ("MyContext", 1.0));
+
+        window.KeyTextInput("C");
+        await Task.Delay(20);
+        window.KeyTextInput("o");
+        await Task.Delay(20);
+        window.KeyTextInput("n");
+        await Task.Delay(20);
+        window.KeyTextInput(";");
+        await Task.Delay(20);
+
+        // No commit happened — ';' was just inserted after the still-partial "Con".
+        Assert.Equal("Con;", editor.Document.Text);
+    }
+
+    // Same soft-selected match as above, but committed via Enter — an explicit accept gesture
+    // always wins regardless of confidence; only the "typing punctuation also commits" convenience
+    // path (CompletionWindow.CompletionList_InsertionRequested's TextInputEventArgs check) is
+    // gated by soft-selection.
+    [AvaloniaFact]
+    public async Task PressingEnter_Should_AcceptASoftSelectedMatch()
+    {
+        var (window, editor) = CreateEditor("", ("MyContext", 1.0));
+
+        window.KeyTextInput("C");
+        await Task.Delay(20);
+        window.KeyTextInput("o");
+        await Task.Delay(20);
+        window.KeyTextInput("n");
+        await Task.Delay(20);
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await Task.Delay(20);
+
+        Assert.Equal("MyContext", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public async Task AutoInvoke_Should_PreSelectTheBestMatch_FromTheFirstLetterTyped()
     {
         // Arrange — "Zebra" is added first (so it'd win if the window opened with no filtering/

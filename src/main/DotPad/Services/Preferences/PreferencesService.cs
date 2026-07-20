@@ -17,6 +17,7 @@ public sealed class PreferencesService : IPreferencesService
     public AppearanceSettings Appearance => _settings.Appearance;
     public EditorSettings Editor => _settings.Editor;
     public DebuggerSettings Debugger => _settings.Debugger;
+    public CSharpLanguageSettings CSharp => _settings.CSharp;
     public KeyboardSettings Keyboard => _settings.Keyboard;
     public LayoutSettings Layout => _settings.Layout;
     public SessionSettings Session => _settings.Session;

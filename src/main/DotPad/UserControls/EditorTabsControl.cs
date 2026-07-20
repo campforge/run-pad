@@ -29,6 +29,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // ── Set in DI constructor ─────────────────────────────────────────────────
 
     private readonly IThemeService? _themeService;
+    private readonly IWindowService? _windowService;
     private readonly ILanguageHostRegistry? _registry;
     private readonly IPreferencesService? _prefs;
     private readonly Func<IIntelliSenseService>? _intelliSenseFactory;
@@ -46,6 +47,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     public EditorTabsControl(
         IThemeService themeService,
+        IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         Func<IIntelliSenseService> intelliSenseFactory,
@@ -54,6 +56,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         InitializeComponent();
         _themeService = themeService;
+        _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
         _intelliSenseFactory = intelliSenseFactory;
@@ -439,6 +442,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // UI thread, so the control itself is still created here, synchronously.
         return new EditorsTabItemControl(vm,
             _themeService!,
+            _windowService!,
             _registry!,
             _prefs!,
             intelliSense,

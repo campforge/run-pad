@@ -18,9 +18,15 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // through the same prefix rather than two independently-typed literals drifting apart.
     private const string LanguageNodeIdPrefix = "languages.";
 
+    // Deliberately NOT prefixed with "languages." (unlike the language nodes themselves) — that
+    // prefix is what IsLanguageNodeSelected uses to distinguish "a language's own node" from
+    // everything else under Languages; giving this node that same prefix would make selecting it
+    // incorrectly satisfy that check too and show the wrong placeholder instead of the real
+    // SDK/debugger fields.
+    private const string DotnetNodeId = "dotnet";
+
     private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
-    private static readonly SettingsNode DebuggerNode = new("debugger", "Debugger");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
 
     private readonly IThemeService _themeService;
@@ -49,11 +55,19 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _themeService = themeService;
         _prefs = prefs;
 
+        // Every registered language today is .NET-based (C#, VB — see TODO.md's "Реорганизация
+        // Preferences" note), so they all nest under one ".NET" runtime-family group carrying the
+        // shared SDK/debugger path fields (still backed by the same DebuggerSettings/AppSettings.
+        // Debugger — this is a pure tree-shape change, no settings.json migration). A future non-
+        // .NET language would need a real RuntimeFamily concept on ILanguageHostFactory to pick its
+        // own group instead of hardcoding ".NET" here — deliberately not built until there's a
+        // second runtime family to actually distinguish (same reasoning as TODO #87's deferral).
         var languageNodes = languageRegistry.SupportedLanguages
             .Select(lang => new SettingsNode(LanguageNodeIdPrefix + lang, languageRegistry.GetDisplayName(lang)))
             .ToList();
-        _languagesNode = new SettingsNode("languages", "Languages", languageNodes);
-        _fullTree = [InterfaceNode, EditorNode, DebuggerNode, KeyboardNode, _languagesNode];
+        var dotnetNode = new SettingsNode(DotnetNodeId, ".NET", languageNodes);
+        _languagesNode = new SettingsNode("languages", "Languages", [dotnetNode]);
+        _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -92,17 +106,19 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaiseAndSetIfChanged(ref _selectedNode, value);
             this.RaisePropertyChanged(nameof(IsInterfaceSelected));
             this.RaisePropertyChanged(nameof(IsEditorSelected));
-            this.RaisePropertyChanged(nameof(IsDebuggerSelected));
+            this.RaisePropertyChanged(nameof(IsDotnetSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
+            this.RaisePropertyChanged(nameof(IsCSharpNodeSelected));
+            this.RaisePropertyChanged(nameof(IsGenericLanguagePlaceholderVisible));
             this.RaisePropertyChanged(nameof(SelectedLanguageSettingsPlaceholder));
         }
     }
 
     public bool IsInterfaceSelected => _selectedNode?.Id == "interface";
     public bool IsEditorSelected => _selectedNode?.Id == "editor";
-    public bool IsDebuggerSelected => _selectedNode?.Id == "debugger";
+    public bool IsDotnetSelected => _selectedNode?.Id == DotnetNodeId;
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
 
@@ -114,11 +130,23 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _selectedNode is not null && _selectedNode.Id != "languages"
             && _selectedNode.Id.StartsWith(LanguageNodeIdPrefix, StringComparison.Ordinal);
 
-    // "No {Name}-specific settings yet." — the one placeholder message every language shares today
-    // (see PreferencesWindow.axaml); null when no language node is selected, so the bound TextBlock
-    // has nothing to show instead of a stale message from whatever was selected before.
+    // C#'s own node (TODO.md #62 "inlay hints", user request 2026-07-20) — the first language to
+    // actually need a real settings panel instead of the shared placeholder below. A bespoke property
+    // alongside the generic IsLanguageNodeSelected check, same dual-track shape IsDotnetSelected
+    // already uses (a hardcoded special case sitting next to the generic system, not a reversion of
+    // it) — VB (or any future language with nothing to configure) still falls through to the shared
+    // placeholder untouched.
+    public bool IsCSharpNodeSelected => _selectedNode?.Id == LanguageNodeIdPrefix + "csharp";
+
+    // A language node is selected AND it's not C# (which has its own real panel below) — the
+    // placeholder panel's own IsVisible binding, since Avalonia XAML has no inline boolean AND.
+    public bool IsGenericLanguagePlaceholderVisible => IsLanguageNodeSelected && !IsCSharpNodeSelected;
+
+    // "No {Name}-specific settings yet." — the placeholder every OTHER language still shares (see
+    // PreferencesWindow.axaml); null when no language node is selected, or when the selected one has
+    // its own real panel instead (C# — see IsCSharpNodeSelected).
     public string? SelectedLanguageSettingsPlaceholder =>
-        IsLanguageNodeSelected ? $"No {_selectedNode!.Name}-specific settings yet." : null;
+        IsGenericLanguagePlaceholderVisible ? $"No {_selectedNode!.Name}-specific settings yet." : null;
 
     // Rebuilds the displayed (possibly filtered) tree from the fixed full tree. A node survives the
     // filter if its own name matches or any descendant's does, so e.g. typing "key" still surfaces
@@ -147,7 +175,16 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         var selfMatches = node.Name.Contains(_filterText, StringComparison.OrdinalIgnoreCase);
         if (!selfMatches && matchingChildren.Count == 0) return null;
 
-        return matchingChildren.Count == node.Children.Count
+        // Comparing counts alone (the original check here) wrongly treated "every child slot still
+        // has SOME node in it" as "nothing changed anywhere below" — true whenever a node has
+        // exactly one child and that child survives filtering, REGARDLESS of whether filtering
+        // rewrote something further down inside that child (e.g. Languages -> .NET -> C#/VB: with
+        // only ".NET" as Languages' one child, ".NET" surviving with just C# left inside it still
+        // "counted" as 1 == 1, so Languages kept pointing at the original, unfiltered ".NET" node —
+        // discovered via FilterText_MatchingALanguageName_Should_StillSurfaceTheParentLanguagesAnd
+        // DotnetNodes once nesting one language group under another made a 1-child case reachable).
+        // Reference-comparing the actual child nodes catches this at any depth.
+        return matchingChildren.SequenceEqual(node.Children)
             ? node
             : new SettingsNode(node.Id, node.Name, matchingChildren);
     }
@@ -278,10 +315,24 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.WordWrap, value, v => _prefs.Editor.WordWrap = v);
     }
 
+    public bool CommitCharactersEnabled
+    {
+        get => _prefs.Editor.CommitCharactersEnabled;
+        set => SetPref(_prefs.Editor.CommitCharactersEnabled, value, v => _prefs.Editor.CommitCharactersEnabled = v);
+    }
+
     public double FontSize
     {
         get => _prefs.Editor.FontSize;
         set => SetPref(_prefs.Editor.FontSize, value, v => _prefs.Editor.FontSize = v);
+    }
+
+    // ── C# (TODO.md #62 "inlay hints", user request 2026-07-20) ────────────────
+
+    public bool InlayHintsEnabled
+    {
+        get => _prefs.CSharp.InlayHintsEnabled;
+        set => SetPref(_prefs.CSharp.InlayHintsEnabled, value, v => _prefs.CSharp.InlayHintsEnabled = v);
     }
 
     // ── Debugger ──────────────────────────────────────────────────────────────
