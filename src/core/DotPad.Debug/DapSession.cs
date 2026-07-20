@@ -127,7 +127,51 @@ public sealed class DapSession : IDapSession
         }, ct);
     }
 
-    public void RequestBreakpointResync() => _breakpointResyncPending = true;
+    public void RequestBreakpointResync()
+    {
+        _breakpointResyncPending = true;
+
+        // A gutter edit made while the debuggee is genuinely running (not paused) has no guaranteed
+        // future "stopped" event to piggyback HandleStoppedAsync's own resync check on — if nothing
+        // else ever stops execution again, the flag above just sits unconsumed and the edit silently
+        // never reaches netcoredbg (live user report: "не работает динамическая установка и снятие
+        // брекпоинтов на запущенном скрипте"). Fire the resend immediately instead of waiting.
+        if (!_isPaused)
+            _ = SendBreakpointsWhileRunningAsync();
+    }
+
+    // Sending (not reading) is safe at any time regardless of pause state: SendAsync writes to
+    // _process.InputStream under _writeLock, while the main RunProtocolAsync loop only ever reads
+    // from the separate _process.OutputStream — the two never touch the same stream, unlike a
+    // synchronous send-then-await-response round trip (see _requestResponseLock's own comment on
+    // why THOSE need the debuggee to already be paused, i.e. the main loop's read to be idle).
+    // Deliberately fire-and-forget, not read here — whatever comes back (the "response" for this
+    // "setBreakpoints", and later an unsolicited "breakpoint" event) is picked up by the main loop
+    // itself once it gets there (see HandleEventAsync/RunProtocolAsync's own "setBreakpoints"
+    // response handling), same as any other message arriving while genuinely running.
+    private async Task SendBreakpointsWhileRunningAsync()
+    {
+        if (_sourceFile is null || _sourceName is null) return; // no session established yet
+
+        try
+        {
+            await SendAsync(new SetBreakpointsRequest
+            {
+                seq = NextSeq(),
+                arguments = new SetBreakpointsArguments
+                {
+                    source = new Source { path = _sourceFile, name = _sourceName },
+                    breakpoints = _breakpoints
+                        .Select(bp => new SourceBreakpoint(bp.Line + _lineOffset, bp.Condition, bp.HitCondition))
+                        .ToList(),
+                },
+            }, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to resync breakpoints while running");
+        }
+    }
 
     // ─── Session entry point ─────────────────────────────────────────────────
 
@@ -229,6 +273,16 @@ public sealed class DapSession : IDapSession
                     }
                 }, ct);
                 launchSent = true;
+            }
+            // The only "setBreakpoints" response that can organically reach this top-level dispatch
+            // is SendBreakpointsWhileRunningAsync's — every OTHER send of that request (the initial
+            // one in SendBreakpointsAsync, resyncs in ResendBreakpointsAsync) reads its own response
+            // inline via ReadResponseForCommandAsync before control ever returns here. Reporting it
+            // gives the margin its verified/message verdict for a breakpoint added/removed while
+            // running without waiting for a later "stopped" event to relay it instead.
+            else if (msgType == "response" && GetStr(root, "command") == "setBreakpoints")
+            {
+                ReportVerification(doc, _breakpoints);
             }
             else if (msgType == "event")
             {

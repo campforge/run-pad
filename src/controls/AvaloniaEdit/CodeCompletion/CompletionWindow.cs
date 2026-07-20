@@ -152,6 +152,17 @@ public class CompletionWindow : CompletionWindowBase
 
     private void CompletionList_InsertionRequested(object sender, EventArgs e)
     {
+        // TODO.md #60.3: a typed commit CHARACTER (not Enter/Tab/click) shouldn't accept a match
+        // the completion engine isn't confident about (CompletionList.IsSoftSelected) — only a
+        // substring/camelCase guess, not something the user actually typed a real prefix of.
+        // Tab/Enter/click are explicit accept gestures and always commit regardless of this (same
+        // "check the concrete EventArgs type" technique as WordEndOffsetProvider's Tab check
+        // below) — this only ever declines a TextInputEventArgs-triggered request, leaving the
+        // window open and the just-typed character to insert normally, so the list keeps refining
+        // as the user keeps typing instead of committing a guess out from under them.
+        if (e is TextInputEventArgs && CompletionList.IsSoftSelected)
+            return;
+
         Hide();
         // The window must close before Complete() is called.
         // If the Complete callback pushes stacked input handlers, we don't want to pop those when the CC window closes.

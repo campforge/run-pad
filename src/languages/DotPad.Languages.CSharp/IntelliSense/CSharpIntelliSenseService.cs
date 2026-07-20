@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
@@ -33,6 +34,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 SymbolDisplayParameterOptions.IncludeParamsRefOut | SymbolDisplayParameterOptions.IncludeDefaultValue,
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
+    // Matches Roslyn's own (internal) AbstractInlineTypeHintsService.s_minimalTypeStyle exactly —
+    // decompiled via ICSharpCode.Decompiler (already a dependency, see CSharpDecompilerService) to
+    // confirm rather than guess, since VS/Rider's own inlay-hint formatting isn't itself public API.
+    private static readonly SymbolDisplayFormat _inlayHintTypeFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        memberOptions: SymbolDisplayMemberOptions.None,
+        delegateStyle: SymbolDisplayDelegateStyle.NameOnly,
+        extensionMethodStyle: SymbolDisplayExtensionMethodStyle.Default,
+        parameterOptions: SymbolDisplayParameterOptions.None,
+        propertyStyle: SymbolDisplayPropertyStyle.NameOnly,
+        localOptions: SymbolDisplayLocalOptions.None,
+        kindOptions: SymbolDisplayKindOptions.None,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+            | SymbolDisplayMiscellaneousOptions.AllowDefaultLiteral);
 
     private static readonly IReadOnlyList<ICompletionItem> _keywords =
         new[]
@@ -1151,6 +1170,254 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Quick info failed"); return null; }
     }
 
+    // ── Document Highlights ──────────────────────────────────────────────────────
+
+    // TODO.md #62 "подсветка вхождений": Roslyn ships a ready-made IDocumentHighlightsService for
+    // exactly this, but it (and its result types DocumentHighlights/HighlightSpan) are internal to
+    // Microsoft.CodeAnalysis.Features — not reachable from here even though that assembly is already
+    // loaded into DotPadRoslynHost's MEF composition (confirmed directly: referencing the type by
+    // name fails to compile with CS0122, "inaccessible due to its protection level"). Reimplemented
+    // with only public Roslyn API instead: find the symbol under the caret, then scan every
+    // identifier token in the document for one that resolves to the same symbol.
+    public Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<IDocumentHighlightSpan>?> TryGetDocumentHighlightsAsync(
+        string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var found = await FindSymbolAndOccurrencesAsync(code, position, ct);
+            return found?.Spans;
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Document highlights failed"); return null; }
+    }
+
+    // ── Rename ────────────────────────────────────────────────────────────────────
+
+    public Task<IRenameInfo?> GetRenameInfoAsync(string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
+
+    private async Task<IRenameInfo?> TryGetRenameInfoAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var found = await FindSymbolAndOccurrencesAsync(code, position, ct);
+            if (found is not { } result) return null;
+
+            // Only symbols the user's own script actually declares can be renamed — a metadata/
+            // framework symbol (e.g. "WriteLine" in Console.WriteLine) has no source location to
+            // rename AT; renaming its call sites in the script without renaming the framework
+            // method itself would just turn correct code into a compile error.
+            if (!result.Symbol.Locations.Any(l => l.IsInSource)) return null;
+
+            return new SimpleRenameInfo(result.Symbol.Name, result.Spans);
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Rename info failed"); return null; }
+    }
+
+    // ── Go to Definition (F12) ───────────────────────────────────────────────────
+
+    public Task<IDefinitionResult?> GetDefinitionAsync(string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
+
+    private async Task<IDefinitionResult?> TryGetDefinitionAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var header = HeaderLength(code);
+            var pos = position + header;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+            var token = root.FindToken(pos);
+            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+            var symbol = ResolveTokenSymbol(model, token);
+            if (symbol == null) return null;
+
+            if (symbol.Locations.FirstOrDefault(l => l.IsInSource) is { } sourceLocation)
+            {
+                var offset = sourceLocation.SourceSpan.Start - header;
+                if (offset < 0) return null; // declared inside the prepended preamble, not user code
+                return new SimpleDefinitionResult(
+                    IsInSource: true, Offset: offset,
+                    AssemblyPath: null, ContainingTypeFullName: null, MemberName: null,
+                    ParameterTypeNames: [], DisplayName: symbol.Name);
+            }
+
+            // Extension methods resolve to their REDUCED form (receiver dropped from Parameters) —
+            // metadata (and so the decompiler's own type system) only knows the original static
+            // method, receiver included as parameter 0. Un-reduce before reading Name/Parameters so
+            // the parameter list CSharpDecompilerService is asked to match against reflects reality.
+            if (symbol is IMethodSymbol { ReducedFrom: { } original })
+                symbol = original;
+
+            var containingType = symbol is INamedTypeSymbol selfType ? selfType : symbol.ContainingType;
+            if (containingType is null) return null; // e.g. a namespace — nothing to decompile
+
+            var reference = model.Compilation.GetMetadataReference(containingType.ContainingAssembly);
+            if (reference is not PortableExecutableReference { FilePath: { } assemblyPath }) return null;
+
+            var isTypeItself = SymbolEqualityComparer.Default.Equals(symbol, containingType);
+            var parameterTypeNames = symbol is IMethodSymbol { Parameters: var parameters }
+                ? parameters.Select(p => p.Type.Name).ToArray()
+                : [];
+
+            return new SimpleDefinitionResult(
+                IsInSource: false, Offset: 0,
+                AssemblyPath: assemblyPath,
+                ContainingTypeFullName: GetReflectionTypeName(containingType.OriginalDefinition),
+                MemberName: isTypeItself ? null : symbol.Name,
+                ParameterTypeNames: parameterTypeNames,
+                DisplayName: symbol.ToDisplayString());
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Go to definition failed"); return null; }
+    }
+
+    // Reflection-style name (Namespace.Type`Arity+Nested`Arity) — what ICSharpCode.Decompiler's
+    // FullTypeName(string) constructor expects. INamedTypeSymbol.MetadataName already carries the
+    // `Arity suffix for open generics; OriginalDefinition (applied by the caller) strips any
+    // constructed-generic type arguments first (e.g. List<int> -> List<T>) since a FullTypeName names
+    // the open generic definition, not one particular instantiation.
+    private static string GetReflectionTypeName(INamedTypeSymbol type)
+    {
+        if (type.ContainingType is { } outer)
+            return GetReflectionTypeName(outer.OriginalDefinition) + "+" + type.MetadataName;
+        return type.ContainingNamespace is { IsGlobalNamespace: false } ns
+            ? ns.ToDisplayString() + "." + type.MetadataName
+            : type.MetadataName;
+    }
+
+    // ── Go to Implementation (Ctrl+F12) ──────────────────────────────────────────
+
+    public Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<IImplementationLocation>?> TryGetImplementationsAsync(
+        string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            var root = await document.GetSyntaxRootAsync(ct);
+            if (root == null) return null;
+
+            var header = HeaderLength(code);
+            var pos = position + header;
+            if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+            var token = root.FindToken(pos);
+            if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+            var symbol = ResolveTokenSymbol(model, token);
+            if (symbol == null) return null;
+
+            var solution = document.Project.Solution;
+
+            // FindImplementationsAsync only covers interface members/types — an abstract or virtual
+            // member (not on an interface) needs FindOverridesAsync instead. A single-file script's
+            // own AdhocWorkspace only ever contains the script itself, so either call can only ever
+            // surface OTHER declarations inside that same document — never metadata.
+            IEnumerable<ISymbol> found = symbol is INamedTypeSymbol namedType
+                ? await SymbolFinder.FindImplementationsAsync(namedType, solution, cancellationToken: ct)
+                : await SymbolFinder.FindImplementationsAsync(symbol, solution, cancellationToken: ct);
+            var implementations = found.ToList();
+
+            if (implementations.Count == 0 && IsOverridable(symbol))
+                implementations = (await SymbolFinder.FindOverridesAsync(symbol, solution, cancellationToken: ct)).ToList();
+
+            if (implementations.Count == 0) return null;
+
+            var results = new List<IImplementationLocation>();
+            foreach (var impl in implementations)
+            {
+                if (impl.Locations.FirstOrDefault(l => l.IsInSource) is not { } location) continue;
+                var offset = location.SourceSpan.Start - header;
+                if (offset < 0) continue; // inside the prepended usings preamble, not user code
+                results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
+            }
+
+            return results.Count == 0 ? null : results;
+        }
+        catch (OperationCanceledException) { throw; } // see the Completions catch above
+        catch (Exception ex) { _logger.LogWarning(ex, "Go to implementation failed"); return null; }
+    }
+
+    private static bool IsOverridable(ISymbol symbol) => symbol switch
+    {
+        IMethodSymbol m => m.IsAbstract || m.IsVirtual,
+        IPropertySymbol p => p.IsAbstract || p.IsVirtual,
+        IEventSymbol e => e.IsAbstract || e.IsVirtual,
+        _ => false,
+    };
+
+    // Shared by GetDocumentHighlightsAsync and GetRenameInfoAsync — both are "find the symbol under
+    // the caret, then every identifier token elsewhere in the document that resolves to that same
+    // symbol"; they only differ in what they do with the result afterward (highlight vs. offer to
+    // rename, the latter additionally filtering to source-declared symbols only).
+    private async Task<(ISymbol Symbol, List<IDocumentHighlightSpan> Spans)?> FindSymbolAndOccurrencesAsync(
+        string code, int position, CancellationToken ct)
+    {
+        var document = SyncDocument(code);
+        var model = await document.GetSemanticModelAsync(ct);
+        if (model == null) return null;
+
+        var root = await document.GetSyntaxRootAsync(ct);
+        if (root == null) return null;
+
+        var pos = position + HeaderLength(code);
+        if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
+
+        var token = root.FindToken(pos);
+        if (!token.IsKind(SyntaxKind.IdentifierToken)) return null;
+
+        var symbol = ResolveTokenSymbol(model, token);
+        if (symbol == null) return null;
+
+        var header = HeaderLength(code);
+        var spans = new List<IDocumentHighlightSpan>();
+        foreach (var candidate in root.DescendantTokens())
+        {
+            ct.ThrowIfCancellationRequested();
+            // Cheap text check before the semantic lookup — most identifiers in the document
+            // aren't even textually the same name, no need to ask the semantic model about them.
+            if (!candidate.IsKind(SyntaxKind.IdentifierToken) || candidate.ValueText != token.ValueText)
+                continue;
+
+            var candidateSymbol = ResolveTokenSymbol(model, candidate);
+            if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
+                continue;
+
+            var userStart = candidate.SpanStart - header;
+            if (userStart < 0) continue; // inside the prepended usings preamble, not user code
+            spans.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
+        }
+
+        return (symbol, spans);
+    }
+
+    // Shared by both the caret's own token and every candidate token scanned against it — a
+    // declaration site (e.g. the identifier in "var x = ...") has no GetSymbolInfo result of its
+    // own (that call is for usages/references), only GetDeclaredSymbol; a usage is the opposite.
+    // Trying both, in this order, covers either kind of identifier token uniformly.
+    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token) =>
+        model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+
     // ── Format ─────────────────────────────────────────────────────────────────
 
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
@@ -1183,6 +1450,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
     public event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
     public event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
+    public event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
 
     public void NotifyTextChanged(string code)
     {
@@ -1206,7 +1474,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
-                    ComputeSemanticTokensAsync(code, document, ct));
+                    ComputeSemanticTokensAsync(code, document, ct),
+                    ComputeInlayHintsAsync(code, document, ct));
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
@@ -1235,6 +1504,64 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
 
         SemanticTokensChanged?.Invoke(code, result);
+    }
+
+    // TODO.md #62 "inlay hints" — inferred `var x` / `foreach (var x in ...)` type annotations only
+    // (Roslyn's own CSharpInlineTypeHintsService also covers lambda parameters, implicit `new()`, and
+    // collection expressions — internal API, decompiled to confirm exact placement/format below, not
+    // ported wholesale; those three are lower-value, left for a follow-up if wanted). Single-variable
+    // declarations only (`var a = 1, b = 2;` skipped entirely) — matches Roslyn's own behavior; a
+    // multi-declarator statement can only have one inferred type anyway, so hinting just the first
+    // variable would misleadingly suggest it doesn't apply to the rest.
+    private async Task ComputeInlayHintsAsync(string code, Document document, CancellationToken ct)
+    {
+        var model = await document.GetSemanticModelAsync(ct);
+        var root = await document.GetSyntaxRootAsync(ct);
+        if (model is null || root is null)
+        {
+            InlayHintsChanged?.Invoke(code, []);
+            return;
+        }
+
+        var headerLength = HeaderLength(code);
+        var result = new List<IInlayHint>();
+
+        foreach (var declaration in root.DescendantNodes().OfType<VariableDeclarationSyntax>())
+        {
+            if (declaration.Type is not { IsVar: true } typeSyntax) continue;
+            if (declaration.Variables.Count != 1) continue;
+            var identifier = declaration.Variables[0].Identifier;
+            if (identifier.IsMissing) continue;
+
+            var type = model.GetTypeInfo(typeSyntax, ct).Type;
+            AddHint(result, type, identifier.SpanStart, typeSyntax.SpanStart, headerLength, code, model);
+        }
+
+        foreach (var forEach in root.DescendantNodes().OfType<ForEachStatementSyntax>())
+        {
+            if (forEach.Type is not { IsVar: true } typeSyntax) continue;
+            if (forEach.Identifier.IsMissing) continue;
+
+            var type = model.GetForEachStatementInfo(forEach).ElementType;
+            AddHint(result, type, forEach.Identifier.SpanStart, typeSyntax.SpanStart, headerLength, code, model);
+        }
+
+        InlayHintsChanged?.Invoke(code, result);
+
+        // Roslyn's own CSharpInlineTypeHintsService (IsValidType) only excludes null and a type
+        // literally named "var" (e.g. a user-defined `class var` — legal, if unusual, C#); it doesn't
+        // special-case error types beyond that, and neither does this.
+        static void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
+            int headerLength, string code, SemanticModel model)
+        {
+            if (type is null || type.Name == "var") return;
+
+            var offset = identifierPos - headerLength;
+            if (offset < 0 || offset > code.Length) return;
+
+            var display = type.ToMinimalDisplayString(model, typeSyntaxPos, _inlayHintTypeFormat);
+            hints.Add(new SimpleInlayHint(offset, display + " "));
+        }
     }
 
     // ── Diagnostics + code fixes (real Roslyn CodeFixProviders — see RoslynCodeFixEngine) ──────
@@ -1438,11 +1765,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private sealed record SimpleQuickInfoResult(
         IReadOnlyList<DisplayTextSegment> Signature, string? Summary) : IQuickInfoResult;
 
+    private sealed record SimpleDocumentHighlightSpan(int Start, int Length) : IDocumentHighlightSpan;
+
+    private sealed record SimpleRenameInfo(
+        string CurrentName, IReadOnlyList<IDocumentHighlightSpan> Spans) : IRenameInfo;
+
+    private sealed record SimpleDefinitionResult(
+        bool IsInSource, int Offset, string? AssemblyPath, string? ContainingTypeFullName,
+        string? MemberName, IReadOnlyList<string> ParameterTypeNames, string DisplayName) : IDefinitionResult;
+
+    private sealed record SimpleImplementationLocation(int Offset, string DisplayName) : IImplementationLocation;
+
     private sealed record SimpleDiagnostic(
         int StartOffset, int EndOffset, string Message,
         ContractSeverity Severity) : IDiagnosticInfo;
 
     private sealed record SimpleSemanticToken(
         int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
+
+    private sealed record SimpleInlayHint(int Offset, string Text) : IInlayHint;
 
 }

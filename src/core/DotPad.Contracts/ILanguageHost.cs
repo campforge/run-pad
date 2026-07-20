@@ -24,6 +24,13 @@ public interface ILanguageHost : IAsyncDisposable
     /// <summary>Compiles <paramref name="code"/> without running it. Always available.</summary>
     Task<ICompilationResult> CompileAsync(string code, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Raised after every successful compile (from <see cref="CompileAsync"/>, <see cref="RunAsync"/>,
+    /// or <see cref="RunDebugAsync"/>) with the path to the compiled assembly on disk — lets UI surface
+    /// e.g. an IL disassembly view (TODO.md #62). Always available.
+    /// </summary>
+    event CompiledHandler? Compiled;
+
     /// <summary>Compiles and runs <paramref name="code"/>, streaming stdout/stderr/dump output to <paramref name="outputHandler"/>. Always available.</summary>
     Task RunAsync(string code,
         OutputReceivedHandler outputHandler,
@@ -31,6 +38,20 @@ public interface ILanguageHost : IAsyncDisposable
 
     /// <summary>Stops the current run, if any. Always available.</summary>
     Task TerminateAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Raised when the running script calls <c>Util.ReadLine</c>/<c>Util.GetPassword</c> (TODO.md
+    /// #63) — the UI should prompt the user and reply via <see cref="SendInputAsync"/>. Only fires
+    /// under <see cref="RunAsync"/> (not <see cref="RunDebugAsync"/> — a debug session's stdin isn't
+    /// currently piped through). Always available.
+    /// </summary>
+    event InputRequestedHandler? InputRequested;
+
+    /// <summary>
+    /// Answers an <see cref="InputRequested"/> request with a line of text. No-op if nothing is
+    /// currently running via <see cref="RunAsync"/>. Always available.
+    /// </summary>
+    Task SendInputAsync(string text, CancellationToken cancellationToken);
 
     /// <summary>Like <see cref="RunAsync"/>, but attaches a debugger and honors breakpoints. Requires <see cref="LanguageHostCapabilities.Debug"/>.</summary>
     Task RunDebugAsync(

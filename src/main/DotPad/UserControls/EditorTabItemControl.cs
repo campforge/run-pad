@@ -2,6 +2,7 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -35,8 +36,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private TabControl? _outputTabsControl;
 
     private readonly IThemeService _themeService;
+    private readonly IWindowService _windowService;
     internal readonly EditorTabState State;
     private SemanticHighlighter? _semanticHighlighter;
+    private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
@@ -51,6 +54,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
         IThemeService themeService,
+        IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
@@ -59,6 +63,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IBrush? editorBackground)
     {
         _themeService = themeService;
+        _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
         _referenceService = referenceService;
@@ -250,6 +255,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
         s.ElapsedText = "";
+        IlOutput.Text = "";
         SetStatus("Process", "DotPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
         UpdateOutputUi();
@@ -302,6 +308,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
+                host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
+                host.InputRequested += (prompt, isPassword) =>
+                    Dispatcher.UIThread.Post(() => ShowInputPrompt(prompt, isPassword));
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
@@ -336,6 +345,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             s.RunningHost = null;
             await s.RunCts.CancelAsync();
+            HideInputPrompt();
 
             _vm.RunState = RunState.Idle;
             State.Editor.DebugCurrentLine = null;
@@ -512,6 +522,169 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Focus();
     }
 
+    // TODO.md #62 "умное переименование" — F2 (CodeTextEditor.RenameSymbolRequested).
+    private async Task ShowRenameSymbolAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner is null) return;
+
+        var caretOffset = editor.TextArea.Caret.Offset;
+        var info = await intelliSense.GetRenameInfoAsync(State.Editor.Text, caretOffset, CancellationToken.None);
+        if (info is null || info.Spans.Count == 0) return; // nothing renameable at the caret
+
+        var dialog = new Windows.RenameSymbolDialog(info.CurrentName);
+        var newName = await dialog.ShowDialog<string?>(owner);
+        if (string.IsNullOrEmpty(newName) || newName == info.CurrentName) return;
+
+        ApplyRenameEdits(editor.Document, info.Spans, newName);
+        editor.Focus();
+    }
+
+    // Split out from ShowRenameSymbolAsync so the actual edit-application logic (order-of-operations
+    // and undo-grouping, both easy to get subtly wrong) can be tested directly against a plain
+    // TextDocument, without needing a real modal dialog in the loop.
+    internal static void ApplyRenameEdits(TextDocument document, IReadOnlyList<IDocumentHighlightSpan> spans, string newName)
+    {
+        // Descending order so replacing one span never shifts the offsets of spans still to come —
+        // Document.Replace is purely offset-based and doesn't adjust sibling calls for you.
+        // RunUpdate groups the whole sequence into a single undo step (Ctrl+Z undoes the entire
+        // rename, not one occurrence at a time).
+        using (document.RunUpdate())
+        {
+            foreach (var span in spans.OrderByDescending(s => s.Start))
+                document.Replace(span.Start, span.Length, newName);
+        }
+    }
+
+    // TODO.md #62 "find references" — Shift+F12 (CodeTextEditor.FindReferencesRequested). Reuses
+    // GetDocumentHighlightsAsync (same "every occurrence of the symbol under the caret" data the
+    // highlight-occurrences feature already computes) rather than a separate service call — a
+    // single-file scratchpad's "references" list and "highlights" list are the same set, they just
+    // get shown differently (a clickable menu here vs. inline highlighting there).
+    private async Task ShowFindReferencesAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var caretOffset = editor.TextArea.Caret.Offset;
+        var highlights = await intelliSense.GetDocumentHighlightsAsync(
+            State.Editor.Text, caretOffset, CancellationToken.None);
+        if (highlights is null || highlights.Count == 0) return; // nothing to list
+
+        if (BuildFindReferencesMenu(highlights, editor) is not { } menu) return;
+        editor.ContextMenu = menu;
+        menu.Open(editor);
+    }
+
+    // internal (not private): same rationale as EditorTabsControl.BuildAllTabsMenu — lets tests
+    // inspect the built menu's items/click-wiring directly, since headless Avalonia has no reliable
+    // way to drive an actual popup open/click interaction.
+    internal static ContextMenu? BuildFindReferencesMenu(
+        IReadOnlyList<IDocumentHighlightSpan> highlights, CodeTextEditor editor)
+    {
+        if (highlights.Count == 0) return null;
+
+        var menu = new ContextMenu();
+        foreach (var span in highlights.OrderBy(h => h.Start))
+        {
+            var line = editor.Document.GetLineByOffset(span.Start);
+            var lineText = editor.Document.GetText(line).Trim();
+            var header = new TextBlock { Text = $"Line {line.LineNumber}: {lineText}" };
+
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) =>
+            {
+                editor.TextArea.Caret.Offset = span.Start;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            };
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
+    // TODO.md #62 "Go to Definition"/"Go to Implementation" (F12, user request 2026-07-19) —
+    // CodeTextEditor.GoToDefinitionRequested. A single F12 binding covers both: implementations take
+    // priority when the symbol has any (same as pressing "Go to Implementation" in VS/Rider, minus a
+    // separate Ctrl+F12 — dropped after user feedback 2026-07-19 that modifier+F-key combos collide
+    // with desktop-environment global shortcuts often enough on Linux, e.g. KDE Plasma, that adding
+    // another one isn't a safe default); falling back to the symbol's own definition otherwise. A
+    // symbol declared in the script itself is a same-document caret jump (single-file scratchpad, no
+    // cross-file navigation to speak of); a definition outside the script has no source to jump to,
+    // so it's decompiled instead and shown in a separate, non-modal window (explicit user request:
+    // NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/ILSpy show a
+    // decompiled member without disturbing whatever else is open).
+    private async Task ShowGoToDefinitionAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
+    {
+        var caretOffset = editor.TextArea.Caret.Offset;
+
+        var implementations = await intelliSense.GetImplementationsAsync(
+            State.Editor.Text, caretOffset, CancellationToken.None);
+        if (implementations is { Count: > 0 })
+        {
+            if (implementations.Count == 1)
+            {
+                editor.TextArea.Caret.Offset = implementations[0].Offset;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            }
+            else if (BuildGoToImplementationMenu(implementations, editor) is { } menu)
+            {
+                editor.ContextMenu = menu;
+                menu.Open(editor);
+            }
+            return;
+        }
+
+        var definition = await intelliSense.GetDefinitionAsync(State.Editor.Text, caretOffset, CancellationToken.None);
+        if (definition is null) return;
+
+        if (definition.IsInSource)
+        {
+            editor.TextArea.Caret.Offset = definition.Offset;
+            editor.ScrollToLine(editor.TextArea.Caret.Line);
+            editor.Focus();
+            return;
+        }
+
+        DecompiledMemberResult decompiled;
+        try
+        {
+            decompiled = await Task.Run(() => CSharpDecompilerService.Decompile(definition));
+        }
+        catch (Exception ex)
+        {
+            decompiled = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, definition.DisplayName);
+        }
+
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        var window = new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
+        if (owner is not null) window.Show(owner);
+        else window.Show();
+    }
+
+    // internal (not private): same rationale as BuildFindReferencesMenu — lets tests inspect the
+    // built menu's items/click-wiring directly, since headless Avalonia has no reliable way to drive
+    // an actual popup open/click interaction.
+    internal static ContextMenu? BuildGoToImplementationMenu(
+        IReadOnlyList<IImplementationLocation> implementations, CodeTextEditor editor)
+    {
+        if (implementations.Count == 0) return null;
+
+        var menu = new ContextMenu();
+        foreach (var impl in implementations.OrderBy(i => i.Offset))
+        {
+            var item = new MenuItem { Header = impl.DisplayName };
+            item.Click += (_, _) =>
+            {
+                editor.TextArea.Caret.Offset = impl.Offset;
+                editor.ScrollToLine(editor.TextArea.Caret.Line);
+                editor.Focus();
+            };
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     internal void ResumeDebug(DebugAction action)
@@ -615,6 +788,76 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.Editor.InvalidateBreakpoints();
     }
 
+    // Runs on the ILanguageHost.Compiled event, itself raised on the RunAsync's own Task.Run
+    // background thread (not the UI thread) — so the disassembly work below happens off-UI already;
+    // only the resulting string needs to be marshalled back for display.
+    private void UpdateIlOutput(string binaryPath)
+    {
+        string il;
+        try
+        {
+            il = IlDisassembler.Disassemble(binaryPath);
+        }
+        catch (Exception ex)
+        {
+            il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
+        }
+
+        Dispatcher.UIThread.Post(() => IlOutput.Text = il);
+    }
+
+    // TODO.md #63 "интерактивный типизированный ввод" — ILanguageHost.InputRequested (Util.ReadLine/
+    // GetPassword). Always called on the UI thread (see the Dispatcher.UIThread.Post at the
+    // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
+    // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
+    // real running script asking for input).
+    internal void ShowInputPrompt(string? prompt, bool isPassword)
+    {
+        InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
+        InputPromptBox.PasswordChar = isPassword ? '●' : default;
+        InputPromptBox.Text = "";
+        InputPromptBar.IsVisible = true;
+        InputPromptBox.Focus();
+    }
+
+    internal void HideInputPrompt()
+    {
+        InputPromptBar.IsVisible = false;
+    }
+
+    internal bool IsInputPromptVisible => InputPromptBar.IsVisible;
+    internal string? InputPromptLabelText => InputPromptLabel.Text;
+    internal bool IsInputPromptMasked => InputPromptBox.PasswordChar != default;
+
+    internal string? InputPromptBoxText
+    {
+        get => InputPromptBox.Text;
+        set => InputPromptBox.Text = value;
+    }
+
+    private void InputPromptBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        e.Handled = true;
+        _ = SubmitInputPromptAsync();
+    }
+
+    internal async Task SubmitInputPromptAsync()
+    {
+        if (State.RunningHost is not { } host) return;
+
+        var text = InputPromptBox.Text ?? "";
+        var isPassword = InputPromptBox.PasswordChar != default;
+        HideInputPrompt();
+
+        // Echo what was submitted into the output, the same way a real console would — except a
+        // password, which a real console never echoes either.
+        if (!isPassword)
+            AppendOutput(text, OutputKind.StandardOutput);
+
+        await host.SendInputAsync(text, CancellationToken.None);
+    }
+
     // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise
     // they only take effect the next time RunAsync reads State.Editor.Breakpoints at run start.
     private void OnGutterBreakpointAdded(object? sender, BreakpointEventArgs e)
@@ -680,7 +923,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // ── Editor preferences ────────────────────────────────────────────────────
 
     private void OnPreferencesChanged()
-        => Dispatcher.UIThread.Post(() => ApplyEditorSettings(State.Editor, _prefs.Editor));
+        => Dispatcher.UIThread.Post(() =>
+        {
+            ApplyEditorSettings(State.Editor, _prefs.Editor);
+
+            if (_inlayHintRenderer is { } renderer && renderer.IsEnabled != _prefs.CSharp.InlayHintsEnabled)
+            {
+                renderer.IsEnabled = _prefs.CSharp.InlayHintsEnabled;
+                State.Editor.TextArea.TextView.Redraw();
+            }
+        });
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -705,6 +957,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Options.ColumnRulerPositions = s.ShowColumnRuler
             ? [s.ColumnRulerPosition]
             : [];
+        editor.CommitCharactersEnabled = s.CommitCharactersEnabled;
     }
 
 
@@ -804,6 +1057,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
         };
 
+        editor.AsyncOccurrencesProvider = async e =>
+        {
+            var highlights = await intelliSense.GetDocumentHighlightsAsync(
+                State.Editor.Text, e.CaretOffset, e.CancellationToken);
+            if (highlights is null) return;
+            foreach (var h in highlights)
+                e.Spans.Add((h.Start, h.Length));
+        };
+
+        editor.RenameSymbolRequested += async (_, _) => await ShowRenameSymbolAsync(editor, intelliSense);
+        editor.FindReferencesRequested += async (_, _) => await ShowFindReferencesAsync(editor, intelliSense);
+        editor.GoToDefinitionRequested += async (_, _) => await ShowGoToDefinitionAsync(editor, intelliSense);
+
         // ── Live diagnostics (squiggles) ──────────────────────────────────────
         var squiggleRenderer = new SquiggleRenderer();
         editor.TextArea.TextView.BackgroundRenderers.Add(squiggleRenderer);
@@ -829,6 +1095,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
                 semanticHighlighter.Update(tokens);
+                editor.TextArea.TextView.Redraw();
+            });
+
+        // ── Inlay hints (inferred `var`/`foreach (var ...)` types) ─────────────
+        var inlayHintRenderer = new InlayHintRenderer { IsEnabled = _prefs.CSharp.InlayHintsEnabled };
+        editor.TextArea.TextView.ElementGenerators.Add(inlayHintRenderer);
+        _inlayHintRenderer = inlayHintRenderer;
+
+        intelliSense.InlayHintsChanged += (code, hints) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed) return;
+                if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+                inlayHintRenderer.Update(hints);
                 editor.TextArea.TextView.Redraw();
             });
 

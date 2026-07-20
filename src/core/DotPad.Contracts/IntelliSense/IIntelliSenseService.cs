@@ -21,6 +21,39 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // TODO.md #62 "подсветка вхождений": every occurrence of the symbol at position, elsewhere in
+    // the same document (for highlighting them all while the caret sits on one) — null when
+    // position isn't on an identifier that resolves to any symbol.
+    Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // TODO.md #62 "умное переименование": resolves what an F2 rename at position should do — null
+    // when there's nothing renameable there (not on an identifier, or the symbol isn't declared in
+    // the user's own script — see IRenameInfo).
+    Task<IRenameInfo?> GetRenameInfoAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // TODO.md #62 "Go to Definition" (F12): resolves what F12 at position should do — null when
+    // position isn't on an identifier that resolves to any symbol. See IDefinitionResult for the
+    // in-source-vs-external split.
+    Task<IDefinitionResult?> GetDefinitionAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // TODO.md #62 "Go to Implementation" (Ctrl+F12): every implementation (interface member) or
+    // override (abstract/virtual member) of the symbol at position, declared in the script itself —
+    // null when position isn't on an identifier, the symbol isn't implementable/overridable, or no
+    // implementations exist in this script. See IImplementationLocation.
+    Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.
@@ -34,6 +67,12 @@ public interface IIntelliSenseService : IDisposable
 
     // Fires from a background thread. First arg = the code the fixes were computed against.
     event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
+
+    // TODO.md #62 "inlay hints" — every inferred `var`/`foreach (var ...)` type annotation to render
+    // inline (Rider/VS Code style). Fires from a background thread. First arg = the code the hints
+    // were computed against — same push/debounce pattern as SemanticTokensChanged, not a pull-based
+    // method, since the editor wants this recomputed on every text change the same way.
+    event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
 
     void NotifyTextChanged(string code);
 

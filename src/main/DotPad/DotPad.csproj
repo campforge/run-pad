@@ -9,10 +9,8 @@
     <Authors>coddwrench</Authors>
     <Company>coddwrench</Company>
     <Copyright>© coddwrench</Copyright>
-    <!-- NU1608: Avalonia.Diagnostics (Debug only) pulls Microsoft.CodeAnalysis.CSharp.Scripting 3.8.0
-         which declares exact constraints on CodeAnalysis packages. We knowingly override to 4.x. -->
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
-    <NoWarn>$(NoWarn);NU1608;AVLN3001</NoWarn>
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,8 +30,6 @@
     <PackageReference Include="Avalonia.Desktop"/>
     <PackageReference Include="Avalonia.Themes.Fluent"/>
     <PackageReference Include="Avalonia.Fonts.Inter"/>
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics"/>
     <PackageReference Include="Avalonia.ReactiveUI"/>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
     <PackageReference Include="Microsoft.Extensions.Logging"/>

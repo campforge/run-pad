@@ -48,6 +48,23 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    public async Task<string?> ShowOpenLinqFileDialogAsync(string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import LINQPad Query",
+            AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = [new FilePickerFileType("LINQPad Query") { Patterns = ["*.linq"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
     public async Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName)
     {
         var owner = (Application.Current?.ApplicationLifetime
@@ -56,6 +73,35 @@ public sealed class WindowService : IWindowService
 
         var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
         return result ?? UnsavedChangesResult.Cancel;
+    }
+
+    public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Browse Assembly",
+            AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = [new FilePickerFileType(".NET Assembly") { Patterns = ["*.dll"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
+    public Task ShowAssemblyExplorerAsync(string startFolder)
+    {
+        var owner = (Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+        var window = new AssemblyExplorerWindow(
+            _sp.GetRequiredService<IThemeService>(), this, startFolder);
+        if (owner is not null) window.Show(owner);
+        else window.Show();
+        return Task.CompletedTask;
     }
 
     private static Task ShowDialogAsync(Window dialog)

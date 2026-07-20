@@ -313,6 +313,19 @@ public class CompletionList : TemplatedControl
 
     private List<ICompletionData> _currentList;
 
+    // Below this GetMatchQuality tier (5 = "match start", a real typed prefix), the current
+    // SelectedItem is only a guess (substring/camelCase match) — confident enough to highlight, not
+    // confident enough for a typed commit character to accept automatically. DotPad TODO #60.3.
+    private const int HardSelectionQualityThreshold = 5;
+
+    /// <summary>
+    /// True when SelectedItem is only a "soft" guess (a substring/camelCase match, not something
+    /// the user actually typed a prefix of) rather than a confident match. A soft selection is
+    /// still shown highlighted, but CompletionWindow won't let a typed commit character accept it —
+    /// only an explicit Tab/Enter/click does. Starts true (no confident match established yet).
+    /// </summary>
+    public bool IsSoftSelected { get; private set; } = true;
+
     public List<ICompletionData> CurrentList
     {
         get => ListBox.Items.Cast<ICompletionData>().ToList();
@@ -377,6 +390,7 @@ public class CompletionList : TemplatedControl
             i++;
         }
 
+        IsSoftSelected = bestIndex < 0 || bestQuality < HardSelectionQualityThreshold;
         _currentList = listBoxItems;
         //_listBox.Items = null; Makes no sense? Tooltip disappeared because of this
         _listBox.ItemsSource = listBoxItems;
@@ -431,6 +445,7 @@ public class CompletionList : TemplatedControl
                 bestQuality = quality;
             }
         }
+        IsSoftSelected = bestIndex < 0 || bestQuality < HardSelectionQualityThreshold;
         SelectIndexCentered(bestIndex);
     }
 

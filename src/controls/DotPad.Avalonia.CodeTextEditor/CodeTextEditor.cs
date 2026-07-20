@@ -37,6 +37,7 @@ public class CodeTextEditor : TextEditor
     private readonly CodeFixMargin _codeFixMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
+    private readonly OccurrenceHighlighter _occurrenceHighlighter = new();
     // Debounce before recomputing folding regions after a text change — long enough that fast
     // typing doesn't re-run the folding strategy on every keystroke (ANALYSIS.md #94).
     private static readonly TimeSpan FoldingDebounce = TimeSpan.FromMilliseconds(400);
@@ -52,6 +53,7 @@ public class CodeTextEditor : TextEditor
     private OverloadInsightWindow? _insightWindow;
     private CancellationTokenSource? _completionCts;
     private CancellationTokenSource? _insightCts;
+    private CancellationTokenSource? _occurrencesCts;
     // The caret offset right after the "(" that opened the currently-showing insight window — set
     // once, on the transition from closed to open, not touched by the caret-move/comma re-requests
     // that keep refreshing the SAME session (TODO.md #53 remainder — see OnTextEntering's nesting
@@ -79,6 +81,30 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Async overload provider — called instead of <see cref="OverloadRequested"/> when set.</summary>
     public Func<OverloadRequestedEventArgs, Task>? AsyncOverloadProvider { get; set; }
+
+    /// <summary>Async provider for "highlight every occurrence of the symbol under the caret" (TODO.md
+    /// #62) — re-queried on every caret move (see the ctor's own PositionChanged wiring).</summary>
+    public Func<OccurrencesRequestedEventArgs, Task>? AsyncOccurrencesProvider { get; set; }
+
+    /// <summary>Fired on F2 (TODO.md #62 "умное переименование") — the host resolves what's
+    /// renameable at the current caret position and drives the actual rename UI/edit; this control
+    /// only recognizes the keypress and hands off, the same shape as
+    /// <see cref="BreakpointRightClicked"/>.</summary>
+    public event EventHandler? RenameSymbolRequested;
+
+    /// <summary>Fired on Shift+F12 ("Find All References", TODO.md #62) — same hand-off shape as
+    /// <see cref="RenameSymbolRequested"/>: this control only recognizes the keypress, the host
+    /// resolves and shows the actual reference list.</summary>
+    public event EventHandler? FindReferencesRequested;
+
+    /// <summary>Fired on plain F12 ("Go to Definition"/"Go to Implementation", TODO.md #62, user
+    /// request 2026-07-19) — same hand-off shape as <see cref="RenameSymbolRequested"/>: this control
+    /// only recognizes the keypress, the host decides where to go (prefers implementations when the
+    /// symbol has any, falls back to the symbol's own definition otherwise). Deliberately a single
+    /// binding, not a separate Ctrl+F12 for implementations — modifier+F-key combos collide with
+    /// desktop-environment-level global shortcuts often enough on Linux (user feedback 2026-07-19,
+    /// after trying Ctrl+F12 here) that it isn't a safe default to add another one.</summary>
+    public event EventHandler? GoToDefinitionRequested;
 
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
@@ -118,8 +144,21 @@ public class CodeTextEditor : TextEditor
     /// <summary>Whether the overload/parameter-info insight popup is currently showing.</summary>
     public bool IsInsightWindowOpen => _insightWindow is not null;
 
+    /// <summary>Test-only observability for TODO.md #62's "highlight every occurrence" feature.</summary>
+    internal IReadOnlyList<(int Start, int Length)> HighlightedOccurrences => _occurrenceHighlighter.Spans;
+
     /// <summary>Characters that open the completion dropdown.</summary>
     public HashSet<char> CompletionTriggers { get; } = [];
+
+    /// <summary>
+    /// Whether typing a commit character (see <see cref="IsCommitCharacter(char, IReadOnlySet{char})"/>)
+    /// accepts the completion window's current selection, on top of always inserting the character
+    /// itself. Defaults to <see langword="true"/> (today's only behavior); a user who finds
+    /// punctuation unpredictably accepting a completion can turn this off (TODO.md #60.4's global
+    /// switch) — Enter/Tab/click still commit either way, this only gates the "typing punctuation
+    /// also commits" convenience path.
+    /// </summary>
+    public bool CommitCharactersEnabled { get; set; } = true;
 
     /// <summary>Characters that open the overload insight window.</summary>
     public HashSet<char> OverloadTriggers { get; } = [];
@@ -245,7 +284,9 @@ public class CodeTextEditor : TextEditor
 
         TextArea.TextView.BackgroundRenderers.Add(_debugLineHighlighter);
         TextArea.TextView.BackgroundRenderers.Add(_braceMatchHighlighter);
+        TextArea.TextView.BackgroundRenderers.Add(_occurrenceHighlighter);
         TextArea.Caret.PositionChanged += (_, _) => UpdateBraceMatch();
+        TextArea.Caret.PositionChanged += (_, _) => UpdateOccurrenceHighlights();
         // TODO.md #53 remainder: the active (bold) parameter used to update only when a "," was
         // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
         // the window opened. ShowOverloads is a stateless "recompute from the current caret position"
@@ -288,8 +329,13 @@ public class CodeTextEditor : TextEditor
 
         AddHandler(PointerWheelChangedEvent, OnFontSizeScroll, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // Intercept Tab (snippet expansion) and Ctrl+] (brace navigation) before
-        // AvaloniaEdit's built-in KeyBinding handlers fire.
+        // Intercept Tab (snippet expansion), Ctrl+] (brace navigation) and F2 (rename symbol)
+        // before AvaloniaEdit's built-in KeyBinding handlers fire. Attached to TextArea, not the
+        // Window — this is deliberately how F2 here avoids colliding with FileTreeView's own F2
+        // (rename FILE, KeyboardSettings.RenameFile): that handler is likewise scoped to the file
+        // tree's own TreeView, so ordinary Avalonia routing (starting from whichever control
+        // actually has keyboard focus) keeps the two from ever double-firing on the same keypress —
+        // no explicit focus check needed on either side (TODO.md #62 "умное переименование").
         TextArea.AddHandler(
             KeyDownEvent,
             (object? _, KeyEventArgs e) =>
@@ -309,6 +355,21 @@ public class CodeTextEditor : TextEditor
                 else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
                 {
                     ShowCompletion('\0', explicitInvoke: true);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F2 && e.KeyModifiers == KeyModifiers.None)
+                {
+                    RenameSymbolRequested?.Invoke(this, EventArgs.Empty);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.Shift)
+                {
+                    FindReferencesRequested?.Invoke(this, EventArgs.Empty);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.None)
+                {
+                    GoToDefinitionRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
             },
@@ -421,6 +482,52 @@ public class CodeTextEditor : TextEditor
             _braceMatchHighlighter.Clear();
         else
             _braceMatchHighlighter.Update(open, close, matched);
+        TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+    }
+
+    // TODO.md #62 "подсветка вхождений" — same cancel-a-superseded-request shape as ShowCompletion/
+    // ShowOverloads (ANALYSIS.md #57/#89): fast caret movement can fire several of these before the
+    // first one's provider call resolves, so the previous one is cancelled rather than raced, and
+    // its CTS deliberately never disposed (only ever Cancel()'d — a CTS with no timer holds no
+    // resources, same reasoning as those two).
+    private async void UpdateOccurrenceHighlights()
+    {
+        _occurrencesCts?.Cancel();
+        if (Document is null || AsyncOccurrencesProvider is null)
+        {
+            _occurrenceHighlighter.Clear();
+            TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _occurrencesCts = cts;
+        var args = new OccurrencesRequestedEventArgs(TextArea.Caret.Offset, cts.Token);
+
+        try
+        {
+            await AsyncOccurrencesProvider(args);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception)
+
+        {
+
+            _occurrenceHighlighter.Clear();
+
+            TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+
+            return;
+
+        }
+
+
+        if (cts.IsCancellationRequested) return;
+
+        _occurrenceHighlighter.Update(args.Spans);
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
@@ -666,7 +773,7 @@ public class CodeTextEditor : TextEditor
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
     {
-        if (e.Text is { Length: > 0 } && _completionWindow != null && IsCommitCharacter(e.Text[0]))
+        if (CommitCharactersEnabled && e.Text is { Length: > 0 } && _completionWindow != null && IsCommitCharacter(e.Text[0]))
             _completionWindow.CompletionList.RequestInsertion(e);
 
         if (e.Text is not { Length: 1 } || e.Handled) return;
