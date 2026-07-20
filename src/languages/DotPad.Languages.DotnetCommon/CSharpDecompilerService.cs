@@ -116,7 +116,19 @@ public static class CSharpDecompilerService
     // (the compiled script runs against the very same installed runtime) is a robust fallback either way.
     private static T WithDecompiler<T>(string assemblyPath, Func<CSharpDecompiler, DecompilerSettings, T> body)
     {
-        using var peFile = new PEFile(assemblyPath);
+        // `using var peFile = new PEFile(assemblyPath)` alone only disposes peFile once construction
+        // SUCCEEDS — that convenience constructor opens a FileStream inline as part of a chained
+        // constructor call, and if MetadataFile's base constructor then throws while parsing headers
+        // (a corrupt/non-assembly file — exactly what AssemblyExplorerWindow's own "not a real
+        // assembly" error-dialog test feeds it), the stream is never assigned anywhere `using` could
+        // reach, so it leaks regardless of the `using` on peFile itself — a second live Windows CI
+        // report, 2026-07-20, same file-lock symptom as the leak this comment already used to document
+        // here, just triggered by an INVALID file failing inside the constructor instead of a valid
+        // one succeeding and leaking only after the method returned. Opening the stream ourselves
+        // first gives it its own `using`, independent of whether the PEFile constructor consuming it
+        // succeeds or throws.
+        using var stream = new FileStream(assemblyPath, FileMode.Open, FileAccess.Read);
+        using var peFile = new PEFile(assemblyPath, stream);
         var resolver = new UniversalAssemblyResolver(
             assemblyPath, throwOnError: false, peFile.DetectTargetFrameworkId());
         resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
