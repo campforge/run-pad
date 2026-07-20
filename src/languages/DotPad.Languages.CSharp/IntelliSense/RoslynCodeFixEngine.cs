@@ -5,6 +5,7 @@ using DotPad.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
@@ -35,6 +36,7 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 internal sealed class RoslynCodeFixEngine
 {
     private readonly IReadOnlyList<CodeFixProvider> _providers;
+    private readonly IReadOnlyList<CodeRefactoringProvider> _refactoringProviders;
     private readonly ILogger _logger;
 
     public RoslynCodeFixEngine(CompositionHost compositionHost, ILogger logger)
@@ -53,6 +55,18 @@ internal sealed class RoslynCodeFixEngine
                 providers.Add(provider);
         }
         _providers = providers;
+
+        // Same MEF composition (DotPadRoslynHost already pulls in Microsoft.CodeAnalysis(.CSharp).
+        // Features, where both CodeFixProvider AND CodeRefactoringProvider parts live) — same
+        // [ExportCodeRefactoringProvider]-attribute language filter, same reasoning.
+        var refactoringProviders = new List<CodeRefactoringProvider>();
+        foreach (var provider in compositionHost.GetExports<CodeRefactoringProvider>())
+        {
+            var languages = provider.GetType().GetCustomAttribute<ExportCodeRefactoringProviderAttribute>()?.Languages;
+            if (languages != null && languages.Contains(LanguageNames.CSharp))
+                refactoringProviders.Add(provider);
+        }
+        _refactoringProviders = refactoringProviders;
     }
 
     public async Task<IReadOnlyList<ICodeFixInfo>> ComputeFixesAsync(
@@ -75,6 +89,57 @@ internal sealed class RoslynCodeFixEngine
                 foreach (var provider in providers)
                 {
                     await CollectFixesAsync(provider, document, diagnostic, userCode, preambleLength, userLine, result, ct);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // TODO.md #74 "CodeRefactoringProvider хостинг" — the position-based counterpart to
+    // ComputeFixesAsync above: no diagnostic to key off, no FixableDiagnosticIds to pre-filter by, so
+    // every registered provider gets a chance at the given span every call (same "a couple hundred
+    // providers, once per tab, already realized in the constructor" cost model as code fixes —
+    // ComputeRefactoringsAsync itself only iterates the list, doesn't re-discover it). Reuses Flatten/
+    // TryMaterializeAsync verbatim: a CodeRefactoringContext's registered CodeAction materializes into
+    // NewCode/UsingsToAdd through the exact same preamble-relocation logic a CodeFixContext's does —
+    // RegisterRefactoring vs RegisterCodeFix is just a different registration callback name for the
+    // same underlying CodeAction type.
+    public async Task<IReadOnlyList<ICodeFixInfo>> ComputeRefactoringsAsync(
+        Document document, TextSpan span, string userCode, int preambleLength, int userLine, CancellationToken ct)
+    {
+        var result = new List<ICodeFixInfo>();
+        if (userLine < 1) return result;
+
+        foreach (var provider in _refactoringProviders)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var actions = new List<CodeAction>();
+            var context = new CodeRefactoringContext(document, span, actions.Add, ct);
+
+            try { await provider.ComputeRefactoringsAsync(context); }
+            catch (OperationCanceledException) { throw; } // routine — superseded by the next keystroke/caret move
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Refactoring provider {Provider} threw at [{Start}..{End})",
+                    provider.GetType().Name, span.Start, span.End);
+                continue;
+            }
+
+            foreach (var action in actions)
+            {
+                ct.ThrowIfCancellationRequested();
+                foreach (var leaf in Flatten(action))
+                {
+                    var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
+                    if (materialized is null) continue;
+                    var (newCode, usingsToAdd) = materialized.Value;
+                    if (newCode == userCode && usingsToAdd.Count == 0) continue;
+
+                    // No underlying diagnostic (there isn't one) to derive a severity from — same
+                    // neutral Info tier CollectFixesAsync's own non-diagnostic-adjacent fixes get.
+                    result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ContractSeverity.Info));
                 }
             }
         }

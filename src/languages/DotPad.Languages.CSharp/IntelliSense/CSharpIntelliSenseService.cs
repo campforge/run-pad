@@ -1445,6 +1445,32 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
     }
 
+    // ── Refactorings (CodeRefactoringProvider hosting in the lightbulb, TODO.md #74) ─────────────
+
+    public Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<ICodeFixInfo>?> TryGetRefactoringsAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            if (position < 0 || position > code.Length) return null;
+
+            var document = SyncDocument(code);
+            var headerLength = HeaderLength(code);
+            var span = new TextSpan(position + headerLength, 0);
+
+            // 1-based, same convention as CodeFixEntry.Line/RoslynCodeFixEngine's own diagnostic-fix
+            // line lookup — LinePosition.Line itself is 0-based.
+            var userLine = SourceText.From(code).Lines.GetLinePosition(position).Line + 1;
+
+            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, code, headerLength, userLine, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
+    }
+
     // ── Background analysis (diagnostics + semantic tokens) ───────────────────
 
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;

@@ -117,6 +117,11 @@ public class CodeTextEditor : TextEditor
     /// <summary>Updates the lightbulb quick-fix gutter (e.g. after a diagnostics pass finds a missing using).</summary>
     public void UpdateCodeFixes(IReadOnlyList<CodeFixEntry> fixes) => _codeFixMargin.Update(fixes);
 
+    /// <summary>Test-only observability — same rationale as every other "internal test hook" this
+    /// session (e.g. DecompiledViewWindow.Editor): lets a test confirm what UpdateCodeFixes actually
+    /// did without simulating a real paint pass.</summary>
+    internal CodeFixSeverity? WorstCodeFixSeverityOnLine(int line) => _codeFixMargin.WorstSeverityOnLine(line);
+
     /// <summary>Fired when an applied quick fix wants namespaces imported (see CodeFixEntry.UsingsToAdd).</summary>
     public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
 
