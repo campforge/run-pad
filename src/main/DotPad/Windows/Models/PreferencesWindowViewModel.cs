@@ -110,6 +110,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
+            this.RaisePropertyChanged(nameof(IsCSharpNodeSelected));
+            this.RaisePropertyChanged(nameof(IsGenericLanguagePlaceholderVisible));
             this.RaisePropertyChanged(nameof(SelectedLanguageSettingsPlaceholder));
         }
     }
@@ -128,11 +130,23 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _selectedNode is not null && _selectedNode.Id != "languages"
             && _selectedNode.Id.StartsWith(LanguageNodeIdPrefix, StringComparison.Ordinal);
 
-    // "No {Name}-specific settings yet." — the one placeholder message every language shares today
-    // (see PreferencesWindow.axaml); null when no language node is selected, so the bound TextBlock
-    // has nothing to show instead of a stale message from whatever was selected before.
+    // C#'s own node (TODO.md #62 "inlay hints", user request 2026-07-20) — the first language to
+    // actually need a real settings panel instead of the shared placeholder below. A bespoke property
+    // alongside the generic IsLanguageNodeSelected check, same dual-track shape IsDotnetSelected
+    // already uses (a hardcoded special case sitting next to the generic system, not a reversion of
+    // it) — VB (or any future language with nothing to configure) still falls through to the shared
+    // placeholder untouched.
+    public bool IsCSharpNodeSelected => _selectedNode?.Id == LanguageNodeIdPrefix + "csharp";
+
+    // A language node is selected AND it's not C# (which has its own real panel below) — the
+    // placeholder panel's own IsVisible binding, since Avalonia XAML has no inline boolean AND.
+    public bool IsGenericLanguagePlaceholderVisible => IsLanguageNodeSelected && !IsCSharpNodeSelected;
+
+    // "No {Name}-specific settings yet." — the placeholder every OTHER language still shares (see
+    // PreferencesWindow.axaml); null when no language node is selected, or when the selected one has
+    // its own real panel instead (C# — see IsCSharpNodeSelected).
     public string? SelectedLanguageSettingsPlaceholder =>
-        IsLanguageNodeSelected ? $"No {_selectedNode!.Name}-specific settings yet." : null;
+        IsGenericLanguagePlaceholderVisible ? $"No {_selectedNode!.Name}-specific settings yet." : null;
 
     // Rebuilds the displayed (possibly filtered) tree from the fixed full tree. A node survives the
     // filter if its own name matches or any descendant's does, so e.g. typing "key" still surfaces
@@ -311,6 +325,14 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Editor.FontSize;
         set => SetPref(_prefs.Editor.FontSize, value, v => _prefs.Editor.FontSize = v);
+    }
+
+    // ── C# (TODO.md #62 "inlay hints", user request 2026-07-20) ────────────────
+
+    public bool InlayHintsEnabled
+    {
+        get => _prefs.CSharp.InlayHintsEnabled;
+        set => SetPref(_prefs.CSharp.InlayHintsEnabled, value, v => _prefs.CSharp.InlayHintsEnabled = v);
     }
 
     // ── Debugger ──────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ public class ImportLinqFileTests
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+        prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());

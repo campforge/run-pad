@@ -160,8 +160,10 @@ public class CompiledDotnetLanguageHostInputTests
         {
             var runTask = host.RunAsync("int x = 1;", cancellationToken: TestContext.Current.CancellationToken);
 
-            // Yield once so RunAsync can start and set up its streams before we send input.
-            await Task.Yield();
+            // Yield once so RunAsync can start and set up its streams before we send input.
+
+            await Task.Yield();
+
 
             await host.SendInputAsync("Alice", TestContext.Current.CancellationToken);
 

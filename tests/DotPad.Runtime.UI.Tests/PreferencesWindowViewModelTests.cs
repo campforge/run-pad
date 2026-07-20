@@ -162,8 +162,13 @@ public class PreferencesWindowViewModelTests
         Assert.Null(vm.SelectedLanguageSettingsPlaceholder);
     }
 
+    // TODO.md #62 "inlay hints" (user request 2026-07-20): C# is now the first language with a real
+    // settings panel of its own, instead of the shared "no settings yet" placeholder every other
+    // language still gets (see the Visual Basic test right below this one, unchanged).
+    // IsLanguageNodeSelected itself stays true either way (still one of Languages' own child nodes) —
+    // only the placeholder-vs-real-panel split changes.
     [Fact]
-    public void IsLanguageNodeSelected_Should_BeTrue_WhenACSharpChildNodeIsSelected()
+    public void IsCSharpNodeSelected_Should_BeTrue_WithNoGenericPlaceholder_WhenTheCSharpChildNodeIsSelected()
     {
         var vm = CreateViewModel(CreateRealRegistry());
         var languagesNode = Assert.Single(vm.Nodes, n => n.Id == "languages");
@@ -175,7 +180,30 @@ public class PreferencesWindowViewModelTests
         Assert.False(vm.IsLanguagesSelected);
         Assert.False(vm.IsDotnetSelected);
         Assert.True(vm.IsLanguageNodeSelected);
-        Assert.Equal("No C#-specific settings yet.", vm.SelectedLanguageSettingsPlaceholder);
+        Assert.True(vm.IsCSharpNodeSelected);
+        Assert.False(vm.IsGenericLanguagePlaceholderVisible);
+        Assert.Null(vm.SelectedLanguageSettingsPlaceholder);
+    }
+
+    [Fact]
+    public void InlayHintsEnabled_Should_RoundTrip_ThroughTheUnderlyingCSharpSettings()
+    {
+        var csharpSettings = new CSharpLanguageSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.CSharp).Returns(csharpSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.InlayHintsEnabled = false;
+
+        Assert.False(csharpSettings.InlayHintsEnabled);
+        prefs.Verify(p => p.Save(), Times.Once);
     }
 
     [Fact]

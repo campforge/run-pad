@@ -68,6 +68,12 @@ public interface IIntelliSenseService : IDisposable
     // Fires from a background thread. First arg = the code the fixes were computed against.
     event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
 
+    // TODO.md #62 "inlay hints" — every inferred `var`/`foreach (var ...)` type annotation to render
+    // inline (Rider/VS Code style). Fires from a background thread. First arg = the code the hints
+    // were computed against — same push/debounce pattern as SemanticTokensChanged, not a pull-based
+    // method, since the editor wants this recomputed on every text change the same way.
+    event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
+
     void NotifyTextChanged(string code);
 
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.

@@ -35,6 +35,24 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
+    // Matches Roslyn's own (internal) AbstractInlineTypeHintsService.s_minimalTypeStyle exactly —
+    // decompiled via ICSharpCode.Decompiler (already a dependency, see CSharpDecompilerService) to
+    // confirm rather than guess, since VS/Rider's own inlay-hint formatting isn't itself public API.
+    private static readonly SymbolDisplayFormat _inlayHintTypeFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        memberOptions: SymbolDisplayMemberOptions.None,
+        delegateStyle: SymbolDisplayDelegateStyle.NameOnly,
+        extensionMethodStyle: SymbolDisplayExtensionMethodStyle.Default,
+        parameterOptions: SymbolDisplayParameterOptions.None,
+        propertyStyle: SymbolDisplayPropertyStyle.NameOnly,
+        localOptions: SymbolDisplayLocalOptions.None,
+        kindOptions: SymbolDisplayKindOptions.None,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+            | SymbolDisplayMiscellaneousOptions.AllowDefaultLiteral);
+
     private static readonly IReadOnlyList<ICompletionItem> _keywords =
         new[]
         {
@@ -1432,6 +1450,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
     public event Action<string, IReadOnlyList<ISemanticToken>>? SemanticTokensChanged;
     public event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
+    public event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
 
     public void NotifyTextChanged(string code)
     {
@@ -1455,7 +1474,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
-                    ComputeSemanticTokensAsync(code, document, ct));
+                    ComputeSemanticTokensAsync(code, document, ct),
+                    ComputeInlayHintsAsync(code, document, ct));
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { _logger.LogWarning(ex, "Background analysis failed"); }
@@ -1484,6 +1504,64 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
 
         SemanticTokensChanged?.Invoke(code, result);
+    }
+
+    // TODO.md #62 "inlay hints" — inferred `var x` / `foreach (var x in ...)` type annotations only
+    // (Roslyn's own CSharpInlineTypeHintsService also covers lambda parameters, implicit `new()`, and
+    // collection expressions — internal API, decompiled to confirm exact placement/format below, not
+    // ported wholesale; those three are lower-value, left for a follow-up if wanted). Single-variable
+    // declarations only (`var a = 1, b = 2;` skipped entirely) — matches Roslyn's own behavior; a
+    // multi-declarator statement can only have one inferred type anyway, so hinting just the first
+    // variable would misleadingly suggest it doesn't apply to the rest.
+    private async Task ComputeInlayHintsAsync(string code, Document document, CancellationToken ct)
+    {
+        var model = await document.GetSemanticModelAsync(ct);
+        var root = await document.GetSyntaxRootAsync(ct);
+        if (model is null || root is null)
+        {
+            InlayHintsChanged?.Invoke(code, []);
+            return;
+        }
+
+        var headerLength = HeaderLength(code);
+        var result = new List<IInlayHint>();
+
+        foreach (var declaration in root.DescendantNodes().OfType<VariableDeclarationSyntax>())
+        {
+            if (declaration.Type is not { IsVar: true } typeSyntax) continue;
+            if (declaration.Variables.Count != 1) continue;
+            var identifier = declaration.Variables[0].Identifier;
+            if (identifier.IsMissing) continue;
+
+            var type = model.GetTypeInfo(typeSyntax, ct).Type;
+            AddHint(result, type, identifier.SpanStart, typeSyntax.SpanStart, headerLength, code, model);
+        }
+
+        foreach (var forEach in root.DescendantNodes().OfType<ForEachStatementSyntax>())
+        {
+            if (forEach.Type is not { IsVar: true } typeSyntax) continue;
+            if (forEach.Identifier.IsMissing) continue;
+
+            var type = model.GetForEachStatementInfo(forEach).ElementType;
+            AddHint(result, type, forEach.Identifier.SpanStart, typeSyntax.SpanStart, headerLength, code, model);
+        }
+
+        InlayHintsChanged?.Invoke(code, result);
+
+        // Roslyn's own CSharpInlineTypeHintsService (IsValidType) only excludes null and a type
+        // literally named "var" (e.g. a user-defined `class var` — legal, if unusual, C#); it doesn't
+        // special-case error types beyond that, and neither does this.
+        static void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
+            int headerLength, string code, SemanticModel model)
+        {
+            if (type is null || type.Name == "var") return;
+
+            var offset = identifierPos - headerLength;
+            if (offset < 0 || offset > code.Length) return;
+
+            var display = type.ToMinimalDisplayString(model, typeSyntaxPos, _inlayHintTypeFormat);
+            hints.Add(new SimpleInlayHint(offset, display + " "));
+        }
     }
 
     // ── Diagnostics + code fixes (real Roslyn CodeFixProviders — see RoslynCodeFixEngine) ──────
@@ -1704,5 +1782,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private sealed record SimpleSemanticToken(
         int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
+
+    private sealed record SimpleInlayHint(int Offset, string Text) : IInlayHint;
 
 }

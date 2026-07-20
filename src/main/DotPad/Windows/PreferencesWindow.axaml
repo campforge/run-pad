@@ -212,10 +212,15 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <StackPanel IsVisible="{Binding IsLanguageNodeSelected}">
+                <StackPanel IsVisible="{Binding IsGenericLanguagePlaceholderVisible}">
                     <TextBlock Text="{Binding SelectedLanguageSettingsPlaceholder}"
                                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
                                TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsCSharpNodeSelected}" Spacing="4">
+                    <CheckBox IsChecked="{Binding InlayHintsEnabled}"
+                              Content="Inlay hints (inferred var/foreach types)"/>
                 </StackPanel>
 
             </Panel>

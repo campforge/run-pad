@@ -39,6 +39,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
@@ -104,6 +105,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
@@ -170,6 +172,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
@@ -247,6 +250,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
@@ -306,6 +310,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
@@ -389,6 +394,7 @@ public class EditorTabsControlTests
             prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
             prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+            prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
