@@ -108,7 +108,27 @@ internal sealed class RoslynCodeFixEngine
             var providers = _providers.Where(p => p.FixableDiagnosticIds.Contains(group.Key)).ToList();
             if (providers.Count == 0) continue;
 
-            foreach (var diagnostic in group)
+            // User report 2026-07-21 (TODO.md #74): analyzers like UseCollectionInitializer
+            // (IDE0028) report a whole CLUSTER of same-ID diagnostics for one logical suggestion —
+            // one "primary" diagnostic on the object-creation expression, plus one WellKnownDiagnostic
+            // Tags.Unnecessary-tagged "companion" diagnostic on each subsequent statement that will be
+            // folded in (`new List<long>()` / `a.Add(2);` / `a.Add(3);` / `a.Add(4);` — confirmed via
+            // a live probe: the companions carry the SAME diagnostic ID, Hidden severity, and the
+            // Unnecessary tag; the primary doesn't). Every companion is independently "fixable" by the
+            // same provider, which is why the lightbulb used to show once PER LINE instead of once on
+            // the collection's own declaration. When this group contains at least one non-Unnecessary
+            // ("primary") diagnostic, skip the Unnecessary-tagged companions entirely — they're purely
+            // fading/graying hints for the editor, not meant to independently trigger their own
+            // lightbulb, and the primary's own fix already covers the whole statement group. A group
+            // where EVERY diagnostic is Unnecessary-tagged (e.g. IDE0005 "remove unnecessary usings" —
+            // each unused `using` is its own independently actionable diagnostic, no separate primary
+            // location to redirect to) is left untouched — there's no primary to defer to.
+            var groupList = group.ToList();
+            var diagnosticsToProcess = groupList.Any(d => !d.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.Unnecessary))
+                ? groupList.Where(d => !d.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.Unnecessary))
+                : groupList;
+
+            foreach (var diagnostic in diagnosticsToProcess)
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -168,12 +188,13 @@ internal sealed class RoslynCodeFixEngine
                 ct.ThrowIfCancellationRequested();
                 foreach (var leaf in Flatten(action))
                 {
-                    // No underlying diagnostic (there isn't one) to derive a severity from — same
-                    // neutral Info tier CollectCandidatesAsync's own non-diagnostic-adjacent
+                    // No underlying diagnostic (there isn't one) to derive a severity — or a
+                    // DiagnosticId (ICodeFixInfo's own doc comment) — from, so both get the same
+                    // neutral/absent values CollectCandidatesAsync's own non-diagnostic-adjacent
                     // candidates get.
                     var key = Guid.NewGuid().ToString("N");
                     cache[key] = leaf;
-                    result.Add(new RoslynCodeFix(userLine, leaf.Title, ContractSeverity.Info, key));
+                    result.Add(new RoslynCodeFix(userLine, leaf.Title, ContractSeverity.Info, key, DiagnosticId: null));
                 }
             }
         }
@@ -236,7 +257,7 @@ internal sealed class RoslynCodeFixEngine
             {
                 var key = Guid.NewGuid().ToString("N");
                 cache[key] = leaf;
-                result.Add(new RoslynCodeFix(userLine, leaf.Title, severity, key));
+                result.Add(new RoslynCodeFix(userLine, leaf.Title, severity, key, diagnostic.Id));
             }
         }
     }
@@ -399,5 +420,5 @@ internal sealed class RoslynCodeFixEngine
         _ => ContractSeverity.Info,
     };
 
-    private sealed record RoslynCodeFix(int Line, string Title, ContractSeverity Severity, string Key) : ICodeFixInfo;
+    private sealed record RoslynCodeFix(int Line, string Title, ContractSeverity Severity, string Key, string? DiagnosticId) : ICodeFixInfo;
 }

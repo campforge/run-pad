@@ -49,6 +49,55 @@ public class CodeFixMarginTests
         Assert.Null(margin.WorstSeverityOnLine(2));
     }
 
+    // User request 2026-07-21 (TODO.md #74): the lightbulb should only ever be clickable/visible on
+    // the caret's OWN line, VS/Rider-style, not on every line in the file that happens to have a fix
+    // — ResolveCandidatesForClick is OnPointerPressed's own decision logic, factored out so it can be
+    // driven directly with a Point (see its own doc comment for why raising a real
+    // PointerPressedEventArgs isn't a practical test surface here).
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_ReturnTheLinesFixes_WhenTheCaretIsOnThatLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 2;
+
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+
+        var candidates = margin.ResolveCandidatesForClick(PointOnLine(margin, 2));
+        Assert.Single(candidates);
+    }
+
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_ReturnEmpty_ForALineWithAFix_WhenTheCaretIsOnADifferentLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 1; // NOT the line the fix is on
+
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+
+        var candidates = margin.ResolveCandidatesForClick(PointOnLine(margin, 2));
+        Assert.Empty(candidates);
+    }
+
+    // Confirms the caret-line tracking driving the above actually updates as the caret moves, not
+    // just once at construction — the same fix at line 2 is unreachable while the caret sits on line
+    // 1, then becomes reachable the instant the caret moves to line 2, with no new margin.Update call
+    // in between.
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_TrackTheCaretMovingToANewLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 1;
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+        Assert.Empty(margin.ResolveCandidatesForClick(PointOnLine(margin, 2)));
+
+        editor.TextArea.Caret.Line = 2;
+
+        Assert.Single(margin.ResolveCandidatesForClick(PointOnLine(margin, 2)));
+    }
+
     [Theory]
     [InlineData(CodeFixSeverity.Error, "DotPad.Margin.CodeFixErrorBrush")]
     [InlineData(CodeFixSeverity.Warning, "DotPad.Margin.CodeFixWarningBrush")]
@@ -199,5 +248,17 @@ public class CodeFixMarginTests
     {
         margin.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         margin.Arrange(new Rect(margin.DesiredSize));
+    }
+
+    // Same Y-coordinate computation as ResolveLineFromPoint_Should_ResolveTheSameLine_
+    // RegardlessOfXWithinTheMargin above — X doesn't matter for line resolution (that test's own
+    // point), so this always aims at the horizontal center of the margin's own column.
+    private static Point PointOnLine(CodeFixMargin margin, int line)
+    {
+        var textView = margin.TextView;
+        var vl = textView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == line);
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
+            - textView.VerticalOffset;
+        return new Point(margin.Bounds.Width / 2, yTop + vl.Height / 2);
     }
 }

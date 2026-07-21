@@ -73,4 +73,37 @@ public class CSharpIntelliSenseAnalyzersTests
         var fixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(fixes, f => f.Title.Contains("accessibility", StringComparison.OrdinalIgnoreCase));
     }
+
+    // Live user report (2026-07-21, TODO.md #74): for
+    //   var a = new List<long>();
+    //   a.Add(2);
+    //   a.Add(3);
+    //   a.Add(4);
+    // the lightbulb showed "Collection initialization can be simplified" on EVERY line instead of
+    // just the declaration. Root-caused via a live probe against RoslynAnalyzerEngine directly:
+    // UseCollectionInitializerAnalyzer (IDE0028) reports ONE primary diagnostic (Info severity) on
+    // `new List<long>()` plus one Hidden, WellKnownDiagnosticTags.Unnecessary-tagged "companion"
+    // diagnostic on EACH `a.Add(...)` line (purely a fading/graying hint for the editor) — all four
+    // share the same ID, so RoslynCodeFixEngine's old per-diagnostic-instance loop registered the
+    // identical fix once per line. RoslynCodeFixEngine.ComputeFixesAsync now skips the
+    // Unnecessary-tagged companions within an ID group whenever a non-Unnecessary primary is also
+    // present in that same group.
+    [Fact]
+    public async Task NotifyTextChanged_Should_OfferCollectionInitializerFix_OnlyOnTheDeclarationLine_NotOnEveryAddCall()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CodeFixesChanged += (_, f) =>
+        {
+            if (f.Any(x => x.DiagnosticId == "IDE0028")) tcs.TrySetResult(f);
+        };
+
+        service.NotifyTextChanged("var a = new List<long>();\na.Add(2);\na.Add(3);\na.Add(4);\n");
+
+        var fixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        var collectionInitFixes = fixes.Where(f => f.DiagnosticId == "IDE0028").ToList();
+
+        var onlyLine = Assert.Single(collectionInitFixes.Select(f => f.Line).Distinct());
+        Assert.Equal(1, onlyLine);
+    }
 }

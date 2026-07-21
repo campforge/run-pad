@@ -953,11 +953,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         });
 
     // TODO.md #74 (user request 2026-07-21) — filters the merged diagnostic-fix + refactoring lists
-    // against Preferences → C# → "code fixes enabled"/excluded-title settings at RENDER time, not
-    // when each source list is produced: CodeFixesChanged/GetRefactoringsAsync only fire on their own
-    // triggers (text change / caret move), so filtering there would leave a stale, unfiltered
+    // against Preferences → C# → "code fixes enabled"/excluded-diagnostic-id settings at RENDER time,
+    // not when each source list is produced: CodeFixesChanged/GetRefactoringsAsync only fire on their
+    // own triggers (text change / caret move), so filtering there would leave a stale, unfiltered
     // lightbulb visible until the next one of those happens to fire. Filtering here instead means
     // OnPreferencesChanged can just call this directly to reflect a settings change immediately.
+    //
+    // Сто шестой проход (2026-07-21) switched exclusion from a Title substring match to an exact,
+    // case-insensitive match against DiagnosticId ("CS0184", "IDE0007", ...) — a stable, documented
+    // Roslyn identifier instead of prose a provider could phrase however it likes, per user request.
+    // Accepted narrowing versus сто пятый проход's title-based filter: a refactoring's DiagnosticId
+    // is always null (CodeFixEntry's own doc comment — a CodeRefactoringProvider has no underlying
+    // diagnostic to key off), so it can no longer be excluded at all, unlike before when its title
+    // could still match a substring. Not worked around (e.g. by keeping a secondary title-based path
+    // just for refactorings) — the user's own examples (CS0184, IDE0007) are both diagnostic-driven
+    // fixes, and stable IDs are worth the tradeoff of not covering the smaller, less noisy set of
+    // pure refactorings too.
     private void UpdateLightbulb()
     {
         var merged = (IEnumerable<CodeFixEntry>)[.. _diagnosticFixEntries, .. _refactoringFixEntries];
@@ -967,9 +978,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
 
-        var excluded = _prefs.CSharp.ExcludedCodeFixTitles;
+        var excluded = _prefs.CSharp.ExcludedDiagnosticIds;
         if (excluded.Count > 0)
-            merged = merged.Where(f => !excluded.Any(x => f.Title.Contains(x, StringComparison.OrdinalIgnoreCase)));
+            merged = merged.Where(f => f.DiagnosticId is null || !excluded.Contains(f.DiagnosticId, StringComparer.OrdinalIgnoreCase));
 
         State.Editor.UpdateCodeFixes([.. merged]);
     }
@@ -1170,7 +1181,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
         // that used to dominate the whole IntelliSense pipeline's cost).
         static List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes) =>
-            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key)).ToList();
+            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key, f.DiagnosticId)).ToList();
 
         intelliSense.CodeFixesChanged += (code, fixes) =>
             Dispatcher.UIThread.Post(() =>

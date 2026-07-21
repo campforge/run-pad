@@ -20,5 +20,10 @@ public enum CodeFixSeverity
 // actually clicks this specific entry — this control has no notion of Roslyn/IIntelliSenseService
 // (kept dependency-free from DotPad.Contracts, same as BreakPointMargin), so materializing/applying
 // it is entirely the click-time responsibility of whoever owns that (CodeTextEditor.
-// FixApplyRequested → EditorTabItemControl).
-public sealed record CodeFixEntry(int Line, string Title, CodeFixSeverity Severity, string Key);
+// FixApplyRequested → EditorTabItemControl). DiagnosticId mirrors ICodeFixInfo.DiagnosticId — a
+// plain nullable string, same as Title/Key, so carrying it doesn't add a DotPad.Contracts dependency
+// — it's null for a caret-position-triggered refactoring, which has no underlying diagnostic to key
+// off (сто шестой проход, user request 2026-07-21). Defaults to null rather than being required —
+// most call sites (every test that isn't specifically about ID-based exclusion filtering) don't care
+// about it, same rationale as ICodeFixInfo's real implementation defaulting it for refactorings.
+public sealed record CodeFixEntry(int Line, string Title, CodeFixSeverity Severity, string Key, string? DiagnosticId = null);
