@@ -33,8 +33,15 @@ public class CSharpIntelliSenseRefactoringsTests
 
         Assert.NotNull(refactorings);
         var useExpressionBody = Assert.Single(refactorings, r => r.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains("=> 5", useExpressionBody.NewCode);
-        Assert.DoesNotContain("return 5;", useExpressionBody.NewCode);
+
+        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): NewCode is no longer
+        // on the listed candidate itself — materializing it (running the refactoring provider's own
+        // document transform + diffing) is deferred to MaterializeFixAsync, called only for the one
+        // candidate actually clicked.
+        var materialized = await service.MaterializeFixAsync(code, useExpressionBody.Key, TestContext.Current.CancellationToken);
+        Assert.NotNull(materialized);
+        Assert.Contains("=> 5", materialized.NewCode);
+        Assert.DoesNotContain("return 5;", materialized.NewCode);
     }
 
     [Fact]
@@ -70,12 +77,24 @@ public class CSharpIntelliSenseRefactoringsTests
     // isn't a SimpleNameSyntax, which the rewriter's own generated cast doesn't tolerate). Reproduced
     // on a bare AdhocWorkspace document with NO DotPad-specific wrapping at all (no preamble, no
     // Script.cs synthetic setup) — confirmed upstream Roslyn 4.13.0 behavior, not something this
-    // codebase's document handling triggers or could fix. RoslynCodeFixEngine.TryMaterializeAsync's
-    // existing try/catch (the same one CollectFixesAsync's diagnostic-driven fixes already rely on)
-    // already covers this — this test locks in that GetRefactoringsAsync itself never surfaces the
-    // exception to its caller, it just quietly omits the one broken suggestion.
+    // codebase's document handling triggers or could fix.
+    //
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) changed WHERE this gets
+    // caught: listing candidates (GetRefactoringsAsync) no longer materializes anything — Register/
+    // ComputeRefactoringsAsync alone never trips this bug (it only lives inside GetOperationsAsync,
+    // now deferred) — so the broken suggestion DOES appear in the list now, same as any other
+    // candidate. MaterializeFixAsync (the click-time half) is what actually runs GetOperationsAsync,
+    // and RoslynCodeFixEngine.TryMaterializeAsync's existing try/catch still covers it there —
+    // clicking this specific broken suggestion safely does nothing (materializes to null) rather than
+    // never having been offered in the first place. A user seeing a menu item that turns out to do
+    // nothing on click is a real, minor regression from the old eager-materialization behavior — an
+    // accepted tradeoff for not paying GetOperationsAsync's cost for all ~63 providers' candidates on
+    // every caret move (see RoslynCodeFixEngine's own class doc comment for the measured cost this
+    // avoids) — worth exactly one broken upstream refactoring provider silently doing nothing when
+    // clicked, not worth eagerly materializing every candidate just to filter out the rare no-op ones
+    // in advance.
     [Fact]
-    public async Task GetRefactoringsAsync_Should_NotThrow_WhenARefactoringsOwnMaterializationFails()
+    public async Task GetRefactoringsAsync_Should_ListEvenAOwnMaterializationFailingRefactoring_ButMaterializeSafelyToNull()
     {
         using var service = CreateService();
         const string code =
@@ -87,8 +106,34 @@ public class CSharpIntelliSenseRefactoringsTests
         var position = code.IndexOf(".Name", StringComparison.Ordinal) + 1;
 
         var refactorings = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
-
         Assert.NotNull(refactorings);
-        Assert.DoesNotContain(refactorings, r => r.Title.Contains("all occurrences", StringComparison.OrdinalIgnoreCase));
+
+        var broken = Assert.Single(refactorings, r => r.Title.Contains("all occurrences", StringComparison.OrdinalIgnoreCase));
+
+        var materialized = await service.MaterializeFixAsync(code, broken.Key, TestContext.Current.CancellationToken);
+        Assert.Null(materialized);
+    }
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — RoslynCodeFixEngine's
+    // candidate cache is wholesale-replaced on every new ComputeFixesAsync/ComputeRefactoringsAsync
+    // call (its own class doc comment), not merged/appended — a key from an OLDER listing pass simply
+    // isn't in the CURRENT cache once a newer one has run. Same "gracefully do nothing" contract as a
+    // key that never existed at all — there's no way for the caller to tell the two apart, and no
+    // reason to: either way, re-materializing against outdated state wouldn't be meaningful.
+    [Fact]
+    public async Task MaterializeFixAsync_Should_ReturnNull_ForAKeyFromAnOlderListingPass()
+    {
+        using var service = CreateService();
+        const string code = "class C\n{\n    int M()\n    {\n        return 5;\n    }\n}\n";
+        var position = code.IndexOf("return 5;", StringComparison.Ordinal);
+
+        var first = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
+        var staleKey = Assert.Single(first!, r => r.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase)).Key;
+
+        // A second listing pass at a different position replaces the cache the first pass populated.
+        await service.GetRefactoringsAsync(code, 0, TestContext.Current.CancellationToken);
+
+        var materialized = await service.MaterializeFixAsync(code, staleKey, TestContext.Current.CancellationToken);
+        Assert.Null(materialized);
     }
 }

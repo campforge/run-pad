@@ -27,8 +27,7 @@ namespace DotPad.Runtime.UI.Tests;
 // simulate a real paint pass or menu click to know what UpdateCodeFixes was actually given).
 public class EditorTabItemControlRefactoringsTests
 {
-    private sealed record FakeCodeFixInfo(
-        int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd, DiagnosticSeverity Severity) : ICodeFixInfo;
+    private sealed record FakeCodeFixInfo(int Line, string Title, DiagnosticSeverity Severity, string Key) : ICodeFixInfo;
 
     private static Mock<IPreferencesService> MakePrefs()
     {
@@ -64,7 +63,7 @@ public class EditorTabItemControlRefactoringsTests
         // point of this test.
         intelliSense
             .Setup(s => s.GetRefactoringsAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IReadOnlyList<ICodeFixInfo>?)[new FakeCodeFixInfo(5, "Use expression body", "// refactored", [], DiagnosticSeverity.Info)]);
+            .ReturnsAsync((IReadOnlyList<ICodeFixInfo>?)[new FakeCodeFixInfo(5, "Use expression body", DiagnosticSeverity.Info, "refactor-key")]);
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
             intelliSense.Object, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
@@ -79,7 +78,7 @@ public class EditorTabItemControlRefactoringsTests
         // handler applies it via Dispatcher.UIThread.Post, so it isn't visible synchronously — same
         // poll idiom as the refactoring wait below.
         intelliSense.Raise(s => s.CodeFixesChanged += null, editor.Text,
-            (IReadOnlyList<ICodeFixInfo>)[new FakeCodeFixInfo(2, "Add using", editor.Text, [], DiagnosticSeverity.Warning)]);
+            (IReadOnlyList<ICodeFixInfo>)[new FakeCodeFixInfo(2, "Add using", DiagnosticSeverity.Warning, "fix-key")]);
 
         for (var i = 0; i < 100 && editor.WorstCodeFixSeverityOnLine(2) is null; i++)
             await Task.Delay(20);

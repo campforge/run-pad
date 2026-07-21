@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
@@ -31,8 +32,8 @@ public class CodeFixMarginTests
 
         margin.Update(
         [
-            new CodeFixEntry(1, "warning fix", "x\n", [], CodeFixSeverity.Warning),
-            new CodeFixEntry(1, "error fix", "x\n", [], CodeFixSeverity.Error),
+            new CodeFixEntry(1, "warning fix", CodeFixSeverity.Warning, "warn-key"),
+            new CodeFixEntry(1, "error fix", CodeFixSeverity.Error, "error-key"),
         ]);
 
         Assert.Equal(CodeFixSeverity.Error, margin.WorstSeverityOnLine(1));
@@ -43,7 +44,7 @@ public class CodeFixMarginTests
     {
         var (_, _, margin) = CreateEditor("x\n");
 
-        margin.Update([new CodeFixEntry(1, "fix", "x\n", [], CodeFixSeverity.Warning)]);
+        margin.Update([new CodeFixEntry(1, "fix", CodeFixSeverity.Warning, "fix-key")]);
 
         Assert.Null(margin.WorstSeverityOnLine(2));
     }
@@ -162,7 +163,7 @@ public class CodeFixMarginTests
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
         {
-            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Add using System;", "x\n", []));
+            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Add using System;", CodeFixSeverity.Info, "fix-key"));
 
             var icon = Assert.IsType<PathIcon>(item.Icon);
             Assert.NotNull(icon.Data);
@@ -172,6 +173,26 @@ public class CodeFixMarginTests
         {
             Application.Current.Resources.MergedDictionaries.Remove(include);
         }
+    }
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): Apply used to set
+    // _editor.Document.Text directly from CodeFixEntry.NewCode — now it just raises FixApplyRequested
+    // with the clicked entry, leaving materializing/applying entirely to whoever owns
+    // IIntelliSenseService (EditorTabItemControl). Locks in that the menu item built for a candidate
+    // really does forward THAT candidate (not some other one) when clicked.
+    [AvaloniaFact]
+    public void BuildMenuItem_Click_Should_RaiseFixApplyRequested_WithTheClickedEntry()
+    {
+        var (_, editor, margin) = CreateEditor("x\n");
+        var entry = new CodeFixEntry(1, "Add using System;", CodeFixSeverity.Info, "fix-key");
+
+        CodeFixEntry? raised = null;
+        editor.FixApplyRequested += f => raised = f;
+
+        var item = margin.BuildMenuItem(entry);
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+        Assert.Equal(entry, raised);
     }
 
     private static void Arrange(CodeFixMargin margin)

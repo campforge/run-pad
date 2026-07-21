@@ -23,10 +23,12 @@ public class CodeFixMargin : AbstractMargin
     private StreamGeometry? _bulbGeo;
     private StreamGeometry? _hammerGeo;
 
-    // Raised when an applied fix carries namespaces to import — this control has no notion of a
-    // "project file"/front matter to route them to (see CodeFixEntry's doc comment), so it's left
-    // to whoever owns that (forwarded up via CodeTextEditor.UsingsToAddRequested).
-    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — raised when the user
+    // clicks a specific menu entry. This control has no notion of Roslyn/IIntelliSenseService (see
+    // CodeFixEntry's own doc comment) — materializing the fix's actual text (and routing any usings
+    // it wants to import) is entirely the click-time responsibility of whoever owns that (forwarded
+    // up via CodeTextEditor.FixApplyRequested).
+    public event Action<CodeFixEntry>? FixApplyRequested;
 
     public CodeFixMargin(CodeTextEditor editor)
     {
@@ -61,6 +63,10 @@ public class CodeFixMargin : AbstractMargin
             DrawCentered(context, _bulbGeo, brush, yTop, lineH);
         }
     }
+
+    // Test-only observability — same rationale as every other "internal test hook" this session: lets
+    // a test find a specific candidate by title/line without needing a live paint pass.
+    internal IReadOnlyList<CodeFixEntry> Fixes => _fixes;
 
     // TODO.md #75: several fixes can share one line (e.g. multiple "using X;" candidates for the
     // same unresolved type) at different severities — the icon shows whichever is worse, same
@@ -139,13 +145,7 @@ public class CodeFixMargin : AbstractMargin
         return offset == -1 ? null : TextView.Document.GetLineByOffset(offset).LineNumber;
     }
 
-    private void Apply(CodeFixEntry fix)
-    {
-        if (_editor.Document.Text != fix.NewCode)
-            _editor.Document.Text = fix.NewCode;
-        if (fix.UsingsToAdd.Count > 0)
-            UsingsToAddRequested?.Invoke(fix.UsingsToAdd);
-    }
+    private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
 
     // TODO.md #75: matches BreakPointMargin's own line-number-column width (via the shared
     // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two
