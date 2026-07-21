@@ -26,6 +26,14 @@ public interface ICodeFixInfo
     // own severity (Diagnostics.cs' DiagnosticSeverity, reused rather than a second enum), carried
     // through so the margin can color the icon accordingly.
     DiagnosticSeverity Severity { get; }
+
+    // TODO.md #74 (сто шестой проход, user request 2026-07-21) — the Roslyn diagnostic ID this fix
+    // is keyed to (e.g. "CS0184", "IDE0007"), for exact-match exclusion filtering by ID instead of a
+    // fuzzy Title substring (a diagnostic ID is stable/documented; a title can be phrased however the
+    // provider likes and isn't a contract). Null for a candidate with no underlying diagnostic — a
+    // CodeRefactoringProvider's suggestion (Use Expression Body, Introduce Local, ...) is triggered by
+    // caret position, not a diagnostic, so it simply can't be excluded by ID this way.
+    string? DiagnosticId { get; }
 }
 
 // The expensive half of ICodeFixInfo, computed on demand (IIntelliSenseService.MaterializeFixAsync)

@@ -228,7 +228,7 @@ public class PreferencesWindowViewModelTests
     }
 
     [Fact]
-    public void ExcludedCodeFixTitlesText_Should_RoundTrip_AsOnePhrasePerLine_TrimmingBlankLines()
+    public void ExcludedDiagnosticIdsText_Should_RoundTrip_AsOneIdPerLine_TrimmingBlankLines()
     {
         var csharpSettings = new CSharpLanguageSettings();
         var theme = new Mock<IThemeService>();
@@ -242,11 +242,20 @@ public class PreferencesWindowViewModelTests
         prefs.Setup(p => p.CSharp).Returns(csharpSettings);
         var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
 
-        vm.ExcludedCodeFixTitlesText = "use explicit type\n\n  fix formatting  \n";
+        vm.ExcludedDiagnosticIdsText = "CS0184\n\n  IDE0007  \n";
 
-        Assert.Equal(["use explicit type", "fix formatting"], csharpSettings.ExcludedCodeFixTitles);
-        Assert.Equal("use explicit type\nfix formatting", vm.ExcludedCodeFixTitlesText);
+        Assert.Equal(["CS0184", "IDE0007"], csharpSettings.ExcludedDiagnosticIds);
+        Assert.Equal("CS0184\nIDE0007", vm.ExcludedDiagnosticIdsText);
     }
+
+    // User request 2026-07-21 (сто шестой проход): "fix formatting" (IDE0055) should be excluded
+    // out of the box — DotPad already has its own dotnet-format-based formatting story, so a live
+    // "reformat this" suggestion on every whitespace deviation was judged more noise than help by
+    // default. A fresh CSharpLanguageSettings (e.g. a first-ever launch, before settings.json exists)
+    // should reflect that without the user having to discover and type the ID themselves.
+    [Fact]
+    public void CSharpLanguageSettings_Should_ExcludeFixFormatting_ByDefault()
+        => Assert.Contains("IDE0055", new CSharpLanguageSettings().ExcludedDiagnosticIds);
 
     [Fact]
     public void IsLanguageNodeSelected_Should_BeTrue_WhenAVisualBasicChildNodeIsSelected()

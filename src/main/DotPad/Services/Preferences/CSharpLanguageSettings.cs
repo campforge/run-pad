@@ -16,10 +16,19 @@ public sealed class CSharpLanguageSettings
     // — this only gates the FIX suggestions layered on top, for users who find the lightbulb noisy.
     public bool CodeFixesEnabled { get; set; } = true;
 
-    // Case-insensitive substring exclusion list matched against a fix/refactoring's Title (e.g.
-    // "use explicit type", "fix formatting") — lets a user silence specific opinionated suggestions
-    // without turning code fixes off entirely. Substring, not exact title: the same provider's title
-    // often carries per-candidate specifics (e.g. "Add using System.Text;" vs "Add using
-    // System.Text.Json;") that a fixed exact-title list could never fully enumerate.
-    public List<string> ExcludedCodeFixTitles { get; set; } = [];
+    // TODO.md #74 (сто шестой проход, user request 2026-07-21) — exact, case-insensitive Roslyn
+    // diagnostic ID exclusion list ("CS0184", "IDE0007", "IDE0055", ...) — lets a user silence
+    // specific opinionated suggestions without turning code fixes off entirely. A diagnostic ID
+    // instead of a Title substring (сто пятый проход's original design): stable and documented,
+    // where a title is free-form prose the provider can phrase however it likes. Only applies to
+    // diagnostic-driven fixes — a CodeRefactoringProvider's suggestion has no underlying diagnostic
+    // to key off (ICodeFixInfo.DiagnosticId's own doc comment), so it can't be excluded this way.
+    //
+    // IDE0055 ("Fix formatting") ships excluded by default (user request 2026-07-21): DotPad already
+    // has its own `dotnet format`-based CI gate and editor formatting (Ctrl+Format), so a live
+    // "reformat this" suggestion firing on every whitespace deviation while typing was judged more
+    // noise than help for most users — same rationale as InlayHintsEnabled/CodeFixesEnabled being
+    // opt-OUT rather than opt-IN elsewhere in this file: default to what most users want, not to the
+    // maximal feature set.
+    public List<string> ExcludedDiagnosticIds { get; set; } = ["IDE0055"];
 }

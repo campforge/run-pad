@@ -27,7 +27,7 @@ namespace DotPad.Runtime.UI.Tests;
 // simulate a real paint pass or menu click to know what UpdateCodeFixes was actually given).
 public class EditorTabItemControlRefactoringsTests
 {
-    private sealed record FakeCodeFixInfo(int Line, string Title, DiagnosticSeverity Severity, string Key) : ICodeFixInfo;
+    private sealed record FakeCodeFixInfo(int Line, string Title, DiagnosticSeverity Severity, string Key, string? DiagnosticId = null) : ICodeFixInfo;
 
     private static Mock<IPreferencesService> MakePrefs()
     {
