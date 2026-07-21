@@ -19,7 +19,7 @@ public class MainWindowViewModelTests
         {
             var fileService = new Mock<IFileSystemService>();
             fileService.Setup(f => f.Folder).Returns(rootFolder);
-            fileService.Setup(f => f.GetFilesTree()).Returns([]);
+            fileService.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings { SidebarWidth = 300, SidebarCollapsed = false });

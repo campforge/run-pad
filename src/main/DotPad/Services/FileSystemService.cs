@@ -7,7 +7,13 @@ public record FileSystemItem(string Name, bool IsDirectory, string FilePath, IRe
 
 public interface IFileSystemService : IDisposable
 {
-    IReadOnlyList<FileSystemItem> GetFilesTree();
+    /// <summary>
+    /// Recursively walks the workspace folder off the UI thread (ANALYSIS.md #104 — the old
+    /// synchronous <c>GetFilesTree</c> ran directly on the UI thread, both at startup and on every
+    /// settled <see cref="WatcherEvent"/>, freezing input/rendering for the duration of the walk on
+    /// large/network/cloud-synced folders).
+    /// </summary>
+    Task<IReadOnlyList<FileSystemItem>> GetFilesTreeAsync(CancellationToken ct = default);
     string CreateNewFile();
     string CreateNewFolder(string parentDir);
     void StartWatcher();
@@ -88,18 +94,19 @@ public sealed class FileSystemService : IFileSystemService
         return result;
     }
 
-    public IReadOnlyList<FileSystemItem> GetFilesTree()
-    {
-        try
+    public Task<IReadOnlyList<FileSystemItem>> GetFilesTreeAsync(CancellationToken ct = default) =>
+        Task.Run(() =>
         {
-            return GetFilesTreeInternal(_rootFolder);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Can not build FilesTree");
-            throw;
-        }
-    }
+            try
+            {
+                return GetFilesTreeInternal(_rootFolder);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Can not build FilesTree");
+                throw;
+            }
+        }, ct);
 
 
     public string CreateNewFile()
