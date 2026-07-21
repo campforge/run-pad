@@ -28,7 +28,7 @@ public class ImportLinqFileTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns(rootFolder);
-        fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var windowService = new Mock<IWindowService>();
 

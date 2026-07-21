@@ -499,7 +499,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // directory) if it's a file, or at the tree's root if nothing's selected. Returns the new path so
     // the caller (MainWindow.FileTree_CreateFolder) can immediately enter rename mode on it, like
     // VS/Rider/Explorer do.
-    public string CreateFolder(string? contextPath)
+    public async Task<string> CreateFolderAsync(string? contextPath)
     {
         var parentDir = contextPath is null
             ? _fileSystemService.Folder
@@ -508,7 +508,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
                 : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
 
         var path = _fileSystemService.CreateNewFolder(parentDir);
-        RefreshNodes();
+        await RefreshNodesAsync();
         return path;
     }
 
@@ -602,7 +602,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RefreshNodes() => FileTree.Refresh(_fileSystemService.GetFilesTree());
+    // ANALYSIS.md #104: fire-and-forget wrapper for every call site that doesn't need to know when
+    // the refresh actually lands (the constructor, the watcher above, every disk-mutating command
+    // except CreateFolderAsync) — GetFilesTreeAsync's own Task.Run means the disk walk never blocks
+    // whichever thread called this, only FileTree.Refresh's (already cheap, diff-based) merge runs
+    // back on the UI thread once it resolves.
+    private async void RefreshNodes() => await RefreshNodesAsync();
+
+    // CreateFolderAsync is the one caller that needs to actually await this — FileTree_CreateFolder
+    // (MainWindow.axaml.cs) calls FileTreeView.StartRenameForPath immediately after, which needs the
+    // new folder to already be in FileTree.Nodes to find it.
+    private async Task RefreshNodesAsync() => FileTree.Refresh(await _fileSystemService.GetFilesTreeAsync());
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 

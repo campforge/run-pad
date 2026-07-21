@@ -137,7 +137,7 @@ public class EditorTabSnippetsTests
 
             var fileSystem = new Mock<IFileSystemService>();
             fileSystem.Setup(f => f.Folder).Returns(tmpDir);
-            fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+            fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
             var theme = new Mock<IThemeService>();
             theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
