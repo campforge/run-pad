@@ -221,6 +221,23 @@
                 <StackPanel IsVisible="{Binding IsCSharpNodeSelected}" Spacing="4">
                     <CheckBox IsChecked="{Binding InlayHintsEnabled}"
                               Content="Inlay hints (inferred var/foreach types)"/>
+
+                    <CheckBox IsChecked="{Binding CodeFixesEnabled}"
+                              Content="Code fixes and refactorings (lightbulb)"
+                              Margin="0,8,0,0"/>
+
+                    <TextBlock Text="Excluded diagnostic IDs (one per line, e.g. CS0184, IDE0007)"
+                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,8,0,4"
+                               IsEnabled="{Binding CodeFixesEnabled}"/>
+                    <TextBox Text="{Binding ExcludedDiagnosticIdsText, UpdateSourceTrigger=LostFocus}"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             Height="90"
+                             FontFamily="Consolas,Menlo,Courier New,monospace"
+                             IsEnabled="{Binding CodeFixesEnabled}"
+                             PlaceholderText="CS0184&#10;IDE0007"/>
                 </StackPanel>
 
             </Panel>

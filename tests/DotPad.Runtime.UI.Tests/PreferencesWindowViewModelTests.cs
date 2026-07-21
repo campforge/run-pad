@@ -207,6 +207,57 @@ public class PreferencesWindowViewModelTests
     }
 
     [Fact]
+    public void CodeFixesEnabled_Should_RoundTrip_ThroughTheUnderlyingCSharpSettings()
+    {
+        var csharpSettings = new CSharpLanguageSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.CSharp).Returns(csharpSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.CodeFixesEnabled = false;
+
+        Assert.False(csharpSettings.CodeFixesEnabled);
+        prefs.Verify(p => p.Save(), Times.Once);
+    }
+
+    [Fact]
+    public void ExcludedDiagnosticIdsText_Should_RoundTrip_AsOneIdPerLine_TrimmingBlankLines()
+    {
+        var csharpSettings = new CSharpLanguageSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.CSharp).Returns(csharpSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.ExcludedDiagnosticIdsText = "CS0184\n\n  IDE0007  \n";
+
+        Assert.Equal(["CS0184", "IDE0007"], csharpSettings.ExcludedDiagnosticIds);
+        Assert.Equal("CS0184\nIDE0007", vm.ExcludedDiagnosticIdsText);
+    }
+
+    // User request 2026-07-21 (сто шестой проход): "fix formatting" (IDE0055) should be excluded
+    // out of the box — DotPad already has its own dotnet-format-based formatting story, so a live
+    // "reformat this" suggestion on every whitespace deviation was judged more noise than help by
+    // default. A fresh CSharpLanguageSettings (e.g. a first-ever launch, before settings.json exists)
+    // should reflect that without the user having to discover and type the ID themselves.
+    [Fact]
+    public void CSharpLanguageSettings_Should_ExcludeFixFormatting_ByDefault()
+        => Assert.Contains("IDE0055", new CSharpLanguageSettings().ExcludedDiagnosticIds);
+
+    [Fact]
     public void IsLanguageNodeSelected_Should_BeTrue_WhenAVisualBasicChildNodeIsSelected()
     {
         var vm = CreateViewModel(CreateRealRegistry());
