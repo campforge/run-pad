@@ -327,6 +327,16 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.FontSize, value, v => _prefs.Editor.FontSize = v);
     }
 
+    // TODO.md #112 — live user report: with no explicit FontFamily, the editor fell back to
+    // whatever the OS/theme default happened to resolve to, ligatures (e.g. "=>" → an arrow glyph)
+    // included. Exposed here so anyone who actually wants a ligature font (or anything else) isn't
+    // stuck with the new non-ligature default either.
+    public string FontFamily
+    {
+        get => _prefs.Editor.FontFamily;
+        set => SetPref(_prefs.Editor.FontFamily, value, v => _prefs.Editor.FontFamily = v);
+    }
+
     // ── C# (TODO.md #62 "inlay hints", user request 2026-07-20) ────────────────
 
     public bool InlayHintsEnabled

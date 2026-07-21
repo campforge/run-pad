@@ -136,6 +136,12 @@
                                        Minimum="8" Maximum="32" Increment="1"
                                        FormatString="0"/>
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,*" Margin="0,6,0,0">
+                        <TextBlock Grid.Column="0" Text="Font family:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                                 PlaceholderText="monospace"/>
+                    </Grid>
                 </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsDotnetSelected}" Spacing="4">

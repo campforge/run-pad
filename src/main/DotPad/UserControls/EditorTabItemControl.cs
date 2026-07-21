@@ -996,11 +996,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.SelectionForeground = null;
     }
 
-    private static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
+    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
+    // in the solution — lets a test confirm settings (notably FontFamily, TODO.md #112) actually reach
+    // the real CodeTextEditor without needing to construct a whole EditorTabItemControl.
+    internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
         editor.ShowLineNumberText = s.ShowLineNumbers;
         editor.ShowFolding = s.ShowFolding;
         editor.FontSize = s.FontSize;
+        editor.FontFamily = new FontFamily(s.FontFamily);
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;
         editor.Options.ShowSpaces = s.ShowSpaces;
