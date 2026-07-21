@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -15,6 +16,7 @@ public partial class OutputHtmlView : UserControl
 {
     private OutputHtmlViewModel? _boundModel;
     private bool _applyScheduled;
+    private bool _scrollToEndPending;
 
     public OutputHtmlView()
     {
@@ -22,6 +24,20 @@ public partial class OutputHtmlView : UserControl
 
         OutputHtml.Container.AddFontFamily(
             new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+
+        // TODO.md #108: no auto-scroll during streaming output — HtmlPanel's own TextProperty change
+        // handler resets the scroll offset to (0,0) on every apply (see its OnPropertyChanged), so a
+        // long-running script's output actually snapped back to the TOP on every appended line rather
+        // than just "not scrolling". LayoutUpdated fires once the new (taller) content has actually
+        // been measured/arranged — ScrollToEnd's own doc comment explains why it can't just be called
+        // synchronously right after setting Text. _scrollToEndPending gates this to at most once per
+        // ApplyPendingContent call, consumed by the very next layout pass that follows it.
+        OutputHtml.LayoutUpdated += (_, _) =>
+        {
+            if (!_scrollToEndPending) return;
+            _scrollToEndPending = false;
+            OutputHtml.ScrollToEnd();
+        };
 
         DataContextChanged += (_, _) => Rebind();
         // DataContext (State.Output, EditorTabItemControl.cs) is set exactly once per tab and never
@@ -85,6 +101,7 @@ public partial class OutputHtmlView : UserControl
         if (_boundModel is not { } vm) return;
 
         ApplyCount++;
+        _scrollToEndPending = true;
         OutputHtml.Text = $"""
                            <html>
                            <head><style>{vm.Css}</style></head>
@@ -98,4 +115,9 @@ public partial class OutputHtmlView : UserControl
     // Test-only observability for the coalescing above — counts real applies to the underlying
     // HtmlPanel, as opposed to how many times the bound model's Css/Content actually changed.
     internal int ApplyCount { get; private set; }
+
+    // Test-only observability (InternalsVisibleTo) for the auto-scroll fix (TODO.md #108) — negative
+    // Y means scrolled down from the top (HtmlContainer.ScrollOffset's own convention, mirrored by
+    // HtmlPanel.ScrollToPoint: ScrollOffset = (-horizontalValue, -verticalValue)).
+    internal Point ScrollOffsetForTests => OutputHtml.Container.ScrollOffset;
 }

@@ -91,6 +91,50 @@ public class OutputHtmlViewTests
         Assert.Contains("while-detached", view.RenderedHtml);
     }
 
+    // Live bug report (TODO.md #108): no auto-scroll during streaming output — worse than just "not
+    // following", HtmlPanel's own TextProperty change handler resets scroll to (0,0) on every single
+    // apply, so a long script's output actually snapped back to the TOP each time a new line arrived.
+    // A small, fixed-size host is required so the content (deliberately made taller than the
+    // viewport) actually needs scrolling — ScrollToEnd is a no-op while the vertical scrollbar isn't
+    // Visible, exactly like the real "output shorter than the panel" case correctly not scrolling.
+    [AvaloniaFact]
+    public async Task Should_ScrollToTheBottom_AsNewOutputStreamsIn()
+    {
+        var view = new OutputHtmlView();
+        var vm = new OutputHtmlViewModel();
+        var host = new ContentControl { Content = view, Width = 200, Height = 100 };
+        var window = new Window { Content = host, Width = 200, Height = 100 };
+        window.Show();
+
+        view.DataContext = vm;
+        for (var i = 0; i < 50; i++)
+            vm.Append($"""<div style="height:20px">{i}</div>""");
+        await FlushPendingApply();
+        window.UpdateLayout(); // force the layout pass LayoutUpdated (and so ScrollToEnd) waits for
+
+        Assert.True(view.ScrollOffsetForTests.Y < 0, $"expected to be scrolled down, was {view.ScrollOffsetForTests}");
+    }
+
+    // Regression guard for the guard itself: content that fits within the viewport has no scrollbar
+    // to move — ScrollToEnd must recognize that and do nothing, not e.g. throw or scroll to some
+    // meaningless "Maximum" of an invisible/zero-range scrollbar.
+    [AvaloniaFact]
+    public async Task Should_NotScroll_WhenOutputFitsEntirelyWithinTheViewport()
+    {
+        var view = new OutputHtmlView();
+        var vm = new OutputHtmlViewModel();
+        var host = new ContentControl { Content = view, Width = 200, Height = 100 };
+        var window = new Window { Content = host, Width = 200, Height = 100 };
+        window.Show();
+
+        view.DataContext = vm;
+        vm.Append("<div>short</div>");
+        await FlushPendingApply();
+        window.UpdateLayout();
+
+        Assert.Equal(0, view.ScrollOffsetForTests.Y);
+    }
+
     // The real apply runs at Background dispatcher priority — awaiting a no-op posted at the same
     // priority guarantees anything queued ahead of it (i.e. the pending apply) has already run,
     // without depending on a specific "flush the queue" API.
