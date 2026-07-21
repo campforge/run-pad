@@ -96,8 +96,17 @@ internal sealed class ControlAdapter : RControl
         }
     }
 
+    // TODO.md #108: routes through HtmlControl.InvalidateContent() (rather than a bare
+    // InvalidateVisual()) whenever the underlying control actually is one — SelectionHandler calls
+    // this on every mid-drag selection change, and HtmlControl.Render blits an offscreen cache unless
+    // told the content is actually stale (LazyRenderCache/InvalidateContent's own doc comment). A
+    // plain InvalidateVisual() here left the cache thinking nothing changed, so newly (de)selected
+    // text never actually redrew until something unrelated forced a real repaint.
     public override void Invalidate()
     {
-        _control.InvalidateVisual();
+        if (_control is HtmlControl htmlControl)
+            htmlControl.InvalidateContent();
+        else
+            _control.InvalidateVisual();
     }
 }

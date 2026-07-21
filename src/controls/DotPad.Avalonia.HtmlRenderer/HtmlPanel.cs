@@ -73,6 +73,20 @@ public class HtmlPanel : HtmlControl
     }
 
     /// <summary>
+    /// Scroll all the way to the bottom of the content (TODO.md #108) — the caller is responsible for
+    /// calling this after a layout pass has actually run against the new content (e.g. from
+    /// <see cref="Control.LayoutUpdated"/>), since <see cref="_verticalScrollBar"/>'s Maximum is only
+    /// ever updated in <see cref="ArrangeOverride"/>; calling this synchronously right after a Text
+    /// change would still see the previous content's (stale) Maximum.
+    /// </summary>
+    public void ScrollToEnd()
+    {
+        if (_verticalScrollBar.Visibility != ScrollBarVisibility.Visible) return;
+        _verticalScrollBar.Value = _verticalScrollBar.Maximum;
+        UpdateScrollOffsets();
+    }
+
+    /// <summary>
     /// Adjust the scrollbar of the panel on html element by the given id.<br/>
     /// The top of the html element rectangle will be at the top of the panel, if there
     /// is not enough height to scroll to the top the scroll will be at maximum.<br/>

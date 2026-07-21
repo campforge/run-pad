@@ -74,11 +74,18 @@ public class HtmlControl : Control
     /// </summary>
     protected Point _lastScrollOffset;
 
-    // TODO.md #72: offscreen cache of the last real paint — Render blits this instead of calling
+    // TODO.md #108 (was "#72" — orphaned by a later archival/renumbering pass, see #108's own note):
+    // offscreen cache of the last real paint — Render blits this instead of calling
     // _htmlContainer.PerformPaint again on every single invalidation (window resize of unrelated
     // controls, sibling repaints, ...). See LazyRenderCache/InvalidateContent.
     private readonly LazyRenderCache _renderCache = new();
     private RenderTargetBitmap? _cachedBitmap;
+
+    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
+    // in the solution — lets a test confirm ControlAdapter.Invalidate() (TODO.md #108) actually marks
+    // the cache stale rather than just requesting a repaint that Render would then blit the same
+    // stale bitmap for.
+    internal LazyRenderCache RenderCacheForTests => _renderCache;
 
     #endregion
 
@@ -131,6 +138,12 @@ public class HtmlControl : Control
     /// </summary>
     public HtmlControl()
     {
+        // TODO.md #108: without this, Focus() (HtmlPanel.OnPointerReleased) is a no-op — the control
+        // can never actually receive keyboard focus, so the KeyDown handler wired up below (which
+        // already forwards Ctrl+A/Ctrl+C to _htmlContainer.HandleKeyDown -> SelectionHandler) never
+        // fires. Not "not implemented", just unreachable.
+        Focusable = true;
+
         _htmlContainer = new HtmlContainer(this);
         _htmlContainer.LoadComplete += OnLoadComplete;
         _htmlContainer.LinkClicked += OnLinkClicked;
@@ -397,7 +410,15 @@ public class HtmlControl : Control
     /// the Refresh event) — as opposed to Render calls triggered by unrelated invalidations, which
     /// should just reuse the cache.
     /// </summary>
-    protected void InvalidateContent()
+    /// <remarks>
+    /// TODO.md #108: internal (not just protected) so <see cref="Adapters.ControlAdapter"/>, in the
+    /// same assembly, can call it too — <c>ControlAdapter.Invalidate()</c> is what
+    /// <c>SelectionHandler</c> calls mid-drag on every selection change, and without routing that
+    /// through here the render cache never learns the selection actually changed: it keeps blitting
+    /// the stale bitmap until something unrelated (resize, scroll, new output) happens to force a
+    /// real repaint, so selection highlighting "sticks" mid-drag or vanishes/lags behind the mouse.
+    /// </remarks>
+    protected internal void InvalidateContent()
     {
         _renderCache.Invalidate();
         InvalidateVisual();
