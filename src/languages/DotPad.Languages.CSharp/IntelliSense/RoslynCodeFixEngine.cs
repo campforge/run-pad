@@ -354,9 +354,11 @@ internal sealed class RoslynCodeFixEngine
     // TrailingPad, since a synthetic space right after the last real token attaches to it as trailing
     // trivia the same as any other trailing whitespace. Each change's span is clamped to
     // preambleLength + userCodeLength for exactly this reason: the clamped-off tail is guaranteed to
-    // be nothing but that synthetic pad (never meaningful user content), so silently dropping it from
-    // what gets deleted/replaced is safe — NewText itself is untouched, only how much of the
-    // (padding-only) tail end of the input span gets consumed is shortened.
+    // be nothing but synthetic wrapper text — TrailingPad, and for RpadKind.Program also the
+    // class-closing suffix mirrored by CSharpIntelliSenseService.KindSuffix (TODO.md #107) — never
+    // meaningful user content, so silently dropping it from what gets deleted/replaced is safe —
+    // NewText itself is untouched, only how much of the (synthetic-only) tail end of the input span
+    // gets consumed is shortened.
     private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
         List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {

@@ -9,11 +9,29 @@ using Xunit;
 namespace DotPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #66: CalcKindOffset() returned 2 for RpadKind.Program, but ApplyKindTransform's
-// Program branch ("Main();{code}", no newline) glues onto the same physical line as the user's first
+// Program branch ("Main();{code}", no newline) glued onto the same physical line as the user's first
 // line — structurally zero new lines, same as Statements' passthrough — which misaligned every
-// breakpoint/stack frame in Program-kind scripts by exactly the erroneous offset. These tests pin the
-// exact transformed text and offset for all three kinds directly against the real (internal)
-// CSharpLanguageHost members, rather than only inferring correctness from DapSession's line math.
+// breakpoint/stack frame in Program-kind scripts by exactly the erroneous offset.
+//
+// TODO.md #107 (this проход): the "Main();{code}" shape itself turned out to be its own bug — it left
+// the user's whole script as raw top-level statements, which broke as soon as a Program-kind script had
+// more than just Main (fields declared below Main became CS0165 "unassigned", methods with an access
+// modifier became CS0106 "not valid for this item" — LINQPad-style scripts, the norm for this kind, hit
+// both routinely). ApplyKindTransform's Program branch now wraps the user's code in a real class
+// instead (RpadKindTransform.ProgramPrefixFor/ProgramSuffixFor) — field initializers become constructor
+// prologue (always runs before any instance method call, regardless of textual order) and ordinary
+// access modifiers are exactly what class members expect. That shape needs 2 lines of offset (the
+// wrapper class's header + opening brace), not 0 — CalcKindOffset changed accordingly. A real
+// dotnet-build integration test (CSharpLanguageHostProgramKindCompileTests) caught a second, subtler
+// issue the string-pinning tests below don't by themselves prove fixed: the user's own Main, written
+// with no modifier (the LINQPad-style norm), is private as a class member — uncallable from the
+// top-level-statement call site outside the class (CS0122). ProgramSuffixFor appends a synthetic
+// trampoline INSIDE the class (same-class access ignores accessibility) so the outer call site never
+// touches Main directly.
+//
+// These tests pin the exact transformed text and offset for all three kinds directly against the real
+// (internal) CSharpLanguageHost members, rather than only inferring correctness from DapSession's line
+// math.
 public class CSharpLanguageHostKindTransformTests
 {
     // CSharpLanguageHost only implements IAsyncDisposable (see LanguageHostBase) — nothing here starts
@@ -39,9 +57,21 @@ public class CSharpLanguageHostKindTransformTests
         return new CSharpLanguageHost(options, NullLoggerFactory.Instance);
     }
 
+    private const string WrapperClass = RpadKindTransform.ProgramWrapperClassName;
+    private const string TrampolineCall = $"{WrapperClass}.__DotPadRun()";
+
+    private static string ExpectedProgramTransform(string code, bool isStatic, bool returnsTask)
+    {
+        var callStatement = returnsTask ? $"await {TrampolineCall};" : $"{TrampolineCall};";
+        var mainCall = isStatic ? "Main()" : $"new {WrapperClass}().Main()";
+        var trampoline = returnsTask
+            ? $"internal static Task __DotPadRun() => {mainCall};"
+            : $"internal static void __DotPadRun() {{ {mainCall}; }}";
+        return $"{callStatement}class {WrapperClass}\n{{\n{code}\n{trampoline}\n}}\n";
+    }
+
     [Theory]
     [InlineData(RpadKind.Statements, "int x = 1;", "int x = 1;")]
-    [InlineData(RpadKind.Program, "void Main() { }", "Main();void Main() { }")]
     [InlineData(RpadKind.Expression, "1 + 1", "(\n1 + 1\n).Dump();\n")]
     public void ApplyKindTransform_Should_ProduceExpectedText(RpadKind kind, string code, string expected)
     {
@@ -53,12 +83,48 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // The regression itself: Program used to report offset 2 while its transform inserts zero actual
-    // lines (the "Main();" prefix has no trailing newline) — same structural shape as Statements'
-    // untouched passthrough, hence the same offset.
+    [Fact]
+    public void ApplyKindTransform_Should_WrapProgramCodeInAClass_WithACallGluedOntoTheFirstLine()
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            const string code = "void Main() { }";
+            Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: false), host.ApplyKindTransform(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // The exact reported repro (TODO.md #107): a field declared below Main, and a helper method with
+    // an access modifier — both CS0165 and CS0106 under the old raw-top-level-statements transform.
+    // Not a compile check (that's CSharpLanguageHostProgramKindCompileTests, a real dotnet-build
+    // integration test) — just confirms the transform actually produces the class-wrapped shape that
+    // makes both legal.
+    [Fact]
+    public void ApplyKindTransform_Should_PlaceFieldsAndModifiedMethods_InsideTheWrapperClass_ForProgramKind()
+    {
+        const string code = "Regex regexp = new Regex(@\"_(?<resolution>(\\d+)x(\\d+))\\.\");\n\n"
+            + "async Task Main(){\n\tvar filename = \"100X100_123\";\n\tGetResolution(filename).Dump();\n}\n\n"
+            + "private string? GetResolution(string fileName)\n{\n"
+            + "    return regexp.Matches(fileName).Cast<Match>().ToList().FirstOrDefault()?.Groups[\"resolution\"].Value;\n}\n";
+
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            var transformed = host.ApplyKindTransform(code);
+            Assert.StartsWith($"await {TrampolineCall};class {WrapperClass}\n{{\n", transformed, StringComparison.Ordinal);
+            Assert.EndsWith("\n}\n", transformed, StringComparison.Ordinal);
+            // The whole user script, verbatim, sits between the class header and the synthetic
+            // trampoline/closing brace — i.e. it's the class BODY now, not a sequence of top-level
+            // statements the call was glued in front of.
+            Assert.Contains(code, transformed, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
     [Theory]
     [InlineData(RpadKind.Statements, 0)]
-    [InlineData(RpadKind.Program, 0)]
+    [InlineData(RpadKind.Program, 2)]
     [InlineData(RpadKind.Expression, 1)]
     public void CalcKindOffset_Should_MatchLinesActuallyInsertedByApplyKindTransform(RpadKind kind, int expectedOffset)
     {
@@ -102,7 +168,7 @@ public class CSharpLanguageHostKindTransformTests
     // exactly one line") on a script whose front matter has one namespace configured.
     [Theory]
     [InlineData(RpadKind.Statements, 0)]
-    [InlineData(RpadKind.Program, 0)]
+    [InlineData(RpadKind.Program, 2)]
     [InlineData(RpadKind.Expression, 1)]
     public void CalcKindOffset_Should_IncludeFrontMatterUsingsCount(RpadKind kind, int kindOnlyOffset)
     {
@@ -115,22 +181,38 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // TODO.md #63 (async Task Main): the Program-kind prefix used to always be "Main();" — a
-    // fire-and-forget call that discards a Task-returning Main's result, silently losing any
-    // exception thrown inside it. ApplyKindTransform now picks between "Main();" and
-    // "await Main();" based on Main's own declared return type.
+    // TODO.md #63 (async Task Main): the Program-kind call statement used to always be "Main();" — a
+    // fire-and-forget call that discards a Task-returning Main's result, silently losing any exception
+    // thrown inside it. ApplyKindTransform now picks between a plain and an awaited call to the
+    // trampoline based on Main's own declared return type (the trampoline itself decides how to reach
+    // Main — see ApplyKindTransform_Should_CallStaticMain_ByTypeName_NotByNewingUpAnInstance below).
     [Theory]
-    [InlineData("void Main() { }", "Main();void Main() { }")]
-    [InlineData("async Task Main() { }", "await Main();async Task Main() { }")]
-    [InlineData("Task Main() { return Task.CompletedTask; }", "await Main();Task Main() { return Task.CompletedTask; }")]
-    [InlineData("async Task<int> Main() { return 0; }", "await Main();async Task<int> Main() { return 0; }")]
-    [InlineData("async System.Threading.Tasks.Task Main() { }", "await Main();async System.Threading.Tasks.Task Main() { }")]
-    public void ApplyKindTransform_Should_AwaitMain_OnlyWhenMainIsTaskReturning(string code, string expected)
+    [InlineData("void Main() { }", false)]
+    [InlineData("async Task Main() { }", true)]
+    [InlineData("Task Main() { return Task.CompletedTask; }", true)]
+    [InlineData("async Task<int> Main() { return 0; }", true)]
+    [InlineData("async System.Threading.Tasks.Task Main() { }", true)]
+    public void ApplyKindTransform_Should_AwaitMain_OnlyWhenMainIsTaskReturning(string code, bool expectAwait)
     {
         var host = CreateHost(RpadKind.Program, out var outputDir);
         try
         {
-            Assert.Equal(expected, host.ApplyKindTransform(code));
+            Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: expectAwait), host.ApplyKindTransform(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // TODO.md #107: a static Main can't be called through an instance reference (CS0176) — the
+    // synthetic trampoline needs a type-qualified call instead of `new {Wrapper}()` for it.
+    [Theory]
+    [InlineData("static void Main() { }", false)]
+    [InlineData("static async Task Main() { }", true)]
+    public void ApplyKindTransform_Should_CallStaticMain_ByTypeName_NotByNewingUpAnInstance(string code, bool expectAwait)
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            Assert.Equal(ExpectedProgramTransform(code, isStatic: true, returnsTask: expectAwait), host.ApplyKindTransform(code));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -144,23 +226,28 @@ public class CSharpLanguageHostKindTransformTests
         var host = CreateHost(RpadKind.Program, out var outputDir);
         try
         {
-            Assert.StartsWith(RpadKindTransform.ProgramMainCallPrefix, host.ApplyKindTransform(code), StringComparison.Ordinal);
+            Assert.StartsWith($"{TrampolineCall};", host.ApplyKindTransform(code), StringComparison.Ordinal);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // Both prefixes are a single physical line with no trailing '\n' — CalcKindOffset's Program case
-    // must stay 0 regardless of which one ApplyKindTransform actually picked.
+    // The call statement itself is always a single physical line with no embedded '\n' — CalcKindOffset
+    // relies on the wrapper class's header/opening-brace lines (exactly 2) being the only source of the
+    // offset, regardless of which call-statement variant ApplyKindTransform actually picked.
     [Theory]
     [InlineData("void Main() { }")]
     [InlineData("async Task Main() { }")]
-    public void CalcKindOffset_Should_StayZeroForProgram_RegardlessOfWhichMainPrefixWasUsed(string code)
+    [InlineData("static void Main() { }")]
+    public void CalcKindOffset_Should_StayAtTwoForProgram_RegardlessOfWhichMainCallVariantWasUsed(string code)
     {
         var host = CreateHost(RpadKind.Program, out var outputDir);
         try
         {
-            Assert.Equal(0, host.CalcKindOffset());
-            Assert.DoesNotContain('\n', host.ApplyKindTransform(code)[..host.ApplyKindTransform(code).IndexOf(code, StringComparison.Ordinal)]);
+            var transformed = host.ApplyKindTransform(code);
+            var callStatementEnd = transformed.IndexOf("class " + WrapperClass, StringComparison.Ordinal);
+            Assert.True(callStatementEnd > 0);
+            Assert.DoesNotContain('\n', transformed[..callStatementEnd]);
+            Assert.Equal(2, host.CalcKindOffset());
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
