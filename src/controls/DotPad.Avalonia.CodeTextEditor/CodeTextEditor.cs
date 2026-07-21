@@ -122,8 +122,10 @@ public class CodeTextEditor : TextEditor
     /// did without simulating a real paint pass.</summary>
     internal CodeFixSeverity? WorstCodeFixSeverityOnLine(int line) => _codeFixMargin.WorstSeverityOnLine(line);
 
-    /// <summary>Fired when an applied quick fix wants namespaces imported (see CodeFixEntry.UsingsToAdd).</summary>
-    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+    /// <summary>Fired when the user clicks a specific lightbulb menu entry — see CodeFixEntry's own
+    /// doc comment for why materializing/applying it is left entirely to whoever owns
+    /// IIntelliSenseService (TODO.md #74, сто четвёртый проход).</summary>
+    public event Action<CodeFixEntry>? FixApplyRequested;
 
     /// <summary>
     /// Whether the merged gutter shows line numbers (not the base <see cref="TextEditor.ShowLineNumbers"/>,
@@ -266,7 +268,7 @@ public class CodeTextEditor : TextEditor
 
         _breakpointMargin = new BreakPointMargin(this, _breakpointStore);
         _codeFixMargin = new CodeFixMargin(this);
-        _codeFixMargin.UsingsToAddRequested += usings => UsingsToAddRequested?.Invoke(usings);
+        _codeFixMargin.FixApplyRequested += fix => FixApplyRequested?.Invoke(fix);
         TextArea.LeftMargins.Add(_codeFixMargin);
         _debugLineHighlighter = new DebugLineHighlighter();
 

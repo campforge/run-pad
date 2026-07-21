@@ -21,6 +21,21 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 // RoslynPad/OmniSharp use — rather than the full VS CodeFixService, which needs several workspace
 // services (diagnostic analyzer service, solution crawler, ...) this host never sets up.
 //
+// TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход, живой отчёт пользователя о
+// подтормаживании интерфейса) — ComputeFixesAsync/ComputeRefactoringsAsync used to materialize
+// EVERY candidate (CodeAction.GetOperationsAsync + diffing — the expensive part, see
+// TryMaterializeAsync's own comment) from EVERY applicable provider, on EVERY keystroke/caret-move,
+// regardless of whether the user would ever click any of them. Measured cost on realistic script
+// sizes: ~25-50ms per GetRefactoringsAsync call (every caret move), ~150ms-1.25s of the ~500ms-
+// debounced background analysis tick's own budget. Now split in two: listing candidates (cheap —
+// RegisterCodeFixesAsync/ComputeRefactoringsAsync on a provider just constructs CodeAction objects,
+// doesn't execute anything) versus materializing ONE of them (expensive, MaterializeAsync below) —
+// the expensive half only ever runs for the specific candidate the user actually clicked. The
+// CodeAction objects a listing pass constructs are cached (keyed by a fresh GUID per candidate,
+// replaced wholesale on the NEXT listing pass) so a later MaterializeAsync call doesn't need to
+// re-discover/re-register anything — just a dictionary lookup plus the one GetOperationsAsync call
+// this specific candidate needed all along.
+//
 // The tricky part is that CSharpIntelliSenseService's Roslyn document is not the user's literal
 // script text: it's `_preamble + code` (a block of default `using` directives prepended so
 // completion/diagnostics work without the user typing them). A fix provider operating on that
@@ -28,16 +43,29 @@ namespace DotPad.Languages.CSharp.IntelliSense;
 // *before* the offset we'd naively slice at to recover "the user's code" — so it can't be
 // recovered by just cutting the new full text at the old preamble length. Text changes are instead
 // split into "touches the preamble" (a pure `using X;` insertion there is lifted out into
-// ICodeFixInfo.UsingsToAdd, per docs/ImplementationPlanRPad.md — usings are project-level metadata,
-// not text in the visible script) and "touches the user's code" (shifted back by -preambleLength and
-// applied directly to produce NewCode). Any preamble edit that isn't a recognizable pure `using`
-// insertion (replaces/deletes preamble text, or something else entirely) is treated as unsafe to
-// reconstruct and the whole fix is discarded.
+// IMaterializedFix.UsingsToAdd, per docs/ImplementationPlanRPad.md — usings are project-level
+// metadata, not text in the visible script) and "touches the user's code" (shifted back by
+// -preambleLength and applied directly to produce NewCode). Any preamble edit that isn't a
+// recognizable pure `using` insertion (replaces/deletes preamble text, or something else entirely)
+// is treated as unsafe to reconstruct and the whole fix is discarded.
 internal sealed class RoslynCodeFixEngine
 {
     private readonly IReadOnlyList<CodeFixProvider> _providers;
     private readonly IReadOnlyList<CodeRefactoringProvider> _refactoringProviders;
     private readonly ILogger _logger;
+
+    // Two independent caches (not one shared, keys-only-unique-by-luck dictionary): code fixes and
+    // refactorings are listed on completely different triggers (text change vs caret move — see
+    // EditorTabItemControl's own diagnosticFixEntries/refactoringFixEntries split, проход 102) and
+    // must not invalidate each other — computing a fresh refactoring list on caret move has no
+    // business silently expiring the still-valid, still-displayed diagnostic fixes, and vice versa.
+    // Guarded by _cacheLock since a listing pass (background Task.Run) and a materialize call
+    // (triggered by a UI click, its own async flow) can race.
+    private readonly object _cacheLock = new();
+    private Document? _fixDocument;
+    private Dictionary<string, CodeAction> _fixActions = new();
+    private Document? _refactoringDocument;
+    private Dictionary<string, CodeAction> _refactoringActions = new();
 
     public RoslynCodeFixEngine(CompositionHost compositionHost, ILogger logger)
     {
@@ -73,6 +101,7 @@ internal sealed class RoslynCodeFixEngine
         Document document, IReadOnlyList<Diagnostic> diagnostics, string userCode, int preambleLength, CancellationToken ct)
     {
         var result = new List<ICodeFixInfo>();
+        var cache = new Dictionary<string, CodeAction>();
 
         foreach (var group in diagnostics.Where(d => d.Location.IsInSource).GroupBy(d => d.Id))
         {
@@ -88,11 +117,13 @@ internal sealed class RoslynCodeFixEngine
 
                 foreach (var provider in providers)
                 {
-                    await CollectFixesAsync(provider, document, diagnostic, userCode, preambleLength, userLine, result, ct);
+                    await CollectCandidatesAsync(provider, document, diagnostic, userLine,
+                        ToContractSeverity(diagnostic.Severity), result, cache, ct);
                 }
             }
         }
 
+        lock (_cacheLock) { _fixDocument = document; _fixActions = cache; }
         return result;
     }
 
@@ -100,16 +131,21 @@ internal sealed class RoslynCodeFixEngine
     // ComputeFixesAsync above: no diagnostic to key off, no FixableDiagnosticIds to pre-filter by, so
     // every registered provider gets a chance at the given span every call (same "a couple hundred
     // providers, once per tab, already realized in the constructor" cost model as code fixes —
-    // ComputeRefactoringsAsync itself only iterates the list, doesn't re-discover it). Reuses Flatten/
-    // TryMaterializeAsync verbatim: a CodeRefactoringContext's registered CodeAction materializes into
-    // NewCode/UsingsToAdd through the exact same preamble-relocation logic a CodeFixContext's does —
+    // ComputeRefactoringsAsync itself only iterates the list, doesn't re-discover it). Reuses
+    // Flatten/the candidate-listing shape verbatim: a CodeRefactoringContext's registered CodeAction
+    // is materialized through the exact same preamble-relocation logic a CodeFixContext's is —
     // RegisterRefactoring vs RegisterCodeFix is just a different registration callback name for the
     // same underlying CodeAction type.
     public async Task<IReadOnlyList<ICodeFixInfo>> ComputeRefactoringsAsync(
         Document document, TextSpan span, string userCode, int preambleLength, int userLine, CancellationToken ct)
     {
         var result = new List<ICodeFixInfo>();
-        if (userLine < 1) return result;
+        var cache = new Dictionary<string, CodeAction>();
+        if (userLine < 1)
+        {
+            lock (_cacheLock) { _refactoringDocument = document; _refactoringActions = cache; }
+            return result;
+        }
 
         foreach (var provider in _refactoringProviders)
         {
@@ -132,25 +168,55 @@ internal sealed class RoslynCodeFixEngine
                 ct.ThrowIfCancellationRequested();
                 foreach (var leaf in Flatten(action))
                 {
-                    var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
-                    if (materialized is null) continue;
-                    var (newCode, usingsToAdd) = materialized.Value;
-                    if (newCode == userCode && usingsToAdd.Count == 0) continue;
-
                     // No underlying diagnostic (there isn't one) to derive a severity from — same
-                    // neutral Info tier CollectFixesAsync's own non-diagnostic-adjacent fixes get.
-                    result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ContractSeverity.Info));
+                    // neutral Info tier CollectCandidatesAsync's own non-diagnostic-adjacent
+                    // candidates get.
+                    var key = Guid.NewGuid().ToString("N");
+                    cache[key] = leaf;
+                    result.Add(new RoslynCodeFix(userLine, leaf.Title, ContractSeverity.Info, key));
                 }
             }
         }
 
+        lock (_cacheLock) { _refactoringDocument = document; _refactoringActions = cache; }
         return result;
     }
 
-    private async Task CollectFixesAsync(
-        CodeFixProvider provider,
-        Document document, Diagnostic diagnostic, string userCode, int preambleLength, int userLine,
-        List<ICodeFixInfo> result, CancellationToken ct)
+    // TODO.md #74 "оптимизация IntelliSenseService" — the deferred half: does the actual expensive
+    // work (TryMaterializeAsync — GetOperationsAsync + diffing) for the ONE candidate key identifies,
+    // looked up from whichever cache (fix or refactoring) still has it. Null if key isn't in EITHER
+    // cache — either it never existed, or a newer ComputeFixesAsync/ComputeRefactoringsAsync call
+    // already replaced the cache it came from (the code changed enough since the candidate was
+    // listed that re-materializing against stale state wouldn't be meaningful) — same "gracefully do
+    // nothing" contract as every other IntelliSense failure path in this codebase.
+    public async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> MaterializeAsync(
+        string key, string userCode, int preambleLength, CancellationToken ct)
+    {
+        CodeAction? action;
+        Document? document;
+        lock (_cacheLock)
+        {
+            if (_fixActions.TryGetValue(key, out action)) document = _fixDocument;
+            else if (_refactoringActions.TryGetValue(key, out action)) document = _refactoringDocument;
+            else document = null;
+        }
+        if (action is null || document is null) return null;
+
+        var materialized = await TryMaterializeAsync(action, document, preambleLength, userCode.Length, ct);
+        if (materialized is null) return null;
+
+        var (newCode, usingsToAdd) = materialized.Value;
+        if (newCode == userCode && usingsToAdd.Count == 0)
+        {
+            _logger.LogDebug("Discarding fix {Title}: materialized to a no-op (NewCode == userCode, no usings)", action.Title);
+            return null;
+        }
+        return materialized;
+    }
+
+    private async Task CollectCandidatesAsync(
+        CodeFixProvider provider, Document document, Diagnostic diagnostic, int userLine, ContractSeverity severity,
+        List<ICodeFixInfo> result, Dictionary<string, CodeAction> cache, CancellationToken ct)
     {
         var actions = new List<CodeAction>();
         var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), ct);
@@ -168,16 +234,9 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
-                var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
-                if (materialized is null) continue;
-                var (newCode, usingsToAdd) = materialized.Value;
-                if (newCode == userCode && usingsToAdd.Count == 0)
-                {
-                    _logger.LogDebug("Discarding fix {Title} for {Id}: materialized to a no-op (NewCode == userCode, no usings)",
-                        leaf.Title, diagnostic.Id);
-                    continue;
-                }
-                result.Add(new RoslynCodeFix(userLine, leaf.Title, newCode, usingsToAdd, ToContractSeverity(diagnostic.Severity)));
+                var key = Guid.NewGuid().ToString("N");
+                cache[key] = leaf;
+                result.Add(new RoslynCodeFix(userLine, leaf.Title, severity, key));
             }
         }
     }
@@ -188,9 +247,9 @@ internal sealed class RoslynCodeFixEngine
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
 
     // No longer static — needs _logger. Used to be a bare `catch { return null; }` with zero
-    // logging, unlike CollectFixesAsync's own catch around RegisterCodeFixesAsync right above (which
-    // does log at Debug) — found only by chasing a Windows-CI-only "CodeFixesChanged fires with an
-    // empty list, no log output at all" symptom (NotifyTextChanged_Should_MarkUnusedVariableFix_
+    // logging, unlike CollectCandidatesAsync's own catch around RegisterCodeFixesAsync right above
+    // (which does log at Debug) — found only by chasing a Windows-CI-only "CodeFixesChanged fires
+    // with an empty list, no log output at all" symptom (NotifyTextChanged_Should_MarkUnusedVariableFix_
     // AsWarningSeverity) back through every catch block in this pipeline. That alone wasn't enough
     // though — a first round of this same logging still showed zero messages on the next CI failure,
     // meaning the real culprit isn't an exception here at all: ApplyRelocatingPreambleEdits itself has
@@ -340,6 +399,5 @@ internal sealed class RoslynCodeFixEngine
         _ => ContractSeverity.Info,
     };
 
-    private sealed record RoslynCodeFix(
-        int Line, string Title, string NewCode, IReadOnlyList<string> UsingsToAdd, ContractSeverity Severity) : ICodeFixInfo;
+    private sealed record RoslynCodeFix(int Line, string Title, ContractSeverity Severity, string Key) : ICodeFixInfo;
 }

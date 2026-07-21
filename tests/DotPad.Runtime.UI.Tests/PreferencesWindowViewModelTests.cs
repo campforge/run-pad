@@ -207,6 +207,48 @@ public class PreferencesWindowViewModelTests
     }
 
     [Fact]
+    public void CodeFixesEnabled_Should_RoundTrip_ThroughTheUnderlyingCSharpSettings()
+    {
+        var csharpSettings = new CSharpLanguageSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.CSharp).Returns(csharpSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.CodeFixesEnabled = false;
+
+        Assert.False(csharpSettings.CodeFixesEnabled);
+        prefs.Verify(p => p.Save(), Times.Once);
+    }
+
+    [Fact]
+    public void ExcludedCodeFixTitlesText_Should_RoundTrip_AsOnePhrasePerLine_TrimmingBlankLines()
+    {
+        var csharpSettings = new CSharpLanguageSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.CSharp).Returns(csharpSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.ExcludedCodeFixTitlesText = "use explicit type\n\n  fix formatting  \n";
+
+        Assert.Equal(["use explicit type", "fix formatting"], csharpSettings.ExcludedCodeFixTitles);
+        Assert.Equal("use explicit type\nfix formatting", vm.ExcludedCodeFixTitlesText);
+    }
+
+    [Fact]
     public void IsLanguageNodeSelected_Should_BeTrue_WhenAVisualBasicChildNodeIsSelected()
     {
         var vm = CreateViewModel(CreateRealRegistry());

@@ -41,6 +41,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
+
+    // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
+    // filtering happens at render time instead of once when each list is produced.
+    private List<CodeFixEntry> _diagnosticFixEntries = [];
+    private List<CodeFixEntry> _refactoringFixEntries = [];
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
@@ -939,7 +944,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 renderer.IsEnabled = _prefs.CSharp.InlayHintsEnabled;
                 State.Editor.TextArea.TextView.Redraw();
             }
+
+            // Re-render the lightbulb against the raw candidate lists already on hand — the master
+            // switch/exclusion list can change without any new text/caret-move to naturally trigger a
+            // re-fetch, so this is the only way a toggle in Preferences reflects immediately instead
+            // of waiting for the next keystroke.
+            UpdateLightbulb();
         });
+
+    // TODO.md #74 (user request 2026-07-21) — filters the merged diagnostic-fix + refactoring lists
+    // against Preferences → C# → "code fixes enabled"/excluded-title settings at RENDER time, not
+    // when each source list is produced: CodeFixesChanged/GetRefactoringsAsync only fire on their own
+    // triggers (text change / caret move), so filtering there would leave a stale, unfiltered
+    // lightbulb visible until the next one of those happens to fire. Filtering here instead means
+    // OnPreferencesChanged can just call this directly to reflect a settings change immediately.
+    private void UpdateLightbulb()
+    {
+        var merged = (IEnumerable<CodeFixEntry>)[.. _diagnosticFixEntries, .. _refactoringFixEntries];
+        if (!_prefs.CSharp.CodeFixesEnabled)
+        {
+            State.Editor.UpdateCodeFixes([]);
+            return;
+        }
+
+        var excluded = _prefs.CSharp.ExcludedCodeFixTitles;
+        if (excluded.Count > 0)
+            merged = merged.Where(f => !excluded.Any(x => f.Title.Contains(x, StringComparison.OrdinalIgnoreCase)));
+
+        State.Editor.UpdateCodeFixes([.. merged]);
+    }
 
     private static void ApplySelectionColor(CodeTextEditor editor)
     {
@@ -1126,34 +1159,29 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // caret move — a refactoring isn't tied to any diagnostic, so it has no reason to recompute
         // just because the text changed elsewhere in the document). CodeFixMargin itself is unaware
         // of the split — it just renders whatever flat list UpdateLightbulb hands it — so each source
-        // keeps its own last-known list here and remerges on every update from either one.
-        List<CodeFixEntry> diagnosticFixEntries = [];
-        List<CodeFixEntry> refactoringFixEntries = [];
+        // keeps its own last-known list here (as instance fields, not locals — OnPreferencesChanged
+        // needs to re-filter+re-render the CURRENT lists the instant the user flips a code-fix
+        // preference, not only on the next keystroke/caret-move) and remerges on every update from
+        // either one.
 
-        List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes)
-        {
-            // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
-            // docs/ImplementationPlanRPad.md), not the visible script — except for a plain
-            // script with no front matter to route them to, where they're folded into the text.
-            var hasProjectFile = State.RpadDocument is not null;
-            return fixes.Select(f => hasProjectFile
-                    ? new CodeFixEntry(f.Line, f.Title, f.NewCode, f.UsingsToAdd, ToMarginSeverity(f.Severity))
-                    : new CodeFixEntry(f.Line, f.Title, PrependUsings(f.UsingsToAdd, f.NewCode), [], ToMarginSeverity(f.Severity)))
-                .ToList();
-        }
-
-        void UpdateLightbulb() => editor.UpdateCodeFixes([.. diagnosticFixEntries, .. refactoringFixEntries]);
+        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — just Line/Title/
+        // Severity/Key now, no NewCode/UsingsToAdd to fold in here: materializing those got deferred
+        // to ApplyCodeFixAsync below, run only for the one entry actually clicked, not eagerly for
+        // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
+        // that used to dominate the whole IntelliSense pipeline's cost).
+        static List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes) =>
+            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key)).ToList();
 
         intelliSense.CodeFixesChanged += (code, fixes) =>
             Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                diagnosticFixEntries = ToEntries(fixes);
+                _diagnosticFixEntries = ToEntries(fixes);
                 UpdateLightbulb();
             });
 
-        editor.UsingsToAddRequested += AddGlobalUsings;
+        editor.FixApplyRequested += fix => _ = ApplyCodeFixAsync(editor, intelliSense, fix);
 
         // ── Refactorings (lightbulb: real Roslyn CodeRefactoringProviders) ──────
         var refactoringCts = new CancellationTokenSource();
@@ -1164,6 +1192,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // background Task.Run can still be mid-flight past this point.
             refactoringCts.Cancel();
             refactoringCts = new CancellationTokenSource();
+
+            // User request 2026-07-21 (TODO.md #74) — the master "show code fixes" switch skips even
+            // asking for refactorings, not just hiding them once listed: a caret move fires on every
+            // arrow key/click, and Roslyn's own CodeRefactoringProviders do real syntax/semantic work
+            // just to decide "am I applicable here", independent of whether the result ever gets
+            // filtered out for display.
+            if (!_prefs.CSharp.CodeFixesEnabled)
+            {
+                _refactoringFixEntries = [];
+                UpdateLightbulb();
+                return;
+            }
+
             var ct = refactoringCts.Token;
             var offset = editor.TextArea.Caret.Offset;
             var text = editor.Text;
@@ -1180,7 +1221,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     {
                         if (_disposed || ct.IsCancellationRequested) return;
                         if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
-                        refactoringFixEntries = refactorings is null ? [] : ToEntries(refactorings);
+                        _refactoringFixEntries = refactorings is null ? [] : ToEntries(refactorings);
                         UpdateLightbulb();
                     });
                 }
@@ -1430,6 +1471,43 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
             ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
             : "";
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the click-time half of
+    // the lightbulb (both diagnostic fixes and refactorings feed the same CodeFixEntry.Key/
+    // FixApplyRequested path — see EditorsTabItemControl's own SetupEditor comment on the merged
+    // list). MaterializeFixAsync only now does the expensive work (GetOperationsAsync + diffing) that
+    // used to run eagerly for every candidate on every keystroke/caret-move; null means the key no
+    // longer resolves (the code changed enough since this entry was listed that the underlying
+    // RoslynCodeFixEngine cache moved on) — silently do nothing, same "gracefully degrade" contract
+    // as every other IntelliSense failure path in this codebase, not worth surfacing as an error for
+    // what's really just "you clicked something that's since gone stale".
+    private async Task ApplyCodeFixAsync(CodeTextEditor editor, IIntelliSenseService intelliSense, CodeFixEntry fix)
+    {
+        var code = editor.Text;
+        var materialized = await intelliSense.MaterializeFixAsync(code, fix.Key, CancellationToken.None);
+        if (materialized is null) return;
+
+        // MaterializeFixAsync's own Task.Run (CSharpIntelliSenseService) means this continuation
+        // isn't guaranteed to resume on the UI thread — same not-implicit-by-default rationale as
+        // every other post-Task.Run UI touch in this method (QuickInfo hover, refactoring caret-move
+        // handler both explicitly marshal back too, right below this one).
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+
+            // Usings go to the .rpad front matter's `namespaces:` list (a project file, per
+            // docs/ImplementationPlanRPad.md), not the visible script — except for a plain script
+            // with no front matter to route them to, where they're folded into the text.
+            var hasProjectFile = State.RpadDocument is not null;
+            var newCode = hasProjectFile ? materialized.NewCode : PrependUsings(materialized.UsingsToAdd, materialized.NewCode);
+
+            if (editor.Document.Text != newCode)
+                editor.Document.Text = newCode;
+            if (hasProjectFile && materialized.UsingsToAdd.Count > 0)
+                AddGlobalUsings(materialized.UsingsToAdd);
+        });
+    }
 
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;

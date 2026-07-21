@@ -80,6 +80,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     public async Task NotifyTextChanged_Should_RaiseCodeFixesChanged_ForAMissingUsing()
     {
         using var service = CreateService();
+        const string code = "var m = Regex.Match(\"a\", \"a\");";
 
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -91,10 +92,17 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
 
         // Regex isn't in the implicit-usings preamble, so this is CS0103 fixable by adding
         // `using System.Text.RegularExpressions;` — a real Roslyn CSharpAddImportCodeFixProvider fix.
-        service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
+        service.NotifyTextChanged(code);
 
         var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
-        Assert.Contains(codeFixes, f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
+
+        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): CodeFixesChanged's
+        // own entries no longer carry UsingsToAdd (that's materialized on demand now, see
+        // ICodeFixInfo's own doc comment) — materialize each candidate to find the one that actually
+        // adds the expected using, same as a real click would.
+        var materialized = await Task.WhenAll(codeFixes.Select(
+            f => service.MaterializeFixAsync(code, f.Key, TestContext.Current.CancellationToken)));
+        Assert.Contains(materialized, m => m?.UsingsToAdd.Contains("System.Text.RegularExpressions") == true);
     }
 
     // TODO.md #75: ICodeFixInfo.Severity used to not exist at all — RoslynCodeFixEngine discarded
@@ -105,6 +113,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
     public async Task NotifyTextChanged_Should_MarkMissingUsingFix_AsErrorSeverity()
     {
         using var service = CreateService();
+        const string code = "var m = Regex.Match(\"a\", \"a\");";
 
         var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.CodeFixesChanged += (_, f) =>
@@ -113,10 +122,18 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
                 tcs.TrySetResult(f);
         };
 
-        service.NotifyTextChanged("var m = Regex.Match(\"a\", \"a\");");
+        service.NotifyTextChanged(code);
 
         var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
-        var fix = codeFixes.First(f => f.UsingsToAdd.Contains("System.Text.RegularExpressions"));
+
+        // Same "materialize to find the right one" adjustment as the test above.
+        ICodeFixInfo? fix = null;
+        foreach (var candidate in codeFixes)
+        {
+            var materialized = await service.MaterializeFixAsync(code, candidate.Key, TestContext.Current.CancellationToken);
+            if (materialized?.UsingsToAdd.Contains("System.Text.RegularExpressions") == true) { fix = candidate; break; }
+        }
+        Assert.NotNull(fix);
         Assert.Equal(DiagnosticSeverity.Error, fix.Severity);
     }
 
