@@ -59,6 +59,33 @@ public interface IIntelliSenseService : IDisposable
     // the original text in that case.
     Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
 
+    // TODO.md #74 "CodeRefactoringProvider хостинг в лампочке" — real Roslyn refactorings (Use
+    // Expression Body, Introduce Local, Reverse For Statement, Invert If, ...) available AT position,
+    // not tied to any diagnostic the way CodeFixesChanged's fixes are — reuses the same ICodeFixInfo
+    // shape rather than a parallel contract type (a CodeAction is a CodeAction either way — see
+    // ICodeFixInfo's own doc comment for why it's just a lightweight candidate descriptor now, not
+    // the materialized fix itself). Pull-based like GetQuickInfoAsync, not push: the caller re-fetches
+    // this on caret move, not on text change — a refactoring's availability depends on WHERE the caret
+    // is, which NotifyTextChanged's background pass has no way to know about. Null on failure; empty
+    // when nothing applies at position.
+    Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
+        string code,
+        int position,
+        CancellationToken cancellationToken = default);
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the deferred half of
+    // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings (see ICodeFixInfo's own
+    // doc comment for the full rationale): does the actual, expensive work of running the fix/
+    // refactoring provider's document transform and diffing it, for the ONE candidate identified by
+    // key — called only once the user clicks a specific lightbulb menu item, never speculatively.
+    // Null if key no longer resolves to anything (the underlying RoslynCodeFixEngine cache moved on to
+    // a newer computation pass since the candidate was listed — the code changed enough in the
+    // meantime that re-materializing against it wouldn't be meaningful anyway).
+    Task<IMaterializedFix?> MaterializeFixAsync(
+        string code,
+        string key,
+        CancellationToken cancellationToken = default);
+
     // Fires from a background thread. First arg = the code that produced the diagnostics.
     event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
 
@@ -81,7 +108,7 @@ public interface IIntelliSenseService : IDisposable
 
     // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
-    // will add — see ICodeFixInfo.UsingsToAdd.
+    // will add — see IMaterializedFix.UsingsToAdd.
     void UpdateGlobalUsings(IReadOnlyList<string> usings);
 
     // Call when the tab's .rpad front-matter `kind:` changes (including once at initial load) so live

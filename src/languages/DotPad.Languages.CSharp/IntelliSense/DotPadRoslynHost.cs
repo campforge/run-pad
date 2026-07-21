@@ -22,6 +22,21 @@ internal static class DotPadRoslynHost
 
     public static HostServices HostServices => MefHostServices.Create(CompositionHost);
 
+    // TODO.md #74 "Пайплайн анализаторов" (сто третий проход) — RoslynAnalyzerEngine's DiagnosticAnalyzer
+    // discovery can't go through CompositionHost/MEF the way CodeFixProvider/CodeRefactoringProvider do:
+    // confirmed via a live probe (compositionHost.GetExports<DiagnosticAnalyzer>() returns 0) that
+    // analyzers were never [Export]-decorated for this composition — VS discovers them a completely
+    // different way (AnalyzerReference on the project, not MEF). Plain reflection over the assembly's
+    // own types instead, hence needing a direct handle on it (LoadSiblingAssembly does the same
+    // self-contained/NuGet-cache/deps.json resolution CreateCompositionHost already relies on — the
+    // AppDomain fast path means this doesn't redo any real work once CompositionHost has been built).
+    private static readonly Lazy<Assembly> _csharpFeaturesAssembly =
+        new(() => LoadSiblingAssembly(typeof(AdhocWorkspace).Assembly, "Microsoft.CodeAnalysis.CSharp.Features")
+            ?? throw new InvalidOperationException("Microsoft.CodeAnalysis.CSharp.Features could not be located."),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+
+    public static Assembly CSharpFeaturesAssembly => _csharpFeaturesAssembly.Value;
+
     private static CompositionHost CreateCompositionHost()
     {
         // typeof guarantees the assembly is already loaded via JIT — no Assembly.Load needed

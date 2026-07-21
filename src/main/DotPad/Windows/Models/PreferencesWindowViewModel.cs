@@ -335,6 +335,30 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.CSharp.InlayHintsEnabled, value, v => _prefs.CSharp.InlayHintsEnabled = v);
     }
 
+    // TODO.md #74 (user request 2026-07-21) — master switch for the lightbulb's code fixes/
+    // refactorings, same rationale/shape as InlayHintsEnabled above.
+    public bool CodeFixesEnabled
+    {
+        get => _prefs.CSharp.CodeFixesEnabled;
+        set => SetPref(_prefs.CSharp.CodeFixesEnabled, value, v => _prefs.CSharp.CodeFixesEnabled = v);
+    }
+
+    // One diagnostic ID per line in the UI ("CS0184", "IDE0007", ...), List<string> underneath
+    // (CSharpLanguageSettings.ExcludedDiagnosticIds' own doc comment covers the matching semantics).
+    // Blank lines are dropped on the way into the list rather than stored as empty exclusion
+    // strings, which would match nothing and just be dead weight.
+    public string ExcludedDiagnosticIdsText
+    {
+        get => string.Join('\n', _prefs.CSharp.ExcludedDiagnosticIds);
+        set
+        {
+            var lines = value
+                .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+            SetPref(_prefs.CSharp.ExcludedDiagnosticIds, lines, v => _prefs.CSharp.ExcludedDiagnosticIds = v);
+        }
+    }
+
     // ── Debugger ──────────────────────────────────────────────────────────────
 
     public string DotnetPath

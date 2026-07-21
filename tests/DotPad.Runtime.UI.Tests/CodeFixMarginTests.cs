@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
@@ -31,8 +32,8 @@ public class CodeFixMarginTests
 
         margin.Update(
         [
-            new CodeFixEntry(1, "warning fix", "x\n", [], CodeFixSeverity.Warning),
-            new CodeFixEntry(1, "error fix", "x\n", [], CodeFixSeverity.Error),
+            new CodeFixEntry(1, "warning fix", CodeFixSeverity.Warning, "warn-key"),
+            new CodeFixEntry(1, "error fix", CodeFixSeverity.Error, "error-key"),
         ]);
 
         Assert.Equal(CodeFixSeverity.Error, margin.WorstSeverityOnLine(1));
@@ -43,9 +44,58 @@ public class CodeFixMarginTests
     {
         var (_, _, margin) = CreateEditor("x\n");
 
-        margin.Update([new CodeFixEntry(1, "fix", "x\n", [], CodeFixSeverity.Warning)]);
+        margin.Update([new CodeFixEntry(1, "fix", CodeFixSeverity.Warning, "fix-key")]);
 
         Assert.Null(margin.WorstSeverityOnLine(2));
+    }
+
+    // User request 2026-07-21 (TODO.md #74): the lightbulb should only ever be clickable/visible on
+    // the caret's OWN line, VS/Rider-style, not on every line in the file that happens to have a fix
+    // — ResolveCandidatesForClick is OnPointerPressed's own decision logic, factored out so it can be
+    // driven directly with a Point (see its own doc comment for why raising a real
+    // PointerPressedEventArgs isn't a practical test surface here).
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_ReturnTheLinesFixes_WhenTheCaretIsOnThatLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 2;
+
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+
+        var candidates = margin.ResolveCandidatesForClick(PointOnLine(margin, 2));
+        Assert.Single(candidates);
+    }
+
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_ReturnEmpty_ForALineWithAFix_WhenTheCaretIsOnADifferentLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 1; // NOT the line the fix is on
+
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+
+        var candidates = margin.ResolveCandidatesForClick(PointOnLine(margin, 2));
+        Assert.Empty(candidates);
+    }
+
+    // Confirms the caret-line tracking driving the above actually updates as the caret moves, not
+    // just once at construction — the same fix at line 2 is unreachable while the caret sits on line
+    // 1, then becomes reachable the instant the caret moves to line 2, with no new margin.Update call
+    // in between.
+    [AvaloniaFact]
+    public void ResolveCandidatesForClick_Should_TrackTheCaretMovingToANewLine()
+    {
+        var (_, editor, margin) = CreateEditor("line1\nline2\nline3\n");
+        Arrange(margin);
+        editor.TextArea.Caret.Line = 1;
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+        Assert.Empty(margin.ResolveCandidatesForClick(PointOnLine(margin, 2)));
+
+        editor.TextArea.Caret.Line = 2;
+
+        Assert.Single(margin.ResolveCandidatesForClick(PointOnLine(margin, 2)));
     }
 
     [Theory]
@@ -162,7 +212,7 @@ public class CodeFixMarginTests
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
         {
-            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Add using System;", "x\n", []));
+            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Add using System;", CodeFixSeverity.Info, "fix-key"));
 
             var icon = Assert.IsType<PathIcon>(item.Icon);
             Assert.NotNull(icon.Data);
@@ -174,9 +224,41 @@ public class CodeFixMarginTests
         }
     }
 
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): Apply used to set
+    // _editor.Document.Text directly from CodeFixEntry.NewCode — now it just raises FixApplyRequested
+    // with the clicked entry, leaving materializing/applying entirely to whoever owns
+    // IIntelliSenseService (EditorTabItemControl). Locks in that the menu item built for a candidate
+    // really does forward THAT candidate (not some other one) when clicked.
+    [AvaloniaFact]
+    public void BuildMenuItem_Click_Should_RaiseFixApplyRequested_WithTheClickedEntry()
+    {
+        var (_, editor, margin) = CreateEditor("x\n");
+        var entry = new CodeFixEntry(1, "Add using System;", CodeFixSeverity.Info, "fix-key");
+
+        CodeFixEntry? raised = null;
+        editor.FixApplyRequested += f => raised = f;
+
+        var item = margin.BuildMenuItem(entry);
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+        Assert.Equal(entry, raised);
+    }
+
     private static void Arrange(CodeFixMargin margin)
     {
         margin.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         margin.Arrange(new Rect(margin.DesiredSize));
+    }
+
+    // Same Y-coordinate computation as ResolveLineFromPoint_Should_ResolveTheSameLine_
+    // RegardlessOfXWithinTheMargin above — X doesn't matter for line resolution (that test's own
+    // point), so this always aims at the horizontal center of the margin's own column.
+    private static Point PointOnLine(CodeFixMargin margin, int line)
+    {
+        var textView = margin.TextView;
+        var vl = textView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == line);
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
+            - textView.VerticalOffset;
+        return new Point(margin.Bounds.Width / 2, yTop + vl.Height / 2);
     }
 }

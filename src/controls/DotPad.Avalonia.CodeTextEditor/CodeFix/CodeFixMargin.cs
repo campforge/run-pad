@@ -7,10 +7,16 @@ using AvaloniaEdit.Rendering;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
-// Lightbulb gutter margin: shows an icon on lines with an available quick fix and applies it on
-// click. Real Roslyn CodeFixProviders (RoslynCodeFixEngine) routinely offer several candidates for
-// one line (e.g. multiple "using X;" namespaces for the same unresolved type) — a single click
-// applies the only fix directly, or opens a small picker menu when there's more than one.
+// Lightbulb gutter margin: shows an icon on the CURRENT (caret) line when it has an available quick
+// fix, and applies it on click. Real Roslyn CodeFixProviders (RoslynCodeFixEngine) routinely offer
+// several candidates for one line (e.g. multiple "using X;" namespaces for the same unresolved
+// type) — a single click applies the only fix directly, or opens a small picker menu when there's
+// more than one.
+//
+// User request 2026-07-21 (TODO.md #74): only the caret's own line ever shows the icon, VS/Rider-
+// style, instead of every line in the file that currently has a fix all being lit up simultaneously
+// — the margin used to render one icon per fix-bearing line regardless of where the caret was,
+// which got noisy fast on a script with several unrelated diagnostics open at once.
 public class CodeFixMargin : AbstractMargin
 {
     static CodeFixMargin()
@@ -23,16 +29,32 @@ public class CodeFixMargin : AbstractMargin
     private StreamGeometry? _bulbGeo;
     private StreamGeometry? _hammerGeo;
 
-    // Raised when an applied fix carries namespaces to import — this control has no notion of a
-    // "project file"/front matter to route them to (see CodeFixEntry's doc comment), so it's left
-    // to whoever owns that (forwarded up via CodeTextEditor.UsingsToAddRequested).
-    public event Action<IReadOnlyList<string>>? UsingsToAddRequested;
+    // Tracks the caret's own document line so PositionChanged (fired on every column move too, not
+    // just line changes — e.g. Left/Right arrow within the same line) only triggers a repaint when
+    // the line the icon could be drawn on actually changed, not on every single caret move.
+    private int _caretLine;
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — raised when the user
+    // clicks a specific menu entry. This control has no notion of Roslyn/IIntelliSenseService (see
+    // CodeFixEntry's own doc comment) — materializing the fix's actual text (and routing any usings
+    // it wants to import) is entirely the click-time responsibility of whoever owns that (forwarded
+    // up via CodeTextEditor.FixApplyRequested).
+    public event Action<CodeFixEntry>? FixApplyRequested;
 
     public CodeFixMargin(CodeTextEditor editor)
     {
         _editor = editor;
         Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
+
+        _caretLine = _editor.TextArea.Caret.Line;
+        _editor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            var line = _editor.TextArea.Caret.Line;
+            if (line == _caretLine) return;
+            _caretLine = line;
+            InvalidateVisual();
+        };
     }
 
     public void Update(IReadOnlyList<CodeFixEntry> fixes)
@@ -45,22 +67,25 @@ public class CodeFixMargin : AbstractMargin
     {
         if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0) return;
 
+        var worst = WorstSeverityOnLine(_caretLine);
+        if (worst is null) return;
+
+        var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
+        if (vl is null) return; // caret line currently scrolled out of view — nothing to draw
+
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
         if (_bulbGeo is null) return;
 
-        foreach (var vl in TextView.VisualLines)
-        {
-            var lineNo = vl.FirstDocumentLine.LineNumber;
-            var worst = WorstSeverityOnLine(lineNo);
-            if (worst is null) continue;
-
-            var brush = LoadThemedResource<IBrush>(SeverityBrushKey(worst.Value));
-            var lineH = vl.Height;
-            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                          - TextView.VerticalOffset;
-            DrawCentered(context, _bulbGeo, brush, yTop, lineH);
-        }
+        var brush = LoadThemedResource<IBrush>(SeverityBrushKey(worst.Value));
+        var lineH = vl.Height;
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
+                      - TextView.VerticalOffset;
+        DrawCentered(context, _bulbGeo, brush, yTop, lineH);
     }
+
+    // Test-only observability — same rationale as every other "internal test hook" this session: lets
+    // a test find a specific candidate by title/line without needing a live paint pass.
+    internal IReadOnlyList<CodeFixEntry> Fixes => _fixes;
 
     // TODO.md #75: several fixes can share one line (e.g. multiple "using X;" candidates for the
     // same unresolved type) at different severities — the icon shows whichever is worse, same
@@ -88,10 +113,7 @@ public class CodeFixMargin : AbstractMargin
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
-        var lineNumber = ResolveLineFromPoint(e.GetPosition(this));
-        if (lineNumber is null) return;
-
-        var candidates = _fixes.Where(f => f.Line == lineNumber).ToList();
+        var candidates = ResolveCandidatesForClick(e.GetPosition(this));
         if (candidates.Count == 0) return;
 
         // Always go through the menu, even for a single candidate — VS/Rider-style, so the lightbulb
@@ -139,13 +161,21 @@ public class CodeFixMargin : AbstractMargin
         return offset == -1 ? null : TextView.Document.GetLineByOffset(offset).LineNumber;
     }
 
-    private void Apply(CodeFixEntry fix)
+    // The candidate-resolution half of OnPointerPressed, factored out so a test can drive it
+    // directly with a Point instead of needing to synthesize a real PointerPressedEventArgs
+    // (Avalonia's pointer/device plumbing has no simple headless test surface for that) — same
+    // "internal test hook" pattern as WorstSeverityOnLine/ResolveLineFromPoint right above. Only the
+    // caret's own line ever has a visible icon (Render's own doc comment) — a click at some OTHER
+    // line that merely also happens to have a fix returns empty rather than that line's candidates,
+    // so a menu can never open with no icon having prompted it.
+    internal IReadOnlyList<CodeFixEntry> ResolveCandidatesForClick(Point point)
     {
-        if (_editor.Document.Text != fix.NewCode)
-            _editor.Document.Text = fix.NewCode;
-        if (fix.UsingsToAdd.Count > 0)
-            UsingsToAddRequested?.Invoke(fix.UsingsToAdd);
+        var lineNumber = ResolveLineFromPoint(point);
+        if (lineNumber is null || lineNumber != _caretLine) return [];
+        return _fixes.Where(f => f.Line == lineNumber).ToList();
     }
+
+    private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
 
     // TODO.md #75: matches BreakPointMargin's own line-number-column width (via the shared
     // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two

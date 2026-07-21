@@ -165,11 +165,40 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
+    private readonly RoslynAnalyzerEngine _analyzerEngine;
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
     private RpadKind _kind = RpadKind.Statements;
     private string _lastCode = "";
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): the full synced document
+    // text (preamble + KindPrefix + code + TrailingPad) and the live SourceText it produced, kept
+    // alongside _lastCode so SyncDocument can hand Roslyn a minimal TextChange (ComputeMinimalChange)
+    // against _lastSourceText instead of rebuilding the whole document from a fresh string on every
+    // keystroke. SourceText.WithChanges preserves lineage to the old SourceText, letting Roslyn's
+    // incremental lexer/parser reuse syntax nodes outside the edited span — benchmarked at ~7x faster
+    // parsing and ~2-3x faster completion on 200-1000 line scripts versus SourceText.From every time
+    // (full semantic diagnostics don't benefit the same way — GetDiagnostics is binding-dominated, not
+    // parsing-dominated — see RoslynCodeFixEngine's own class doc comment for the bigger win that
+    // targeted). _lastSourceText is also reset to null (forcing one full SourceText.From rebuild) in
+    // UpdateGlobalUsings/UpdateKind alongside their own _lastCode = "" reset: both change _preamble or
+    // _kind, which feed directly into newFullText, so the cached _lastFullText baseline would no
+    // longer describe what the workspace's document is about to hold, and diffing against it would
+    // compute a TextChange against the wrong text. UpdatePackageReferences's own _lastCode = "" reset
+    // deliberately does NOT clear these two — it only swaps MetadataReferences (symbol resolution),
+    // never the document's text, so the cached baseline is still accurate there and reusing it (a
+    // no-op WithChanges diff) is strictly cheaper than forcing a full reparse for no reason.
+    private string _lastFullText = "";
+    private SourceText? _lastSourceText;
+
+    // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern as
+    // CodeFixMargin.Fixes — lets a test confirm SyncDocument actually took the incremental
+    // WithChanges path (SourceText lineage preserved across calls) rather than silently falling back
+    // to SourceText.From every time, via SourceText.GetChangeRanges(older) which throws unless the two
+    // instances share a lineage.
+    internal SourceText? LastSyncedSourceTextForTests => _lastSourceText;
+
     // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
     // calls — completion/signature-help/quick-info/background-analysis each run on their own
     // Task.Run, so without this a completion request for the text at keystroke N could race a
@@ -226,6 +255,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
 
         _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
+        _analyzerEngine = new RoslynAnalyzerEngine(logger);
 
         var projectId = ProjectId.CreateNewId("DotPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
@@ -271,8 +301,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         _extraPreambleUsings = extra;
         RebuildPreamble();
-        // force re-sync with the new preamble on the next analysis pass
-        lock (_syncLock) { _lastCode = ""; }
+        // force re-sync with the new preamble on the next analysis pass — also drop the cached
+        // _lastSourceText/_lastFullText baseline (see their own doc comment): the preamble just
+        // changed underneath it, so diffing against it would compute a TextChange against text the
+        // workspace no longer holds.
+        lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
     }
 
     public void UpdateKind(RpadKind kind)
@@ -280,8 +313,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         if (_kind == kind) return;
 
         _kind = kind;
-        // force re-sync with the new kind-transform prefix on the next analysis pass
-        lock (_syncLock) { _lastCode = ""; }
+        // force re-sync with the new kind-transform prefix on the next analysis pass — same
+        // baseline-invalidation reasoning as UpdateGlobalUsings above.
+        lock (_syncLock) { _lastCode = ""; _lastFullText = ""; _lastSourceText = null; }
     }
 
     // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
@@ -325,7 +359,18 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var text = SourceText.From(_preamble + KindPrefix(code) + code + TrailingPad, Encoding.UTF8);
+                var newFullText = _preamble + KindPrefix(code) + code + TrailingPad;
+
+                // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): hand Roslyn a
+                // minimal TextChange against the previous SourceText instead of always building a fresh
+                // one from a full string — see _lastFullText/_lastSourceText's own doc comment for why
+                // (incremental lexing/parsing reuse) and the measured impact. Only the very first sync,
+                // or the first one after a forced reset (UpdateGlobalUsings/UpdateKind), falls back to a
+                // full SourceText.From — there's no prior lineage to diff against at that point.
+                var text = _lastSourceText is null
+                    ? SourceText.From(newFullText, Encoding.UTF8)
+                    : _lastSourceText.WithChanges(ComputeMinimalChange(_lastFullText, newFullText));
+
                 var newSolution = _workspace.CurrentSolution.WithDocumentText(_documentId, text);
                 // Only remember the new code once the workspace actually reflects it — TryApplyChanges
                 // can fail (e.g. a solution-version conflict from a concurrent update elsewhere), and
@@ -333,10 +378,44 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 // showing stale text while _lastCode claimed it was already in sync, permanently
                 // skipping the sync on every later call with that same code.
                 if (_workspace.TryApplyChanges(newSolution))
+                {
                     _lastCode = code;
+                    _lastFullText = newFullText;
+                    _lastSourceText = text;
+                }
             }
             return _workspace.CurrentSolution.GetDocument(_documentId)!;
         }
+    }
+
+    // Smallest single TextChange that turns oldText into newText: the common leading prefix and
+    // trailing suffix are left untouched, and everything between them is replaced wholesale. Not a
+    // real diff algorithm (no attempt to find a minimal edit script across multiple disjoint
+    // changes) — deliberately so, since the one thing this needs to guarantee is "SourceText.WithChanges
+    // applied to oldText reproduces newText exactly", and a single prefix/suffix-trimmed span already
+    // does that for the actual call pattern here (one contiguous edit per keystroke — a typed
+    // character, a paste, a delete — not simultaneous edits in unrelated parts of the document).
+    // Internal (not private) + InternalsVisibleTo, same "internal test hook" pattern as
+    // CodeFixMargin.WorstSeverityOnLine — lets ComputeMinimalChangeTests exercise the edit-span math
+    // directly against edge cases (identical text, pure insert/delete, full replace, empty strings)
+    // without needing to drive a real SyncDocument call through the whole AdhocWorkspace.
+    internal static TextChange ComputeMinimalChange(string oldText, string newText)
+    {
+        var maxCommon = Math.Min(oldText.Length, newText.Length);
+
+        var prefixLength = 0;
+        while (prefixLength < maxCommon && oldText[prefixLength] == newText[prefixLength])
+            prefixLength++;
+
+        var maxSuffix = maxCommon - prefixLength;
+        var suffixLength = 0;
+        while (suffixLength < maxSuffix
+            && oldText[oldText.Length - 1 - suffixLength] == newText[newText.Length - 1 - suffixLength])
+            suffixLength++;
+
+        var span = new TextSpan(prefixLength, oldText.Length - prefixLength - suffixLength);
+        var replacement = newText.Substring(prefixLength, newText.Length - prefixLength - suffixLength);
+        return new TextChange(span, replacement);
     }
 
     // ── Completion ─────────────────────────────────────────────────────────────
@@ -1445,6 +1524,55 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
     }
 
+    // ── Refactorings (CodeRefactoringProvider hosting in the lightbulb, TODO.md #74) ─────────────
+
+    public Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
+        string code, int position, CancellationToken ct = default)
+        => Task.Run(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
+
+    private async Task<IReadOnlyList<ICodeFixInfo>?> TryGetRefactoringsAsync(string code, int position, CancellationToken ct)
+    {
+        try
+        {
+            if (position < 0 || position > code.Length) return null;
+
+            var document = SyncDocument(code);
+            var headerLength = HeaderLength(code);
+            var span = new TextSpan(position + headerLength, 0);
+
+            // 1-based, same convention as CodeFixEntry.Line/RoslynCodeFixEngine's own diagnostic-fix
+            // line lookup — LinePosition.Line itself is 0-based.
+            var userLine = SourceText.From(code).Lines.GetLinePosition(position).Line + 1;
+
+            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, code, headerLength, userLine, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
+    }
+
+    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the deferred half of
+    // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings, see IIntelliSenseService.
+    // MaterializeFixAsync's own doc comment. No SyncDocument call here — the cached CodeAction
+    // RoslynCodeFixEngine looks key up already carries its own document snapshot internally (captured
+    // when it was registered), so materializing it needs nothing from the live workspace at all, only
+    // the code/preamble metrics needed for the relocating-preamble math.
+    public Task<IMaterializedFix?> MaterializeFixAsync(string code, string key, CancellationToken ct = default)
+        => Task.Run(async () => (IMaterializedFix?)await TryMaterializeFixAsync(code, key, ct), ct);
+
+    private async Task<IMaterializedFix?> TryMaterializeFixAsync(string code, string key, CancellationToken ct)
+    {
+        try
+        {
+            var headerLength = HeaderLength(code);
+            var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
+            return materialized is null
+                ? null
+                : new SimpleMaterializedFix(materialized.Value.NewCode, materialized.Value.UsingsToAdd);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { _logger.LogWarning(ex, "MaterializeFixAsync failed"); return null; }
+    }
+
     // ── Background analysis (diagnostics + semantic tokens) ───────────────────
 
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
@@ -1581,13 +1709,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
+        // TODO.md #74 "Пайплайн анализаторов" — Roslyn's own IDE-style analyzers ("use var", "make
+        // readonly", ...) alongside the compiler's own diagnostics. GetCompilationAsync is the same
+        // cached compilation model.GetDiagnostics() already reads from (Roslyn caches per Project
+        // version), not a second build.
+        var compilation = await document.Project.GetCompilationAsync(ct);
+        var analyzerDiagnostics = compilation is null
+            ? []
+            : await _analyzerEngine.ComputeAsync(compilation, ct);
+
         var headerLength = HeaderLength(code);
         var visible = new List<IDiagnosticInfo>();
         var forCodeFixes = new List<Diagnostic>();
-        foreach (var d in model.GetDiagnostics(cancellationToken: ct))
+        foreach (var d in model.GetDiagnostics(cancellationToken: ct).Concat(analyzerDiagnostics))
         {
-            if (d.Severity == RoslynSeverity.Hidden) continue;
+            // Unlike compiler diagnostics (never actually Hidden in practice), most of the analyzer
+            // diagnostics above fire at Hidden severity BY DESIGN — no squiggle, only a CodeFixProvider
+            // keyed to that same diagnostic ID becoming available (RoslynAnalyzerEngine's own doc
+            // comment). Still added to forCodeFixes either way — only excluded from the visible list.
             forCodeFixes.Add(d);
+            if (d.Severity == RoslynSeverity.Hidden) continue;
 
             if (!d.Location.IsInSource) continue;
 
@@ -1784,5 +1925,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         int StartOffset, int Length, SemanticTokenKind Kind) : ISemanticToken;
 
     private sealed record SimpleInlayHint(int Offset, string Text) : IInlayHint;
+
+    private sealed record SimpleMaterializedFix(string NewCode, IReadOnlyList<string> UsingsToAdd) : IMaterializedFix;
 
 }
