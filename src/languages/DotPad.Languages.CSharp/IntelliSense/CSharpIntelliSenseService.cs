@@ -319,18 +319,25 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
-    // RpadKind.Program — mirrored here so the live-analysis document contains the same `Main();` call
-    // the compiler will actually emit, otherwise Roslyn correctly (from its own point of view) flags
-    // the user's void Main() as an unused local function (CS8321). Deliberately NOT mirroring
+    // RpadKind.Program — mirrored here so the live-analysis document contains the same wrapper-class
+    // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
+    // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
     // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
-    // Code-dependent since ProgramMainCallPrefixFor picks between "Main();" and "await Main();"
-    // based on whether the user's own Main is Task-returning (TODO.md #63) — every call site already
-    // has `code` in scope (it's what's being analyzed), so this just threads it through.
-    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefixFor(code) : "";
+    // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
+    // own Main is static and/or Task-returning (TODO.md #63, #107) — every call site already has
+    // `code` in scope (it's what's being analyzed), so this just threads it through.
+    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code) : "";
+
+    // Closes the wrapper class KindPrefix opens for RpadKind.Program (TODO.md #107) — mirrored for the
+    // same reason as the prefix: without it, the live-analysis document would contain a permanently
+    // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
+    // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
+    // depends on whether the user's own Main is static/Task-returning.
+    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code) : "";
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
-    // code — usings preamble plus (for RpadKind.Program) the mirrored Main-call prefix above.
+    // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
     // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
@@ -359,7 +366,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + code + TrailingPad;
+                var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
 
                 // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -1736,7 +1743,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var start = span.Start - headerLength;
             if (start < 0) continue;
 
-            var end = Math.Max(span.End - headerLength, start + 1);
+            // Clamp to code.Length before the start>=end skip below, same pattern as
+            // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
+            // TODO.md #107: RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
+            // now follows the user's own code in the synced document, so a diagnostic anchored there
+            // (or straddling into it) needs to not leak an out-of-range span to the editor.
+            var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+            if (start >= end) continue;
+
             var severity = d.Severity switch
             {
                 RoslynSeverity.Error => ContractSeverity.Error,

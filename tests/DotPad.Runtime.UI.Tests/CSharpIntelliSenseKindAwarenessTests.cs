@@ -157,4 +157,37 @@ public class CSharpIntelliSenseKindAwarenessTests
 
         Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
+
+    // TODO.md #107: the exact live-reported repro, in the EDITOR (not just at compile time — see
+    // CSharpLanguageHostProgramKindCompileTests for the real dotnet-build side of this same fix). Under
+    // the old raw-top-level-statements mirroring, this script's live-analysis document would have shown
+    // real CS0165/CS0106-equivalent errors as squiggles, not just at Run time. KindPrefix/KindSuffix now
+    // mirror the class-wrapping transform, so the field and the modified method live inside the same
+    // synthetic class the real compiler wraps them in — no error-severity diagnostics at all expected.
+    private const string RegexHelperProgramKindScript =
+        "Regex regexp = new Regex(@\"_(?<resolution>(\\d+)x(\\d+))\\.\");\n\n"
+        + "async Task Main(){\n\tvar filename = \"100X100_123\";\n\tGetResolution(filename).Dump();\n}\n\n"
+        + "private string? GetResolution(string fileName)\n{\n"
+        + "    return regexp.Matches(fileName).Cast<Match>().ToList().FirstOrDefault()?.Groups[\"resolution\"].Value;\n}\n";
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_ReportNoErrors_ForALinqPadStyleScript_WithAFieldBelowMain_AndAModifiedHelperMethod()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        service.UpdateGlobalUsings(["System.Text.RegularExpressions"]);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, RegexHelperProgramKindScript);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Every reported span (warnings/info, if any) must land within the user's own code — see
+        // CSharpIntelliSenseService.ComputeDiagnosticsAndCodeFixesAsync's upper-bound clamp (TODO.md
+        // #107): without it, a diagnostic anchored in the mirrored KindSuffix (the synthetic
+        // trampoline/closing brace) could leak an out-of-range span to the editor.
+        Assert.All(diagnostics, d =>
+        {
+            Assert.InRange(d.StartOffset, 0, RegexHelperProgramKindScript.Length);
+            Assert.InRange(d.EndOffset, 0, RegexHelperProgramKindScript.Length);
+        });
+    }
 }
