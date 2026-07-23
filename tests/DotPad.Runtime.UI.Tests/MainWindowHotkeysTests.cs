@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
 using DotPad.Contracts.IntelliSense;
+using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
@@ -190,5 +191,88 @@ public class MainWindowHotkeysTests
 
         windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
         Assert.Equal(tabCountBefore, vm.Tabs.Count); // Cancel — still open
+    }
+
+    // TODO.md #114 — live user request: there was no hotkey for "new file" at all. Same
+    // rebind-proves-it's-wired shape as the F4/Ctrl+W tests above.
+    [AvaloniaFact]
+    public void PressingTheDefaultCtrlN_Should_CreateANewTab()
+    {
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings());
+        var tabCountBefore = vm.Tabs.Count;
+
+        window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
+
+        Assert.Equal(tabCountBefore + 1, vm.Tabs.Count);
+    }
+
+    [AvaloniaFact]
+    public void PressingCtrlN_Should_NotCreateANewTab_WhenTheGestureHasBeenRebound()
+    {
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { NewFile = "Ctrl+Shift+N" });
+        var tabCountBefore = vm.Tabs.Count;
+
+        window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
+
+        Assert.Equal(tabCountBefore, vm.Tabs.Count);
+    }
+
+    [AvaloniaFact]
+    public void PressingTheReboundGesture_Should_CreateANewTab()
+    {
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { NewFile = "Ctrl+Shift+N" });
+        var tabCountBefore = vm.Tabs.Count;
+
+        window.KeyPress(Key.N, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.N, null);
+
+        Assert.Equal(tabCountBefore + 1, vm.Tabs.Count);
+    }
+
+    // Confirms Ctrl+N reads its language/kind from EditorSettings (MainWindowViewModel.
+    // NewRpadFileWithDefaults) instead of hardcoding NewRpadFile's own CSharp/Statements defaults —
+    // CreateMainWindow's own EditorSettings() stub is replaced with an explicit one here so this is
+    // actually exercised end to end, not just true by coincidence with NewRpadFile's own defaults.
+    [AvaloniaFact]
+    public void PressingCtrlN_Should_CreateTheNewTab_WithTheConfiguredLanguageAndKind()
+    {
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Editor).Returns(new EditorSettings
+        {
+            NewFileLanguage = RpadLanguage.Vb,
+            NewFileKind = RpadKind.Program,
+        });
+        prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
+
+        var fileSystem = new Mock<IFileSystemService>();
+        fileSystem.Setup(f => f.Folder).Returns(Path.GetTempPath());
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+        var mainVm = new MainWindowViewModel(
+            sdkProviders: [],
+            fileSystemService: fileSystem.Object,
+            windowService: new Mock<IWindowService>().Object,
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
+
+        var editorTabs = new EditorTabsControl(
+            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
+            prefs.Object, () => new Mock<IIntelliSenseService>().Object,
+            new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+
+        var window = new MainWindow(prefs.Object, editorTabs, mainVm);
+        window.Show();
+
+        window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
+
+        var newTab = Assert.Single(mainVm.Tabs, t => t.FilePath is null && t.NewFileLanguage == RpadLanguage.Vb);
+        Assert.Equal(RpadKind.Program, newTab.NewFileKind);
     }
 }

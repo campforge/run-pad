@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DotPad.Format.RPad;
 using Microsoft.Extensions.Logging;
 
 namespace DotPad.Services;
@@ -14,7 +15,7 @@ public interface IFileSystemService : IDisposable
     /// large/network/cloud-synced folders).
     /// </summary>
     Task<IReadOnlyList<FileSystemItem>> GetFilesTreeAsync(CancellationToken ct = default);
-    string CreateNewFile();
+    string CreateNewFile(string parentDir, RpadLanguage language, RpadKind kind);
     string CreateNewFolder(string parentDir);
     void StartWatcher();
     void StopWatcher();
@@ -109,16 +110,23 @@ public sealed class FileSystemService : IFileSystemService
         }, ct);
 
 
-    public string CreateNewFile()
+    // TODO.md #109: file tree's "New File" — same "probe for a free name" pattern as CreateNewFolder,
+    // but for a .rpad file, written into the caller-resolved target directory instead of always the
+    // workspace root (the caller — MainWindowViewModel.CreateFileAsync — resolves that the same way
+    // CreateFolderAsync does). Content comes from RpadWriter.NewFile (the same generator an untitled,
+    // never-saved tab uses to materialize its front matter + sample code) so the file that lands on
+    // disk is immediately a well-formed .rpad document, not an empty stub.
+    public string CreateNewFile(string parentDir, RpadLanguage language, RpadKind kind)
     {
         int i = 1;
         string path;
         do
         {
-            path = Path.Combine(_rootFolder, $"Query {i++}{FileExtension}");
-        } while (File.Exists(path));
+            path = Path.Combine(parentDir, $"Query {i++}{FileExtension}");
+        } while (File.Exists(path) || Directory.Exists(path));
 
-        File.WriteAllText(path, string.Empty);
+        File.WriteAllText(path, RpadWriter.NewFile(
+            title: Path.GetFileNameWithoutExtension(path), language: language, kind: kind));
         return path;
     }
 

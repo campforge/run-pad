@@ -1,6 +1,7 @@
 using Avalonia.Styling;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
+using DotPad.Format.RPad;
 using DotPad.Languages.CSharp;
 using DotPad.Languages.VB;
 using DotPad.Services;
@@ -94,6 +95,52 @@ public class PreferencesWindowViewModelTests
         vm.CommitCharactersEnabled = false;
 
         Assert.False(editorSettings.CommitCharactersEnabled);
+        prefs.Verify(p => p.Save(), Times.Once);
+    }
+
+    // TODO.md #114 — live user request: Preferences > Editor exposes the language+kind Ctrl+N/File >
+    // New File use to skip NewFileKindDialog, and Preferences > Keyboard exposes the new hotkey
+    // itself — same round-trip pattern as the other newly-wired settings above.
+    [Fact]
+    public void NewFileDefaults_Should_RoundTrip_ThroughTheUnderlyingEditorSettings()
+    {
+        var editorSettings = new EditorSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Editor).Returns(editorSettings);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.NewFileLanguage = RpadLanguage.Vb;
+        vm.NewFileKind = RpadKind.Program;
+
+        Assert.Equal(RpadLanguage.Vb, editorSettings.NewFileLanguage);
+        Assert.Equal(RpadKind.Program, editorSettings.NewFileKind);
+        prefs.Verify(p => p.Save(), Times.Exactly(2));
+    }
+
+    [Fact]
+    public void HotkeyNewFile_Should_RoundTrip_ThroughTheUnderlyingKeyboardSettings()
+    {
+        var keyboard = new KeyboardSettings();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
+        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
+
+        vm.HotkeyNewFile = "Ctrl+Alt+N";
+
+        Assert.Equal("Ctrl+Alt+N", keyboard.NewFile);
         prefs.Verify(p => p.Save(), Times.Once);
     }
 

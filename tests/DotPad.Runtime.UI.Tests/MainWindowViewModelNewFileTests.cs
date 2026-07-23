@@ -46,7 +46,9 @@ public class MainWindowViewModelNewFileTests
 
             vm.NewRpadFile();
 
-            fileSystem.Verify(f => f.CreateNewFile(), Times.Never);
+            fileSystem.Verify(
+                f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<RpadLanguage>(), It.IsAny<RpadKind>()),
+                Times.Never);
             Assert.Empty(Directory.GetFiles(rootFolder));
         }
         finally { Directory.Delete(rootFolder, recursive: true); }

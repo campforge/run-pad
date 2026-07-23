@@ -142,3 +142,13 @@ dotnet src/main/DotPad.Cli/bin/Release/net10.0/dotpad.dll path/to/script.rpad
 2026-07-16, детали в `ANALYSIS.md`). Ранее описанный здесь баг резолюции референсов IntelliSense
 на Windows (`error CS0009` про `*.Native.dll`) исправлен — проверка PE-заголовка вместо маски
 имени файла, см. архивный TODO #44.
+
+## Быстрое TODO
+- Можно попробовать имплементировать https://github.com/IronLanguages/ironpython3, чисто бызовый функционал
+- Где еще можно подглядывать идеи 
+  - https://github.com/mono/monodevelop
+  - https://github.com/icsharpcode/sharpdevelop
+- Идеи по отладке 
+  - отладка bash https://github.com/rogalmic/vscode-bash-debug
+  - отладка powershell https://github.com/PowerShell/vscode-powershell
+   

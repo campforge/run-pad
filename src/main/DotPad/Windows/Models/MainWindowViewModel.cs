@@ -93,6 +93,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture (TODO.md #114) — same rationale
+    // as OpenDependenciesGesture above.
+    public KeyGesture? NewFileGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.NewFile); }
+            catch { return null; }
+        }
+    }
+
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;
@@ -201,6 +212,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, language, kind);
         AddTab(vm);
     }
+
+    // TODO.md #114: Ctrl+N / the new File > New File menu item — same as NewRpadFile above, but reads
+    // the language+kind to use from EditorSettings instead of requiring an explicit choice, so it
+    // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
+    // the dialog) and the file tree's own "New File" (TODO.md #109, writes to disk immediately) are
+    // both untouched — this only adds a third, dialog-free entry point.
+    public void NewRpadFileWithDefaults() => NewRpadFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
 
     public void OpenTab(string? filePath)
     {
@@ -501,16 +519,31 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // VS/Rider/Explorer do.
     public async Task<string> CreateFolderAsync(string? contextPath)
     {
-        var parentDir = contextPath is null
-            ? _fileSystemService.Folder
-            : Directory.Exists(contextPath)
-                ? contextPath
-                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
-
+        var parentDir = ResolveParentDir(contextPath);
         var path = _fileSystemService.CreateNewFolder(parentDir);
         await RefreshNodesAsync();
         return path;
     }
+
+    // TODO.md #109: file tree's "New File" — same target-directory resolution as CreateFolderAsync
+    // (reused via ResolveParentDir below), but unlike "New Folder" the new file is also immediately
+    // useful to open, so it's opened as a tab right away (same OpenTab used for double-click) rather
+    // than left for the user to click on themselves.
+    public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
+    {
+        var parentDir = ResolveParentDir(contextPath);
+        var path = _fileSystemService.CreateNewFile(parentDir, language, kind);
+        await RefreshNodesAsync();
+        OpenTab(path);
+        return path;
+    }
+
+    private string ResolveParentDir(string? contextPath) =>
+        contextPath is null
+            ? _fileSystemService.Folder
+            : Directory.Exists(contextPath)
+                ? contextPath
+                : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
 
     public void OpenContainingFolder(string filePath)
     {

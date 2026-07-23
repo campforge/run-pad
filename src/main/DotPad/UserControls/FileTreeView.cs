@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DotPad.Format.RPad;
 using DotPad.UserControls.Models;
 
 namespace DotPad.UserControls;
@@ -26,6 +27,16 @@ public sealed class FileTreeCreateFolderEventArgs(RoutedEvent routedEvent, strin
     : RoutedEventArgs(routedEvent)
 {
     public string? ParentPath { get; } = parentPath;
+}
+
+// TODO.md #109 — same ParentPath convention as FileTreeCreateFolderEventArgs; Language comes from
+// which "New File" submenu entry (C#/Visual Basic) was clicked, same split as MainWindow's
+// File → New RPad File menu.
+public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string? parentPath, RpadLanguage language)
+    : RoutedEventArgs(routedEvent)
+{
+    public string? ParentPath { get; } = parentPath;
+    public RpadLanguage Language { get; } = language;
 }
 
 public partial class FileTreeView : UserControl
@@ -56,6 +67,9 @@ public partial class FileTreeView : UserControl
 
     public static readonly RoutedEvent<FileTreeCreateFolderEventArgs> CreateFolderEvent =
         RoutedEvent.Register<FileTreeView, FileTreeCreateFolderEventArgs>(nameof(CreateFolder), RoutingStrategies.Bubble);
+
+    public static readonly RoutedEvent<FileTreeCreateFileEventArgs> CreateFileEvent =
+        RoutedEvent.Register<FileTreeView, FileTreeCreateFileEventArgs>(nameof(CreateFile), RoutingStrategies.Bubble);
 
     /// <summary>A file node was selected (opened) in the tree.</summary>
     public event EventHandler<FileTreeFileEventArgs>? Open
@@ -90,6 +104,13 @@ public partial class FileTreeView : UserControl
     {
         add => AddHandler(CreateFolderEvent, value);
         remove => RemoveHandler(CreateFolderEvent, value);
+    }
+
+    /// <summary>Create-new-file command.</summary>
+    public event EventHandler<FileTreeCreateFileEventArgs>? CreateFile
+    {
+        add => AddHandler(CreateFileEvent, value);
+        remove => RemoveHandler(CreateFileEvent, value);
     }
 
     #endregion
@@ -224,6 +245,14 @@ public partial class FileTreeView : UserControl
     private void ContextCreateFolder_Click(object? sender, RoutedEventArgs e)
         => RaiseEvent(new FileTreeCreateFolderEventArgs(
             CreateFolderEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath));
+
+    private void ContextCreateFileCSharp_Click(object? sender, RoutedEventArgs e)
+        => RaiseEvent(new FileTreeCreateFileEventArgs(
+            CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, RpadLanguage.CSharp));
+
+    private void ContextCreateFileVb_Click(object? sender, RoutedEventArgs e)
+        => RaiseEvent(new FileTreeCreateFileEventArgs(
+            CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, RpadLanguage.Vb));
 
     /// <summary>Enters rename mode for the node at <paramref name="filePath"/>, if it's currently in
     /// the tree — called back from MainWindow right after CreateFolder completes, so a freshly
