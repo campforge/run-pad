@@ -35,6 +35,10 @@ public sealed class ChildProcess : IChildProcess
         _process = new Process { StartInfo = startInfo };
     }
 
+    // Test-only observability (InternalsVisibleTo) — TODO.md #111, confirms ForExecution actually
+    // sets/omits the CurrentQueryPath environment variable, without starting a real process.
+    internal ProcessStartInfo StartInfoForTests => _process.StartInfo;
+
     /// <summary>Starts the process. Returns false if the process could not be started.</summary>
     public bool Start() => _process.Start();
 
@@ -61,9 +65,21 @@ public sealed class ChildProcess : IChildProcess
 
     // ── Factories ─────────────────────────────────────────────────────────────
 
+    // TODO.md #111 (Util.CurrentQueryPath) — an environment variable, not another positional
+    // argument like assemblyPath/parentPid: RpadKind.Statements/Expression compile to C# top-level
+    // statements, which have an implicit `string[] args` in scope, so any extra CLI argument here
+    // would leak straight into the user's own `args` (already true, if unobserved, of --pid above).
+    // An env var is invisible to `args` and read back via DotPad.Runtime.Util.CurrentQueryPath's own
+    // Environment.GetEnvironmentVariable — mirrors this same key name, duplicated rather than shared
+    // (DotPad.Runtime is netstandard2.0 and has no reference to this assembly), same precedent as
+    // CompiledDotnetLanguageHostBase's RsPrefix/InputRequestPrefix mirroring DotPad.Runtime.Util's.
+    internal const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
+
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
-    public static ChildProcess ForExecution(ExecutionOptions options, string assemblyPath, string parentPid)
-        => new(new ProcessStartInfo
+    public static ChildProcess ForExecution(
+        ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath = null)
+    {
+        var startInfo = new ProcessStartInfo
         {
             FileName = options.Runtime.RuntimePath,
             Arguments = new LocalExecutionArgs(assemblyPath, parentPid).ToString(),
@@ -75,7 +91,12 @@ public sealed class ChildProcess : IChildProcess
             RedirectStandardInput = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-        });
+        };
+        if (currentQueryPath is not null)
+            startInfo.Environment[CurrentQueryPathEnvVar] = currentQueryPath;
+
+        return new ChildProcess(startInfo);
+    }
 
     /// <summary>Creates a process for the netcoredbg DAP debugger.</summary>
     public static ChildProcess ForDebugger(ExecutionOptions options)

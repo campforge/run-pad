@@ -89,8 +89,17 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
 
         // Hot path: source, project file and the binary from the last build in this directory are
         // all still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
-        // rather than just skipping restore.
-        if (projectUnchanged && previousSource == code && File.Exists(outputDll))
+        // rather than just skipping restore. Also requires outputDll to be at least as new as every
+        // referenced assembly (dotPadRuntimeLib/assemblyReferences) — live user report (TODO.md
+        // #111, "Util.CurrentQueryPath always null"): the generated project file only records a
+        // reference's PATH (the <HintPath> written below), not its content, so rebuilding
+        // DotPad.Runtime.dll in place (e.g. updating DotPad itself) was invisible to projectUnchanged
+        // — same path string, so the hot path fired anyway and kept serving whatever stale
+        // DotPad.Runtime.dll copy happened to be sitting in this output directory's bin/ from the
+        // last time it was actually built, silently running old runtime code against unchanged
+        // script source.
+        if (projectUnchanged && previousSource == code && File.Exists(outputDll)
+            && !IsAnyReferenceNewerThan(outputDll, allAssemblyRefs))
             return new ProcessCompilerResult(outputDll, true, [], []);
 
         await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
@@ -207,6 +216,28 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         {
             _logger.LogWarning(ex, "Could not delete stale build output {OutputDll} after a failed build", outputDll);
         }
+    }
+
+    // TODO.md #111 fix (live user report, "Util.CurrentQueryPath always null") — the hot-path skip
+    // above only compares generated TEXT (project file/source), which references an assembly like
+    // DotPad.Runtime.dll by PATH, not content; this catches the case that text comparison can't:
+    // the referenced file itself got rebuilt in place since outputDll was last actually produced.
+    // Swallows missing-reference errors rather than throwing — a reference that's gone entirely will
+    // fail loudly in the real `dotnet build` this forces anyway, with a much more useful error.
+    private static bool IsAnyReferenceNewerThan(string outputDll, IReadOnlyList<string> references)
+    {
+        var outputWriteTimeUtc = File.GetLastWriteTimeUtc(outputDll);
+        foreach (var reference in references)
+        {
+            try
+            {
+                if (File.GetLastWriteTimeUtc(reference) > outputWriteTimeUtc) return true;
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        return false;
     }
 
     private async Task<(List<ResultItem>, List<ResultItem>)> DrainStdout(CancellationToken cancellationToken)

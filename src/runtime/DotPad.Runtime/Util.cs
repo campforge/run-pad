@@ -17,6 +17,20 @@ public static class Util
 {
     internal const char InputRequestPrefixChar = '\x1f'; // ASCII Unit Separator — distinct from ObjectExtensions.DumpLinePrefixChar
 
+    // TODO.md #111 (bucket 1) — mirrors ChildProcess.CurrentQueryPathEnvVar (DotPad.Build.Core), a
+    // separate assembly this one (netstandard2.0, referenced by the compiled SCRIPT's own project,
+    // not by DotPad itself) has no reference to — duplicated literal, not shared, same precedent as
+    // InputRequestPrefixChar/RsPrefix mirroring across the same process boundary.
+    internal const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
+
+    /// <summary>
+    /// The full path to the running script's own <c>.rpad</c> file, or <see langword="null"/> if it's
+    /// never been saved (an untitled tab) — LINQPad-compatible <c>Util.CurrentQueryPath</c>. Works
+    /// under both a plain run and a debug session (DapSession forwards it via the launch request's
+    /// own <c>env</c>, since netcoredbg spawns the debuggee itself rather than DotPad).
+    /// </summary>
+    public static string? CurrentQueryPath => Environment.GetEnvironmentVariable(CurrentQueryPathEnvVar);
+
     /// <summary>Reads a single line of text typed into the output panel. <see langword="null"/> if the run was cancelled/stdin closed before an answer arrived.</summary>
     public static string? ReadLine(string? prompt = null) => ReadLineCore(prompt, isPassword: false);
 
