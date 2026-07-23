@@ -66,8 +66,6 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <!-- TODO.md #113: was 46 — noticeably taller than the 26px IconButton/IconToggleButton
-                 it actually holds needs, even with the Border's own Margin="6,4" (line ~84 below). -->
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="5"/>
@@ -77,8 +75,7 @@
         </Grid.RowDefinitions>
 
         <!-- Row 0: Toolbar -->
-        <Border x:Name="ToolbarBorder"
-                Grid.Row="0"
+        <Border Grid.Row="0"
                 Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
                 BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
                 BorderThickness="1"

@@ -14,9 +14,8 @@ public sealed class EditorSettings
     public bool WordWrap { get; set; }
 
     // TODO.md #113: live user report ("слишком крупный шрифт и отступы", LINQPad 4 shown as a
-    // denser reference) — 13, not 14, matching the size DotPad's own UI already settled on
-    // everywhere else it explicitly sets one (TreeViewItem/DataGridCell/MenuItem/dialog body text
-    // all already use 13 — 14 was the one outlier, an unexplained default nobody had touched).
+    // denser reference) — 14 was the one outlier default nobody had touched; 12 is what testing it
+    // live actually settled on.
     public double FontSize { get; set; } = 12;
 
     // TODO.md #112: the code editor never set FontFamily at all before this — it inherited whatever
