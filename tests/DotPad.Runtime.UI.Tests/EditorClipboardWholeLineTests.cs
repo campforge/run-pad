@@ -29,6 +29,26 @@ public class EditorClipboardWholeLineTests
         return (window, editor);
     }
 
+    // CI failure on macOS (Linux/dev machine never showed it): EditingCommandHandler.SetClipboardText
+    // (the vendored AvaloniaEdit fork, not DotPad's own code) calls Clipboard.SetDataAsync(text) and
+    // discards the returned Task — fire-and-forget, by design there (it's called from a synchronous
+    // command handler). Reading the clipboard back immediately after KeyPress returns races that
+    // still-in-flight write; apparently fast enough to always win on Linux, not on (slower/differently
+    // scheduled) macOS CI. Same short-poll shape as DapSessionRunningBreakpointResyncTests'
+    // WaitForWrittenRequestAsync for the same class of "fire-and-forget completes asynchronously"
+    // problem elsewhere in this suite.
+    private static async Task<string?> WaitForClipboardTextAsync(TopLevel topLevel)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            var text = await topLevel.Clipboard!.TryGetValueAsync(DataFormat.Text);
+            if (text is not null) return text;
+            await Task.Delay(20);
+        }
+
+        return null;
+    }
+
     [AvaloniaFact]
     public async Task CtrlC_WithNoSelection_Should_CopyTheWholeCurrentLine_IncludingItsLineEnding()
     {
@@ -38,7 +58,7 @@ public class EditorClipboardWholeLineTests
 
         window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
 
-        var copied = await TopLevel.GetTopLevel(editor)!.Clipboard!.TryGetValueAsync(DataFormat.Text);
+        var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line2" + Environment.NewLine, copied);
     }
 
@@ -51,7 +71,7 @@ public class EditorClipboardWholeLineTests
 
         window.KeyPress(Key.X, RawInputModifiers.Control, PhysicalKey.X, null);
 
-        var copied = await TopLevel.GetTopLevel(editor)!.Clipboard!.TryGetValueAsync(DataFormat.Text);
+        var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line2" + Environment.NewLine, copied);
         Assert.Equal("line1\nline3", editor.Text);
     }
@@ -64,7 +84,7 @@ public class EditorClipboardWholeLineTests
 
         window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
 
-        var copied = await TopLevel.GetTopLevel(editor)!.Clipboard!.TryGetValueAsync(DataFormat.Text);
+        var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line", copied);
     }
 }
