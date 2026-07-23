@@ -474,11 +474,41 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var newFileName = newName + ext;
         var newPath = Path.Combine(dir, newFileName);
 
-        // Close tab(s) first so SaveIfNeeded writes current content to the OLD path — the file
-        // itself, or (for a folder) every tab nested inside it, before the whole subtree moves.
-        var hadTab = _openTabs.ContainsKey(filePath);
-        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
-        if (_openTabs.TryGetValue(filePath, out var tab))
+        MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
+    }
+
+    // TODO.md #110: file tree drag-and-drop — moves a node into a different folder (or the tree's
+    // root, contextPath null), reusing the exact same target-directory resolution CreateFolderAsync/
+    // CreateFileAsync already use (ResolveParentDir) — dropping onto a folder node moves INSIDE it,
+    // onto a file node moves alongside it (same parent), onto empty tree space moves to the root. A
+    // no-op (not an error) if that resolves to the node's own current parent — that's what dropping a
+    // node back onto where it already lives looks like; dropping a folder onto its own descendant is
+    // still a real error (Directory.Move already throws a sensible message for that on its own, no
+    // separate check needed).
+    public void MoveFileOrFolder(string sourcePath, string? contextPath)
+    {
+        var targetDir = ResolveParentDir(contextPath);
+        var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var newPath = Path.Combine(targetDir, name);
+
+        if (string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(sourcePath), StringComparison.Ordinal))
+            return;
+
+        MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
+    }
+
+    // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
+    // name) — both close whatever tab(s) are open on the affected path(s) first (so SaveIfNeeded
+    // flushes to the OLD path before the move), attempt the actual File.Move/Directory.Move, and
+    // reopen at the old or new path depending on whether it succeeded.
+    private void MoveOrRenameOnDisk(
+        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
+    {
+        var isDirectory = Directory.Exists(sourcePath);
+
+        var hadTab = _openTabs.ContainsKey(sourcePath);
+        var nestedTabs = isDirectory ? FindOpenTabsUnder(sourcePath) : [];
+        if (_openTabs.TryGetValue(sourcePath, out var tab))
             CloseTab(tab);
         foreach (var (_, nestedTab) in nestedTabs)
             CloseTab(nestedTab);
@@ -486,21 +516,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             if (isDirectory)
-                Directory.Move(filePath, newPath);
+                Directory.Move(sourcePath, newPath);
             else
-                File.Move(filePath, newPath);
+                File.Move(sourcePath, newPath);
         }
         catch (Exception ex)
         {
             // The tab(s) were already closed above (so SaveIfNeeded could flush to the old path) —
-            // since the rename didn't happen, the file(s) are still at the old path(s), so reopen
-            // them instead of leaving their tabs silently gone from the tab bar.
-            if (hadTab) OpenTab(filePath);
+            // since the move didn't happen, the file(s) are still at the old path(s), so reopen them
+            // instead of leaving their tabs silently gone from the tab bar.
+            if (hadTab) OpenTab(sourcePath);
             foreach (var (nestedPath, _) in nestedTabs)
                 OpenTab(nestedPath);
             _ = _windowService.ShowErrorAsync(
-                "Rename Failed",
-                $"Could not rename '{Path.GetFileName(filePath)}' to '{newFileName}':\n{ex.Message}");
+                errorTitle,
+                $"Could not {errorVerb} '{Path.GetFileName(sourcePath)}' {errorDestinationPhrase}:\n{ex.Message}");
             return;
         }
 
@@ -509,7 +539,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (hadTab)
             OpenTab(newPath);
         foreach (var (nestedPath, _) in nestedTabs)
-            OpenTab(Path.Combine(newPath, Path.GetRelativePath(filePath, nestedPath)));
+            OpenTab(Path.Combine(newPath, Path.GetRelativePath(sourcePath, nestedPath)));
     }
 
     // TODO.md #69: creates a new folder next to whatever's selected in the file tree — INSIDE the
