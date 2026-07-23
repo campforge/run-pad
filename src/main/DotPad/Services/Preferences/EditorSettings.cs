@@ -12,7 +12,12 @@ public sealed class EditorSettings
     public bool ShowColumnRuler { get; set; }
     public int ColumnRulerPosition { get; set; } = 80;
     public bool WordWrap { get; set; }
-    public double FontSize { get; set; } = 14;
+
+    // TODO.md #113: live user report ("слишком крупный шрифт и отступы", LINQPad 4 shown as a
+    // denser reference) — 13, not 14, matching the size DotPad's own UI already settled on
+    // everywhere else it explicitly sets one (TreeViewItem/DataGridCell/MenuItem/dialog body text
+    // all already use 13 — 14 was the one outlier, an unexplained default nobody had touched).
+    public double FontSize { get; set; } = 12;
 
     // TODO.md #112: the code editor never set FontFamily at all before this — it inherited whatever
     // FluentTheme's own default font resolved to for the current OS, entirely outside DotPad's

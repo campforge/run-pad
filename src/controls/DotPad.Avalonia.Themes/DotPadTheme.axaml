@@ -10,6 +10,42 @@
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/DotPadMidnight.axaml" />
     <StyleInclude Source="avares://DotPad.Avalonia.Themes/Themes/DotPadWarmLight.axaml" />
 
+    <!-- ── Compact controls (TODO.md #113: live user report — LINQPad 4 shown as a denser
+         reference; app-wide instead of scattered per-window, so every stock FluentTheme control
+         DotPad hasn't already hand-tuned gets the same treatment, not just the ones someone
+         happened to touch). FontSize=13/Padding="6,4" aren't arbitrary — they're the exact values
+         DotPad's own windows already use in scattered LOCAL overrides today (e.g. ConditionDialog's
+         and RenameSymbolDialog's own TextBox Padding, MainWindow's own MenuItem FontSize) —
+         promoted here to a single app-wide default instead of duplicated per-window. ────────── -->
+    <!-- <Style Selector="MenuItem">
+        <Setter Property="FontSize"  Value="12"/>
+        <Setter Property="Padding"   Value="8,4"/>
+        <Setter Property="MinHeight" Value="26"/>
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="FontSize"  Value="12"/>
+        <Setter Property="MinHeight" Value="26"/>
+    </Style>
+    <Style Selector="Button">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding"  Value="10,5"/>
+    </Style>
+    <Style Selector="CheckBox, RadioButton">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBox">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding"  Value="6,4"/>
+    </Style>
+    <Style Selector="NumericUpDown">
+        <Setter Property="FontSize"  Value="12"/>
+        <Setter Property="MinHeight" Value="26"/>
+    </Style>
+    <Style Selector="ToolTip">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding"  Value="6,4"/>
+    </Style> -->
+
     <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
     <Style Selector="DataGrid">
         <Setter Property="Background"               Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
