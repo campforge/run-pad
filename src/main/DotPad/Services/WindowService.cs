@@ -14,6 +14,10 @@ public sealed class WindowService : IWindowService
 
     public WindowService(IServiceProvider sp) => _sp = sp;
 
+    // TODO.md #101: the same lookup, repeated verbatim 6 times below.
+    private static Window? MainWindow =>
+        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
     public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null)
     {
         var window = _sp.GetRequiredService<DependenciesWindow>();
@@ -32,8 +36,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -50,8 +53,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowOpenLinqFileDialogAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -67,8 +69,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return UnsavedChangesResult.Cancel;
 
         var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
@@ -77,8 +78,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -94,8 +94,7 @@ public sealed class WindowService : IWindowService
 
     public Task ShowAssemblyExplorerAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
 
         var window = new AssemblyExplorerWindow(
             _sp.GetRequiredService<IThemeService>(), this, startFolder);
@@ -106,8 +105,7 @@ public sealed class WindowService : IWindowService
 
     private static Task ShowDialogAsync(Window dialog)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         return owner is not null ? dialog.ShowDialog(owner) : Task.CompletedTask;
     }
 }

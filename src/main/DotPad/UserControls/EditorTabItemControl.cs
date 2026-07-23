@@ -146,19 +146,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
         // gives us a fresh IBreakpointHitContext (see OnBreakpointHit).
-        _vm.DebugPanel.WatchExpressions.CollectionChanged += (_, e) =>
-        {
-            if (e.NewItems is not null)
-                foreach (WatchExpression w in e.NewItems)
-                {
-                    w.PropertyChanged += OnWatchExpressionPropertyChanged;
-                    _ = EvaluateWatchAsync(w);
-                }
+        _vm.DebugPanel.WatchExpressions.CollectionChanged += OnWatchExpressionsCollectionChanged;
+    }
 
-            if (e.OldItems is not null)
-                foreach (WatchExpression w in e.OldItems)
-                    w.PropertyChanged -= OnWatchExpressionPropertyChanged;
-        };
+    // TODO.md #105: named (not an anonymous lambda) so Dispose can unsubscribe it — this control and
+    // its ViewModel are always created/destroyed as a pair today (EditorTabsControl.cs), so it isn't
+    // an active leak yet, but leaving it unpaired with the rest of Dispose's own subscriptions
+    // (_prefs.Changed/_selectedKindSub) would turn into a real one the moment that assumption changes.
+    private void OnWatchExpressionsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+            foreach (WatchExpression w in e.NewItems)
+            {
+                w.PropertyChanged += OnWatchExpressionPropertyChanged;
+                _ = EvaluateWatchAsync(w);
+            }
+
+        if (e.OldItems is not null)
+            foreach (WatchExpression w in e.OldItems)
+                w.PropertyChanged -= OnWatchExpressionPropertyChanged;
     }
 
     private void OnWatchExpressionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -382,6 +388,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _selectedKindSub?.Dispose();
+        _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
         State.RunCts?.Dispose();
         _intelliSense?.Dispose(); // owned by this tab now — see EditorTabsControl.CreateControl
