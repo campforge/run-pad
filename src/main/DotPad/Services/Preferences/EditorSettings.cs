@@ -1,3 +1,5 @@
+using DotPad.Format.RPad;
+
 namespace DotPad.Services.Preferences;
 
 public sealed class EditorSettings
@@ -36,4 +38,12 @@ public sealed class EditorSettings
     // window" — some users find that unpredictable and want completions accepted only via
     // Enter/Tab/click.
     public bool CommitCharactersEnabled { get; set; } = true;
+
+    // TODO.md #114: File → New RPad File always showed NewFileKindDialog to pick a RpadKind, even for
+    // a user who creates the same language+kind combination every time — these are the defaults that
+    // Ctrl+N (MainWindow.OnWindowKeyDown) and the new "New File" menu item use to skip that dialog
+    // entirely. The explicit File → New RPad File → C#/Visual Basic submenu and the file tree's own
+    // "New File" context menu (TODO.md #109) are unaffected — both still ask explicitly.
+    public RpadLanguage NewFileLanguage { get; set; } = RpadLanguage.CSharp;
+    public RpadKind NewFileKind { get; set; } = RpadKind.Statements;
 }

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using DotPad.Avalonia.Themes;
 using DotPad.Contracts;
+using DotPad.Format.RPad;
 using DotPad.Services;
 using DotPad.Services.Preferences;
 using DotPad.Shared;
@@ -337,6 +338,26 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.FontFamily, value, v => _prefs.Editor.FontFamily = v);
     }
 
+    // TODO.md #114 — live user request: File > New RPad File always asked for a language+kind via
+    // NewFileKindDialog, even for someone who creates the same combination every time. These are the
+    // defaults Ctrl+N/File > New File use to skip that dialog (MainWindowViewModel.
+    // NewRpadFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog
+    // itself already uses for RpadKind, not worth a converter for.
+    public static RpadLanguage[] AvailableNewFileLanguages { get; } = [RpadLanguage.CSharp, RpadLanguage.Vb];
+    public static RpadKind[] AvailableNewFileKinds { get; } = [RpadKind.Statements, RpadKind.Program, RpadKind.Expression];
+
+    public RpadLanguage NewFileLanguage
+    {
+        get => _prefs.Editor.NewFileLanguage;
+        set => SetPref(_prefs.Editor.NewFileLanguage, value, v => _prefs.Editor.NewFileLanguage = v);
+    }
+
+    public RpadKind NewFileKind
+    {
+        get => _prefs.Editor.NewFileKind;
+        set => SetPref(_prefs.Editor.NewFileKind, value, v => _prefs.Editor.NewFileKind = v);
+    }
+
     // ── C# (TODO.md #62 "inlay hints", user request 2026-07-20) ────────────────
 
     public bool InlayHintsEnabled
@@ -451,6 +472,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Keyboard.DeleteFile;
         set => SetPref(_prefs.Keyboard.DeleteFile, value, v => _prefs.Keyboard.DeleteFile = v);
+    }
+
+    public string HotkeyNewFile
+    {
+        get => _prefs.Keyboard.NewFile;
+        set => SetPref(_prefs.Keyboard.NewFile, value, v => _prefs.Keyboard.NewFile = v);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
