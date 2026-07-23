@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 
@@ -59,6 +60,83 @@ public static class Util
 
     /// <summary>Reads back a file previously written by <see cref="SaveBytes"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
     public static byte[] LoadBytes(string fileName) => File.ReadAllBytes(ResolveUserDataPath(fileName));
+
+    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cache/CacheAsync: a persistent cache keyed by an
+    // explicit string, not auto-derived from the call site (no decompiled reference for LINQPad's own
+    // default-key behavior was available to check against — see this bucket's own "по построению"
+    // framing — so a required, explicit key avoids guessing at magic behavior). Entries live under the
+    // same UserData folder as Save*/Load* (a "Cache" subdirectory), as a small JSON envelope carrying
+    // an optional expiry alongside the value, so no second side-channel file is needed for the TTL.
+    // duration: null means "cache forever" (until manually cleared by deleting the file on disk).
+    private sealed class CacheEntry<T>
+    {
+        public DateTimeOffset? ExpiresAtUtc { get; set; }
+        public T? Value { get; set; }
+    }
+
+    /// <summary>
+    /// Returns the cached result for <paramref name="key"/> if present and not expired; otherwise runs
+    /// <paramref name="function"/>, caches the result (persisted to disk, surviving across runs), and
+    /// returns it. <paramref name="duration"/> is the TTL — <see langword="null"/> caches forever.
+    /// </summary>
+    public static T Cache<T>(Func<T> function, string key, TimeSpan? duration = null)
+    {
+        if (TryReadCache<T>(key, out var cached)) return cached!;
+
+        var value = function();
+        WriteCache(key, value, duration);
+        return value;
+    }
+
+    /// <summary>Same as <see cref="Cache{T}(Func{T}, string, TimeSpan?)"/>, but for an async <paramref name="function"/>.</summary>
+    public static async Task<T> CacheAsync<T>(Func<Task<T>> function, string key, TimeSpan? duration = null)
+    {
+        if (TryReadCache<T>(key, out var cached)) return cached!;
+
+        var value = await function().ConfigureAwait(false);
+        WriteCache(key, value, duration);
+        return value;
+    }
+
+    private static bool TryReadCache<T>(string key, out T? value)
+    {
+        var path = ResolveUserDataPath(CacheFileName(key));
+        if (File.Exists(path))
+        {
+            try
+            {
+                var entry = JsonSerializer.Deserialize<CacheEntry<T>>(File.ReadAllText(path));
+                if (entry is not null && (entry.ExpiresAtUtc is null || entry.ExpiresAtUtc > DateTimeOffset.UtcNow))
+                {
+                    value = entry.Value;
+                    return true;
+                }
+            }
+            catch (JsonException)
+            {
+                // Corrupt, or the same key was previously used to cache a different, incompatible T —
+                // fall through and recompute rather than throwing.
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static void WriteCache<T>(string key, T value, TimeSpan? duration)
+    {
+        var entry = new CacheEntry<T> { ExpiresAtUtc = duration is { } d ? DateTimeOffset.UtcNow + d : null, Value = value };
+        File.WriteAllText(ResolveUserDataPath(CacheFileName(key)), JsonSerializer.Serialize(entry));
+    }
+
+    // Sanitizes against a fixed, OS-independent character set (not Path.GetInvalidFileNameChars(),
+    // which differs between Windows and Linux/macOS) so the same key maps to the same on-disk file
+    // name on every platform DotPad ships for.
+    private static string CacheFileName(string key)
+    {
+        var sanitized = new string(key.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
+        return Path.Combine("Cache", sanitized + ".json");
+    }
 
     /// <summary>
     /// Runs <paramref name="action"/>, returning any exception it throws instead of letting it
