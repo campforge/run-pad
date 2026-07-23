@@ -31,6 +31,68 @@ public static class Util
     /// </summary>
     public static string? CurrentQueryPath => Environment.GetEnvironmentVariable(CurrentQueryPathEnvVar);
 
+    // TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes save
+    // to a dedicated per-user data folder, not an arbitrary path the caller has to come up with —
+    // mirrors the OS-special-folder + "DotPad" subfolder convention DotPad's own
+    // PreferencesService/BuildCacheService already use for their own data (a further "UserData"
+    // level under that so scripts' own files don't collide with either), duplicated rather than
+    // shared since this assembly (netstandard2.0, referenced by the compiled SCRIPT's own project)
+    // has no reference to DotPad's main app project. fileName may itself contain subdirectories
+    // (e.g. "cache/foo.json") — created on demand by the Save* half, same as LINQPad's own behavior.
+    private static string ResolveUserDataPath(string fileName)
+    {
+        var root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "UserData");
+        var path = Path.Combine(root, fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        return path;
+    }
+
+    /// <summary>Writes <paramref name="text"/> to <paramref name="fileName"/> in DotPad's per-user data folder (created on demand), overwriting any existing content.</summary>
+    public static void SaveString(string text, string fileName) => File.WriteAllText(ResolveUserDataPath(fileName), text);
+
+    /// <summary>Reads back a file previously written by <see cref="SaveString"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
+    public static string LoadString(string fileName) => File.ReadAllText(ResolveUserDataPath(fileName));
+
+    /// <summary>Writes <paramref name="data"/> to <paramref name="fileName"/> in DotPad's per-user data folder (created on demand), overwriting any existing content.</summary>
+    public static void SaveBytes(byte[] data, string fileName) => File.WriteAllBytes(ResolveUserDataPath(fileName), data);
+
+    /// <summary>Reads back a file previously written by <see cref="SaveBytes"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
+    public static byte[] LoadBytes(string fileName) => File.ReadAllBytes(ResolveUserDataPath(fileName));
+
+    /// <summary>
+    /// Runs <paramref name="action"/>, returning any exception it throws instead of letting it
+    /// propagate (<see langword="null"/> if it completed without throwing) — LINQPad-inspired
+    /// <c>Util.Try</c>. No decompiled reference for this one's exact original signature was available
+    /// to check against (see TODO.md #111's own note on this bucket being "по построению", not a
+    /// byte-for-byte port); this is a straightforward, self-contained try/catch wrapper only.
+    /// </summary>
+    public static Exception? Try(Action action)
+    {
+        try
+        {
+            action();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    /// <summary>Same as <see cref="Try(Action)"/>, but for a function that returns a value — <c>Result</c> is <see langword="default"/> if <paramref name="func"/> threw.</summary>
+    public static (T? Result, Exception? Exception) Try<T>(Func<T> func)
+    {
+        try
+        {
+            return (func(), null);
+        }
+        catch (Exception ex)
+        {
+            return (default, ex);
+        }
+    }
+
     /// <summary>Reads a single line of text typed into the output panel. <see langword="null"/> if the run was cancelled/stdin closed before an answer arrived.</summary>
     public static string? ReadLine(string? prompt = null) => ReadLineCore(prompt, isPassword: false);
 
