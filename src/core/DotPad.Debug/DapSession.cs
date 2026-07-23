@@ -56,6 +56,13 @@ public sealed class DapSession : IDapSession
     private readonly bool _breakOnAllExceptions;
     private readonly bool _breakOnUncaughtExceptions;
     private readonly bool _justMyCode;
+    private readonly string? _currentQueryPath;
+
+    // TODO.md #111 — mirrors ChildProcess.CurrentQueryPathEnvVar (DotPad.Build.Core) and
+    // DotPad.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
+    // reference to either — same precedent as RsPrefix/InputRequestPrefix mirroring across the same
+    // process boundary elsewhere in the DAP/runtime split).
+    private const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -113,6 +120,7 @@ public sealed class DapSession : IDapSession
         _breakOnUncaughtExceptions = options.BreakOnUncaughtExceptions;
         _onBreakpointVerified = onBreakpointVerified;
         _justMyCode = options.JustMyCode;
+        _currentQueryPath = options.CurrentQueryPath;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -270,6 +278,9 @@ public sealed class DapSession : IDapSession
                         stopAtEntry = false,
                         justMyCode = _justMyCode,
                         console = "internalConsole",
+                        env = _currentQueryPath is null
+                            ? null
+                            : new Dictionary<string, string> { [CurrentQueryPathEnvVar] = _currentQueryPath },
                     }
                 }, ct);
                 launchSent = true;

@@ -97,6 +97,66 @@ public class DotnetProcessCompilerTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
+    // TODO.md #111 fix — live user report, "Util.CurrentQueryPath always null": the hot-path skip
+    // above compares generated TEXT (project file/source), which references DotPad.Runtime.dll by
+    // PATH only — rebuilding it in place (e.g. updating DotPad itself) left that text identical, so
+    // the hot path kept serving a stale outputDll built against the OLD DotPad.Runtime.dll forever,
+    // even though the path on disk now points at genuinely different content. Real dotnet-build
+    // integration test (no mocking) — the bug is entirely about actual on-disk timestamps, same
+    // rationale as the failed-build hot-path test above.
+    [Fact]
+    public async Task Compilation_Should_Rebuild_WhenTheReferencedRuntimeLibChangesOnDisk_EvenIfSourceDidnt()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("dotpad-compiler-test").FullName;
+        var fakeRuntimeLib = Path.Combine(
+            Directory.CreateTempSubdirectory("dotpad-compiler-test-lib").FullName, "DotPad.Runtime.dll");
+        try
+        {
+            // A real, valid managed assembly (copied, not the live system one) so a real `dotnet
+            // build` referencing it actually succeeds — its own content doesn't matter, only its
+            // on-disk timestamp does.
+            File.Copy(new CSharpReferenceService().GetExtensionReference(), fakeRuntimeLib);
+
+            var sdk = new DotnetSdkProvider().Get().First();
+            using var compiler = new MsBuildProcessCompiler(
+                CSharpProjectProfile.Instance,
+                sdk: sdk,
+                executionOptions: new ExecutionOptions
+                {
+                    WorkingDirectory = outputDir,
+                    Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
+                    Debugger = new DebuggerOptions { DebuggerPath = "" },
+                },
+                outputDir: outputDir,
+                dotPadRuntimeLib: fakeRuntimeLib,
+                outputName: "Query",
+                nugetPackages: new Dictionary<string, string>(),
+                usings: [],
+                assemblyReferences: [],
+                projectReferences: [],
+                logger: NullLogger<MsBuildProcessCompiler>.Instance);
+            const string code = "System.Console.WriteLine(\"v1\");";
+
+            var first = await compiler.Compilation(code, CancellationToken.None);
+            Assert.True(first.Success, string.Join('\n', first.Errors.Select(e => e.Message)));
+            var writeTimeAfterFirstBuild = File.GetLastWriteTimeUtc(first.OutputBinaryFile);
+
+            // Simulate DotPad.Runtime.dll being rebuilt in place — same path, newer content/timestamp.
+            File.SetLastWriteTimeUtc(fakeRuntimeLib, DateTime.UtcNow.AddMinutes(5));
+
+            var second = await compiler.Compilation(code, CancellationToken.None);
+
+            Assert.True(second.Success, string.Join('\n', second.Errors.Select(e => e.Message)));
+            // A real rebuild rewrites (and so re-timestamps) outputDll — the hot path wouldn't have.
+            Assert.NotEqual(writeTimeAfterFirstBuild, File.GetLastWriteTimeUtc(second.OutputBinaryFile));
+        }
+        finally
+        {
+            Directory.Delete(outputDir, recursive: true);
+            Directory.Delete(Path.GetDirectoryName(fakeRuntimeLib)!, recursive: true);
+        }
+    }
+
     private static MsBuildProcessCompiler CreateVbCompiler(string outputDir)
     {
         var sdk = new DotnetSdkProvider().Get().First();

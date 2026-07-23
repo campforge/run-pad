@@ -15,6 +15,11 @@ namespace DotPad.Debug;
 /// <param name="BreakOnAllExceptions">DAP <c>setExceptionBreakpoints</c> — break on every thrown exception, not just uncaught ones.</param>
 /// <param name="BreakOnUncaughtExceptions">DAP <c>setExceptionBreakpoints</c> — break on exceptions that would otherwise crash the debuggee.</param>
 /// <param name="JustMyCode">netcoredbg's own "Just My Code" launch setting.</param>
+/// <param name="CurrentQueryPath">TODO.md #111 — the .rpad file's own path, forwarded to the
+/// debuggee via the launch request's own <c>env</c> (DotPad.Runtime.Util.CurrentQueryPath's
+/// RunAsync-only env var, previously never reaching a debug session at all — netcoredbg spawns the
+/// debuggee itself, so ProcessStartInfo.Environment on netcoredbg's own process has no effect on
+/// it). <see langword="null"/> for a never-saved (untitled) tab, same as the non-debug run.</param>
 public sealed record DapSessionOptions(
     string ProgramPath,
     string WorkingDirectory,
@@ -23,4 +28,5 @@ public sealed record DapSessionOptions(
     int LineOffset,
     bool BreakOnAllExceptions = false,
     bool BreakOnUncaughtExceptions = true,
-    bool JustMyCode = false);
+    bool JustMyCode = false,
+    string? CurrentQueryPath = null);

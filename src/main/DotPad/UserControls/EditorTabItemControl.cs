@@ -1626,6 +1626,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Usings = usings,
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
+            CurrentQueryPath = _vm.FilePath,
         };
     }
 
