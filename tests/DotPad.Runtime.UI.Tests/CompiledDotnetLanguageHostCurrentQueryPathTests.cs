@@ -17,6 +17,32 @@ namespace DotPad.Runtime.UI.Tests;
 // compiled script's own process really does read it back correctly.
 public class CompiledDotnetLanguageHostCurrentQueryPathTests
 {
+    // Windows CI report: Directory.Delete(outputDir) right after RunAsync returns threw
+    // UnauthorizedAccessException on "DotPad.Runtime.dll" — the compiled script's own process has
+    // already exited by then (RunAsync's ChildProcess is disposed, via its own `await using`, before
+    // RunAsync returns), but on Windows specifically the OS can hold a loaded module's file lock open
+    // for a brief moment past that (deferred handle release, sometimes AV-scanner interference) —
+    // deleting a directory containing a file another process still has open works fine on Linux/
+    // macOS's POSIX unlink semantics, which is why this never showed up there. Retries instead of
+    // assuming the delete always succeeds on the first try.
+    private static async Task DeleteDirectoryWithRetryAsync(string path)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                await Task.Delay(200);
+            }
+        }
+
+        Directory.Delete(path, recursive: true); // last attempt — let a real, persistent failure throw
+    }
+
     private static CompiledDotnetLanguageHostOptions BuildOptions(string outputDir, string? currentQueryPath)
     {
         var sdk = new DotnetSdkProvider().Get().First();
@@ -55,7 +81,7 @@ public class CompiledDotnetLanguageHostCurrentQueryPathTests
 
             Assert.Contains($"QueryPath={queryPath}", output);
         }
-        finally { Directory.Delete(outputDir, recursive: true); }
+        finally { await DeleteDirectoryWithRetryAsync(outputDir); }
     }
 
     [Fact]
@@ -75,6 +101,6 @@ public class CompiledDotnetLanguageHostCurrentQueryPathTests
 
             Assert.Contains("QueryPath=<null>", output);
         }
-        finally { Directory.Delete(outputDir, recursive: true); }
+        finally { await DeleteDirectoryWithRetryAsync(outputDir); }
     }
 }
