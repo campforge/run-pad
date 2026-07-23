@@ -34,6 +34,12 @@ public sealed class DumpOptions
     /// <summary>Also renders non-public properties/fields.</summary>
     public bool IncludePrivateMembers { get; set; }
 
+    /// <summary>If set, only members whose name is in this list are rendered — applied before <see cref="Exclude"/>. (TODO.md #111.)</summary>
+    public IReadOnlyCollection<string>? Include { get; set; }
+
+    /// <summary>Member names to hide from the rendered property grid. (TODO.md #111.)</summary>
+    public IReadOnlyCollection<string>? Exclude { get; set; }
+
     /// <summary>Renders members alphabetically instead of in declaration order.</summary>
     public bool AlphabetizeMembers { get; set; }
 
@@ -394,6 +400,14 @@ internal static class DumpRenderer
             members = members.Concat(type.GetFields(flags)
                 .Where(f => f.GetCustomAttribute<CompilerGeneratedAttribute>() is null));
 
+        // TODO.md #111 — LINQPad-inspired Dump(include:)/Dump(exclude:). Both apply, in this order
+        // (Include narrows down first, Exclude then removes from what's left), rather than one
+        // overriding the other outright — simpler to reason about if a caller ever sets both.
+        if (options.Include is { Count: > 0 } include)
+            members = members.Where(m => include.Contains(m.Name, StringComparer.Ordinal));
+        if (options.Exclude is { Count: > 0 } exclude)
+            members = members.Where(m => !exclude.Contains(m.Name, StringComparer.Ordinal));
+
         return options.AlphabetizeMembers
             ? members.OrderBy(m => m.Name, StringComparer.Ordinal).ToArray()
             : members.ToArray();
@@ -431,7 +445,10 @@ internal static class DumpRenderer
         catch { return "<" + (v?.GetType().Name ?? "?") + ">"; }
     }
 
-    private static string Encode(string? s)
+    // internal, not private: Util.ProgressBar (TODO.md #111) needs the same HTML-escaping for its
+    // caption text — it renders its own fixed markup directly rather than going through Render(),
+    // since a plain string handed to Render() escapes AND quotes it as a dumped string value.
+    internal static string Encode(string? s)
     {
         if (s is null) return "";
         return s.Replace("&", "&amp;")
