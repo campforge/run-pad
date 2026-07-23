@@ -25,6 +25,14 @@ public class EditorTabItemControlFontSettingsTests
         Assert.Equal("monospace", new EditorSettings().FontFamily);
     }
 
+    // TODO.md #113 — live user report ("слишком крупный шрифт и отступы", LINQPad 4 as a denser
+    // reference): 14 was an unexplained outlier default; 12 is what testing it live settled on.
+    [Fact]
+    public void EditorSettings_Should_DefaultFontSize_To12_NotTheRoomier14()
+    {
+        Assert.Equal(12, new EditorSettings().FontSize);
+    }
+
     [AvaloniaFact]
     public void ApplyEditorSettings_Should_ApplyFontFamily_FromEditorSettings()
     {
