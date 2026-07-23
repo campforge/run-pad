@@ -247,6 +247,9 @@ public sealed partial class MainWindow : Window, IDisposable
         if (sender is FileTreeView view) view.StartRenameForPath(newPath);
     }
 
+    private void FileTree_Move(object? sender, FileTreeMoveEventArgs e)
+        => GetViewModel().MoveFileOrFolder(e.SourcePath, e.TargetPath);
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private MainWindowViewModel GetViewModel()

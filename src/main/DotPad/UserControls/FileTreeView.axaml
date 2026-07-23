@@ -22,7 +22,6 @@
                   BorderThickness="0"
                   Padding="4,2,4,8"
                   SelectionMode="Single"
-                  PointerPressed="FileTree_PointerPressed"
                   KeyDown="FileTree_KeyDown"
                   SelectionChanged="FileTree_SelectionChanged">
 
@@ -74,6 +73,10 @@
                     <Setter Property="Margin" Value="0,0" />
                     <Setter Property="Background" Value="Transparent" />
                     <Setter Property="Cursor" Value="Hand" />
+                    <!-- TODO.md #110: AllowDrop on the outer TreeView alone wasn't enough for a real
+                         drop to land on individual rows — needs to be set on each TreeViewItem
+                         container too. -->
+                    <Setter Property="(DragDrop.AllowDrop)" Value="True" />
                 </Style>
                 <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
                     <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}" />
@@ -102,6 +105,14 @@
             <TreeView.ItemTemplate>
                 <TreeDataTemplate DataType="models:FileTreeViewNode" ItemsSource="{Binding SubNodes}">
                     <Panel VerticalAlignment="Center" Margin="0,1">
+
+                        <!-- TODO.md #110: drop-target highlight, toggled by FileTreeView's drag
+                             handlers on whatever node the pointer is currently over during a drag —
+                             drawn first (behind the icon/text) so it reads as a row highlight. -->
+                        <Border IsVisible="{Binding IsDropTarget}"
+                                Background="{DynamicResource DotPad.Accent.BackgroundBrush}"
+                                CornerRadius="5"
+                                Margin="-6,-3" />
 
                         <StackPanel Orientation="Horizontal" Spacing="7"
                                     IsVisible="{Binding !IsRenaming}"
