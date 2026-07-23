@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using DotPad.Runtime;
 
 // ReSharper disable once CheckNamespace
 
@@ -136,6 +138,210 @@ public static class Util
     {
         var sanitized = new string(key.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
         return Path.Combine("Cache", sanitized + ".json");
+    }
+
+    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cmd/CmdCore: run an external process and stream
+    // its output. DotPad.Build.Core (DotPad's own ChildProcess) already has this exact
+    // concurrent-stdout/stderr-draining infrastructure for the compiled SCRIPT's own process, but this
+    // assembly (netstandard2.0, referenced by the compiled script's own project) has no reference to
+    // it — reimplemented here directly against System.Diagnostics.Process, same principle (draining
+    // one stream while the other's OS pipe buffer fills would deadlock the child — see docs/ARCHITECTURE.md's
+    // note on this same class of bug), not shared code.
+
+    /// <summary>
+    /// Runs an external process, streaming its stdout/stderr lines live to <see cref="Console.Out"/>/
+    /// <see cref="Console.Error"/> as they arrive (so they show up in the output panel while the
+    /// process runs, not only once it exits) — LINQPad-inspired <c>Util.Cmd</c>. Returns the exit code
+    /// once the process completes.
+    /// </summary>
+    public static int Cmd(string executable, string? arguments = null, string? workingDirectory = null)
+        => CmdCore(executable, arguments, workingDirectory, Console.WriteLine, Console.Error.WriteLine);
+
+    /// <summary>
+    /// Same as <see cref="Cmd(string, string?, string?)"/>, but captures the process's combined
+    /// stdout+stderr into <paramref name="output"/> (one line per <see cref="Environment.NewLine"/>)
+    /// instead of writing it live.
+    /// </summary>
+    public static int Cmd(string executable, string? arguments, out string output)
+    {
+        var lines = new List<string>();
+        void OnLine(string line) { lock (lines) lines.Add(line); }
+
+        var exitCode = CmdCore(executable, arguments, workingDirectory: null, OnLine, OnLine);
+        output = string.Join(Environment.NewLine, lines);
+        return exitCode;
+    }
+
+    /// <summary>
+    /// The process runner underneath both <see cref="Cmd(string, string?, string?)"/> overloads — runs <paramref name="executable"/>
+    /// to completion, calling <paramref name="onOutputLine"/>/<paramref name="onErrorLine"/> for each
+    /// stdout/stderr line as it arrives, and returns the exit code. Exposed directly for callers who
+    /// want their own line handling instead of either <c>Cmd</c> overload's behavior.
+    /// </summary>
+    public static int CmdCore(
+        string executable, string? arguments, string? workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executable,
+            Arguments = arguments ?? string.Empty,
+            WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        var outputTask = DrainAsync(process.StandardOutput, onOutputLine);
+        var errorTask = DrainAsync(process.StandardError, onErrorLine);
+
+        process.WaitForExit();
+        Task.WaitAll(outputTask, errorTask);
+
+        return process.ExitCode;
+    }
+
+    private static async Task DrainAsync(StreamReader reader, Action<string> onLine)
+    {
+        string? line;
+        while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) is not null)
+            onLine(line);
+    }
+
+    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.KeepRunning. LINQPad has its own explicit
+    // "QueryCompletionCountdown" concept to hold a query open; DotPad has no such concept (a compiled
+    // script is just a normal .NET console app — it exits once its own code returns, like any other),
+    // so instead of building a parallel lifetime system, this leans on the CLR's own actual behavior:
+    // a process only exits once every FOREGROUND thread has finished, even after Main() itself has
+    // already returned. A live KeepRunning token holds a genuine foreground Thread parked on a
+    // ManualResetEventSlim; disposing the last outstanding token releases it, letting the process end
+    // exactly the way it would have without ever calling KeepRunning at all.
+    private static readonly object KeepRunningLock = new();
+    private static int _keepRunningCount;
+    private static ManualResetEventSlim? _keepRunningSignal;
+
+    // Test-only observability (InternalsVisibleTo) — is a KeepRunning token currently outstanding.
+    internal static bool IsKeepRunningActive
+    {
+        get { lock (KeepRunningLock) return _keepRunningCount > 0; }
+    }
+
+    /// <summary>
+    /// Keeps the script's process alive until the returned token is disposed, even after the script's
+    /// own code has already returned — LINQPad-inspired <c>Util.KeepRunning</c>. Useful when a script
+    /// kicks off background work (a <see cref="System.Threading.Timer"/>, an event handler, a detached
+    /// <see cref="Task"/>) and would otherwise exit, like any console app, as soon as its own code
+    /// finishes running. Safe to call more than once — the process only becomes eligible to exit again
+    /// once EVERY outstanding token has been disposed. Disposing the same token twice is a no-op.
+    /// </summary>
+    public static IDisposable KeepRunning()
+    {
+        lock (KeepRunningLock)
+        {
+            if (_keepRunningCount == 0)
+            {
+                var signal = new ManualResetEventSlim(false);
+                _keepRunningSignal = signal;
+                new Thread(signal.Wait) { IsBackground = false }.Start();
+            }
+            _keepRunningCount++;
+        }
+
+        return new KeepRunningToken();
+    }
+
+    private sealed class KeepRunningToken : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+            lock (KeepRunningLock)
+            {
+                _keepRunningCount--;
+                if (_keepRunningCount == 0)
+                {
+                    _keepRunningSignal!.Set();
+                    _keepRunningSignal = null;
+                }
+            }
+        }
+    }
+
+    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.ProgressBar. Reuses DumpContainer's own
+    // live-update mechanism (a stable data-dp-id the UI matches on to replace the block in place —
+    // see DumpContainer.cs) but does NOT reuse DumpContainer itself: DumpContainer.Content goes
+    // through DumpRenderer.Render(), which renders a plain string as an escaped, quoted STRING VALUE
+    // (correct for regular Dump() output) rather than as raw markup — a progress bar needs actual
+    // <div style="width:..."> markup, so it emits its own fixed HTML directly instead.
+
+    /// <summary>
+    /// A live-updating progress bar in the output panel — LINQPad-inspired <c>Util.ProgressBar</c>.
+    /// Construct it, then call <see cref="Dump"/> once to show it; after that, setting
+    /// <see cref="PercentComplete"/>/<see cref="Caption"/> (or calling <see cref="Refresh"/>)
+    /// re-renders the SAME block in place instead of appending a new one each time.
+    /// </summary>
+    public sealed class ProgressBar
+    {
+        private readonly string _id = Guid.NewGuid().ToString("N");
+        private int _percentComplete;
+        private string? _caption;
+        private bool _dumped;
+
+        /// <summary>Creates a progress bar. Nothing is shown until <see cref="Dump"/> is called.</summary>
+        public ProgressBar(int percentComplete = 0, string? caption = null)
+        {
+            _percentComplete = Clamp(percentComplete);
+            _caption = caption;
+        }
+
+        /// <summary>0-100; out-of-range values are clamped. Setting it re-renders in place.</summary>
+        public int PercentComplete
+        {
+            get => _percentComplete;
+            set { _percentComplete = Clamp(value); Refresh(); }
+        }
+
+        /// <summary>Optional text shown above the bar. Setting it re-renders in place.</summary>
+        public string? Caption
+        {
+            get => _caption;
+            set { _caption = value; Refresh(); }
+        }
+
+        /// <summary>Renders this progress bar for the first time. Returns this instance so it can be chained like <c>new Util.ProgressBar().Dump()</c>.</summary>
+        public ProgressBar Dump()
+        {
+            _dumped = true;
+            Emit();
+            return this;
+        }
+
+        /// <summary>Re-renders in place. A no-op if <see cref="Dump"/> hasn't been called yet.</summary>
+        public void Refresh()
+        {
+            if (_dumped) Emit();
+        }
+
+        private static int Clamp(int value) => value < 0 ? 0 : value > 100 ? 100 : value;
+
+        private void Emit()
+        {
+            var captionHtml = _caption is null
+                ? ""
+                : $"<div class=\"dp-progressbar-caption\">{DumpRenderer.Encode(_caption)}</div>";
+            var html = $"<div data-dp-id=\"{_id}\">{captionHtml}" +
+                       $"<div class=\"dp-progressbar\" data-dp-percent=\"{_percentComplete}\">" +
+                       $"<div class=\"dp-progressbar-fill\" style=\"width:{_percentComplete}%\"></div>" +
+                       "</div></div>";
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(html));
+            Console.WriteLine(ObjectExtensions.DumpLinePrefixChar + encoded);
+        }
     }
 
     /// <summary>

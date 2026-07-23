@@ -290,6 +290,64 @@ public class DumpRendererTests
         Assert.Contains("ok", result); // Safe property still renders
     }
 
+    // ── Include/Exclude (TODO.md #111) ───────────────────────────────────────
+
+    [Fact]
+    public void Render_PocoObject_WithExclude_HidesTheExcludedProperty()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { Exclude = ["Y"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithInclude_ShowsOnlyTheIncludedProperties()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { Include = ["X"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithIncludeAndExclude_AppliesIncludeFirstThenExclude()
+    {
+        // Arrange — Include narrows down to Name+Child, Exclude then removes Child from what's left.
+        var node = new Node { Name = "root" };
+
+        // Act
+        var result = DumpRenderer.Render(node, null, new DumpOptions { Include = ["Name", "Child"], Exclude = ["Child"] });
+
+        // Assert
+        Assert.Contains(">Name<", result);
+        Assert.DoesNotContain(">Child<", result);
+    }
+
+    [Fact]
+    public void Render_Exclude_AppliesToThePropertyGridOfAnEnumerableOfObjects_Too()
+    {
+        // Arrange — GetMembers is the same chokepoint RenderEnumerable's property-grid branch uses.
+        var points = new List<Point> { new() { X = 1, Y = 2 }, new() { X = 3, Y = 4 } };
+
+        // Act
+        var result = DumpRenderer.Render(points, null, new DumpOptions { Exclude = ["Y"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
     // ── Depth limiting ────────────────────────────────────────────────────────
 
     [Fact]

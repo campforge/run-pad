@@ -95,4 +95,74 @@ public class DumpHtmlSpectreRendererTests
 
         Assert.Contains("[red]not actually red[/]", output);
     }
+
+    // Util.ProgressBar (TODO.md #111): its own fixed <div class="dp-progressbar" data-dp-percent="N">
+    // wrapping an (always textless) <div class="dp-progressbar-fill">, plus an optional
+    // <div class="dp-progressbar-caption">text</div> sibling — see Util.cs's ProgressBar.Emit().
+    [Fact]
+    public void Render_Should_ShowAFilledBarAndThePercentage_ForAProgressBar()
+    {
+        var html = "<div class=\"dp-progressbar\" data-dp-percent=\"50\">"
+            + "<div class=\"dp-progressbar-fill\" style=\"width:50%\"></div></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("50%", output);
+        Assert.Contains('█', output);
+        Assert.Contains('░', output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowTheCaption_AboveAProgressBar()
+    {
+        var html = "<div class=\"dp-progressbar-caption\">Loading</div>"
+            + "<div class=\"dp-progressbar\" data-dp-percent=\"25\">"
+            + "<div class=\"dp-progressbar-fill\" style=\"width:25%\"></div></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("Loading", output);
+        Assert.Contains("25%", output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowAnEmptyBar_ForZeroPercent()
+    {
+        var html = "<div class=\"dp-progressbar\" data-dp-percent=\"0\">"
+            + "<div class=\"dp-progressbar-fill\" style=\"width:0%\"></div></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("0%", output);
+        Assert.DoesNotContain('█', output);
+    }
+
+    [Fact]
+    public void Render_Should_ShowAFullBar_ForOneHundredPercent()
+    {
+        var html = "<div class=\"dp-progressbar\" data-dp-percent=\"100\">"
+            + "<div class=\"dp-progressbar-fill\" style=\"width:100%\"></div></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("100%", output);
+        Assert.DoesNotContain('░', output);
+    }
+
+    // Wrapped inside DumpContainer's own unrecognized-wrapper <div data-dp-id="..."> (the live-update
+    // shape both DumpContainer and Util.ProgressBar share) — confirms the default pass-through case
+    // and the dp-progressbar case compose correctly, not just in isolation.
+    [Fact]
+    public void Render_Should_RenderAProgressBar_InsideItsLiveUpdateWrapper()
+    {
+        var html = "<div data-dp-id=\"abc123\">"
+            + "<div class=\"dp-progressbar-caption\">Working</div>"
+            + "<div class=\"dp-progressbar\" data-dp-percent=\"70\">"
+            + "<div class=\"dp-progressbar-fill\" style=\"width:70%\"></div></div></div>";
+
+        var output = RenderToText(html);
+
+        Assert.Contains("Working", output);
+        Assert.Contains("70%", output);
+    }
 }
