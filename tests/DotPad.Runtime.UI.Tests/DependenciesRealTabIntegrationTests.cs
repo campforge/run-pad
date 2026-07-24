@@ -22,8 +22,9 @@ namespace DotPad.Runtime.UI.Tests;
 
 // Reproduces "packages added via Dependencies aren't there for an already-open, already-saved
 // .rpad file" end-to-end: real EditorTabsControl/MainWindowViewModel tab loading (the same async
-// path CreateControlAsync uses), real NuGetPackageSearchService/LocalPackageCacheService, real
-// DependenciesWindow — only the DI-only services with no bearing on this flow are mocked.
+// path CreateControlAsync uses), real ILocalPackageCacheService, real DependenciesWindow —
+// IPackageSearchService itself is mocked (no real network dependency in CI), only the DI-only
+// services with no bearing on this flow are mocked otherwise.
 public class DependenciesRealTabIntegrationTests
 {
     [AvaloniaFact]
@@ -115,7 +116,11 @@ public class DependenciesRealTabIntegrationTests
             var searchBox = depsWindow.GetVisualDescendants().OfType<TextBox>().First();
             searchBox.Focus();
             depsWindow.KeyTextInput("Newtonsoft.Json");
-            await Task.Delay(3000); // debounce (350ms) + real NuGet search round-trip
+            // The search itself is mocked (returns instantly) — only the ViewModel's own 350ms
+            // debounce stands between typing and results, so poll instead of a flat 3s sleep. The
+            // 3000ms ceiling is kept only as a generous upper bound for slow CI machines.
+            for (var i = 0; i < 150 && depsVm.Results.Count == 0; i++)
+                await Task.Delay(20);
 
             // Assert
             Assert.True(depsVm.HasFrontMatter);

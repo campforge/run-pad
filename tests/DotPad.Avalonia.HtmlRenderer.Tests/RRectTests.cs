@@ -45,68 +45,39 @@ public class RRectTests
         Assert.True(RRect.Empty.IsEmpty);
     }
 
-    [Fact]
-    public void Contains_Point_TrueWhenInside()
+    [Theory]
+    [InlineData(50, 50, true)]
+    [InlineData(150, 50, false)]
+    public void Contains_Point_ReflectsWhetherThePointIsInside(double x, double y, bool expected)
     {
-        // Arrange
         var r = new RRect(0, 0, 100, 100);
 
-        // Assert
-        Assert.True(r.Contains(50, 50));
+        Assert.Equal(expected, r.Contains(x, y));
     }
 
-    [Fact]
-    public void Contains_Point_FalseWhenOutside()
+    [Theory]
+    [InlineData(10, 10, 50, 50, true)]
+    [InlineData(50, 50, 100, 100, false)]
+    public void Contains_Rect_ReflectsWhetherTheOtherRectIsFullyInside(
+        double otherX, double otherY, double otherWidth, double otherHeight, bool expected)
     {
-        // Arrange
         var r = new RRect(0, 0, 100, 100);
+        var other = new RRect(otherX, otherY, otherWidth, otherHeight);
 
-        // Assert
-        Assert.False(r.Contains(150, 50));
+        Assert.Equal(expected, r.Contains(other));
     }
 
-    [Fact]
-    public void Contains_Rect_TrueWhenFullyInside()
+    [Theory]
+    [InlineData(0, 0, 100, 100, 50, 50, 100, 100, true)]
+    [InlineData(0, 0, 50, 50, 100, 100, 50, 50, false)]
+    public void IntersectsWith_ReflectsWhetherTheTwoRectsOverlap(
+        double aX, double aY, double aWidth, double aHeight,
+        double bX, double bY, double bWidth, double bHeight, bool expected)
     {
-        // Arrange
-        var outer = new RRect(0, 0, 100, 100);
-        var inner = new RRect(10, 10, 50, 50);
+        var a = new RRect(aX, aY, aWidth, aHeight);
+        var b = new RRect(bX, bY, bWidth, bHeight);
 
-        // Assert
-        Assert.True(outer.Contains(inner));
-    }
-
-    [Fact]
-    public void Contains_Rect_FalseWhenPartiallyOutside()
-    {
-        // Arrange
-        var r = new RRect(0, 0, 100, 100);
-        var other = new RRect(50, 50, 100, 100);
-
-        // Assert
-        Assert.False(r.Contains(other));
-    }
-
-    [Fact]
-    public void IntersectsWith_TrueForOverlapping()
-    {
-        // Arrange
-        var a = new RRect(0, 0, 100, 100);
-        var b = new RRect(50, 50, 100, 100);
-
-        // Assert
-        Assert.True(a.IntersectsWith(b));
-    }
-
-    [Fact]
-    public void IntersectsWith_FalseForNonOverlapping()
-    {
-        // Arrange
-        var a = new RRect(0, 0, 50, 50);
-        var b = new RRect(100, 100, 50, 50);
-
-        // Assert
-        Assert.False(a.IntersectsWith(b));
+        Assert.Equal(expected, a.IntersectsWith(b));
     }
 
     [Fact]

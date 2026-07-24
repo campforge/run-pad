@@ -15,6 +15,7 @@ namespace DotPad.Runtime.UI.Tests;
 // DotnetProcessCompilerTests) — the bug was entirely about what MSBuild/Roslyn actually accept, which
 // pure string-pinning against ApplyKindTransform's output (CSharpLanguageHostKindTransformTests) can't
 // by itself prove fixed; that file pins the transform's exact shape, this one proves the shape compiles.
+[Collection(RealBuildTestCollection.Name)]
 public class CSharpLanguageHostProgramKindCompileTests
 {
     private static CSharpLanguageHost CreateHost(string outputDir, IReadOnlyList<string>? usings = null)

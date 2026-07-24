@@ -15,6 +15,7 @@ namespace DotPad.Runtime.UI.Tests;
 // trip: CompiledDotnetLanguageHostOptions.CurrentQueryPath really does reach ChildProcess.ForExecution
 // as an environment variable, and DotPad.Runtime.Util.CurrentQueryPath running inside the real
 // compiled script's own process really does read it back correctly.
+[Collection(RealBuildTestCollection.Name)]
 public class CompiledDotnetLanguageHostCurrentQueryPathTests
 {
     // Windows CI report: Directory.Delete(outputDir) right after RunAsync returns threw
