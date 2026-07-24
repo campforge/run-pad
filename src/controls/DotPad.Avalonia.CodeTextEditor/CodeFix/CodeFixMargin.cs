@@ -7,6 +7,28 @@ using AvaloniaEdit.Rendering;
 
 namespace DotPad.Avalonia.CodeTextEditor;
 
+// TODO.md #116 — live user request: group the lightbulb's dropdown menu by kind (using-directive
+// fixes separately from create/implement variants), and give fixes/refactorings/conversions their
+// own icon instead of one hammer for everything. Neither CodeFixEntry nor the upstream
+// DotPad.Contracts.IntelliSense.ICodeFixInfo it mirrors carries a "kind" at all — only
+// Title/DiagnosticId — so CodeFixMargin.Categorize below is built from those two signals:
+// DiagnosticId != null is already a real, existing distinction (RoslynCodeFixEngine only ever sets
+// it for ComputeFixesAsync's diagnostic-driven results, never for ComputeRefactoringsAsync's
+// caret-triggered ones — CodeFixEntry's own doc comment), and beyond that a Title keyword heuristic.
+// Roslyn's own built-in fix/refactoring catalog is a couple hundred MEF-discovered providers
+// (RoslynCodeFixEngine's own doc comment) — too broad to map exhaustively by exact title string —
+// so this covers the three groupings the user explicitly asked for (using-directives, create/
+// implement, conversions/minor edits) and falls back to the existing DiagnosticId split (Fix vs
+// Refactoring) for everything else a keyword doesn't recognize.
+internal enum CodeFixCategory
+{
+    UsingDirective,
+    CreateOrImplement,
+    Conversion,
+    Fix,
+    Refactoring,
+}
+
 // Lightbulb gutter margin: shows an icon on the CURRENT (caret) line when it has an available quick
 // fix, and applies it on click. Real Roslyn CodeFixProviders (RoslynCodeFixEngine) routinely offer
 // several candidates for one line (e.g. multiple "using X;" namespaces for the same unresolved
@@ -27,7 +49,10 @@ public class CodeFixMargin : AbstractMargin
     private readonly CodeTextEditor _editor;
     private IReadOnlyList<CodeFixEntry> _fixes = [];
     private StreamGeometry? _bulbGeo;
-    private StreamGeometry? _hammerGeo;
+
+    // TODO.md #116: was a single _hammerGeo field — now three possible icons (Categorize/IconKeyForCategory
+    // below), cached by resource key instead of one field per icon.
+    private readonly Dictionary<string, StreamGeometry?> _menuIconCache = new();
 
     // Tracks the caret's own document line so PositionChanged (fired on every column move too, not
     // just line changes — e.g. Left/Right arrow within the same line) only triggers a repaint when
@@ -120,8 +145,8 @@ public class CodeFixMargin : AbstractMargin
         // never applies anything sight-unseen and there's a consistent place to add more entries later
         // (Suppress, Fix all in file/project, ...) without a special case for "exactly one fix".
         var menu = new MenuFlyout();
-        foreach (var fix in candidates)
-            menu.Items.Add(BuildMenuItem(fix));
+        foreach (var item in BuildMenuItems(candidates))
+            menu.Items.Add(item);
         // showAtPointer: true — anchors the flyout to where the user actually clicked (the lightbulb
         // icon on this specific line) instead of PopupFlyoutBase's default placement relative to the
         // whole margin control, which spans the full editor height and made the menu appear pinned to
@@ -131,20 +156,107 @@ public class CodeFixMargin : AbstractMargin
         e.Handled = true;
     }
 
+    // TODO.md #116: group order the dropdown menu presents categories in — using-directive fixes
+    // first (the single most common/expected quick fix), then create/implement, then everything
+    // else diagnostic-driven, then conversions, refactorings last (caret-triggered, no diagnostic —
+    // the "furthest" from what actually flagged this line).
+    private static readonly CodeFixCategory[] MenuGroupOrder =
+    [
+        CodeFixCategory.UsingDirective,
+        CodeFixCategory.CreateOrImplement,
+        CodeFixCategory.Fix,
+        CodeFixCategory.Conversion,
+        CodeFixCategory.Refactoring,
+    ];
+
+    // TODO.md #116: the grouping half of OnPointerPressed, factored out (same "internal test hook"
+    // pattern as ResolveCandidatesForClick/WorstSeverityOnLine) so it can be asserted directly
+    // without driving a real PointerPressed/MenuFlyout interaction. A Separator only ever appears
+    // BETWEEN two non-empty groups — a single-category candidate list (the common case: one line,
+    // one kind of fix) renders exactly as it did before this grouping existed, with no stray
+    // separator at either end.
+    internal IReadOnlyList<Control> BuildMenuItems(IReadOnlyList<CodeFixEntry> candidates)
+    {
+        var items = new List<Control>();
+        var firstGroup = true;
+        foreach (var category in MenuGroupOrder)
+        {
+            var inGroup = candidates.Where(f => Categorize(f) == category).ToList();
+            if (inGroup.Count == 0) continue;
+
+            if (!firstGroup) items.Add(new Separator());
+            firstGroup = false;
+
+            foreach (var fix in inGroup)
+                items.Add(BuildMenuItem(fix));
+        }
+        return items;
+    }
+
+    // TODO.md #116 — see this file's own CodeFixCategory doc comment for the full reasoning. Roslyn's
+    // own AddImport code fix titles are the bare import statement itself (e.g. "using System.Linq;"
+    // or "using static System.Math;"), not an "Add ..." sentence — matched by that shape rather than
+    // a fixed prefix search.
+    internal static CodeFixCategory Categorize(CodeFixEntry fix)
+    {
+        var title = fix.Title;
+
+        if (title.StartsWith("using ", StringComparison.Ordinal) && title.EndsWith(';'))
+            return CodeFixCategory.UsingDirective;
+        if (ContainsAnyOrdinal(title, CreateOrImplementKeywords))
+            return CodeFixCategory.CreateOrImplement;
+        if (ContainsAnyOrdinal(title, ConversionKeywords))
+            return CodeFixCategory.Conversion;
+
+        return fix.DiagnosticId is null ? CodeFixCategory.Refactoring : CodeFixCategory.Fix;
+    }
+
+    private static readonly string[] CreateOrImplementKeywords = ["Generate", "Create", "Implement"];
+    private static readonly string[] ConversionKeywords = ["Convert ", "Simplify ", "Use "];
+
+    private static bool ContainsAnyOrdinal(string title, string[] keywords) =>
+        keywords.Any(k => title.Contains(k, StringComparison.Ordinal));
+
+    internal static string IconKeyForCategory(CodeFixCategory category) => category switch
+    {
+        CodeFixCategory.Conversion => "Icon.Wrench",
+        CodeFixCategory.Refactoring => "Icon.Broom",
+        _ => "Icon.Hammer",
+    };
+
     // TODO.md #79: same "PathIcon per MenuItem" pattern as FileTreeView.axaml's Rename/Delete menu
     // items — this menu is built in code-behind rather than XAML, so it's the same StreamGeometry
     // resource assigned via a fresh PathIcon instance per item (Avalonia visuals can't be shared
-    // across multiple items) instead of a XAML <MenuItem.Icon>. One uniform hammer icon for every
-    // entry is enough today — see TODO #79 for why per-action-kind icons aren't needed yet. Internal
-    // (not private) + InternalsVisibleTo, same pattern as WorstSeverityOnLine, so the icon wiring can
-    // be asserted directly without driving a real PointerPressed/MenuFlyout interaction.
+    // across multiple items) instead of a XAML <MenuItem.Icon>. TODO.md #116: the icon now depends
+    // on Categorize(fix) instead of always being the hammer. Internal (not private) +
+    // InternalsVisibleTo, same pattern as WorstSeverityOnLine, so the icon wiring can be asserted
+    // directly without driving a real PointerPressed/MenuFlyout interaction.
+    // Live user report: a title like Roslyn's own real "Introduce local for '""'" (FeaturesResources'
+    // "Introduce local for '{0}'" format string, {0} filled with the target expression's literal
+    // source text — here an empty string literal, i.e. the two characters "") renders, in the
+    // default proportional UI font, as a run of quote glyphs packed close enough together to read as
+    // an unreadable "\"\"\"\"" blur — the single quotes Roslyn wraps {0} in and the double quotes
+    // that ARE {0} become visually indistinguishable at menu font size. DotPad doesn't add or
+    // reformat these titles itself (fix.Title reaches here verbatim from Roslyn's own CodeAction.
+    // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
+    // adjacent quote glyphs stay visually separable regardless of what expression text ends up
+    // embedded in a future title. "monospace" (the bare generic keyword, not a specific font name) —
+    // same choice, same reason, as EditorSettings.FontFamily's own default (TODO.md #112): reliably
+    // resolves to a real non-ligature monospace font on every platform, unlike a named fallback chain.
+    private static readonly FontFamily MenuItemFontFamily = new("monospace");
+
     internal MenuItem BuildMenuItem(CodeFixEntry fix)
     {
-        _hammerGeo ??= LoadResource<StreamGeometry>("Icon.Hammer");
+        var iconKey = IconKeyForCategory(Categorize(fix));
+        if (!_menuIconCache.TryGetValue(iconKey, out var geo))
+        {
+            geo = LoadResource<StreamGeometry>(iconKey);
+            _menuIconCache[iconKey] = geo;
+        }
 
-        var item = new MenuItem { Header = fix.Title };
-        if (_hammerGeo is not null)
-            item.Icon = new PathIcon { Data = _hammerGeo, Width = 16, Height = 16 };
+        var item = new MenuItem { Header = fix.Title, FontFamily = MenuItemFontFamily };
+        if (geo is not null)
+            item.Icon = new PathIcon { Data = geo, Width = 16, Height = 16 };
         item.Click += (_, _) => Apply(fix);
         return item;
     }

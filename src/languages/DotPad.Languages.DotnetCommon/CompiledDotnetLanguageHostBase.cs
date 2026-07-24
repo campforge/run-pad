@@ -25,7 +25,8 @@ public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
 /// assembly in — injectable seam (ANALYSIS.md #88 remainder), mirroring <see cref="DotnetProcessCompilerFactory"/>,
 /// so tests can substitute a fake process instead of always shelling out to <c>dotnet</c>.
 /// </summary>
-public delegate IChildProcess ExecutionChildProcessFactory(ExecutionOptions options, string assemblyPath, string parentPid);
+public delegate IChildProcess ExecutionChildProcessFactory(
+    ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath);
 
 /// <summary>
 /// Builds the <see cref="IChildProcess"/> a <see cref="CompiledDotnetLanguageHostBase"/> runs netcoredbg
@@ -160,7 +161,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             await using var process = _executionProcessFactory(
                 _options.ExecutionOptions,
                 binaryPath,
-                Environment.ProcessId.ToString());
+                Environment.ProcessId.ToString(),
+                _options.CurrentQueryPath);
 
             if (!process.Start()) return;
 
@@ -206,7 +208,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 SourceFileExtension: ProjectProfile.SourceFileExtension,
                 LineOffset: lineOffset,
                 BreakOnAllExceptions: _options.BreakOnAllExceptions,
-                BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions);
+                BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions,
+                CurrentQueryPath: _options.CurrentQueryPath);
             await using var session = new DapSession(
                 process,
                 sessionOptions,

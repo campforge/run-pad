@@ -100,6 +100,30 @@ public class CliRunnerTests
         Assert.Equal(["$(CurrentQueryPath)/Lib.dll"], csharpOptions.AssemblyReferences);
     }
 
+    // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — distinct from the $(CurrentQueryPath)
+    // reference-macro tests above: this is the options OBJECT's own CurrentQueryPath property (what
+    // actually reaches the compiled script's process as an environment variable), not just a string
+    // substitution in References.
+    [Fact]
+    public void BuildOptions_Should_SetCurrentQueryPath_OnTheOptionsObject()
+    {
+        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
+
+        var options = CliRunner.BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", currentQueryPath);
+
+        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+        Assert.Equal(currentQueryPath, csharpOptions.CurrentQueryPath);
+    }
+
+    [Fact]
+    public void BuildOptions_Should_LeaveCurrentQueryPathNull_WhenNoFilePathGiven()
+    {
+        var options = CliRunner.BuildOptions(CreateFrontMatter(), Platform, "/tmp/out");
+
+        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+        Assert.Null(csharpOptions.CurrentQueryPath);
+    }
+
     [Fact]
     public void BuildOptions_Should_ExpandRuntimeDirectoryAndMyDocumentsMacros_InReferences()
     {

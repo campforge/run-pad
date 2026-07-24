@@ -24,4 +24,9 @@ public sealed class KeyboardSettings
     public string CloseTab { get; set; } = "Ctrl+W";
     public string RenameFile { get; set; } = "F2";
     public string DeleteFile { get; set; } = "Delete";
+
+    // TODO.md #114: there was no hotkey for "new file" at all — creating one meant reaching for the
+    // File menu every time. Skips NewFileKindDialog entirely, using EditorSettings.NewFileLanguage/
+    // NewFileKind instead (see MainWindow.OnWindowKeyDown).
+    public string NewFile { get; set; } = "Ctrl+N";
 }

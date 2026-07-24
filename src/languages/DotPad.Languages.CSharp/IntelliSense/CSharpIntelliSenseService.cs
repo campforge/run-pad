@@ -319,18 +319,25 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     }
 
     // The prefix ApplyKindTransform (CSharpLanguageHost) inserts before the user's code for
-    // RpadKind.Program — mirrored here so the live-analysis document contains the same `Main();` call
-    // the compiler will actually emit, otherwise Roslyn correctly (from its own point of view) flags
-    // the user's void Main() as an unused local function (CS8321). Deliberately NOT mirroring
+    // RpadKind.Program — mirrored here so the live-analysis document contains the same wrapper-class
+    // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
+    // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
     // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
-    // Code-dependent since ProgramMainCallPrefixFor picks between "Main();" and "await Main();"
-    // based on whether the user's own Main is Task-returning (TODO.md #63) — every call site already
-    // has `code` in scope (it's what's being analyzed), so this just threads it through.
-    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramMainCallPrefixFor(code) : "";
+    // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
+    // own Main is static and/or Task-returning (TODO.md #63, #107) — every call site already has
+    // `code` in scope (it's what's being analyzed), so this just threads it through.
+    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code) : "";
+
+    // Closes the wrapper class KindPrefix opens for RpadKind.Program (TODO.md #107) — mirrored for the
+    // same reason as the prefix: without it, the live-analysis document would contain a permanently
+    // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
+    // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
+    // depends on whether the user's own Main is static/Task-returning.
+    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code) : "";
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
-    // code — usings preamble plus (for RpadKind.Program) the mirrored Main-call prefix above.
+    // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
     // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
@@ -359,7 +366,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + code + TrailingPad;
+                var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
 
                 // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -548,6 +555,22 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 // an explicit invoke elsewhere (not after a dot, or Invoked with no resolvable
                 // member type) should still fall through to the general list below.
                 if (isDotInsertion) return null;
+            }
+
+            // TODO.md #115 — live user request: `new Tests() { P1 = "1", | }` offered whatever's
+            // visible in the enclosing scope (locals, fields of the CONTAINING type, ...) instead of
+            // Tests' own remaining settable members, because nothing here ever checked for an
+            // object-initializer position at all — it just fell through to the general LookupSymbols
+            // fallback below like any other identifier position. Only the direct
+            // "new Foo { X = 1, | }" shape (ObjectInitializerExpression whose own parent is the
+            // object-creation expression) is handled — a nested initializer with no `new` of its own
+            // ("new Outer { Inner = { | } }") and `with { }` expressions are a different, rarer shape
+            // not covered here.
+            if (TryFindObjectInitializer(root, pos) is { } initializer &&
+                initializer.Parent is BaseObjectCreationExpressionSyntax objectCreation)
+            {
+                var initializerItems = BuildObjectInitializerCompletions(model, pos, objectCreation, initializer);
+                return initializerItems.Count > 0 ? new SimpleCompletionList(initializerItems) : null;
             }
 
             var isTypeArgumentPosition = IsInsideTypeArgumentList(root, pos);
@@ -750,6 +773,61 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             method.Name, CompletionItemKind.Method,
             method.ToDisplayParts(_briefFormat).ToSegments(), XmlDocSummary.GetSummary(method),
             SortText: method.Name, Priority: 1.0, UsingsToAdd: [], InsertTemplate: template);
+    }
+
+    // TODO.md #115 — the nearest ObjectInitializerExpression ancestor of the token right before the
+    // caret, same "walk up from the token before pos" idiom the dot/member-access branch above uses
+    // for MemberAccessExpressionSyntax. Right after '{' or ',' (the common case — nothing typed yet
+    // for the next member), that token's own Parent already IS the InitializerExpressionSyntax (open
+    // brace and the SeparatedSyntaxList's separators are both direct children of it); mid-typing a
+    // member name, the token's parent chain still leads up through it.
+    private static InitializerExpressionSyntax? TryFindObjectInitializer(SyntaxNode root, int pos)
+    {
+        if (pos <= 0) return null;
+        var token = root.FindToken(pos - 1);
+        return token.Parent?.AncestorsAndSelf()
+            .OfType<InitializerExpressionSyntax>()
+            .FirstOrDefault(i => i.IsKind(SyntaxKind.ObjectInitializerExpression));
+    }
+
+    // GetTypeInfo on the object-creation EXPRESSION itself, not its .Type child node — same Roslyn
+    // quirk noted in TryGetSignatureHelpAsync below: the latter comes back null for a type declared
+    // in the same document being analyzed.
+    private static List<ICompletionItem> BuildObjectInitializerCompletions(
+        SemanticModel model, int pos, BaseObjectCreationExpressionSyntax objectCreation,
+        InitializerExpressionSyntax initializer)
+    {
+        if (model.GetTypeInfo(objectCreation).Type is not INamedTypeSymbol type) return [];
+
+        // Already-assigned members ("P1 = " already typed) shouldn't be offered again — LookupSymbols
+        // has no idea what's already been set inside THIS particular initializer, only what's a
+        // legal member of the type in general.
+        var alreadyAssigned = new HashSet<string>(
+            initializer.Expressions.OfType<AssignmentExpressionSyntax>()
+                .Select(a => a.Left).OfType<IdentifierNameSyntax>()
+                .Select(id => id.Identifier.ValueText),
+            StringComparer.Ordinal);
+
+        // LookupSymbols(pos, container: type) — same API the dot-member-access branch above uses —
+        // already filters to what's accessible from this position, so no separate accessibility check
+        // is needed here. Narrowed further to actually-settable members: a property needs a setter
+        // (SetMethod is non-null for both `set` and `init` accessors — `with`-only init-only members
+        // are still legitimately settable from an object initializer), a field needs to not be
+        // readonly/const, and neither can be static (an object initializer only ever targets instance
+        // members of the freshly-created instance).
+        var members = model.LookupSymbols(pos, container: type)
+            .Where(s => s switch
+            {
+                IPropertySymbol { IsStatic: false, SetMethod: not null } => true,
+                IFieldSymbol { IsStatic: false, IsReadOnly: false, IsConst: false } => true,
+                _ => false,
+            })
+            .Where(s => !alreadyAssigned.Contains(s.Name))
+            .Select(s => ToItem(s, currentType: type))
+            .Where(i => i != null)
+            .Cast<ICompletionItem>();
+
+        return GroupByDisplayText(members).OrderBy(i => i.SortText, StringComparer.Ordinal).ToList();
     }
 
     private static ICompletionItem? ToItem(ISymbol symbol, ITypeSymbol? currentType) => symbol switch
@@ -1736,7 +1814,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var start = span.Start - headerLength;
             if (start < 0) continue;
 
-            var end = Math.Max(span.End - headerLength, start + 1);
+            // Clamp to code.Length before the start>=end skip below, same pattern as
+            // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
+            // TODO.md #107: RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
+            // now follows the user's own code in the synced document, so a diagnostic anchored there
+            // (or straddling into it) needs to not leak an out-of-range span to the editor.
+            var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+            if (start >= end) continue;
+
             var severity = d.Severity switch
             {
                 RoslynSeverity.Error => ContractSeverity.Error,

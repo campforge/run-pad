@@ -16,34 +16,15 @@ public class RPointTests
         Assert.Equal(20, p.Y);
     }
 
-    [Fact]
-    public void IsEmpty_TrueForOrigin()
+    [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(1, 0, false)]
+    [InlineData(0, 1, false)]
+    public void IsEmpty_ReflectsWhetherEitherComponentIsNonZero(double x, double y, bool expected)
     {
-        // Arrange
-        var p = new RPoint(0, 0);
+        var p = new RPoint(x, y);
 
-        // Assert
-        Assert.True(p.IsEmpty);
-    }
-
-    [Fact]
-    public void IsEmpty_FalseWhenXIsNonZero()
-    {
-        // Arrange
-        var p = new RPoint(1, 0);
-
-        // Assert
-        Assert.False(p.IsEmpty);
-    }
-
-    [Fact]
-    public void IsEmpty_FalseWhenYIsNonZero()
-    {
-        // Arrange
-        var p = new RPoint(0, 1);
-
-        // Assert
-        Assert.False(p.IsEmpty);
+        Assert.Equal(expected, p.IsEmpty);
     }
 
     [Fact]

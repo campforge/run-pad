@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using DotPad.Contracts.Models;
 using DotPad.Format.RPad;
 using DotPad.Services.Preferences;
+using DotPad.Shared;
 using ReactiveUI;
 
 namespace DotPad.UserControls.Models;
@@ -12,10 +13,6 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
-    // Debounce before persisting a resized output panel height to preferences — avoids writing to
-    // disk on every intermediate drag frame (ANALYSIS.md #94).
-    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
-
     private readonly IPreferencesService _prefs;
 
     // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
@@ -171,28 +168,10 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // ── Output/debug panel layout (collapsible) ───────────────────────────────
 
-    private double _lastExpandedOutputPanelHeight;
-
-    public GridLength OutputPanelHeight
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
-    public ReactiveCommand<Unit, Unit> ToggleOutputPanelCommand { get; }
-
-    private void ToggleOutputPanel()
-    {
-        if (OutputPanelHeight.Value > 0)
-        {
-            _lastExpandedOutputPanelHeight = OutputPanelHeight.Value;
-            OutputPanelHeight = new GridLength(0);
-        }
-        else
-        {
-            OutputPanelHeight = new GridLength(_lastExpandedOutputPanelHeight > 0 ? _lastExpandedOutputPanelHeight : 220);
-        }
-    }
+    // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
+    // duplicated near-verbatim in MainWindowViewModel.SidebarColumnWidth/ToggleSidebar —
+    // extracted into CollapsiblePanelState (src/main/DotPad/Shared), constructed below.
+    public CollapsiblePanelState OutputPanel { get; }
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -215,18 +194,12 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         DuplicateCommand = ReactiveCommand.Create(() => { });
         OpenContainingFolderCommand = ReactiveCommand.Create(() => { });
 
-        OutputPanelHeight = _prefs.Layout.DebugPanelCollapsed
-            ? new GridLength(0)
-            : new GridLength(_prefs.Layout.DebugPanelHeight);
-        _lastExpandedOutputPanelHeight = _prefs.Layout.DebugPanelHeight;
-        ToggleOutputPanelCommand = ReactiveCommand.Create(ToggleOutputPanel);
-        this.WhenAnyValue(x => x.OutputPanelHeight)
-            .Skip(1)
-            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
-            .Subscribe(h =>
+        OutputPanel = new CollapsiblePanelState(
+            _prefs.Layout.DebugPanelCollapsed, _prefs.Layout.DebugPanelHeight, defaultExpandedSize: 220,
+            onChanged: (collapsed, size) =>
             {
-                _prefs.Layout.DebugPanelCollapsed = h.Value <= 0;
-                if (h.Value > 0) _prefs.Layout.DebugPanelHeight = h.Value;
+                _prefs.Layout.DebugPanelCollapsed = collapsed;
+                if (size > 0) _prefs.Layout.DebugPanelHeight = size;
                 _prefs.Save();
             });
 

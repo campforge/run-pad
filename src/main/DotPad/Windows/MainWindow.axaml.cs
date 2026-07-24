@@ -115,6 +115,11 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.CloseActiveTab();
             e.Handled = true;
         }
+        else if (Match(e, kb.NewFile))
+        {
+            vm.NewRpadFileWithDefaults();
+            e.Handled = true;
+        }
     }
 
     private static bool Match(KeyEventArgs e, string gesture)
@@ -195,6 +200,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
+    private void NewRpadFileWithDefaults_Click(object? sender, RoutedEventArgs e) => GetViewModel().NewRpadFileWithDefaults();
+
     private async void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
         => await NewRpadFileWithKindAsync(RpadLanguage.CSharp);
 
@@ -225,11 +232,23 @@ public sealed partial class MainWindow : Window, IDisposable
     private void FileTree_OpenFolder(object? sender, FileTreeFileEventArgs e)
         => GetViewModel().OpenContainingFolder(e.FilePath);
 
-    private void FileTree_CreateFolder(object? sender, FileTreeCreateFolderEventArgs e)
+    private async void FileTree_CreateFolder(object? sender, FileTreeCreateFolderEventArgs e)
     {
-        var newPath = GetViewModel().CreateFolder(e.ParentPath);
+        var newPath = await GetViewModel().CreateFolderAsync(e.ParentPath);
         if (sender is FileTreeView view) view.StartRenameForPath(newPath);
     }
+
+    private async void FileTree_CreateFile(object? sender, FileTreeCreateFileEventArgs e)
+    {
+        var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
+        if (kind is null) return; // cancelled
+
+        var newPath = await GetViewModel().CreateFileAsync(e.ParentPath, e.Language, kind.Value);
+        if (sender is FileTreeView view) view.StartRenameForPath(newPath);
+    }
+
+    private void FileTree_Move(object? sender, FileTreeMoveEventArgs e)
+        => GetViewModel().MoveFileOrFolder(e.SourcePath, e.TargetPath);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

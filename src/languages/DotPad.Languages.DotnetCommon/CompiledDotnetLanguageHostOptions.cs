@@ -32,4 +32,13 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
 
     public RpadKind Kind { get; init; }
+
+    // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — the .rpad file's own path, null for a
+    // never-saved (untitled) tab, same as LINQPad's own Util.CurrentQueryPath for an unsaved query.
+    // Threaded down to the compiled script's child process as an environment variable
+    // (ChildProcess.ForExecution) for a plain run, and via DapSessionOptions/the DAP launch request's
+    // own env for a debug session (netcoredbg spawns the debuggee itself, so
+    // ProcessStartInfo.Environment on netcoredbg's own process wouldn't reach it) — either way read
+    // back the same way by DotPad.Runtime.Util.CurrentQueryPath.
+    public string? CurrentQueryPath { get; init; }
 }

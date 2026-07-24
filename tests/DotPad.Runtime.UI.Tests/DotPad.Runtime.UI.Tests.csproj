@@ -27,4 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\main\DotPad\DotPad.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

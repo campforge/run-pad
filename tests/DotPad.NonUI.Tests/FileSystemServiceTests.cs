@@ -1,4 +1,6 @@
+using DotPad.Format.RPad;
 using DotPad.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
@@ -58,5 +60,45 @@ public class FileSystemServiceTests
             Assert.Contains(folder.Children!, i => i is { IsDirectory: false, Name: "a.rpad" });
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // TODO.md #109: file tree's "New File" — CreateNewFile writes real, parseable .rpad content (via
+    // RpadWriter.NewFile) into a caller-given directory, not just an empty stub. NullLogger avoids
+    // wiring up a real Microsoft.Extensions.Logging pipeline just to construct FileSystemService —
+    // the constructor's only side effect (see GetOrCreateDefaultFolder) is ensuring the real
+    // "Documents/DotPad Queries" folder exists, same as happens on every normal app launch; it's
+    // never written into by these tests, which always pass their own temp directory as parentDir.
+    [Fact]
+    public void CreateNewFile_Should_WriteAParseableRpadDocument_WithTheRequestedLanguageAndKind()
+    {
+        var service = new FileSystemService(NullLogger<FileSystemService>.Instance);
+        var dir = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        try
+        {
+            var path = service.CreateNewFile(dir, RpadLanguage.Vb, RpadKind.Program);
+
+            Assert.True(File.Exists(path));
+            var doc = RpadParser.TryParse(File.ReadAllText(path));
+            Assert.NotNull(doc);
+            Assert.Equal(RpadLanguage.Vb, doc!.FrontMatter.Language);
+            Assert.Equal(RpadKind.Program, doc.FrontMatter.Kind);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void CreateNewFile_Should_ProbeForAFreeName_WhenTheFirstCandidateIsTaken()
+    {
+        var service = new FileSystemService(NullLogger<FileSystemService>.Instance);
+        var dir = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "Query 1.rpad"), "");
+
+            var path = service.CreateNewFile(dir, RpadLanguage.CSharp, RpadKind.Statements);
+
+            Assert.Equal(Path.Combine(dir, "Query 2.rpad"), path);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 }

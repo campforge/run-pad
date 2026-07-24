@@ -24,9 +24,6 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: 📦 Restore
-        run: dotnet restore
-
       - name: 🔍 Check formatting
         run: dotnet format --verify-no-changes --verbosity diagnostic
 
@@ -56,7 +53,28 @@ jobs:
       - name: 🔨 Build
         run: dotnet build --no-restore --configuration Release -warnaserror
 
-      - name: 🧪 Test
+      # PRs pay per-minute for Windows runners (2x the Linux rate) — build-linux already runs the
+      # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
+      # DotPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
+      # AvaloniaTestFramework disabling collection parallelism assembly-wide) and RealBuildTestCollection
+      # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured
+      # directly, see проход "минимизация CI-времени"). Everything else — the actual cross-platform
+      # risk surface (process/file-path handling, real dotnet-build behavior on THIS os specifically)
+      # still runs here; only the parts whose outcome doesn't meaningfully vary by OS are skipped.
+      - name: 🧪 Test (fast PR subset)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -e
+          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
+                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+            dotnet test "$proj" --no-build --configuration Release --verbosity normal
+          done
+          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+            --filter "Category!=RealBuild"
+
+      - name: 🧪 Test (full suite)
+        if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       # Release assets — only built on an actual merge to main, not on every PR.
@@ -75,6 +93,13 @@ jobs:
         with:
           name: release-win-x64
           path: DotPad-win-x64.zip
+          # A self-contained publish zip is ~90MB (measured directly) — this copy only exists to hand
+          # off to the `release` job later in the SAME workflow run; the permanent, actually-downloaded
+          # copy is the one ncipollo/release-action attaches to the GitHub Release. No reason to keep
+          # this intermediate copy for the default 90 days — three platforms' worth of that per merge
+          # to main is what exhausted the private-repo Actions storage quota ("Failed to CreateArtifact:
+          # Artifact storage quota has been hit").
+          retention-days: 1
 
   build-linux:
     name: Build & Test (ubuntu-latest)
@@ -107,10 +132,16 @@ jobs:
 
       - name: 📊 Upload coverage
         uses: actions/upload-artifact@v4
+        continue-on-error: true # a storage-quota/upload hiccup here is unrelated to code correctness — must not fail an otherwise-green PR
         with:
           name: coverage
           path: ./coverage/**/coverage.cobertura.xml
           if-no-files-found: warn
+          # Uploaded on every PR/push, not just merges — the default 90-day retention has no real
+          # value here (nothing re-reads an old run's coverage after a handful of days) and adds up
+          # fast across a busy PR history. See the release-artifact uploads below for the bigger
+          # contributor to the storage-quota failure this was trimmed for.
+          retention-days: 7
 
       # Release assets — only built on an actual merge to main, not on every PR.
       - name: 📦 Publish (linux-x64)
@@ -127,6 +158,8 @@ jobs:
         with:
           name: release-linux-x64
           path: DotPad-linux-x64.tar.gz
+          # See release-win-x64's own upload step for why this is trimmed to 1 day.
+          retention-days: 1
 
   build-macos:
     name: Build & Test (macos-latest)
@@ -154,7 +187,24 @@ jobs:
       - name: 🔨 Build
         run: dotnet build --no-restore --configuration Release -warnaserror
 
-      - name: 🧪 Test
+      # PRs pay per-minute for macOS runners (10x the Linux rate) — build-linux already runs the FULL
+      # suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts: see
+      # build-windows' own comment on the same step for the full rationale (DotPad.Runtime.UI.Tests'
+      # forced serialization + RealBuildTestCollection's real `dotnet build` floor cost).
+      - name: 🧪 Test (fast PR subset)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -e
+          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
+                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+            dotnet test "$proj" --no-build --configuration Release --verbosity normal
+          done
+          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+            --filter "Category!=RealBuild"
+
+      - name: 🧪 Test (full suite)
+        if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       # Release assets — only built on an actual merge to main, not on every PR.
@@ -172,10 +222,12 @@ jobs:
         with:
           name: release-osx-x64
           path: DotPad-osx-x64.tar.gz
+          # See release-win-x64's own upload step for why this is trimmed to 1 day.
+          retention-days: 1
 
   release:
     name: Publish GitHub Release
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

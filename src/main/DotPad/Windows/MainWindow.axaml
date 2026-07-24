@@ -13,7 +13,7 @@
              tree, so FileTreeView's own compiled bindings never see this window's MainWindowViewModel
              as an intermediate (wrong-typed) DataContext. -->
         <DataTemplate x:Key="FileTreeTemplate" x:DataType="ucm:FileTreeViewModel">
-            <uc:FileTreeView Open="FileTree_Open" Delete="FileTree_Delete" Rename="FileTree_Rename" OpenFolder="FileTree_OpenFolder" CreateFolder="FileTree_CreateFolder"/>
+            <uc:FileTreeView Open="FileTree_Open" Delete="FileTree_Delete" Rename="FileTree_Rename" OpenFolder="FileTree_OpenFolder" CreateFolder="FileTree_CreateFolder" CreateFile="FileTree_CreateFile" Move="FileTree_Move"/>
         </DataTemplate>
     </Window.Resources>
 
@@ -66,6 +66,7 @@
                             </Style>
                         </Menu.Styles>
                         <MenuItem Header="File">
+                            <MenuItem Header="_New File" Click="NewRpadFileWithDefaults_Click" InputGesture="{Binding NewFileGesture}"/>
                             <MenuItem Header="New _RPad File">
                                 <MenuItem Header="C#" Click="NewRpadFileCSharp_Click"/>
                                 <MenuItem Header="Visual Basic" Click="NewRpadFileVb_Click"/>
@@ -86,7 +87,7 @@
                         </MenuItem>
                     </Menu>
 
-                    <Button Classes="wc-btn" Width="30" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="Toggle file tree">
+                    <Button Classes="wc-btn" Width="30" Command="{Binding Sidebar.ToggleCommand}" ToolTip.Tip="Toggle file tree">
                         <PathIcon Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
                     </Button>
 
@@ -117,7 +118,7 @@
         <!-- ── Body ──────────────────────────────────────────────────────── -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{Binding SidebarColumnWidth, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
+                <ColumnDefinition Width="{Binding Sidebar.Size, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>

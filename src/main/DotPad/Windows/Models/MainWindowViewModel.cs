@@ -25,11 +25,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IPreferencesService _prefs;
     private readonly ILogger<MainWindowViewModel> _logger;
 
-    // Debounce before persisting a resized sidebar width to preferences — avoids writing to disk on
-    // every intermediate drag frame (same reasoning as EditorTabItemViewModel.LayoutSaveThrottle,
-    // ANALYSIS.md #94).
-    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
-
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
     // rebuilding the tree once.
@@ -93,6 +88,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture (TODO.md #114) — same rationale
+    // as OpenDependenciesGesture above.
+    public KeyGesture? NewFileGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.NewFile); }
+            catch { return null; }
+        }
+    }
+
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;
@@ -107,28 +113,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── Sidebar layout (collapsible file tree) ────────────────────────────────
 
-    private double _lastExpandedSidebarWidth;
-
-    public GridLength SidebarColumnWidth
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
-    public ReactiveCommand<Unit, Unit> ToggleSidebarCommand { get; }
-
-    private void ToggleSidebar()
-    {
-        if (SidebarColumnWidth.Value > 0)
-        {
-            _lastExpandedSidebarWidth = SidebarColumnWidth.Value;
-            SidebarColumnWidth = new GridLength(0);
-        }
-        else
-        {
-            SidebarColumnWidth = new GridLength(_lastExpandedSidebarWidth > 0 ? _lastExpandedSidebarWidth : 300);
-        }
-    }
+    // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
+    // duplicated near-verbatim in EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel —
+    // extracted into CollapsiblePanelState (src/main/DotPad/Shared), constructed below.
+    public CollapsiblePanelState Sidebar { get; }
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -150,7 +138,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
     // disk, so there's no path to remember them by (TODO.md, "Жизненный цикл вкладок (остаток)").
     // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
-    // action, not worth the debounce SidebarColumnWidth's drag-frame writes need.
+    // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
     {
         _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
@@ -201,6 +189,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, language, kind);
         AddTab(vm);
     }
+
+    // TODO.md #114: Ctrl+N / the new File > New File menu item — same as NewRpadFile above, but reads
+    // the language+kind to use from EditorSettings instead of requiring an explicit choice, so it
+    // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
+    // the dialog) and the file tree's own "New File" (TODO.md #109, writes to disk immediately) are
+    // both untouched — this only adds a third, dialog-free entry point.
+    public void NewRpadFileWithDefaults() => NewRpadFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
 
     public void OpenTab(string? filePath)
     {
@@ -456,11 +451,41 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         var newFileName = newName + ext;
         var newPath = Path.Combine(dir, newFileName);
 
-        // Close tab(s) first so SaveIfNeeded writes current content to the OLD path — the file
-        // itself, or (for a folder) every tab nested inside it, before the whole subtree moves.
-        var hadTab = _openTabs.ContainsKey(filePath);
-        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
-        if (_openTabs.TryGetValue(filePath, out var tab))
+        MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
+    }
+
+    // TODO.md #110: file tree drag-and-drop — moves a node into a different folder (or the tree's
+    // root, contextPath null), reusing the exact same target-directory resolution CreateFolderAsync/
+    // CreateFileAsync already use (ResolveParentDir) — dropping onto a folder node moves INSIDE it,
+    // onto a file node moves alongside it (same parent), onto empty tree space moves to the root. A
+    // no-op (not an error) if that resolves to the node's own current parent — that's what dropping a
+    // node back onto where it already lives looks like; dropping a folder onto its own descendant is
+    // still a real error (Directory.Move already throws a sensible message for that on its own, no
+    // separate check needed).
+    public void MoveFileOrFolder(string sourcePath, string? contextPath)
+    {
+        var targetDir = ResolveParentDir(contextPath);
+        var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var newPath = Path.Combine(targetDir, name);
+
+        if (string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(sourcePath), StringComparison.Ordinal))
+            return;
+
+        MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
+    }
+
+    // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
+    // name) — both close whatever tab(s) are open on the affected path(s) first (so SaveIfNeeded
+    // flushes to the OLD path before the move), attempt the actual File.Move/Directory.Move, and
+    // reopen at the old or new path depending on whether it succeeded.
+    private void MoveOrRenameOnDisk(
+        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
+    {
+        var isDirectory = Directory.Exists(sourcePath);
+
+        var hadTab = _openTabs.ContainsKey(sourcePath);
+        var nestedTabs = isDirectory ? FindOpenTabsUnder(sourcePath) : [];
+        if (_openTabs.TryGetValue(sourcePath, out var tab))
             CloseTab(tab);
         foreach (var (_, nestedTab) in nestedTabs)
             CloseTab(nestedTab);
@@ -468,21 +493,21 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             if (isDirectory)
-                Directory.Move(filePath, newPath);
+                Directory.Move(sourcePath, newPath);
             else
-                File.Move(filePath, newPath);
+                File.Move(sourcePath, newPath);
         }
         catch (Exception ex)
         {
             // The tab(s) were already closed above (so SaveIfNeeded could flush to the old path) —
-            // since the rename didn't happen, the file(s) are still at the old path(s), so reopen
-            // them instead of leaving their tabs silently gone from the tab bar.
-            if (hadTab) OpenTab(filePath);
+            // since the move didn't happen, the file(s) are still at the old path(s), so reopen them
+            // instead of leaving their tabs silently gone from the tab bar.
+            if (hadTab) OpenTab(sourcePath);
             foreach (var (nestedPath, _) in nestedTabs)
                 OpenTab(nestedPath);
             _ = _windowService.ShowErrorAsync(
-                "Rename Failed",
-                $"Could not rename '{Path.GetFileName(filePath)}' to '{newFileName}':\n{ex.Message}");
+                errorTitle,
+                $"Could not {errorVerb} '{Path.GetFileName(sourcePath)}' {errorDestinationPhrase}:\n{ex.Message}");
             return;
         }
 
@@ -491,7 +516,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (hadTab)
             OpenTab(newPath);
         foreach (var (nestedPath, _) in nestedTabs)
-            OpenTab(Path.Combine(newPath, Path.GetRelativePath(filePath, nestedPath)));
+            OpenTab(Path.Combine(newPath, Path.GetRelativePath(sourcePath, nestedPath)));
     }
 
     // TODO.md #69: creates a new folder next to whatever's selected in the file tree — INSIDE the
@@ -499,18 +524,33 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // directory) if it's a file, or at the tree's root if nothing's selected. Returns the new path so
     // the caller (MainWindow.FileTree_CreateFolder) can immediately enter rename mode on it, like
     // VS/Rider/Explorer do.
-    public string CreateFolder(string? contextPath)
+    public async Task<string> CreateFolderAsync(string? contextPath)
     {
-        var parentDir = contextPath is null
+        var parentDir = ResolveParentDir(contextPath);
+        var path = _fileSystemService.CreateNewFolder(parentDir);
+        await RefreshNodesAsync();
+        return path;
+    }
+
+    // TODO.md #109: file tree's "New File" — same target-directory resolution as CreateFolderAsync
+    // (reused via ResolveParentDir below), but unlike "New Folder" the new file is also immediately
+    // useful to open, so it's opened as a tab right away (same OpenTab used for double-click) rather
+    // than left for the user to click on themselves.
+    public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
+    {
+        var parentDir = ResolveParentDir(contextPath);
+        var path = _fileSystemService.CreateNewFile(parentDir, language, kind);
+        await RefreshNodesAsync();
+        OpenTab(path);
+        return path;
+    }
+
+    private string ResolveParentDir(string? contextPath) =>
+        contextPath is null
             ? _fileSystemService.Folder
             : Directory.Exists(contextPath)
                 ? contextPath
                 : Path.GetDirectoryName(contextPath) ?? _fileSystemService.Folder;
-
-        var path = _fileSystemService.CreateNewFolder(parentDir);
-        RefreshNodes();
-        return path;
-    }
 
     public void OpenContainingFolder(string filePath)
     {
@@ -567,18 +607,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenAssemblyExplorerCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAssemblyExplorerCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
-        SidebarColumnWidth = _prefs.Layout.SidebarCollapsed
-            ? new GridLength(0)
-            : new GridLength(_prefs.Layout.SidebarWidth);
-        _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;
-        ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
-        this.WhenAnyValue(x => x.SidebarColumnWidth)
-            .Skip(1)
-            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
-            .Subscribe(w =>
+        Sidebar = new CollapsiblePanelState(
+            _prefs.Layout.SidebarCollapsed, _prefs.Layout.SidebarWidth, defaultExpandedSize: 300,
+            onChanged: (collapsed, size) =>
             {
-                _prefs.Layout.SidebarCollapsed = w.Value <= 0;
-                if (w.Value > 0) _prefs.Layout.SidebarWidth = w.Value;
+                _prefs.Layout.SidebarCollapsed = collapsed;
+                if (size > 0) _prefs.Layout.SidebarWidth = size;
                 _prefs.Save();
             });
 
@@ -602,7 +636,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RefreshNodes() => FileTree.Refresh(_fileSystemService.GetFilesTree());
+    // ANALYSIS.md #104: fire-and-forget wrapper for every call site that doesn't need to know when
+    // the refresh actually lands (the constructor, the watcher above, every disk-mutating command
+    // except CreateFolderAsync) — GetFilesTreeAsync's own Task.Run means the disk walk never blocks
+    // whichever thread called this, only FileTree.Refresh's (already cheap, diff-based) merge runs
+    // back on the UI thread once it resolves.
+    private async void RefreshNodes() => await RefreshNodesAsync();
+
+    // CreateFolderAsync is the one caller that needs to actually await this — FileTree_CreateFolder
+    // (MainWindow.axaml.cs) calls FileTreeView.StartRenameForPath immediately after, which needs the
+    // new folder to already be in FileTree.Nodes to find it.
+    private async Task RefreshNodesAsync() => FileTree.Refresh(await _fileSystemService.GetFilesTreeAsync());
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 
