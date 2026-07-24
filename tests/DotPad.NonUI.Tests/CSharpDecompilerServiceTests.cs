@@ -1,30 +1,21 @@
-using DotPad.Build.Core.Models;
 using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Sdk;
 using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.DotnetCommon.Compiler;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
 
-// TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — external half. Real dotnet-build
+// TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — external half. Real-Roslyn
 // integration test (no mocking of the compiler): the thing under test is whether
 // ICSharpCode.Decompiler can locate a SPECIFIC overload's declaration line inside a type it just
-// decompiled from a binary MsBuildProcessCompiler produced, which pure-logic unit testing can't stand
-// in for.
+// decompiled from a REAL binary, which pure-logic unit testing can't stand in for.
 //
-// Proход 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
-// only 3 distinct source snippets (~1.5s per build, ~10.5s total). Decompile/ResolveReferenceAtPosition
-// only READ the resulting binary/syntax tree — nothing here mutates shared state across tests — so an
-// IClassFixture compiles each snippet exactly once per test class run and every test just reads the
-// shared result, cutting it to 3 real builds (~4.5s) with zero coverage loss and each test still
-// fully isolated in its own [Fact].
-// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
-// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
-[Trait("Category", "RealBuild")]
-[Collection(RealBuildTestCollection.Name)]
+// Проход 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
+// only 3 distinct source snippets. An IClassFixture compiles each snippet exactly once per test class
+// run and every test just reads the shared result. A later pass (test-design cleanup per
+// docs/unit-test.md — real `dotnet build` child processes test the compiler/MSBuild, not DotPad's own
+// code) swapped the fixture compilation itself from a real `dotnet build` to
+// InProcessFixtureCompiler (in-process Roslyn CSharpCompilation.Emit) — same real IL bytes for the
+// decompiler, zero child processes, no RealBuildTestCollection serialization needed anymore.
 public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServiceTests.CompiledFixtures>
 {
     private readonly CompiledFixtures _fixtures;
@@ -92,51 +83,27 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         public string RecursiveCodeBinary { get; private set; } = null!;
         public string ExplorerCodeBinary { get; private set; } = null!;
 
-        private readonly List<string> _outputDirs = [];
+        private readonly List<string> _binaries = [];
 
-        public async ValueTask InitializeAsync()
+        public ValueTask InitializeAsync()
         {
-            CodeBinary = await CompileAsync(Code);
-            RecursiveCodeBinary = await CompileAsync(RecursiveCode);
-            ExplorerCodeBinary = await CompileAsync(ExplorerCode);
+            CodeBinary = Compile(Code, "CodeFixture");
+            RecursiveCodeBinary = Compile(RecursiveCode, "RecursiveCodeFixture");
+            ExplorerCodeBinary = Compile(ExplorerCode, "ExplorerCodeFixture");
+            return ValueTask.CompletedTask;
         }
 
-        private async Task<string> CompileAsync(string code)
+        private string Compile(string code, string assemblyName)
         {
-            var outputDir = Directory.CreateTempSubdirectory("dotpad-decompiler-test").FullName;
-            _outputDirs.Add(outputDir);
-
-            var sdk = new DotnetSdkProvider().Get().First();
-            var runtimeLib = new CSharpReferenceService().GetExtensionReference();
-            using var compiler = new MsBuildProcessCompiler(
-                CSharpProjectProfile.Instance,
-                sdk: sdk,
-                executionOptions: new ExecutionOptions
-                {
-                    WorkingDirectory = outputDir,
-                    Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
-                    Debugger = new DebuggerOptions { DebuggerPath = "" },
-                },
-                outputDir: outputDir,
-                dotPadRuntimeLib: runtimeLib,
-                outputName: "Query",
-                nugetPackages: new Dictionary<string, string>(),
-                usings: [],
-                assemblyReferences: [],
-                projectReferences: [],
-                logger: NullLogger<MsBuildProcessCompiler>.Instance);
-
-            var result = await compiler.Compilation(code, CancellationToken.None);
-            if (!result.Success)
-                throw new InvalidOperationException(
-                    "Shared fixture compilation failed: " + string.Join('\n', result.Errors.Select(e => e.Message)));
-            return result.OutputBinaryFile!;
+            var binary = InProcessFixtureCompiler.CompileToTempDll(code, assemblyName);
+            _binaries.Add(binary);
+            return binary;
         }
 
         public ValueTask DisposeAsync()
         {
-            foreach (var dir in _outputDirs)
-                Directory.Delete(dir, recursive: true);
+            foreach (var binary in _binaries)
+                File.Delete(binary);
             return ValueTask.CompletedTask;
         }
     }
