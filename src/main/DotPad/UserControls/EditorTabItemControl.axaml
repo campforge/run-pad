@@ -69,7 +69,7 @@
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="5"/>
-            <RowDefinition Height="{Binding OutputPanelHeight, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
+            <RowDefinition Height="{Binding OutputPanel.Size, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="22"/>
         </Grid.RowDefinitions>
@@ -134,7 +134,7 @@
 
                     <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
-                        Command="{Binding ToggleOutputPanelCommand}"
+                        Command="{Binding OutputPanel.ToggleCommand}"
                         ToolTip.Tip="Toggle output panel"
                         />
 

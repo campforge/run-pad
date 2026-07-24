@@ -77,7 +77,10 @@ public class DependenciesRealTabIntegrationTests
             services.AddTransient<DependenciesWindow>();
             var sp = services.BuildServiceProvider();
 
-            var windowService = new WindowService(sp);
+            var windowService = new WindowService(
+                () => sp.GetRequiredService<DependenciesWindow>(),
+                () => sp.GetRequiredService<PreferencesWindow>(),
+                theme);
             var mainVm = new MainWindowViewModel(
                 sdkProviders: [],
                 fileSystemService: fileSystem.Object,

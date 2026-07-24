@@ -25,11 +25,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IPreferencesService _prefs;
     private readonly ILogger<MainWindowViewModel> _logger;
 
-    // Debounce before persisting a resized sidebar width to preferences — avoids writing to disk on
-    // every intermediate drag frame (same reasoning as EditorTabItemViewModel.LayoutSaveThrottle,
-    // ANALYSIS.md #94).
-    private static readonly TimeSpan LayoutSaveThrottle = TimeSpan.FromMilliseconds(400);
-
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
     // rebuilding the tree once.
@@ -118,28 +113,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── Sidebar layout (collapsible file tree) ────────────────────────────────
 
-    private double _lastExpandedSidebarWidth;
-
-    public GridLength SidebarColumnWidth
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    }
-
-    public ReactiveCommand<Unit, Unit> ToggleSidebarCommand { get; }
-
-    private void ToggleSidebar()
-    {
-        if (SidebarColumnWidth.Value > 0)
-        {
-            _lastExpandedSidebarWidth = SidebarColumnWidth.Value;
-            SidebarColumnWidth = new GridLength(0);
-        }
-        else
-        {
-            SidebarColumnWidth = new GridLength(_lastExpandedSidebarWidth > 0 ? _lastExpandedSidebarWidth : 300);
-        }
-    }
+    // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
+    // duplicated near-verbatim in EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel —
+    // extracted into CollapsiblePanelState (src/main/DotPad/Shared), constructed below.
+    public CollapsiblePanelState Sidebar { get; }
 
     // ── Tab collection ────────────────────────────────────────────────────────
 
@@ -161,7 +138,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
     // disk, so there's no path to remember them by (TODO.md, "Жизненный цикл вкладок (остаток)").
     // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
-    // action, not worth the debounce SidebarColumnWidth's drag-frame writes need.
+    // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
     {
         _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
@@ -630,18 +607,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenAssemblyExplorerCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAssemblyExplorerCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
 
-        SidebarColumnWidth = _prefs.Layout.SidebarCollapsed
-            ? new GridLength(0)
-            : new GridLength(_prefs.Layout.SidebarWidth);
-        _lastExpandedSidebarWidth = _prefs.Layout.SidebarWidth;
-        ToggleSidebarCommand = ReactiveCommand.Create(ToggleSidebar);
-        this.WhenAnyValue(x => x.SidebarColumnWidth)
-            .Skip(1)
-            .Throttle(LayoutSaveThrottle, RxApp.MainThreadScheduler)
-            .Subscribe(w =>
+        Sidebar = new CollapsiblePanelState(
+            _prefs.Layout.SidebarCollapsed, _prefs.Layout.SidebarWidth, defaultExpandedSize: 300,
+            onChanged: (collapsed, size) =>
             {
-                _prefs.Layout.SidebarCollapsed = w.Value <= 0;
-                if (w.Value > 0) _prefs.Layout.SidebarWidth = w.Value;
+                _prefs.Layout.SidebarCollapsed = collapsed;
+                if (size > 0) _prefs.Layout.SidebarWidth = size;
                 _prefs.Save();
             });
 
