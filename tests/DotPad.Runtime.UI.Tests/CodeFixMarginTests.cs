@@ -195,6 +195,22 @@ public class CodeFixMarginTests
         Assert.InRange(iconWidth, editor.TextArea.TextView.DefaultLineHeight * 0.7, editor.TextArea.TextView.DefaultLineHeight * 1.0);
     }
 
+    // Live user report: a real Roslyn refactoring title on an empty-string-literal expression (e.g.
+    // "Introduce local for '""'" — the FeaturesResources "Introduce local for '{0}'" format string
+    // with {0} = the literal source text "") renders as an unreadable run of quote glyphs in the
+    // default proportional UI font. DotPad doesn't reformat fix.Title itself — a monospace font is
+    // the fix, so adjacent quote characters stay visually distinct (fixed width) regardless of what
+    // ends up embedded in a future title, not just this one reported case.
+    [AvaloniaFact]
+    public void BuildMenuItem_Should_UseAMonospaceFont_ForBetterQuoteGlyphLegibility()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+
+        var item = margin.BuildMenuItem(new CodeFixEntry(1, "Introduce local for '\"\"'", CodeFixSeverity.Info, "fix-key"));
+
+        Assert.Equal(new FontFamily("monospace"), item.FontFamily);
+    }
+
     // TODO.md #79: the quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon
     // at all. TestAppBuilder deliberately doesn't merge DotPad's own Icons.axaml (real UI tests
     // construct their own view models instead of depending on the full app composition root), so this

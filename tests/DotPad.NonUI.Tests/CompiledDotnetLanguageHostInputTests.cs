@@ -17,6 +17,7 @@ namespace DotPad.Runtime.UI.Tests;
 // half). '\x1f' below mirrors DotPad.Runtime.Util.InputRequestPrefixChar/
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not
 // visible here — DotPad.Runtime only grants InternalsVisibleTo to DotPad.Runtime.Tests).
+[Collection(RealBuildTestCollection.Name)]
 public class CompiledDotnetLanguageHostInputTests
 {
     private sealed class FakeCompiler(ProcessCompilerResult result) : IDotnetProcessCompiler

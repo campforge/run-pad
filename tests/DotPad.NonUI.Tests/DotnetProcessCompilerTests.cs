@@ -21,6 +21,7 @@ namespace DotPad.Runtime.UI.Tests;
 // MsBuildProcessCompiler parameterized by DotnetLanguageProjectProfile — the two profiles below
 // still each get their own real-build proof, not just an assumption that they behave the same way
 // through the shared implementation.
+[Collection(RealBuildTestCollection.Name)]
 public class DotnetProcessCompilerTests
 {
     private static MsBuildProcessCompiler CreateCompiler(string outputDir)

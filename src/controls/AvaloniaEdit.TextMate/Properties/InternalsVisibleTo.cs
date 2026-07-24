@@ -6,3 +6,4 @@ using System.Runtime.CompilerServices;
 // italic comments) — the upstream NUnit suite above deliberately stays untouched by DotPad-specific
 // regressions, per its own "kept as-is" convention (see docs/ARCHITECTURE.md).
 [assembly: InternalsVisibleTo("DotPad.Runtime.UI.Tests")]
+[assembly: InternalsVisibleTo("DotPad.NonUI.Tests")]

@@ -5,3 +5,4 @@ using System.Runtime.CompilerServices;
 // project of its own (see docs/ARCHITECTURE.md's list of five), so this project's own tests live directly in
 // DotPad.Runtime.UI.Tests, same as several other internal-only-tested projects in this solution.
 [assembly: InternalsVisibleTo("DotPad.Runtime.UI.Tests")]
+[assembly: InternalsVisibleTo("DotPad.NonUI.Tests")]

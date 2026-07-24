@@ -73,26 +73,15 @@ public class DumpRendererTests
         Assert.DoesNotContain("…", result);
     }
 
-    [Fact]
-    public void Render_BoolTrue_ProducesBoolTrueSpan()
+    [Theory]
+    [InlineData(true, ">true<")]
+    [InlineData(false, ">false<")]
+    public void Render_Bool_ProducesBoolSpan(bool value, string expectedSpan)
     {
-        // Act
-        var result = DumpRenderer.Render(true, null);
+        var result = DumpRenderer.Render(value, null);
 
-        // Assert
         Assert.Contains("dp-bool", result);
-        Assert.Contains(">true<", result);
-    }
-
-    [Fact]
-    public void Render_BoolFalse_ProducesBoolFalseSpan()
-    {
-        // Act
-        var result = DumpRenderer.Render(false, null);
-
-        // Assert
-        Assert.Contains("dp-bool", result);
-        Assert.Contains(">false<", result);
+        Assert.Contains(expectedSpan, result);
     }
 
     [Fact]

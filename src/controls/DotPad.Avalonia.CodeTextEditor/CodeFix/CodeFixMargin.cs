@@ -231,6 +231,20 @@ public class CodeFixMargin : AbstractMargin
     // on Categorize(fix) instead of always being the hammer. Internal (not private) +
     // InternalsVisibleTo, same pattern as WorstSeverityOnLine, so the icon wiring can be asserted
     // directly without driving a real PointerPressed/MenuFlyout interaction.
+    // Live user report: a title like Roslyn's own real "Introduce local for '""'" (FeaturesResources'
+    // "Introduce local for '{0}'" format string, {0} filled with the target expression's literal
+    // source text — here an empty string literal, i.e. the two characters "") renders, in the
+    // default proportional UI font, as a run of quote glyphs packed close enough together to read as
+    // an unreadable "\"\"\"\"" blur — the single quotes Roslyn wraps {0} in and the double quotes
+    // that ARE {0} become visually indistinguishable at menu font size. DotPad doesn't add or
+    // reformat these titles itself (fix.Title reaches here verbatim from Roslyn's own CodeAction.
+    // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
+    // adjacent quote glyphs stay visually separable regardless of what expression text ends up
+    // embedded in a future title. "monospace" (the bare generic keyword, not a specific font name) —
+    // same choice, same reason, as EditorSettings.FontFamily's own default (TODO.md #112): reliably
+    // resolves to a real non-ligature monospace font on every platform, unlike a named fallback chain.
+    private static readonly FontFamily MenuItemFontFamily = new("monospace");
+
     internal MenuItem BuildMenuItem(CodeFixEntry fix)
     {
         var iconKey = IconKeyForCategory(Categorize(fix));
@@ -240,7 +254,7 @@ public class CodeFixMargin : AbstractMargin
             _menuIconCache[iconKey] = geo;
         }
 
-        var item = new MenuItem { Header = fix.Title };
+        var item = new MenuItem { Header = fix.Title, FontFamily = MenuItemFontFamily };
         if (geo is not null)
             item.Icon = new PathIcon { Data = geo, Width = 16, Height = 16 };
         item.Click += (_, _) => Apply(fix);
