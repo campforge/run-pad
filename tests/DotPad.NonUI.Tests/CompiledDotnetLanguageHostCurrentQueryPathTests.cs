@@ -15,6 +15,9 @@ namespace DotPad.Runtime.UI.Tests;
 // trip: CompiledDotnetLanguageHostOptions.CurrentQueryPath really does reach ChildProcess.ForExecution
 // as an environment variable, and DotPad.Runtime.Util.CurrentQueryPath running inside the real
 // compiled script's own process really does read it back correctly.
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class CompiledDotnetLanguageHostCurrentQueryPathTests
 {

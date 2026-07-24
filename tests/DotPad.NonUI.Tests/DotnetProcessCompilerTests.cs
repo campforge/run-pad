@@ -21,6 +21,9 @@ namespace DotPad.Runtime.UI.Tests;
 // MsBuildProcessCompiler parameterized by DotnetLanguageProjectProfile — the two profiles below
 // still each get their own real-build proof, not just an assumption that they behave the same way
 // through the shared implementation.
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class DotnetProcessCompilerTests
 {

@@ -15,6 +15,9 @@ namespace DotPad.Runtime.UI.Tests;
 // DotnetProcessCompilerTests) — the bug was entirely about what MSBuild/Roslyn actually accept, which
 // pure string-pinning against ApplyKindTransform's output (CSharpLanguageHostKindTransformTests) can't
 // by itself prove fixed; that file pins the transform's exact shape, this one proves the shape compiles.
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class CSharpLanguageHostProgramKindCompileTests
 {
