@@ -22,8 +22,20 @@ namespace DotPad.Runtime.UI.Tests;
 // PLACE on double-click (no popped-up child window, dnSpy/ILSpy don't do that either). Also the
 // landing window for Go to Definition (F12) on a symbol outside the user's script — opened straight
 // to that member decompiled, with its assembly's tree loaded alongside it.
-public class AssemblyExplorerWindowTests
+//
+// Проход 134 (CI-cost pass) — ExplorerCode used to get a fresh real `dotnet build` (~1.5s) in each of
+// 3 tests; they only ever READ the resulting binary, so it's compiled once via IClassFixture and
+// shared. RecursiveCode below is still built inline — only one test needs it, so there's nothing to
+// share.
+public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowTests.CompiledExplorerAssembly>
 {
+    private readonly CompiledExplorerAssembly _explorerAssembly;
+
+    public AssemblyExplorerWindowTests(CompiledExplorerAssembly explorerAssembly)
+    {
+        _explorerAssembly = explorerAssembly;
+    }
+
     private static Mock<IThemeService> CreateThemeService()
     {
         var theme = new Mock<IThemeService>();
@@ -69,33 +81,49 @@ public class AssemblyExplorerWindowTests
         }
         """;
 
+    public sealed class CompiledExplorerAssembly : IAsyncLifetime
+    {
+        public string BinaryPath { get; private set; } = null!;
+
+        private string? _outputDir;
+
+        public async ValueTask InitializeAsync()
+        {
+            _outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
+            using var compiler = CreateCompiler(_outputDir);
+            var result = await compiler.Compilation(ExplorerCode, CancellationToken.None);
+            if (!result.Success)
+                throw new InvalidOperationException(
+                    "Shared fixture compilation failed: " + string.Join('\n', result.Errors.Select(e => e.Message)));
+            BinaryPath = result.OutputBinaryFile!;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if (_outputDir is not null)
+                Directory.Delete(_outputDir, recursive: true);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     [AvaloniaFact]
     public async Task LoadAssemblyAsync_Should_BuildATree_GroupedByNamespace_OneNodePerType()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
-        try
-        {
-            using var compiler = CreateCompiler(outputDir);
-            var compilation = await compiler.Compilation(ExplorerCode, CancellationToken.None);
-            Assert.True(compilation.Success, string.Join('\n', compilation.Errors.Select(e => e.Message)));
+        var windowService = new Mock<IWindowService>();
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
+        window.Show();
 
-            var windowService = new Mock<IWindowService>();
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
-            window.Show();
+        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
 
-            await window.LoadAssemblyAsync(compilation.OutputBinaryFile!);
-
-            Assert.Equal(compilation.OutputBinaryFile, window.AssemblyPathText.Text);
-            // Not asserting the exact node count — the top-level `_ = 0;` statement compiles into its
-            // own implicit `Program` type in the global namespace (a real, ILSpy-visible type, not
-            // compiler-generated noise — see EnumerateTypes' own filtering rationale), which would
-            // make this test brittle for a reason unrelated to what it actually checks.
-            var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
-            var barNode = namespaceNodes.Single(n => Equals(n.Header, "Foo.Bar"));
-            var typeNode = barNode.Items.OfType<TreeViewItem>().Single();
-            Assert.Equal("Alpha", typeNode.Header);
-        }
-        finally { Directory.Delete(outputDir, recursive: true); }
+        Assert.Equal(_explorerAssembly.BinaryPath, window.AssemblyPathText.Text);
+        // Not asserting the exact node count — the top-level `_ = 0;` statement compiles into its
+        // own implicit `Program` type in the global namespace (a real, ILSpy-visible type, not
+        // compiler-generated noise — see EnumerateTypes' own filtering rationale), which would
+        // make this test brittle for a reason unrelated to what it actually checks.
+        var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
+        var barNode = namespaceNodes.Single(n => Equals(n.Header, "Foo.Bar"));
+        var typeNode = barNode.Items.OfType<TreeViewItem>().Single();
+        Assert.Equal("Alpha", typeNode.Header);
     }
 
     [AvaloniaFact]
@@ -122,30 +150,21 @@ public class AssemblyExplorerWindowTests
     [AvaloniaFact]
     public async Task OpenTypeAsync_Should_DecompileInPlace_ForTheSelectedType()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
-        try
-        {
-            using var compiler = CreateCompiler(outputDir);
-            var compilation = await compiler.Compilation(ExplorerCode, CancellationToken.None);
-            Assert.True(compilation.Success, string.Join('\n', compilation.Errors.Select(e => e.Message)));
+        var windowService = new Mock<IWindowService>();
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
+        window.Show();
+        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
 
-            var windowService = new Mock<IWindowService>();
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
-            window.Show();
-            await window.LoadAssemblyAsync(compilation.OutputBinaryFile!);
+        var types = CSharpDecompilerService.EnumerateTypes(_explorerAssembly.BinaryPath);
+        var alpha = types.Single(t => t.Name == "Alpha");
 
-            var types = CSharpDecompilerService.EnumerateTypes(compilation.OutputBinaryFile!);
-            var alpha = types.Single(t => t.Name == "Alpha");
+        await window.OpenTypeAsync(alpha);
 
-            await window.OpenTypeAsync(alpha);
-
-            // No child window opened — this is the whole point of the merge (user request
-            // 2026-07-20): the SAME window's editor pane updates in place, no new popup per type.
-            Assert.Empty(window.OwnedWindows);
-            Assert.Contains("class Alpha", window.Editor.Text);
-            Assert.Equal("Alpha", window.Title);
-        }
-        finally { Directory.Delete(outputDir, recursive: true); }
+        // No child window opened — this is the whole point of the merge (user request
+        // 2026-07-20): the SAME window's editor pane updates in place, no new popup per type.
+        Assert.Empty(window.OwnedWindows);
+        Assert.Contains("class Alpha", window.Editor.Text);
+        Assert.Equal("Alpha", window.Title);
     }
 
     // ── Go to Definition (F12) entry point — was DecompiledViewWindowTests.cs before the merge ──
@@ -171,28 +190,19 @@ public class AssemblyExplorerWindowTests
     [AvaloniaFact]
     public async Task FromInitialResult_Should_AlsoLoadTheAssemblysTree_WhenAnAssemblyPathIsGiven()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
-        try
-        {
-            using var compiler = CreateCompiler(outputDir);
-            var compilation = await compiler.Compilation(ExplorerCode, CancellationToken.None);
-            Assert.True(compilation.Success, string.Join('\n', compilation.Errors.Select(e => e.Message)));
+        var initialResult = CSharpDecompilerService.DecompileType(
+            _explorerAssembly.BinaryPath, "Foo.Bar.Alpha", displayName: "Alpha");
+        var windowService = new Mock<IWindowService>();
+        var window = new AssemblyExplorerWindow(
+            CreateThemeService().Object, windowService.Object, initialResult, _explorerAssembly.BinaryPath);
+        window.Show();
 
-            var initialResult = CSharpDecompilerService.DecompileType(
-                compilation.OutputBinaryFile!, "Foo.Bar.Alpha", displayName: "Alpha");
-            var windowService = new Mock<IWindowService>();
-            var window = new AssemblyExplorerWindow(
-                CreateThemeService().Object, windowService.Object, initialResult, compilation.OutputBinaryFile);
-            window.Show();
+        for (var i = 0; i < 100 && window.Tree.Items.Count == 0; i++)
+            await Task.Delay(20);
 
-            for (var i = 0; i < 100 && window.Tree.Items.Count == 0; i++)
-                await Task.Delay(20);
-
-            Assert.Equal("Alpha", window.Title);
-            var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
-            Assert.Contains(namespaceNodes, n => Equals(n.Header, "Foo.Baz"));
-        }
-        finally { Directory.Delete(outputDir, recursive: true); }
+        Assert.Equal("Alpha", window.Title);
+        var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
+        Assert.Contains(namespaceNodes, n => Equals(n.Header, "Foo.Baz"));
     }
 
     [AvaloniaFact]

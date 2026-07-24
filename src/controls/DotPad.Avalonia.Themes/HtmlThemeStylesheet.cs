@@ -51,6 +51,9 @@ public static class HtmlThemeStylesheet
             .dp-datetime{ color:{{dpDate}}; }
             .dp-error   { color:{{errFg}}; }
             .dp-truncated{ color:{{fgSec}}; }
+            .dp-progressbar        { position:relative; width:240px; height:14px; background-color:{{dpBorder}}; border-radius:3px; overflow:hidden; margin:2px 0; }
+            .dp-progressbar-fill   { height:100%; background-color:{{dpAccent}}; }
+            .dp-progressbar-caption{ color:{{fgSec}}; font-size:0.85em; margin-bottom:2px; }
             """;
     }
 

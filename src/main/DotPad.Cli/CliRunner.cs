@@ -194,6 +194,7 @@ public static class CliRunner
             Usings = usings,
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
+            CurrentQueryPath = currentQueryPath,
         };
     }
 }

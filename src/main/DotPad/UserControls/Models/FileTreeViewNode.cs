@@ -62,6 +62,17 @@ public class FileTreeViewNode : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _editingName, value);
     }
 
+    // TODO.md #110 — live user request: the OS drag cursor alone wasn't a reliable/visible enough
+    // signal of where a drag-and-drop would actually land, so the tree highlights the current drop
+    // target itself too (FileTreeView's drag handlers toggle this on whatever node is under the
+    // pointer during a valid drag).
+    private bool _isDropTarget;
+    public bool IsDropTarget
+    {
+        get => _isDropTarget;
+        set => this.RaiseAndSetIfChanged(ref _isDropTarget, value);
+    }
+
     public FileTreeViewNode(string title, string filePath, RpadLanguage? language = null)
     {
         _title = title;

@@ -17,6 +17,11 @@ namespace DotPad.Runtime.UI.Tests;
 // half). '\x1f' below mirrors DotPad.Runtime.Util.InputRequestPrefixChar/
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not
 // visible here — DotPad.Runtime only grants InternalsVisibleTo to DotPad.Runtime.Tests).
+//
+// CI-cost pass: only RunAsync_Should_SupportARealScriptCallingUtilReadLine_EndToEnd (below, split into
+// CompiledDotnetLanguageHostRealInputTests) spawns an actual `dotnet build`/child process — everything
+// in THIS class drives CSharpLanguageHost through FakeCompiler/FakeChildProcess and never touches
+// MSBuild, so it doesn't need (and shouldn't pay for) RealBuildTestCollection's forced serialization.
 public class CompiledDotnetLanguageHostInputTests
 {
     private sealed class FakeCompiler(ProcessCompilerResult result) : IDotnetProcessCompiler
@@ -105,7 +110,7 @@ public class CompiledDotnetLanguageHostInputTests
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", true, [], []));
         var host = new CSharpLanguageHost(
             options, NullLoggerFactory.Instance, (_, _, _) => compiler,
-            executionProcessFactory: (_, _, _) => process);
+            executionProcessFactory: (_, _, _, _) => process);
         return (host, outputDir);
     }
 
@@ -187,6 +192,17 @@ public class CompiledDotnetLanguageHostInputTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
+}
+
+// Split from CompiledDotnetLanguageHostInputTests (CI-cost pass) — this is the one test in that group
+// that spawns a real `dotnet build` + real child process, so only it needs RealBuildTestCollection's
+// forced serialization; the fake-backed tests next to it don't and now run fully parallel instead.
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
+[Collection(RealBuildTestCollection.Name)]
+public class CompiledDotnetLanguageHostRealInputTests
+{
     // Real dotnet-build + real spawned process integration test (no mocking of the compiler or the
     // child process) — proves the WHOLE round trip works: DotPad.Runtime.Util.ReadLine really does
     // write the sentinel line a real compiled script's stdout, CompiledDotnetLanguageHostBase really

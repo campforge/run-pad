@@ -18,7 +18,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns(folder);
-        fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

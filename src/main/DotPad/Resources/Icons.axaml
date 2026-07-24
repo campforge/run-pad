@@ -40,14 +40,36 @@
     <!-- Tab strip "show all open tabs" dropdown (TODO.md, "Полоса вкладок: ... выпадающий список") -->
     <StreamGeometry x:Key="Icon.ChevronDown">M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z</StreamGeometry>
 
-    <!-- TODO.md #79: quick-fix (lightbulb) menu item icon — a hammer, per the user's own request
-         ("как в Rider" — Rider/ReSharper-style, one uniform icon for every fix action, see TODO #79's
-         reasoning on why a single icon suffices today). Hand-drawn as two crossed rectangles (a head
-         perpendicular to a diagonal handle), NOT sourced from Material Design Icons — no exact
-         "hammer" glyph from that library was available/verified here, so this is a plain original
-         pictogram sized to the same 24×24 viewbox as the rest of this file, rendered/checked at both
-         full size and 16px before being committed. -->
-    <StreamGeometry x:Key="Icon.Hammer">M0.05,7.12 L2.88,9.95 L9.95,2.88 L7.12,0.05 Z M4.08,5.92 L5.92,4.08 L22.92,21.08 L21.08,22.92 Z</StreamGeometry>
+    <!-- TODO.md #116 — live user request: replace the hand-drawn TODO #79 hammer with a real
+         pictogram (user-supplied file, hammer-tool-svgrepo-com.svg from svgrepo.com), and give
+         fixes/refactorings/conversions their own distinct icons instead of one hammer for every
+         lightbulb menu entry (see CodeFixMargin's own CodeFixCategory/Categorize). Source viewBox is
+         0 0 32 32, not this file's usual 24×24 — left as-is rather than rescaled: PathIcon stretches
+         Uniform to whatever box it's drawn in regardless of the geometry's own native coordinate
+         range (confirmed against the existing 24×24 icons rendering correctly at 16px), so the two
+         conventions coexist fine in one file. -->
+    <StreamGeometry x:Key="Icon.Hammer">M6.6,19.8c-0.3,0-0.5-0.1-0.7-0.3l-3.7-3.7c-0.2-0.2-0.3-0.4-0.3-0.7s0.1-0.5,0.3-0.7l1.5-1.5c0.3-0.3,0.7-0.4,1-0.2l0.8,0.3l0.6-0.6c-0.1-1,0.2-2.1,1-2.9l4.2-4.2c1.7-1.7,4-2.7,6.5-2.8l0.4,0c0.4,0,0.8,0.2,0.9,0.6s0.1,0.8-0.2,1.1l-0.5,0.5c-1.3,1.3-2,3.1-1.7,4.9c0,0.3-0.1,0.6-0.3,0.8l-4.2,4.2c-0.8,0.8-1.8,1.1-2.9,1l-0.6,0.6L9,17c0.1,0.4,0,0.7-0.2,1l-1.5,1.5C7.1,19.7,6.9,19.8,6.6,19.8z M28.8,22.4L17.6,12.1l-3.9,3.9c-0.1,0.1-0.1,0.1-0.2,0.2l10.4,11.3c0.7,0.7,1.5,1.1,2.5,1.1c0,0,0.1,0,0.1,0c0.9,0,1.8-0.4,2.5-1c0.7-0.7,1-1.6,1-2.6C29.9,24,29.5,23.1,28.8,22.4z</StreamGeometry>
+
+    <!-- TODO.md #116 — refactorings' own icon (a broom, "cleanup"), separate from fixes' hammer
+         above. User-supplied file, clean-svgrepo-com.svg from svgrepo.com (viewBox 0 0 32 32, same
+         as the hammer above). Source is one <path> plus three small <rect> "sparkle" marks; each
+         rect's own transform="translate(...) rotate(-180)" is a geometric no-op
+         (rotating a rectangle 180° around its own center, verified by hand — the reflection point
+         each translate() implies is exactly that rect's center in every one of the three cases) —
+         converted to plain M/L/Z subpaths at their untransformed x/y/width/height instead of carrying
+         the transform math into the combined string. The source's own invisible
+         "_Transparent_Rectangle_" bounding box (fill:none, canvas-size bookkeeping only) is dropped —
+         nothing in this file's other icons carries one either. -->
+    <StreamGeometry x:Key="Icon.Broom">M17.0029,20a4.8952,4.8952,0,0,0-2.4044-4.1729L22,3,20.2691,2,12.6933,15.126A5.6988,5.6988,0,0,0,7.45,16.6289C3.7064,20.24,3.9963,28.6821,4.01,29.04a1,1,0,0,0,1,.96H20.0012a1,1,0,0,0,.6-1.8C17.0615,25.5439,17.0029,20.0537,17.0029,20ZM11.93,16.9971A3.11,3.11,0,0,1,15.0041,20c0,.0381.0019.208.0168.4688L9.1215,17.8452A3.8,3.8,0,0,1,11.93,16.9971ZM15.4494,28A5.2,5.2,0,0,1,14,25H12a6.4993,6.4993,0,0,0,.9684,3H10.7451A16.6166,16.6166,0,0,1,10,24H8a17.3424,17.3424,0,0,0,.6652,4H6c.031-1.8364.29-5.8921,1.8027-8.5527l7.533,3.35A13.0253,13.0253,0,0,0,17.5968,28Z M20,18 L26,18 L26,20 L20,20 Z M24,26 L30,26 L30,28 L24,28 Z M22,22 L28,22 L28,24 L22,24 Z</StreamGeometry>
+
+    <!-- TODO.md #116 — conversions/minor edits' own icon (a wrench), separate from fixes/
+         refactorings above. User-supplied file, wrench-svgrepo-com.svg from svgrepo.com (viewBox
+         0 0 24 24 — this file's usual convention). Source uses
+         fill-rule="evenodd" (the two ring-shaped openings at the wrench's jaw ends are cut out by two
+         overlapping subpaths, not separate holes) — "F0" is the path mini-language's own EvenOdd
+         fill-rule directive (mirrors WPF/SVG; "F1", the default, is NonZero), needed here or those
+         two openings would fill in solid instead of reading as a wrench. -->
+    <StreamGeometry x:Key="Icon.Wrench">F0 M3.5362 5.29854C3.861 5.23721 4.19511 5.34035 4.42884 5.57407L6.90007 8.0453C7.21718 8.36241 7.73131 8.36241 8.04842 8.0453C8.36553 7.7282 8.36553 7.21406 8.04842 6.89695L5.57841 4.42694C5.34457 4.1931 5.24146 3.85877 5.30297 3.53383C5.36449 3.2089 5.58266 2.93539 5.8858 2.8032C8.06696 1.85206 10.7034 2.26698 12.4903 4.05384C13.9041 5.46765 14.4588 7.41411 14.1581 9.24419L21.0366 16.1227C22.3936 17.4796 22.3936 19.6797 21.0366 21.0367C19.6796 22.3936 17.4796 22.3936 16.1226 21.0367L9.24405 14.1581C7.41401 14.4588 5.46762 13.904 4.05384 12.4903C2.26556 10.702 1.85139 8.06276 2.80548 5.88058C2.93789 5.57772 3.2114 5.35986 3.5362 5.29854ZM4.30644 8.2801C4.30858 9.29283 4.69632 10.3043 5.46805 11.076C6.50688 12.1149 7.97927 12.4581 9.30695 12.1009C9.6523 12.008 10.021 12.1066 10.2739 12.3595L17.5368 19.6225C18.1127 20.1984 19.0465 20.1984 19.6224 19.6225C20.1983 19.0466 20.1983 18.1128 19.6224 17.5369L12.3595 10.274C12.1066 10.0211 12.008 9.65241 12.1009 9.30705C12.4582 7.97934 12.1149 6.50691 11.076 5.46805C10.3059 4.69791 9.29699 4.31018 8.28635 4.30645L9.46264 5.48274C10.5608 6.58089 10.5608 8.36136 9.46264 9.45952C8.36448 10.5577 6.58401 10.5577 5.48586 9.45952L4.30644 8.2801Z</StreamGeometry>
 
     <!-- File tree per-language icons (TODO.md #70) — sourced from Material Design Icons, same
          convention as the context-menu icons above. -->

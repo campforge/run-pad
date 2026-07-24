@@ -195,6 +195,22 @@ public class CodeFixMarginTests
         Assert.InRange(iconWidth, editor.TextArea.TextView.DefaultLineHeight * 0.7, editor.TextArea.TextView.DefaultLineHeight * 1.0);
     }
 
+    // Live user report: a real Roslyn refactoring title on an empty-string-literal expression (e.g.
+    // "Introduce local for '""'" — the FeaturesResources "Introduce local for '{0}'" format string
+    // with {0} = the literal source text "") renders as an unreadable run of quote glyphs in the
+    // default proportional UI font. DotPad doesn't reformat fix.Title itself — a monospace font is
+    // the fix, so adjacent quote characters stay visually distinct (fixed width) regardless of what
+    // ends up embedded in a future title, not just this one reported case.
+    [AvaloniaFact]
+    public void BuildMenuItem_Should_UseAMonospaceFont_ForBetterQuoteGlyphLegibility()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+
+        var item = margin.BuildMenuItem(new CodeFixEntry(1, "Introduce local for '\"\"'", CodeFixSeverity.Info, "fix-key"));
+
+        Assert.Equal(new FontFamily("monospace"), item.FontFamily);
+    }
+
     // TODO.md #79: the quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon
     // at all. TestAppBuilder deliberately doesn't merge DotPad's own Icons.axaml (real UI tests
     // construct their own view models instead of depending on the full app composition root), so this
@@ -202,7 +218,7 @@ public class CodeFixMarginTests
     // assertion, and removes it again afterward so it can't leak into other tests sharing this
     // process's one Application instance.
     [AvaloniaFact]
-    public void BuildMenuItem_Should_SetTheHammerIcon()
+    public void BuildMenuItem_Should_SetTheHammerIcon_ForAGenericDiagnosticDrivenFix()
     {
         var (_, _, margin) = CreateEditor("x\n");
         var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
@@ -212,16 +228,164 @@ public class CodeFixMarginTests
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
         {
-            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Add using System;", CodeFixSeverity.Info, "fix-key"));
+            // DiagnosticId set, title doesn't match any of the using-directive/create-implement/
+            // conversion keyword heuristics — falls through to the plain "Fix" category (hammer).
+            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Remove unnecessary cast", CodeFixSeverity.Info, "fix-key", DiagnosticId: "IDE0004"));
 
             var icon = Assert.IsType<PathIcon>(item.Icon);
             Assert.NotNull(icon.Data);
-            Assert.Equal("Add using System;", item.Header);
+            Assert.Equal("Remove unnecessary cast", item.Header);
         }
         finally
         {
             Application.Current.Resources.MergedDictionaries.Remove(include);
         }
+    }
+
+    [AvaloniaFact]
+    public void BuildMenuItem_Should_SetTheWrenchIcon_ForAConversionTitle()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        {
+            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+        };
+        Application.Current!.Resources.MergedDictionaries.Add(include);
+        try
+        {
+            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Convert to interpolated string", CodeFixSeverity.Info, "fix-key"));
+
+            Application.Current.TryGetResource("Icon.Wrench", null, out var wrenchGeo);
+            var icon = Assert.IsType<PathIcon>(item.Icon);
+            Assert.Same(wrenchGeo, icon.Data);
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(include);
+        }
+    }
+
+    [AvaloniaFact]
+    public void BuildMenuItem_Should_SetTheBroomIcon_ForARefactoringTitle()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        {
+            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+        };
+        Application.Current!.Resources.MergedDictionaries.Add(include);
+        try
+        {
+            var item = margin.BuildMenuItem(new CodeFixEntry(1, "Extract method", CodeFixSeverity.Info, "fix-key"));
+
+            Application.Current.TryGetResource("Icon.Broom", null, out var broomGeo);
+            var icon = Assert.IsType<PathIcon>(item.Icon);
+            Assert.Same(broomGeo, icon.Data);
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(include);
+        }
+    }
+
+    // CodeFixCategory is internal — Theory data can't carry it directly in a public method signature
+    // (CS0051), so the expected category travels as its own name and is parsed back inside the test.
+    [Theory]
+    [InlineData("using System.Linq;", nameof(CodeFixCategory.UsingDirective))]
+    [InlineData("using static System.Math;", nameof(CodeFixCategory.UsingDirective))]
+    [InlineData("Generate constructor 'Foo(int)'", nameof(CodeFixCategory.CreateOrImplement))]
+    [InlineData("Create class 'Foo'", nameof(CodeFixCategory.CreateOrImplement))]
+    [InlineData("Implement interface 'IFoo'", nameof(CodeFixCategory.CreateOrImplement))]
+    [InlineData("Convert to interpolated string", nameof(CodeFixCategory.Conversion))]
+    [InlineData("Simplify LINQ expression", nameof(CodeFixCategory.Conversion))]
+    [InlineData("Use expression body for method", nameof(CodeFixCategory.Conversion))]
+    public void Categorize_Should_RecognizeTheKeywordedCategories_RegardlessOfDiagnosticId(string title, string expectedCategoryName)
+    {
+        var expected = Enum.Parse<CodeFixCategory>(expectedCategoryName);
+        Assert.Equal(expected, CodeFixMargin.Categorize(new CodeFixEntry(1, title, CodeFixSeverity.Info, "key")));
+        Assert.Equal(expected, CodeFixMargin.Categorize(new CodeFixEntry(1, title, CodeFixSeverity.Info, "key", DiagnosticId: "CS0246")));
+    }
+
+    [Fact]
+    public void Categorize_Should_ReturnFix_ForANonKeywordTitle_WithADiagnosticId()
+    {
+        var fix = new CodeFixEntry(1, "Remove unnecessary cast", CodeFixSeverity.Info, "key", DiagnosticId: "IDE0004");
+
+        Assert.Equal(CodeFixCategory.Fix, CodeFixMargin.Categorize(fix));
+    }
+
+    [Fact]
+    public void Categorize_Should_ReturnRefactoring_ForANonKeywordTitle_WithNoDiagnosticId()
+    {
+        var fix = new CodeFixEntry(1, "Extract method", CodeFixSeverity.Info, "key");
+
+        Assert.Equal(CodeFixCategory.Refactoring, CodeFixMargin.Categorize(fix));
+    }
+
+    [Theory]
+    [InlineData(nameof(CodeFixCategory.UsingDirective), "Icon.Hammer")]
+    [InlineData(nameof(CodeFixCategory.CreateOrImplement), "Icon.Hammer")]
+    [InlineData(nameof(CodeFixCategory.Fix), "Icon.Hammer")]
+    [InlineData(nameof(CodeFixCategory.Conversion), "Icon.Wrench")]
+    [InlineData(nameof(CodeFixCategory.Refactoring), "Icon.Broom")]
+    public void IconKeyForCategory_Should_MapEachCategoryToItsOwnIconResourceKey(string categoryName, string expectedKey)
+    {
+        var category = Enum.Parse<CodeFixCategory>(categoryName);
+        Assert.Equal(expectedKey, CodeFixMargin.IconKeyForCategory(category));
+    }
+
+    [AvaloniaFact]
+    public void BuildMenuItems_Should_NotAddASeparator_WhenAllCandidatesAreTheSameCategory()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+        var candidates = new[]
+        {
+            new CodeFixEntry(1, "using System;", CodeFixSeverity.Info, "k1"),
+            new CodeFixEntry(1, "using System.Linq;", CodeFixSeverity.Info, "k2"),
+        };
+
+        var items = margin.BuildMenuItems(candidates);
+
+        Assert.Equal(2, items.Count);
+        Assert.All(items, i => Assert.IsType<MenuItem>(i));
+    }
+
+    [AvaloniaFact]
+    public void BuildMenuItems_Should_GroupByCategory_WithASeparatorBetweenNonEmptyGroups_InMenuGroupOrder()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+        // Deliberately listed out of the expected menu order (refactoring first, using-directive
+        // second) — BuildMenuItems is what's responsible for reordering by category, not callers.
+        var candidates = new[]
+        {
+            new CodeFixEntry(1, "Extract method", CodeFixSeverity.Info, "refactor-key"),
+            new CodeFixEntry(1, "using System;", CodeFixSeverity.Info, "using-key"),
+        };
+
+        var items = margin.BuildMenuItems(candidates);
+
+        Assert.Equal(3, items.Count); // using-directive item, separator, refactoring item
+        var usingItem = Assert.IsType<MenuItem>(items[0]);
+        Assert.Equal("using System;", usingItem.Header);
+        Assert.IsType<Separator>(items[1]);
+        var refactorItem = Assert.IsType<MenuItem>(items[2]);
+        Assert.Equal("Extract method", refactorItem.Header);
+    }
+
+    [AvaloniaFact]
+    public void BuildMenuItems_Should_PreserveOriginalOrder_WithinEachGroup()
+    {
+        var (_, _, margin) = CreateEditor("x\n");
+        var candidates = new[]
+        {
+            new CodeFixEntry(1, "using System.Linq;", CodeFixSeverity.Info, "second-listed"),
+            new CodeFixEntry(1, "using System;", CodeFixSeverity.Info, "first-listed"),
+        };
+
+        var items = margin.BuildMenuItems(candidates);
+
+        Assert.Equal("using System.Linq;", Assert.IsType<MenuItem>(items[0]).Header);
+        Assert.Equal("using System;", Assert.IsType<MenuItem>(items[1]).Header);
     }
 
     // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): Apply used to set
@@ -242,6 +406,38 @@ public class CodeFixMarginTests
         item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
 
         Assert.Equal(entry, raised);
+    }
+
+    // TODO.md #116 — sanity check on the three converted-from-SVG geometries themselves (Icon.Hammer
+    // was replaced, Icon.Broom/Icon.Wrench are new): each should parse to a non-degenerate shape
+    // roughly matching its source SVG's own viewBox, not e.g. a single stray point from a typo'd
+    // coordinate. Doesn't (can't, headless) confirm the glyph LOOKS like a hammer/broom/wrench —
+    // only that the geometry data is sane.
+    [Theory]
+    [InlineData("Icon.Hammer", 32, 32)]
+    [InlineData("Icon.Broom", 32, 32)]
+    [InlineData("Icon.Wrench", 24, 24)]
+    public void CodeFixIcons_Should_ParseToANonDegenerateShape_WithinTheirSourceViewBox(string key, double maxWidth, double maxHeight)
+    {
+        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        {
+            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+        };
+        Application.Current!.Resources.MergedDictionaries.Add(include);
+        try
+        {
+            Application.Current.TryGetResource(key, null, out var res);
+            var geo = Assert.IsType<StreamGeometry>(res);
+
+            Assert.True(geo.Bounds.Width > 1, $"{key}'s bounds are suspiciously narrow: {geo.Bounds}");
+            Assert.True(geo.Bounds.Height > 1, $"{key}'s bounds are suspiciously short: {geo.Bounds}");
+            Assert.True(geo.Bounds.Width <= maxWidth, $"{key}'s bounds are wider than its source viewBox: {geo.Bounds}");
+            Assert.True(geo.Bounds.Height <= maxHeight, $"{key}'s bounds are taller than its source viewBox: {geo.Bounds}");
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(include);
+        }
     }
 
     private static void Arrange(CodeFixMargin margin)

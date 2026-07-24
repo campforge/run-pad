@@ -16,34 +16,15 @@ public class RSizeTests
         Assert.Equal(50, s.Height);
     }
 
-    [Fact]
-    public void IsEmpty_TrueForZeroSize()
+    [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(1, 0, false)]
+    [InlineData(0, 1, false)]
+    public void IsEmpty_ReflectsWhetherEitherComponentIsNonZero(double width, double height, bool expected)
     {
-        // Arrange
-        var s = new RSize(0, 0);
+        var s = new RSize(width, height);
 
-        // Assert
-        Assert.True(s.IsEmpty);
-    }
-
-    [Fact]
-    public void IsEmpty_FalseWhenWidthIsNonZero()
-    {
-        // Arrange
-        var s = new RSize(1, 0);
-
-        // Assert
-        Assert.False(s.IsEmpty);
-    }
-
-    [Fact]
-    public void IsEmpty_FalseWhenHeightIsNonZero()
-    {
-        // Arrange
-        var s = new RSize(0, 1);
-
-        // Assert
-        Assert.False(s.IsEmpty);
+        Assert.Equal(expected, s.IsEmpty);
     }
 
     [Fact]

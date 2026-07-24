@@ -73,26 +73,15 @@ public class DumpRendererTests
         Assert.DoesNotContain("…", result);
     }
 
-    [Fact]
-    public void Render_BoolTrue_ProducesBoolTrueSpan()
+    [Theory]
+    [InlineData(true, ">true<")]
+    [InlineData(false, ">false<")]
+    public void Render_Bool_ProducesBoolSpan(bool value, string expectedSpan)
     {
-        // Act
-        var result = DumpRenderer.Render(true, null);
+        var result = DumpRenderer.Render(value, null);
 
-        // Assert
         Assert.Contains("dp-bool", result);
-        Assert.Contains(">true<", result);
-    }
-
-    [Fact]
-    public void Render_BoolFalse_ProducesBoolFalseSpan()
-    {
-        // Act
-        var result = DumpRenderer.Render(false, null);
-
-        // Assert
-        Assert.Contains("dp-bool", result);
-        Assert.Contains(">false<", result);
+        Assert.Contains(expectedSpan, result);
     }
 
     [Fact]
@@ -288,6 +277,64 @@ public class DumpRendererTests
         // Assert — reflection wraps exceptions in TargetInvocationException, so we just check the error class exists
         Assert.Contains("dp-error", result);
         Assert.Contains("ok", result); // Safe property still renders
+    }
+
+    // ── Include/Exclude (TODO.md #111) ───────────────────────────────────────
+
+    [Fact]
+    public void Render_PocoObject_WithExclude_HidesTheExcludedProperty()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { Exclude = ["Y"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithInclude_ShowsOnlyTheIncludedProperties()
+    {
+        // Arrange
+        var point = new Point { X = 5, Y = 10 };
+
+        // Act
+        var result = DumpRenderer.Render(point, null, new DumpOptions { Include = ["X"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
+    }
+
+    [Fact]
+    public void Render_PocoObject_WithIncludeAndExclude_AppliesIncludeFirstThenExclude()
+    {
+        // Arrange — Include narrows down to Name+Child, Exclude then removes Child from what's left.
+        var node = new Node { Name = "root" };
+
+        // Act
+        var result = DumpRenderer.Render(node, null, new DumpOptions { Include = ["Name", "Child"], Exclude = ["Child"] });
+
+        // Assert
+        Assert.Contains(">Name<", result);
+        Assert.DoesNotContain(">Child<", result);
+    }
+
+    [Fact]
+    public void Render_Exclude_AppliesToThePropertyGridOfAnEnumerableOfObjects_Too()
+    {
+        // Arrange — GetMembers is the same chokepoint RenderEnumerable's property-grid branch uses.
+        var points = new List<Point> { new() { X = 1, Y = 2 }, new() { X = 3, Y = 4 } };
+
+        // Act
+        var result = DumpRenderer.Render(points, null, new DumpOptions { Exclude = ["Y"] });
+
+        // Assert
+        Assert.Contains(">X<", result);
+        Assert.DoesNotContain(">Y<", result);
     }
 
     // ── Depth limiting ────────────────────────────────────────────────────────

@@ -41,6 +41,14 @@ internal static class DumpHtmlSpectreRenderer
                 return new Markup($"[bold yellow]{Markup.Escape(el.Value)}[/]");
             case "div" when cls.Contains("dp-count"):
                 return new Markup($"[grey italic]{Markup.Escape(el.Value)}[/]");
+            // Util.ProgressBar (TODO.md #111): -fill/-caption checked before the bare "dp-progressbar"
+            // wrapper below, since both class names also contain that substring — order matters here.
+            case "div" when cls.Contains("dp-progressbar-fill"):
+                return null; // rendered as part of the dp-progressbar case, from that element's own data-dp-percent
+            case "div" when cls.Contains("dp-progressbar-caption"):
+                return new Markup($"[bold]{Markup.Escape(el.Value)}[/]");
+            case "div" when cls.Contains("dp-progressbar"):
+                return RenderProgressBar(el);
             case "table":
                 return RenderTable(el);
             case "details":
@@ -69,6 +77,15 @@ internal static class DumpHtmlSpectreRenderer
         _ when cls.Contains("dp-propname") => new Markup($"[bold]{Markup.Escape(text)}[/]"),
         _ => null,
     };
+
+    private static IRenderable RenderProgressBar(XElement el)
+    {
+        var percent = (int?)el.Attribute("data-dp-percent") ?? 0;
+        const int width = 20;
+        var filled = width * percent / 100;
+        var bar = new string('█', filled) + new string('░', width - filled);
+        return new Markup($"[green]{bar}[/] {percent}%");
+    }
 
     private static Table RenderTable(XElement tableEl)
     {

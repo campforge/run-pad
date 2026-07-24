@@ -134,4 +134,36 @@ public class UtilTests
             Console.SetIn(originalIn);
         }
     }
+
+    // TODO.md #111 (bucket 1) — DotPad.Build.Core's ChildProcess.ForExecution sets this same
+    // environment variable (name duplicated, not shared — see Util.CurrentQueryPathEnvVar's own
+    // comment) on the real compiled script's child process; here it's just read back. Environment
+    // variables are process-wide state, same category of concern as Console.Out/In above — this
+    // class is already [Collection(ConsoleTestCollection.Name)], serializing it against any other
+    // test in the same collection.
+    [Fact]
+    public void CurrentQueryPath_Should_ReturnNull_WhenTheEnvironmentVariableIsNotSet()
+    {
+        var original = Environment.GetEnvironmentVariable(Util.CurrentQueryPathEnvVar);
+        try
+        {
+            Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, null);
+
+            Assert.Null(Util.CurrentQueryPath);
+        }
+        finally { Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, original); }
+    }
+
+    [Fact]
+    public void CurrentQueryPath_Should_ReturnTheEnvironmentVariablesValue_WhenSet()
+    {
+        var original = Environment.GetEnvironmentVariable(Util.CurrentQueryPathEnvVar);
+        try
+        {
+            Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, "/home/user/Documents/DotPad Queries/a.rpad");
+
+            Assert.Equal("/home/user/Documents/DotPad Queries/a.rpad", Util.CurrentQueryPath);
+        }
+        finally { Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, original); }
+    }
 }

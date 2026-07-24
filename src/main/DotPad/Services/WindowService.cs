@@ -4,25 +4,44 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using DotPad.Format.RPad;
 using DotPad.Windows;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DotPad.Services;
 
+// TODO.md #100: used to take the whole IServiceProvider and resolve dependencies inside each method
+// (Service Locator — DIP violation, constructor didn't document real dependencies, hard to test in
+// isolation). Explicit Func<TWindow> factories instead — same technique already used for
+// Func<IIntelliSenseService> in App.axaml.cs's ConfigureServices, registered there the same way.
+// DependenciesWindow/PreferencesWindow are DI-registered as Transient (a fresh instance each time
+// they're shown), so a Func<T> factory — not a direct T — is the right shape for both.
 public sealed class WindowService : IWindowService
 {
-    private readonly IServiceProvider _sp;
+    private readonly Func<DependenciesWindow> _dependenciesWindowFactory;
+    private readonly Func<PreferencesWindow> _preferencesWindowFactory;
+    private readonly IThemeService _themeService;
 
-    public WindowService(IServiceProvider sp) => _sp = sp;
+    public WindowService(
+        Func<DependenciesWindow> dependenciesWindowFactory,
+        Func<PreferencesWindow> preferencesWindowFactory,
+        IThemeService themeService)
+    {
+        _dependenciesWindowFactory = dependenciesWindowFactory;
+        _preferencesWindowFactory = preferencesWindowFactory;
+        _themeService = themeService;
+    }
+
+    // TODO.md #101: the same lookup, repeated verbatim 6 times below.
+    private static Window? MainWindow =>
+        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
     public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null)
     {
-        var window = _sp.GetRequiredService<DependenciesWindow>();
+        var window = _dependenciesWindowFactory();
         using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
         await ShowDialogAsync(window);
     }
 
     public Task ShowPreferencesAsync()
-        => ShowDialogAsync(_sp.GetRequiredService<PreferencesWindow>());
+        => ShowDialogAsync(_preferencesWindowFactory());
 
     public Task ShowErrorAsync(string title, string message)
         => ShowDialogAsync(new ErrorDialog(title, message));
@@ -32,8 +51,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -50,8 +68,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowOpenLinqFileDialogAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -67,8 +84,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return UnsavedChangesResult.Cancel;
 
         var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
@@ -77,8 +93,7 @@ public sealed class WindowService : IWindowService
 
     public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         if (owner is null) return null;
 
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
@@ -94,11 +109,9 @@ public sealed class WindowService : IWindowService
 
     public Task ShowAssemblyExplorerAsync(string startFolder)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
 
-        var window = new AssemblyExplorerWindow(
-            _sp.GetRequiredService<IThemeService>(), this, startFolder);
+        var window = new AssemblyExplorerWindow(_themeService, this, startFolder);
         if (owner is not null) window.Show(owner);
         else window.Show();
         return Task.CompletedTask;
@@ -106,8 +119,7 @@ public sealed class WindowService : IWindowService
 
     private static Task ShowDialogAsync(Window dialog)
     {
-        var owner = (Application.Current?.ApplicationLifetime
-            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        var owner = MainWindow;
         return owner is not null ? dialog.ShowDialog(owner) : Task.CompletedTask;
     }
 }

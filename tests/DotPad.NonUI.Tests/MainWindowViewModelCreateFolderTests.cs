@@ -7,15 +7,15 @@ using Xunit;
 
 namespace DotPad.Runtime.UI.Tests;
 
-// TODO.md #69: file tree had no "create new folder" command at all. CreateFolder resolves WHERE the
-// new folder actually goes (the interesting/risky part — see the three cases below) and delegates
+// TODO.md #69: file tree had no "create new folder" command at all. CreateFolderAsync resolves WHERE
+// the new folder actually goes (the interesting/risky part — see the three cases below) and delegates
 // the actual directory creation + unique-name probing to IFileSystemService.CreateNewFolder.
 public class MainWindowViewModelCreateFolderTests
 {
     private static MainWindowViewModel CreateViewModel(Mock<IFileSystemService> fileSystem)
     {
         fileSystem.Setup(f => f.Folder).Returns("/root");
-        fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -30,20 +30,20 @@ public class MainWindowViewModelCreateFolderTests
     }
 
     [Fact]
-    public void CreateFolder_Should_UseTheRoot_WhenNothingIsSelected()
+    public async Task CreateFolderAsync_Should_UseTheRoot_WhenNothingIsSelected()
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFolder("/root")).Returns("/root/New Folder");
         var vm = CreateViewModel(fileSystem);
 
-        var result = vm.CreateFolder(null);
+        var result = await vm.CreateFolderAsync(null);
 
         Assert.Equal("/root/New Folder", result);
         fileSystem.Verify(f => f.CreateNewFolder("/root"), Times.Once);
     }
 
     [Fact]
-    public void CreateFolder_Should_CreateInsideTheSelectedFolder_WhenAFolderIsSelected()
+    public async Task CreateFolderAsync_Should_CreateInsideTheSelectedFolder_WhenAFolderIsSelected()
     {
         var fileSystem = new Mock<IFileSystemService>();
         Directory.CreateDirectory("/tmp/dotpad-createfolder-test/Sub");
@@ -53,7 +53,7 @@ public class MainWindowViewModelCreateFolderTests
                 .Returns("/tmp/dotpad-createfolder-test/Sub/New Folder");
             var vm = CreateViewModel(fileSystem);
 
-            var result = vm.CreateFolder("/tmp/dotpad-createfolder-test/Sub");
+            var result = await vm.CreateFolderAsync("/tmp/dotpad-createfolder-test/Sub");
 
             Assert.Equal("/tmp/dotpad-createfolder-test/Sub/New Folder", result);
             fileSystem.Verify(f => f.CreateNewFolder("/tmp/dotpad-createfolder-test/Sub"), Times.Once);
@@ -62,7 +62,7 @@ public class MainWindowViewModelCreateFolderTests
     }
 
     [Fact]
-    public void CreateFolder_Should_CreateAlongsideTheSelectedFile_WhenAFileIsSelected()
+    public async Task CreateFolderAsync_Should_CreateAlongsideTheSelectedFile_WhenAFileIsSelected()
     {
         // Windows CI finding: "/root/query.rpad" is a POSIX-style absolute path with no drive
         // letter — a test-only stand-in, not how a real Windows path looks (those always carry a
@@ -79,21 +79,21 @@ public class MainWindowViewModelCreateFolderTests
 
         // "/root/query.rpad" doesn't need to exist on disk — Directory.Exists on it is false (it's
         // not a directory), so the file branch (containing folder) is taken regardless.
-        var result = vm.CreateFolder("/root/query.rpad");
+        var result = await vm.CreateFolderAsync("/root/query.rpad");
 
         Assert.Equal("/root/New Folder", result);
         fileSystem.Verify(f => f.CreateNewFolder("/root"), Times.Once);
     }
 
     [Fact]
-    public void CreateFolder_Should_RefreshTheTree_AfterCreating()
+    public async Task CreateFolderAsync_Should_RefreshTheTree_AfterCreating()
     {
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.CreateNewFolder("/root")).Returns("/root/New Folder");
         var vm = CreateViewModel(fileSystem);
 
-        vm.CreateFolder(null);
+        await vm.CreateFolderAsync(null);
 
-        fileSystem.Verify(f => f.GetFilesTree(), Times.AtLeastOnce);
+        fileSystem.Verify(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 }

@@ -40,7 +40,7 @@ public class EditorTabsControlCloseConfirmationTests
 
         var fileSystem = new Mock<IFileSystemService>();
         fileSystem.Setup(f => f.Folder).Returns(rootFolder);
-        fileSystem.Setup(f => f.GetFilesTree()).Returns([]);
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
