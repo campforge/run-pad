@@ -32,10 +32,10 @@ public class MainWindowViewModelTests
                 languageRegistry: new LanguageHostRegistry());
 
             // Act
-            vm.ToggleSidebarCommand.Execute().Subscribe();
+            vm.Sidebar.ToggleCommand.Execute().Subscribe();
 
             // Assert
-            Assert.Equal(0, vm.SidebarColumnWidth.Value);
+            Assert.Equal(0, vm.Sidebar.Size.Value);
 
             vm.Dispose();
         }

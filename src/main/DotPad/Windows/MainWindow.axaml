@@ -87,7 +87,7 @@
                         </MenuItem>
                     </Menu>
 
-                    <Button Classes="wc-btn" Width="30" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="Toggle file tree">
+                    <Button Classes="wc-btn" Width="30" Command="{Binding Sidebar.ToggleCommand}" ToolTip.Tip="Toggle file tree">
                         <PathIcon Data="{StaticResource Icon.SidebarLeft}" Width="14" Height="14"/>
                     </Button>
 
@@ -118,7 +118,7 @@
         <!-- ── Body ──────────────────────────────────────────────────────── -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{Binding SidebarColumnWidth, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
+                <ColumnDefinition Width="{Binding Sidebar.Size, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>

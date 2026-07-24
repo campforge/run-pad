@@ -100,6 +100,11 @@ public class App : Application
         services.AddTransient<DependenciesWindow>();
         services.AddSingleton<EditorTabsControl>();
 
+        // TODO.md #100 — WindowService's own Func<TWindow> factories (a fresh Transient instance
+        // each time a dialog is shown, same reasoning as Func<IIntelliSenseService> above).
+        services.AddSingleton<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
+        services.AddSingleton<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
+
         var provider = services.BuildServiceProvider();
 
         // ToDo: выделить отдельный сервис прогрева приложения
