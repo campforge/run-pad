@@ -56,7 +56,28 @@ jobs:
       - name: 🔨 Build
         run: dotnet build --no-restore --configuration Release -warnaserror
 
-      - name: 🧪 Test
+      # PRs pay per-minute for Windows runners (2x the Linux rate) — build-linux already runs the
+      # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
+      # DotPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
+      # AvaloniaTestFramework disabling collection parallelism assembly-wide) and RealBuildTestCollection
+      # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured
+      # directly, see проход "минимизация CI-времени"). Everything else — the actual cross-platform
+      # risk surface (process/file-path handling, real dotnet-build behavior on THIS os specifically)
+      # still runs here; only the parts whose outcome doesn't meaningfully vary by OS are skipped.
+      - name: 🧪 Test (fast PR subset)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -e
+          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
+                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+            dotnet test "$proj" --no-build --configuration Release --verbosity normal
+          done
+          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+            --filter "Category!=RealBuild"
+
+      - name: 🧪 Test (full suite)
+        if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       # Release assets — only built on an actual merge to main, not on every PR.
@@ -154,7 +175,24 @@ jobs:
       - name: 🔨 Build
         run: dotnet build --no-restore --configuration Release -warnaserror
 
-      - name: 🧪 Test
+      # PRs pay per-minute for macOS runners (10x the Linux rate) — build-linux already runs the FULL
+      # suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts: see
+      # build-windows' own comment on the same step for the full rationale (DotPad.Runtime.UI.Tests'
+      # forced serialization + RealBuildTestCollection's real `dotnet build` floor cost).
+      - name: 🧪 Test (fast PR subset)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -e
+          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
+                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+            dotnet test "$proj" --no-build --configuration Release --verbosity normal
+          done
+          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+            --filter "Category!=RealBuild"
+
+      - name: 🧪 Test (full suite)
+        if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       # Release assets — only built on an actual merge to main, not on every PR.
@@ -175,7 +213,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

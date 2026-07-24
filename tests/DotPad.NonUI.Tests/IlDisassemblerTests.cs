@@ -11,6 +11,9 @@ namespace DotPad.Runtime.UI.Tests;
 // TODO.md #62 — the "IL" output tab (mirrors LINQPad's IL view). Real dotnet-build integration test
 // (no mocking of the compiler): the thing under test is whether ICSharpCode.Decompiler can actually
 // read a binary MsBuildProcessCompiler just produced, which pure-logic unit testing can't stand in for.
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class IlDisassemblerTests
 {

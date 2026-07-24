@@ -21,6 +21,9 @@ namespace DotPad.Runtime.UI.Tests;
 // IClassFixture compiles each snippet exactly once per test class run and every test just reads the
 // shared result, cutting it to 3 real builds (~4.5s) with zero coverage loss and each test still
 // fully isolated in its own [Fact].
+// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
+// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
+[Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServiceTests.CompiledFixtures>
 {
