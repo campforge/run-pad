@@ -18,10 +18,16 @@ namespace DotPad.Runtime.UI.Tests;
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not
 // visible here — DotPad.Runtime only grants InternalsVisibleTo to DotPad.Runtime.Tests).
 //
-// CI-cost pass: only RunAsync_Should_SupportARealScriptCallingUtilReadLine_EndToEnd (below, split into
-// CompiledDotnetLanguageHostRealInputTests) spawns an actual `dotnet build`/child process — everything
-// in THIS class drives CSharpLanguageHost through FakeCompiler/FakeChildProcess and never touches
-// MSBuild, so it doesn't need (and shouldn't pay for) RealBuildTestCollection's forced serialization.
+// Test-design cleanup (docs/unit-test.md — real `dotnet build`/child-process round trips test the
+// compiler and the OS, not DotPad's own code) removed this file's one real end-to-end test
+// (RunAsync_Should_SupportARealScriptCallingUtilReadLine_EndToEnd): every piece it proved is already
+// covered here in isolation — InputRequested_Should_FireWithThePromptAndIsPasswordFlag/
+// SendInputAsync_Should_WriteTheTextPlusNewline_ToTheProcessStdin below exercise the host's own
+// sentinel-detection and stdin-write logic via FakeChildProcess, and
+// DotPad.Runtime.Tests.UtilTests.ReadLine_WritesSentinelPrefixedRequest_ThenReturnsTheStdinAnswer
+// proves Util.ReadLine's writer produces the exact same wire format these fakes assume. The only
+// thing the real version additionally touched — whether a live OS pipe actually delivers what's
+// written to Process.StandardInput — is .NET's own Process/pipe behavior, not DotPad's.
 public class CompiledDotnetLanguageHostInputTests
 {
     private sealed class FakeCompiler(ProcessCompilerResult result) : IDotnetProcessCompiler
@@ -188,70 +194,6 @@ public class CompiledDotnetLanguageHostInputTests
         try
         {
             await host.SendInputAsync("Alice", TestContext.Current.CancellationToken);
-        }
-        finally { Directory.Delete(outputDir, recursive: true); }
-    }
-
-}
-
-// Split from CompiledDotnetLanguageHostInputTests (CI-cost pass) — this is the one test in that group
-// that spawns a real `dotnet build` + real child process, so only it needs RealBuildTestCollection's
-// forced serialization; the fake-backed tests next to it don't and now run fully parallel instead.
-// Category=RealBuild lets CI's fast Windows/macOS PR lane exclude this whole group via
-// `dotnet test --filter "Category!=RealBuild"` — see .github/workflows/dotnet-desktop.yml.
-[Trait("Category", "RealBuild")]
-[Collection(RealBuildTestCollection.Name)]
-public class CompiledDotnetLanguageHostRealInputTests
-{
-    // Real dotnet-build + real spawned process integration test (no mocking of the compiler or the
-    // child process) — proves the WHOLE round trip works: DotPad.Runtime.Util.ReadLine really does
-    // write the sentinel line a real compiled script's stdout, CompiledDotnetLanguageHostBase really
-    // does detect it and raise InputRequested, and SendInputAsync's reply really does unblock the
-    // real process's Console.In.ReadLine() and flow back out through stdout.
-    [Fact]
-    public async Task RunAsync_Should_SupportARealScriptCallingUtilReadLine_EndToEnd()
-    {
-        var outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
-        var sdk = new DotnetSdkProvider().Get().First();
-        var runtimeLib = new CSharpReferenceService().GetExtensionReference();
-        var options = new CompiledDotnetLanguageHostOptions
-        {
-            Platform = sdk,
-            ExecutionOptions = new ExecutionOptions
-            {
-                WorkingDirectory = outputDir,
-                Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
-                Debugger = new DebuggerOptions { DebuggerPath = "" },
-            },
-            OutputDirectory = outputDir,
-            RuntimeLibPath = runtimeLib,
-            Kind = RpadKind.Statements,
-        };
-        await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
-        try
-        {
-            string? receivedPrompt = null;
-            host.InputRequested += async (prompt, _) =>
-            {
-                receivedPrompt = prompt;
-                await host.SendInputAsync("World", CancellationToken.None);
-            };
-
-            var output = new List<string>();
-            const string code = """
-                var name = Util.ReadLine("Name?");
-                System.Console.WriteLine("Hello, " + name);
-                """;
-
-            // A regression that breaks sentinel detection leaves the real child process blocked
-            // forever on Console.In.ReadLine() instead of failing an assertion — bound it so that
-            // shows up as a clean timeout instead of hanging the whole test run.
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(20));
-            await host.RunAsync(code, (data, _) => output.Add(data), timeoutCts.Token);
-
-            Assert.Equal("Name?", receivedPrompt);
-            Assert.Contains("Hello, World", output);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
