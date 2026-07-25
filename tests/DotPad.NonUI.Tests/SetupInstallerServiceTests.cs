@@ -36,7 +36,8 @@ public class SetupInstallerServiceTests
                 new Progress<string>(), TestContext.Current.CancellationToken);
 
             Assert.True(File.Exists(exePath));
-            Assert.Equal("fake netcoredbg binary", await File.ReadAllTextAsync(exePath));
+            Assert.Equal(
+                "fake netcoredbg binary", await File.ReadAllTextAsync(exePath, TestContext.Current.CancellationToken));
         }
         finally
         {
