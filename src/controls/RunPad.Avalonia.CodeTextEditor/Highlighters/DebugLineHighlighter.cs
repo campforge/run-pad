@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 internal sealed class DebugLineHighlighter : IBackgroundRenderer
 {
@@ -21,7 +21,7 @@ internal sealed class DebugLineHighlighter : IBackgroundRenderer
         if (visualLine is null) return;
 
         object? res = null;
-        Application.Current?.TryGetResource("DotPad.Margin.DebugLineBrush",
+        Application.Current?.TryGetResource("RunPad.Margin.DebugLineBrush",
             Application.Current?.ActualThemeVariant, out res);
         var brush = res as IBrush ?? FallbackBrush;
 

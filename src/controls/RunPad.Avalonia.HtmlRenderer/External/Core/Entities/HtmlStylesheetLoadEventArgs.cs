@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Invoked when a stylesheet is about to be loaded by file path or URL in 'link' element.<br/>

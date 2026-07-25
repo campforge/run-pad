@@ -2,9 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DotPad.Contracts.IntelliSense;
+using RunPad.Contracts.IntelliSense;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 // Renders a DisplayTextSegment signature (syntax-highlighted, using SemanticTokenBrushes) plus an
 // optional plain-text XML-doc summary as a real Avalonia control. AvaloniaEdit's

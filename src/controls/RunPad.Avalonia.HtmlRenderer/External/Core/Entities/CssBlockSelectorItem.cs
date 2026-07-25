@@ -11,9 +11,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Holds single class selector in css block hierarchical selection (p class1 > div.class2)

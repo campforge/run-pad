@@ -1,10 +1,10 @@
 using System.Text.RegularExpressions;
 
-namespace DotPad.Languages.VB;
+namespace RunPad.Languages.VB;
 
 // Ported from the AvaloniaEdit-coupled VbFoldingStrategy that used to live in
-// DotPad.Avalonia.CodeTextEditor — a language-agnostic control project (TODO.md #76) — and
-// deliberately framework-free: DotPad.Cli references this project directly with no Avalonia
+// RunPad.Avalonia.CodeTextEditor — a language-agnostic control project (TODO.md #76) — and
+// deliberately framework-free: RunPad.Cli references this project directly with no Avalonia
 // dependency at all, so this can't take TextDocument/FoldingManager types without dragging the whole
 // UI stack along. Plain string in, (Start, End) character-offset pairs out — the same shape
 // EditorLanguageProfile.FoldingRegionsProvider expects, and easy to unit-test without any editor

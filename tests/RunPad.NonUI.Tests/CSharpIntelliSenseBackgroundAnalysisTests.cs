@@ -1,11 +1,11 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #56: ComputeDiagnosticsAsync/ComputeCodeFixesAsync used to be two independent
 // methods, each calling model.GetDiagnostics(...) itself — merged into one

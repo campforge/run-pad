@@ -1,12 +1,12 @@
-using DotPad.Build.Core.Models;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #66: CalcKindOffset() returned 2 for RpadKind.Program, but ApplyKindTransform's
 // Program branch ("Main();{code}", no newline) glued onto the same physical line as the user's first
@@ -39,7 +39,7 @@ public class CSharpLanguageHostKindTransformTests
     // these tests don't bother disposing; the temp directory is cleaned up explicitly instead.
     private static CSharpLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
-        outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
+        outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -50,7 +50,7 @@ public class CSharpLanguageHostKindTransformTests
                 Debugger = new DebuggerOptions { DebuggerPath = "netcoredbg" },
             },
             OutputDirectory = outputDir,
-            RuntimeLibPath = "DotPad.Runtime.dll",
+            RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = kind,
             Usings = usings ?? [],
         };
@@ -58,15 +58,15 @@ public class CSharpLanguageHostKindTransformTests
     }
 
     private const string WrapperClass = RpadKindTransform.ProgramWrapperClassName;
-    private const string TrampolineCall = $"{WrapperClass}.__DotPadRun()";
+    private const string TrampolineCall = $"{WrapperClass}.__RunPadRun()";
 
     private static string ExpectedProgramTransform(string code, bool isStatic, bool returnsTask)
     {
         var callStatement = returnsTask ? $"await {TrampolineCall};" : $"{TrampolineCall};";
         var mainCall = isStatic ? "Main()" : $"new {WrapperClass}().Main()";
         var trampoline = returnsTask
-            ? $"internal static Task __DotPadRun() => {mainCall};"
-            : $"internal static void __DotPadRun() {{ {mainCall}; }}";
+            ? $"internal static Task __RunPadRun() => {mainCall};"
+            : $"internal static void __RunPadRun() {{ {mainCall}; }}";
         return $"{callStatement}class {WrapperClass}\n{{\n{code}\n{trampoline}\n}}\n";
     }
 

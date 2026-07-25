@@ -1,12 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Contracts.IntelliSense;
-using DotPad.UserControls;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts.IntelliSense;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "inlay hints" — InlayHintRenderer, the VisualLineElementGenerator that renders
 // IInlayHint.Text as a dim, non-editable decoration (see CSharpIntelliSenseInlayHintsTests.cs for the

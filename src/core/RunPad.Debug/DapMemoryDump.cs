@@ -1,6 +1,6 @@
-using DotPad.Contracts.Models;
+using RunPad.Contracts.Models;
 
-namespace DotPad.Debug;
+namespace RunPad.Debug;
 
 public sealed class DapMemoryDump : IMemoryDump
 {

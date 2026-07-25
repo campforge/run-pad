@@ -1,14 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Shared;
 using ReactiveUI;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Shared;
 
-namespace DotPad.Windows.Models;
+namespace RunPad.Windows.Models;
 
 public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 {

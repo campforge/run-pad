@@ -1,4 +1,4 @@
-namespace DotPad.Debug.Protocol;
+namespace RunPad.Debug.Protocol;
 
 public class VsCodeProtocolRequest { }
 

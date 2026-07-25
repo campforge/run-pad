@@ -1,4 +1,4 @@
-namespace DotPad.Debug;
+namespace RunPad.Debug;
 
 /// <summary>
 /// A Debug Adapter Protocol session that orchestrates a full debug run.

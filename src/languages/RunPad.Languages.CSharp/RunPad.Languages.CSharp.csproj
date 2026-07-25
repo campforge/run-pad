@@ -20,17 +20,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Contracts\DotPad.Contracts.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Debug\DotPad.Debug.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
-    <ProjectReference Include="..\..\runtime\DotPad.Runtime\DotPad.Runtime.csproj" />
-    <ProjectReference Include="..\DotPad.Languages.DotnetCommon\DotPad.Languages.DotnetCommon.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Debug\RunPad.Debug.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\runtime\RunPad.Runtime\RunPad.Runtime.csproj" />
+    <ProjectReference Include="..\RunPad.Languages.DotnetCommon\RunPad.Languages.DotnetCommon.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
-    <InternalsVisibleTo Include="DotPad.NonUI.Tests" />
+    <InternalsVisibleTo Include="RunPad.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
   </ItemGroup>
 
 </Project>

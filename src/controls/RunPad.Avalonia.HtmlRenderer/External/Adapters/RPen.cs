@@ -11,9 +11,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific pen objects - used to draw graphics (lines, rectangles and paths) 

@@ -1,11 +1,11 @@
-using DotPad.Cli;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.DotnetCommon;
+using RunPad.Cli;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using Spectre.Console.Testing;
 using Xunit;
 
-namespace DotPad.Cli.Tests;
+namespace RunPad.Cli.Tests;
 
 // TODO.md #40: BuildOptions is the one piece of CliRunner.RunAsync that's pure logic (no process
 // spawning, no real SDK needed) — mirrors EditorTabItemControl.BuildRunOptions for the GUI's own
@@ -219,7 +219,7 @@ public class CliRunnerTests
     [Fact]
     public async Task ConvertLinqAsync_Should_WriteASiblingRpad_WhenNoOutputPathGiven()
     {
-        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        var dir = Directory.CreateTempSubdirectory("runpad-cli-convert-test").FullName;
         try
         {
             var linqPath = Path.Combine(dir, "MyQuery.linq");
@@ -250,7 +250,7 @@ public class CliRunnerTests
     [Fact]
     public async Task ConvertLinqAsync_Should_WriteToTheGivenOutputPath_AndOverwriteIt()
     {
-        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        var dir = Directory.CreateTempSubdirectory("runpad-cli-convert-test").FullName;
         try
         {
             var linqPath = Path.Combine(dir, "MyQuery.linq");
@@ -274,7 +274,7 @@ public class CliRunnerTests
     [Fact]
     public async Task ConvertLinqAsync_Should_ReturnError_ForAnUnsupportedQueryKind()
     {
-        var dir = Directory.CreateTempSubdirectory("dotpad-cli-convert-test").FullName;
+        var dir = Directory.CreateTempSubdirectory("runpad-cli-convert-test").FullName;
         try
         {
             var linqPath = Path.Combine(dir, "MyQuery.linq");

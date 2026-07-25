@@ -2,13 +2,13 @@
     "version": "0.3.0",
     "configurations": [
         {
-            "name": "DotPad (Debug)",
+            "name": "RunPad (Debug)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/main/DotPad/bin/Debug/net10.0/DotPad.dll",
+            "program": "${workspaceFolder}/src/main/RunPad/bin/Debug/net10.0/RunPad.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/main/DotPad",
+            "cwd": "${workspaceFolder}/src/main/RunPad",
             "stopAtEntry": false,
             "console": "internalConsole",
             "justMyCode": false,
@@ -17,13 +17,13 @@
             }
         },
         {
-            "name": "DotPad (Release)",
+            "name": "RunPad (Release)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/main/DotPad/bin/Release/net10.0/DotPad.dll",
+            "program": "${workspaceFolder}/src/main/RunPad/bin/Release/net10.0/RunPad.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/main/DotPad",
+            "cwd": "${workspaceFolder}/src/main/RunPad",
             "stopAtEntry": false,
             "console": "internalConsole",
             "justMyCode": false,

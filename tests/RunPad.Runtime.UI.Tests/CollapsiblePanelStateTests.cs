@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using DotPad.Shared;
+using RunPad.Shared;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #103 — extracted from MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
 // EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel, which duplicated this exact

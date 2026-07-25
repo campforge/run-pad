@@ -13,11 +13,11 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Media;
-using DotPad.Avalonia.HtmlRenderer.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
 
-namespace DotPad.Avalonia.HtmlRenderer;
+namespace RunPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>

@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 internal sealed class EditorTabState
 {

@@ -2,11 +2,11 @@ using System.Diagnostics;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using DotPad.Contracts.Models;
 using Microsoft.Extensions.Logging;
-using ExecutionOptions = DotPad.Build.Core.Models.ExecutionOptions;
+using RunPad.Contracts.Models;
+using ExecutionOptions = RunPad.Build.Core.Models.ExecutionOptions;
 
-namespace DotPad.Languages.DotnetCommon.Compiler;
+namespace RunPad.Languages.DotnetCommon.Compiler;
 
 /// <summary>
 /// Writes a throwaway single-file MSBuild project + source file for one compiled .NET language and
@@ -22,7 +22,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
     private readonly DotnetSdk _sdk;
     private readonly ExecutionOptions _executionOptions;
     private readonly string _outputDir;
-    private readonly string _dotPadRuntimeLib;
+    private readonly string _runPadRuntimeLib;
     private readonly string _outputName;
     private readonly string _sourceCodePath;
     private readonly string _fileProjPath;
@@ -44,7 +44,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         DotnetSdk sdk,
         ExecutionOptions executionOptions,
         string outputDir,
-        string dotPadRuntimeLib,
+        string runPadRuntimeLib,
         string outputName,
         IReadOnlyDictionary<string, string> nugetPackages,
         IReadOnlyList<string> usings,
@@ -56,7 +56,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         _sdk = sdk;
         _executionOptions = executionOptions;
         _outputDir = outputDir;
-        _dotPadRuntimeLib = dotPadRuntimeLib;
+        _runPadRuntimeLib = runPadRuntimeLib;
         _outputName = outputName;
         _nugetPackages = nugetPackages;
         _usings = usings;
@@ -77,7 +77,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         }
 
         var tfm = _sdk.TargetFrameworkMoniker;
-        var allAssemblyRefs = new[] { _dotPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
+        var allAssemblyRefs = new[] { _runPadRuntimeLib }.Concat(_assemblyReferences).ToArray();
         var projectFile = BuildProjectFile(tfm, allAssemblyRefs, _projectReferences, _nugetPackages);
 
         var binDirectory = Path.Join(_outputDir, BinDir);
@@ -90,12 +90,12 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         // Hot path: source, project file and the binary from the last build in this directory are
         // all still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
         // rather than just skipping restore. Also requires outputDll to be at least as new as every
-        // referenced assembly (dotPadRuntimeLib/assemblyReferences) — live user report (TODO.md
+        // referenced assembly (runPadRuntimeLib/assemblyReferences) — live user report (TODO.md
         // #111, "Util.CurrentQueryPath always null"): the generated project file only records a
         // reference's PATH (the <HintPath> written below), not its content, so rebuilding
-        // DotPad.Runtime.dll in place (e.g. updating DotPad itself) was invisible to projectUnchanged
+        // RunPad.Runtime.dll in place (e.g. updating RunPad itself) was invisible to projectUnchanged
         // — same path string, so the hot path fired anyway and kept serving whatever stale
-        // DotPad.Runtime.dll copy happened to be sitting in this output directory's bin/ from the
+        // RunPad.Runtime.dll copy happened to be sitting in this output directory's bin/ from the
         // last time it was actually built, silently running old runtime code against unchanged
         // script source.
         if (projectUnchanged && previousSource == code && File.Exists(outputDll)
@@ -220,7 +220,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
 
     // TODO.md #111 fix (live user report, "Util.CurrentQueryPath always null") — the hot-path skip
     // above only compares generated TEXT (project file/source), which references an assembly like
-    // DotPad.Runtime.dll by PATH, not content; this catches the case that text comparison can't:
+    // RunPad.Runtime.dll by PATH, not content; this catches the case that text comparison can't:
     // the referenced file itself got rebuilt in place since outputDll was last actually produced.
     // Swallows missing-reference errors rather than throwing — a reference that's gone entirely will
     // fail loudly in the real `dotnet build` this forces anyway, with a much more useful error.

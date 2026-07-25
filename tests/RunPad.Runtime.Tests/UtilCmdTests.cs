@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cmd/CmdCore. Uses "dotnet" itself as the external
 // process under test (guaranteed present on every CI runner this solution builds on — it's what's
@@ -69,7 +69,7 @@ public class UtilCmdTests
     public void CmdCore_Should_ReturnANonZeroExitCode_WhenTheProcessFails()
     {
         var exitCode = Util.CmdCore(
-            "dotnet", "dotpad-test-not-a-real-subcommand", workingDirectory: null, _ => { }, _ => { });
+            "dotnet", "runpad-test-not-a-real-subcommand", workingDirectory: null, _ => { }, _ => { });
 
         Assert.NotEqual(0, exitCode);
     }

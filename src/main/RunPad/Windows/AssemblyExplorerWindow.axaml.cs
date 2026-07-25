@@ -1,11 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Services;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Services;
 using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 /// <summary>
 /// ILSpy/dnSpy-style assembly explorer (TODO.md #62, user request 2026-07-19; merged with the

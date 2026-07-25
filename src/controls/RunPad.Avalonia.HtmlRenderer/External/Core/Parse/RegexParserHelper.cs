@@ -13,7 +13,7 @@
 
 using System.Text.RegularExpressions;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Parse;
 
 /// <summary>
 /// Collection of regular expressions used when parsing

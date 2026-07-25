@@ -12,12 +12,12 @@
 // "The Art of War"
 
 using System.Text;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Parse;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Utility class for traversing DOM structure and execution stuff on it.

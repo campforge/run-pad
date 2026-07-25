@@ -1,7 +1,7 @@
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #56: building the rich Description control (real Avalonia TextBlock/Run
 // construction via DisplaySegmentRenderer) eagerly for every completion item — up to ~584 of them

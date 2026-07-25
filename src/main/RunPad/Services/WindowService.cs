@@ -2,10 +2,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using DotPad.Format.RPad;
-using DotPad.Windows;
+using RunPad.Format.RPad;
+using RunPad.Windows;
 
-namespace DotPad.Services;
+namespace RunPad.Services;
 
 // TODO.md #100: used to take the whole IServiceProvider and resolve dependencies inside each method
 // (Service Locator — DIP violation, constructor didn't document real dependencies, hard to test in

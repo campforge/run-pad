@@ -1,14 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="DotPad.Windows.UnsavedChangesDialog"
+        x:Class="RunPad.Windows.UnsavedChangesDialog"
         Title="Unsaved Changes"
         Width="380"
         MinWidth="320" MinHeight="140"
         CanResize="False"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
-        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
     <Grid RowDefinitions="Auto,Auto" Margin="16">
 

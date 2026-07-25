@@ -3,7 +3,7 @@ using TextMateSharp.Themes;
 using Xunit;
 using AM = Avalonia.Media;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #112 — live user report: comments rendered in italic ("достаточно что они выделяются
 // цветом", color alone is enough). Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set,

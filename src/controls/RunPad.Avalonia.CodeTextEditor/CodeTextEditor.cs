@@ -14,7 +14,7 @@ using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
 using static AvaloniaEdit.TextMate.TextMate;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 public class CodeTextEditor : TextEditor
 {

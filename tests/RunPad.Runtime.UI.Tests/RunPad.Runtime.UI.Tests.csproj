@@ -25,7 +25,7 @@
     <PackageReference Include="Moq" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\main\DotPad\DotPad.csproj" />
+    <ProjectReference Include="..\..\src\main\RunPad\RunPad.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

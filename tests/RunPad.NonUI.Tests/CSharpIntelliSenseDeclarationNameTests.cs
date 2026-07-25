@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #68: the user found that completion (and, worse, the commit-on-"(" behavior from
 // #54) treated the NAME being typed for a fresh declaration as a reference to complete/replace — e.g.

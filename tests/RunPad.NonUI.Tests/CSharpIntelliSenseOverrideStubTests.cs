@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO.md item 60 point 8: typing "override " (like VS/Rider) lists the base type's
 // overridable members and, on accept, inserts a ready-to-edit stub — not just the bare method name.

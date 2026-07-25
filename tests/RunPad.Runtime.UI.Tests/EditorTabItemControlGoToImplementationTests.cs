@@ -2,12 +2,12 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Contracts.IntelliSense;
-using DotPad.UserControls;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts.IntelliSense;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "Go to Implementation" (Ctrl+F12) — EditorsTabItemControl.BuildGoToImplementationMenu,
 // the picker shown when a symbol has more than one implementation/override in the script (see

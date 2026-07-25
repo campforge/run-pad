@@ -1,4 +1,4 @@
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 // The .NET SDK's own <ImplicitUsings>enable</ImplicitUsings> set (verified against a real `dotnet
 // build` output — obj/<config>/<tfm>/<assembly>.GlobalUsings.g.cs — for a plain Exe project; no

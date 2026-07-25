@@ -1,12 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Shared;
 using ReactiveUI;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Shared;
 
-namespace DotPad.Windows.Models;
+namespace RunPad.Windows.Models;
 
 // ── Search results ─────────────────────────────────────────────────────────────
 

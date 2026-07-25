@@ -1,8 +1,8 @@
 using System.Text;
-using DotPad.Runtime;
+using RunPad.Runtime;
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // Redirects Console.Out — see ConsoleTestCollection for why this needs to run sequentially relative
 // to every other test doing the same (UtilTests).
@@ -220,7 +220,7 @@ public class ObjectExtensionsTests
     }
 
     [Fact]
-    public void Dump_Options_AppliesEveryDotPadSpecificRenderingOption()
+    public void Dump_Options_AppliesEveryRunPadSpecificRenderingOption()
     {
         var originalOut = Console.Out;
         try

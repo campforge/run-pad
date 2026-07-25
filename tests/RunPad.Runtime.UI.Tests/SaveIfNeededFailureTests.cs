@@ -1,19 +1,19 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #48: EditorTabItemControl.SaveIfNeeded() used to swallow every write failure (disk full,
 // permissions, file deleted/locked externally) with a bare `catch { }` — the user had no way to
@@ -26,7 +26,7 @@ public class SaveIfNeededFailureTests
     {
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-save-fail-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-save-fail-test").FullName;
         var filePath = Path.Combine(tmpDir, "demo.rpad");
         try
         {
@@ -61,7 +61,7 @@ public class SaveIfNeededFailureTests
 
             // Assert
             Assert.Contains("Save failed", ctrl.State.ExecStatusText);
-            Assert.Equal("DotPad.Status.ErrorBrush", ctrl.State.ExecStatusColor);
+            Assert.Equal("RunPad.Status.ErrorBrush", ctrl.State.ExecStatusColor);
         }
         finally
         {

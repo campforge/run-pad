@@ -1,7 +1,7 @@
 using System.Text;
 using ReactiveUI;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 // Backs OutputHtmlView the same way FileTreeViewModel backs FileTreeView — the view binds to this
 // instead of being pushed a fully-assembled HTML string imperatively. Css and Content are separate

@@ -12,15 +12,15 @@
 // "The Art of War"
 
 using System.Diagnostics;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core;
 
 /// <summary>
 /// Low level handling of Html Renderer logic.<br/>

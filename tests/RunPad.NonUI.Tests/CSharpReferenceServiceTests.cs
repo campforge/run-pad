@@ -1,7 +1,7 @@
-using DotPad.Languages.CSharp;
+using RunPad.Languages.CSharp;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #44: CSharpReferenceService.GetDefault()'s "System.*.dll" glob used to match native
 // companion libraries too (e.g. Windows' System.IO.Compression.Native.dll), which aren't valid

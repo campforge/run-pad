@@ -1,10 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:build="using:DotPad.Contracts.Models"
-             xmlns:vm="clr-namespace:DotPad.UserControls.Models"
-             xmlns:tc="clr-namespace:DotPad.TemplatedControls"
-             xmlns:uc="clr-namespace:DotPad.UserControls"
-             x:Class="DotPad.UserControls.EditorsTabItemControl"
+             xmlns:build="using:RunPad.Contracts.Models"
+             xmlns:vm="clr-namespace:RunPad.UserControls.Models"
+             xmlns:tc="clr-namespace:RunPad.TemplatedControls"
+             xmlns:uc="clr-namespace:RunPad.UserControls"
+             x:Class="RunPad.UserControls.EditorsTabItemControl"
              x:DataType="vm:EditorTabItemViewModel">
 
     <UserControl.Resources>
@@ -53,7 +53,7 @@
 
     <UserControl.Styles>
         <Style Selector="TabControl.OutputTabs">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
         </Style>
         <Style Selector="TabControl.OutputTabs > TabItem">
@@ -76,8 +76,8 @@
 
         <!-- Row 0: Toolbar -->
         <Border Grid.Row="0"
-                Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
-                BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
+                Background="{DynamicResource RunPad.Toolbar.BackgroundBrush}"
+                BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="6"
                 ClipToBounds="True"
@@ -88,13 +88,13 @@
                             VerticalAlignment="Center">
                     <tc:IconButton
                         IconData="{StaticResource Icon.Play}"
-                        Foreground="{DynamicResource DotPad.Icon.PlayBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.PlayBrush}"
                         IsEnabled="{Binding EnableRunOrContinueButton}"
                         Click="RunOrContinueButton_Click"
                         ToolTip.Tip="{Binding TooltipRunOrContinue}"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.Stop}"
-                        Foreground="{DynamicResource DotPad.Icon.StopBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.StopBrush}"
                         IsEnabled="{Binding EnableCancelButton}"
                         Click="CancelButton_Click"
                         ToolTip.Tip="{Binding TooltipCancel}"/>
@@ -122,12 +122,12 @@
                     </tc:ToolbarComboBox>
 
                     <Border Width="1" Height="16"
-                            Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                            Background="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             Margin="4,0"/>
 
                     <tc:IconToggleButton
                         IconData="{StaticResource Icon.Bug}"
-                        CheckedBrush="{DynamicResource DotPad.Icon.PlayBrush}"
+                        CheckedBrush="{DynamicResource RunPad.Icon.PlayBrush}"
                         IsChecked="{Binding DebugModeEnabled}"
                         ToolTip.Tip="Toggle debug mode"
                        />
@@ -142,12 +142,12 @@
                          (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with
                          inactive step/pause icons. -->
                     <Border Width="1" Height="16"
-                            Background="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                            Background="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             Margin="4,0"
                             IsVisible="{Binding IsDebugging}"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepOver}"
-                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepOver_Click"
@@ -155,7 +155,7 @@
                         Width="24" Height="24"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepInto}"
-                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepIn_Click"
@@ -163,7 +163,7 @@
                         Width="24" Height="24"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.DebugStepOut}"
-                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgStepOut_Click"
@@ -171,14 +171,14 @@
                         Width="24" Height="24"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.Pause}"
-                        Foreground="{DynamicResource DotPad.Icon.DebugBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.DebugBrush}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgPause_Click"
                         ToolTip.Tip="Pause"
                         Width="24" Height="24"/>
                     <tc:IconButton
                         IconData="{StaticResource Icon.RunToCursor}"
-                        Foreground="{DynamicResource DotPad.Icon.StepBrush}"
+                        Foreground="{DynamicResource RunPad.Icon.StepBrush}"
                         IsEnabled="{Binding IsPaused}"
                         IsVisible="{Binding IsDebugging}"
                         Click="DbgRunToCursor_Click"
@@ -190,12 +190,12 @@
                              MinHeight="0"
                              IsIndeterminate="True"
                              IsVisible="{Binding IsRunningProgress}"
-                             Foreground="{DynamicResource DotPad.Tab.AccentBrush}"
+                             Foreground="{DynamicResource RunPad.Tab.AccentBrush}"
                              Background="Transparent"
                              BorderThickness="0">
                     <ProgressBar.Effect>
                         <DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="8" Opacity="0.85"
-                                          Color="{DynamicResource DotPad.Tab.AccentColor}"/>
+                                          Color="{DynamicResource RunPad.Tab.AccentColor}"/>
                     </ProgressBar.Effect>
                 </ProgressBar>
             </Panel>
@@ -208,7 +208,7 @@
         <GridSplitter Grid.Row="2"
                       ResizeDirection="Rows"
                       HorizontalAlignment="Stretch"
-                      Background="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+                      Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
 
         <!-- Row 3: Output tabs -->
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">
@@ -245,8 +245,8 @@
         <Border x:Name="InputPromptBar"
                 Grid.Row="4"
                 IsVisible="False"
-                Background="{DynamicResource DotPad.Toolbar.BackgroundBrush}"
-                BorderBrush="{DynamicResource DotPad.Toolbar.BorderBrush}"
+                Background="{DynamicResource RunPad.Toolbar.BackgroundBrush}"
+                BorderBrush="{DynamicResource RunPad.Toolbar.BorderBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="8,6">
             <DockPanel LastChildFill="True">
@@ -262,7 +262,7 @@
         <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
         <Grid Grid.Row="5"
               ColumnDefinitions="Auto,Auto,Auto,*,Auto"
-              Background="{DynamicResource DotPad.StatusBar.BackgroundBrush}">
+              Background="{DynamicResource RunPad.StatusBar.BackgroundBrush}">
             <TextBlock x:Name="ExecStatusBlock"
                        Grid.Column="0"
                        FontWeight="SemiBold"
@@ -272,21 +272,21 @@
                        Text="Ready"/>
             <TextBlock x:Name="ElapsedBlock"
                        Grid.Column="1"
-                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
             <!-- "{Kind} · {TargetSdk}" for the currently open .rpad — set in SetDocumentContent. -->
             <TextBlock x:Name="ProjectInfoBlock"
                        Grid.Column="2"
-                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                        Margin="12,0,0,0"
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
             <TextBlock x:Name="StatusLine"
                        Grid.Column="4"
-                       Foreground="{DynamicResource DotPad.StatusBar.ForegroundBrush}"
+                       Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                        Margin="0,0,8,0"
                        VerticalAlignment="Center"
                        FontSize="12"/>

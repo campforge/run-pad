@@ -1,14 +1,14 @@
-using DotPad.Build.Core.Models;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #88 (остаток): RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
 // ForDebugger(...) directly, so exercising them meant either shelling out to a real dotnet/netcoredbg
@@ -58,7 +58,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         DebuggerChildProcessFactory? debuggerProcessFactory = null,
         string? currentQueryPath = null)
     {
-        var outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
+        var outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -69,7 +69,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
                 Debugger = new DebuggerOptions { DebuggerPath = "netcoredbg" },
             },
             OutputDirectory = outputDir,
-            RuntimeLibPath = "DotPad.Runtime.dll",
+            RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = RpadKind.Statements,
             CurrentQueryPath = currentQueryPath,
         };
@@ -246,7 +246,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
             var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-            Assert.Contains("DOTPAD_CURRENT_QUERY_PATH", written);
+            Assert.Contains("RUNPAD_CURRENT_QUERY_PATH", written);
             Assert.Contains("/root/a.rpad", written);
 
             process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));

@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 // TODO.md #62 "Go to Implementation" (Ctrl+F12, natural follow-up to Go to Definition/F12 from the
 // eighty-seventh pass): unlike IDefinitionResult, this never carries external/metadata info — a

@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #115 — live user report: `var c = new Tests() { P1 = "1", ... };` never offered Tests' own
 // remaining settable members inside the `{ }` — every completion branch checked for a dot/member

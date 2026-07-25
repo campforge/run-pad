@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO.md item 60 point 7 (ReSharper 1.1): a member declared directly on the type being
 // completed should render bold in the list; an inherited member (from a base class) should render
@@ -26,7 +26,7 @@ public class CSharpIntelliSenseOwnMemberTests
             "var d = new Derived();\nd.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
-            DotPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
+            RunPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         var bar = Assert.Single(result!.Items, i => i.DisplayText == "Bar");
@@ -41,7 +41,7 @@ public class CSharpIntelliSenseOwnMemberTests
             "var d = new Derived();\nd.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
-            DotPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
+            RunPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         var foo = Assert.Single(result!.Items, i => i.DisplayText == "Foo");
@@ -105,7 +105,7 @@ public class CSharpIntelliSenseOwnMemberTests
             "    public void Foo(int x) { }\n}\nvar d = new Derived();\nd.";
 
         var result = await service.GetCompletionsAsync(code, code.Length,
-            DotPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
+            RunPad.Contracts.IntelliSense.CompletionTrigger.Insertion('.'), TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         var foo = Assert.Single(result!.Items, i => i.DisplayText == "Foo");

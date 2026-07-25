@@ -1,6 +1,6 @@
-using DotPad.Format.RPad;
+using RunPad.Format.RPad;
 
-namespace DotPad.Services;
+namespace RunPad.Services;
 
 public interface IWindowService
 {

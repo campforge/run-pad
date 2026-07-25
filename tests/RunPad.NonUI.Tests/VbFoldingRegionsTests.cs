@@ -1,11 +1,11 @@
-using DotPad.Languages.VB;
+using RunPad.Languages.VB;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #76: VbFoldingRegions.Compute moved here from DotPad.Avalonia.CodeTextEditor's
+// TODO.md #76: VbFoldingRegions.Compute moved here from RunPad.Avalonia.CodeTextEditor's
 // VbFoldingStrategy — a language-agnostic control project directly hosting VB-specific folding
-// regexes — into DotPad.Languages.VB, the project that actually owns VB's language rules. Framework-
+// regexes — into RunPad.Languages.VB, the project that actually owns VB's language rules. Framework-
 // free (plain string in, (Start, End) character-offset pairs out), so these tests need no
 // TextDocument/FoldingManager/live editor at all — line numbers are derived from raw offsets with a
 // plain string scan instead.

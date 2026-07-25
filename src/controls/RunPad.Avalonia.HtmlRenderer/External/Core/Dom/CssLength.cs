@@ -1,9 +1,9 @@
 ﻿#nullable disable
 using System.Globalization;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Represents and gets info about a CSS Length

@@ -1,4 +1,4 @@
-namespace DotPad.Runtime;
+namespace RunPad.Runtime;
 
 // Implement on a type to control how Dump() renders it, instead of the default reflection-over-
 // public-properties behavior (ANALYSIS.md feature #20 / LINQPad-6).

@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 
-namespace DotPad.Converters;
+namespace RunPad.Converters;
 
 // Resolves a resource key string (FileTreeViewNode.LanguageIconKey) to the actual Geometry it names
 // in Resources/Icons.axaml, at bind time — so a language with no icon (LanguageIconKey null) just

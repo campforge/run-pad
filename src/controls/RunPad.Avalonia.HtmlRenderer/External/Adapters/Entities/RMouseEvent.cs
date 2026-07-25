@@ -11,9 +11,9 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Even class for handling keyboard events in <see cref="HtmlContainerInt"/>.

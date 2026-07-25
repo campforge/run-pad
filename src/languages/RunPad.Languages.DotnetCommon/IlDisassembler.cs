@@ -2,7 +2,7 @@ using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Disassembler;
 using ICSharpCode.Decompiler.Metadata;
 
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Disassembles a compiled assembly to raw IL text — backs the "IL" output tab (TODO.md #62,

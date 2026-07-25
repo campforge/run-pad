@@ -1,8 +1,8 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.DotnetCommon;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.DotnetCommon;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — external half. Real-Roslyn
 // integration test (no mocking of the compiler): the thing under test is whether
@@ -12,7 +12,7 @@ namespace DotPad.Runtime.UI.Tests;
 // Проход 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
 // only 3 distinct source snippets. An IClassFixture compiles each snippet exactly once per test class
 // run and every test just reads the shared result. A later pass (test-design cleanup per
-// docs/unit-test.md — real `dotnet build` child processes test the compiler/MSBuild, not DotPad's own
+// docs/unit-test.md — real `dotnet build` child processes test the compiler/MSBuild, not RunPad's own
 // code) swapped the fixture compilation itself from a real `dotnet build` to
 // InProcessFixtureCompiler (in-process Roslyn CSharpCompilation.Emit) — same real IL bytes for the
 // decompiler, zero child processes, no RealBuildTestCollection serialization needed anymore.

@@ -2,19 +2,19 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #105 — audit finding: the constructor subscribed to _vm.DebugPanel.WatchExpressions.
 // CollectionChanged with an anonymous lambda, so Dispose() (which carefully unsubscribes

@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
 
 /// <summary>
 /// Raised when the user clicks on a link in the html.

@@ -28,35 +28,35 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{CA6742
 		Directory.Packages.props = Directory.Packages.props
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad", "src\main\DotPad\DotPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad", "src\main\RunPad\RunPad.csproj", "{0D190A93-D4F6-4183-A6AF-FDD7B857128E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.CodeTextEditor", "src\controls\DotPad.Avalonia.CodeTextEditor\DotPad.Avalonia.CodeTextEditor.csproj", "{2E0A86BA-449E-4D4D-B5B6-2D4A7A43B788}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Avalonia.CodeTextEditor", "src\controls\RunPad.Avalonia.CodeTextEditor\RunPad.Avalonia.CodeTextEditor.csproj", "{2E0A86BA-449E-4D4D-B5B6-2D4A7A43B788}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.HtmlRenderer", "src\controls\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj", "{C4D5E6F7-A8B9-4CAD-BCDE-F0123456789B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Avalonia.HtmlRenderer", "src\controls\RunPad.Avalonia.HtmlRenderer\RunPad.Avalonia.HtmlRenderer.csproj", "{C4D5E6F7-A8B9-4CAD-BCDE-F0123456789B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.Themes", "src\controls\DotPad.Avalonia.Themes\DotPad.Avalonia.Themes.csproj", "{E3F4A5B6-C7D8-49EA-BCDE-F0123456789A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Avalonia.Themes", "src\controls\RunPad.Avalonia.Themes\RunPad.Avalonia.Themes.csproj", "{E3F4A5B6-C7D8-49EA-BCDE-F0123456789A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaEdit", "src\controls\AvaloniaEdit\AvaloniaEdit.csproj", "{D80C5726-3161-4E14-B4B6-00E610A3302C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaEdit.TextMate", "src\controls\AvaloniaEdit.TextMate\AvaloniaEdit.TextMate.csproj", "{F6725E80-31A5-451A-B556-9F8A032DFC88}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Build.Core", "src\core\DotPad.Build.Core\DotPad.Build.Core.csproj", "{C3D4E5F6-A7B8-9C0D-E1F2-A3B4C5D6E7F8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Build.Core", "src\core\RunPad.Build.Core\RunPad.Build.Core.csproj", "{C3D4E5F6-A7B8-9C0D-E1F2-A3B4C5D6E7F8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Contracts", "src\core\DotPad.Contracts\DotPad.Contracts.csproj", "{E6F7A8B9-CADB-4ECF-DEF0-123456789ABD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Contracts", "src\core\RunPad.Contracts\RunPad.Contracts.csproj", "{E6F7A8B9-CADB-4ECF-DEF0-123456789ABD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Format.RPad", "src\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj", "{D1E2F3A4-B5C6-47D8-E9F0-A1B2C3D4E5F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Format.RPad", "src\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj", "{D1E2F3A4-B5C6-47D8-E9F0-A1B2C3D4E5F6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Languages.CSharp", "src\languages\DotPad.Languages.CSharp\DotPad.Languages.CSharp.csproj", "{A1B2C3D4-E5F6-7A8B-9C0D-E1F2A3B4C5D6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Languages.CSharp", "src\languages\RunPad.Languages.CSharp\RunPad.Languages.CSharp.csproj", "{A1B2C3D4-E5F6-7A8B-9C0D-E1F2A3B4C5D6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Runtime", "src\runtime\DotPad.Runtime\DotPad.Runtime.csproj", "{2FAB6401-03E6-42D6-9A04-3D6CA38E2FEB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Runtime", "src\runtime\RunPad.Runtime\RunPad.Runtime.csproj", "{2FAB6401-03E6-42D6-9A04-3D6CA38E2FEB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Avalonia.HtmlRenderer.Tests", "tests\DotPad.Avalonia.HtmlRenderer.Tests\DotPad.Avalonia.HtmlRenderer.Tests.csproj", "{A3B5C7D9-E1F2-4A3B-C5D7-E9F1A3B5C7D9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Avalonia.HtmlRenderer.Tests", "tests\RunPad.Avalonia.HtmlRenderer.Tests\RunPad.Avalonia.HtmlRenderer.Tests.csproj", "{A3B5C7D9-E1F2-4A3B-C5D7-E9F1A3B5C7D9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotPad.Runtime.Tests", "tests\DotPad.Runtime.Tests\DotPad.Runtime.Tests.csproj", "{B4C6D8E0-F2A4-4B6C-D8E0-F2A4B6C8D0E2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunPad.Runtime.Tests", "tests\RunPad.Runtime.Tests\RunPad.Runtime.Tests.csproj", "{B4C6D8E0-F2A4-4B6C-D8E0-F2A4B6C8D0E2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Runtime.UI.Tests", "tests\DotPad.Runtime.UI.Tests\DotPad.Runtime.UI.Tests.csproj", "{30706321-17E4-4EC7-9E79-168DDBA1EE60}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Runtime.UI.Tests", "tests\RunPad.Runtime.UI.Tests\RunPad.Runtime.UI.Tests.csproj", "{30706321-17E4-4EC7-9E79-168DDBA1EE60}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Format.RPad.Tests", "tests\DotPad.Format.RPad.Tests\DotPad.Format.RPad.Tests.csproj", "{3EFE3731-463C-4361-8CF7-3B8A2B347290}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Format.RPad.Tests", "tests\RunPad.Format.RPad.Tests\RunPad.Format.RPad.Tests.csproj", "{3EFE3731-463C-4361-8CF7-3B8A2B347290}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "develop-guide", "develop-guide", "{7F651E44-0062-40DD-992A-1A73EDB9191D}"
 	ProjectSection(SolutionItems) = preProject
@@ -66,19 +66,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "develop-guide", "develop-gu
 		docs\TemplatedControls.md = docs\TemplatedControls.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Languages.VB", "src\languages\DotPad.Languages.VB\DotPad.Languages.VB.csproj", "{E643188B-3D75-4C4F-ABD8-BB64C52E2929}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Languages.VB", "src\languages\RunPad.Languages.VB\RunPad.Languages.VB.csproj", "{E643188B-3D75-4C4F-ABD8-BB64C52E2929}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Cli", "src\main\DotPad.Cli\DotPad.Cli.csproj", "{B844C0C2-E77D-411B-ACC9-A526858024B6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Cli", "src\main\RunPad.Cli\RunPad.Cli.csproj", "{B844C0C2-E77D-411B-ACC9-A526858024B6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Cli.Tests", "tests\DotPad.Cli.Tests\DotPad.Cli.Tests.csproj", "{0CB8A5B9-2287-43E1-A599-7D6ED8964EB4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Cli.Tests", "tests\RunPad.Cli.Tests\RunPad.Cli.Tests.csproj", "{0CB8A5B9-2287-43E1-A599-7D6ED8964EB4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Debug", "src\core\DotPad.Debug\DotPad.Debug.csproj", "{CBE65FE4-F054-4D14-BDE8-824442014388}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Debug", "src\core\RunPad.Debug\RunPad.Debug.csproj", "{CBE65FE4-F054-4D14-BDE8-824442014388}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.Languages.DotnetCommon", "src\languages\DotPad.Languages.DotnetCommon\DotPad.Languages.DotnetCommon.csproj", "{F63F3A1B-9AAB-4041-BF78-088C7232BE78}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.Languages.DotnetCommon", "src\languages\RunPad.Languages.DotnetCommon\RunPad.Languages.DotnetCommon.csproj", "{F63F3A1B-9AAB-4041-BF78-088C7232BE78}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaloniaEdit.Tests", "tests\AvaloniaEdit.Tests\AvaloniaEdit.Tests.csproj", "{37F668E0-49DC-4AC6-A10D-9E65A7C07118}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPad.NonUI.Tests", "tests\DotPad.NonUI.Tests\DotPad.NonUI.Tests.csproj", "{82C8C9B0-B179-41DE-B614-89276C3A2CB5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunPad.NonUI.Tests", "tests\RunPad.NonUI.Tests\RunPad.NonUI.Tests.csproj", "{82C8C9B0-B179-41DE-B614-89276C3A2CB5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

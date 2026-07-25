@@ -1,13 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Debug.Protocol;
 using Microsoft.Extensions.Logging;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Debug.Protocol;
 
-namespace DotPad.Debug;
+namespace RunPad.Debug;
 
 /// <summary>
 /// Full VS Code Debug Adapter Protocol session with netcoredbg. Shared by every compiled-.NET
@@ -58,11 +58,11 @@ public sealed class DapSession : IDapSession
     private readonly bool _justMyCode;
     private readonly string? _currentQueryPath;
 
-    // TODO.md #111 — mirrors ChildProcess.CurrentQueryPathEnvVar (DotPad.Build.Core) and
-    // DotPad.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
+    // TODO.md #111 — mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core) and
+    // RunPad.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
     // reference to either — same precedent as RsPrefix/InputRequestPrefix mirroring across the same
     // process boundary elsewhere in the DAP/runtime split).
-    private const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
+    private const string CurrentQueryPathEnvVar = "RUNPAD_CURRENT_QUERY_PATH";
 
     // Serializes writes to stdin so PauseAsync from the UI thread can't interleave.
     private readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -246,8 +246,8 @@ public sealed class DapSession : IDapSession
             seq = NextSeq(),
             arguments = new InitializeRequestArguments
             {
-                clientID = "dotpad",
-                clientName = "DotPad",
+                clientID = "runpad",
+                clientName = "RunPad",
                 adapterID = "coreclr",
                 linesStartAt1 = true,
                 columnsStartAt1 = true,

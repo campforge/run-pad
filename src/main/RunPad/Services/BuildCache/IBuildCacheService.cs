@@ -1,4 +1,4 @@
-namespace DotPad.Services.BuildCache;
+namespace RunPad.Services.BuildCache;
 
 public interface IBuildCacheService
 {

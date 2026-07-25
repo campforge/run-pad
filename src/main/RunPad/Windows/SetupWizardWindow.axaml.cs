@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using DotPad.Windows.Models;
+using RunPad.Windows.Models;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class SetupWizardWindow : Window
 {

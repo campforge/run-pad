@@ -1,10 +1,10 @@
-using DotPad.Contracts;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
+using RunPad.Contracts;
 
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 public sealed class NuGetPackageSearchService : IPackageSearchService
 {

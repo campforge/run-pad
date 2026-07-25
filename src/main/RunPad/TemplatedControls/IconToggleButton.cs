@@ -3,7 +3,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace DotPad.TemplatedControls;
+namespace RunPad.TemplatedControls;
 
 public class IconToggleButton : ToggleButton
 {

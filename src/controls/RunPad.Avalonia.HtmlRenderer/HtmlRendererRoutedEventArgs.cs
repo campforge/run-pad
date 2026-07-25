@@ -12,7 +12,7 @@
 
 using Avalonia.Interactivity;
 
-namespace DotPad.Avalonia.HtmlRenderer;
+namespace RunPad.Avalonia.HtmlRenderer;
 
 public class HtmlRendererRoutedEventArgs<T> : RoutedEventArgs
 {

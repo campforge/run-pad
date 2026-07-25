@@ -1,4 +1,4 @@
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 public interface ISetupInstallerService
 {

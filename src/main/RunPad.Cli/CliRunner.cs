@@ -1,16 +1,16 @@
 using System.Text;
-using DotPad.Build.Core.Models;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Sdk;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.VB;
 using Spectre.Console;
 
-namespace DotPad.Cli;
+namespace RunPad.Cli;
 
 // TODO.md #40: compiles and runs a .rpad file's code the same "fast path" the GUI's non-debug Run
 // button uses (ILanguageHost.RunAsync, see EditorTabItemControl.RunAsync/BuildRunOptions) — no
@@ -26,8 +26,8 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: dotpad <path-to.rpad>");
-            stderr.WriteLine("       dotpad convert <input.linq> [output.rpad]");
+            stderr.WriteLine("Usage: runpad <path-to.rpad>");
+            stderr.WriteLine("       runpad convert <input.linq> [output.rpad]");
             return 1;
         }
 
@@ -72,7 +72,7 @@ public static class CliRunner
             return 1;
         }
 
-        var outputDirectory = Directory.CreateTempSubdirectory("dotpad-cli-").FullName;
+        var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
         {
             var options = BuildOptions(document.FrontMatter, platform, outputDirectory, filePath);
@@ -119,7 +119,7 @@ public static class CliRunner
     {
         if (args.Length < 2)
         {
-            stderr.WriteLine("Usage: dotpad convert <input.linq> [output.rpad]");
+            stderr.WriteLine("Usage: runpad convert <input.linq> [output.rpad]");
             return 1;
         }
 

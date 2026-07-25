@@ -1,6 +1,6 @@
-using DotPad.Contracts;
+using RunPad.Contracts;
 
-namespace DotPad.Debug;
+namespace RunPad.Debug;
 
 /// <summary>
 /// Plain per-session configuration for <see cref="DapSession"/> — split out of its constructor
@@ -16,7 +16,7 @@ namespace DotPad.Debug;
 /// <param name="BreakOnUncaughtExceptions">DAP <c>setExceptionBreakpoints</c> — break on exceptions that would otherwise crash the debuggee.</param>
 /// <param name="JustMyCode">netcoredbg's own "Just My Code" launch setting.</param>
 /// <param name="CurrentQueryPath">TODO.md #111 — the .rpad file's own path, forwarded to the
-/// debuggee via the launch request's own <c>env</c> (DotPad.Runtime.Util.CurrentQueryPath's
+/// debuggee via the launch request's own <c>env</c> (RunPad.Runtime.Util.CurrentQueryPath's
 /// RunAsync-only env var, previously never reaching a debug session at all — netcoredbg spawns the
 /// debuggee itself, so ProcessStartInfo.Environment on netcoredbg's own process has no effect on
 /// it). <see langword="null"/> for a never-saved (untitled) tab, same as the non-debug run.</param>

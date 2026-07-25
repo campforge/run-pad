@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #48: _openTabs used StringComparer.OrdinalIgnoreCase unconditionally, which is correct
 // for Windows'/macOS' default case-insensitive filesystems but wrong on Linux's case-sensitive one —

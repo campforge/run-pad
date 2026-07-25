@@ -2,17 +2,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:models="clr-namespace:DotPad.Avalonia.Themes;assembly=DotPad.Avalonia.Themes"
-        xmlns:viewModels="clr-namespace:DotPad.Windows.Models"
+        xmlns:models="clr-namespace:RunPad.Avalonia.Themes;assembly=RunPad.Avalonia.Themes"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="480"
-        x:Class="DotPad.Windows.PreferencesWindow"
+        x:Class="RunPad.Windows.PreferencesWindow"
         Title="Preferences"
         Width="760" Height="480"
         MinWidth="640" MinHeight="420"
         CanResize="True"
         x:DataType="viewModels:PreferencesWindowViewModel"
-        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
-        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
         >
 
     <Window.Styles>
@@ -24,21 +24,21 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
             <Setter Property="CornerRadius" Value="5"/>
         </Style>
         <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
             <Setter Property="CornerRadius" Value="5"/>
         </Style>
         <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="TreeViewItem:selected TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
         </Style>
         <Style Selector="TreeViewItem TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -71,7 +71,7 @@
             </TreeView>
         </Grid>
 
-        <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+        <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
 
         <!-- ── Settings pages ────────────────────────────────────────────── -->
         <ScrollViewer Grid.Column="2">
@@ -235,13 +235,13 @@
 
                 <StackPanel IsVisible="{Binding IsLanguagesSelected}">
                     <TextBlock Text="Select a language from the list to configure its settings."
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsGenericLanguagePlaceholderVisible}">
                     <TextBlock Text="{Binding SelectedLanguageSettingsPlaceholder}"
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
@@ -254,7 +254,7 @@
                               Margin="0,8,0,0"/>
 
                     <TextBlock Text="Excluded diagnostic IDs (one per line, e.g. CS0184, IDE0007)"
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                FontSize="11"
                                Margin="0,8,0,4"
                                IsEnabled="{Binding CodeFixesEnabled}"/>

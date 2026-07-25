@@ -1,13 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:models="clr-namespace:DotPad.UserControls.Models"
-             x:Class="DotPad.UserControls.DebugPanel"
+             xmlns:models="clr-namespace:RunPad.UserControls.Models"
+             x:Class="RunPad.UserControls.DebugPanel"
              x:DataType="models:DebugPanelViewModel">
 
     <UserControl.Styles>
 
         <Style Selector="TabControl">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
         </Style>
         <Style Selector="TabItem">
@@ -18,9 +18,9 @@
         </Style>
 
         <Style Selector="DataGrid">
-            <Setter Property="Background"               Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
+            <Setter Property="Background"               Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
             <Setter Property="GridLinesVisibility"      Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DotPad.Separator.BackgroundBrush}"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
             <Setter Property="RowHeight"                Value="22"/>
             <Setter Property="CanUserResizeColumns"     Value="True"/>
             <Setter Property="CanUserReorderColumns"    Value="False"/>
@@ -29,15 +29,15 @@
             <Setter Property="BorderThickness"          Value="0"/>
         </Style>
         <Style Selector="DataGridColumnHeader">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             <Setter Property="FontSize"   Value="11"/>
             <Setter Property="Padding"    Value="8,0"/>
             <Setter Property="Height"     Value="22"/>
         </Style>
         <Style Selector="DataGridRow">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Output.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         </Style>
         <Style Selector="DataGridCell">
             <Setter Property="FontSize"        Value="12"/>
@@ -52,10 +52,10 @@
             <Setter Property="FontSize"        Value="12"/>
             <Setter Property="Height"          Value="24"/>
             <Setter Property="Padding"         Value="8,0"/>
-            <Setter Property="Foreground"      Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Foreground"      Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
         </Style>
         <Style Selector="Button.WatchBtn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
     </UserControl.Styles>
@@ -73,7 +73,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding Id}"
                                            Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -82,7 +82,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding Name}"
                                            Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -97,22 +97,22 @@
                 <!-- Column header row -->
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,2*,*"
-                      Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+                      Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
                     <TextBlock Grid.Column="0" Text="Name"
                                Padding="24,0,4,0" FontSize="11" VerticalAlignment="Center"
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                     <TextBlock Grid.Column="1" Text="Value"
                                Padding="4,0" FontSize="11" VerticalAlignment="Center"
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                     <TextBlock Grid.Column="2" Text="Type"
                                Padding="4,0" FontSize="11" VerticalAlignment="Center"
-                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                 </Grid>
 
                 <!-- Variable tree -->
                 <TreeView Grid.Row="1"
                           ItemsSource="{Binding DebugLocals}"
-                          Background="{DynamicResource DotPad.Output.BackgroundBrush}">
+                          Background="{DynamicResource RunPad.Output.BackgroundBrush}">
                     <TreeView.Styles>
                         <Style Selector="TreeViewItem" x:DataType="models:DebugLocal">
                             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
@@ -125,14 +125,14 @@
                             <Grid ColumnDefinitions="*,2*,*" MinHeight="22">
                                 <TextBlock Grid.Column="0" Text="{Binding Name}"
                                            Padding="4,0" VerticalAlignment="Center" FontSize="12"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                 <TextBlock Grid.Column="1" Text="{Binding Value}"
                                            Padding="4,0" VerticalAlignment="Center" FontSize="12"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
                                            TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Grid.Column="2" Text="{Binding TypeName}"
                                            Padding="4,0" VerticalAlignment="Center" FontSize="12"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            TextTrimming="CharacterEllipsis"/>
                             </Grid>
                         </TreeDataTemplate>
@@ -146,7 +146,7 @@
         <TabItem Header="Watch">
             <Grid RowDefinitions="Auto,*">
                 <StackPanel Grid.Row="0" Orientation="Horizontal"
-                            Background="{DynamicResource DotPad.Panel.BackgroundBrush}">
+                            Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
                     <Button Classes="WatchBtn" Command="{Binding AddWatchCommand}"    Content="+ Add"/>
                     <Button Classes="WatchBtn" Command="{Binding RemoveWatchCommand}" Content="− Remove"/>
                 </StackPanel>
@@ -161,7 +161,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Expression}"
                                                Padding="8,0" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                               Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                             <DataGridTemplateColumn.CellEditingTemplate>
@@ -175,7 +175,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Value}"
                                                Padding="8,0" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                               Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -184,7 +184,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TypeName}"
                                                Padding="8,0" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -204,7 +204,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding MethodName}"
                                            Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -213,7 +213,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding FileName}"
                                            Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -222,7 +222,7 @@
                             <DataTemplate>
                                 <TextBlock Text="{Binding Line}"
                                            Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

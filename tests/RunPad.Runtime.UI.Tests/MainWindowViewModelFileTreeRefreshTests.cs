@@ -1,12 +1,12 @@
 using Avalonia.Headless.XUnit;
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md #104: IFileSystemService.GetFilesTree() used to be synchronous, and
 // MainWindowViewModel called it directly from its own constructor (before the window is ever shown)

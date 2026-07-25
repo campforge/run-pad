@@ -12,10 +12,10 @@
 // "The Art of War"
 
 using System.Net;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// Handler for loading a stylesheet data.

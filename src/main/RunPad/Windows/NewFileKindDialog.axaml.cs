@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using DotPad.Format.RPad;
+using RunPad.Format.RPad;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class NewFileKindDialog : Window
 {

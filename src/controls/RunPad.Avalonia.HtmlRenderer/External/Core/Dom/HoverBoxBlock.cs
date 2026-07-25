@@ -11,11 +11,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Parse;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Parse;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// CSS boxes that have ":hover" selector on them.

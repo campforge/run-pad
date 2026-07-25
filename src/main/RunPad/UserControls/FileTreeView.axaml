@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:models="clr-namespace:DotPad.UserControls.Models"
-             xmlns:conv="clr-namespace:DotPad.Converters"
-             x:Class="DotPad.UserControls.FileTreeView"
+             xmlns:models="clr-namespace:RunPad.UserControls.Models"
+             xmlns:conv="clr-namespace:RunPad.Converters"
+             x:Class="RunPad.UserControls.FileTreeView"
              x:DataType="models:FileTreeViewModel">
 
     <Grid RowDefinitions="Auto,*">
@@ -12,7 +12,7 @@
                    FontWeight="Medium"
                    LetterSpacing="1.0"
                    Margin="12,6,8,2"
-                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                    Opacity="0.6" />
 
         <TreeView Grid.Row="1"
@@ -79,21 +79,21 @@
                     <Setter Property="(DragDrop.AllowDrop)" Value="True" />
                 </Style>
                 <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}" />
                     <Setter Property="CornerRadius" Value="5" />
                 </Style>
                 <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Accent.BackgroundBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}" />
                     <Setter Property="CornerRadius" Value="5" />
                 </Style>
                 <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
                     <Setter Property="IsVisible" Value="False" />
                 </Style>
                 <Style Selector="TreeViewItem:selected TextBlock">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Accent.ForegroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}" />
                 </Style>
                 <Style Selector="TreeViewItem TextBlock">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}" />
                     <Setter Property="FontSize" Value="13" />
                     <Setter Property="VerticalAlignment" Value="Center" />
                 </Style>
@@ -110,7 +110,7 @@
                              handlers on whatever node the pointer is currently over during a drag —
                              drawn first (behind the icon/text) so it reads as a row highlight. -->
                         <Border IsVisible="{Binding IsDropTarget}"
-                                Background="{DynamicResource DotPad.Accent.BackgroundBrush}"
+                                Background="{DynamicResource RunPad.Accent.BackgroundBrush}"
                                 CornerRadius="5"
                                 Margin="-6,-3" />
 
@@ -126,18 +126,18 @@
                                           Data="{StaticResource Icon.FolderOpen}"
                                           Width="14" Height="14"
                                           Opacity="0.55"
-                                          Foreground="{DynamicResource DotPad.Text.PrimaryBrush}" />
+                                          Foreground="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding LanguageIconKey, Converter={x:Static ObjectConverters.IsNotNull}}"
                                       Data="{Binding LanguageIconKey, Converter={x:Static conv:ResourceKeyToGeometryConverter.Instance}}"
                                       Stretch="Uniform"
                                       Opacity="0.55"
-                                      Fill="{DynamicResource DotPad.Text.PrimaryBrush}" />
+                                      Fill="{DynamicResource RunPad.Text.PrimaryBrush}" />
                                 <Path IsVisible="{Binding ShowGenericFileIcon}"
                                       Width="12" Height="14"
                                       HorizontalAlignment="Left"
                                       Stretch="Fill"
                                       Opacity="0.55"
-                                      Fill="{DynamicResource DotPad.Text.PrimaryBrush}"
+                                      Fill="{DynamicResource RunPad.Text.PrimaryBrush}"
                                       Data="M1,0 L7.5,0 L11,3.5 L11,14 L1,14 Z M7.5,0 L7.5,3.5 L11,3.5 Z" />
                             </Panel>
                             <TextBlock Text="{Binding DisplayName}"

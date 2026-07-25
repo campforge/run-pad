@@ -1,12 +1,12 @@
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Жизненный цикл вкладок": NewRpadFile used to write a real (sample-boilerplate-filled)
 // file to disk immediately via IFileSystemService.CreateNewFile — a script only started existing on
@@ -39,7 +39,7 @@ public class MainWindowViewModelNewFileTests
     [Fact]
     public void NewRpadFile_Should_NotTouchDisk()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-newfile-test").FullName;
         try
         {
             var (vm, fileSystem) = CreateViewModel(rootFolder);
@@ -57,7 +57,7 @@ public class MainWindowViewModelNewFileTests
     [Fact]
     public void NewRpadFile_Should_OpenAnUntitledTab_DefaultingToCSharpStatements()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
@@ -75,7 +75,7 @@ public class MainWindowViewModelNewFileTests
     [Fact]
     public void NewRpadFile_Should_CarryTheRequestedLanguageAndKind_OnTheNewTab()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
@@ -91,7 +91,7 @@ public class MainWindowViewModelNewFileTests
     [Fact]
     public void NewRpadFile_Should_MakeTheNewTabActive()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-newfile-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-newfile-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);

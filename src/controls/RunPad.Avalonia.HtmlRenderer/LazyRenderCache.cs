@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace DotPad.Avalonia.HtmlRenderer;
+namespace RunPad.Avalonia.HtmlRenderer;
 
 // TODO.md #108 (was "#72" — orphaned by a later archival/renumbering pass, see #108's own note):
 // decides whether HtmlControl.Render needs to actually repaint the html (expensive —

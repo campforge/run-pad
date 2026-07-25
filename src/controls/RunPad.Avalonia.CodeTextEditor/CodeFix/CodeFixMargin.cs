@@ -5,12 +5,12 @@ using Avalonia.Media;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 // TODO.md #116 — live user request: group the lightbulb's dropdown menu by kind (using-directive
 // fixes separately from create/implement variants), and give fixes/refactorings/conversions their
 // own icon instead of one hammer for everything. Neither CodeFixEntry nor the upstream
-// DotPad.Contracts.IntelliSense.ICodeFixInfo it mirrors carries a "kind" at all — only
+// RunPad.Contracts.IntelliSense.ICodeFixInfo it mirrors carries a "kind" at all — only
 // Title/DiagnosticId — so CodeFixMargin.Categorize below is built from those two signals:
 // DiagnosticId != null is already a real, existing distinction (RoslynCodeFixEngine only ever sets
 // it for ComputeFixesAsync's diagnostic-driven results, never for ComputeRefactoringsAsync's
@@ -131,9 +131,9 @@ public class CodeFixMargin : AbstractMargin
 
     internal static string SeverityBrushKey(CodeFixSeverity severity) => severity switch
     {
-        CodeFixSeverity.Error => "DotPad.Margin.CodeFixErrorBrush",
-        CodeFixSeverity.Warning => "DotPad.Margin.CodeFixWarningBrush",
-        _ => "DotPad.Margin.DebugArrowBrush",
+        CodeFixSeverity.Error => "RunPad.Margin.CodeFixErrorBrush",
+        CodeFixSeverity.Warning => "RunPad.Margin.CodeFixWarningBrush",
+        _ => "RunPad.Margin.DebugArrowBrush",
     };
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -236,7 +236,7 @@ public class CodeFixMargin : AbstractMargin
     // source text — here an empty string literal, i.e. the two characters "") renders, in the
     // default proportional UI font, as a run of quote glyphs packed close enough together to read as
     // an unreadable "\"\"\"\"" blur — the single quotes Roslyn wraps {0} in and the double quotes
-    // that ARE {0} become visually indistinguishable at menu font size. DotPad doesn't add or
+    // that ARE {0} become visually indistinguishable at menu font size. RunPad doesn't add or
     // reformat these titles itself (fix.Title reaches here verbatim from Roslyn's own CodeAction.
     // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
     // adjacent quote glyphs stay visually separable regardless of what expression text ends up

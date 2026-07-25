@@ -1,7 +1,7 @@
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #83: breakpoints used to render as the exact same filled disc for every state, just
 // recolored (Verified/Unverified/Pending all one shape, three colors; Condition/HitCondition not

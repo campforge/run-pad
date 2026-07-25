@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Services.Preferences;
-using DotPad.Services.Setup;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Services.Preferences;
+using RunPad.Services.Setup;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class PrerequisiteServiceTests
 {

@@ -1,13 +1,13 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #77 — user-reported bug: `var a = new List<string>();` then `a` on its own line, then `.`
 // replaced `a` with `args`. Traced to a genuine Roslyn quirk, confirmed directly against
-// SemanticModel.LookupSymbols outside DotPad entirely: a query position sitting at the EXACT end of
+// SemanticModel.LookupSymbols outside RunPad entirely: a query position sitting at the EXACT end of
 // the source text (no trailing newline/anything after it — precisely what "just typed a fresh
 // single-letter identifier at the end of the last line" looks like) resolves against the bare
 // CompilationUnit rather than the enclosing statement list, and silently stops finding block-scoped
@@ -38,7 +38,7 @@ public class CSharpIntelliSenseEndOfBufferTests
             ct: TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
-        Assert.Contains(result!.Items, i => i.DisplayText == "a" && i.Kind == DotPad.Contracts.IntelliSense.CompletionItemKind.Variable);
+        Assert.Contains(result!.Items, i => i.DisplayText == "a" && i.Kind == RunPad.Contracts.IntelliSense.CompletionItemKind.Variable);
     }
 
     // Regression guard proving the assertion above actually exercises the fix: the exact same local

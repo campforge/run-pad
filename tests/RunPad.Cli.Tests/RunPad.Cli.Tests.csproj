@@ -16,6 +16,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\main\DotPad.Cli\DotPad.Cli.csproj" />
+    <ProjectReference Include="..\..\src\main\RunPad.Cli\RunPad.Cli.csproj" />
   </ItemGroup>
 </Project>

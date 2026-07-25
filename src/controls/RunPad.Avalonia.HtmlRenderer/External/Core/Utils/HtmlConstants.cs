@@ -1,5 +1,5 @@
 ﻿#nullable disable
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 /// <summary>
 /// Defines HTML strings

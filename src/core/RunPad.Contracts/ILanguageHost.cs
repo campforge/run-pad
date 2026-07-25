@@ -1,6 +1,6 @@
-using DotPad.Contracts.Models;
+using RunPad.Contracts.Models;
 
-namespace DotPad.Contracts;
+namespace RunPad.Contracts;
 
 /// <summary>
 /// One running instance of a language backend (compile/run/debug for a single script execution).

@@ -1,10 +1,10 @@
 using System.Reactive;
 using System.Reactive.Linq;
-using DotPad.Services.Preferences;
-using DotPad.Services.Setup;
 using ReactiveUI;
+using RunPad.Services.Preferences;
+using RunPad.Services.Setup;
 
-namespace DotPad.Windows.Models;
+namespace RunPad.Windows.Models;
 
 // First-run setup wizard (TODO.md, live report 2026-07-25) — shown instead of/before MainWindow when
 // IPrerequisiteService finds a missing .NET SDK or debugger, so the user gets an actionable "install

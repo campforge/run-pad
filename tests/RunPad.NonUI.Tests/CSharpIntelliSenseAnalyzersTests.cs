@@ -1,16 +1,16 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #74 "Пайплайн анализаторов" (сто третий проход) — RoslynAnalyzerEngine, wired into
 // NotifyTextChanged's existing background pass alongside the compiler's own diagnostics (see
 // CSharpIntelliSenseBackgroundAnalysisTests.cs for that shared pass's other coverage). Real
 // Microsoft.CodeAnalysis.CSharp.Features IDE0xxx analyzers, not mocked — same rationale as every
-// other "real Roslyn, not a fake" test this session: the thing under test is whether DotPad's
+// other "real Roslyn, not a fake" test this session: the thing under test is whether RunPad's
 // synthetic preamble-wrapped document survives analyzer execution intact, not something a mock could
 // stand in for.
 public class CSharpIntelliSenseAnalyzersTests

@@ -1,10 +1,10 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — SyncDocument now diffs the
 // previous full document text against the new one (ComputeMinimalChange) instead of always handing

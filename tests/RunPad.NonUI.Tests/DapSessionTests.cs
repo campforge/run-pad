@@ -1,9 +1,9 @@
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Debug;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #88: DapSession used to depend on the concrete, real-Process-backed ChildProcess, so its
 // protocol logic could only ever be exercised against an actual netcoredbg process. Now that it

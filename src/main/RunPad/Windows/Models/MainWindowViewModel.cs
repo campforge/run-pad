@@ -5,18 +5,18 @@ using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Shared;
-using DotPad.UserControls.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Shared;
+using RunPad.UserControls.Models;
 
-namespace DotPad.Windows.Models;
+namespace RunPad.Windows.Models;
 
 public class MainWindowViewModel : ViewModelBase, IDisposable
 {
@@ -115,7 +115,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
     // duplicated near-verbatim in EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel —
-    // extracted into CollapsiblePanelState (src/main/DotPad/Shared), constructed below.
+    // extracted into CollapsiblePanelState (src/main/RunPad/Shared), constructed below.
     public CollapsiblePanelState Sidebar { get; }
 
     // ── Tab collection ────────────────────────────────────────────────────────

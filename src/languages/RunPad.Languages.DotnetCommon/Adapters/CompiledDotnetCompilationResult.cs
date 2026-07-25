@@ -1,7 +1,7 @@
-using DotPad.Contracts.Models;
-using DotPad.Languages.DotnetCommon.Compiler;
+using RunPad.Contracts.Models;
+using RunPad.Languages.DotnetCommon.Compiler;
 
-namespace DotPad.Languages.DotnetCommon.Adapters;
+namespace RunPad.Languages.DotnetCommon.Adapters;
 
 /// <summary>
 /// Adapts a raw <see cref="ProcessCompilerResult"/> to <see cref="ICompilationResult"/> — was two

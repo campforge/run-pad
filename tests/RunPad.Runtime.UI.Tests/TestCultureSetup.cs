@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // EditorTabItemControlCodeFixApplyTests/EditorTabItemControlCodeFixSettingsTests drive a real
 // CSharpIntelliSenseService and assert on Roslyn CodeAction titles by matching English substrings
@@ -9,7 +9,7 @@ namespace DotPad.Runtime.UI.Tests;
 // off CurrentUICulture, so those assertions silently break on any non-English OS locale (reproduced
 // on a ru-RU dev machine). Forcing InvariantCulture here falls back to Roslyn's neutral (English)
 // resources regardless of the host OS's locale, matching what CI's English-locale runners already do
-// implicitly. See DotPad.NonUI.Tests.TestCultureSetup for the same fix on the other assembly with
+// implicitly. See RunPad.NonUI.Tests.TestCultureSetup for the same fix on the other assembly with
 // culture-sensitive Roslyn assertions.
 internal static class TestCultureSetup
 {

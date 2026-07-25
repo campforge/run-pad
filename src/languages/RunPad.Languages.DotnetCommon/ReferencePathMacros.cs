@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Expands LINQPad-style path macros in a single .rpad front-matter <c>references:</c> entry

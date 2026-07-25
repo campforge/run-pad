@@ -1,11 +1,11 @@
 using System.Text;
 
-namespace DotPad.Runtime;
+namespace RunPad.Runtime;
 
 // LINQPad-style live-updating dump target (ANALYSIS.md feature #19 / LINQPAD-5): Dump() it once,
 // then set Content (or call Refresh()) as many times as needed and the SAME block in the output
 // pane updates in place instead of appending a new one each time. Identified by a stable id
-// embedded in the rendered HTML (data-dp-id) — DotPad's UI matches on that id to replace the
+// embedded in the rendered HTML (data-dp-id) — RunPad's UI matches on that id to replace the
 // existing block rather than appending (see EditorTabItemControl.RenderDump).
 public sealed class DumpContainer
 {

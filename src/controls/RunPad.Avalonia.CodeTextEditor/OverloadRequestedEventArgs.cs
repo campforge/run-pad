@@ -1,4 +1,4 @@
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 public sealed class OverloadRequestedEventArgs(char trigger, int caretOffset, CancellationToken cancellationToken = default)
     : EventArgs

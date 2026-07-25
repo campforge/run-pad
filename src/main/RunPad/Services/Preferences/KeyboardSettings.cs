@@ -1,4 +1,4 @@
-namespace DotPad.Services.Preferences;
+namespace RunPad.Services.Preferences;
 
 public sealed class KeyboardSettings
 {

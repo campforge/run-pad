@@ -11,10 +11,10 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific control object - used to handle updating the control that the html is rendered on.<br/>

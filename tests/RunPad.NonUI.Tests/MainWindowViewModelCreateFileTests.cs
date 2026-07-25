@@ -1,12 +1,12 @@
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #109: file tree had no "create new file" command — only the deferred, disk-untouching
 // File → New RPad File menu (see MainWindowViewModelNewFileTests.cs). CreateFileAsync resolves the
@@ -52,20 +52,20 @@ public class MainWindowViewModelCreateFileTests
     public async Task CreateFileAsync_Should_CreateInsideTheSelectedFolder_WhenAFolderIsSelected()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        Directory.CreateDirectory("/tmp/dotpad-createfile-test/Sub");
+        Directory.CreateDirectory("/tmp/runpad-createfile-test/Sub");
         try
         {
             fileSystem.Setup(f => f.CreateNewFile(
-                    "/tmp/dotpad-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program))
-                .Returns("/tmp/dotpad-createfile-test/Sub/Query 1.rpad");
+                    "/tmp/runpad-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program))
+                .Returns("/tmp/runpad-createfile-test/Sub/Query 1.rpad");
             var vm = CreateViewModel(fileSystem);
 
             var result = await vm.CreateFileAsync(
-                "/tmp/dotpad-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program);
+                "/tmp/runpad-createfile-test/Sub", RpadLanguage.Vb, RpadKind.Program);
 
-            Assert.Equal("/tmp/dotpad-createfile-test/Sub/Query 1.rpad", result);
+            Assert.Equal("/tmp/runpad-createfile-test/Sub/Query 1.rpad", result);
         }
-        finally { Directory.Delete("/tmp/dotpad-createfile-test", recursive: true); }
+        finally { Directory.Delete("/tmp/runpad-createfile-test", recursive: true); }
     }
 
     [Fact]

@@ -1,9 +1,9 @@
-using DotPad.Build.Core;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
 using NuGet.Versioning;
+using RunPad.Build.Core;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
 
-namespace DotPad.Languages.CSharp.Sdk;
+namespace RunPad.Languages.CSharp.Sdk;
 
 public sealed class DotnetSdkProvider : ISdkProvider
 {

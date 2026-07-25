@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход, живой отчёт пользователя о
 // подтормаживании интерфейса) — a single candidate quick fix/refactoring for the lightbulb margin.

@@ -3,7 +3,7 @@ using System.Reactive;
 using System.Reactive.Linq;
 using ReactiveUI;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 public sealed class DebugPanelViewModel : ReactiveObject
 {

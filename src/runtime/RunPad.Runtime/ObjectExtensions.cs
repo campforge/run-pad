@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using DotPad.Runtime;
+using RunPad.Runtime;
 
 // ReSharper disable once CheckNamespace
 
@@ -8,7 +8,7 @@ using DotPad.Runtime;
 /// The <c>.Dump()</c> extension every script calls to render a value to the output pane. Kept
 /// call-compatible with LINQPad's original <c>ObjectExtensions</c>: <c>x.Dump()</c>,
 /// <c>x.Dump("label")</c>, <c>x.Dump(3)</c> and <c>x.Dump("label", 3)</c> all work unchanged, so
-/// scripts ported from LINQPad don't need to touch their <c>.Dump()</c> calls. DotPad-specific
+/// scripts ported from LINQPad don't need to touch their <c>.Dump()</c> calls. RunPad-specific
 /// rendering options (row limits, collapsing, member visibility, ...) live on the separate
 /// <see cref="Dump{T}(T, DumpOptions)"/> overload instead of extra parameters here.
 /// </summary>
@@ -61,7 +61,7 @@ public static class ObjectExtensions
         => DumpCore(o, label, new DumpOptions { MaxDepth = depth });
 
     /// <summary>
-    /// Renders <paramref name="o"/> with full control over every DotPad-specific rendering option
+    /// Renders <paramref name="o"/> with full control over every RunPad-specific rendering option
     /// (row limits, collapsing, member visibility, ...) — see <see cref="DumpOptions"/>. For
     /// everyday use, prefer the plain overloads above instead.
     /// </summary>

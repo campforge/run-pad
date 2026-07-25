@@ -12,10 +12,10 @@
 
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace DotPad.Avalonia.HtmlRenderer.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia pens objects for core.

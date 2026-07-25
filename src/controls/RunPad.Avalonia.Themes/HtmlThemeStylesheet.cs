@@ -2,30 +2,30 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
 
-namespace DotPad.Avalonia.Themes;
+namespace RunPad.Avalonia.Themes;
 
 public static class HtmlThemeStylesheet
 {
     public static string Generate(ThemeVariant variant, bool isDark)
     {
-        var bg = GetColor("DotPad.Output.BackgroundBrush", variant, isDark ? "#1E1E1E" : "#FFFFFF");
-        var fg = GetColor("DotPad.Text.PrimaryBrush", variant, isDark ? "#CCCCCC" : "#383838");
-        var fgSec = GetColor("DotPad.Text.SecondaryBrush", variant, isDark ? "#9E9E9E" : "#717171");
-        var panel = GetColor("DotPad.Panel.BackgroundBrush", variant, isDark ? "#252526" : "#F3F3F3");
-        var errFg = GetColor("DotPad.Output.ErrorForeground", variant, isDark ? "#F14C4C" : "#CC0000");
-        var stackFg = GetColor("DotPad.Output.StackTraceForeground", variant, isDark ? "#CD9591" : "#A31515");
+        var bg = GetColor("RunPad.Output.BackgroundBrush", variant, isDark ? "#1E1E1E" : "#FFFFFF");
+        var fg = GetColor("RunPad.Text.PrimaryBrush", variant, isDark ? "#CCCCCC" : "#383838");
+        var fgSec = GetColor("RunPad.Text.SecondaryBrush", variant, isDark ? "#9E9E9E" : "#717171");
+        var panel = GetColor("RunPad.Panel.BackgroundBrush", variant, isDark ? "#252526" : "#F3F3F3");
+        var errFg = GetColor("RunPad.Output.ErrorForeground", variant, isDark ? "#F14C4C" : "#CC0000");
+        var stackFg = GetColor("RunPad.Output.StackTraceForeground", variant, isDark ? "#CD9591" : "#A31515");
 
-        var dpTh = GetColor("DotPad.Dump.TableHeaderBrush", variant, isDark ? "#1B4F7D" : "#3A6DAD");
-        var dpThFg = GetColor("DotPad.Dump.TableHeaderForegroundBrush", variant, "#FFFFFF");
-        var dpBorder = GetColor("DotPad.Dump.TableBorderBrush", variant, isDark ? "#3C3C3C" : "#A8B4C8");
-        var dpEven = GetColor("DotPad.Dump.TableEvenRowBrush", variant, isDark ? "#252525" : "#EDF2FB");
-        var dpAccent = GetColor("DotPad.Tab.AccentBrush", variant, isDark ? "#569CD6" : "#0078D4");
-        var dpString = GetColor("DotPad.Dump.StringBrush", variant, isDark ? "#CE9178" : "#A31515");
-        var dpNumber = GetColor("DotPad.Dump.NumberBrush", variant, isDark ? "#B5CEA8" : "#098658");
-        var dpBool = GetColor("DotPad.Dump.BoolBrush", variant, isDark ? "#569CD6" : "#0000CC");
-        var dpEnum = GetColor("DotPad.Dump.EnumBrush", variant, isDark ? "#4EC9B0" : "#267F99");
-        var dpDate = GetColor("DotPad.Dump.DateTimeBrush", variant, isDark ? "#C8A0D4" : "#7B3FA0");
-        var dpProp = GetColor("DotPad.Dump.PropertyNameBrush", variant, isDark ? "#9CDCFE" : "#0F4A8A");
+        var dpTh = GetColor("RunPad.Dump.TableHeaderBrush", variant, isDark ? "#1B4F7D" : "#3A6DAD");
+        var dpThFg = GetColor("RunPad.Dump.TableHeaderForegroundBrush", variant, "#FFFFFF");
+        var dpBorder = GetColor("RunPad.Dump.TableBorderBrush", variant, isDark ? "#3C3C3C" : "#A8B4C8");
+        var dpEven = GetColor("RunPad.Dump.TableEvenRowBrush", variant, isDark ? "#252525" : "#EDF2FB");
+        var dpAccent = GetColor("RunPad.Tab.AccentBrush", variant, isDark ? "#569CD6" : "#0078D4");
+        var dpString = GetColor("RunPad.Dump.StringBrush", variant, isDark ? "#CE9178" : "#A31515");
+        var dpNumber = GetColor("RunPad.Dump.NumberBrush", variant, isDark ? "#B5CEA8" : "#098658");
+        var dpBool = GetColor("RunPad.Dump.BoolBrush", variant, isDark ? "#569CD6" : "#0000CC");
+        var dpEnum = GetColor("RunPad.Dump.EnumBrush", variant, isDark ? "#4EC9B0" : "#267F99");
+        var dpDate = GetColor("RunPad.Dump.DateTimeBrush", variant, isDark ? "#C8A0D4" : "#7B3FA0");
+        var dpProp = GetColor("RunPad.Dump.PropertyNameBrush", variant, isDark ? "#9CDCFE" : "#0F4A8A");
         var dpDumpBg = isDark ? "rgba(255,255,255,0.02)" : "transparent";
 
         return $$"""

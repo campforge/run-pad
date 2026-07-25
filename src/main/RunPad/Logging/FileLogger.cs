@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Logging;
+namespace RunPad.Logging;
 
 internal sealed class FileLogger(string outDir, string category) : ILogger
 {
@@ -10,7 +10,7 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
     // roughly 2x this per day rather than an unbounded, ever-growing file.
     private const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
-    // Trim namespace prefix: "DotPad.Debug.DapSession" → "DapSession"
+    // Trim namespace prefix: "RunPad.Debug.DapSession" → "DapSession"
     private readonly string _shortCategory = category.Contains('.')
         ? category[(category.LastIndexOf('.') + 1)..]
         : category;
@@ -24,7 +24,7 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
         Exception? exception, Func<TState, Exception?, string> formatter)
     {
         // ToDo: Вынести в инициализацию
-        var filePrefix = "dotpad";
+        var filePrefix = "runpad";
         if (!IsEnabled(logLevel)) return;
         var now = DateTime.Now;
         var file = Path.Combine(outDir, $"{filePrefix}-{DateTime.Now:yyyy-MM-dd}.log");

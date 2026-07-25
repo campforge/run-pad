@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // TODO.md #111 (bucket 1) — LINQPad-inspired Util.KeepRunning. The real effect (a foreground Thread
 // that keeps the compiled script's own PROCESS from exiting) can't be observed from inside the single

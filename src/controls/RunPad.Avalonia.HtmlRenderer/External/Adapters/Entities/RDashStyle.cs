@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Specifies the style of dashed lines drawn with a <see cref="RPen"/> object.

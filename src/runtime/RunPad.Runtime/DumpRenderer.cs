@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace DotPad.Runtime;
+namespace RunPad.Runtime;
 
 /// <summary>
 /// Full set of rendering options for <c>ObjectExtensions.Dump(this T, DumpOptions)</c> — everyday

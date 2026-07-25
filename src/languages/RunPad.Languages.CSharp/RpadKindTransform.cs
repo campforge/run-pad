@@ -1,4 +1,4 @@
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 // TODO.md #107: RpadKind.Program used to glue a bare "Main();"/"await Main();" call directly in front
 // of the user's own code, leaving everything (Main, and whatever else the user wrote alongside it) as
@@ -39,8 +39,8 @@ internal static class RpadKindTransform
     // Double-underscore prefix to keep a collision with a user-declared member of the same name
     // astronomically unlikely — neither identifier is ever shown to the user (they exist only in the
     // throwaway .cs file actually handed to `dotnet build`/Roslyn, never in the .rpad source itself).
-    public const string ProgramWrapperClassName = "__DotPadProgram";
-    private const string TrampolineMethodName = "__DotPadRun";
+    public const string ProgramWrapperClassName = "__RunPadProgram";
+    private const string TrampolineMethodName = "__RunPadRun";
 
     // Glued onto one physical line, immediately followed by the wrapper class's header and opening
     // brace, each on its own line: exactly 2 embedded '\n's, regardless of whether Main turned out to

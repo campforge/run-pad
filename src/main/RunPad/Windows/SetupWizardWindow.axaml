@@ -1,18 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewModels="clr-namespace:DotPad.Windows.Models"
-        x:Class="DotPad.Windows.SetupWizardWindow"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.SetupWizardWindow"
         x:DataType="viewModels:SetupWizardViewModel"
-        Title="DotPad — First-time setup"
+        Title="RunPad — First-time setup"
         Width="520" Height="360"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
-        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
     <Grid Margin="20" RowDefinitions="Auto,Auto,16,Auto,Auto,*,Auto">
 
-        <TextBlock Grid.Row="0" Text="DotPad needs a couple of things before it can compile and debug scripts."
+        <TextBlock Grid.Row="0" Text="RunPad needs a couple of things before it can compile and debug scripts."
                    TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,4"/>
         <TextBlock Grid.Row="1" Text="You can skip this and set them up later in Preferences."
                    TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
@@ -44,7 +44,7 @@
         </ScrollViewer>
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-            <Button Name="ContinueButton" Content="Continue to DotPad" Click="Continue_Click"/>
+            <Button Name="ContinueButton" Content="Continue to RunPad" Click="Continue_Click"/>
         </StackPanel>
     </Grid>
 </Window>

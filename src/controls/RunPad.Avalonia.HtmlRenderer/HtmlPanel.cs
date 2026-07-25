@@ -15,10 +15,10 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer;
+namespace RunPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Provides HTML rendering using the text property.<br/>

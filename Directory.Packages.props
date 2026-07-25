@@ -55,7 +55,7 @@
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Avalonia.Headless.XUnit 12.0.5 depends on xunit v3 (a different package family from
-         classic "xunit" 2.x above), so DotPad.Runtime.UI.Tests uses these instead — see its
+         classic "xunit" 2.x above), so RunPad.Runtime.UI.Tests uses these instead — see its
          csproj comment. -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />

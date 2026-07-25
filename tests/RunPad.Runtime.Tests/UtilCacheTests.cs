@@ -1,10 +1,10 @@
 using System.Linq;
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cache/CacheAsync. Same tradeoffs as
-// UtilFileAndTryTests: writes into the REAL %AppData%/DotPad/UserData/Cache folder (no injectable
+// UtilFileAndTryTests: writes into the REAL %AppData%/RunPad/UserData/Cache folder (no injectable
 // path seam for a static-class API like this), every test uses its own Guid-named key so concurrent
 // test runs can't collide, and cleans up after itself.
 public class UtilCacheTests
@@ -12,7 +12,7 @@ public class UtilCacheTests
     [Fact]
     public void Cache_Should_CallTheFunction_AndReturnItsResult_OnFirstCall()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             var result = Util.Cache(() => 42, key);
@@ -25,7 +25,7 @@ public class UtilCacheTests
     [Fact]
     public void Cache_Should_ReturnTheCachedValue_WithoutCallingTheFunctionAgain_OnASecondCall()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             var calls = 0;
@@ -44,7 +44,7 @@ public class UtilCacheTests
     [Fact]
     public void Cache_Should_NeverExpire_WhenDurationIsNull()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             Util.Cache(() => "first", key);
@@ -58,7 +58,7 @@ public class UtilCacheTests
     [Fact]
     public async Task Cache_Should_RecomputeAndOverwrite_AfterTheDurationExpires()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             Util.Cache(() => "first", key, TimeSpan.FromMilliseconds(1));
@@ -74,8 +74,8 @@ public class UtilCacheTests
     [Fact]
     public void Cache_Should_KeepDifferentKeys_Isolated()
     {
-        var keyA = $"dotpad-test-{Guid.NewGuid()}-a";
-        var keyB = $"dotpad-test-{Guid.NewGuid()}-b";
+        var keyA = $"runpad-test-{Guid.NewGuid()}-a";
+        var keyB = $"runpad-test-{Guid.NewGuid()}-b";
         try
         {
             var a = Util.Cache(() => "value-a", keyA);
@@ -94,7 +94,7 @@ public class UtilCacheTests
     [Fact]
     public void Cache_Should_Work_WhenTheKeyContainsPathAndOtherInvalidFileNameCharacters()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}/weird:key*name";
+        var key = $"runpad-test-{Guid.NewGuid()}/weird:key*name";
         try
         {
             var first = Util.Cache(() => "first", key);
@@ -109,7 +109,7 @@ public class UtilCacheTests
     [Fact]
     public async Task CacheAsync_Should_CallTheFunction_AndReturnItsResult_OnFirstCall()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             var result = await Util.CacheAsync(() => Task.FromResult(42), key);
@@ -122,7 +122,7 @@ public class UtilCacheTests
     [Fact]
     public async Task CacheAsync_Should_ReturnTheCachedValue_WithoutCallingTheFunctionAgain_OnASecondCall()
     {
-        var key = $"dotpad-test-{Guid.NewGuid()}";
+        var key = $"runpad-test-{Guid.NewGuid()}";
         try
         {
             var calls = 0;
@@ -142,7 +142,7 @@ public class UtilCacheTests
     {
         var sanitized = new string(key.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
         var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "UserData", "Cache", sanitized + ".json");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "UserData", "Cache", sanitized + ".json");
         if (File.Exists(path)) File.Delete(path);
     }
 }

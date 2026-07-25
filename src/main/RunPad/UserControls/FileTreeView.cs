@@ -5,10 +5,10 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DotPad.Format.RPad;
-using DotPad.UserControls.Models;
+using RunPad.Format.RPad;
+using RunPad.UserControls.Models;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 public sealed class FileTreeFileEventArgs(RoutedEvent routedEvent, string filePath) : RoutedEventArgs(routedEvent)
 {
@@ -59,7 +59,7 @@ public partial class FileTreeView : UserControl
     // internal (not private) + InternalsVisibleTo so tests can build matching drag data directly,
     // same "internal test hook" pattern used elsewhere in this project.
     internal static readonly DataFormat<string> NodePathFormat =
-        DataFormat.CreateStringApplicationFormat("dotpad-filetree-node-path");
+        DataFormat.CreateStringApplicationFormat("runpad-filetree-node-path");
 
     public FileTreeView()
     {
@@ -286,7 +286,7 @@ public partial class FileTreeView : UserControl
         }
 
         _fileTree.Background = isValidDrag && node is null && this.TryFindResource(
-            "DotPad.Accent.BackgroundBrush", out var brush) && brush is IBrush accentBrush
+            "RunPad.Accent.BackgroundBrush", out var brush) && brush is IBrush accentBrush
             ? accentBrush
             : Brushes.Transparent;
     }

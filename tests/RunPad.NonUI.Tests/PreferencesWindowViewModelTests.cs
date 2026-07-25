@@ -1,18 +1,18 @@
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.VB;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.VB;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO.md #49 item 4: the Languages settings tree used to be two hardcoded SettingsNodes
 // ("languages.csharp"/"languages.vb") instead of derived from ILanguageHostRegistry.SupportedLanguages
@@ -296,7 +296,7 @@ public class PreferencesWindowViewModelTests
     }
 
     // User request 2026-07-21 (сто шестой проход): "fix formatting" (IDE0055) should be excluded
-    // out of the box — DotPad already has its own dotnet-format-based formatting story, so a live
+    // out of the box — RunPad already has its own dotnet-format-based formatting story, so a live
     // "reformat this" suggestion on every whitespace deviation was judged more noise than help by
     // default. A fresh CSharpLanguageSettings (e.g. a first-ever launch, before settings.json exists)
     // should reflect that without the user having to discover and type the ID themselves.

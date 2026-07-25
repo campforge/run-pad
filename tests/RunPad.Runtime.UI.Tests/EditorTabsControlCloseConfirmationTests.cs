@@ -2,20 +2,20 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Жизненный цикл вкладок (остаток)": closing an untitled tab with real typed content used
 // to discard it silently — SaveIfNeeded is a no-op without a FilePath, so nothing about closing an
@@ -29,7 +29,7 @@ public class EditorTabsControlCloseConfirmationTests
     private static (EditorTabsControl EditorTabs, MainWindowViewModel MainVm, Mock<IWindowService> WindowService, string RootFolder)
         CreateHarness()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-close-confirm-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-close-confirm-test").FullName;
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

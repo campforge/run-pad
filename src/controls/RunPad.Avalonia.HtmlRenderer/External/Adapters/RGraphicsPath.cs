@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Adapter for platform specific graphics path object - used to render (draw/fill) path shape.

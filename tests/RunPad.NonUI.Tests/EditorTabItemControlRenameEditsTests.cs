@@ -1,9 +1,9 @@
 using AvaloniaEdit.Document;
-using DotPad.Contracts.IntelliSense;
-using DotPad.UserControls;
+using RunPad.Contracts.IntelliSense;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "умное переименование" — EditorsTabItemControl.ApplyRenameEdits is the actual
 // edit-application logic behind F2 rename, split out specifically so it's testable against a plain

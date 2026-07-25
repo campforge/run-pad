@@ -2,7 +2,7 @@ using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 public sealed class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
 {

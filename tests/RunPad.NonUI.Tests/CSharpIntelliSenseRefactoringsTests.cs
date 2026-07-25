@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #74 "CodeRefactoringProvider хостинг в лампочке" — GetRefactoringsAsync, the
 // position-based counterpart to CodeFixesChanged's diagnostic-driven fixes. Real dotnet-build-free
@@ -75,7 +75,7 @@ public class CSharpIntelliSenseRefactoringsTests
     // matched occurrence is syntactically NESTED inside another (here: "p.Name" inside "p.Name.Length"
     // — replacing the inner occurrence briefly produces a MemberAccessExpressionSyntax whose Name slot
     // isn't a SimpleNameSyntax, which the rewriter's own generated cast doesn't tolerate). Reproduced
-    // on a bare AdhocWorkspace document with NO DotPad-specific wrapping at all (no preamble, no
+    // on a bare AdhocWorkspace document with NO RunPad-specific wrapping at all (no preamble, no
     // Script.cs synthetic setup) — confirmed upstream Roslyn 4.13.0 behavior, not something this
     // codebase's document handling triggers or could fix.
     //

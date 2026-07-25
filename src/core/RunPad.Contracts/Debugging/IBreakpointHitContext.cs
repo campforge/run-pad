@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.Models;
+namespace RunPad.Contracts.Models;
 
 public interface IBreakpointHitContext
 {

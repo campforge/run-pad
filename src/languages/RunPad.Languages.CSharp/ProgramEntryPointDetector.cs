@@ -1,13 +1,13 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 /// <summary>
-/// Inspects a <see cref="DotPad.Format.RPad.RpadKind.Program"/> script's <c>Main</c> local function
+/// Inspects a <see cref="RunPad.Format.RPad.RpadKind.Program"/> script's <c>Main</c> local function
 /// signature — <see cref="RpadKindTransform"/> needs both facts captured in <see cref="MainSignature"/>
-/// to build the right call statement: <c>IsStatic</c> picks between <c>__DotPadProgram.Main()</c> and
-/// <c>new __DotPadProgram().Main()</c> (a static local function can't be called through an instance
+/// to build the right call statement: <c>IsStatic</c> picks between <c>__RunPadProgram.Main()</c> and
+/// <c>new __RunPadProgram().Main()</c> (a static local function can't be called through an instance
 /// reference — CS0176), and <c>ReturnsTask</c> (<c>async Task Main()</c>/<c>Task Main()</c>/generic
 /// <c>Task&lt;T&gt;</c> forms) picks between a fire-and-forget call and an awaited one, so an async
 /// Main's work (and any exception thrown inside it) actually gets awaited instead of silently discarded

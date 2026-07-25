@@ -1,13 +1,13 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Services.BuildCache;
+namespace RunPad.Services.BuildCache;
 
 public sealed class BuildCacheService : IBuildCacheService
 {
     private static readonly string DefaultCachePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "DotPad", "build-cache.json");
+        "RunPad", "build-cache.json");
 
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
@@ -23,7 +23,7 @@ public sealed class BuildCacheService : IBuildCacheService
     public BuildCacheService(ILogger<BuildCacheService> logger) : this(logger, DefaultCachePath) { }
 
     // Internal ctor with an injectable cache-file path so tests can point this at an isolated temp
-    // file instead of the real %APPDATA%/DotPad directory (ANALYSIS.md #85 testability follow-up).
+    // file instead of the real %APPDATA%/RunPad directory (ANALYSIS.md #85 testability follow-up).
     internal BuildCacheService(ILogger<BuildCacheService> logger, string cachePath)
     {
         _logger = logger;

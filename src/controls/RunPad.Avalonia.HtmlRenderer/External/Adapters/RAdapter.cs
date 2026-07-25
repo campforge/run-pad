@@ -12,13 +12,13 @@
 // "The Art of War"
 
 
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters;
 
 /// <summary>
 /// Platform adapter to bridge platform specific objects to HTML Renderer core library.<br/>

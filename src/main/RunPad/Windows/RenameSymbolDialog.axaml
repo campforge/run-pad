@@ -1,21 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="DotPad.Windows.RenameSymbolDialog"
+        x:Class="RunPad.Windows.RenameSymbolDialog"
         Title="Rename"
         Width="360" Height="150"
         MinWidth="300" MinHeight="140"
         CanResize="False"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
-        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
 
         <TextBlock Grid.Row="0"
                    Text="New name:"
                    FontSize="12"
-                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>
 
         <TextBox x:Name="NameBox"

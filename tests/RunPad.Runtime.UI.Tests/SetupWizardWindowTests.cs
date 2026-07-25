@@ -2,15 +2,15 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
-using DotPad.Contracts;
-using DotPad.Services.Preferences;
-using DotPad.Services.Setup;
-using DotPad.Windows;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services.Preferences;
+using RunPad.Services.Setup;
+using RunPad.Windows;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class SetupWizardWindowTests
 {

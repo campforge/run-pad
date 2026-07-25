@@ -1,6 +1,6 @@
 using System.Xml.Linq;
 
-namespace DotPad.Format.RPad;
+namespace RunPad.Format.RPad;
 
 /// <summary>
 /// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> (TODO.md #63) — a <c>.linq</c>
@@ -11,7 +11,7 @@ namespace DotPad.Format.RPad;
 /// </summary>
 public static class LinqConverter
 {
-    // LINQPad's own supported Kind values — SQL/ESQL/F# ones have no DotPad-supported equivalent
+    // LINQPad's own supported Kind values — SQL/ESQL/F# ones have no RunPad-supported equivalent
     // (only C#/VB, see RpadLanguage) and are rejected explicitly below rather than silently
     // mis-converted.
     private static readonly Dictionary<string, (RpadLanguage Language, RpadKind Kind)> KindMap = new()
@@ -28,7 +28,7 @@ public static class LinqConverter
     /// Converts <paramref name="linqContent"/> (the full text of a <c>.linq</c> file) to an
     /// <see cref="RpadDocument"/>, ready for <see cref="RpadWriter.Write"/>. Throws
     /// <see cref="FormatException"/> if the file has no recognizable <c>&lt;Query&gt;</c> header, or
-    /// its <c>Kind</c> has no DotPad-supported equivalent (e.g. F#, SQL).
+    /// its <c>Kind</c> has no RunPad-supported equivalent (e.g. F#, SQL).
     /// </summary>
     /// <param name="linqContent">The full text of a <c>.linq</c> file.</param>
     /// <param name="title">Heading for the converted document — typically the source file's own name without extension.</param>
@@ -51,7 +51,7 @@ public static class LinqConverter
         {
             var supported = string.Join(", ", KindMap.Keys);
             throw new FormatException(
-                $"Unsupported .linq Query Kind '{kindValue ?? "(none)"}' — DotPad only supports: {supported}.");
+                $"Unsupported .linq Query Kind '{kindValue ?? "(none)"}' — RunPad only supports: {supported}.");
         }
 
         var packages = new Dictionary<string, Package>();

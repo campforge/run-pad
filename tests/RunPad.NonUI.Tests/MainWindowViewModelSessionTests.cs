@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Жизненный цикл вкладок (остаток)": the app always started with a single blank tab —
 // nothing about which files were open (or their order) survived a restart. RestoreSession replaces
@@ -39,7 +39,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void RestoreSession_Should_OpenABlankTab_WhenNothingWasSaved()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var (vm, _) = CreateViewModel(rootFolder);
@@ -55,7 +55,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void RestoreSession_Should_ReopenSavedTabs_InTheirSavedOrder()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var pathA = Path.Combine(rootFolder, "A.rpad");
@@ -78,7 +78,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void RestoreSession_Should_ReselectTheSavedActiveTab()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var pathA = Path.Combine(rootFolder, "A.rpad");
@@ -102,7 +102,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void RestoreSession_Should_SkipSavedPaths_ThatNoLongerExistOnDisk()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var stillThere = Path.Combine(rootFolder, "StillThere.rpad");
@@ -123,7 +123,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void RestoreSession_Should_FallBackToABlankTab_WhenEverySavedPathIsGone()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var (vm, session) = CreateViewModel(rootFolder);
@@ -140,7 +140,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void OpenTab_Should_PersistTheNewTabIntoSession()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var path = Path.Combine(rootFolder, "Query.rpad");
@@ -158,7 +158,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void NewRpadFile_Should_NotAddAnUntitledTab_ToTheSessionsPathList()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var (vm, session) = CreateViewModel(rootFolder);
@@ -174,7 +174,7 @@ public class MainWindowViewModelSessionTests
     [Fact]
     public void ClosingANonActiveTab_Should_StillPersistTheUpdatedSession()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-session-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-session-test").FullName;
         try
         {
             var pathA = Path.Combine(rootFolder, "A.rpad");

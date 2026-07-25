@@ -1,8 +1,8 @@
 using System.ComponentModel;
-using DotPad.UserControls.Models;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md #94: EditorTabItemControl.AppendOutput used to do `Output.Content += line` once per
 // output line — each `+=` copies the ENTIRE accumulated string so far, making total cost O(n²) for

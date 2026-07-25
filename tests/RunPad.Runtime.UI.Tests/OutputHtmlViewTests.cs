@@ -1,11 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #72: the <html><head><style>...</style></head><body>...</body></html> assembly used to
 // live in EditorTabItemControl.UpdateOutputUi, directly against a bare HtmlPanel x:Name="OutputHtml"

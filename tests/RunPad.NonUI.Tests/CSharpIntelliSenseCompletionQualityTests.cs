@@ -1,10 +1,10 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #51 follow-up (user feedback after trying 24/7 auto-invoke live):
 // 1. Completion/signature-help/quick-info showed up while typing prose inside a comment.

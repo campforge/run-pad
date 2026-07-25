@@ -2,10 +2,10 @@ using System.Reactive;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using DotPad.Format.RPad;
-using DotPad.Windows.Models;
+using RunPad.Format.RPad;
+using RunPad.Windows.Models;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class DependenciesWindow : Window
 {

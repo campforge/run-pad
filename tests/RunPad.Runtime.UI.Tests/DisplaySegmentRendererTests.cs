@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using DotPad.UserControls;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #59 remainder: BuildListRow now shows a dimmed "(+N overloads)" annotation next to
 // a method name that collapses several overloads (ICompletionItem.OverloadCount), alongside the

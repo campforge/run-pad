@@ -3,10 +3,10 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "умное переименование" — CodeTextEditor's own half of F2 rename is just "recognize
 // the keypress and raise RenameSymbolRequested"; the host (EditorTabItemControl) resolves what's

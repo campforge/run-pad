@@ -135,7 +135,7 @@ public sealed class MainWindowViewModel : ReactiveObject
     private readonly IWindowService _windowService;
 
     // Классический способ (любая версия C#)
-    private string _title = "DotPad";
+    private string _title = "RunPad";
     public string Title
     {
         get => _title;

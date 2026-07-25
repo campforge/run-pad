@@ -1,6 +1,6 @@
-using DotPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon;
 
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 // C#'s DotnetLanguageProjectProfile (ANALYSIS.md #86) — matches the .NET SDK's own
 // <ImplicitUsings>enable</ImplicitUsings> set (verified against a real `dotnet build` output —

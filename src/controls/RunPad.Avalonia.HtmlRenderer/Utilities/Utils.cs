@@ -12,9 +12,9 @@
 
 using Avalonia;
 using Avalonia.Media;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace DotPad.Avalonia.HtmlRenderer.Utilities;
+namespace RunPad.Avalonia.HtmlRenderer.Utilities;
 
 /// <summary>
 /// Utilities for converting Avalonia entities to HtmlRenderer core entities.

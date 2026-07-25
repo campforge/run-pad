@@ -14,12 +14,12 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
-using DotPad.Avalonia.HtmlRenderer.Utilities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.Utilities;
 
-namespace DotPad.Avalonia.HtmlRenderer.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia Graphics.

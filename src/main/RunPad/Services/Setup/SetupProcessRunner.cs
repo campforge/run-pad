@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 public sealed class SetupProcessRunner : ISetupProcessRunner
 {

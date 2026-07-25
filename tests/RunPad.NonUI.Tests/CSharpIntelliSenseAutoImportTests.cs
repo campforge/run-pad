@@ -1,10 +1,10 @@
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #28 remainder: completion now offers types from an added-but-not-yet-imported NuGet
 // package too (ReSharper-style), tagged with the namespace EditorTabItemControl should add as a

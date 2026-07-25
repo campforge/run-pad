@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-namespace DotPad.TemplatedControls;
+namespace RunPad.TemplatedControls;
 
 public class IconButton : Button
 {

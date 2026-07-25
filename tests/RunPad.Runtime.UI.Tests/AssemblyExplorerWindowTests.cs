@@ -1,20 +1,20 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Build.Core.Models;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Sdk;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.DotnetCommon.Compiler;
-using DotPad.Services;
-using DotPad.Windows;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Build.Core.Models;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
+using RunPad.Services;
+using RunPad.Windows;
 using TextMateSharp.Grammars;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "ILSpy-обозреватель сборок" (user request 2026-07-19; merged with the standalone
 // DecompiledViewWindow per user request 2026-07-20) — AssemblyExplorerWindow: file picker +
@@ -59,7 +59,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
                 Debugger = new DebuggerOptions { DebuggerPath = "" },
             },
             outputDir: outputDir,
-            dotPadRuntimeLib: runtimeLib,
+            runPadRuntimeLib: runtimeLib,
             outputName: "Query",
             nugetPackages: new Dictionary<string, string>(),
             usings: [],
@@ -89,7 +89,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
         public async ValueTask InitializeAsync()
         {
-            _outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
+            _outputDir = Directory.CreateTempSubdirectory("runpad-assembly-explorer-test").FullName;
             using var compiler = CreateCompiler(_outputDir);
             var result = await compiler.Compilation(ExplorerCode, CancellationToken.None);
             if (!result.Success)
@@ -130,7 +130,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     public async Task LoadAssemblyAsync_Should_ShowAnErrorDialog_AndNotThrow_WhenTheFileIsNotAnAssembly()
     {
         var notAnAssembly = Path.Combine(
-            Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName, "notadll.dll");
+            Directory.CreateTempSubdirectory("runpad-assembly-explorer-test").FullName, "notadll.dll");
         await File.WriteAllTextAsync(notAnAssembly, "not a real assembly");
         try
         {
@@ -237,7 +237,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task NavigateAsync_Should_JumpToTheCalleesDeclaration_WhenCaretIsOnACallSite()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-assembly-explorer-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-assembly-explorer-test").FullName;
         try
         {
             using var compiler = CreateCompiler(outputDir);

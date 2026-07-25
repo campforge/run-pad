@@ -4,9 +4,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
 
-namespace DotPad.Languages.CSharp.IntelliSense;
+namespace RunPad.Languages.CSharp.IntelliSense;
 
-internal static class DotPadRoslynHost
+internal static class RunPadRoslynHost
 {
     // Roslyn's own MEF export lookup (IMefHostExportProvider.GetExports<T, TMetadata>) is internal
     // to Microsoft.CodeAnalysis.Features, so RoslynCodeFixEngine needs its own handle on the same

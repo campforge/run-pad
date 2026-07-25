@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using DotPad.Runtime;
+using RunPad.Runtime;
 
 // ReSharper disable once CheckNamespace
 
@@ -20,44 +20,44 @@ public static class Util
 {
     internal const char InputRequestPrefixChar = '\x1f'; // ASCII Unit Separator — distinct from ObjectExtensions.DumpLinePrefixChar
 
-    // TODO.md #111 (bucket 1) — mirrors ChildProcess.CurrentQueryPathEnvVar (DotPad.Build.Core), a
+    // TODO.md #111 (bucket 1) — mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core), a
     // separate assembly this one (netstandard2.0, referenced by the compiled SCRIPT's own project,
-    // not by DotPad itself) has no reference to — duplicated literal, not shared, same precedent as
+    // not by RunPad itself) has no reference to — duplicated literal, not shared, same precedent as
     // InputRequestPrefixChar/RsPrefix mirroring across the same process boundary.
-    internal const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
+    internal const string CurrentQueryPathEnvVar = "RUNPAD_CURRENT_QUERY_PATH";
 
     /// <summary>
     /// The full path to the running script's own <c>.rpad</c> file, or <see langword="null"/> if it's
     /// never been saved (an untitled tab) — LINQPad-compatible <c>Util.CurrentQueryPath</c>. Works
     /// under both a plain run and a debug session (DapSession forwards it via the launch request's
-    /// own <c>env</c>, since netcoredbg spawns the debuggee itself rather than DotPad).
+    /// own <c>env</c>, since netcoredbg spawns the debuggee itself rather than RunPad).
     /// </summary>
     public static string? CurrentQueryPath => Environment.GetEnvironmentVariable(CurrentQueryPathEnvVar);
 
     // TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes save
     // to a dedicated per-user data folder, not an arbitrary path the caller has to come up with —
-    // mirrors the OS-special-folder + "DotPad" subfolder convention DotPad's own
+    // mirrors the OS-special-folder + "RunPad" subfolder convention RunPad's own
     // PreferencesService/BuildCacheService already use for their own data (a further "UserData"
     // level under that so scripts' own files don't collide with either), duplicated rather than
     // shared since this assembly (netstandard2.0, referenced by the compiled SCRIPT's own project)
-    // has no reference to DotPad's main app project. fileName may itself contain subdirectories
+    // has no reference to RunPad's main app project. fileName may itself contain subdirectories
     // (e.g. "cache/foo.json") — created on demand by the Save* half, same as LINQPad's own behavior.
     private static string ResolveUserDataPath(string fileName)
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "UserData");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "UserData");
         var path = Path.Combine(root, fileName);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         return path;
     }
 
-    /// <summary>Writes <paramref name="text"/> to <paramref name="fileName"/> in DotPad's per-user data folder (created on demand), overwriting any existing content.</summary>
+    /// <summary>Writes <paramref name="text"/> to <paramref name="fileName"/> in RunPad's per-user data folder (created on demand), overwriting any existing content.</summary>
     public static void SaveString(string text, string fileName) => File.WriteAllText(ResolveUserDataPath(fileName), text);
 
     /// <summary>Reads back a file previously written by <see cref="SaveString"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
     public static string LoadString(string fileName) => File.ReadAllText(ResolveUserDataPath(fileName));
 
-    /// <summary>Writes <paramref name="data"/> to <paramref name="fileName"/> in DotPad's per-user data folder (created on demand), overwriting any existing content.</summary>
+    /// <summary>Writes <paramref name="data"/> to <paramref name="fileName"/> in RunPad's per-user data folder (created on demand), overwriting any existing content.</summary>
     public static void SaveBytes(byte[] data, string fileName) => File.WriteAllBytes(ResolveUserDataPath(fileName), data);
 
     /// <summary>Reads back a file previously written by <see cref="SaveBytes"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
@@ -133,7 +133,7 @@ public static class Util
 
     // Sanitizes against a fixed, OS-independent character set (not Path.GetInvalidFileNameChars(),
     // which differs between Windows and Linux/macOS) so the same key maps to the same on-disk file
-    // name on every platform DotPad ships for.
+    // name on every platform RunPad ships for.
     private static string CacheFileName(string key)
     {
         var sanitized = new string(key.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
@@ -141,7 +141,7 @@ public static class Util
     }
 
     // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cmd/CmdCore: run an external process and stream
-    // its output. DotPad.Build.Core (DotPad's own ChildProcess) already has this exact
+    // its output. RunPad.Build.Core (RunPad's own ChildProcess) already has this exact
     // concurrent-stdout/stderr-draining infrastructure for the compiled SCRIPT's own process, but this
     // assembly (netstandard2.0, referenced by the compiled script's own project) has no reference to
     // it — reimplemented here directly against System.Diagnostics.Process, same principle (draining
@@ -212,7 +212,7 @@ public static class Util
     }
 
     // TODO.md #111 (bucket 1) — LINQPad-inspired Util.KeepRunning. LINQPad has its own explicit
-    // "QueryCompletionCountdown" concept to hold a query open; DotPad has no such concept (a compiled
+    // "QueryCompletionCountdown" concept to hold a query open; RunPad has no such concept (a compiled
     // script is just a normal .NET console app — it exits once its own code returns, like any other),
     // so instead of building a parallel lifetime system, this leans on the CLR's own actual behavior:
     // a process only exits once every FOREGROUND thread has finished, even after Main() itself has

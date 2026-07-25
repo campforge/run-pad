@@ -1,12 +1,12 @@
-using DotPad.Build.Core.Models;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Sdk;
-using DotPad.Languages.DotnetCommon.Compiler;
-using DotPad.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon.Compiler;
+using RunPad.Languages.VB;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #73 — the hot-path cache-skip check (source/project file unchanged + outputDll still on
 // disk) didn't distinguish "unchanged because nothing to do" from "unchanged because the last build
@@ -41,7 +41,7 @@ public class DotnetProcessCompilerTests
                 Debugger = new DebuggerOptions { DebuggerPath = "" },
             },
             outputDir: outputDir,
-            dotPadRuntimeLib: runtimeLib,
+            runPadRuntimeLib: runtimeLib,
             outputName: "Query",
             nugetPackages: new Dictionary<string, string>(),
             usings: [],
@@ -53,7 +53,7 @@ public class DotnetProcessCompilerTests
     [Fact]
     public async Task Compilation_Should_NotReuseStaleSuccessfulBinary_AfterASubsequentBuildFails()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-compiler-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
         try
         {
             using var compiler = CreateCompiler(outputDir);
@@ -81,7 +81,7 @@ public class DotnetProcessCompilerTests
     [Fact]
     public async Task Compilation_Should_StillUseTheHotPath_WhenTheLastBuildForThisSourceSucceeded()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-compiler-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
         try
         {
             using var compiler = CreateCompiler(outputDir);
@@ -102,18 +102,18 @@ public class DotnetProcessCompilerTests
     }
 
     // TODO.md #111 fix — live user report, "Util.CurrentQueryPath always null": the hot-path skip
-    // above compares generated TEXT (project file/source), which references DotPad.Runtime.dll by
-    // PATH only — rebuilding it in place (e.g. updating DotPad itself) left that text identical, so
-    // the hot path kept serving a stale outputDll built against the OLD DotPad.Runtime.dll forever,
+    // above compares generated TEXT (project file/source), which references RunPad.Runtime.dll by
+    // PATH only — rebuilding it in place (e.g. updating RunPad itself) left that text identical, so
+    // the hot path kept serving a stale outputDll built against the OLD RunPad.Runtime.dll forever,
     // even though the path on disk now points at genuinely different content. Real dotnet-build
     // integration test (no mocking) — the bug is entirely about actual on-disk timestamps, same
     // rationale as the failed-build hot-path test above.
     [Fact]
     public async Task Compilation_Should_Rebuild_WhenTheReferencedRuntimeLibChangesOnDisk_EvenIfSourceDidnt()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-compiler-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
         var fakeRuntimeLib = Path.Combine(
-            Directory.CreateTempSubdirectory("dotpad-compiler-test-lib").FullName, "DotPad.Runtime.dll");
+            Directory.CreateTempSubdirectory("runpad-compiler-test-lib").FullName, "RunPad.Runtime.dll");
         try
         {
             // A real, valid managed assembly (copied, not the live system one) so a real `dotnet
@@ -132,7 +132,7 @@ public class DotnetProcessCompilerTests
                     Debugger = new DebuggerOptions { DebuggerPath = "" },
                 },
                 outputDir: outputDir,
-                dotPadRuntimeLib: fakeRuntimeLib,
+                runPadRuntimeLib: fakeRuntimeLib,
                 outputName: "Query",
                 nugetPackages: new Dictionary<string, string>(),
                 usings: [],
@@ -145,7 +145,7 @@ public class DotnetProcessCompilerTests
             Assert.True(first.Success, string.Join('\n', first.Errors.Select(e => e.Message)));
             var writeTimeAfterFirstBuild = File.GetLastWriteTimeUtc(first.OutputBinaryFile);
 
-            // Simulate DotPad.Runtime.dll being rebuilt in place — same path, newer content/timestamp.
+            // Simulate RunPad.Runtime.dll being rebuilt in place — same path, newer content/timestamp.
             File.SetLastWriteTimeUtc(fakeRuntimeLib, DateTime.UtcNow.AddMinutes(5));
 
             var second = await compiler.Compilation(code, CancellationToken.None);
@@ -175,7 +175,7 @@ public class DotnetProcessCompilerTests
                 Debugger = new DebuggerOptions { DebuggerPath = "" },
             },
             outputDir: outputDir,
-            dotPadRuntimeLib: runtimeLib,
+            runPadRuntimeLib: runtimeLib,
             outputName: "Query",
             nugetPackages: new Dictionary<string, string>(),
             usings: [],
@@ -187,7 +187,7 @@ public class DotnetProcessCompilerTests
     [Fact]
     public async Task VbCompilation_Should_NotReuseStaleSuccessfulBinary_AfterASubsequentBuildFails()
     {
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-vb-compiler-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-vb-compiler-test").FullName;
         try
         {
             using var compiler = CreateVbCompiler(outputDir);

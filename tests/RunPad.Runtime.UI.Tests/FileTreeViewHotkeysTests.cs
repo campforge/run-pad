@@ -2,15 +2,15 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #80: F2 (rename) and Delete used to be literal Key.F2/Key.Delete checks in
 // FileTreeView.FileTree_KeyDown — this control has no DI (instantiated by a plain XAML DataTemplate,

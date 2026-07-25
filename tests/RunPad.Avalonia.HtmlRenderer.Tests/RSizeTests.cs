@@ -1,7 +1,7 @@
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 using Xunit;
 
-namespace DotPad.Avalonia.HtmlRenderer.Tests;
+namespace RunPad.Avalonia.HtmlRenderer.Tests;
 
 public class RSizeTests
 {

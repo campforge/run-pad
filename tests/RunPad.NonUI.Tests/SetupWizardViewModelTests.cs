@@ -1,12 +1,12 @@
 using System.Reactive.Linq;
-using DotPad.Contracts;
-using DotPad.Services.Preferences;
-using DotPad.Services.Setup;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services.Preferences;
+using RunPad.Services.Setup;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class SetupWizardViewModelTests
 {
@@ -73,12 +73,12 @@ public class SetupWizardViewModelTests
         var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(true, false));
         installer
             .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("/fake/appdata/DotPad/netcoredbg/netcoredbg");
+            .ReturnsAsync("/fake/appdata/RunPad/netcoredbg/netcoredbg");
         var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
 
         await vm.InstallDebuggerCommand.Execute();
 
-        Assert.Equal("/fake/appdata/DotPad/netcoredbg/netcoredbg", debugger.DebuggerPath);
+        Assert.Equal("/fake/appdata/RunPad/netcoredbg/netcoredbg", debugger.DebuggerPath);
         prefs.Verify(p => p.Save(), Times.Once);
     }
 

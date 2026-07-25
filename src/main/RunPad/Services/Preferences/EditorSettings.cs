@@ -1,6 +1,6 @@
-using DotPad.Format.RPad;
+using RunPad.Format.RPad;
 
-namespace DotPad.Services.Preferences;
+namespace RunPad.Services.Preferences;
 
 public sealed class EditorSettings
 {
@@ -19,9 +19,9 @@ public sealed class EditorSettings
     public double FontSize { get; set; } = 12;
 
     // TODO.md #112: the code editor never set FontFamily at all before this — it inherited whatever
-    // FluentTheme's own default font resolved to for the current OS, entirely outside DotPad's
+    // FluentTheme's own default font resolved to for the current OS, entirely outside RunPad's
     // control. Live user report: on at least one such default, ligature-capable glyphs (e.g. "=>"
-    // rendering as a single arrow) got substituted in — not something DotPad ever asked for, and with
+    // rendering as a single arrow) got substituted in — not something RunPad ever asked for, and with
     // no setting to turn it off since there was nothing to turn off in the first place.
     //
     // "monospace" (the bare CSS-style generic keyword, not a real font name) rather than a named

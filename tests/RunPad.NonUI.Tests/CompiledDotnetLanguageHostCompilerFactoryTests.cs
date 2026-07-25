@@ -1,13 +1,13 @@
-using DotPad.Build.Core.Models;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #88: CompileInternalAsync used to always `new MsBuildProcessCompiler(...)` directly, so
 // exercising CompileAsync's own logic (kind-transform wiring, ProcessCompilerResult → ICompilationResult
@@ -33,7 +33,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
     private static (CSharpLanguageHost Host, FakeCompiler Compiler) CreateHost(
         RpadKind kind, ProcessCompilerResult result, out string outputDir)
     {
-        outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
+        outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -44,7 +44,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
                 Debugger = new DebuggerOptions { DebuggerPath = "netcoredbg" },
             },
             OutputDirectory = outputDir,
-            RuntimeLibPath = "DotPad.Runtime.dll",
+            RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = kind,
         };
 

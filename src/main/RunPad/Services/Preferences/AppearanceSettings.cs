@@ -1,6 +1,6 @@
-using DotPad.Avalonia.Themes;
+using RunPad.Avalonia.Themes;
 
-namespace DotPad.Services.Preferences;
+namespace RunPad.Services.Preferences;
 
 public sealed class AppearanceSettings
 {

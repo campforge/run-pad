@@ -3,9 +3,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
-using DotPad.UserControls.Models;
+using RunPad.UserControls.Models;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 // Hosts the script's Results output (TODO.md #72) — binds to an OutputHtmlViewModel set as its
 // DataContext (see EditorsTabItemControl's constructor: ResultsOutput.DataContext = State.Output)
@@ -23,7 +23,7 @@ public partial class OutputHtmlView : UserControl
         InitializeComponent();
 
         OutputHtml.Container.AddFontFamily(
-            new FontFamily(new Uri("avares://dotpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
+            new FontFamily(new Uri("avares://runpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
         // TODO.md #108: no auto-scroll during streaming output — HtmlPanel's own TextProperty change
         // handler resets the scroll offset to (0,0) on every apply (see its OnPropertyChanged), so a

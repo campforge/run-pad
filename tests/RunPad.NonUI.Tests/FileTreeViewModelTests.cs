@@ -1,15 +1,15 @@
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.VB;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.UserControls.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.VB;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #69: FindByPath is used right after creating a new folder to locate its freshly-merged
 // node and enter rename mode on it immediately (VS/Rider/Explorer-style) — see
@@ -75,7 +75,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void Refresh_Should_SetIsFolder_ForADirectoryNode_AndNotForAFileNode()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filetree-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filetree-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -98,7 +98,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void Refresh_Should_SetLanguage_FromTheFilesOwnFrontMatter()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filetree-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filetree-test").FullName;
         try
         {
             var csharpFile = Path.Combine(root, "cs.rpad");
@@ -150,7 +150,7 @@ public class FileTreeViewModelTests
     [Fact]
     public void Refresh_Should_FallBackToGenericIcon_ForALanguageNotRegisteredInTheRegistry()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filetree-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filetree-test").FullName;
         try
         {
             var vbFile = Path.Combine(root, "vb.rpad");

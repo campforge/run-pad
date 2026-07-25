@@ -1,4 +1,4 @@
-namespace DotPad.Windows.Models;
+namespace RunPad.Windows.Models;
 
 public sealed class SettingsNode(string id, string name, IReadOnlyList<SettingsNode>? children = null)
 {

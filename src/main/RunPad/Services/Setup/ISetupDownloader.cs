@@ -1,4 +1,4 @@
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 // Thin seam around HttpClient so SetupInstallerService's orchestration logic can be unit tested with
 // a fake — no real network access in tests.

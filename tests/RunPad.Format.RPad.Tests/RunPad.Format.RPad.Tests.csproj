@@ -15,6 +15,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\src\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
   </ItemGroup>
 </Project>

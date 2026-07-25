@@ -1,13 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Contracts;
-using DotPad.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Contracts;
+using RunPad.Debug;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Live user report: "не работает динамическая установка и снятие брекпоинтов на запущенном
 // скрипте" — see DapSession.RequestBreakpointResync's own comment for the root cause: the resync

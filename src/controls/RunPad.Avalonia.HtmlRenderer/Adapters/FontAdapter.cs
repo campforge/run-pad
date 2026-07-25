@@ -13,9 +13,9 @@
 using System.Globalization;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
 
-namespace DotPad.Avalonia.HtmlRenderer.Adapters;
+namespace RunPad.Avalonia.HtmlRenderer.Adapters;
 
 /// <summary>
 /// Adapter for Avalonia Font.

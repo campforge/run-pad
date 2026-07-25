@@ -5,7 +5,7 @@
 
 using System.Text;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Represents an ARGB (alpha, red, green, blue) color.

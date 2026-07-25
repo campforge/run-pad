@@ -1,4 +1,4 @@
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 // Thin seam around Process so SetupInstallerService's OS/arch/URL orchestration logic can be unit
 // tested with a fake — no real dotnet-install/netcoredbg process spawned in tests.

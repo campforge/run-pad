@@ -1,16 +1,16 @@
 using System.Text;
 using System.Text.Json;
-using DotPad.Build.Core.Models;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Debug;
-using DotPad.Format.RPad;
-using DotPad.Languages.DotnetCommon.Adapters;
-using DotPad.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging;
+using RunPad.Build.Core.Models;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Debug;
+using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon.Adapters;
+using RunPad.Languages.DotnetCommon.Compiler;
 
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Builds the <see cref="IDotnetProcessCompiler"/> a <see cref="CompiledDotnetLanguageHostBase"/> uses
@@ -45,10 +45,10 @@ public delegate IChildProcess DebuggerChildProcessFactory(ExecutionOptions optio
 /// </summary>
 public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 {
-    // New format: Record Separator + base64 — see DotPad.Runtime.ObjectExtensions.DumpLinePrefixChar.
+    // New format: Record Separator + base64 — see RunPad.Runtime.ObjectExtensions.DumpLinePrefixChar.
     private const char RsPrefix = '\x1e';
 
-    // ASCII Unit Separator + base64 JSON — see DotPad.Runtime.Util.InputRequestPrefixChar.
+    // ASCII Unit Separator + base64 JSON — see RunPad.Runtime.Util.InputRequestPrefixChar.
     private const char InputRequestPrefix = '\x1f';
 
     private readonly CompiledDotnetLanguageHostOptions _options;
@@ -105,7 +105,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             sdk: options.Platform,
             executionOptions: options.ExecutionOptions,
             outputDir: options.OutputDirectory,
-            dotPadRuntimeLib: options.RuntimeLibPath,
+            runPadRuntimeLib: options.RuntimeLibPath,
             outputName: options.OutputName,
             nugetPackages: options.Packages,
             usings: options.Usings,

@@ -1,6 +1,6 @@
-using DotPad.Format.RPad;
+using RunPad.Format.RPad;
 
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 public interface IIntelliSenseService : IDisposable
 {

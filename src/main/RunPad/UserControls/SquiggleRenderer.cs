@@ -2,11 +2,11 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
-using DotPad.Contracts.IntelliSense;
+using RunPad.Contracts.IntelliSense;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
-// ToDo: Перенести в DotPad.Avalonia.CodeTextEditor
+// ToDo: Перенести в RunPad.Avalonia.CodeTextEditor
 internal sealed class SquiggleRenderer : IBackgroundRenderer
 {
     private IReadOnlyList<IDiagnosticInfo> _diagnostics = [];

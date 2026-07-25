@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class RenameSymbolDialog : Window
 {
