@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 public class BreakpointStore : IBreakpointStore
 {

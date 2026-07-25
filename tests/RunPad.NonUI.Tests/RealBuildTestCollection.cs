@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Проход 135 — tests here spawn a REAL `dotnet build` child process (via MsBuildProcessCompiler,
 // directly or through a CSharpLanguageHost/VbLanguageHost wired to a real compiler, not a

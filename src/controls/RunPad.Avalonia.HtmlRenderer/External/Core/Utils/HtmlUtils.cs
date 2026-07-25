@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 internal static class HtmlUtils
 {

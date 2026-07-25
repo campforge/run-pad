@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 // TODO.md #62 "подсветка вхождений": one occurrence of the symbol under the caret, elsewhere in the
 // same document — Start/Length are 0-based offsets/lengths into the caller's own code string (the

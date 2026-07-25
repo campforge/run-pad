@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using DotPad.Format.RPad;
 using Microsoft.Extensions.Logging;
+using RunPad.Format.RPad;
 
-namespace DotPad.Services;
+namespace RunPad.Services;
 
 public record FileSystemItem(string Name, bool IsDirectory, string FilePath, IReadOnlyList<FileSystemItem>? Children);
 
@@ -56,7 +56,7 @@ public sealed class FileSystemService : IFileSystemService
     private static string GetOrCreateDefaultFolder()
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var folder = Path.Combine(documents, "DotPad Queries");
+        var folder = Path.Combine(documents, "RunPad Queries");
 
         if (!Directory.Exists(folder))
             Directory.CreateDirectory(folder);

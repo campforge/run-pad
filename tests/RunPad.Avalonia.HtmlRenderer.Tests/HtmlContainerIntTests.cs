@@ -1,7 +1,7 @@
-using DotPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
 using Xunit;
 
-namespace DotPad.Avalonia.HtmlRenderer.Tests;
+namespace RunPad.Avalonia.HtmlRenderer.Tests;
 
 // TODO.md #46: clicking a link in .Dump() HTML output used to call Process.Start(UseShellExecute:
 // true) on whatever HrefLink the content contained, with no check on the URI scheme. Fixed with an

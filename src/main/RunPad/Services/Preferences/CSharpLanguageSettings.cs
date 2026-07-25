@@ -1,4 +1,4 @@
-namespace DotPad.Services.Preferences;
+namespace RunPad.Services.Preferences;
 
 // A settings bag per language that has its own settings to hold, same shape as DebuggerSettings —
 // not a generic "per-language settings" framework (TODO.md #62/"Реорганизация Preferences" — that's
@@ -24,7 +24,7 @@ public sealed class CSharpLanguageSettings
     // diagnostic-driven fixes — a CodeRefactoringProvider's suggestion has no underlying diagnostic
     // to key off (ICodeFixInfo.DiagnosticId's own doc comment), so it can't be excluded this way.
     //
-    // IDE0055 ("Fix formatting") ships excluded by default (user request 2026-07-21): DotPad already
+    // IDE0055 ("Fix formatting") ships excluded by default (user request 2026-07-21): RunPad already
     // has its own `dotnet format`-based CI gate and editor formatting (Ctrl+Format), so a live
     // "reformat this" suggestion firing on every whitespace deviation while typing was judged more
     // noise than help for most users — same rationale as InlayHintsEnabled/CodeFixesEnabled being

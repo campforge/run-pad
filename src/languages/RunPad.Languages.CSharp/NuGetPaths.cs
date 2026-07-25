@@ -1,6 +1,6 @@
 using NuGet.Configuration;
 
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 internal static class NuGetPaths
 {

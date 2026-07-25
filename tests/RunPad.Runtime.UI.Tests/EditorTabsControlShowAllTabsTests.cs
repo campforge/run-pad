@@ -3,20 +3,20 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Полоса вкладок": the tab strip already scrolls (тридцать... шестьдесят первый проход)
 // once there are too many tabs to fit, but a user still has to scroll blindly to find a specific
@@ -30,7 +30,7 @@ public class EditorTabsControlShowAllTabsTests
 {
     private static (EditorTabsControl EditorTabs, MainWindowViewModel MainVm, string RootFolder) CreateHarness()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-show-all-tabs-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-show-all-tabs-test").FullName;
 
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

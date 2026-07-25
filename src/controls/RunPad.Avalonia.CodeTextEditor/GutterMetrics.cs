@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Media;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 // TODO.md #75: CodeFixMargin used a fixed width (TextView.DefaultLineHeight * 0.8) independent of
 // BreakPointMargin's own line-number-driven width, so the lightbulb column sat narrower than the

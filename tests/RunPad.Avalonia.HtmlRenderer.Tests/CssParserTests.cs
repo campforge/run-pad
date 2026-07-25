@@ -1,8 +1,8 @@
-using DotPad.Avalonia.HtmlRenderer.External.Core;
-using DotPad.Avalonia.HtmlRenderer.Tests.Fakes;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.Tests.Fakes;
 using Xunit;
 
-namespace DotPad.Avalonia.HtmlRenderer.Tests;
+namespace RunPad.Avalonia.HtmlRenderer.Tests;
 
 public class CssParserTests
 {

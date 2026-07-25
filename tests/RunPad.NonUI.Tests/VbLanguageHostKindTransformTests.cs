@@ -1,12 +1,12 @@
-using DotPad.Build.Core.Models;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.VB;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.VB;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Мелкие остатки шестьдесят первого прохода": VbLanguageHost.ApplyKindTransform/
 // CalcKindOffset had zero test coverage — unlike CSharpLanguageHost (see
@@ -17,7 +17,7 @@ public class VbLanguageHostKindTransformTests
 {
     private static VbLanguageHost CreateHost(RpadKind kind, out string outputDir, IReadOnlyList<string>? usings = null)
     {
-        outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
+        outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -28,7 +28,7 @@ public class VbLanguageHostKindTransformTests
                 Debugger = new DebuggerOptions { DebuggerPath = "netcoredbg" },
             },
             OutputDirectory = outputDir,
-            RuntimeLibPath = "DotPad.Runtime.dll",
+            RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = kind,
             Usings = usings ?? [],
         };

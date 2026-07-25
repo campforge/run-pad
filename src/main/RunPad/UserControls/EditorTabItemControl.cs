@@ -8,25 +8,25 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Avalonia.Themes;
-using DotPad.Build.Core.Models;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.VB;
-using DotPad.Resources;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls.Models;
 using ReactiveUI;
-using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.Themes;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.VB;
+using RunPad.Resources;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls.Models;
+using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 public partial class EditorsTabItemControl : UserControl, IDisposable
 {
@@ -206,7 +206,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
         _semanticHighlighter?.SetDark(theme.Editor.IsDark);
-        var editorBg = _themeService!.GetBrush("DotPad.Editor.BackgroundBrush");
+        var editorBg = _themeService!.GetBrush("RunPad.Editor.BackgroundBrush");
 
         if (editorBg is not null)
         {
@@ -235,7 +235,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // failure (disk full, permissions, file deleted/locked externally) meant the user never
             // found out their edits weren't persisted. Surface it via the same status indicator
             // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
-            SetStatus($"Save failed: {ex.Message}", "DotPad.Status.ErrorBrush");
+            SetStatus($"Save failed: {ex.Message}", "RunPad.Status.ErrorBrush");
         }
     }
 
@@ -274,7 +274,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.HadRunError = false;
         s.ElapsedText = "";
         IlOutput.Text = "";
-        SetStatus("Process", "DotPad.Status.RunningBrush");
+        SetStatus("Process", "RunPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
         UpdateOutputUi();
 
@@ -372,11 +372,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
             if (cancelled)
             {
-                SetStatus("Cancelled", "DotPad.Status.CancelledBrush");
+                SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
             }
             else if (!s.HadRunError)
             {
-                SetStatus("Success", "DotPad.Status.SuccessBrush");
+                SetStatus("Success", "RunPad.Status.SuccessBrush");
             }
 
             UpdateOutputUi();
@@ -450,7 +450,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
-            SetStatus("Process", "DotPad.Status.RunningBrush");
+            SetStatus("Process", "RunPad.Status.RunningBrush");
             UpdateOutputUi();
             await ctx.RunToCursorAsync(line);
         }
@@ -466,7 +466,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async void OnBreakpointRightClicked(int line, DotPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null) return;
@@ -710,7 +710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _vm.RunState = RunState.RunDebug;
         State.Editor.DebugCurrentLine = null;
-        SetStatus("Process", "DotPad.Status.RunningBrush");
+        SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
         State.CurrentDebugCtx = null;
         ctx?.Resume(action);
@@ -789,7 +789,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(ex.Message)}</div>");
         if (ex.StackTrace is { } st)
             State.Output.Append($"\n<pre class=\"stacktrace\">{HttpUtility.HtmlEncode(st)}</pre>");
-        SetStatus("Error", "DotPad.Status.ErrorBrush");
+        SetStatus("Error", "RunPad.Status.ErrorBrush");
         UpdateOutputUi();
     }
 
@@ -923,7 +923,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // for the new stop — stale values from the previous breakpoint hit would be misleading.
         foreach (var w in _vm.DebugPanel.WatchExpressions) _ = EvaluateWatchAsync(w);
 
-        SetStatus("Paused", "DotPad.Status.PausedBrush");
+        SetStatus("Paused", "RunPad.Status.PausedBrush");
         UpdateOutputUi();
     }
 
@@ -997,7 +997,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // TextMate may set SelectionBrush to a dark color even for light themes.
         // Read the brush from the current theme so it's fully configurable per theme.
         var variant = Application.Current?.ActualThemeVariant;
-        if (Application.Current?.TryGetResource("DotPad.Editor.SelectionBrush", variant, out var res) == true
+        if (Application.Current?.TryGetResource("RunPad.Editor.SelectionBrush", variant, out var res) == true
             && res is IBrush brush)
             editor.TextArea.SelectionBrush = brush;
         editor.TextArea.SelectionForeground = null;
@@ -1534,9 +1534,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
 
-    // TODO.md #75: DotPad.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
-    // DotPad.Contracts.IntelliSense.DiagnosticSeverity rather than referencing it (the control stays
-    // dependency-free from DotPad.Contracts — see CodeFixEntry's doc comment), so this is the one
+    // TODO.md #75: RunPad.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
+    // RunPad.Contracts.IntelliSense.DiagnosticSeverity rather than referencing it (the control stays
+    // dependency-free from RunPad.Contracts — see CodeFixEntry's doc comment), so this is the one
     // place the two enums need mapping between them.
     private static CodeFixSeverity ToMarginSeverity(ContractSeverity severity) => severity switch
     {
@@ -1566,7 +1566,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private static string EnsureWorkDirectory()
     {
-        var dir = Path.Combine(Path.GetTempPath(), "DotPad");
+        var dir = Path.Combine(Path.GetTempPath(), "RunPad");
         Directory.CreateDirectory(dir);
         return dir;
     }

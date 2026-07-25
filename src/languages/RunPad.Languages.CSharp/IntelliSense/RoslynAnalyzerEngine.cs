@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Languages.CSharp.IntelliSense;
+namespace RunPad.Languages.CSharp.IntelliSense;
 
 // TODO.md #74 "Пайплайн анализаторов" (сто третий проход) — the second of the two infrastructure
 // blocks RoslynCodeFixEngine's own recursive-refactoring doc comment flagged as needed regardless.
@@ -24,13 +24,13 @@ internal sealed class RoslynAnalyzerEngine
     {
         _logger = logger;
 
-        // Not MEF (see DotPadRoslynHost.CSharpFeaturesAssembly's own doc comment for why) — plain
+        // Not MEF (see RunPadRoslynHost.CSharpFeaturesAssembly's own doc comment for why) — plain
         // reflection over every concrete DiagnosticAnalyzer in the assembly, filtered to C# the same
         // way RoslynCodeFixEngine filters CodeFixProvider/CodeRefactoringProvider exports: reading the
         // language-applicability attribute directly rather than through Roslyn's own (internal)
         // metadata views.
         Type[] types;
-        try { types = DotPadRoslynHost.CSharpFeaturesAssembly.GetTypes(); }
+        try { types = RunPadRoslynHost.CSharpFeaturesAssembly.GetTypes(); }
         catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t != null).ToArray()!; }
 
         var analyzers = ImmutableArray.CreateBuilder<DiagnosticAnalyzer>();

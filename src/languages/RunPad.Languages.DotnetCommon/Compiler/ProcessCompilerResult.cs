@@ -1,4 +1,4 @@
-namespace DotPad.Languages.DotnetCommon.Compiler;
+namespace RunPad.Languages.DotnetCommon.Compiler;
 
 public interface IDotnetProcessCompiler : IDisposable
 {

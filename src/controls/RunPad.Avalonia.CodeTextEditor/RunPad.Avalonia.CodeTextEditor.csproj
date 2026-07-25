@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="DotPad.Runtime.UI.Tests" />
-    <InternalsVisibleTo Include="DotPad.NonUI.Tests" />
+    <InternalsVisibleTo Include="RunPad.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
   </ItemGroup>
 
 </Project>

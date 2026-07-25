@@ -2,11 +2,11 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using DotPad.Avalonia.Themes;
-using DotPad.Services.Preferences;
+using RunPad.Avalonia.Themes;
+using RunPad.Services.Preferences;
 using TextMateSharp.Grammars;
 
-namespace DotPad.Services;
+namespace RunPad.Services;
 
 public delegate void ThemeChangedDelegate(ActiveTheme theme);
 
@@ -32,14 +32,14 @@ public sealed class ThemeService : IThemeService, IDisposable
 
     private static readonly IReadOnlyList<InterfaceTheme> AllInterfaceThemes =
     [
-        new("VS Code Dark",  DotPadThemeVariants.VsCodeDark,  true),
-        new("Rider Dark",    DotPadThemeVariants.RiderDark,   true),
-        new("VS 2022 Dark",  DotPadThemeVariants.Vs2022Dark,  true),
-        new("DotPad Midnight",   DotPadThemeVariants.DotPadMidnight,   true),
-        new("VS Code Light",     DotPadThemeVariants.VsCodeLight,      false),
-        new("Rider Light",       DotPadThemeVariants.RiderLight,       false),
-        new("VS 2022 Light",     DotPadThemeVariants.Vs2022Light,      false),
-        new("DotPad Warm Light", DotPadThemeVariants.DotPadWarmLight,  false),
+        new("VS Code Dark",  RunPadThemeVariants.VsCodeDark,  true),
+        new("Rider Dark",    RunPadThemeVariants.RiderDark,   true),
+        new("VS 2022 Dark",  RunPadThemeVariants.Vs2022Dark,  true),
+        new("RunPad Midnight",   RunPadThemeVariants.RunPadMidnight,   true),
+        new("VS Code Light",     RunPadThemeVariants.VsCodeLight,      false),
+        new("Rider Light",       RunPadThemeVariants.RiderLight,       false),
+        new("VS 2022 Light",     RunPadThemeVariants.Vs2022Light,      false),
+        new("RunPad Warm Light", RunPadThemeVariants.RunPadWarmLight,  false),
     ];
 
     private static readonly IReadOnlyList<EditorTheme> AllEditorThemes =

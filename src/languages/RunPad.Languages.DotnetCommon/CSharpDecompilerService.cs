@@ -1,13 +1,13 @@
 using System.Runtime.InteropServices;
-using DotPad.Contracts.IntelliSense;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.Syntax;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
+using RunPad.Contracts.IntelliSense;
 
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Decompiled source for a "Go to Definition" (F12) result that fell outside the user's own script —

@@ -1,4 +1,4 @@
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 public sealed class SetupDownloader : ISetupDownloader, IDisposable
 {

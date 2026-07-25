@@ -1,9 +1,9 @@
-using DotPad.Format.RPad;
-using DotPad.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Format.RPad;
+using RunPad.Services;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #69 follow-up: GetFilesTreeInternal used to filter out any folder whose subtree
 // contained zero .rpad files ("if (children.Count > 0)") — meant to declutter folders with no scripts
@@ -16,7 +16,7 @@ public class FileSystemServiceTests
     [Fact]
     public void GetFilesTreeInternal_Should_IncludeAnEmptyFolder()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
             Directory.CreateDirectory(Path.Combine(root, "New Folder"));
@@ -31,7 +31,7 @@ public class FileSystemServiceTests
     [Fact]
     public void GetFilesTreeInternal_Should_IncludeAnEmptyFolder_NestedInsideAnotherFolder()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
             Directory.CreateDirectory(Path.Combine(root, "Parent", "Empty Child"));
@@ -47,7 +47,7 @@ public class FileSystemServiceTests
     [Fact]
     public void GetFilesTreeInternal_Should_StillIncludeAFolderWithRpadFilesInIt()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -66,13 +66,13 @@ public class FileSystemServiceTests
     // RpadWriter.NewFile) into a caller-given directory, not just an empty stub. NullLogger avoids
     // wiring up a real Microsoft.Extensions.Logging pipeline just to construct FileSystemService —
     // the constructor's only side effect (see GetOrCreateDefaultFolder) is ensuring the real
-    // "Documents/DotPad Queries" folder exists, same as happens on every normal app launch; it's
+    // "Documents/RunPad Queries" folder exists, same as happens on every normal app launch; it's
     // never written into by these tests, which always pass their own temp directory as parentDir.
     [Fact]
     public void CreateNewFile_Should_WriteAParseableRpadDocument_WithTheRequestedLanguageAndKind()
     {
         var service = new FileSystemService(NullLogger<FileSystemService>.Instance);
-        var dir = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        var dir = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
             var path = service.CreateNewFile(dir, RpadLanguage.Vb, RpadKind.Program);
@@ -90,7 +90,7 @@ public class FileSystemServiceTests
     public void CreateNewFile_Should_ProbeForAFreeName_WhenTheFirstCandidateIsTaken()
     {
         var service = new FileSystemService(NullLogger<FileSystemService>.Instance);
-        var dir = Directory.CreateTempSubdirectory("dotpad-filesystem-test").FullName;
+        var dir = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
             File.WriteAllText(Path.Combine(dir, "Query 1.rpad"), "");

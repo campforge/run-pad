@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls"
-             x:Class="DotPad.UserControls.EditorTabsControl">
+             xmlns:templatedControls="clr-namespace:RunPad.TemplatedControls"
+             x:Class="RunPad.UserControls.EditorTabsControl">
 
     <UserControl.Styles>
 
@@ -14,7 +14,7 @@
              that don't fit are reachable by scrolling (wheel/scrollbar/drag), never clipped or
              overlapping. -->
         <Style Selector="TabControl#FileTabControl">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
             <Setter Property="Padding"    Value="0"/>
             <Setter Property="ItemsPanel">
                 <ItemsPanelTemplate>
@@ -44,8 +44,8 @@
         </Style>
 
         <Style Selector="TabControl#FileTabControl > TabItem">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Panel.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             <Setter Property="Margin"     Value="0"/>
             <Setter Property="MinHeight"  Value="30"/>
             <Setter Property="Height"     Value="30"/>
@@ -60,7 +60,7 @@
                                 ZIndex="1"/>
                         <Border x:Name="Root"
                                 Background="{TemplateBinding Background}"
-                                BorderBrush="{DynamicResource DotPad.Separator.BackgroundBrush}"
+                                BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
                                 BorderThickness="0,0,1,0"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter x:Name="PART_ContentPresenter"
@@ -75,14 +75,14 @@
             </Setter>
         </Style>
         <Style Selector="TabControl#FileTabControl > TabItem:selected /template/ Border#TopAccent">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Tab.AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
         </Style>
         <Style Selector="TabControl#FileTabControl > TabItem:selected">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Editor.BackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         </Style>
         <Style Selector="TabControl#FileTabControl > TabItem:pointerover /template/ Border#Root">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
         <Style Selector="Button.TabClose">
@@ -102,7 +102,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.TabClose:pointerover">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
         <Style Selector="TabControl#FileTabControl > TabItem:pointerover Button.TabClose">
             <Setter Property="Opacity" Value="1"/>
@@ -120,7 +120,7 @@
              it). A Style scoped to EditorTabItemControl.axaml's own UserControl.Styles would simply
              never match. -->
         <Style Selector="TabControl#FileTabControl TextBlock.dirty">
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Tab.DirtyBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Tab.DirtyBrush}"/>
         </Style>
 
     </UserControl.Styles>
@@ -134,13 +134,13 @@
                  having to scroll to find it. -->
             <templatedControls:IconButton
                 Width="30" Height="30"
-                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                 IconData="{StaticResource Icon.ChevronDown}"
                 Click="ShowAllTabs_Click"
                 ToolTip.Tip="Show all open tabs"/>
             <templatedControls:IconButton
                 Width="30" Height="30"
-                Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                 IconData="{StaticResource Icon.Plus}"
                 Click="AddFile_Click"
                 ToolTip.Tip="New file"/>

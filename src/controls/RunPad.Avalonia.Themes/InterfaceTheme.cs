@@ -1,5 +1,5 @@
 using Avalonia.Styling;
 
-namespace DotPad.Avalonia.Themes;
+namespace RunPad.Avalonia.Themes;
 
 public sealed record InterfaceTheme(string Name, ThemeVariant Variant, bool IsDark);

@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,10 +8,12 @@ using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace DotPad.Languages.CSharp.IntelliSense;
+namespace RunPad.Languages.CSharp.IntelliSense;
 
 public sealed class CSharpIntelliSenseService : IIntelliSenseService
 {
@@ -235,7 +235,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (File.Exists(path) && seen.Add(path))
                 refs.Add(CreateReference(path));
 
-        _workspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+        _workspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
 
         // Root cause of a Windows-CI-only bug (chased down via extensive logging — see
         // RoslynCodeFixEngine's own comments): _preamble/KindPrefix/TrailingPad are all built with
@@ -254,17 +254,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(
             _workspace.CurrentSolution.Options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n")));
 
-        _codeFixEngine = new RoslynCodeFixEngine(DotPadRoslynHost.CompositionHost, logger);
+        _codeFixEngine = new RoslynCodeFixEngine(RunPadRoslynHost.CompositionHost, logger);
         _analyzerEngine = new RoslynAnalyzerEngine(logger);
 
-        var projectId = ProjectId.CreateNewId("DotPadScript");
+        var projectId = ProjectId.CreateNewId("RunPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
 
         var projectInfo = ProjectInfo.Create(
             projectId,
             VersionStamp.Create(),
-            name: "DotPadScript",
-            assemblyName: "DotPadScript",
+            name: "RunPadScript",
+            assemblyName: "RunPadScript",
             language: LanguageNames.CSharp,
             compilationOptions: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
@@ -1332,7 +1332,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // TODO.md #62 "подсветка вхождений": Roslyn ships a ready-made IDocumentHighlightsService for
     // exactly this, but it (and its result types DocumentHighlights/HighlightSpan) are internal to
     // Microsoft.CodeAnalysis.Features — not reachable from here even though that assembly is already
-    // loaded into DotPadRoslynHost's MEF composition (confirmed directly: referencing the type by
+    // loaded into RunPadRoslynHost's MEF composition (confirmed directly: referencing the type by
     // name fails to compile with CS0122, "inaccessible due to its protection level"). Reimplemented
     // with only public Roslyn API instead: find the symbol under the caret, then scan every
     // identifier token in the document for one that resolves to the same symbol.
@@ -1584,7 +1584,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         try
         {
-            using var formatWorkspace = new AdhocWorkspace(DotPadRoslynHost.HostServices);
+            using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
             formatWorkspace.AddProject(ProjectInfo.Create(
                 projectId,

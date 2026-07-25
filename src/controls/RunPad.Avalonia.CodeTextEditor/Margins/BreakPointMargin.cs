@@ -7,7 +7,7 @@ using Avalonia.Threading;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 // Combined line-number + breakpoint gutter: a single wide column with one click handler for both,
 // instead of AvaloniaEdit's built-in LineNumberMargin sitting as a separate narrow column next to
@@ -74,13 +74,13 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
         _conditionBadgeGeo ??= LoadResource<StreamGeometry>("Icon.BreakpointCondition");
 
-        var bpBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointBrush");
-        var verifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointVerifiedBrush");
-        var unverifiedBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointUnverifiedBrush");
-        var previewBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointPreviewBrush");
-        var conditionBadgeBrush = LoadThemedResource<IBrush>("DotPad.Margin.BreakpointConditionBadgeBrush");
-        var arrowBrush = LoadThemedResource<IBrush>("DotPad.Margin.DebugArrowBrush");
-        var lineNumberBrush = LoadThemedResource<IBrush>("DotPad.Margin.LineNumberBrush");
+        var bpBrush = LoadThemedResource<IBrush>("RunPad.Margin.BreakpointBrush");
+        var verifiedBrush = LoadThemedResource<IBrush>("RunPad.Margin.BreakpointVerifiedBrush");
+        var unverifiedBrush = LoadThemedResource<IBrush>("RunPad.Margin.BreakpointUnverifiedBrush");
+        var previewBrush = LoadThemedResource<IBrush>("RunPad.Margin.BreakpointPreviewBrush");
+        var conditionBadgeBrush = LoadThemedResource<IBrush>("RunPad.Margin.BreakpointConditionBadgeBrush");
+        var arrowBrush = LoadThemedResource<IBrush>("RunPad.Margin.DebugArrowBrush");
+        var lineNumberBrush = LoadThemedResource<IBrush>("RunPad.Margin.LineNumberBrush");
 
         foreach (var vl in TextView.VisualLines)
         {

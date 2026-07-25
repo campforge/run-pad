@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using DotPad.Format.RPad;
 using ReactiveUI;
+using RunPad.Format.RPad;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 public class FileTreeViewNode : ReactiveObject
 {

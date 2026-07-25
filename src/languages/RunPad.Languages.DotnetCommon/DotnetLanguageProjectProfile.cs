@@ -1,4 +1,4 @@
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// The lexical/project-file conventions that differ between .NET languages compiled the same way

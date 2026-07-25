@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.Models;
+namespace RunPad.Contracts.Models;
 
 // DoTo: это относится к конкретному языку C#/VB/F#
 public class DotnetSdk

@@ -2,7 +2,7 @@ using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class AboutWindow : Window
 {

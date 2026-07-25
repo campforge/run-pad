@@ -1,7 +1,7 @@
 ﻿#nullable disable
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
 /// <summary>
 /// Used to make space on vertical cell combination

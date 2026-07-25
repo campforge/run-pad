@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "подсветка вхождений" — end-to-end: CodeTextEditor.UpdateOccurrenceHighlights fires
 // on every caret move and applies whatever AsyncOccurrencesProvider returns via

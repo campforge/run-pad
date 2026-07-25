@@ -1,14 +1,14 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — CSharpIntelliSenseService.
 // GetDefinitionAsync. A symbol the script itself declares resolves to an in-document offset (no
 // decompiling needed, single-file scratchpad); anything from outside the script (framework/NuGet
-// metadata) resolves to enough identifying info for CSharpDecompilerService (DotPad.Languages.
+// metadata) resolves to enough identifying info for CSharpDecompilerService (RunPad.Languages.
 // DotnetCommon) to decompile it on demand — see CSharpDecompilerServiceTests.cs for that half.
 public class CSharpIntelliSenseGoToDefinitionTests
 {

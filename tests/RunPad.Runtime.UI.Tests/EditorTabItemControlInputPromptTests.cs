@@ -1,19 +1,19 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #63 "интерактивный типизированный ввод" — EditorsTabItemControl.ShowInputPrompt/
 // HideInputPrompt/SubmitInputPromptAsync, the UI half of ILanguageHost.InputRequested/SendInputAsync
@@ -144,7 +144,7 @@ public class EditorTabItemControlInputPromptTests
         Assert.Contains("Alice", ctrl.State.Output.Content);
     }
 
-    // A real console never echoes a password either — DotPad's own output shouldn't leak it back.
+    // A real console never echoes a password either — RunPad's own output shouldn't leak it back.
     [AvaloniaFact]
     public async Task SubmitInputPromptAsync_Should_NotEchoTheTypedText_WhenItIsAPassword()
     {

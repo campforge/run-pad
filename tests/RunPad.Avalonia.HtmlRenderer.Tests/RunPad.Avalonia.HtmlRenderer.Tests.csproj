@@ -15,6 +15,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\controls\DotPad.Avalonia.HtmlRenderer\DotPad.Avalonia.HtmlRenderer.csproj" />
+    <ProjectReference Include="..\..\src\controls\RunPad.Avalonia.HtmlRenderer\RunPad.Avalonia.HtmlRenderer.csproj" />
   </ItemGroup>
 </Project>

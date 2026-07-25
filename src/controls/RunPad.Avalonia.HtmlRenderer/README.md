@@ -1,4 +1,4 @@
-# DotPad.Avalonia.HtmlRenderer
+# RunPad.Avalonia.HtmlRenderer
 
 Avalonia port of the [HTML Renderer](https://github.com/ArthurHub/HTML-Renderer) library (originally by Arthur Teplitzki / TheArtOfDev). Provides a custom HTML/CSS rendering engine for Avalonia controls — no WebView, no Chromium, no native OS web component. All rendering is done on Avalonia's `DrawingContext`.
 
@@ -28,7 +28,7 @@ Avalonia port of the [HTML Renderer](https://github.com/ArthurHub/HTML-Renderer)
 
 ## Overview
 
-`DotPad.Avalonia.HtmlRenderer` is a fully managed, dependency-light HTML rendering library. It parses HTML and CSS, performs layout, and draws the result using Avalonia's vector graphics API.
+`RunPad.Avalonia.HtmlRenderer` is a fully managed, dependency-light HTML rendering library. It parses HTML and CSS, performs layout, and draws the result using Avalonia's vector graphics API.
 
 **Use cases:**
 - Rich-text output panels (styled text, tables, syntax highlighting)
@@ -45,7 +45,7 @@ Avalonia port of the [HTML Renderer](https://github.com/ArthurHub/HTML-Renderer)
 ### AXAML
 
 ```xml
-xmlns:html="clr-namespace:DotPad.Avalonia.HtmlRenderer;assembly=DotPad.Avalonia.HtmlRenderer"
+xmlns:html="clr-namespace:RunPad.Avalonia.HtmlRenderer;assembly=RunPad.Avalonia.HtmlRenderer"
 
 <!-- Scrollable panel — use when the container has a fixed size -->
 <html:HtmlPanel x:Name="OutputPanel"
@@ -578,9 +578,9 @@ Add an `AppendHtml(string fragment)` API that:
 3. Layouts only the new boxes, starting where previous content ended
 4. Updates `ActualSize` and triggers a minimal repaint
 
-#### Why it's feasible for DotPad's use case
+#### Why it's feasible for RunPad's use case
 
-DotPad's output is composed exclusively of **block-level elements** (`<div>`, `<pre>`, `<table>`). Each is on its own line with no inline content flowing from the previous block. This means:
+RunPad's output is composed exclusively of **block-level elements** (`<div>`, `<pre>`, `<table>`). Each is on its own line with no inline content flowing from the previous block. This means:
 
 - Box N+1 starts exactly at `Y = box[N].ActualBottom + marginBottom`
 - Box N+1's layout does not depend on the *internal* state of any previous box
@@ -661,7 +661,7 @@ public void AppendHtml(string htmlFragment)
 }
 ```
 
-**Step 5 — Use from DotPad**
+**Step 5 — Use from RunPad**
 
 ```csharp
 // EditorTabItemControl.cs — instead of rebuilding OutputContent
@@ -686,7 +686,7 @@ private void AppendOutput(string data, OutputKind kind)
 |------|----------|
 | Theme change | Must still call full `SetHtml()` — re-parses with new CSS. `AppendHtml` is append-only. |
 | `Clear()` before new run | Resets to `SetHtml("")`, which resets `_appendY = 0`. |
-| `<style>` tags in fragment | Should be parsed and merged into `_cssData`, or stripped (simpler). For DotPad, the stylesheet is always in the initial `<head>`, so stripping style tags from fragments is correct. |
+| `<style>` tags in fragment | Should be parsed and merged into `_cssData`, or stripped (simpler). For RunPad, the stylesheet is always in the initial `<head>`, so stripping style tags from fragments is correct. |
 | Window resize | `PerformLayout()` runs on all boxes from root. No change to current behavior. After resize, `_appendY` is recalculated from the last box's `ActualBottom`. |
 | Text selection across appended content | Works naturally since all boxes share the same root `SelectionHandler`. |
 | Tables in fragments | `CssLayoutEngineTable` handles them as opaque blocks. As long as tables are block-level, they start at a new Y and integrate correctly. |
@@ -830,4 +830,4 @@ Phase 3  (optional) Implement VirtualOutputPanel               → Feature C
                     Required only if 10k+ lines become an issue
 ```
 
-Phases 1 and 2 together bring streaming output from O(n²) to O(1) per append and O(visible) per frame for the paint pass, which should be sufficient for typical DotPad usage (scripts producing up to a few thousand output lines).
+Phases 1 and 2 together bring streaming output from O(n²) to O(1) per append and O(visible) per frame for the paint pass, which should be sufficient for typical RunPad usage (scripts producing up to a few thousand output lines).

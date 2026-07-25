@@ -1,12 +1,12 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using DotPad.Format.RPad;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows.Models;
+using RunPad.Format.RPad;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows.Models;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public sealed partial class MainWindow : Window, IDisposable
 {

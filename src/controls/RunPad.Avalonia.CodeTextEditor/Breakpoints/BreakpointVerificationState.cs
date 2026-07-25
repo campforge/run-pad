@@ -1,4 +1,4 @@
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 /// <summary>Debugger-reported state of a breakpoint, driven by the DAP setBreakpoints response.</summary>
 public enum BreakpointVerificationState

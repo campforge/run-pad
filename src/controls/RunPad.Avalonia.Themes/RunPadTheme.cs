@@ -1,11 +1,11 @@
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 
-namespace DotPad.Avalonia.Themes;
+namespace RunPad.Avalonia.Themes;
 
-public class DotPadTheme : Styles
+public class RunPadTheme : Styles
 {
-    public DotPadTheme()
+    public RunPadTheme()
     {
         AvaloniaXamlLoader.Load(this);
     }

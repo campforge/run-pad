@@ -1,4 +1,4 @@
-namespace DotPad.Resources;
+namespace RunPad.Resources;
 
 internal class ResourceLoader
 {

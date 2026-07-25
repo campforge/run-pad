@@ -3,20 +3,20 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class EditorTabsControlTests
 {
@@ -28,7 +28,7 @@ public class EditorTabsControlTests
         // built off the UI thread (EditorTabsControl.CreateControlAsync). Closing the blank tab
         // removes its TabItem from the TabControl before the new tab's TabItem exists, which
         // transiently leaves the TabControl with no SelectedItem.
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-tabs-test").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
@@ -94,7 +94,7 @@ public class EditorTabsControlTests
     [AvaloniaFact]
     public async Task SaveActive_Should_WriteToDiskAndClearIsDirty_ForATabWithAPath()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-save-active-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-save-active-test").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
@@ -164,7 +164,7 @@ public class EditorTabsControlTests
     [AvaloniaFact]
     public async Task SaveActive_Should_FallBackToSaveAsDialog_ForAnUntitledTab()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-save-active-untitled-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-save-active-untitled-test").FullName;
         try
         {
             var prefs = new Mock<IPreferencesService>();
@@ -239,7 +239,7 @@ public class EditorTabsControlTests
     [AvaloniaFact]
     public async Task OpenTab_Should_PushTheFileKindIntoIntelliSense_ForAProgramKindFile()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-kind-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-tabs-kind-test").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
@@ -302,7 +302,7 @@ public class EditorTabsControlTests
     [AvaloniaFact]
     public async Task NewRpadFile_ForVb_Should_NotBuildACSharpIntelliSenseInstance()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-vb-newfile-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-tabs-vb-newfile-test").FullName;
         try
         {
             var prefs = new Mock<IPreferencesService>();
@@ -377,7 +377,7 @@ public class EditorTabsControlTests
     [AvaloniaFact]
     public async Task FileTabControl_Should_KeepTabsOnOneRowAndMakeThemScrollable_WhenTooManyToFit()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-tabs-overflow-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-tabs-overflow-test").FullName;
         try
         {
             const int tabCount = 25;

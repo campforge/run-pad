@@ -1,8 +1,8 @@
 using System.Text;
-using DotPad.Runtime;
+using RunPad.Runtime;
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // TODO.md #111 (bucket 1) — LINQPad-inspired Util.ProgressBar. Redirects Console.Out — see
 // ConsoleTestCollection for why this needs to run sequentially relative to every other test doing the

@@ -3,22 +3,22 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows;
-using DotPad.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using ReactiveUI;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Reproduces "packages added via Dependencies aren't there for an already-open, already-saved
 // .rpad file" end-to-end: real EditorTabsControl/MainWindowViewModel tab loading (the same async
@@ -31,7 +31,7 @@ public class DependenciesRealTabIntegrationTests
     public async Task DependenciesWindow_Should_ShowExistingPackagesAndSearchResults_When_OpenedForAnAlreadyLoadedRpadFile()
     {
         // Arrange
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-deps-it").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-deps-it").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");

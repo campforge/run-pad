@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using ReactiveUI;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 public sealed class DebugLocal : ReactiveObject
 {

@@ -1,14 +1,14 @@
-using DotPad.Build.Core.Models;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.DotnetCommon;
-using DotPad.Languages.DotnetCommon.Compiler;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md #99: RunAsync/RunDebugAsync used to `using var cts = ...` their linked CTS — disposed
 // at method exit, right after their own `finally { _runCts = null; }`. TerminateAsync's
@@ -78,7 +78,7 @@ public class CompiledDotnetLanguageHostTerminateAsyncTests
 
     private static (CSharpLanguageHost Host, string OutputDir) CreateHost()
     {
-        var outputDir = Path.Combine(Path.GetTempPath(), "dotpad-tests-" + Guid.NewGuid());
+        var outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
         {
             Platform = new DotnetSdk("net10.0", "net10.0", "10.0.0", "net10.0"),
@@ -89,7 +89,7 @@ public class CompiledDotnetLanguageHostTerminateAsyncTests
                 Debugger = new DebuggerOptions { DebuggerPath = "netcoredbg" },
             },
             OutputDirectory = outputDir,
-            RuntimeLibPath = "DotPad.Runtime.dll",
+            RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = RpadKind.Statements,
         };
 

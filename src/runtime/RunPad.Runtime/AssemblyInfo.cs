@@ -1,3 +1,3 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("DotPad.Runtime.Tests")]
+[assembly: InternalsVisibleTo("RunPad.Runtime.Tests")]

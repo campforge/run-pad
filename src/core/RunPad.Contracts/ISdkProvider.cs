@@ -1,6 +1,6 @@
-using DotPad.Contracts.Models;
+using RunPad.Contracts.Models;
 
-namespace DotPad.Contracts;
+namespace RunPad.Contracts;
 
 public interface ISdkProvider
 {

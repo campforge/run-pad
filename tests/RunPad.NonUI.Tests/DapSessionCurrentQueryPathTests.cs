@@ -1,16 +1,16 @@
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
-using DotPad.Build.Core.ProcessRunners;
-using DotPad.Debug;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.ProcessRunners;
+using RunPad.Debug;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #111 — live user report ("Util.CurrentQueryPath не работает под отладкой, но все фичи
 // должны работать под отладкой"): a debug session launches the debuggee through netcoredbg (a
-// separate process DotPad doesn't control the environment of), not directly like a plain run, so
+// separate process RunPad doesn't control the environment of), not directly like a plain run, so
 // forwarding CurrentQueryPath needed its own path — the DAP launch request's own `env` field, which
 // netcoredbg already supports but DapSession never populated. Same fake-netcoredbg-conversation
 // technique as DapSessionRunningBreakpointResyncTests.cs (PipeStream/Frame/WaitForWrittenRequestAsync
@@ -113,7 +113,7 @@ public class DapSessionCurrentQueryPathTests
         process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-        Assert.Contains("DOTPAD_CURRENT_QUERY_PATH", written);
+        Assert.Contains("RUNPAD_CURRENT_QUERY_PATH", written);
         Assert.Contains("/root/a.rpad", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
@@ -141,7 +141,7 @@ public class DapSessionCurrentQueryPathTests
         process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
         var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
 
-        Assert.DoesNotContain("DOTPAD_CURRENT_QUERY_PATH", written);
+        Assert.DoesNotContain("RUNPAD_CURRENT_QUERY_PATH", written);
         Assert.DoesNotContain("\"env\"", written);
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));

@@ -1,23 +1,23 @@
 using System.Composition.Hosting;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using DotPad.Contracts.IntelliSense;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using ContractSeverity = DotPad.Contracts.IntelliSense.DiagnosticSeverity;
+using RunPad.Contracts.IntelliSense;
+using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
-namespace DotPad.Languages.CSharp.IntelliSense;
+namespace RunPad.Languages.CSharp.IntelliSense;
 
 // Real Roslyn quick fixes for the lightbulb margin (ReSharper/LINQPad-style Code Actions), instead
 // of the hand-rolled "add using" search this replaces. Discovers every CodeFixProvider registered
 // as a MEF part in Microsoft.CodeAnalysis(.CSharp).Features (Add Import, Implement Interface,
 // Implement Abstract Class, Generate Variable/Method, Fully Qualify, ...) via the same
-// System.Composition container DotPadRoslynHost builds for the AdhocWorkspace — the same mechanism
+// System.Composition container RunPadRoslynHost builds for the AdhocWorkspace — the same mechanism
 // RoslynPad/OmniSharp use — rather than the full VS CodeFixService, which needs several workspace
 // services (diagnostic analyzer service, solution crawler, ...) this host never sets up.
 //
@@ -84,7 +84,7 @@ internal sealed class RoslynCodeFixEngine
         }
         _providers = providers;
 
-        // Same MEF composition (DotPadRoslynHost already pulls in Microsoft.CodeAnalysis(.CSharp).
+        // Same MEF composition (RunPadRoslynHost already pulls in Microsoft.CodeAnalysis(.CSharp).
         // Features, where both CodeFixProvider AND CodeRefactoringProvider parts live) — same
         // [ExportCodeRefactoringProvider]-attribute language filter, same reasoning.
         var refactoringProviders = new List<CodeRefactoringProvider>();

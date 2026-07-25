@@ -1,10 +1,10 @@
 using System.Formats.Tar;
 using System.IO.Compression;
-using DotPad.Services.Setup;
 using Moq;
+using RunPad.Services.Setup;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Only the network (ISetupDownloader) and process-spawn (ISetupProcessRunner) boundaries are faked —
 // archive extraction, path resolution and file-system placement all run for real, same "fake only the
@@ -25,7 +25,7 @@ public class SetupInstallerServiceTests
         var processRunner = new Mock<ISetupProcessRunner>();
 
         var installDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "netcoredbg");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
         if (Directory.Exists(installDir))
             Directory.Delete(installDir, recursive: true);
         try

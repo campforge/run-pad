@@ -1,8 +1,8 @@
-using DotPad.Contracts;
-using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
+using RunPad.Contracts;
+using RunPad.Languages.DotnetCommon;
 
-namespace DotPad.Languages.VB;
+namespace RunPad.Languages.VB;
 
 public sealed class VbLanguageHostFactory : ILanguageHostFactory
 {

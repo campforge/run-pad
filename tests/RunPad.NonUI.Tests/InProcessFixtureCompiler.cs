@@ -1,12 +1,12 @@
-using DotPad.Languages.CSharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using RunPad.Languages.CSharp;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // CSharpDecompilerServiceTests/IlDisassemblerTests need a REAL, valid managed assembly on disk — the
 // thing under test is whether ICSharpCode.Decompiler can read actual IL, which a hand-mocked PE file
-// can't stand in for — but their source snippets are self-contained (no DotPad.Runtime/.Dump()
+// can't stand in for — but their source snippets are self-contained (no RunPad.Runtime/.Dump()
 // dependency), so a real `dotnet build` child process is unnecessary overhead for what they're
 // proving. CSharpReferenceService.GetDefault() already gives Roslyn everything it needs to compile
 // and emit a real DLL entirely in-process (no MSBuild/dotnet CLI, no restore, no child process at

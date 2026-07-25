@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Several tests here (CSharpIntelliSenseAnalyzersTests, CSharpIntelliSenseRefactoringsTests) assert
 // on real Microsoft.CodeAnalysis.CSharp.Features CodeAction/diagnostic titles by matching English

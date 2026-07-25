@@ -1,7 +1,7 @@
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #51: completion used to only show up after '.' or an explicit Ctrl+Space, never while just
 // typing an identifier (LINQPad/VS Code's "24/7 IntelliSense"). CodeTextEditor.IsStartOfNewIdentifier

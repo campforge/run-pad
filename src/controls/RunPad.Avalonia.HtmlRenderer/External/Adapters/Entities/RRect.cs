@@ -11,7 +11,7 @@
 // - Sun Tsu,
 // "The Art of War"
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+namespace RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
 /// <summary>
 /// Stores a set of four floating-point numbers that represent the location and size of a rectangle. 

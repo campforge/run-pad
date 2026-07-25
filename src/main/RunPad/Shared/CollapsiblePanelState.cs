@@ -3,7 +3,7 @@ using System.Reactive.Linq;
 using Avalonia.Controls;
 using ReactiveUI;
 
-namespace DotPad.Shared;
+namespace RunPad.Shared;
 
 // TODO.md #103: MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
 // EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel duplicated the exact same

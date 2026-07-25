@@ -1,6 +1,6 @@
 # Icons audit (TODO.md #81)
 
-Full audit of every resource key in `src/main/DotPad/Resources/Icons.axaml`, done by grepping all of
+Full audit of every resource key in `src/main/RunPad/Resources/Icons.axaml`, done by grepping all of
 `src/` for `StaticResource <key>`, `DynamicResource <key>`, and code-behind lookups
 (`TryGetResource`/`LoadResource<T>` string literals, `ResourceKeyToGeometryConverter` bindings). Two
 independent, unrelated icon sets lived in that one file; this table is the record of which keys are
@@ -52,7 +52,7 @@ rather than trimmed key-by-key.
 ## Per-language icon — moved out of the UI layer
 
 `FileTreeViewNode.LanguageIconKey` used to be a `switch` on `RpadLanguage` hardcoded in the main UI
-project (`src/main/DotPad`), the same class of problem already fixed for snippets/`DisplayName`
+project (`src/main/RunPad`), the same class of problem already fixed for snippets/`DisplayName`
 (TODO #41/#49/#58) and CodeFolding (TODO #76). It's now `EditorLanguageProfile.IconResourceKey` —
 each `ILanguageHostFactory` (`CSharpLanguageHostFactory`/`VbLanguageHostFactory`) supplies its own
 icon key, and `FileTreeViewModel` resolves it through `ILanguageHostRegistry` when building a node, the
@@ -61,7 +61,7 @@ same seam TODO #76 used for `FoldingRegionsProvider`.
 ## Re-running this audit
 
 ```bash
-grep -rhoE "x:Key=\"[^\"]+\"" src/main/DotPad/Resources/Icons.axaml
+grep -rhoE "x:Key=\"[^\"]+\"" src/main/RunPad/Resources/Icons.axaml
 grep -rn "StaticResource <key>\|DynamicResource <key>" src/ --include=*.axaml
 grep -rn "\"<key>\"" src/ --include=*.cs   # code-behind TryGetResource/LoadResource<T> lookups
 ```

@@ -5,10 +5,10 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #75: the lightbulb margin used to paint every fix with the same neutral color and measure
 // its own column independently of BreakPointMargin's line-number/debug-arrow column right next to
@@ -99,9 +99,9 @@ public class CodeFixMarginTests
     }
 
     [Theory]
-    [InlineData(CodeFixSeverity.Error, "DotPad.Margin.CodeFixErrorBrush")]
-    [InlineData(CodeFixSeverity.Warning, "DotPad.Margin.CodeFixWarningBrush")]
-    [InlineData(CodeFixSeverity.Info, "DotPad.Margin.DebugArrowBrush")]
+    [InlineData(CodeFixSeverity.Error, "RunPad.Margin.CodeFixErrorBrush")]
+    [InlineData(CodeFixSeverity.Warning, "RunPad.Margin.CodeFixWarningBrush")]
+    [InlineData(CodeFixSeverity.Info, "RunPad.Margin.DebugArrowBrush")]
     public void SeverityBrushKey_Should_MapEachSeverityToItsOwnThemeResourceKey(
         CodeFixSeverity severity, string expectedKey)
     {
@@ -198,7 +198,7 @@ public class CodeFixMarginTests
     // Live user report: a real Roslyn refactoring title on an empty-string-literal expression (e.g.
     // "Introduce local for '""'" — the FeaturesResources "Introduce local for '{0}'" format string
     // with {0} = the literal source text "") renders as an unreadable run of quote glyphs in the
-    // default proportional UI font. DotPad doesn't reformat fix.Title itself — a monospace font is
+    // default proportional UI font. RunPad doesn't reformat fix.Title itself — a monospace font is
     // the fix, so adjacent quote characters stay visually distinct (fixed width) regardless of what
     // ends up embedded in a future title, not just this one reported case.
     [AvaloniaFact]
@@ -212,7 +212,7 @@ public class CodeFixMarginTests
     }
 
     // TODO.md #79: the quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon
-    // at all. TestAppBuilder deliberately doesn't merge DotPad's own Icons.axaml (real UI tests
+    // at all. TestAppBuilder deliberately doesn't merge RunPad's own Icons.axaml (real UI tests
     // construct their own view models instead of depending on the full app composition root), so this
     // merges it in directly — the same avares:// URI App.axaml itself uses — just for this one
     // assertion, and removes it again afterward so it can't leak into other tests sharing this
@@ -221,9 +221,9 @@ public class CodeFixMarginTests
     public void BuildMenuItem_Should_SetTheHammerIcon_ForAGenericDiagnosticDrivenFix()
     {
         var (_, _, margin) = CreateEditor("x\n");
-        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        var include = new ResourceInclude(new Uri("avares://RunPad.Runtime.UI.Tests/"))
         {
-            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
         };
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
@@ -246,9 +246,9 @@ public class CodeFixMarginTests
     public void BuildMenuItem_Should_SetTheWrenchIcon_ForAConversionTitle()
     {
         var (_, _, margin) = CreateEditor("x\n");
-        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        var include = new ResourceInclude(new Uri("avares://RunPad.Runtime.UI.Tests/"))
         {
-            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
         };
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
@@ -269,9 +269,9 @@ public class CodeFixMarginTests
     public void BuildMenuItem_Should_SetTheBroomIcon_ForARefactoringTitle()
     {
         var (_, _, margin) = CreateEditor("x\n");
-        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        var include = new ResourceInclude(new Uri("avares://RunPad.Runtime.UI.Tests/"))
         {
-            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
         };
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try
@@ -419,9 +419,9 @@ public class CodeFixMarginTests
     [InlineData("Icon.Wrench", 24, 24)]
     public void CodeFixIcons_Should_ParseToANonDegenerateShape_WithinTheirSourceViewBox(string key, double maxWidth, double maxHeight)
     {
-        var include = new ResourceInclude(new Uri("avares://DotPad.Runtime.UI.Tests/"))
+        var include = new ResourceInclude(new Uri("avares://RunPad.Runtime.UI.Tests/"))
         {
-            Source = new Uri("avares://DotPad/Resources/Icons.axaml"),
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
         };
         Application.Current!.Resources.MergedDictionaries.Add(include);
         try

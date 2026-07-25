@@ -2,22 +2,22 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — end-to-end coverage of the
 // deferred-materialization click flow: a REAL CSharpIntelliSenseService (not mocked — the point is
@@ -26,7 +26,7 @@ namespace DotPad.Runtime.UI.Tests;
 // was configured correctly) driving a real EditorsTabItemControl, clicking through the actual
 // CodeFixMargin menu-item wiring (same idiom as CodeFixMarginTests.cs's own click test) rather than
 // simulating the click by calling internal methods directly. The "add using" fix this test drives
-// lands in FrontMatter.Namespaces, not the visible editor text — every DotPad tab (even a brand-new
+// lands in FrontMatter.Namespaces, not the visible editor text — every RunPad tab (even a brand-new
 // untitled one, see NewRpadFile) is a real .rpad document, and usings are project-level metadata
 // there (docs/ImplementationPlanRPad.md), not text inserted into the script itself.
 public class EditorTabItemControlCodeFixApplyTests
@@ -99,7 +99,7 @@ public class EditorTabItemControlCodeFixApplyTests
         var item = margin.BuildMenuItem(entry);
         item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
 
-        // A new untitled tab still gets a real RpadDocument (every DotPad script is a .rpad document
+        // A new untitled tab still gets a real RpadDocument (every RunPad script is a .rpad document
         // — see NewRpadFile), so this "add using" fix's namespace goes to FrontMatter.Namespaces
         // (docs/ImplementationPlanRPad.md — usings are project-level metadata), NOT into the visible
         // editor text (which is why the raw text is never expected to change here at all).

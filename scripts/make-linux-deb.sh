@@ -15,18 +15,18 @@ OUTPUT_DIR="$3"
 STAGING="$OUTPUT_DIR/deb-staging"
 
 rm -rf "$STAGING"
-mkdir -p "$STAGING/usr/lib/dotpad" "$STAGING/usr/bin" \
+mkdir -p "$STAGING/usr/lib/runpad" "$STAGING/usr/bin" \
     "$STAGING/usr/share/applications" "$STAGING/usr/share/icons/hicolor/256x256/apps" \
     "$STAGING/DEBIAN"
 
-cp -R "$PUBLISH_DIR"/* "$STAGING/usr/lib/dotpad/"
-chmod +x "$STAGING/usr/lib/dotpad/DotPad"
-ln -s /usr/lib/dotpad/DotPad "$STAGING/usr/bin/dotpad"
-cp src/main/DotPad/Assets/dotpad.desktop "$STAGING/usr/share/applications/dotpad.desktop"
-cp src/main/DotPad/Assets/dotpad.png "$STAGING/usr/share/icons/hicolor/256x256/apps/dotpad.png"
+cp -R "$PUBLISH_DIR"/* "$STAGING/usr/lib/runpad/"
+chmod +x "$STAGING/usr/lib/runpad/RunPad"
+ln -s /usr/lib/runpad/RunPad "$STAGING/usr/bin/runpad"
+cp src/main/RunPad/Assets/runpad.desktop "$STAGING/usr/share/applications/runpad.desktop"
+cp src/main/RunPad/Assets/runpad.png "$STAGING/usr/share/icons/hicolor/256x256/apps/runpad.png"
 
 INSTALLED_SIZE_KB=$(du -sk "$STAGING/usr" | cut -f1)
-sed -e "s/__VERSION__/$VERSION/" src/main/DotPad/Assets/dotpad.control > "$STAGING/DEBIAN/control"
+sed -e "s/__VERSION__/$VERSION/" src/main/RunPad/Assets/runpad.control > "$STAGING/DEBIAN/control"
 echo "Installed-Size: $INSTALLED_SIZE_KB" >> "$STAGING/DEBIAN/control"
 
 # The real .deb binary format: an `ar` archive of exactly debian-binary, control.tar.gz, data.tar.gz,
@@ -37,7 +37,7 @@ tar -czf "$STAGING/control.tar.gz" --owner=root --group=root --numeric-owner -C 
 tar -czf "$STAGING/data.tar.gz" --owner=root --group=root --numeric-owner \
     -C "$STAGING" usr
 
-DEB_PATH="$(cd "$OUTPUT_DIR" && pwd)/dotpad_${VERSION}_amd64.deb"
+DEB_PATH="$(cd "$OUTPUT_DIR" && pwd)/runpad_${VERSION}_amd64.deb"
 rm -f "$DEB_PATH"
 ( cd "$STAGING" && ar rc "$DEB_PATH" debian-binary control.tar.gz data.tar.gz )
 

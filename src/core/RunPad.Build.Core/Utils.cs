@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace DotPad.Build.Core;
+namespace RunPad.Build.Core;
 
 [Serializable]
 public class CommandExecutionException : Exception

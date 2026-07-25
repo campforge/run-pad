@@ -1,9 +1,9 @@
-using DotPad.Build.Core.Models;
-using DotPad.Contracts;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
 
-namespace DotPad.Languages.DotnetCommon;
+namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Options shared by every <see cref="CompiledDotnetLanguageHostBase"/> subclass — was two
@@ -39,6 +39,6 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     // (ChildProcess.ForExecution) for a plain run, and via DapSessionOptions/the DAP launch request's
     // own env for a debug session (netcoredbg spawns the debuggee itself, so
     // ProcessStartInfo.Environment on netcoredbg's own process wouldn't reach it) — either way read
-    // back the same way by DotPad.Runtime.Util.CurrentQueryPath.
+    // back the same way by RunPad.Runtime.Util.CurrentQueryPath.
     public string? CurrentQueryPath { get; init; }
 }

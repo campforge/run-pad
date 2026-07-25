@@ -1,7 +1,7 @@
-using DotPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 — the "IL" output tab (mirrors LINQPad's IL view). Real-Roslyn integration test (no
 // mocking of the compiler): the thing under test is whether ICSharpCode.Decompiler can actually read

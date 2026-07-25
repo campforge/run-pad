@@ -1,4 +1,4 @@
-namespace DotPad.Format.RPad;
+namespace RunPad.Format.RPad;
 
 // A cheap peek at a .rpad file's front-matter `language:` — reads and parses just enough to answer
 // "what language is this script", without opening a full editor tab for it. Used by the UI layer

@@ -1,13 +1,13 @@
-using DotPad.Build.Core.Models;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.Sdk;
-using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #107 — live user report: a Program-kind script with more than a bare Main (the LINQPad-style
 // norm for this kind — a field plus Main plus a helper method) failed to compile at all. This is a real
@@ -68,7 +68,7 @@ public class CSharpLanguageHostProgramKindCompileTests
             }
             """;
 
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-program-kind-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-program-kind-test").FullName;
         try
         {
             await using var host = CreateHost(outputDir, usings: ["System.Text.RegularExpressions"]);
@@ -93,7 +93,7 @@ public class CSharpLanguageHostProgramKindCompileTests
             private static string Greet(string name) => $"hello {name}";
             """;
 
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-program-kind-static-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-program-kind-static-test").FullName;
         try
         {
             await using var host = CreateHost(outputDir);
@@ -111,7 +111,7 @@ public class CSharpLanguageHostProgramKindCompileTests
     {
         const string code = "void Main()\n{\n    \"hello\".Dump();\n}\n";
 
-        var outputDir = Directory.CreateTempSubdirectory("dotpad-program-kind-bare-test").FullName;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-program-kind-bare-test").FullName;
         try
         {
             await using var host = CreateHost(outputDir);

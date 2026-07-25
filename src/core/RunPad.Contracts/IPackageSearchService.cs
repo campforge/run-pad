@@ -1,4 +1,4 @@
-namespace DotPad.Contracts;
+namespace RunPad.Contracts;
 
 public sealed record PackageSearchResult(
     string Id,

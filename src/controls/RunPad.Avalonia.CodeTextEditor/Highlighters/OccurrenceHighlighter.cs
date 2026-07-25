@@ -2,7 +2,7 @@ using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 // TODO.md #62 "подсветка вхождений" — draws a highlight rectangle over every occurrence of the
 // symbol under the caret, elsewhere in the document. Same IBackgroundRenderer approach as

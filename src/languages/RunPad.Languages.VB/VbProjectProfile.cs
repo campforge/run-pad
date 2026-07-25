@@ -1,6 +1,6 @@
-using DotPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon;
 
-namespace DotPad.Languages.VB;
+namespace RunPad.Languages.VB;
 
 // VB's DotnetLanguageProjectProfile (ANALYSIS.md #86) — VB SDK projects have no
 // <ImplicitUsings> MSBuild property (that's C#-only); the equivalent "usable without an explicit

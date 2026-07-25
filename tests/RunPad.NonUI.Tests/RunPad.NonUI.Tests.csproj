@@ -6,10 +6,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Проход 134/135 (CI-cost pass) — this project is DotPad.Runtime.UI.Tests' non-Avalonia half:
+    <!-- Проход 134/135 (CI-cost pass) — this project is RunPad.Runtime.UI.Tests' non-Avalonia half:
          every test here exercises language hosts/IntelliSense/decompiler/DAP/view-model logic that
          never touches a live Avalonia Application, so it doesn't reference Avalonia.Headless(.XUnit)
-         at all and — unlike DotPad.Runtime.UI.Tests, where [assembly: AvaloniaTestFramework] disables
+         at all and — unlike RunPad.Runtime.UI.Tests, where [assembly: AvaloniaTestFramework] disables
          collection parallelism for the WHOLE assembly regardless of whether a given test uses Avalonia
          (confirmed empirically — see TODO.md проход 135) — gets ordinary xunit parallel test-collection
          execution "for free". Still xunit.v3 (not the classic xunit 2.x the other simple projects use)
@@ -28,7 +28,7 @@
     <PackageReference Include="Moq" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\main\DotPad\DotPad.csproj" />
+    <ProjectReference Include="..\..\src\main\RunPad\RunPad.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

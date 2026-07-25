@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
-using DotPad.Services.Setup;
+using RunPad.Services.Setup;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Pure mapping logic (OS/arch -> asset name/URL, OS -> dotnet-install default install dir) taken as
 // parameters specifically so every branch is testable regardless of which OS actually runs this suite.

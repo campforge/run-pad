@@ -1,3 +1,3 @@
-namespace DotPad.Avalonia.Themes;
+namespace RunPad.Avalonia.Themes;
 
 public enum ThemeMode { System, Dark, Light }

@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 public class FileTreeViewModel
 {

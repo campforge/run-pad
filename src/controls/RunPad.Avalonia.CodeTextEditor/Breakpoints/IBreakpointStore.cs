@@ -1,4 +1,4 @@
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 /// <summary>The editor's own gutter breakpoint list — one per open tab, backing the breakpoint margin.</summary>
 public interface IBreakpointStore : IEnumerable<IBreakpoint>

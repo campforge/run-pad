@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using DotPad.Services;
+using RunPad.Services;
 
-namespace DotPad.Windows;
+namespace RunPad.Windows;
 
 public partial class UnsavedChangesDialog : Window
 {

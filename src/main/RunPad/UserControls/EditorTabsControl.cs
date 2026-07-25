@@ -3,20 +3,20 @@ using System.Reactive.Disposables;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Contracts.Models;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls.Models;
-using DotPad.Windows.Models;
 using ReactiveUI;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls.Models;
+using RunPad.Windows.Models;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 public partial class EditorTabsControl : UserControl, IDisposable
 {
@@ -356,14 +356,14 @@ public partial class EditorTabsControl : UserControl, IDisposable
             // Fully qualified with global:: on top — Control (an EditorTabsControl base class) has
             // its own inherited FontWeight instance property, shadowing the enum type name throughout
             // this whole class ("cannot be accessed with an instance reference" without the
-            // qualification); and DotPad.Avalonia is itself a real sibling namespace here
-            // (DotPad.Avalonia.Themes etc.), so plain "Avalonia.Media" would resolve relative to
-            // DotPad first and fail to find it, rather than falling back to the global Avalonia.
+            // qualification); and RunPad.Avalonia is itself a real sibling namespace here
+            // (RunPad.Avalonia.Themes etc.), so plain "Avalonia.Media" would resolve relative to
+            // RunPad first and fail to find it, rather than falling back to the global Avalonia.
             var weight = ReferenceEquals(tabVm, _vm.ActiveTab)
                 ? global::Avalonia.Media.FontWeight.Bold
                 : global::Avalonia.Media.FontWeight.Normal;
             var header = new TextBlock { Text = tabVm.FileName, FontWeight = weight };
-            if (tabVm.IsDirty && _themeService?.GetBrush("DotPad.Tab.DirtyBrush") is { } dirtyBrush)
+            if (tabVm.IsDirty && _themeService?.GetBrush("RunPad.Tab.DirtyBrush") is { } dirtyBrush)
                 header.Foreground = dirtyBrush;
 
             var item = new MenuItem { Header = header };
@@ -448,7 +448,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             intelliSense,
             _referenceService!,
             _buildCache!,
-            _themeService!.GetBrush("DotPad.Editor.BackgroundBrush"));
+            _themeService!.GetBrush("RunPad.Editor.BackgroundBrush"));
     }
 
     private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)

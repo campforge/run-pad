@@ -1,13 +1,13 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Services.Preferences;
+namespace RunPad.Services.Preferences;
 
 public sealed class PreferencesService : IPreferencesService
 {
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "DotPad", "settings.json");
+        "RunPad", "settings.json");
 
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 

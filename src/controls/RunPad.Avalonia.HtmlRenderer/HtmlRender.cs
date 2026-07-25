@@ -13,13 +13,13 @@
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using DotPad.Avalonia.HtmlRenderer.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Core;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
-using DotPad.Avalonia.HtmlRenderer.Utilities;
+using RunPad.Avalonia.HtmlRenderer.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Core;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.Utilities;
 
-namespace DotPad.Avalonia.HtmlRenderer;
+namespace RunPad.Avalonia.HtmlRenderer;
 
 /// <summary>
 /// Standalone static class for simple and direct HTML rendering.<br/>

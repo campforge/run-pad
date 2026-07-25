@@ -13,9 +13,9 @@
 
 using System.ComponentModel;
 using System.Net;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// On download file async complete, success or fail.

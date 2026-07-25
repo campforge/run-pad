@@ -1,11 +1,11 @@
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes/Try.
 // Not [Collection(ConsoleTestCollection.Name)] like UtilTests — none of this touches Console.Out/In,
 // so there's no reason to serialize it against those tests. SaveString/SaveBytes write into the
-// REAL %AppData%/DotPad/UserData folder (no injectable path seam exists for a static-class API like
+// REAL %AppData%/RunPad/UserData folder (no injectable path seam exists for a static-class API like
 // this — same tradeoff BuildCacheService's own tests accepted before it grew one, see
 // ANALYSIS.md #85's testability follow-up) — every test below uses its own Guid-named file so
 // concurrent test runs can't collide, and cleans up after itself.
@@ -14,7 +14,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void SaveString_Should_WriteAFile_ThatLoadStringReadsBack()
     {
-        var fileName = $"dotpad-test-{Guid.NewGuid()}.txt";
+        var fileName = $"runpad-test-{Guid.NewGuid()}.txt";
         try
         {
             Util.SaveString("hello world", fileName);
@@ -27,7 +27,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void SaveString_Should_OverwriteAnExistingFile()
     {
-        var fileName = $"dotpad-test-{Guid.NewGuid()}.txt";
+        var fileName = $"runpad-test-{Guid.NewGuid()}.txt";
         try
         {
             Util.SaveString("v1", fileName);
@@ -41,7 +41,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void LoadString_Should_Throw_WhenTheFileDoesNotExist()
     {
-        var fileName = $"dotpad-test-{Guid.NewGuid()}-missing.txt";
+        var fileName = $"runpad-test-{Guid.NewGuid()}-missing.txt";
 
         Assert.ThrowsAny<IOException>(() => Util.LoadString(fileName));
     }
@@ -49,7 +49,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void SaveBytes_Should_WriteAFile_ThatLoadBytesReadsBack()
     {
-        var fileName = $"dotpad-test-{Guid.NewGuid()}.bin";
+        var fileName = $"runpad-test-{Guid.NewGuid()}.bin";
         byte[] data = [1, 2, 3, 4, 5];
         try
         {
@@ -63,7 +63,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void LoadBytes_Should_Throw_WhenTheFileDoesNotExist()
     {
-        var fileName = $"dotpad-test-{Guid.NewGuid()}-missing.bin";
+        var fileName = $"runpad-test-{Guid.NewGuid()}-missing.bin";
 
         Assert.ThrowsAny<IOException>(() => Util.LoadBytes(fileName));
     }
@@ -71,7 +71,7 @@ public class UtilFileAndTryTests
     [Fact]
     public void SaveString_Should_CreateSubdirectories_WhenFileNameIncludesThem()
     {
-        var fileName = Path.Combine($"dotpad-test-{Guid.NewGuid()}", "nested.txt");
+        var fileName = Path.Combine($"runpad-test-{Guid.NewGuid()}", "nested.txt");
         try
         {
             Util.SaveString("nested content", fileName);
@@ -84,7 +84,7 @@ public class UtilFileAndTryTests
     private static void DeleteIfExists(string fileName)
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "UserData");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "UserData");
         var path = Path.Combine(root, fileName);
         if (File.Exists(path)) File.Delete(path);
         var dir = Path.GetDirectoryName(path);

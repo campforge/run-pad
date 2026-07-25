@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace DotPad.TemplatedControls;
+namespace RunPad.TemplatedControls;
 
 public class ToolbarComboBox : ComboBox
 {

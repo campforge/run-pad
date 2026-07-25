@@ -4,14 +4,14 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md #54/#55 — end-to-end regressions for real completion-window mechanics that the pure
 // static-function tests in CodeTextEditorAutoInvokeTests.cs can't reach (they need a live

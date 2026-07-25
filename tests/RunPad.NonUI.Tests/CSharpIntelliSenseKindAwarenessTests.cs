@@ -1,11 +1,11 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #66: SyncDocument built its live-analysis document as just "preamble + code",
 // with no awareness of RpadKind at all — so for RpadKind.Program, where the *real* compiled program
@@ -120,7 +120,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.Contains(result!.Items, i => i.DisplayText == "WriteLine");
     }
 
-    // Reported by user 2026-07-16, live in the editor (not in an actual compile — DotPad.Cli/a real
+    // Reported by user 2026-07-16, live in the editor (not in an actual compile — RunPad.Cli/a real
     // `dotnet build` were both already clean): opening an existing Program-kind file whose Main is
     // `async Task Main()` showed a false-positive "declared but never used" CS8321 in the diagnostics
     // panel that never went away on its own. Root cause was in EditorTabItemControl.SetDocumentContent,

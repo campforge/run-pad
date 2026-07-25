@@ -3,7 +3,7 @@ using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace DotPad.Format.RPad;
+namespace RunPad.Format.RPad;
 
 /// ToDo: надо разобраться со стримом, причем иметь возможность взять непосредственно стрим кода игнорируя заголовки
 public static class RpadParser

@@ -11,11 +11,11 @@
 // - Sun Tsu,
 // "The Art of War"
 
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
-using DotPad.Avalonia.HtmlRenderer.External.Core.Dom;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Core.Dom;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Handlers;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Handlers;
 
 /// <summary>
 /// Contains all the paint code to paint different background images.

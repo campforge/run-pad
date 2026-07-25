@@ -1,7 +1,7 @@
-namespace DotPad.Build.Core.ProcessRunners;
+namespace RunPad.Build.Core.ProcessRunners;
 
 /// <summary>
-/// Lifecycle + stream surface for child processes spawned by DotPad — matches <see cref="ChildProcess"/>
+/// Lifecycle + stream surface for child processes spawned by RunPad — matches <see cref="ChildProcess"/>
 /// exactly, so callers (e.g. <c>DapSession</c>, ANALYSIS.md #88) can depend on this instead of the
 /// concrete, real-<see cref="System.Diagnostics.Process"/>-backed type and be tested against a fake
 /// with in-memory streams instead of a real dotnet/netcoredbg process.

@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 public class DumpRendererTests
 {

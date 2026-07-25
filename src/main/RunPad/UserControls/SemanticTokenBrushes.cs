@@ -1,7 +1,7 @@
 using Avalonia.Media;
-using DotPad.Contracts.IntelliSense;
+using RunPad.Contracts.IntelliSense;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 // The single source of truth for SemanticTokenKind → color, shared by SemanticHighlighter (live
 // editor text) and by anything rendering a DisplayTextSegment signature outside the main text view

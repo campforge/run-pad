@@ -2,12 +2,12 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using AvaloniaEdit.Document;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Contracts.IntelliSense;
-using DotPad.UserControls;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts.IntelliSense;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "find references" (Shift+F12) — EditorsTabItemControl.BuildFindReferencesMenu builds
 // the clickable results list from the same IDocumentHighlightSpan data the highlight-occurrences

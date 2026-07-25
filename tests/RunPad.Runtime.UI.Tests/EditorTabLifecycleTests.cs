@@ -1,20 +1,20 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md, "Жизненный цикл вкладок": a brand-new script starts empty and in-memory-only (no disk
 // write until Save/Save As — see MainWindowViewModel.NewRpadFile), and its tab tracks whether it has
@@ -95,7 +95,7 @@ public class EditorTabLifecycleTests
     [AvaloniaFact]
     public void SaveIfNeeded_Should_ClearIsDirty_AfterASuccessfulWrite()
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-dirty-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-dirty-test").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
@@ -150,7 +150,7 @@ public class EditorTabLifecycleTests
     [Fact]
     public async Task SaveTabAsAsync_Should_WriteAndRebindTheTab_WhenTheDialogReturnsAPath()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-saveas-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-saveas-test").FullName;
         try
         {
             var (mainVm, windowService, _) = CreateMainVm(rootFolder);
@@ -186,7 +186,7 @@ public class EditorTabLifecycleTests
     [Fact]
     public async Task SaveTabAsAsync_Should_DoNothing_WhenTheDialogIsCancelled()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-saveas-cancel-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-saveas-cancel-test").FullName;
         try
         {
             var (mainVm, windowService, _) = CreateMainVm(rootFolder);
@@ -210,7 +210,7 @@ public class EditorTabLifecycleTests
     [Fact]
     public void DuplicateTab_Should_WriteAFreeCopyNameNextToTheOriginal_AndOpenIt()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-duplicate-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-duplicate-test").FullName;
         try
         {
             var original = Path.Combine(rootFolder, "Query 1.rpad");
@@ -234,7 +234,7 @@ public class EditorTabLifecycleTests
     [Fact]
     public void DuplicateTab_Should_DoNothing_ForAnUntitledTab()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-duplicate-untitled-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-duplicate-untitled-test").FullName;
         try
         {
             var (mainVm, _, _) = CreateMainVm(rootFolder);

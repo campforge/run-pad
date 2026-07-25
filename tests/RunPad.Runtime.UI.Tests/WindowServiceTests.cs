@@ -1,10 +1,10 @@
 using Avalonia.Headless.XUnit;
-using DotPad.Services;
-using DotPad.Windows;
 using Moq;
+using RunPad.Services;
+using RunPad.Windows;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #100 — WindowService used to take the whole IServiceProvider and resolve
 // DependenciesWindow/PreferencesWindow/IThemeService inside its methods (Service Locator), which

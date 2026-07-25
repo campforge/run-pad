@@ -4,21 +4,21 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #80: F4 (open Dependencies) and Ctrl+W (close active tab) used to be literal Key.F4 /
 // (Key.W + Control) checks in MainWindow.OnWindowKeyDown — sitting right next to 7 other gestures
@@ -51,7 +51,7 @@ public class MainWindowHotkeysTests
         var buildCache = new Mock<IBuildCacheService>();
         var intelliSense = new Mock<IIntelliSenseService>();
         var windowService = new Mock<IWindowService>();
-        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<DotPad.Format.RPad.RpadFrontMatter?>?>()))
+        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()))
             .Returns(Task.CompletedTask);
         // Ctrl+W's close path asks this whenever the active tab is untitled+dirty (EditorTabsControl.
         // RequestCloseTabAsync) — an unstubbed loose mock defaults an unconfigured Task<enum> call to
@@ -109,7 +109,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<DotPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
     }
 
     [AvaloniaFact]
@@ -119,7 +119,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<DotPad.Format.RPad.RpadFrontMatter?>?>()), Times.Never);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Never);
     }
 
     [AvaloniaFact]
@@ -129,7 +129,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.X, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.X, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<DotPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
     }
 
     [AvaloniaFact]

@@ -1,11 +1,11 @@
 using System.Text;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #50: completion/signature-help/quick-info descriptions used to be a single plain-text
 // signature string with no XML-doc summary and no syntax highlighting. Fixed by carrying a
@@ -116,7 +116,7 @@ public class CSharpIntelliSenseRichTooltipTests
         Assert.False(string.IsNullOrWhiteSpace(item.Summary));
     }
 
-    // The flagship scenario: DotPad.Runtime.csproj now sets GenerateDocumentationFile, so the
+    // The flagship scenario: RunPad.Runtime.csproj now sets GenerateDocumentationFile, so the
     // <summary> already written on ObjectExtensions.Dump() (see ObjectExtensions.cs) should actually
     // reach the completion tooltip instead of being stuck in a .xml file nobody points Roslyn at.
     // Which of the 5 Dump() overloads wins the completion list's per-name dedup isn't a stable

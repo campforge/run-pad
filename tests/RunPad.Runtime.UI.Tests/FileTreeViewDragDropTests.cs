@@ -3,15 +3,15 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.UserControls.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #110: file tree had no drag-and-drop at all. These test FileTreeView's own DragOver/Drop
 // routing directly — constructing a real DragEventArgs (it has a public constructor) and raising it on
@@ -43,10 +43,10 @@ public class FileTreeViewDragDropTests
 
         var view = new FileTreeView { DataContext = vm };
         var window = new Window { Content = view };
-        // The real app loads this from DotPad.Avalonia.Themes; TestAppBuilder deliberately doesn't
+        // The real app loads this from RunPad.Avalonia.Themes; TestAppBuilder deliberately doesn't
         // (see its own doc comment) — registered directly here so the empty-tree-space highlight
         // (FileTreeView.UpdateDropHighlight's TryFindResource lookup) has something to resolve.
-        window.Resources["DotPad.Accent.BackgroundBrush"] = Brushes.CornflowerBlue;
+        window.Resources["RunPad.Accent.BackgroundBrush"] = Brushes.CornflowerBlue;
         window.Show();
         Dispatcher.UIThread.RunJobs();
 

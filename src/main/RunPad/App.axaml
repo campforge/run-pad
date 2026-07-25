@@ -1,21 +1,21 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:themes="using:DotPad.Avalonia.Themes"
-             x:Class="DotPad.App">
+             xmlns:themes="using:RunPad.Avalonia.Themes"
+             x:Class="RunPad.App">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://DotPad/Resources/Icons.axaml"/>
+                <ResourceInclude Source="avares://RunPad/Resources/Icons.axaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
-        <themes:DotPadTheme />
-        <StyleInclude Source="avares://DotPad/TemplatedControls/IconButton.axaml"/>
-        <StyleInclude Source="avares://DotPad/TemplatedControls/IconToggleButton.axaml"/>
-        <StyleInclude Source="avares://DotPad/TemplatedControls/ToolbarComboBox.axaml"/>
+        <themes:RunPadTheme />
+        <StyleInclude Source="avares://RunPad/TemplatedControls/IconButton.axaml"/>
+        <StyleInclude Source="avares://RunPad/TemplatedControls/IconToggleButton.axaml"/>
+        <StyleInclude Source="avares://RunPad/TemplatedControls/ToolbarComboBox.axaml"/>
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
     </Application.Styles>

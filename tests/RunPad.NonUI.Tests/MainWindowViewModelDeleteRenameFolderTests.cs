@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ANALYSIS.md TODO #69 follow-up: user reported live that Delete and Rename both silently failed for
 // a folder in the file tree. Root cause — DeleteFile/RenameFile always called File.Delete/File.Move,
@@ -36,7 +36,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     [Fact]
     public void DeleteFile_Should_DeleteADirectory_Recursively()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-delete-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-delete-test").FullName;
         try
         {
             var sub = Path.Combine(root, "ToDelete");
@@ -54,7 +54,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     [Fact]
     public void DeleteFile_Should_StillDeleteAPlainFile()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-delete-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-delete-test").FullName;
         try
         {
             var file = Path.Combine(root, "a.rpad");
@@ -78,7 +78,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     {
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
-        var root = Directory.CreateTempSubdirectory("dotpad-delete-fail-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-delete-fail-test").FullName;
         try
         {
             var file = Path.Combine(root, "a.rpad");
@@ -110,7 +110,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     [Fact]
     public void RenameFile_Should_RenameADirectory()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-rename-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-rename-test").FullName;
         try
         {
             var sub = Path.Combine(root, "OldName");
@@ -130,7 +130,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
     [Fact]
     public void RenameFile_Should_StillRenameAPlainFile()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-rename-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-rename-test").FullName;
         try
         {
             var file = Path.Combine(root, "old.rpad");

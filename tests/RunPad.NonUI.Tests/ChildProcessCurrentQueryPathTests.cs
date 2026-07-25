@@ -1,14 +1,14 @@
-using DotPad.Build.Core.Models;
-using DotPad.Build.Core.ProcessRunners;
+using RunPad.Build.Core.Models;
+using RunPad.Build.Core.ProcessRunners;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — an environment variable rather than another
 // positional CLI argument (see ChildProcess.CurrentQueryPathEnvVar's own comment: RpadKind.Statements/
 // Expression compile to top-level statements, which have an implicit `string[] args` in scope, so an
 // extra argument would leak into the user's own args). This tests ForExecution's ProcessStartInfo
-// directly (StartInfoForTests, internal + InternalsVisibleTo — DotPad.Build.Core has no dedicated test
+// directly (StartInfoForTests, internal + InternalsVisibleTo — RunPad.Build.Core has no dedicated test
 // project of its own, see AssemblyInfo.cs's own comment) rather than starting a real process.
 public class ChildProcessCurrentQueryPathTests
 {

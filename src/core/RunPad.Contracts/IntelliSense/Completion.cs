@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 public readonly record struct CompletionTrigger(CompletionTriggerKind Kind, char Character = '\0')
 {

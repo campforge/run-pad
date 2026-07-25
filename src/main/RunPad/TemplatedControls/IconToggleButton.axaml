@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:templatedControls="clr-namespace:DotPad.TemplatedControls">
+        xmlns:templatedControls="clr-namespace:RunPad.TemplatedControls">
     <Styles.Resources>
         <ResourceDictionary>
 
@@ -24,13 +24,13 @@
                 </Setter>
 
                 <Style Selector="^:pointerover /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}" />
                 </Style>
                 <Style Selector="^:pressed /template/ Border#Root">
                     <Setter Property="Opacity" Value="0.6" />
                 </Style>
                 <Style Selector="^:disabled /template/ PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Icon.DisabledBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Icon.DisabledBrush}" />
                 </Style>
 
                 <Style Selector="^:checked /template/ Border#Root">
@@ -45,7 +45,7 @@
                 </Style>
 
                 <Style Selector="^ /template/ PathIcon">
-                    <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                 </Style>
 
                 <Style Selector="^:checked /template/ PathIcon">

@@ -1,8 +1,8 @@
-using DotPad.Cli;
+using RunPad.Cli;
 using Spectre.Console.Testing;
 using Xunit;
 
-namespace DotPad.Cli.Tests;
+namespace RunPad.Cli.Tests;
 
 // TODO.md #40 follow-up (user: "хочу чтобы html выводился красиво ... Spectre.Console"): these dump
 // real DumpRenderer-shaped HTML fragments through DumpHtmlSpectreRenderer into a TestConsole and

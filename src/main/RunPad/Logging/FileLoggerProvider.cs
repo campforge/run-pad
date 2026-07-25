@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace DotPad.Logging;
+namespace RunPad.Logging;
 
 public sealed class FileLoggerProvider : ILoggerProvider
 {

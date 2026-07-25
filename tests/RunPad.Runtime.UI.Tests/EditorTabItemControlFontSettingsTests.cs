@@ -1,15 +1,15 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #112 — live user report: the editor's font family is whatever the OS/theme default
 // resolves to, ligature-capable fonts included (e.g. "=>" rendering as a single arrow glyph) — no
-// setting to change it, because DotPad never asked for a specific font in the first place.
+// setting to change it, because RunPad never asked for a specific font in the first place.
 public class EditorTabItemControlFontSettingsTests
 {
     // Confirmed via a live headless-Skia render probe (not guessed): Avalonia's comma-separated

@@ -1,4 +1,4 @@
-namespace DotPad.Build.Core.Models;
+namespace RunPad.Build.Core.Models;
 
 public class RuntimeOptions
 {

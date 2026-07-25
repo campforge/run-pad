@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace DotPad.Resources;
+namespace RunPad.Resources;
 
 public class Icons : ResourceDictionary
 {

@@ -1,12 +1,12 @@
 using Avalonia.Headless.XUnit;
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class MainWindowViewModelTests
 {
@@ -14,7 +14,7 @@ public class MainWindowViewModelTests
     public void ToggleSidebarCommand_Should_CollapseSidebar_When_SidebarIsExpanded()
     {
         // Arrange
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-ui-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-ui-test").FullName;
         try
         {
             var fileService = new Mock<IFileSystemService>();

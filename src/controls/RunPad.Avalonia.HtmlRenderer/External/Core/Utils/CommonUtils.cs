@@ -14,9 +14,9 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace DotPad.Avalonia.HtmlRenderer.External.Core.Utils;
+namespace RunPad.Avalonia.HtmlRenderer.External.Core.Utils;
 
 internal delegate void ActionInt<in T>(T obj);
 

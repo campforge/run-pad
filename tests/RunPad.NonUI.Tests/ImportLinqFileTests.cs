@@ -1,16 +1,16 @@
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #63 "конвертер .linq → .rpad" — MainWindowViewModel.ImportLinqFileAsync, the "File →
 // Import LINQPad Query..." entry point around LinqConverter (see LinqConverterTests.cs in
-// DotPad.Format.RPad.Tests for the conversion logic itself, not re-tested here).
+// RunPad.Format.RPad.Tests for the conversion logic itself, not re-tested here).
 public class ImportLinqFileTests
 {
     private static Mock<IPreferencesService> MakePrefs()
@@ -54,7 +54,7 @@ public class ImportLinqFileTests
     [Fact]
     public async Task ImportLinqFileAsync_Should_DoNothing_WhenTheDialogIsCancelled()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-linq-import-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-linq-import-test").FullName;
         try
         {
             var (vm, windowService) = CreateMainVm(rootFolder);
@@ -70,7 +70,7 @@ public class ImportLinqFileTests
     [Fact]
     public async Task ImportLinqFileAsync_Should_ConvertAndOpenANewSiblingTab_OnSuccess()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-linq-import-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-linq-import-test").FullName;
         try
         {
             var linqPath = Path.Combine(rootFolder, "MyQuery.linq");
@@ -99,7 +99,7 @@ public class ImportLinqFileTests
     [Fact]
     public async Task ImportLinqFileAsync_Should_AvoidOverwriting_WhenAnRpadWithTheSameNameAlreadyExists()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-linq-import-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-linq-import-test").FullName;
         try
         {
             var linqPath = Path.Combine(rootFolder, "MyQuery.linq");
@@ -124,7 +124,7 @@ public class ImportLinqFileTests
     [Fact]
     public async Task ImportLinqFileAsync_Should_ShowAnError_AndOpenNoTab_ForAnUnsupportedQueryKind()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-linq-import-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-linq-import-test").FullName;
         try
         {
             var linqPath = Path.Combine(rootFolder, "MyQuery.linq");
@@ -146,7 +146,7 @@ public class ImportLinqFileTests
     [Fact]
     public async Task ImportLinqFileAsync_Should_ShowAnError_ForAMalformedLinqFile()
     {
-        var rootFolder = Directory.CreateTempSubdirectory("dotpad-linq-import-test").FullName;
+        var rootFolder = Directory.CreateTempSubdirectory("runpad-linq-import-test").FullName;
         try
         {
             var linqPath = Path.Combine(rootFolder, "NotReallyLinq.linq");

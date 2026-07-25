@@ -1,4 +1,4 @@
-namespace DotPad.Contracts.IntelliSense;
+namespace RunPad.Contracts.IntelliSense;
 
 public enum SemanticTokenKind
 {

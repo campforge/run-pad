@@ -6,10 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\core\DotPad.Build.Core\DotPad.Build.Core.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Contracts\DotPad.Contracts.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Debug\DotPad.Debug.csproj" />
-    <ProjectReference Include="..\..\core\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Debug\RunPad.Debug.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
   </ItemGroup>
 
 </Project>

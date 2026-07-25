@@ -2,26 +2,26 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
-using DotPad.Avalonia.CodeTextEditor;
-using DotPad.Avalonia.Themes;
-using DotPad.Contracts;
-using DotPad.Contracts.IntelliSense;
-using DotPad.Format.RPad;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.VB;
-using DotPad.Services;
-using DotPad.Services.BuildCache;
-using DotPad.Services.Preferences;
-using DotPad.UserControls;
-using DotPad.Windows.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.VB;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Snippets moved from EditorTabItemControl (UI layer) to ILanguageHostFactory.Snippets
-// (DotPad.Languages.CSharp/DotPad.Languages.VB) — see TODO.md #41. These tests use the real
+// (RunPad.Languages.CSharp/RunPad.Languages.VB) — see TODO.md #41. These tests use the real
 // LanguageHostRegistry/CSharpLanguageHostFactory/VbLanguageHostFactory (not mocked) to prove
 // snippets actually flow from the language plugin into the editor for the tab's own language,
 // rather than always being the hardcoded C# set.
@@ -120,7 +120,7 @@ public class EditorTabSnippetsTests
 
     private static async Task<EditorsTabItemControl> OpenTabAsync(RpadLanguage language)
     {
-        var tmpDir = Directory.CreateTempSubdirectory("dotpad-snippets-test").FullName;
+        var tmpDir = Directory.CreateTempSubdirectory("runpad-snippets-test").FullName;
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");

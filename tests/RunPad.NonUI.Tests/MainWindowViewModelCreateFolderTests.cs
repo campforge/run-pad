@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #69: file tree had no "create new folder" command at all. CreateFolderAsync resolves WHERE
 // the new folder actually goes (the interesting/risky part — see the three cases below) and delegates
@@ -46,19 +46,19 @@ public class MainWindowViewModelCreateFolderTests
     public async Task CreateFolderAsync_Should_CreateInsideTheSelectedFolder_WhenAFolderIsSelected()
     {
         var fileSystem = new Mock<IFileSystemService>();
-        Directory.CreateDirectory("/tmp/dotpad-createfolder-test/Sub");
+        Directory.CreateDirectory("/tmp/runpad-createfolder-test/Sub");
         try
         {
-            fileSystem.Setup(f => f.CreateNewFolder("/tmp/dotpad-createfolder-test/Sub"))
-                .Returns("/tmp/dotpad-createfolder-test/Sub/New Folder");
+            fileSystem.Setup(f => f.CreateNewFolder("/tmp/runpad-createfolder-test/Sub"))
+                .Returns("/tmp/runpad-createfolder-test/Sub/New Folder");
             var vm = CreateViewModel(fileSystem);
 
-            var result = await vm.CreateFolderAsync("/tmp/dotpad-createfolder-test/Sub");
+            var result = await vm.CreateFolderAsync("/tmp/runpad-createfolder-test/Sub");
 
-            Assert.Equal("/tmp/dotpad-createfolder-test/Sub/New Folder", result);
-            fileSystem.Verify(f => f.CreateNewFolder("/tmp/dotpad-createfolder-test/Sub"), Times.Once);
+            Assert.Equal("/tmp/runpad-createfolder-test/Sub/New Folder", result);
+            fileSystem.Verify(f => f.CreateNewFolder("/tmp/runpad-createfolder-test/Sub"), Times.Once);
         }
-        finally { Directory.Delete("/tmp/dotpad-createfolder-test", recursive: true); }
+        finally { Directory.Delete("/tmp/runpad-createfolder-test", recursive: true); }
     }
 
     [Fact]

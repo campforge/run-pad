@@ -1,4 +1,4 @@
-namespace DotPad.Build.Core.ProcessRunners;
+namespace RunPad.Build.Core.ProcessRunners;
 
 public class LocalExecutionArgs
 {

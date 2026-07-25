@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
 
-namespace DotPad;
+namespace RunPad;
 
 internal sealed class Program
 {

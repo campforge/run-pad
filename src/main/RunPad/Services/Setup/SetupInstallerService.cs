@@ -2,12 +2,12 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 // First-run setup wizard's installer — fetches the .NET SDK and netcoredbg from their real, official
 // sources (TODO.md, live report 2026-07-25: verified against the actual dotnet-install.sh/.ps1 scripts
 // and the real Samsung/netcoredbg GitHub releases API, not guessed) instead of leaving the user to
-// find and install both themselves before DotPad's Run/Debug buttons do anything useful.
+// find and install both themselves before RunPad's Run/Debug buttons do anything useful.
 public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupProcessRunner processRunner) : ISetupInstallerService
 {
     private const string NetcoredbgLatestBase = "https://github.com/Samsung/netcoredbg/releases/latest/download";
@@ -24,7 +24,7 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
             ? new Uri("https://dot.net/v1/dotnet-install.ps1")
             : new Uri("https://dot.net/v1/dotnet-install.sh");
 
-        var scriptPath = Path.Combine(Path.GetTempPath(), isWindows ? "dotpad-dotnet-install.ps1" : "dotpad-dotnet-install.sh");
+        var scriptPath = Path.Combine(Path.GetTempPath(), isWindows ? "runpad-dotnet-install.ps1" : "runpad-dotnet-install.sh");
         progress.Report("Downloading the official .NET install script...");
         await downloader.DownloadFileAsync(scriptUrl, scriptPath, ct);
 
@@ -72,7 +72,7 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
         await downloader.DownloadFileAsync(downloadUrl, archivePath, ct);
 
         var installDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DotPad", "netcoredbg");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
         if (Directory.Exists(installDir))
             Directory.Delete(installDir, recursive: true);
         Directory.CreateDirectory(installDir);
@@ -137,7 +137,7 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
                 return arch == Architecture.Arm64
                     ? Asset("netcoredbg-osx-arm64.zip", latest: true)
                     : Asset("netcoredbg-osx-amd64.tar.gz", latest: false);
-            default: // Linux — the only other platform DotPad ships for.
+            default: // Linux — the only other platform RunPad ships for.
                 return arch == Architecture.Arm64
                     ? Asset("netcoredbg-linux-arm64.tar.gz", latest: true)
                     : Asset("netcoredbg-linux-amd64.tar.gz", latest: true);

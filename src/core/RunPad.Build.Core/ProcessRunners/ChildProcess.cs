@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Text;
-using DotPad.Build.Core.Models;
+using RunPad.Build.Core.Models;
 
-namespace DotPad.Build.Core.ProcessRunners;
+namespace RunPad.Build.Core.ProcessRunners;
 
 /// <summary>
 /// Lightweight wrapper over <see cref="Process"/>. Starts a child process and
@@ -69,11 +69,11 @@ public sealed class ChildProcess : IChildProcess
     // argument like assemblyPath/parentPid: RpadKind.Statements/Expression compile to C# top-level
     // statements, which have an implicit `string[] args` in scope, so any extra CLI argument here
     // would leak straight into the user's own `args` (already true, if unobserved, of --pid above).
-    // An env var is invisible to `args` and read back via DotPad.Runtime.Util.CurrentQueryPath's own
+    // An env var is invisible to `args` and read back via RunPad.Runtime.Util.CurrentQueryPath's own
     // Environment.GetEnvironmentVariable — mirrors this same key name, duplicated rather than shared
-    // (DotPad.Runtime is netstandard2.0 and has no reference to this assembly), same precedent as
-    // CompiledDotnetLanguageHostBase's RsPrefix/InputRequestPrefix mirroring DotPad.Runtime.Util's.
-    internal const string CurrentQueryPathEnvVar = "DOTPAD_CURRENT_QUERY_PATH";
+    // (RunPad.Runtime is netstandard2.0 and has no reference to this assembly), same precedent as
+    // CompiledDotnetLanguageHostBase's RsPrefix/InputRequestPrefix mirroring RunPad.Runtime.Util's.
+    internal const string CurrentQueryPathEnvVar = "RUNPAD_CURRENT_QUERY_PATH";
 
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
     public static ChildProcess ForExecution(

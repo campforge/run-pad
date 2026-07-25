@@ -1,6 +1,6 @@
 using ReactiveUI;
 
-namespace DotPad.UserControls.Models;
+namespace RunPad.UserControls.Models;
 
 public class WatchExpression : ReactiveObject
 {

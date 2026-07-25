@@ -4,17 +4,17 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Services.Preferences;
-using DotPad.UserControls.Models;
-using DotPad.Windows;
-using DotPad.Windows.Models;
 using Moq;
 using ReactiveUI;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Services.Preferences;
+using RunPad.UserControls.Models;
+using RunPad.Windows;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 public class DependenciesWindowViewModelTests
 {

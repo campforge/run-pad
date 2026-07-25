@@ -1,4 +1,4 @@
-namespace DotPad.Contracts;
+namespace RunPad.Contracts;
 
 [Flags]
 public enum LanguageHostCapabilities

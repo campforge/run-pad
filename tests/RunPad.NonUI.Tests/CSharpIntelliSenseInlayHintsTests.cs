@@ -1,10 +1,10 @@
-using DotPad.Contracts.IntelliSense;
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #62 "inlay hints" — CSharpIntelliSenseService.ComputeInlayHintsAsync, wired to
 // NotifyTextChanged the same way SemanticTokensChanged/DiagnosticsChanged are (see
@@ -53,7 +53,7 @@ public class CSharpIntelliSenseInlayHintsTests
         var hints = await WaitForHintsAsync(service, code);
 
         var hint = Assert.Single(hints);
-        // The trailing "?" is genuine Roslyn behavior, not a DotPad quirk — confirmed with a bare
+        // The trailing "?" is genuine Roslyn behavior, not a RunPad quirk — confirmed with a bare
         // CSharpCompilation probe outside this codebase entirely: GetTypeInfo on a `var` TypeSyntax
         // under nullable-enable returns NullableAnnotation.Annotated for `new List<string>()` here,
         // same as what real Roslyn/VS's own (internal) CSharpInlineTypeHintsService would show —

@@ -1,11 +1,11 @@
-using DotPad.Contracts;
-using DotPad.Services;
-using DotPad.Services.Preferences;
-using DotPad.Windows.Models;
 using Moq;
+using RunPad.Contracts;
+using RunPad.Services;
+using RunPad.Services.Preferences;
+using RunPad.Windows.Models;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #110: file tree had no drag-and-drop at all. MoveFileOrFolder resolves the target directory
 // the same way CreateFolderAsync/CreateFileAsync already do (ResolveParentDir — dropping onto a folder
@@ -42,7 +42,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_MoveAPlainFile_IntoTheDroppedOnFolder()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -62,7 +62,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_MoveADirectory_Recursively()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var target = Path.Combine(root, "Target");
@@ -84,7 +84,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_MoveToTheRoot_WhenTargetPathIsNull()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -106,7 +106,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_MoveAlongsideAFile_WhenTheDropTargetIsAFileNotAFolder()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -135,7 +135,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_DoNothing_WhenDroppedOntoItsOwnCurrentParent()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var file = Path.Combine(root, "a.rpad");
@@ -157,7 +157,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_UpdateTheOpenTab_ToTheNewPath()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var sub = Path.Combine(root, "Sub");
@@ -181,7 +181,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_UpdateNestedOpenTabs_WhenMovingAFolder()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var target = Path.Combine(root, "Target");
@@ -209,7 +209,7 @@ public class MainWindowViewModelMoveTests
     [Fact]
     public void MoveFileOrFolder_Should_ReportAnError_AndKeepTheOriginalTabOpen_WhenMovingAFolderIntoItsOwnDescendant()
     {
-        var root = Directory.CreateTempSubdirectory("dotpad-move-test").FullName;
+        var root = Directory.CreateTempSubdirectory("runpad-move-test").FullName;
         try
         {
             var parent = Path.Combine(root, "Parent");

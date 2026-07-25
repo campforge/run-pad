@@ -1,11 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
-using DotPad.Avalonia.HtmlRenderer;
-using DotPad.Avalonia.HtmlRenderer.Adapters;
+using RunPad.Avalonia.HtmlRenderer;
+using RunPad.Avalonia.HtmlRenderer.Adapters;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #108: live user report — text selection dragged with the mouse over .Dump() output
 // appeared to lag/not visually update ("текст вроде выделяется, но не подсвечивается как
@@ -17,9 +17,9 @@ namespace DotPad.Runtime.UI.Tests;
 //
 // [AvaloniaFact] (not a plain [Fact]) because constructing an HtmlControl needs a live Avalonia
 // platform — AvaloniaAdapter's static ctor resolves FontManager.Current, which throws without one;
-// DotPad.Avalonia.HtmlRenderer.Tests deliberately has no Avalonia.Headless dependency (its own tests
+// RunPad.Avalonia.HtmlRenderer.Tests deliberately has no Avalonia.Headless dependency (its own tests
 // are pure-logic), so these live here instead, granted access via a second
-// [assembly: InternalsVisibleTo] on DotPad.Avalonia.HtmlRenderer (see its AssemblyInfo.cs).
+// [assembly: InternalsVisibleTo] on RunPad.Avalonia.HtmlRenderer (see its AssemblyInfo.cs).
 public class HtmlControlInvalidationTests
 {
     [AvaloniaFact]

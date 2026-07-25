@@ -6,7 +6,7 @@ using AvaloniaEdit.Editing;
 using AvaloniaEdit.Folding;
 using AvaloniaEdit.Rendering;
 
-namespace DotPad.Avalonia.CodeTextEditor;
+namespace RunPad.Avalonia.CodeTextEditor;
 
 internal sealed class FoldingMargin : AbstractMargin
 {
@@ -33,9 +33,9 @@ internal sealed class FoldingMargin : AbstractMargin
         var doc = Document;
         if (tv is null || doc is null || !tv.VisualLinesValid || tv.VisualLines.Count == 0) return;
 
-        var chevronBrush = LoadThemedResource<IBrush>("DotPad.Folding.ChevronBrush");
-        var hoverBrush = LoadThemedResource<IBrush>("DotPad.Folding.ChevronHoverBrush");
-        var lineBrush = LoadThemedResource<IBrush>("DotPad.Folding.LineBrush");
+        var chevronBrush = LoadThemedResource<IBrush>("RunPad.Folding.ChevronBrush");
+        var hoverBrush = LoadThemedResource<IBrush>("RunPad.Folding.ChevronHoverBrush");
+        var lineBrush = LoadThemedResource<IBrush>("RunPad.Folding.LineBrush");
 
         // ── Pass 1: thin vertical scope line for each expanded fold ──────────
         if (lineBrush is not null)

@@ -3,20 +3,20 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
-using DotPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // Live user report ("если нажать ctrl+c и нет выбранных символов, то копируется вся строка, вместе
 // с переносом" / same for Ctrl+X): the forked AvaloniaEdit's EditingCommandHandler already implements
 // this exact behavior (OnCopy/OnCut fall back to CopyWholeLine when TextArea.Selection.IsEmpty), gated
-// behind TextEditorOptions.CutCopyWholeLine, whose class-level default is already `true` — and DotPad's
-// CodeTextEditor never overrides it. Nothing here was DotPad-specific code to write; these tests exist
-// to empirically confirm the already-shipped-upstream behavior actually reaches a real DotPad editor
+// behind TextEditorOptions.CutCopyWholeLine, whose class-level default is already `true` — and RunPad's
+// CodeTextEditor never overrides it. Nothing here was RunPad-specific code to write; these tests exist
+// to empirically confirm the already-shipped-upstream behavior actually reaches a real RunPad editor
 // end-to-end (real Ctrl+C/Ctrl+X keypress through Avalonia.Headless, not just calling the command
 // method directly), since neither this behavior nor Options.CutCopyWholeLine had any test coverage
-// before, upstream (AvaloniaEdit.Tests) or in DotPad.
+// before, upstream (AvaloniaEdit.Tests) or in RunPad.
 public class EditorClipboardWholeLineTests
 {
     private static (Window Window, CodeTextEditor Editor) CreateEditorWithText(string text)
@@ -30,7 +30,7 @@ public class EditorClipboardWholeLineTests
     }
 
     // CI failure on macOS (Linux/dev machine never showed it): EditingCommandHandler.SetClipboardText
-    // (the vendored AvaloniaEdit fork, not DotPad's own code) calls Clipboard.SetDataAsync(text) and
+    // (the vendored AvaloniaEdit fork, not RunPad's own code) calls Clipboard.SetDataAsync(text) and
     // discards the returned Task — fire-and-forget, by design there (it's called from a synchronous
     // command handler). Reading the clipboard back immediately after KeyPress returns races that
     // still-in-flight write; apparently fast enough to always win on Linux, not on (slower/differently

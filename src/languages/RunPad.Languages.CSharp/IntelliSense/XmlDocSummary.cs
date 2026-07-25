@@ -3,7 +3,7 @@ using System.Xml;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 
-namespace DotPad.Languages.CSharp.IntelliSense;
+namespace RunPad.Languages.CSharp.IntelliSense;
 
 // Extracts plain-text <summary>/<param> content from a symbol's XML doc comment (see ANALYSIS.md
 // TODO #50), so completion/signature-help/quick-info tooltips can show it under the highlighted

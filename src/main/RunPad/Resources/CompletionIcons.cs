@@ -1,7 +1,7 @@
 using Avalonia.Media;
-using DotPad.Contracts.IntelliSense;
+using RunPad.Contracts.IntelliSense;
 
-namespace DotPad.Resources;
+namespace RunPad.Resources;
 
 // Maps each CompletionItemKind to a small icon shown in the code editor's completion list
 // (AvaloniaEdit's ICompletionData.Image), so properties/methods/enums/etc. are visually

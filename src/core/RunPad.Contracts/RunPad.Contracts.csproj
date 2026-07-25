@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\DotPad.Format.RPad\DotPad.Format.RPad.csproj" />
+    <ProjectReference Include="..\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
   </ItemGroup>
 </Project>

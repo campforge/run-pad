@@ -1,9 +1,9 @@
-using DotPad.Contracts;
-using DotPad.Format.RPad;
-using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
+using RunPad.Contracts;
+using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 
-namespace DotPad.Languages.VB;
+namespace RunPad.Languages.VB;
 
 public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
 {

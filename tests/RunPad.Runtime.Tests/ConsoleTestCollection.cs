@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Runtime.Tests;
+namespace RunPad.Runtime.Tests;
 
 // Console.Out/Console.In are process-wide global state — any test that temporarily redirects them
 // (ObjectExtensionsTests, UtilTests) must not run concurrently with another test doing the same, or

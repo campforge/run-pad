@@ -1,7 +1,7 @@
-using DotPad.Avalonia.HtmlRenderer.External.Adapters;
-using DotPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters;
+using RunPad.Avalonia.HtmlRenderer.External.Adapters.Entities;
 
-namespace DotPad.Avalonia.HtmlRenderer.Tests.Fakes;
+namespace RunPad.Avalonia.HtmlRenderer.Tests.Fakes;
 
 internal sealed class TestAdapter : RAdapter
 {

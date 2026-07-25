@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Format.RPad.Tests;
+namespace RunPad.Format.RPad.Tests;
 
 public class RpadParserWriterTests
 {
@@ -53,7 +53,7 @@ public class RpadParserWriterTests
     [Fact]
     public void TryParse_ReadmeFrontMatterExample_ParsesAllFieldsWithoutResetting()
     {
-        // Mirrors the front-matter example from src/core/DotPad.Format.RPad/README.md verbatim.
+        // Mirrors the front-matter example from src/core/RunPad.Format.RPad/README.md verbatim.
         // Regression guard: TargetSdk/Package are plain YAML scalars, and without the type
         // converters registered on the deserializer, YamlDotNet fails to bind them onto the
         // TargetSdk/Package records and throws — which silently resets the *entire* front matter

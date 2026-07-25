@@ -2,10 +2,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:vm="clr-namespace:DotPad.Windows.Models"
+    xmlns:vm="clr-namespace:RunPad.Windows.Models"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
-    xmlns:uc="clr-namespace:DotPad.UserControls"
-    xmlns:ucm="clr-namespace:DotPad.UserControls.Models" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="DotPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="DotPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:uc="clr-namespace:RunPad.UserControls"
+    xmlns:ucm="clr-namespace:RunPad.UserControls.Models" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -25,7 +25,7 @@
             <Setter Property="Width" Value="46"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
             <Setter Property="Template">
@@ -37,7 +37,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.wc-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource DotPad.Toolbar.Button.HoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
         <Style Selector="Button.wc-close:pointerover">
             <Setter Property="Background" Value="#C42B1C"/>
@@ -49,7 +49,7 @@
     <Grid RowDefinitions="32,*">
 
         <!-- ── Title bar ─────────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
+        <Border Grid.Row="0" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
 
@@ -83,7 +83,7 @@
                             <MenuItem Header="_Preferences" Command="{Binding OpenPreferencesCommand}"/>
                         </MenuItem>
                         <MenuItem Header="Help">
-                            <MenuItem Header="_About DotPad" Command="{Binding OpenAboutCommand}"/>
+                            <MenuItem Header="_About RunPad" Command="{Binding OpenAboutCommand}"/>
                         </MenuItem>
                     </Menu>
 
@@ -124,12 +124,12 @@
             </Grid.ColumnDefinitions>
 
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
-            <Grid Grid.Column="0" ClipToBounds="True" Background="{DynamicResource DotPad.Sidebar.BackgroundBrush}">
+            <Grid Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
                 <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"/>
             </Grid>
 
-            <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource DotPad.Separator.BackgroundBrush}" ResizeDirection="Columns"/>
+            <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource RunPad.Separator.BackgroundBrush}" ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
             <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>

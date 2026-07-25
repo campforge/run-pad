@@ -1,8 +1,8 @@
-using DotPad.Contracts;
-using DotPad.Languages.DotnetCommon;
 using Microsoft.Extensions.Logging;
+using RunPad.Contracts;
+using RunPad.Languages.DotnetCommon;
 
-namespace DotPad.Languages.CSharp;
+namespace RunPad.Languages.CSharp;
 
 public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
 {
@@ -50,7 +50,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         WordTriggers = new HashSet<string> { "new", "override" },
         StatementTerminators = new HashSet<char> { ';' },
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']', ['{'] = '}' },
-        // '(' deliberately excluded — see DotPad.Avalonia.CodeTextEditor.CodeTextEditor.AutoCloseBraces:
+        // '(' deliberately excluded — see RunPad.Avalonia.CodeTextEditor.CodeTextEditor.AutoCloseBraces:
         // opening a call's parameter list is exactly when signature help is about to show the real
         // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
         AutoCloseBraces = new HashSet<char> { '[', '{' },

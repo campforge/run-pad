@@ -1,9 +1,9 @@
-using DotPad.Languages.CSharp;
-using DotPad.Languages.CSharp.IntelliSense;
 using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
 
-namespace DotPad.Runtime.UI.Tests;
+namespace RunPad.Runtime.UI.Tests;
 
 // ObjectExtensions.Dump is deliberately many small overloads (Dump(), Dump(label), Dump(depth),
 // Dump(label, depth), Dump(DumpOptions)) instead of one method with a pile of nullable parameters —

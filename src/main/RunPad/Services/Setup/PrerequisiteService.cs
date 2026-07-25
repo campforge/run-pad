@@ -1,8 +1,8 @@
 using System.ComponentModel;
-using DotPad.Contracts;
-using DotPad.Services.Preferences;
+using RunPad.Contracts;
+using RunPad.Services.Preferences;
 
-namespace DotPad.Services.Setup;
+namespace RunPad.Services.Setup;
 
 public sealed class PrerequisiteService(ISdkProvider sdkProvider, IPreferencesService preferences) : IPrerequisiteService
 {

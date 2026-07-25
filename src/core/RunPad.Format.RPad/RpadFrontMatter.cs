@@ -1,4 +1,4 @@
-namespace DotPad.Format.RPad;
+namespace RunPad.Format.RPad;
 
 public record TargetSdk(string Name, string? Version = null)
 {

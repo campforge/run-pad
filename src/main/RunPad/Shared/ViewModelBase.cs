@@ -1,5 +1,5 @@
 using ReactiveUI;
 
-namespace DotPad.Shared;
+namespace RunPad.Shared;
 
 public class ViewModelBase : ReactiveObject { }

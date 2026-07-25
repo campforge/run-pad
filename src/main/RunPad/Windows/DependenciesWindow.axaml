@@ -1,14 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewModels="clr-namespace:DotPad.Windows.Models"
-        x:Class="DotPad.Windows.DependenciesWindow"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.DependenciesWindow"
         x:DataType="viewModels:DependenciesWindowViewModel"
         Title="NuGet Packages"
         Width="980" Height="620"
         MinWidth="700" MinHeight="420"
         CanResize="True"
-        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
-        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
     <Grid RowDefinitions="*,Auto" Margin="12">
 
@@ -40,13 +40,13 @@
                                 <TextBlock Text="Enter a package name to search"
                                            IsVisible="{Binding ShowIdleMessage}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            FontSize="14"/>
 
                                 <TextBlock Text="No packages found"
                                            IsVisible="{Binding ShowEmptyState}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            FontSize="14"/>
 
                                 <TextBlock Text="{Binding ErrorMessage}"
@@ -78,15 +78,15 @@
                                                         <TextBlock Text="{Binding Id}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="13"
-                                                                   Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                                                   Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                                         <TextBlock Text="{Binding Version}"
                                                                    VerticalAlignment="Center"
                                                                    FontSize="11"
-                                                                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                         <TextBlock Text="{Binding Downloads}"
                                                                    VerticalAlignment="Center"
                                                                    FontSize="11"
-                                                                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                     </StackPanel>
                                                     <!-- Add button -->
                                                     <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
@@ -103,7 +103,7 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                MaxLines="2"
                                                                Margin="0,2,0,0"
-                                                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -124,13 +124,13 @@
                                        FontSize="10" FontWeight="SemiBold"
                                        LetterSpacing="1"
                                        Margin="8,0,0,8"
-                                       Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
 
                             <TextBlock Grid.Row="1"
                                        Text="No packages in local cache"
                                        IsVisible="{Binding !HasCacheItems}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                        FontSize="12"/>
 
                             <ListBox Grid.Row="1"
@@ -167,10 +167,10 @@
                                                                Text="{Binding Id}"
                                                                FontSize="12"
                                                                TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                                               Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                                     <TextBlock Text="{Binding Version}"
                                                                FontSize="10"
-                                                               Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         Classes="cache-toggle"
@@ -209,7 +209,7 @@
                                        FontSize="10" FontWeight="SemiBold"
                                        LetterSpacing="1"
                                        Margin="8,0,0,8"
-                                       Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
 
                             <Panel Grid.Row="1">
 
@@ -217,7 +217,7 @@
                                            IsVisible="{Binding !HasFrontMatter}"
                                            TextWrapping="Wrap"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            FontSize="12"
                                            MaxWidth="180"
                                            TextAlignment="Center"/>
@@ -225,7 +225,7 @@
                                 <TextBlock Text="No packages added"
                                            IsVisible="{Binding ShowNoPackagesHint}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                            FontSize="12"/>
 
                                 <ListBox ItemsSource="{Binding ScriptPackages}"
@@ -253,7 +253,7 @@
                                                                    Foreground="{DynamicResource SystemAccentColor}"/>
                                                         <TextBlock Text="{Binding Version}"
                                                                    FontSize="10"
-                                                                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"/>
+                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="1"
                                                             Content="×"
@@ -262,7 +262,7 @@
                                                             BorderThickness="0"
                                                             Padding="8,2"
                                                             FontSize="15"
-                                                            Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                                            Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                                             VerticalAlignment="Center"/>
                                                 </Grid>
                                             </Border>
@@ -301,7 +301,7 @@
                                    IsVisible="{Binding !HasFrontMatter}"
                                    TextWrapping="Wrap"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                    FontSize="13"
                                    MaxWidth="280"
                                    TextAlignment="Center"/>
@@ -310,7 +310,7 @@
                                    IsVisible="{Binding ShowNoUsingsHint}"
                                    TextWrapping="Wrap"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                    FontSize="13"
                                    MaxWidth="320"
                                    TextAlignment="Center"/>
@@ -337,7 +337,7 @@
                                                        FontSize="13"
                                                        FontFamily="Consolas,Menlo,monospace"
                                                        VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource DotPad.Text.PrimaryBrush}"/>
+                                                       Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
                                             <Button Grid.Column="1"
                                                     Content="×"
                                                     Command="{Binding RemoveCommand}"
@@ -345,7 +345,7 @@
                                                     BorderThickness="0"
                                                     Padding="8,2"
                                                     FontSize="16"
-                                                    Foreground="{DynamicResource DotPad.Text.SecondaryBrush}"
+                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                                                     VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>

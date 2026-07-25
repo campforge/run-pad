@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DotPad.Format.RPad.Tests;
+namespace RunPad.Format.RPad.Tests;
 
 // TODO.md #63 "конвертер .linq → .rpad" — LinqConverter.Convert. Fixtures below are representative
 // hand-written .linq content matching LINQPad's documented file shape (XML <Query> header + plain
@@ -33,7 +33,7 @@ public class LinqConverterTests
     [InlineData("VBStatements", RpadLanguage.Vb, RpadKind.Statements)]
     [InlineData("VBProgram", RpadLanguage.Vb, RpadKind.Program)]
     [InlineData("VBExpression", RpadLanguage.Vb, RpadKind.Expression)]
-    public void Convert_Should_MapEveryDotPadSupportedKind(string linqKind, RpadLanguage expectedLanguage, RpadKind expectedKind)
+    public void Convert_Should_MapEveryRunPadSupportedKind(string linqKind, RpadLanguage expectedLanguage, RpadKind expectedKind)
     {
         var linq = $"""
             <Query Kind="{linqKind}" />
@@ -175,7 +175,7 @@ public class LinqConverterTests
     [InlineData("ESQL")]
     [InlineData("FSharpProgram")]
     [InlineData("FSharpExpression")]
-    public void Convert_Should_Throw_ForKindsDotPadDoesNotSupport(string unsupportedKind)
+    public void Convert_Should_Throw_ForKindsRunPadDoesNotSupport(string unsupportedKind)
     {
         var linq = $"<Query Kind=\"{unsupportedKind}\" />\n\ncode\n";
 

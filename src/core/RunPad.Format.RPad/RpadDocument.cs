@@ -1,4 +1,4 @@
-namespace DotPad.Format.RPad;
+namespace RunPad.Format.RPad;
 
 public sealed class RpadDocument
 {

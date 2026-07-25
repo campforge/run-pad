@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace DotPad.UserControls;
+namespace RunPad.UserControls;
 
 public partial class DebugPanel : UserControl
 {
