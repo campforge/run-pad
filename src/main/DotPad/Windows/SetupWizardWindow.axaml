@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:DotPad.Windows.Models"
+        x:Class="DotPad.Windows.SetupWizardWindow"
+        x:DataType="viewModels:SetupWizardViewModel"
+        Title="DotPad — First-time setup"
+        Width="520" Height="360"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource DotPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource DotPad.Text.PrimaryBrush}">
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,16,Auto,Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="DotPad needs a couple of things before it can compile and debug scripts."
+                   TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock Grid.Row="1" Text="You can skip this and set them up later in Preferences."
+                   TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+
+        <!-- .NET SDK row -->
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="✅" IsVisible="{Binding HasSuitableSdk}"/>
+                <TextBlock Text="❌" IsVisible="{Binding !HasSuitableSdk}"/>
+                <TextBlock Text=".NET SDK" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Install" Command="{Binding InstallSdkCommand}"
+                    IsVisible="{Binding !HasSuitableSdk}" IsEnabled="{Binding !IsBusy}"/>
+        </Grid>
+
+        <!-- netcoredbg row -->
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="✅" IsVisible="{Binding HasValidDebugger}"/>
+                <TextBlock Text="❌" IsVisible="{Binding !HasValidDebugger}"/>
+                <TextBlock Text="netcoredbg (debugger)" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Install" Command="{Binding InstallDebuggerCommand}"
+                    IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}"/>
+        </Grid>
+
+        <ScrollViewer Grid.Row="5" Margin="0,16,0,0">
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Opacity="0.8" FontSize="12"/>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Name="ContinueButton" Content="Continue to DotPad" Click="Continue_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
