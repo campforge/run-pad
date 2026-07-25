@@ -77,7 +77,9 @@ jobs:
         if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
-      # Release assets — only built on an actual merge to main, not on every PR.
+      # Release assets — only built on an actual merge to main, not on every PR. Ships both a portable
+      # zip (unpack and run) and an MSI (Start Menu shortcut, uninstaller, upgrade-in-place on the
+      # next version via the fixed UpgradeCode in installer/windows/Package.wxs).
       - name: 📦 Publish (win-x64)
         if: github.event_name == 'push'
         run: dotnet publish src/main/DotPad/DotPad.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
@@ -87,7 +89,36 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath DotPad-win-x64.zip
 
-      - name: ⬆️ Upload release artifact (win-x64)
+      - name: 🔎 Read version
+        if: github.event_name == 'push'
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/DotPad/DotPad.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Pinned to WiX v5 specifically — v6+ added an Open Source Maintenance Fee EULA-acceptance gate
+      # (harmless for a $0-revenue project, the fee itself only applies above $10k/year, but v5 avoids
+      # needing any EULA-acceptance mechanism in CI at all — see installer/windows/Package.wxs).
+      - name: 📦 Install WiX Toolset
+        if: github.event_name == 'push'
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add WixToolset.UI.wixext/5.0.2
+
+      - name: 🧳 Build MSI (win-x64)
+        if: github.event_name == 'push'
+        env:
+          # Belt-and-suspenders: WiX ships targeting an older net TFM than the SDK version this repo
+          # pins — LatestMajor makes sure it still resolves against whatever .NET setup-dotnet just
+          # installed rather than depending on a second, older runtime also being present.
+          DOTNET_ROLL_FORWARD: LatestMajor
+        run: >
+          wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
+          -d DotPadVersion=${{ steps.version.outputs.version }} -d PublishDir=publish/win-x64
+          -arch x64 -out DotPad-win-x64.msi
+
+      - name: ⬆️ Upload release artifact (win-x64 zip)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
@@ -99,6 +130,14 @@ jobs:
           # this intermediate copy for the default 90 days — three platforms' worth of that per merge
           # to main is what exhausted the private-repo Actions storage quota ("Failed to CreateArtifact:
           # Artifact storage quota has been hit").
+          retention-days: 1
+
+      - name: ⬆️ Upload release artifact (win-x64 MSI)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-win-x64-msi
+          path: DotPad-win-x64.msi
           retention-days: 1
 
   build-linux:
@@ -143,9 +182,10 @@ jobs:
           # contributor to the storage-quota failure this was trimmed for.
           retention-days: 7
 
-      # Release assets — only built on an actual merge to main, not on every PR. Ships both a portable
-      # tar.gz (unpack and run) and an AppImage (single executable, no unpack/install step, shows up
-      # with a real icon in file managers/app launchers that support it).
+      # Release assets — only built on an actual merge to main, not on every PR. Ships a portable
+      # tar.gz (unpack and run), an AppImage (single executable, no unpack/install step, shows up with
+      # a real icon in file managers/app launchers that support it), and a real .deb (apt/dpkg-tracked
+      # install, Start Menu-equivalent .desktop entry).
       - name: 📦 Publish (linux-x64)
         if: github.event_name == 'push'
         run: dotnet publish src/main/DotPad/DotPad.csproj -c Release -r linux-x64 --self-contained true -o publish/linux-x64
@@ -166,6 +206,17 @@ jobs:
           APPIMAGETOOL: /tmp/appimagetool
         run: bash scripts/make-linux-appimage.sh publish/linux-x64 dist
 
+      - name: 🔎 Read version
+        if: github.event_name == 'push'
+        id: version
+        run: |
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/DotPad/DotPad.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 🧳 Bundle .deb (linux-x64)
+        if: github.event_name == 'push'
+        run: bash scripts/make-linux-deb.sh publish/linux-x64 ${{ steps.version.outputs.version }} dist
+
       - name: ⬆️ Upload release artifact (linux-x64 tar.gz)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -181,6 +232,13 @@ jobs:
         with:
           name: release-linux-x64-appimage
           path: dist/DotPad-x86_64.AppImage
+
+      - name: ⬆️ Upload release artifact (linux-x64 deb)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64-deb
+          path: dist/dotpad_${{ steps.version.outputs.version }}_amd64.deb
 
   build-macos:
     name: Build & Test (macos-latest)
@@ -292,7 +350,7 @@ jobs:
 
       # Tag/release are named after DotPad.csproj's <Version> — bump it before merging to main
       # to cut a new release; otherwise this updates the existing release for that version in
-      # place (replacing its five archives) rather than failing or piling up duplicates.
+      # place (replacing its seven archives) rather than failing or piling up duplicates.
       - name: 🔎 Read version
         id: version
         run: |

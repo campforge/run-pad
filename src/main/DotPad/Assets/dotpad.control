@@ -1,0 +1,7 @@
+Package: dotpad
+Version: __VERSION__
+Architecture: amd64
+Maintainer: coddwrench
+Description: C# scratchpad/scripting IDE
+ DotPad edits and runs .rpad files: self-documenting Markdown documents
+ with a YAML front matter header and one executable C# code block.
