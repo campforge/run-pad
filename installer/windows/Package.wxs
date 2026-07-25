@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DotPad MSI installer (проход "установщики" — MSI for Windows, .deb for Linux). Built with WiX
+  Toolset v5 (plain `wix build` CLI, no .wixproj/MSBuild layer, matching the scripts/make-*.sh
+  pattern already used for the macOS .app bundle and Linux AppImage) — pinned to v5 specifically to
+  avoid v6+'s Open Source Maintenance Fee EULA gate (harmless for a $0-revenue project — the fee
+  itself only applies above $10k/year — but v5 sidesteps needing any EULA-acceptance mechanism in CI
+  at all). UpgradeCode and the shortcut Component's Guid are fixed, generated once — never change
+  them, or Windows will treat future versions as an unrelated product instead of an upgrade.
+
+  DotPadVersion and PublishDir are supplied on the command line via `-d`, e.g.:
+    wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
+      -d DotPadVersion=0.3.0 -d PublishDir=publish/win-x64 -arch x64 -out DotPad-win-x64.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="DotPad" Manufacturer="coddwrench" Version="$(var.DotPadVersion)"
+           UpgradeCode="A15433F7-3B92-4026-8EC8-ADADCD8384F6">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of DotPad is already installed." />
+
+    <Icon Id="DotPadIcon" SourceFile="..\..\src\main\DotPad\Assets\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="DotPadIcon" />
+
+    <Feature Id="Main" Title="DotPad">
+      <Files Directory="INSTALLFOLDER" Include="$(var.PublishDir)\**">
+        <Exclude Files="**\*.pdb" />
+      </Files>
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_Minimal" />
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="DotPad" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="DotPad">
+        <Component Id="ApplicationShortcut" Guid="7DE8D4A0-15C1-4DEF-8A97-0E368495F245">
+          <Shortcut Id="StartMenuShortcut" Name="DotPad"
+                    Description="C# scratchpad/scripting IDE"
+                    Target="[INSTALLFOLDER]DotPad.exe"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="DotPadIcon" />
+          <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\coddwrench\DotPad" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+  </Fragment>
+</Wix>

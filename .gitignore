@@ -7,3 +7,7 @@ bin
 
 
 .aider*
+
+# WiX Toolset's local extension cache (created by `wix extension add` — see
+# .github/workflows/dotnet-desktop.yml's "Install WiX Toolset" step, installer/windows/Package.wxs).
+.wix/
