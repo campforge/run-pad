@@ -11,6 +11,7 @@ using DotPad.Logging;
 using DotPad.Services;
 using DotPad.Services.BuildCache;
 using DotPad.Services.Preferences;
+using DotPad.Services.Setup;
 using DotPad.UserControls;
 using DotPad.Windows.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Logging;
 using DependenciesWindow = DotPad.Windows.DependenciesWindow;
 using MainWindow = DotPad.Windows.MainWindow;
 using PreferencesWindow = DotPad.Windows.PreferencesWindow;
+using SetupWizardWindow = DotPad.Windows.SetupWizardWindow;
 
 namespace DotPad;
 
@@ -46,7 +48,30 @@ public class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            var prerequisites = _serviceProvider.GetRequiredService<IPrerequisiteService>();
+            if (prerequisites.Check().IsComplete)
+            {
+                desktop.MainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            }
+            else
+            {
+                // First-run setup wizard (TODO.md, live report 2026-07-25) — shown instead of
+                // MainWindow when the .NET SDK or netcoredbg debugger is missing/unconfigured, so a
+                // fresh install gets an actionable "install this for me" instead of Run/Debug just
+                // silently failing. Reassigning desktop.MainWindow to the real MainWindow BEFORE
+                // closing the wizard (rather than after) keeps ShutdownMode.OnMainWindowClose from
+                // tearing the whole app down when the wizard window itself closes.
+                var wizard = _serviceProvider.GetRequiredService<SetupWizardWindow>();
+                wizard.Continued += () =>
+                {
+                    var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+                    desktop.MainWindow = mainWindow;
+                    mainWindow.Show();
+                    wizard.Close();
+                };
+                desktop.MainWindow = wizard;
+            }
+
             desktop.Exit += (_, _) => _serviceProvider.Dispose();
         }
 
@@ -66,6 +91,10 @@ public class App : Application
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<IBuildCacheService, BuildCacheService>();
+        services.AddSingleton<IPrerequisiteService, PrerequisiteService>();
+        services.AddSingleton<ISetupDownloader, SetupDownloader>();
+        services.AddSingleton<ISetupProcessRunner, SetupProcessRunner>();
+        services.AddSingleton<ISetupInstallerService, SetupInstallerService>();
 
         AddLogging(services);
 
@@ -98,6 +127,8 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
+        services.AddTransient<SetupWizardViewModel>();
+        services.AddTransient<SetupWizardWindow>();
         services.AddSingleton<EditorTabsControl>();
 
         // TODO.md #100 — WindowService's own Func<TWindow> factories (a fresh Transient instance
