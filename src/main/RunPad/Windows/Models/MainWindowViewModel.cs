@@ -605,7 +605,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
         ImportLinqFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "ImportLinqFileCommand failed"));
         OpenAssemblyExplorerCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAssemblyExplorerCommand failed"));
-        AvailableSdks = sdkProviders.SelectMany(p => p.Get()).ToList();
+        AvailableSdks = sdkProviders.SelectMany(p => p.Get(prefs.Debugger.DotnetPath)).ToList();
 
         Sidebar = new CollapsiblePanelState(
             _prefs.Layout.SidebarCollapsed, _prefs.Layout.SidebarWidth, defaultExpandedSize: 300,

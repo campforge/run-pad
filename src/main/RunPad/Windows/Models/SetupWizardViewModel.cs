@@ -85,4 +85,25 @@ public sealed class SetupWizardViewModel : ReactiveObject
             Refresh();
         }
     }
+
+    // Live report 2026-07-26 — the wizard only ever offered "install for me"; a user who already has
+    // .NET/netcoredbg somewhere not on PATH (or wants a specific one of several installed copies) had
+    // no way to just point at it. Plain methods, not ReactiveCommands — the file-picker itself is a
+    // Window/StorageProvider concern the code-behind's Browse button handlers own; this is just what
+    // happens once a path comes back.
+    public void SetDotnetPathManually(string path)
+    {
+        _preferences.Debugger.DotnetPath = path;
+        _preferences.Save();
+        StatusText = $"Using .NET at {path}.";
+        Refresh();
+    }
+
+    public void SetDebuggerPathManually(string path)
+    {
+        _preferences.Debugger.DebuggerPath = path;
+        _preferences.Save();
+        StatusText = $"Using netcoredbg at {path}.";
+        Refresh();
+    }
 }

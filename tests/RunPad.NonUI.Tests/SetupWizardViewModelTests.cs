@@ -97,4 +97,35 @@ public class SetupWizardViewModelTests
         Assert.Equal("", debugger.DebuggerPath);
         prefs.Verify(p => p.Save(), Times.Never);
     }
+
+    // Live report 2026-07-26 — the wizard only offered "install for me"; a user with .NET/netcoredbg
+    // already somewhere (just not on PATH, or a specific one of several installs) had no way to just
+    // point at it.
+    [Fact]
+    public void SetDotnetPathManually_Should_SavePathIntoPreferences_AndRefreshStatus()
+    {
+        var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(false, false));
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+        prerequisites.Setup(p => p.Check()).Returns(new PrerequisiteStatus(true, false));
+
+        vm.SetDotnetPathManually("/custom/place/dotnet");
+
+        Assert.Equal("/custom/place/dotnet", debugger.DotnetPath);
+        prefs.Verify(p => p.Save(), Times.Once);
+        Assert.True(vm.HasSuitableSdk);
+    }
+
+    [Fact]
+    public void SetDebuggerPathManually_Should_SavePathIntoPreferences_AndRefreshStatus()
+    {
+        var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(true, false));
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+        prerequisites.Setup(p => p.Check()).Returns(new PrerequisiteStatus(true, true));
+
+        vm.SetDebuggerPathManually("/custom/place/netcoredbg");
+
+        Assert.Equal("/custom/place/netcoredbg", debugger.DebuggerPath);
+        prefs.Verify(p => p.Save(), Times.Once);
+        Assert.True(vm.HasValidDebugger);
+    }
 }

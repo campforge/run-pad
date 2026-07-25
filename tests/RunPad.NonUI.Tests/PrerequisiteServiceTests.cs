@@ -22,7 +22,7 @@ public class PrerequisiteServiceTests
     public void Check_Should_ReportBothMissing_WhenNoSdkAndNoDebuggerPath()
     {
         var (sdk, prefs, _) = CreateMocks();
-        sdk.Setup(s => s.Get()).Returns([]);
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Returns([]);
 
         var status = new PrerequisiteService(sdk.Object, prefs.Object).Check();
 
@@ -35,7 +35,7 @@ public class PrerequisiteServiceTests
     public void Check_Should_ReportSdkFound_WhenProviderReturnsAtLeastOne()
     {
         var (sdk, prefs, _) = CreateMocks();
-        sdk.Setup(s => s.Get()).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
 
         var status = new PrerequisiteService(sdk.Object, prefs.Object).Check();
 
@@ -48,7 +48,7 @@ public class PrerequisiteServiceTests
         // DotnetSdkProvider shells out to `dotnet --list-sdks` — when `dotnet` isn't found at all,
         // Process.Start throws Win32Exception rather than returning an empty list.
         var (sdk, prefs, _) = CreateMocks();
-        sdk.Setup(s => s.Get()).Throws(new System.ComponentModel.Win32Exception("No such file or directory"));
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Throws(new System.ComponentModel.Win32Exception("No such file or directory"));
 
         var status = new PrerequisiteService(sdk.Object, prefs.Object).Check();
 
@@ -59,7 +59,7 @@ public class PrerequisiteServiceTests
     public void Check_Should_ReportDebuggerMissing_WhenPathIsEmpty()
     {
         var (sdk, prefs, debugger) = CreateMocks();
-        sdk.Setup(s => s.Get()).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
         debugger.DebuggerPath = "";
 
         var status = new PrerequisiteService(sdk.Object, prefs.Object).Check();
@@ -71,7 +71,7 @@ public class PrerequisiteServiceTests
     public void Check_Should_ReportDebuggerMissing_WhenConfiguredPathDoesNotExistOnDisk()
     {
         var (sdk, prefs, debugger) = CreateMocks();
-        sdk.Setup(s => s.Get()).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
         debugger.DebuggerPath = "/definitely/not/a/real/path/netcoredbg";
 
         var status = new PrerequisiteService(sdk.Object, prefs.Object).Check();
@@ -83,7 +83,7 @@ public class PrerequisiteServiceTests
     public void Check_Should_ReportComplete_WhenSdkFoundAndDebuggerPathIsARealFile()
     {
         var (sdk, prefs, debugger) = CreateMocks();
-        sdk.Setup(s => s.Get()).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
+        sdk.Setup(s => s.Get(It.IsAny<string>())).Returns([new DotnetSdk(".NET", "net10.0", "10.0.0", ".NET 10.0.0")]);
         var realFile = Path.GetTempFileName();
         try
         {

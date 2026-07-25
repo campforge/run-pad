@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using NuGet.Versioning;
-using RunPad.Build.Core;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 
@@ -13,11 +13,12 @@ public sealed class DotnetSdkProvider : ISdkProvider
     // somehow still installed alongside newer SDKs (ANALYSIS.md #94).
     private const int MinSupportedSdkMajorVersion = 6;
 
-    public IReadOnlyList<DotnetSdk> Get()
+    public IReadOnlyList<DotnetSdk> Get(string? dotnetExecutableOverride = null)
     {
+        var fileName = string.IsNullOrWhiteSpace(dotnetExecutableOverride) ? "dotnet" : dotnetExecutableOverride;
         List<(string tfm, NuGetVersion version)> versions = [];
 
-        foreach (string line in Utils.Shell("dotnet --list-sdks"))
+        foreach (string line in ListSdks(fileName))
         {
             string trimmed = line.Trim();
             if (string.IsNullOrEmpty(trimmed)) continue;
@@ -38,5 +39,32 @@ public sealed class DotnetSdkProvider : ISdkProvider
             .ThenByDescending(x => x.version)
             .Select(x => new DotnetSdk(".NET", x.tfm, $"{x.version.Major}.{x.version.Minor}.0", $".NET {x.version}"))
             .ToList();
+    }
+
+    // Runs Process directly (not the shared Utils.Shell helper) — a user-configured
+    // dotnetExecutableOverride can be a full path containing spaces (e.g. Windows' own default
+    // "C:\Program Files\dotnet\dotnet.exe"), and Utils.Shell's SplitArguments naively splits its
+    // whole commandText on spaces with no quoting support at all — safe for the literal, space-free
+    // "dotnet" command its one existing caller passes, but would silently mangle a real spaced path.
+    private static IEnumerable<string> ListSdks(string fileName)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("--list-sdks");
+
+        using var process = Process.Start(startInfo);
+        if (process is null) yield break;
+
+        string? line;
+        while ((line = process.StandardOutput.ReadLine()) is not null)
+            yield return line;
+
+        process.WaitForExit();
     }
 }
