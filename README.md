@@ -14,6 +14,28 @@ YAML front matter и одним исполняемым блоком кода.
 Особенности C#
 - Взят netcoredbg не просто так: на текущий момент это лучший открытый отладчик .NET, который поддерживается сообществом и Samsung.
 
+## Установка
+
+Готовые сборки — на [странице релизов](https://github.com/coddwrench/dot-pad/releases/latest).
+
+**Windows** — скачать `DotPad-win-x64.zip`, распаковать, запустить `DotPad.exe`.
+
+**Linux** — либо скачать `DotPad-x86_64.AppImage`, сделать `chmod +x` и запустить (портативный, ничего
+не ставит в систему), либо скачать `DotPad-linux-x64.tar.gz`, распаковать и запустить `DotPad`.
+
+**macOS** — сборка пока не подписана сертификатом Apple Developer, поэтому Gatekeeper заблокирует
+запуск при обычной установке через Finder. Один блок в Терминале — скачивает актуальный релиз под
+вашу архитектуру (Apple Silicon/Intel определяется автоматически), ставит в `/Applications` и снимает
+карантин (это обычная практика для опенсорсных приложений без платной подписи, а не что-то небезопасное —
+вы сами разрешаете уже скачанному вами файлу запускаться):
+
+```bash
+ARCH=$(test "$(uname -m)" = "arm64" && echo arm64 || echo x64)
+curl -L "https://github.com/coddwrench/dot-pad/releases/latest/download/DotPad-osx-$ARCH.tar.gz" | tar -xz -C /Applications
+xattr -cr "/Applications/DotPad.app"
+open "/Applications/DotPad.app"
+```
+
 ## Вдохновение и используемые компоненты
 
 - Отладчик: [netcoredbg](https://github.com/Samsung/netcoredbg) (через DAP).

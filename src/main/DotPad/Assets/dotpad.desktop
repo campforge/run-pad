@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DotPad
+Comment=C# scratchpad/scripting IDE for .rpad files
+Exec=DotPad %f
+Icon=dotpad
+Categories=Development;IDE;
+Terminal=false
+MimeType=text/x-rpad;
