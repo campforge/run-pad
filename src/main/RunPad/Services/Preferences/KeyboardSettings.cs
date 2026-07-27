@@ -16,6 +16,12 @@ public sealed class KeyboardSettings
     // EditorTabsControl.SaveActive.
     public string Save { get; set; } = "Ctrl+S";
 
+    // Bug report 2026-07-27: Ctrl+Shift+S ("Save As", the conventional gesture across editors) matched
+    // no gesture and silently did nothing — same class of gap as Save above, just for the
+    // always-shows-the-dialog variant (as opposed to Save, which only falls through to Save As for an
+    // untitled tab). See EditorTabsControl.SaveAsActive.
+    public string SaveAs { get; set; } = "Ctrl+Shift+S";
+
     // TODO.md #80: these 4 used to be literal Key.XXX checks — MainWindow.axaml.cs (F4/Ctrl+W) and
     // FileTreeView.cs (F2/Delete) — sitting right next to the gestures above but not going through
     // this settings object at all, so they weren't shown as a tooltip/menu hint, weren't editable in

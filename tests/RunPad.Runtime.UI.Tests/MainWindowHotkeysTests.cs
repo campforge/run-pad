@@ -228,6 +228,50 @@ public class MainWindowHotkeysTests
         Assert.Equal(tabCountBefore + 1, vm.Tabs.Count);
     }
 
+    // Bug report 2026-07-27: Ctrl+Shift+S ("Save As") matched no gesture at all — there wasn't even a
+    // KeyboardSettings entry for it, let alone a branch in OnWindowKeyDown — so it silently did
+    // nothing. Same rebind-proves-it's-wired shape as the F4/Ctrl+W/Ctrl+N tests above. Asserts against
+    // ShowSaveFileDialogAsync (MainWindowViewModel.SaveTabAsAsync, reached via EditorTabItemViewModel.
+    // SaveAsCommand/IEditorTabActions.SaveAsAsync) since that's the first real side effect Save As has;
+    // needs WaitForActiveTabControlAsync first because SaveAsCommand only fires if EditorTabItemViewModel.
+    // WriteToFile is set, which happens once EditorsTabItemControl finishes construction.
+    [AvaloniaFact]
+    public async Task PressingTheDefaultCtrlShiftS_Should_OpenTheSaveAsDialog()
+    {
+        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings());
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
+        windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((string?)null); // cancelled — this test only cares that the dialog was asked for
+
+        window.KeyPress(Key.S, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.S, null);
+
+        windowService.Verify(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+    }
+
+    [AvaloniaFact]
+    public async Task PressingCtrlShiftS_Should_NotOpenTheSaveAsDialog_WhenTheGestureHasBeenRebound()
+    {
+        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { SaveAs = "Ctrl+Shift+X" });
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
+
+        window.KeyPress(Key.S, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.S, null);
+
+        windowService.Verify(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [AvaloniaFact]
+    public async Task PressingTheReboundGesture_Should_OpenTheSaveAsDialog()
+    {
+        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { SaveAs = "Ctrl+Shift+X" });
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
+        windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((string?)null);
+
+        window.KeyPress(Key.X, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.X, null);
+
+        windowService.Verify(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+    }
+
     // Confirms Ctrl+N reads its language/kind from EditorSettings (MainWindowViewModel.
     // NewRpadFileWithDefaults) instead of hardcoding NewRpadFile's own CSharp/Statements defaults —
     // CreateMainWindow's own EditorSettings() stub is replaced with an explicit one here so this is

@@ -74,6 +74,7 @@
                             <MenuItem Header="_Import LINQPad Query..." Command="{Binding ImportLinqFileCommand}"/>
                             <Separator/>
                             <MenuItem Header="_Save" Click="Save_Click" InputGesture="{Binding SaveGesture}"/>
+                            <MenuItem Header="Save _As..." Click="SaveAs_Click" InputGesture="{Binding SaveAsGesture}"/>
                         </MenuItem>
                         <MenuItem Header="Edit">
                             <MenuItem Header="_Dependencies" Command="{Binding OpenDependenciesCommand}"

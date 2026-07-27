@@ -34,8 +34,16 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
     private readonly IReadOnlyList<string> _assemblyReferences;
     private readonly IReadOnlyList<string> _projectReferences;
 
-    private readonly Regex _errorRegex = new(@"^([\s\S]+)\((\d+,\d+)\): error (\S+): ([\s\S]+)$");
-    private readonly Regex _warningRegex = new(@"^([\s\S]+)\((\d+,\d+)\): warning (\S+): ([\s\S]+)$");
+    // Bug report 2026-07-27: a "'latest' is not a valid version string" NuGet restore failure has NO
+    // diagnostic code at all — real output is "...NuGet.targets(196,5): error : 'latest' is not a
+    // valid version string." (confirmed by actually forcing this exact failure) — the code group used
+    // to require \S+ (one or more), so that line simply never matched either regex. The build's
+    // ExitCode still came back non-zero (Success correctly false), but with an EMPTY Diagnostics list,
+    // so RunAsync's `if (!compilationResult.Success ...) return;` silently did nothing: no error
+    // anywhere, no execution — exactly "nothing happens when I hit Run". \S* (zero or more) admits an
+    // empty code without affecting the normal "error CS0103: ..." case.
+    private readonly Regex _errorRegex = new(@"^([\s\S]+)\((\d+,\d+)\): error (\S*): ([\s\S]+)$");
+    private readonly Regex _warningRegex = new(@"^([\s\S]+)\((\d+,\d+)\): warning (\S*): ([\s\S]+)$");
 
     private Process? _process;
 
@@ -186,7 +194,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
 
         var pkgRefs = nugetPackages.Select(kv =>
             $"""
-                    <PackageReference Include="{SecurityElement.Escape(kv.Key)}" Version="{SecurityElement.Escape(kv.Value)}" />
+                    <PackageReference Include="{SecurityElement.Escape(kv.Key)}" Version="{SecurityElement.Escape(ResolvePackageVersion(kv.Value))}" />
             """);
 
         return $"""
@@ -205,6 +213,17 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
             </Project>
             """;
     }
+
+    // Bug report 2026-07-27: RpadFrontMatter's Package.Default (and any package added via the
+    // Dependencies window without pinning a version) uses the literal string "latest" — meaningful
+    // app-side vocabulary (also what gets written into the .rpad YAML front matter), but NOT valid
+    // NuGet syntax: writing it straight into Version="latest" made `dotnet build` fail outright with
+    // "'latest' is not a valid version string" (confirmed by actually building a project with it).
+    // NuGet's real "always take the newest published version" spelling is the floating-version
+    // wildcard "*" — this is the one place real NuGet XML gets generated from that sentinel, so it's
+    // the right place to translate it.
+    private static string ResolvePackageVersion(string version) =>
+        string.Equals(version, "latest", StringComparison.OrdinalIgnoreCase) ? "*" : version;
 
     private void TryDeleteStaleOutput(string outputDll)
     {
