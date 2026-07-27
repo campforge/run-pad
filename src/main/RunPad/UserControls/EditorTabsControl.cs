@@ -1,5 +1,4 @@
 using System.Collections.Specialized;
-using System.Reactive.Disposables;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
@@ -20,7 +19,7 @@ namespace RunPad.UserControls;
 
 public partial class EditorTabsControl : UserControl, IDisposable
 {
-    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control, IDisposable CommandSubs)> _tabs = new();
+    private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
     private IDisposable? _activeTabSub;
     private bool _disposed;
 
@@ -120,18 +119,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 }
 
                 var tab = AddTabItem(ctrl, vm, fileTabControl);
-                // Save As/Duplicate/Close all need the View layer (ctrl.WriteFile serializes this
-                // tab's live editor content — Close needs it too now, for the "Save" choice in the
-                // unsaved-changes confirmation dialog), unlike OpenContainingFolderCommand, which
-                // stays subscribed from MainWindowViewModel itself since it doesn't — so they're
-                // wired here instead, where both vm and ctrl are already in hand.
-                var commandSubs = new CompositeDisposable
-                {
-                    vm.SaveAsCommand.Subscribe(unit => { _ = _vm!.SaveTabAsAsync(vm, ctrl.WriteFile); }),
-                    vm.DuplicateCommand.Subscribe(unit => _vm!.DuplicateTab(vm, ctrl.WriteFile)),
-                    vm.CloseCommand.Subscribe(unit => _ = RequestCloseTabAsync(vm, ctrl)),
-                };
-                _tabs[vm] = (tab, ctrl, commandSubs);
+                _tabs[vm] = (tab, ctrl);
 
                 // ActiveTab may already have been set to vm (e.g. it's the tab that was just
                 // opened) before this entry existed — OnActiveTabChanged no-ops in that case, so
@@ -147,7 +135,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
             {
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
                 entry.Control.SaveIfNeeded();
-                entry.CommandSubs.Dispose();
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
@@ -188,7 +175,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     private void OnThemeChanged(ActiveTheme theme)
     {
-        foreach (var (_, ctrl, _) in _tabs.Values)
+        foreach (var (_, ctrl) in _tabs.Values)
             ctrl.ApplyTheme(theme);
     }
 
@@ -239,7 +226,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (vm.FilePath is not null)
             ctrl.SaveIfNeeded();
         else
-            _ = _vm.SaveTabAsAsync(vm, ctrl.WriteFile);
+            vm.SaveAsCommand.Execute().Subscribe();
     }
 
     public void FormatActive()
@@ -250,39 +237,12 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // Ctrl+W's entry point — replaces the old direct vm.CloseActiveTab() call (MainWindow.axaml.cs)
     // now that closing needs to go through the same confirmation as the tab's own [x] button below.
+    // Routed through the tab's own CloseCommand (real body: MainWindowViewModel.IEditorTabActions.
+    // CloseAsync, ANALYSIS.md #102) rather than a second, parallel way to trigger the same close flow.
     public void CloseActiveTab()
     {
-        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is not { } ctrl) return;
-        _ = RequestCloseTabAsync(vm, ctrl);
-    }
-
-    // TODO.md, "Жизненный цикл вкладок (остаток)": closing an untitled tab with real typed content
-    // used to discard it silently (SaveIfNeeded is a no-op without a FilePath) — same risk the
-    // original always-blank startup tab always had, just now hitting any untitled tab, not just one.
-    // Prompts Save/Don't Save/Cancel, same three-way choice every other editor gives here. Only the
-    // untitled+dirty case prompts at all — a tab with a real path already gets saved on close
-    // (EditorTabsControl.OnTabsCollectionChanged's OldItems branch calls SaveIfNeeded unconditionally),
-    // and a pristine untitled tab has nothing worth asking about.
-    private async Task RequestCloseTabAsync(EditorTabItemViewModel vm, EditorsTabItemControl ctrl)
-    {
-        if (_vm is null) return;
-
-        if (vm.FilePath is null && vm.IsDirty)
-        {
-            var choice = await _vm.ConfirmDiscardUnsavedChangesAsync(vm.FileName);
-            if (choice == UnsavedChangesResult.Cancel) return;
-
-            if (choice == UnsavedChangesResult.Save)
-            {
-                await _vm.SaveTabAsAsync(vm, ctrl.WriteFile);
-                // SaveTabAsAsync only assigns FilePath on success — still null means the Save As
-                // dialog it opens was itself cancelled (or the write failed), so treat that as
-                // "changed my mind about closing" rather than closing with the content lost anyway.
-                if (vm.FilePath is null) return;
-            }
-        }
-
-        _vm.CloseTab(vm);
+        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
+        vm.CloseCommand.Execute().Subscribe();
     }
 
     // TODO.md, "Жизненный цикл вкладок (остаток)": the per-tab confirmation above only fires when a
@@ -403,10 +363,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
         }
         _activeTabSub?.Dispose();
 
-        foreach (var (tabVm, (_, ctrl, commandSubs)) in _tabs)
+        foreach (var (tabVm, (_, ctrl)) in _tabs)
         {
             ctrl.SaveIfNeeded();
-            commandSubs.Dispose();
             ctrl.Dispose();
             tabVm.Dispose();
         }

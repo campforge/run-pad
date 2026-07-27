@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -18,7 +17,7 @@ using RunPad.UserControls.Models;
 
 namespace RunPad.Windows.Models;
 
-public class MainWindowViewModel : ViewModelBase, IDisposable
+public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 {
     private readonly IFileSystemService _fileSystemService;
     private readonly IWindowService _windowService;
@@ -47,7 +46,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
             : StringComparison.Ordinal;
 
     private readonly Dictionary<string, EditorTabItemViewModel> _openTabs = new(FilePathComparer);
-    private readonly Dictionary<EditorTabItemViewModel, IDisposable> _closeSubscriptions = new();
 
     // Debounce state for watcher-triggered refreshes
     private volatile int _debounceVersion;
@@ -186,7 +184,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     // from.
     public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
     {
-        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, language, kind);
+        var vm = new EditorTabItemViewModel(null, AvailableSdks, _prefs, this, language, kind);
         AddTab(vm);
     }
 
@@ -210,7 +208,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null)
             blankToClose = Tabs[0];
 
-        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs);
+        var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this);
         if (filePath is not null) _openTabs[filePath] = vm;
         AddTab(vm);
 
@@ -220,19 +218,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void AddTab(EditorTabItemViewModel vm)
     {
-        // CloseCommand is deliberately NOT subscribed here — unlike OpenContainingFolderCommand, it
-        // needs EditorsTabItemControl.WriteFile (to save an untitled-but-dirty tab's content when the
-        // user picks "Save" from the confirmation dialog), which only the View layer has. See
-        // EditorTabsControl.RequestCloseTabAsync, subscribed there instead.
-        var subs = new CompositeDisposable
-        {
-            vm.OpenContainingFolderCommand.Subscribe(_ =>
-            {
-                if (vm.FilePath is { } path) OpenContainingFolder(path);
-            }),
-        };
-        _closeSubscriptions[vm] = subs;
-
         Tabs.Add(vm);
         ActiveTab = vm; // also persists the session (see the setter) — covers the Tabs.Add above too
     }
@@ -303,6 +288,55 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
         OpenTab(newPath);
     }
 
+    // ── IEditorTabActions — real bodies for EditorTabItemViewModel's tab-toolbar/context-menu
+    // commands (ANALYSIS.md #102: these used to be empty-bodied and subscribed from outside, by
+    // EditorTabsControl, a class that's neither the tab's View nor its ViewModel). SaveAsAsync/
+    // Duplicate wrap the existing SaveTabAsAsync/DuplicateTab above (unchanged, still directly
+    // callable/testable with an explicit writeToPath) — they just source that delegate from
+    // vm.WriteToFile instead of taking it as a parameter, since a command has no other way to
+    // supply one. WriteToFile is null only for the brief window between a tab being constructed and
+    // its EditorsTabItemControl finishing construction (see EditorTabItemViewModel.WriteToFile's own
+    // comment) — no command is reachable by the user before that, so these no-op rather than throw
+    // if it somehow still happened.
+
+    Task IEditorTabActions.SaveAsAsync(EditorTabItemViewModel vm) =>
+        vm.WriteToFile is { } writeToFile ? SaveTabAsAsync(vm, writeToFile) : Task.CompletedTask;
+
+    void IEditorTabActions.Duplicate(EditorTabItemViewModel vm)
+    {
+        if (vm.WriteToFile is { } writeToFile) DuplicateTab(vm, writeToFile);
+    }
+
+    void IEditorTabActions.OpenContainingFolder(EditorTabItemViewModel vm)
+    {
+        if (vm.FilePath is { } path) OpenContainingFolder(path);
+    }
+
+    // Moved here from EditorTabsControl.RequestCloseTabAsync (ANALYSIS.md #102) — the confirmation
+    // dialog/save-then-close flow needed EditorsTabItemControl.WriteFile, which now reaches this
+    // class via vm.WriteToFile instead of being passed down from the View on every call. Explicit
+    // (like the rest of IEditorTabActions) — external callers go through vm.CloseCommand, the same
+    // path the tab's own [x] button/Ctrl+W use, rather than a second, parallel way to trigger this.
+    async Task IEditorTabActions.CloseAsync(EditorTabItemViewModel vm)
+    {
+        if (vm.FilePath is null && vm.IsDirty)
+        {
+            var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
+            if (choice == UnsavedChangesResult.Cancel) return;
+
+            if (choice == UnsavedChangesResult.Save)
+            {
+                await ((IEditorTabActions)this).SaveAsAsync(vm);
+                // SaveAsAsync only assigns FilePath on success — still null means the Save As
+                // dialog it opens was itself cancelled (or the write failed), so treat that as
+                // "changed my mind about closing" rather than closing with the content lost anyway.
+                if (vm.FilePath is null) return;
+            }
+        }
+
+        CloseTab(vm);
+    }
+
     // "File → Import LINQPad Query..." (TODO.md #63) — converts a .linq file (picked via a native
     // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
     // a sibling .rpad next to it, then opens that as a real tab. Not written into the CURRENT
@@ -356,24 +390,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     // Asks whether to save an untitled-but-dirty tab's content before its close discards it — see
-    // EditorTabsControl.RequestCloseTabAsync, the sole caller (both the tab's [x] button and Ctrl+W
-    // route through it). A thin passthrough to _windowService, which EditorTabsControl doesn't have
-    // its own reference to.
+    // CloseAsync above, the sole caller (both the tab's [x] button/CloseCommand and Ctrl+W route
+    // through it). A thin passthrough to _windowService.
     public Task<UnsavedChangesResult> ConfirmDiscardUnsavedChangesAsync(string fileName)
         => _windowService.ShowUnsavedChangesDialogAsync(fileName);
 
-    // internal (not private): EditorTabsControl.RequestCloseTabAsync calls this directly once the
-    // close is actually confirmed (or didn't need confirming) — the View-layer orchestration around
-    // it (the confirmation dialog, needing ctrl.WriteFile for "Save") can't live here, see AddTab's
-    // comment on why CloseCommand itself isn't subscribed in this class.
+    // internal (not private): DeleteFile/MoveOrRenameOnDisk below also remove a tab directly,
+    // bypassing the unsaved-changes confirmation CloseAsync above does — the file's disappearing out
+    // from under the tab either way, so there's nothing meaningful "Cancel" could preserve there.
     internal void CloseTab(EditorTabItemViewModel vm)
     {
-        if (_closeSubscriptions.TryGetValue(vm, out var d))
-        {
-            d.Dispose();
-            _closeSubscriptions.Remove(vm);
-        }
-
         if (vm.FilePath is not null) _openTabs.Remove(vm.FilePath);
 
         bool wasActive = ActiveTab == vm;
@@ -654,10 +680,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _fileSystemService.WatcherEvent -= OnWatcherEvent;
         _fileSystemService.StopWatcher();
-        foreach (var d in _closeSubscriptions.Values)
-        {
-            d.Dispose();
-        }
 
         GC.SuppressFinalize(this);
     }

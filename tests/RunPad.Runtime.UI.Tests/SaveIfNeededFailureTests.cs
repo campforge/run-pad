@@ -43,7 +43,7 @@ public class SaveIfNeededFailureTests
                 new InterfaceTheme("Test", ThemeVariant.Dark, true),
                 new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
 
-            var vm = new EditorTabItemViewModel(filePath, [], prefs.Object);
+            var vm = new EditorTabItemViewModel(filePath, [], prefs.Object, new Mock<IEditorTabActions>().Object);
             var registry = new Mock<ILanguageHostRegistry>();
             var buildCache = new Mock<IBuildCacheService>();
 
