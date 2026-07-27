@@ -38,7 +38,7 @@ public class SetupWizardViewModelTests
     {
         var (installer, prefs, _, prerequisites) = CreateMocks(new PrerequisiteStatus(false, false));
         installer
-            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("/fake/dotnet");
         var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
         // Prerequisite check flips to "found" only after the install call — simulates the real
@@ -57,7 +57,7 @@ public class SetupWizardViewModelTests
     {
         var (installer, prefs, _, prerequisites) = CreateMocks(new PrerequisiteStatus(false, false));
         installer
-            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("network unreachable"));
         var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
 
@@ -72,7 +72,7 @@ public class SetupWizardViewModelTests
     {
         var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(true, false));
         installer
-            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("/fake/appdata/RunPad/netcoredbg/netcoredbg");
         var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
 
@@ -82,13 +82,47 @@ public class SetupWizardViewModelTests
         prefs.Verify(p => p.Save(), Times.Once);
     }
 
+    // Live report 2026-07-27 — the last install's confirmation text ("netcoredbg installed.") used to
+    // sit there forever, looking stale/unfinished, even once there was nothing left for the wizard to
+    // do. It should clear itself once both rows are satisfied.
+    [Fact]
+    public async Task InstallDebuggerCommand_Should_ClearStatusText_WhenBothPrerequisitesEndUpSatisfied()
+    {
+        var (installer, prefs, _, prerequisites) = CreateMocks(new PrerequisiteStatus(true, false));
+        installer
+            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("/fake/appdata/RunPad/netcoredbg/netcoredbg");
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+        prerequisites.Setup(p => p.Check()).Returns(new PrerequisiteStatus(true, true));
+
+        await vm.InstallDebuggerCommand.Execute();
+
+        Assert.Equal("", vm.StatusText);
+    }
+
+    // A message that means the user still has something to fix (a failed/timed-out/cancelled install)
+    // must never be wiped out just because HasSuitableSdk/HasValidDebugger happen to both read true.
+    [Fact]
+    public async Task InstallDebuggerCommand_Should_KeepTheErrorMessage_EvenIfBothPrerequisitesReadTrue()
+    {
+        var (installer, prefs, _, prerequisites) = CreateMocks(new PrerequisiteStatus(true, true));
+        installer
+            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("archive extracted but the exe wasn't found"));
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+
+        await vm.InstallDebuggerCommand.Execute();
+
+        Assert.Contains("archive extracted", vm.StatusText);
+    }
+
     [Fact]
     public async Task InstallDebuggerCommand_Should_NotTouchPreferences_WhenTheInstallerThrows()
     {
         var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(true, false));
         debugger.DebuggerPath = "";
         installer
-            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .Setup(i => i.InstallNetcoredbgAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("download failed"));
         var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
 

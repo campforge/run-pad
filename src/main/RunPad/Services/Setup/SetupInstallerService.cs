@@ -10,23 +10,19 @@ namespace RunPad.Services.Setup;
 // find and install both themselves before RunPad's Run/Debug buttons do anything useful.
 public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupProcessRunner processRunner) : ISetupInstallerService
 {
-    private const string NetcoredbgLatestBase = "https://github.com/Samsung/netcoredbg/releases/latest/download";
-
-    // netcoredbg's newest release (3.2.0) dropped the osx-amd64 (Intel Mac) build that every release
-    // back to 3.1.0 shipped — pin the last release known to have one for that specific platform/arch
-    // combo only; every other platform/arch tracks the real "latest" release.
-    private const string NetcoredbgIntelMacPinnedTag = "3.1.3-1062";
-
-    public async Task<string> InstallDotnetSdkAsync(IProgress<string> progress, CancellationToken ct)
+    public async Task<string> InstallDotnetSdkAsync(IProgress<SetupProgress> progress, CancellationToken ct)
     {
         var isWindows = OperatingSystem.IsWindows();
         var scriptUrl = isWindows
-            ? new Uri("https://dot.net/v1/dotnet-install.ps1")
-            : new Uri("https://dot.net/v1/dotnet-install.sh");
+            ? new Uri(SetupConstants.DotnetInstallScriptUrlWindows)
+            : new Uri(SetupConstants.DotnetInstallScriptUrlUnix);
 
         var scriptPath = Path.Combine(Path.GetTempPath(), isWindows ? "runpad-dotnet-install.ps1" : "runpad-dotnet-install.sh");
-        progress.Report("Downloading the official .NET install script...");
-        await downloader.DownloadFileAsync(scriptUrl, scriptPath, ct);
+        const string downloadingScriptMessage = "Downloading the official .NET install script...";
+        progress.Report(new SetupProgress(downloadingScriptMessage));
+        var scriptDownloadPercent = new Progress<double>(percent =>
+            progress.Report(new SetupProgress(downloadingScriptMessage, percent)));
+        await downloader.DownloadFileAsync(scriptUrl, scriptPath, scriptDownloadPercent, ct);
 
         string exe;
         List<string> args;
@@ -43,8 +39,11 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
             args = [scriptPath, "--channel", "10.0"];
         }
 
-        progress.Report("Running the .NET SDK installer (this can take a few minutes)...");
-        var exitCode = await processRunner.RunAsync(exe, args, progress, ct);
+        // dotnet-install itself gives no machine-readable percentage on stdout — its lines just become
+        // the wizard's status text, with the progress bar left indeterminate for this step.
+        progress.Report(new SetupProgress("Running the .NET SDK installer (this can take a few minutes)..."));
+        var installerOutput = new Progress<string>(line => progress.Report(new SetupProgress(line)));
+        var exitCode = await processRunner.RunAsync(exe, args, installerOutput, ct);
         if (exitCode != 0)
             throw new InvalidOperationException($"dotnet-install exited with code {exitCode}.");
 
@@ -63,13 +62,16 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
         return dotnetExe;
     }
 
-    public async Task<string> InstallNetcoredbgAsync(IProgress<string> progress, CancellationToken ct)
+    public async Task<string> InstallNetcoredbgAsync(IProgress<SetupProgress> progress, CancellationToken ct)
     {
         var (assetName, downloadUrl) = ResolveNetcoredbgAsset();
 
         var archivePath = Path.Combine(Path.GetTempPath(), assetName);
-        progress.Report($"Downloading {assetName}...");
-        await downloader.DownloadFileAsync(downloadUrl, archivePath, ct);
+        var downloadingMessage = $"Downloading {assetName}...";
+        progress.Report(new SetupProgress(downloadingMessage));
+        var downloadPercent = new Progress<double>(percent =>
+            progress.Report(new SetupProgress(downloadingMessage, percent)));
+        await downloader.DownloadFileAsync(downloadUrl, archivePath, downloadPercent, ct);
 
         var installDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
@@ -77,7 +79,9 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
             Directory.Delete(installDir, recursive: true);
         Directory.CreateDirectory(installDir);
 
-        progress.Report("Extracting...");
+        // Extraction is local and fast enough that a byte-counted percentage isn't worth tracking
+        // entry-by-entry — the progress bar stays indeterminate for this step.
+        progress.Report(new SetupProgress("Extracting..."));
         if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             ZipFile.ExtractToDirectory(archivePath, installDir);
         else
@@ -92,10 +96,16 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
             await TarFile.ExtractToDirectoryAsync(gzipStream, installDir, overwriteFiles: true, ct);
         }
 
+        progress.Report(new SetupProgress("Extracting done"));
+
+        // Every real netcoredbg release archive (verified against the actual win64/linux-amd64/
+        // linux-arm64/osx-arm64/osx-amd64 assets, not guessed) nests everything under a top-level
+        // "netcoredbg/" folder rather than extracting flat — a fixed installDir-root path here would
+        // never find the exe. Search instead of hardcoding that one extra path segment so a future
+        // archive-layout change doesn't quietly reintroduce the same "wasn't found" failure.
         var exeName = OperatingSystem.IsWindows() ? "netcoredbg.exe" : "netcoredbg";
-        var exePath = Path.Combine(installDir, exeName);
-        if (!File.Exists(exePath))
-            throw new InvalidOperationException($"netcoredbg archive extracted but {exePath} wasn't found.");
+        var exePath = Directory.GetFiles(installDir, exeName, SearchOption.AllDirectories).FirstOrDefault()
+            ?? throw new InvalidOperationException($"netcoredbg archive extracted but no {exeName} was found under {installDir}.");
 
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(exePath,
@@ -146,8 +156,8 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
         static (string, Uri) Asset(string name, bool latest)
         {
             var url = latest
-                ? $"{NetcoredbgLatestBase}/{name}"
-                : $"https://github.com/Samsung/netcoredbg/releases/download/{NetcoredbgIntelMacPinnedTag}/{name}";
+                ? $"{SetupConstants.NetcoredbgLatestBase}/{name}"
+                : $"{SetupConstants.NetcoredbgReleasesBase}/{SetupConstants.NetcoredbgIntelMacPinnedTag}/{name}";
             return (name, new Uri(url));
         }
     }

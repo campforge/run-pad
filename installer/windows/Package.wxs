@@ -18,11 +18,29 @@
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of RunPad is already installed." />
 
-    <Icon Id="RunPadIcon" SourceFile="..\..\src\main\RunPad\Assets\icon.ico" />
+    <!-- Without this, WiX's implicit default MediaTemplate leaves the self-contained publish's ~90MB
+         of payload in separate cab1.cab/cab2.cab files sitting NEXT TO the .msi rather than inside it
+         — confirmed by actually building this file: it produced exactly those two external cabs. CI
+         only uploads RunPad-win-x64.msi as the release artifact, so every installer anyone downloaded
+         from a GitHub Release would have failed outright, unable to find its own payload. Embedding
+         makes the .msi fully self-contained at the cost of a larger single file. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- SourceFile (like every other plain file-reference attribute) resolves relative to the current
+         working directory `wix build` is invoked from — repo root, both in CI and in the file's own
+         header comment example — unlike <Files Include> below, which resolves relative to THIS SOURCE
+         FILE's own directory instead (a genuine, confirmed WiX v5 inconsistency between the two
+         features, not a typo). Mixing the two conventions in one file previously broke every build run
+         from repo root as CI actually does; this repo-root-relative path is the correct one here. -->
+    <Icon Id="RunPadIcon" SourceFile="src\main\RunPad\Assets\icon.ico" />
     <Property Id="ARPPRODUCTICON" Value="RunPadIcon" />
 
     <Feature Id="Main" Title="RunPad">
-      <Files Directory="INSTALLFOLDER" Include="$(var.PublishDir)\**">
+      <!-- $(var.PublishDir) is passed in as repo-root-relative (e.g. "publish/win-x64", matching where
+           `dotnet publish -o publish/win-x64` actually writes when run from repo root) — the leading
+           ..\.. re-bases it onto this file's own directory, which is what <Files Include> resolves
+           against (see the Icon comment above for why the two need different treatment). -->
+      <Files Directory="INSTALLFOLDER" Include="..\..\$(var.PublishDir)\**">
         <Exclude Files="**\*.pdb" />
       </Files>
       <ComponentRef Id="ApplicationShortcut" />

@@ -11,3 +11,10 @@ bin
 # WiX Toolset's local extension cache (created by `wix extension add` — see
 # .github/workflows/dotnet-desktop.yml's "Install WiX Toolset" step, installer/windows/Package.wxs).
 .wix/
+
+# Local `dotnet publish`/packaging output (scripts/make-*.sh, installer/windows/Package.wxs) — CI's own
+# copies of these live only inside the ephemeral runner and are never committed either.
+/publish/
+/dist/
+*.msi
+*.wixpdb

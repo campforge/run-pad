@@ -48,6 +48,17 @@ public class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // ThemeService is a singleton, so it's only ever constructed (and applies
+            // RequestedThemeVariant) once something actually depends on IThemeService — which
+            // MainWindow does via MainWindowViewModel, but SetupWizardWindow doesn't. Left implicit,
+            // a first run with a missing SDK/debugger showed the wizard BEFORE the theme was ever
+            // applied: every "RunPad.*" DynamicResource lookup came back empty (RunPad's palettes are
+            // keyed by custom ThemeVariants like "VsCodeDark", not just "Dark"/"Light", so nothing
+            // matches the still-default variant), so the window fell back to a plain black/white
+            // background instead of the intended panel color. Resolving it here — before either
+            // branch below shows a window — guarantees the theme is always applied first.
+            _serviceProvider.GetRequiredService<IThemeService>();
+
             var prerequisites = _serviceProvider.GetRequiredService<IPrerequisiteService>();
             if (prerequisites.Check().IsComplete)
             {

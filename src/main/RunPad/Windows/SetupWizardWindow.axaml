@@ -11,7 +11,7 @@
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
-    <Grid Margin="20" RowDefinitions="Auto,Auto,16,Auto,Auto,*,Auto">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,16,Auto,Auto,Auto,*,Auto">
 
         <TextBlock Grid.Row="0" Text="RunPad needs a couple of things before it can compile and debug scripts."
                    TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,4"/>
@@ -44,11 +44,25 @@
                     IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}"/>
         </Grid>
 
-        <ScrollViewer Grid.Row="5" Margin="0,16,0,0">
-            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Opacity="0.8" FontSize="12"/>
+        <!-- Thin bar, same convention as DependenciesWindow's search-loading indicator. Fills for real
+             during a download (byte-counted against Content-Length); falls back to indeterminate for
+             steps with no measurable percentage (running dotnet-install, extracting the archive). -->
+        <ProgressBar Grid.Row="5" Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                     IsIndeterminate="{Binding ProgressIsIndeterminate}"
+                     IsVisible="{Binding IsBusy}" Height="2" Margin="0,16,0,0"/>
+
+        <ScrollViewer Grid.Row="6" Margin="0,8,0,0">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Opacity="0.8" FontSize="12"
+                           IsVisible="{Binding !IsStatusError}"/>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource RunPad.Status.ErrorBrush}"
+                           IsVisible="{Binding IsStatusError}"/>
+            </StackPanel>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Command="{Binding CancelInstallCommand}" IsVisible="{Binding IsBusy}"/>
             <Button Name="ContinueButton" Content="Continue to RunPad" Click="Continue_Click"/>
         </StackPanel>
     </Grid>
