@@ -105,6 +105,11 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.SaveActive();
             e.Handled = true;
         }
+        else if (Match(e, kb.SaveAs))
+        {
+            _editorTabs.SaveAsActive();
+            e.Handled = true;
+        }
         else if (Match(e, kb.OpenDependencies))
         {
             vm.OpenDependenciesWindow();
@@ -217,6 +222,8 @@ public sealed partial class MainWindow : Window, IDisposable
     }
 
     private void Save_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveActive();
+
+    private void SaveAs_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveAsActive();
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

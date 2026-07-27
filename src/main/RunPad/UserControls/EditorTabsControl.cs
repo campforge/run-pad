@@ -229,6 +229,16 @@ public partial class EditorTabsControl : UserControl, IDisposable
             vm.SaveAsCommand.Execute().Subscribe();
     }
 
+    // Ctrl+Shift+S — always opens the Save As dialog, even for a tab that already has a path, matching
+    // every other editor's "Save As" (as opposed to Ctrl+S/SaveActive above, which only falls through
+    // to the dialog for an untitled tab). Same vm.SaveAsCommand the tab's own context menu item uses
+    // (EditorTabItemControl.axaml) — this is just a second entry point to it.
+    public void SaveAsActive()
+    {
+        if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
+        vm.SaveAsCommand.Execute().Subscribe();
+    }
+
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
 

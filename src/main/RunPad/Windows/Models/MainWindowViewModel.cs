@@ -86,6 +86,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
     }
 
+    // Feeds MainWindow.axaml's File > Save As MenuItem.InputGesture — same rationale as
+    // OpenDependenciesGesture above.
+    public KeyGesture? SaveAsGesture
+    {
+        get
+        {
+            try { return KeyGesture.Parse(_prefs.Keyboard.SaveAs); }
+            catch { return null; }
+        }
+    }
+
     // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture (TODO.md #114) — same rationale
     // as OpenDependenciesGesture above.
     public KeyGesture? NewFileGesture

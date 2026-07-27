@@ -161,6 +161,97 @@ public class DotnetProcessCompilerTests
         }
     }
 
+    // Bug report 2026-07-27 (live user report — "nuget packages don't restore if the .rpad says
+    // `Newtonsoft.Json: latest`, and running the project just does nothing"): two separate real bugs,
+    // both proven end to end here since the failure is entirely about real dotnet-build/NuGet
+    // behavior, not pure logic. (1) RpadFrontMatter's Package.Default/an unpinned package uses the
+    // literal string "latest" — meaningful app-side vocabulary, but not valid NuGet version syntax
+    // (confirmed directly: `dotnet build` with Version="latest" failed with "'latest' is not a valid
+    // version string"); MsBuildProcessCompiler now translates it to NuGet's real "any latest version"
+    // wildcard, "*". Newtonsoft.Json (a real, always-available package) proves the whole chain — not
+    // just that "*" appears in the generated XML, but that NuGet actually accepts it and restores.
+    [Fact]
+    public async Task Compilation_Should_ResolveALatestPinnedPackage_ToARealSuccessfulRestore()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
+        try
+        {
+            var sdk = new DotnetSdkProvider().Get().First();
+            var runtimeLib = new CSharpReferenceService().GetExtensionReference();
+            using var compiler = new MsBuildProcessCompiler(
+                CSharpProjectProfile.Instance,
+                sdk: sdk,
+                executionOptions: new ExecutionOptions
+                {
+                    WorkingDirectory = outputDir,
+                    Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
+                    Debugger = new DebuggerOptions { DebuggerPath = "" },
+                },
+                outputDir: outputDir,
+                runPadRuntimeLib: runtimeLib,
+                outputName: "Query",
+                nugetPackages: new Dictionary<string, string> { ["Newtonsoft.Json"] = "latest" },
+                usings: [],
+                assemblyReferences: [],
+                projectReferences: [],
+                logger: NullLogger<MsBuildProcessCompiler>.Instance);
+
+            var result = await compiler.Compilation(
+                "System.Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(new { a = 1 }));",
+                CancellationToken.None);
+
+            Assert.True(result.Success, string.Join('\n', result.Errors.Select(e => e.Message)));
+            var projectFileText = await File.ReadAllTextAsync(
+                Path.Combine(outputDir, "Query.csproj"), CancellationToken.None);
+            Assert.Contains("""Version="*" """.Trim(), projectFileText);
+            Assert.DoesNotContain("""Version="latest" """.Trim(), projectFileText);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // (2) The error/warning regexes required a NON-empty diagnostic code (\S+) — but the real
+    // "not a valid version string" restore failure has NO code at all ("...NuGet.targets(196,5):
+    // error : 'latest' is not a valid version string.", confirmed by actually forcing this exact
+    // failure). That line matched neither regex, so a failed build (ExitCode != 0, Success correctly
+    // false) came back with an EMPTY Errors list — RunAsync's `if (!compilationResult.Success ...)
+    // return;` then had nothing to show, so nothing appeared anywhere and nothing ran. A different,
+    // still-invalid, non-"latest" version string (so fix #1's translation above doesn't mask this one)
+    // reproduces the same empty-code failure shape independently of that fix.
+    [Fact]
+    public async Task Compilation_Should_ReportTheError_ForARestoreFailureWithNoDiagnosticCode()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
+        try
+        {
+            var sdk = new DotnetSdkProvider().Get().First();
+            var runtimeLib = new CSharpReferenceService().GetExtensionReference();
+            using var compiler = new MsBuildProcessCompiler(
+                CSharpProjectProfile.Instance,
+                sdk: sdk,
+                executionOptions: new ExecutionOptions
+                {
+                    WorkingDirectory = outputDir,
+                    Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
+                    Debugger = new DebuggerOptions { DebuggerPath = "" },
+                },
+                outputDir: outputDir,
+                runPadRuntimeLib: runtimeLib,
+                outputName: "Query",
+                nugetPackages: new Dictionary<string, string> { ["Newtonsoft.Json"] = "not-a-real-version" },
+                usings: [],
+                assemblyReferences: [],
+                projectReferences: [],
+                logger: NullLogger<MsBuildProcessCompiler>.Instance);
+
+            var result = await compiler.Compilation("System.Console.WriteLine(1);", CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.NotEmpty(result.Errors); // was empty before the fix, despite Success already being false
+            Assert.Contains(result.Errors, e => e.Message.Contains("not a valid version string"));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
     private static MsBuildProcessCompiler CreateVbCompiler(string outputDir)
     {
         var sdk = new DotnetSdkProvider().Get().First();

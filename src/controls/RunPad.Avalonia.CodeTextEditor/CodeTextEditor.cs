@@ -306,6 +306,18 @@ public class CodeTextEditor : TextEditor
 
         Options.AllowToggleOverstrikeMode = true;
         Options.ShowBoxForControlCharacters = true;
+
+        // Bug report 2026-07-27: AvaloniaEdit's built-in link detector (TextView's own
+        // LinkElementGenerator/MailLinkElementGenerator, added automatically whenever these Options
+        // default to true) runs a plain regex over each line's RAW TEXT — it has no idea about
+        // TextMate/Roslyn syntax highlighting, so a URL sitting inside a C# string literal (extremely
+        // common — connection strings, API endpoints, "https://test.com/") got wrapped in a
+        // VisualLineLinkText element too, overriding the string's normal syntax color/style. There's no
+        // way to make the built-in generator string/comment-aware short of reimplementing it against
+        // real syntax boundaries — disabling it is the correct fix for a code editor (VS Code and
+        // friends don't linkify arbitrary source text either).
+        Options.EnableHyperlinks = false;
+        Options.EnableEmailHyperlinks = false;
         TextArea.RightClickMovesCaret = true;
 
         TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());

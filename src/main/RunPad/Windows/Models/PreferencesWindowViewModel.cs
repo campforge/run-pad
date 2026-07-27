@@ -480,6 +480,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Keyboard.NewFile, value, v => _prefs.Keyboard.NewFile = v);
     }
 
+    public string HotkeySaveAs
+    {
+        get => _prefs.Keyboard.SaveAs;
+        set => SetPref(_prefs.Keyboard.SaveAs, value, v => _prefs.Keyboard.SaveAs = v);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private void SetPref<T>(T current, T value, Action<T> assign, [CallerMemberName] string? name = null)
