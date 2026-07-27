@@ -4,5 +4,8 @@ namespace RunPad.Services.Setup;
 // a fake — no real network access in tests.
 public interface ISetupDownloader
 {
-    Task DownloadFileAsync(Uri url, string destinationPath, CancellationToken ct);
+    // percent is 0-100 when the server sends a Content-Length, otherwise progress is never reported
+    // (a determinate ProgressBar can't be driven off an unknown total) — callers fall back to an
+    // indeterminate display when they never see a report.
+    Task DownloadFileAsync(Uri url, string destinationPath, IProgress<double>? percent, CancellationToken ct);
 }
