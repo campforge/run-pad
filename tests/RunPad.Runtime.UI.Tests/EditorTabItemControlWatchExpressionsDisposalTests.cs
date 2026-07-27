@@ -47,7 +47,8 @@ public class EditorTabItemControlWatchExpressionsDisposalTests
     public void Dispose_Should_UnsubscribeFromWatchExpressionsCollectionChanged()
     {
         var prefs = MakePrefs();
-        var vm = new EditorTabItemViewModel(filePath: null, [], prefs.Object, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(
+            filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
 

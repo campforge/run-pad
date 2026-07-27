@@ -58,7 +58,8 @@ public class EditorTabItemControlCodeFixSettingsTests
     private static (EditorsTabItemControl ctrl, CodeTextEditor editor, CodeFixMargin margin) CreateControl(
         Mock<IPreferencesService> prefs, IIntelliSenseService intelliSense)
     {
-        var vm = new EditorTabItemViewModel(null, [], prefs.Object, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
 

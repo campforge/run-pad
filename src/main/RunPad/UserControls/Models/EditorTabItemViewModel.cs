@@ -14,6 +14,14 @@ public enum RunState { Idle, Run, RunDebug, Paused }
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
     private readonly IPreferencesService _prefs;
+    private readonly IEditorTabActions _actions;
+
+    // Set once by EditorsTabItemControl's constructor — the View-layer serializer for this tab's
+    // live editor content, which only exists once the View itself does (EditorTabItemViewModel is
+    // constructed by MainWindowViewModel BEFORE its control). IEditorTabActions' Save/Duplicate
+    // implementations read this instead of taking it as a parameter, so this ViewModel's commands
+    // can delegate straight to _actions without waiting for the View to hand a callback down first.
+    internal Action<string>? WriteToFile { get; set; }
 
     // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
     // give a previously untitled tab a real path in place, instead of needing to close/reopen a new
@@ -179,6 +187,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         string? filePath,
         List<DotnetSdk> sdks,
         IPreferencesService prefs,
+        IEditorTabActions actions,
         RpadLanguage newFileLanguage = RpadLanguage.CSharp,
         RpadKind newFileKind = RpadKind.Statements)
     {
@@ -186,13 +195,14 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         AvailableSdks = sdks;
         _selectedSdk = sdks.FirstOrDefault();
         _prefs = prefs;
+        _actions = actions;
         NewFileLanguage = newFileLanguage;
         NewFileKind = newFileKind;
 
-        CloseCommand = ReactiveCommand.Create(() => { });
-        SaveAsCommand = ReactiveCommand.Create(() => { });
-        DuplicateCommand = ReactiveCommand.Create(() => { });
-        OpenContainingFolderCommand = ReactiveCommand.Create(() => { });
+        CloseCommand = ReactiveCommand.CreateFromTask(() => _actions.CloseAsync(this));
+        SaveAsCommand = ReactiveCommand.CreateFromTask(() => _actions.SaveAsAsync(this));
+        DuplicateCommand = ReactiveCommand.Create(() => _actions.Duplicate(this));
+        OpenContainingFolderCommand = ReactiveCommand.Create(() => _actions.OpenContainingFolder(this));
 
         OutputPanel = new CollapsiblePanelState(
             _prefs.Layout.DebugPanelCollapsed, _prefs.Layout.DebugPanelHeight, defaultExpandedSize: 220,

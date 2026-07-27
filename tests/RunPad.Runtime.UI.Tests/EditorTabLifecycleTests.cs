@@ -45,7 +45,8 @@ public class EditorTabLifecycleTests
         string? filePath, RpadLanguage newFileLanguage = RpadLanguage.CSharp, RpadKind newFileKind = RpadKind.Statements)
     {
         var prefs = MakePrefs();
-        var vm = new EditorTabItemViewModel(filePath, [], prefs.Object, newFileLanguage, newFileKind);
+        var vm = new EditorTabItemViewModel(
+            filePath, [], prefs.Object, new Mock<IEditorTabActions>().Object, newFileLanguage, newFileKind);
         var registry = new Mock<ILanguageHostRegistry>();
         var buildCache = new Mock<IBuildCacheService>();
 

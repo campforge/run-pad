@@ -81,6 +81,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _referenceService = referenceService;
         _buildCache = buildCache;
         _vm = vm;
+        _vm.WriteToFile = WriteFile;
         DataContext = _vm;
 
         InitializeComponent();
