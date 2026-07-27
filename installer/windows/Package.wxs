@@ -16,7 +16,20 @@
   <Package Name="RunPad" Manufacturer="coddwrench" Version="$(var.RunPadVersion)"
            UpgradeCode="A15433F7-3B92-4026-8EC8-ADADCD8384F6">
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of RunPad is already installed." />
+    <!-- AllowSameVersionUpgrades="yes" (WiX's default is "no") matters here specifically because
+         ProductCode isn't pinned (only UpgradeCode is — see the header comment) — every `wix build`
+         mints a fresh ProductCode even for an unchanged RunPadVersion, which happens for real: CI
+         rebuilds and re-uploads the MSI on every push to main, and RunPad.csproj's <Version> often
+         doesn't change between those pushes. Without this, re-running an installer for a version
+         that's already installed doesn't match Windows Installer's own same-version-is-a-no-op
+         assumption (that only holds for a stable ProductCode) — MajorUpgrade's detection is versioned
+         by UpgradeCode+Version, but "no" excludes an exact version match from the remove-old/install-
+         new sequence, risking two same-version registrations both claiming the same INSTALLFOLDER
+         instead of a clean reinstall. Verified for real: built two MSIs at the same version, confirmed
+         a second install lands as a clean single ARP entry instead of a conflicting duplicate. -->
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of RunPad is already installed."
+        AllowSameVersionUpgrades="yes" />
 
     <!-- Without this, WiX's implicit default MediaTemplate leaves the self-contained publish's ~90MB
          of payload in separate cab1.cab/cab2.cab files sitting NEXT TO the .msi rather than inside it
