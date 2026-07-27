@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts.IntelliSense;
+using RunPad.Languages.CSharp;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
@@ -143,8 +144,70 @@ internal sealed class RoslynCodeFixEngine
             }
         }
 
+        // User report 2026-07-27: a line with more than one undefined type fixed by the SAME using
+        // directive ("var output = JsonSerializer.Serialize(result, new JsonSerializerOptions
+        // {...})" — both JsonSerializer and JsonSerializerOptions need `using System.Text.Json;`)
+        // produced two identical-looking "using System.Text.Json;" entries on that line — one per
+        // undefined-type diagnostic, each independently discovering the same fix. Keeping only the
+        // first candidate for each (Line, Title) pair is safe: Roslyn's own fix titles are
+        // parameterized by the specific symbol/type/namespace involved, so two DIFFERENT actions on
+        // the same line practically never render identically — a repeat is always the same action
+        // reached through a different diagnostic instance.
+        var seen = new HashSet<(int Line, string Title)>();
+        result = result.Where(fix => seen.Add((fix.Line, fix.Title))).ToList();
+
         lock (_cacheLock) { _fixDocument = document; _fixActions = cache; }
         return result;
+    }
+
+    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — for each
+    // unresolved-type diagnostic, materializes its candidate fixes and keeps only the ones that
+    // resolved to a PURE import (no change to the user's own code — TryMaterializeAsync's own no-op
+    // check already recognizes this same shape: NewCode unchanged, one namespace to add). A
+    // diagnostic with more than one distinct candidate namespace is genuinely ambiguous — silently
+    // picking one could import the wrong type — so those are left alone for the user to resolve one
+    // at a time via the normal lightbulb, same as ComputeFixesAsync would show them.
+    public async Task<IReadOnlyList<string>> ResolveAllMissingUsingsAsync(
+        Document document, IReadOnlyList<Diagnostic> diagnostics, string userCode, int preambleLength, CancellationToken ct)
+    {
+        var resolved = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var diagnostic in diagnostics.Where(d => d.Location.IsInSource))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var providers = _providers.Where(p => p.FixableDiagnosticIds.Contains(diagnostic.Id)).ToList();
+            if (providers.Count == 0) continue;
+
+            var candidateNamespaces = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var provider in providers)
+            {
+                var actions = new List<CodeAction>();
+                var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), ct);
+                try { await provider.RegisterCodeFixesAsync(context); }
+                catch (OperationCanceledException) { throw; } // routine — superseded by the next keystroke
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Code fix provider {Provider} threw for {Id}", provider.GetType().Name, diagnostic.Id);
+                    continue;
+                }
+
+                foreach (var leaf in actions.SelectMany(Flatten))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (MentionsSyntheticWrapper(leaf.Title)) continue;
+
+                    var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
+                    if (materialized is { } m && m.NewCode == userCode && m.UsingsToAdd.Count == 1)
+                        candidateNamespaces.Add(m.UsingsToAdd[0]);
+                }
+            }
+
+            if (candidateNamespaces.Count == 1)
+                resolved.Add(candidateNamespaces.Single());
+        }
+
+        return resolved.ToList();
     }
 
     // TODO.md #74 "CodeRefactoringProvider хостинг" — the position-based counterpart to
@@ -188,6 +251,8 @@ internal sealed class RoslynCodeFixEngine
                 ct.ThrowIfCancellationRequested();
                 foreach (var leaf in Flatten(action))
                 {
+                    if (MentionsSyntheticWrapper(leaf.Title)) continue;
+
                     // No underlying diagnostic (there isn't one) to derive a severity — or a
                     // DiagnosticId (ICodeFixInfo's own doc comment) — from, so both get the same
                     // neutral/absent values CollectCandidatesAsync's own non-diagnostic-adjacent
@@ -255,6 +320,8 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
+                if (MentionsSyntheticWrapper(leaf.Title)) continue;
+
                 var key = Guid.NewGuid().ToString("N");
                 cache[key] = leaf;
                 result.Add(new RoslynCodeFix(userLine, leaf.Title, severity, key, diagnostic.Id));
@@ -266,6 +333,19 @@ internal sealed class RoslynCodeFixEngine
     // an ambiguous/unresolved type) — only the leaves carry real operations to apply.
     private static IEnumerable<CodeAction> Flatten(CodeAction action) =>
         action.NestedActions.Length == 0 ? [action] : action.NestedActions.SelectMany(Flatten);
+
+    // User report 2026-07-27: RpadKind.Program's synthetic wrapper class (RpadKindTransform.
+    // ProgramWrapperClassName, "__RunPadProgram") is a REAL class in the live analysis document — the
+    // user's own code is textually inside it — so caret-position-triggered refactoring providers
+    // (e.g. "Generate constructor") can and do see it as the enclosing type and offer to generate
+    // members on it, producing suggestions like "Generate constructor '__RunPadProgram(...)'" that
+    // are meaningless to the user (they never see or write that class — see RpadKindTransform's own
+    // doc comment). The identifier is deliberately distinctive enough ("astronomically unlikely" to
+    // collide with real user code, per that same comment) that a plain Title substring check safely
+    // filters this out regardless of which provider produced it, without needing to enumerate every
+    // provider that could theoretically reference the enclosing type by name.
+    private static bool MentionsSyntheticWrapper(string title) =>
+        title.Contains(RpadKindTransform.ProgramWrapperClassName, StringComparison.Ordinal);
 
     // No longer static — needs _logger. Used to be a bare `catch { return null; }` with zero
     // logging, unlike CollectCandidatesAsync's own catch around RegisterCodeFixesAsync right above

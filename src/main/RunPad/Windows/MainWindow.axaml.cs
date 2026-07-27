@@ -95,6 +95,11 @@ public sealed partial class MainWindow : Window, IDisposable
             _editorTabs.FormatActive();
             e.Handled = true;
         }
+        else if (Match(e, kb.ResolveAllUsings))
+        {
+            _editorTabs.ResolveAllUsingsActive();
+            e.Handled = true;
+        }
         else if (Match(e, kb.GoToLine))
         {
             _editorTabs.GoToLineActive();
