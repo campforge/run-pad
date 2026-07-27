@@ -1651,6 +1651,38 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "MaterializeFixAsync failed"); return null; }
     }
 
+    // ReSharper-style "resolve all missing usings" — see IIntelliSenseService's own doc comment for
+    // the contract. Only compiler diagnostics (never analyzer diagnostics — see
+    // ComputeDiagnosticsAndCodeFixesAsync's own note on why those need a separate GetCompilationAsync
+    // call this doesn't need) are relevant: CS0246 ("type or namespace not found") and CS0103 ("name
+    // does not exist") are the two Roslyn actually attaches an "Add using X;" fix to.
+    public Task<IMaterializedFix> ResolveAllMissingUsingsAsync(string code, CancellationToken ct = default)
+        => Task.Run(async () => (IMaterializedFix)await TryResolveAllMissingUsingsAsync(code, ct), ct);
+
+    private async Task<IMaterializedFix> TryResolveAllMissingUsingsAsync(string code, CancellationToken ct)
+    {
+        try
+        {
+            var document = SyncDocument(code);
+            var model = await document.GetSemanticModelAsync(ct);
+            if (model is null) return new SimpleMaterializedFix(code, []);
+
+            var headerLength = HeaderLength(code);
+            var diagnostics = model.GetDiagnostics(cancellationToken: ct)
+                .Where(d => d.Id is "CS0246" or "CS0103")
+                .ToList();
+
+            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, code, headerLength, ct);
+            return new SimpleMaterializedFix(code, usings);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ResolveAllMissingUsingsAsync failed");
+            return new SimpleMaterializedFix(code, []);
+        }
+    }
+
     // ── Background analysis (diagnostics + semantic tokens) ───────────────────
 
     public event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;

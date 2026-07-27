@@ -35,4 +35,9 @@ public sealed class KeyboardSettings
     // File menu every time. Skips NewFileKindDialog entirely, using EditorSettings.NewFileLanguage/
     // NewFileKind instead (see MainWindow.OnWindowKeyDown).
     public string NewFile { get; set; } = "Ctrl+N";
+
+    // Feature request 2026-07-27 (live user report) — ReSharper-style "add all missing usings" in one
+    // shot, instead of accepting the lightbulb's "using X;" fix one at a time. See
+    // EditorTabsControl.ResolveAllUsingsActive / EditorTabItemControl.ResolveAllUsingsAsync.
+    public string ResolveAllUsings { get; set; } = "Ctrl+Alt+U";
 }

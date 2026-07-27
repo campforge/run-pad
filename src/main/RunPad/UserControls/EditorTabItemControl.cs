@@ -525,6 +525,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.Caret.Column = column;
     }
 
+    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — ApplyCodeFixAsync's
+    // batch-of-one counterpart: resolves every unambiguous unresolved-type diagnostic in the document
+    // at once instead of requiring the lightbulb's "using X;" fix to be accepted one at a time. Same
+    // application path a single fix's UsingsToAdd already goes through (front matter `namespaces:`
+    // for a real .rpad, a prepended `using` line for a plain script with none).
+    internal async Task ResolveAllUsingsAsync()
+    {
+        if (_intelliSense is null) return;
+        var code = State.Editor.Text;
+        var resolved = await _intelliSense.ResolveAllMissingUsingsAsync(code);
+        if (resolved.UsingsToAdd.Count == 0) return;
+
+        // ResolveAllMissingUsingsAsync wraps its work in Task.Run the same way MaterializeFixAsync
+        // does — same not-implicit-by-default rationale as ApplyCodeFixAsync's own comment on why it
+        // explicitly marshals back too.
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            var editor = State.Editor;
+            if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
+
+            if (State.RpadDocument is not null)
+                AddGlobalUsings(resolved.UsingsToAdd);
+            else
+                editor.Document.Text = PrependUsings(resolved.UsingsToAdd, code);
+        });
+    }
+
     internal async void ShowGoToLine()
     {
         var owner = TopLevel.GetTopLevel(this) as Window;

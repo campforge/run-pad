@@ -168,7 +168,7 @@
                 </StackPanel>
 
                 <Grid IsVisible="{Binding IsKeyboardSelected}"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                                Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
@@ -236,6 +236,11 @@
                                VerticalAlignment="Center" Margin="0,0,8,6"/>
                     <TextBox   Grid.Row="13" Grid.Column="1" Margin="0,0,0,6"
                                Text="{Binding HotkeySaveAs, UpdateSourceTrigger=LostFocus}"/>
+
+                    <TextBlock Grid.Row="14" Grid.Column="0" Text="Resolve All Usings:"
+                               VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox   Grid.Row="14" Grid.Column="1" Margin="0,0,0,6"
+                               Text="{Binding HotkeyResolveAllUsings, UpdateSourceTrigger=LostFocus}"/>
                 </Grid>
 
                 <StackPanel IsVisible="{Binding IsLanguagesSelected}">

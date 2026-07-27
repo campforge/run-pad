@@ -486,6 +486,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Keyboard.SaveAs, value, v => _prefs.Keyboard.SaveAs = v);
     }
 
+    public string HotkeyResolveAllUsings
+    {
+        get => _prefs.Keyboard.ResolveAllUsings;
+        set => SetPref(_prefs.Keyboard.ResolveAllUsings, value, v => _prefs.Keyboard.ResolveAllUsings = v);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private void SetPref<T>(T current, T value, Action<T> assign, [CallerMemberName] string? name = null)

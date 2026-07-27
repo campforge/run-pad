@@ -86,6 +86,17 @@ public interface IIntelliSenseService : IDisposable
         string key,
         CancellationToken cancellationToken = default);
 
+    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — resolves every
+    // unambiguous unresolved-type diagnostic in the document at once instead of requiring the
+    // lightbulb's "using X;" fix to be accepted one at a time. Reuses IMaterializedFix purely as a
+    // return shape: this never touches the visible text (NewCode is always == the input code), only
+    // UsingsToAdd — the caller applies the result through the exact same path a single fix's
+    // UsingsToAdd already goes through. Never null (unlike MaterializeFixAsync — there's no "stale
+    // key" failure mode here); UsingsToAdd is simply empty if nothing was resolved.
+    Task<IMaterializedFix> ResolveAllMissingUsingsAsync(
+        string code,
+        CancellationToken cancellationToken = default);
+
     // Fires from a background thread. First arg = the code that produced the diagnostics.
     event Action<string, IReadOnlyList<IDiagnosticInfo>>? DiagnosticsChanged;
 
