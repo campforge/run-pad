@@ -298,4 +298,65 @@ public class DotnetProcessCompilerTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // Live user request 2026-07-28: "make our runtime fully compatible with the LINQPad Runtime
+    // API". Part of that is DumpContainer/ICustomMemberProvider/DumpOptions being usable by short
+    // name with no explicit `using RunPad.Runtime;`, matching how LINQPad's own query host implicitly
+    // imports the whole LINQPad namespace for every query — Util/.Dump() already worked this way
+    // (declared in the GLOBAL namespace specifically so extension-method/static lookup never needed
+    // an import at all); this proves it now also holds for the ordinary, non-extension types, via
+    // CSharpProjectProfile.DefaultImportNamespaces + the matching <Using Include="RunPad.Runtime" />
+    // project item (MsBuildProcessCompiler.BuildProjectFile). Real dotnet-build integration test —
+    // whether an unqualified type name resolves is entirely about what the generated project file
+    // actually contains, not something unit-testable without a real compile.
+    [Fact]
+    public async Task Compilation_Should_ResolveDumpContainerAndICustomMemberProvider_WithNoExplicitUsingStatement()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
+        try
+        {
+            using var compiler = CreateCompiler(outputDir);
+            const string code =
+                "var dc = new DumpContainer(\"hello\");\n" +
+                "dc.Dump();\n" +
+                "System.Console.WriteLine(dc.Content);\n" +
+                "class Provider : ICustomMemberProvider\n" +
+                "{\n" +
+                "    public System.Collections.Generic.IEnumerable<string> GetNames() => new[] { \"A\" };\n" +
+                "    public System.Collections.Generic.IEnumerable<System.Type> GetTypes() => new[] { typeof(int) };\n" +
+                "    public System.Collections.Generic.IEnumerable<object?> GetValues() => new object?[] { 1 };\n" +
+                "}\n";
+
+            var result = await compiler.Compilation(code, CancellationToken.None);
+
+            Assert.True(result.Success, string.Join('\n', result.Errors.Select(e => e.Message)));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // VB counterpart — proves VbProjectProfile.DefaultImportNamespaces (already the real "no
+    // <ImplicitUsings>, use <Import> items instead" mechanism VB has always used for its own BCL
+    // default-import list) correctly carries RunPad.Runtime alongside those too.
+    [Fact]
+    public async Task VbCompilation_Should_ResolveDumpContainer_WithNoExplicitImportsStatement()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-vb-compiler-test").FullName;
+        try
+        {
+            using var compiler = CreateVbCompiler(outputDir);
+            const string code =
+                "Module Program\n" +
+                "Sub Main()\n" +
+                "Dim dc = New DumpContainer(\"hello\")\n" +
+                "dc.Dump()\n" +
+                "Console.WriteLine(dc.Content)\n" +
+                "End Sub\n" +
+                "End Module\n";
+
+            var result = await compiler.Compilation(code, CancellationToken.None);
+
+            Assert.True(result.Success, string.Join('\n', result.Errors.Select(e => e.Message)));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }

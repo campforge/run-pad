@@ -6,73 +6,36 @@ using System.Text;
 
 namespace RunPad.Runtime;
 
-/// <summary>
-/// Full set of rendering options for <c>ObjectExtensions.Dump(this T, DumpOptions)</c> — everyday
-/// calls should prefer the plain <c>Dump()</c>/<c>Dump(label)</c>/<c>Dump(depth)</c> overloads
-/// instead; reach for this only when you need one of the options below (ANALYSIS.md feature #23).
-/// </summary>
-public sealed class DumpOptions
-{
-    /// <summary>Heading shown above the rendered value. <see langword="null"/> renders no heading.</summary>
-    public string? Label { get; set; }
-
-    /// <summary>How many levels of nested objects/collections to expand before truncating.</summary>
-    public int MaxDepth { get; set; } = 3;
-
-    /// <summary>Maximum number of rows rendered for a collection/table before truncating.</summary>
-    public int MaxRows { get; set; } = 1000;
-
-    /// <summary>If set, nested objects deeper than this level render collapsed (still expandable by clicking) instead of always expanded.</summary>
-    public int? CollapseTo { get; set; }
-
-    /// <summary>Suppresses the row-count footer under a rendered table.</summary>
-    public bool NoTotals { get; set; }
-
-    /// <summary>Repeats the table header every N rows, for long tables.</summary>
-    public int? RepeatHeadersAt { get; set; }
-
-    /// <summary>Also renders non-public properties/fields.</summary>
-    public bool IncludePrivateMembers { get; set; }
-
-    /// <summary>If set, only members whose name is in this list are rendered — applied before <see cref="Exclude"/>. (TODO.md #111.)</summary>
-    public IReadOnlyCollection<string>? Include { get; set; }
-
-    /// <summary>Member names to hide from the rendered property grid. (TODO.md #111.)</summary>
-    public IReadOnlyCollection<string>? Exclude { get; set; }
-
-    /// <summary>Renders members alphabetically instead of in declaration order.</summary>
-    public bool AlphabetizeMembers { get; set; }
-
-    /// <summary>Renders already expanded even for types that default to collapsed.</summary>
-    public bool ForceExpansion { get; set; }
-
-    /// <summary>Formats numbers with <see cref="CultureInfo.InvariantCulture"/> instead of the current culture.</summary>
-    public bool UseInvariantCultureForNumbers { get; set; }
-
-    internal IFormatProvider NumberFormat => UseInvariantCultureForNumbers
-        ? CultureInfo.InvariantCulture
-        : CultureInfo.CurrentCulture;
-
-    // ForceExpansion always wins; otherwise collapse once depth passes CollapseTo (if set).
-    internal bool ShouldCollapse(int depth) => !ForceExpansion && CollapseTo is { } n && depth >= n;
-}
-
 internal static class DumpRenderer
 {
     private const int MaxStringLength = 500;
+    private const int DefaultMaxDepth = 3;
+    private const int DefaultMaxRows = 1000;
 
     // Kept for existing callers/tests that only care about the original two options.
     public static string Render(object? value, string? label, int? maxDepth = null, int? maxRows = null)
-        => Render(value, label, new DumpOptions { MaxDepth = maxDepth ?? 3, MaxRows = maxRows ?? 1000 });
+        => Render(value, label, new DumpOptions { MaxDepth = maxDepth, MaxRows = maxRows });
 
     public static string Render(object? value, string? label, DumpOptions options)
     {
+        // Every .Dump() call starts from the process-wide defaults (LINQPad-compatible
+        // Util.DumpDefaults/DumpOptions.Default) with this specific call's own options layered on top
+        // — see DumpOptions.CombineWith.
+        var effective = DumpOptions.GlobalDefaults.CombineWith(options);
+
         var sb = new StringBuilder();
         if (label != null)
             sb.Append("<div class=\"dp-label\">").Append(Encode(label)).Append("</div>");
-        RenderValue(sb, value, 0, options);
+        RenderValue(sb, value, 0, effective);
         return sb.ToString();
     }
+
+    private static IFormatProvider NumberFormat(DumpOptions options) =>
+        options.UseInvariantCultureForNumbers == true ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+
+    // ForceExpansion always wins; otherwise collapse once depth passes CollapseTo (if set).
+    private static bool ShouldCollapse(DumpOptions options, int depth) =>
+        !options.ForceExpansion && options.CollapseTo is { } n && depth >= n;
 
     // ── Value dispatch ────────────────────────────────────────────────────────
 
@@ -92,7 +55,17 @@ internal static class DumpRenderer
             return;
         }
 
-        if (depth >= options.MaxDepth)
+        // Not depth-limited like an ordinary nested property would be — a DumpContainer exists
+        // specifically to keep showing LIVE content for as long as the script runs, so truncating it
+        // just because it happened to be nested deep would be inconsistent with every later
+        // Content/UpdateContent update (RenderForFirstDump's caller here) never re-checking depth at all.
+        if (value is DumpContainer container)
+        {
+            sb.Append(container.RenderForFirstDump(options));
+            return;
+        }
+
+        if (depth >= (options.MaxDepth ?? DefaultMaxDepth))
         {
             sb.Append("<span class=\"dp-truncated\">").Append(Encode(SafeToString(value))).Append("</span>");
             return;
@@ -126,7 +99,7 @@ internal static class DumpRenderer
     {
         var inner = new StringBuilder();
         renderInner(inner);
-        if (options.ShouldCollapse(depth))
+        if (ShouldCollapse(options, depth))
         {
             outer.Append("<details class=\"dp-collapse\"><summary>(click to expand)</summary>")
                  .Append(inner).Append("</details>");
@@ -139,6 +112,21 @@ internal static class DumpRenderer
 
     // ── Primitives ────────────────────────────────────────────────────────────
 
+    // DateOnly/TimeOnly (.NET 6+) can't be referenced by type here — this library targets
+    // netstandard2.0 (predates both), which is fine at runtime (netstandard2.0 is ABI-compatible with
+    // the net10.0 process a compiled script actually runs as) but means detecting/formatting them can
+    // only go through reflection (FullName match + the IFormattable interface, which IS available in
+    // netstandard2.0), never a direct `is DateOnly`/`(DateOnly)value` in this project's own source.
+    private static bool IsDateOnlyOrTimeOnly(Type type) => type.FullName is "System.DateOnly" or "System.TimeOnly";
+
+    private static readonly HashSet<Type> IntegralNumberTypes =
+    [
+        typeof(sbyte), typeof(byte), typeof(short), typeof(ushort),
+        typeof(int), typeof(uint), typeof(long), typeof(ulong),
+    ];
+
+    private static readonly HashSet<Type> RealNumberTypes = [typeof(float), typeof(double), typeof(decimal)];
+
     private static bool IsPrimitiveLike(Type type) =>
         type.IsPrimitive ||
         type == typeof(string) ||
@@ -150,10 +138,19 @@ internal static class DumpRenderer
         type == typeof(TimeSpan) ||
         type == typeof(Guid) ||
         type == typeof(Uri) ||
-        type.IsEnum;
+        type.IsEnum ||
+        IsDateOnlyOrTimeOnly(type);
 
     private static void RenderPrimitive(StringBuilder sb, object value, Type type, DumpOptions options)
     {
+        if (IsDateOnlyOrTimeOnly(type))
+        {
+            var format = type.FullName == "System.DateOnly" ? options.FormatStrings.DateOnly : options.FormatStrings.TimeOnly;
+            var text = ((IFormattable)value).ToString(format ?? "o", NumberFormat(options));
+            sb.Append("<span class=\"dp-datetime\">").Append(Encode(text)).Append("</span>");
+            return;
+        }
+
         switch (value)
         {
             case string s:
@@ -169,10 +166,10 @@ internal static class DumpRenderer
                 sb.Append(b ? "<span class=\"dp-bool\">true</span>" : "<span class=\"dp-bool\">false</span>");
                 break;
             case DateTime dt:
-                sb.Append("<span class=\"dp-datetime\">").Append(Encode(dt.ToString("o"))).Append("</span>");
+                sb.Append("<span class=\"dp-datetime\">").Append(Encode(dt.ToString(options.FormatStrings.DateTime ?? "o"))).Append("</span>");
                 break;
             case DateTimeOffset dto:
-                sb.Append("<span class=\"dp-datetime\">").Append(Encode(dto.ToString("o"))).Append("</span>");
+                sb.Append("<span class=\"dp-datetime\">").Append(Encode(dto.ToString(options.FormatStrings.DateTimeOffset ?? "o"))).Append("</span>");
                 break;
             case TimeSpan ts:
                 sb.Append("<span class=\"dp-datetime\">").Append(Encode(ts.ToString())).Append("</span>");
@@ -185,9 +182,14 @@ internal static class DumpRenderer
                 break;
             default:
                 var css = type.IsEnum ? "dp-enum" : "dp-number";
+                var format = IntegralNumberTypes.Contains(type) ? options.FormatStrings.IntegralNumber
+                    : RealNumberTypes.Contains(type) ? options.FormatStrings.RealNumber
+                    : null;
                 var text = type.IsEnum
                     ? value.ToString() ?? ""
-                    : Convert.ToString(value, options.NumberFormat) ?? value.ToString() ?? "";
+                    : format is not null
+                        ? ((IFormattable)value).ToString(format, NumberFormat(options))
+                        : Convert.ToString(value, NumberFormat(options)) ?? value.ToString() ?? "";
                 sb.Append("<span class=\"").Append(css).Append("\">")
                   .Append(Encode(text)).Append("</span>");
                 break;
@@ -199,6 +201,7 @@ internal static class DumpRenderer
     private static void RenderCustomMemberProvider(StringBuilder sb, ICustomMemberProvider provider, int depth, DumpOptions options)
     {
         var names = provider.GetNames().ToArray();
+        var types = provider.GetTypes().ToArray();
         var values = provider.GetValues().ToArray();
         var count = Math.Min(names.Length, values.Length);
 
@@ -210,7 +213,14 @@ internal static class DumpRenderer
             for (var i = 0; i < count; i++)
             {
                 inner.Append("<tr><td class=\"dp-td dp-propname\">").Append(Encode(names[i])).Append("</td><td class=\"dp-td\">");
-                RenderValue(inner, values[i], depth + 1, options);
+                // GetTypes() (LINQPad-compatible — verified against the real LINQPad.Runtime.dll,
+                // which has 3 methods on this interface, not the 2 RunPad originally shipped with)
+                // gives a null value's DECLARED type, which plain reflection over the boxed null
+                // obviously can't — rendering "null (Foo)" instead of a bare "null" for it.
+                if (values[i] is null && i < types.Length && types[i] is { } declaredType)
+                    inner.Append("<span class=\"dp-null\">null (").Append(Encode(FriendlyName(declaredType))).Append(")</span>");
+                else
+                    RenderValue(inner, values[i], depth + 1, options);
                 inner.Append("</td></tr>");
             }
             inner.Append("</tbody></table>");
@@ -233,9 +243,9 @@ internal static class DumpRenderer
             int row = 0;
             foreach (DictionaryEntry entry in dict)
             {
-                if (row >= options.MaxRows)
+                if (row >= (options.MaxRows ?? DefaultMaxRows))
                 {
-                    inner.Append("<tr><td class=\"dp-td dp-truncated\" colspan=\"2\">… ").Append(count - options.MaxRows).Append(" more</td></tr>");
+                    inner.Append("<tr><td class=\"dp-td dp-truncated\" colspan=\"2\">… ").Append(count - (options.MaxRows ?? DefaultMaxRows)).Append(" more</td></tr>");
                     break;
                 }
                 MaybeRepeatHeader(inner, row, options, () =>
@@ -255,15 +265,16 @@ internal static class DumpRenderer
 
     private static void RenderEnumerable(StringBuilder sb, IEnumerable enumerable, Type collectionType, int depth, DumpOptions options)
     {
+        var maxRows = options.MaxRows ?? DefaultMaxRows;
         var items = new List<object?>();
         foreach (var item in enumerable)
         {
             items.Add(item);
-            if (items.Count > options.MaxRows) break;
+            if (items.Count > maxRows) break;
         }
 
-        var shownCount = Math.Min(items.Count, options.MaxRows);
-        var hasMore = items.Count > options.MaxRows;
+        var shownCount = Math.Min(items.Count, maxRows);
+        var hasMore = items.Count > maxRows;
 
         if (!options.NoTotals)
         {
@@ -400,18 +411,27 @@ internal static class DumpRenderer
             members = members.Concat(type.GetFields(flags)
                 .Where(f => f.GetCustomAttribute<CompilerGeneratedAttribute>() is null));
 
-        // TODO.md #111 — LINQPad-inspired Dump(include:)/Dump(exclude:). Both apply, in this order
-        // (Include narrows down first, Exclude then removes from what's left), rather than one
-        // overriding the other outright — simpler to reason about if a caller ever sets both.
-        if (options.Include is { Count: > 0 } include)
+        // LINQPad-compatible Dump(include:)/Dump(exclude:) — MembersToInclude/MembersToExclude are
+        // comma-delimited strings (verified against the real LINQPad.Runtime.dll; RunPad originally
+        // shipped these as string collections instead). Both apply, in this order (Include narrows
+        // down first, Exclude then removes from what's left), rather than one overriding the other
+        // outright — simpler to reason about if a caller ever sets both.
+        if (SplitMembers(options.MembersToInclude) is { Length: > 0 } include)
             members = members.Where(m => include.Contains(m.Name, StringComparer.Ordinal));
-        if (options.Exclude is { Count: > 0 } exclude)
+        if (SplitMembers(options.MembersToExclude) is { Length: > 0 } exclude)
             members = members.Where(m => !exclude.Contains(m.Name, StringComparer.Ordinal));
 
-        return options.AlphabetizeMembers
+        return options.AlphabetizeMembers == true
             ? members.OrderBy(m => m.Name, StringComparer.Ordinal).ToArray()
             : members.ToArray();
     }
+
+    // StringSplitOptions.TrimEntries isn't in netstandard2.0 (added in .NET 5) — trimmed by hand instead.
+    private static string[]? SplitMembers(string? commaDelimited) => commaDelimited
+        ?.Split(',')
+        .Select(s => s.Trim())
+        .Where(s => s.Length > 0)
+        .ToArray();
 
     private static object? GetMemberValue(MemberInfo member, object target) => member switch
     {

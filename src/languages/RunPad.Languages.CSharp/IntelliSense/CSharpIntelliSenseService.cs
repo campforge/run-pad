@@ -23,7 +23,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // that won't actually compile. Extended at runtime with the .rpad front matter's own
     // `namespaces:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler
     // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
-    private static readonly string[] _basePreambleUsings = ImplicitUsings.Default;
+    //
+    // "RunPad.Runtime" appended separately from ImplicitUsings.Default itself (not folded into that
+    // list) — ImplicitUsings.Default's own job is specifically mirroring the .NET SDK's fixed
+    // <ImplicitUsings>enable</ImplicitUsings> set; RunPad.Runtime (DumpContainer/ICustomMemberProvider/
+    // DumpOptions — live user request 2026-07-28, LINQPad Runtime API compatibility) is RunPad's own
+    // addition, emitted into the real compiled project via CSharpProjectProfile.DefaultImportNamespaces
+    // instead, which this needs to mirror for the same "IntelliSense must agree with what actually
+    // compiles" reason as everything else on this list.
+    private static readonly string[] _basePreambleUsings = [.. ImplicitUsings.Default, "RunPad.Runtime"];
 
     // Also used for signature-help method/parameter signatures and quick info, not just completion —
     // IncludeParamsRefOut/IncludeDefaultValue make those read like a real signature (`params object[]

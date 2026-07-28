@@ -19,6 +19,16 @@ public class DumpRendererTests
     // Node with a complex child property — used to trigger depth truncation
     private sealed class Node { public string Name { get; set; } = ""; public Node? Child { get; set; } }
 
+    // LINQPad-compatible ICustomMemberProvider (2026-07-28) — 3 methods (GetNames/GetTypes/GetValues),
+    // not the 2 RunPad originally shipped with. "Value" is deliberately null so GetTypes()'s whole
+    // point (a null value's DECLARED type, unrecoverable from the boxed null itself) is exercised.
+    private sealed class CustomProvider : ICustomMemberProvider
+    {
+        public IEnumerable<string> GetNames() => ["Name", "Value"];
+        public IEnumerable<Type> GetTypes() => [typeof(string), typeof(Point)];
+        public IEnumerable<object?> GetValues() => ["hi", null];
+    }
+
     // ── Null ──────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -288,7 +298,7 @@ public class DumpRendererTests
         var point = new Point { X = 5, Y = 10 };
 
         // Act
-        var result = DumpRenderer.Render(point, null, new DumpOptions { Exclude = ["Y"] });
+        var result = DumpRenderer.Render(point, null, new DumpOptions { MembersToExclude = "Y" });
 
         // Assert
         Assert.Contains(">X<", result);
@@ -302,7 +312,7 @@ public class DumpRendererTests
         var point = new Point { X = 5, Y = 10 };
 
         // Act
-        var result = DumpRenderer.Render(point, null, new DumpOptions { Include = ["X"] });
+        var result = DumpRenderer.Render(point, null, new DumpOptions { MembersToInclude = "X" });
 
         // Assert
         Assert.Contains(">X<", result);
@@ -316,7 +326,7 @@ public class DumpRendererTests
         var node = new Node { Name = "root" };
 
         // Act
-        var result = DumpRenderer.Render(node, null, new DumpOptions { Include = ["Name", "Child"], Exclude = ["Child"] });
+        var result = DumpRenderer.Render(node, null, new DumpOptions { MembersToInclude = "Name,Child", MembersToExclude = "Child" });
 
         // Assert
         Assert.Contains(">Name<", result);
@@ -330,7 +340,7 @@ public class DumpRendererTests
         var points = new List<Point> { new() { X = 1, Y = 2 }, new() { X = 3, Y = 4 } };
 
         // Act
-        var result = DumpRenderer.Render(points, null, new DumpOptions { Exclude = ["Y"] });
+        var result = DumpRenderer.Render(points, null, new DumpOptions { MembersToExclude = "Y" });
 
         // Assert
         Assert.Contains(">X<", result);
@@ -363,5 +373,112 @@ public class DumpRendererTests
 
         // Assert
         Assert.Contains("dp-truncated", result);
+    }
+
+    // ── ICustomMemberProvider.GetTypes() (LINQPad compatibility, 2026-07-28) ────────────────────
+
+    [Fact]
+    public void Render_CustomMemberProvider_UsesGetNamesAndGetValues()
+    {
+        var result = DumpRenderer.Render(new CustomProvider(), null);
+
+        Assert.Contains(">Name<", result);
+        Assert.Contains("hi", result);
+    }
+
+    [Fact]
+    public void Render_CustomMemberProvider_ANullValue_RendersItsDeclaredTypeFromGetTypes()
+    {
+        // CustomProvider's second value is null, with a declared type of Point (per GetTypes()) —
+        // reflection over the boxed null itself can't recover that; only GetTypes() can.
+        var result = DumpRenderer.Render(new CustomProvider(), null);
+
+        Assert.Contains("null (Point)", result);
+    }
+
+    // ── DumpFormatStrings (LINQPad compatibility, 2026-07-28) ───────────────────────────────────
+
+    [Fact]
+    public void Render_Integer_WithIntegralNumberFormatString_AppliesIt()
+    {
+        // UseInvariantCultureForNumbers pins the expected separator regardless of the machine's own
+        // current culture (e.g. ru-RU groups with a space, not a comma) — this test is about the
+        // format STRING being applied at all, not about culture-dependent formatting, which is its
+        // own separate, already-existing behavior (see DumpRendererTests' number-format coverage).
+        var options = new DumpOptions
+        {
+            FormatStrings = new DumpFormatStrings { IntegralNumber = "N0" },
+            UseInvariantCultureForNumbers = true,
+        };
+
+        var result = DumpRenderer.Render(1234567, null, options);
+
+        Assert.Contains("1,234,567", result);
+    }
+
+    [Fact]
+    public void Render_Double_WithRealNumberFormatString_AppliesIt()
+    {
+        var options = new DumpOptions
+        {
+            FormatStrings = new DumpFormatStrings { RealNumber = "F2" },
+            UseInvariantCultureForNumbers = true,
+        };
+
+        var result = DumpRenderer.Render(3.14159, null, options);
+
+        Assert.Contains("3.14", result);
+        Assert.DoesNotContain("3.14159", result);
+    }
+
+    [Fact]
+    public void Render_DateTime_WithDateTimeFormatString_AppliesItInsteadOfRoundTrip()
+    {
+        var options = new DumpOptions { FormatStrings = new DumpFormatStrings { DateTime = "yyyy-MM-dd" } };
+        var dt = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var result = DumpRenderer.Render(dt, null, options);
+
+        Assert.Contains("2024-06-15", result);
+        Assert.DoesNotContain("T12:00:00", result); // "o" round-trip's time component would appear if the format string were ignored
+    }
+
+    [Fact]
+    public void Render_DateTime_WithNoFormatString_DefaultsToRoundTrip()
+    {
+        var dt = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var result = DumpRenderer.Render(dt, null, new DumpOptions());
+
+        Assert.Contains(dt.ToString("o"), result);
+    }
+
+    // ── DateOnly/TimeOnly (LINQPad compatibility, 2026-07-28) ───────────────────────────────────
+    // RunPad.Runtime itself targets netstandard2.0 (predates DateOnly/TimeOnly, added in .NET 6) and
+    // detects/formats them by type-name string via reflection instead of a direct type reference —
+    // see DumpRenderer.IsDateOnlyOrTimeOnly's own comment. This test project targets net10.0, so the
+    // real struct types ARE available here to construct real values against that reflection path.
+
+    [Fact]
+    public void Render_DateOnly_RendersAsDatetimeSpan_WithRoundTripFormatByDefault()
+    {
+        var date = new DateOnly(2024, 6, 15);
+
+        var result = DumpRenderer.Render(date, null);
+
+        Assert.Contains("dp-datetime", result);
+        Assert.Contains(date.ToString("o"), result);
+    }
+
+    [Fact]
+    public void Render_TimeOnly_WithTimeOnlyFormatString_AppliesIt()
+    {
+        var options = new DumpOptions { FormatStrings = new DumpFormatStrings { TimeOnly = "HH:mm" } };
+        var time = new TimeOnly(13, 45, 30);
+
+        var result = DumpRenderer.Render(time, null, options);
+
+        Assert.Contains("13:45", result);
+        Assert.DoesNotContain("13:45:30", result);
     }
 }
