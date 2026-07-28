@@ -177,7 +177,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
 
         var imports = _profile.DefaultImportNamespaces.Select(ns =>
             $"""
-                    <Import Include="{SecurityElement.Escape(ns)}" />
+                    <{_profile.ImportItemElementName} Include="{SecurityElement.Escape(ns)}" />
             """);
 
         var asmRefs = assemblyReferences.Select(r =>

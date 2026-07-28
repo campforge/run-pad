@@ -231,7 +231,7 @@ public class ObjectExtensionsTests
             var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
 
             // Act
-            obj.Dump(new DumpOptions { Label = "advanced", MaxDepth = 0 });
+            obj.Dump(new DumpOptions { Description = "advanced", MaxDepth = 0 });
 
             var decoded = DecodeDump(sw.ToString());
 
@@ -244,6 +244,74 @@ public class ObjectExtensionsTests
         {
             Console.SetOut(originalOut);
         }
+    }
+
+    // LINQPad compatibility (2026-07-28): Dump(int depth, int? collapseTo) — RunPad originally shipped
+    // this overload without the second parameter at all, meaning a real LINQPad script calling
+    // x.Dump(3, 1) wouldn't have compiled.
+    [Fact]
+    public void Dump_IntInt_SetsBothDepthAndCollapseTo_LikeLinqPad()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            var obj = new Nested { Value = 1, Inner = new Nested { Value = 2 } };
+
+            obj.Dump(0, 0);
+
+            var decoded = DecodeDump(sw.ToString());
+            Assert.Contains("dp-truncated", decoded); // depth 0 truncates immediately regardless of collapseTo
+        }
+        finally { Console.SetOut(originalOut); }
+    }
+
+    // LINQPad compatibility (2026-07-28): Dump(bool toDataGrid, string? description = null) and its
+    // argument-order sibling Dump(string? description, bool toDataGrid) — real LINQPad exposes both.
+    [Fact]
+    public void Dump_BoolDescription_ReturnsOriginalObject_LikeLinqPad()
+    {
+        var result = 42.Dump(true, "grid");
+
+        Assert.Equal(42, result);
+    }
+
+    [Fact]
+    public void Dump_BoolDescription_SetsTheLabel()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            42.Dump(true, "grid label");
+
+            var decoded = DecodeDump(sw.ToString());
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("grid label", decoded);
+        }
+        finally { Console.SetOut(originalOut); }
+    }
+
+    [Fact]
+    public void Dump_DescriptionBool_SetsTheLabel_SameAsTheOtherArgumentOrder()
+    {
+        var originalOut = Console.Out;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+
+            42.Dump("grid label 2", true);
+
+            var decoded = DecodeDump(sw.ToString());
+            Assert.Contains("dp-label", decoded);
+            Assert.Contains("grid label 2", decoded);
+        }
+        finally { Console.SetOut(originalOut); }
     }
 
     private static string DecodeDump(string consoleOutput)

@@ -34,6 +34,15 @@ public static class Util
     /// </summary>
     public static string? CurrentQueryPath => Environment.GetEnvironmentVariable(CurrentQueryPathEnvVar);
 
+    /// <summary>
+    /// The process-wide default rendering options every <c>.Dump()</c> call starts from —
+    /// LINQPad-compatible <c>Util.DumpDefaults</c> (signature verified against the real
+    /// <c>LINQPad.Runtime.dll</c>). Same instance as <see cref="DumpOptions.Default"/>; mutate its
+    /// properties directly (e.g. <c>Util.DumpDefaults.MaxDepth = 5;</c>) to change the default for
+    /// the rest of the run instead of passing a <see cref="DumpOptions"/> to every individual call.
+    /// </summary>
+    public static DumpOptionsCore DumpDefaults => DumpOptions.GlobalDefaults;
+
     // TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes save
     // to a dedicated per-user data folder, not an arbitrary path the caller has to come up with —
     // mirrors the OS-special-folder + "RunPad" subfolder convention RunPad's own
