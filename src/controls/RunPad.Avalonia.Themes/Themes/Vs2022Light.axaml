@@ -1,0 +1,68 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:themes="using:RunPad.Avalonia.Themes">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="{x:Static themes:RunPadThemeVariants.Vs2022Light}">
+                    <SolidColorBrush x:Key="RunPad.Sidebar.BackgroundBrush"           Color="#F5F5F5" />
+                    <SolidColorBrush x:Key="RunPad.Toolbar.BackgroundBrush"           Color="#EEEEF2" />
+                    <SolidColorBrush x:Key="RunPad.Toolbar.BorderBrush"               Color="#CCCEDB" />
+                    <SolidColorBrush x:Key="RunPad.Editor.BackgroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.Editor.SelectionBrush"             Color="#ADD6FF" />
+                    <SolidColorBrush x:Key="RunPad.Output.BackgroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.Output.ErrorForeground"            Color="#CC0000" />
+                    <SolidColorBrush x:Key="RunPad.Output.StackTraceForeground"       Color="#A31515" />
+                    <SolidColorBrush x:Key="RunPad.Panel.BackgroundBrush"             Color="#F5F5F5" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#68217A" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.Status.RunningBrush"               Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="RunPad.Status.CancelledBrush"             Color="#9E9E9E" />
+                    <SolidColorBrush x:Key="RunPad.Status.SuccessBrush"               Color="#4EC94E" />
+                    <SolidColorBrush x:Key="RunPad.Status.ErrorBrush"                 Color="#F14C4C" />
+                    <SolidColorBrush x:Key="RunPad.Status.PausedBrush"                Color="#FFA500" />
+                    <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#CCCEDB" />
+                    <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#CCCEDB" />
+                    <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#717171" />
+                    <SolidColorBrush x:Key="RunPad.Accent.BackgroundBrush"            Color="#ADD6FF" />
+                    <SolidColorBrush x:Key="RunPad.Accent.ForegroundBrush"            Color="#000000" />
+                    <SolidColorBrush x:Key="RunPad.Tab.AccentBrush"                    Color="#68217A" />
+                    <Color             x:Key="RunPad.Tab.AccentColor"                               >#68217A</Color>
+                    <SolidColorBrush x:Key="RunPad.Tab.DirtyBrush"                     Color="#B8860B" />
+                    <SolidColorBrush x:Key="RunPad.Toolbar.Button.HoverBrush"         Color="#C9DEF5" />
+                    <SolidColorBrush x:Key="RunPad.Icon.PlayBrush"                    Color="#2A7E2A" />
+                    <SolidColorBrush x:Key="RunPad.Icon.StopBrush"                    Color="#C00000" />
+                    <SolidColorBrush x:Key="RunPad.Icon.DebugBrush"                   Color="#C25800" />
+                    <SolidColorBrush x:Key="RunPad.Icon.StepBrush"                    Color="#0066B8" />
+                    <SolidColorBrush x:Key="RunPad.Icon.DisabledBrush"               Color="#AAAAAA" />
+                    <SolidColorBrush x:Key="RunPad.Margin.BreakpointBrush"           Color="#CC0000" />
+                    <SolidColorBrush x:Key="RunPad.Margin.BreakpointVerifiedBrush"   Color="#2E7D32" />
+                    <SolidColorBrush x:Key="RunPad.Margin.BreakpointUnverifiedBrush" Color="#B8860B" />
+                    <SolidColorBrush x:Key="RunPad.Margin.BreakpointPreviewBrush"    Color="#AA7070" />
+                    <SolidColorBrush x:Key="RunPad.Margin.BreakpointConditionBadgeBrush" Color="#8A5FBF" />
+                    <SolidColorBrush x:Key="RunPad.Margin.DebugArrowBrush"           Color="#E8B400" />
+                    <SolidColorBrush x:Key="RunPad.Margin.DebugLineBrush"            Color="#50FFEE00" />
+                    <SolidColorBrush x:Key="RunPad.Margin.LineNumberBrush"          Color="#A6A6A6" />
+                    <SolidColorBrush x:Key="RunPad.Margin.CodeFixErrorBrush"     Color="#F14C4C" />
+                    <SolidColorBrush x:Key="RunPad.Margin.CodeFixWarningBrush"   Color="#B8860B" />
+                    <SolidColorBrush x:Key="RunPad.Folding.ChevronBrush"            Color="#ABABAB" />
+                    <SolidColorBrush x:Key="RunPad.Folding.ChevronHoverBrush"       Color="#555555" />
+                    <SolidColorBrush x:Key="RunPad.Folding.LineBrush"               Color="#DEDEDE" />
+                    <SolidColorBrush x:Key="RunPad.Dump.TableHeaderBrush"           Color="#0066B8" />
+                    <SolidColorBrush x:Key="RunPad.Dump.TableHeaderForegroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.Dump.TableBorderBrush"           Color="#ADBAD0" />
+                    <SolidColorBrush x:Key="RunPad.Dump.TableEvenRowBrush"          Color="#EDF3FD" />
+                    <SolidColorBrush x:Key="RunPad.Dump.StringBrush"                Color="#A31515" />
+                    <SolidColorBrush x:Key="RunPad.Dump.NumberBrush"                Color="#098658" />
+                    <SolidColorBrush x:Key="RunPad.Dump.BoolBrush"                  Color="#0000CC" />
+                    <SolidColorBrush x:Key="RunPad.Dump.EnumBrush"                  Color="#267F99" />
+                    <SolidColorBrush x:Key="RunPad.Dump.DateTimeBrush"              Color="#7B3FA0" />
+                    <SolidColorBrush x:Key="RunPad.Dump.PropertyNameBrush"          Color="#0F4A8A" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>

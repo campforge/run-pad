@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RunPad.Build.Core\RunPad.Build.Core.csproj" />
+    <ProjectReference Include="..\RunPad.Contracts\RunPad.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

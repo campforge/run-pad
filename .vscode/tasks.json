@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/main/DotPad/DotPad.csproj",
+                "${workspaceFolder}/src/main/RunPad/RunPad.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -24,7 +24,7 @@
             "args": [
                 "watch",
                 "build",
-                "${workspaceFolder}/src/main/DotPad/DotPad.csproj"
+                "${workspaceFolder}/src/main/RunPad/RunPad.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

@@ -315,7 +315,7 @@ public class CompletionList : TemplatedControl
 
     // Below this GetMatchQuality tier (5 = "match start", a real typed prefix), the current
     // SelectedItem is only a guess (substring/camelCase match) — confident enough to highlight, not
-    // confident enough for a typed commit character to accept automatically. DotPad TODO #60.3.
+    // confident enough for a typed commit character to accept automatically. RunPad TODO #60.3.
     private const int HardSelectionQualityThreshold = 5;
 
     /// <summary>

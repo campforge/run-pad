@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
+  </ItemGroup>
+</Project>

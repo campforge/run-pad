@@ -1,0 +1,88 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RunPad.Avalonia.Themes.RunPadTheme">
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/VsCodeDark.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/VsCodeLight.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RiderDark.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RiderLight.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/Vs2022Dark.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/Vs2022Light.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RunPadMidnight.axaml" />
+    <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RunPadWarmLight.axaml" />
+
+    <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background"               Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
+        <Setter Property="Foreground"               Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush"              Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+        <Setter Property="VerticalGridLinesBrush"   Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+        <Setter Property="RowBackground"            Value="Transparent"/>
+    </Style>
+
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background"     Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground"     Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="SeparatorBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+        <Setter Property="FontSize"       Value="12"/>
+        <Setter Property="MinHeight"      Value="28"/>
+    </Style>
+    <Style Selector="DataGridColumnHeader:pointerover /template/ Grid#PART_ColumnHeaderRoot">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+
+    <Style Selector="DataGridRow">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="MinHeight"  Value="24"/>
+    </Style>
+    <Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="DataGridRow:selected:pointerover:focus /template/ Rectangle#BackgroundRectangle">
+        <Setter Property="Fill"    Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="DataGridCell">
+        <Setter Property="Foreground"     Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="FontSize"       Value="13"/>
+        <Setter Property="MinHeight"      Value="24"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <!-- ── TreeView ──────────────────────────────────────────────────────── -->
+    <Style Selector="TreeView">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding"    Value="0"/>
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="Padding"    Value="2,4"/>
+    </Style>
+    <Style Selector="TreeViewItem:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="TreeViewItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
+    </Style>
+
+</Styles>

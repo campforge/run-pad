@@ -1,0 +1,67 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:templatedControls="clr-namespace:RunPad.TemplatedControls">
+    <Styles.Resources>
+        <ResourceDictionary>
+
+            <ControlTheme x:Key="{x:Type templatedControls:IconToggleButton}" TargetType="templatedControls:IconToggleButton">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="4" />
+                <Setter Property="Width" Value="26" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="Template">
+                    <ControlTemplate TargetType="templatedControls:IconToggleButton">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <PathIcon Data="{TemplateBinding IconData}"
+                                      Width="16" Height="16"
+                                      Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
+
+                <Style Selector="^:pointerover /template/ Border#Root">
+                    <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}" />
+                </Style>
+                <Style Selector="^:pressed /template/ Border#Root">
+                    <Setter Property="Opacity" Value="0.6" />
+                </Style>
+                <Style Selector="^:disabled /template/ PathIcon">
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Icon.DisabledBrush}" />
+                </Style>
+
+                <Style Selector="^:checked /template/ Border#Root">
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="BorderBrush">
+                        <Binding Path="CheckedBrush" RelativeSource="{RelativeSource TemplatedParent}" />
+                    </Setter>
+                </Style>
+
+                <Style Selector="^:disabled">
+                    <Setter Property="Opacity" Value="0.35"/>
+                </Style>
+
+                <Style Selector="^ /template/ PathIcon">
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                </Style>
+
+                <Style Selector="^:checked /template/ PathIcon">
+                    <Setter Property="Foreground">
+                        <Binding Path="CheckedBrush" RelativeSource="{RelativeSource TemplatedParent}" />
+                    </Setter>
+                    <Setter Property="Data">
+                        <MultiBinding Converter="{x:Static templatedControls:IconToggleButton.PreferCheckedIconConverter}">
+                            <Binding Path="CheckedIconData" RelativeSource="{RelativeSource TemplatedParent}" />
+                            <Binding Path="IconData" RelativeSource="{RelativeSource TemplatedParent}" />
+                        </MultiBinding>
+                    </Setter>
+                </Style>
+
+            </ControlTheme>
+
+        </ResourceDictionary>
+    </Styles.Resources>
+</Styles>

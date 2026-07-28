@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Features" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" />
+    <PackageReference Include="System.Composition.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="NuGet.Common" />
+    <PackageReference Include="NuGet.Configuration" />
+    <PackageReference Include="NuGet.Protocol" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Debug\RunPad.Debug.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
+    <ProjectReference Include="..\..\runtime\RunPad.Runtime\RunPad.Runtime.csproj" />
+    <ProjectReference Include="..\RunPad.Languages.DotnetCommon\RunPad.Languages.DotnetCommon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RunPad.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
+  </ItemGroup>
+
+</Project>

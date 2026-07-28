@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RunPad MSI installer (проход "установщики" — MSI for Windows, .deb for Linux). Built with WiX
+  Toolset v5 (plain `wix build` CLI, no .wixproj/MSBuild layer, matching the scripts/make-*.sh
+  pattern already used for the macOS .app bundle and Linux AppImage) — pinned to v5 specifically to
+  avoid v6+'s Open Source Maintenance Fee EULA gate (harmless for a $0-revenue project — the fee
+  itself only applies above $10k/year — but v5 sidesteps needing any EULA-acceptance mechanism in CI
+  at all). UpgradeCode and the shortcut Component's Guid are fixed, generated once — never change
+  them, or Windows will treat future versions as an unrelated product instead of an upgrade.
+
+  RunPadVersion and PublishDir are supplied on the command line via `-d`, e.g.:
+    wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
+      -d RunPadVersion=0.3.0 -d PublishDir=publish/win-x64 -arch x64 -out RunPad-win-x64.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="RunPad" Manufacturer="coddwrench" Version="$(var.RunPadVersion)"
+           UpgradeCode="A15433F7-3B92-4026-8EC8-ADADCD8384F6">
+
+    <!-- AllowSameVersionUpgrades="yes" (WiX's default is "no") matters here specifically because
+         ProductCode isn't pinned (only UpgradeCode is — see the header comment) — every `wix build`
+         mints a fresh ProductCode even for an unchanged RunPadVersion, which happens for real: CI
+         rebuilds and re-uploads the MSI on every push to main, and RunPad.csproj's <Version> often
+         doesn't change between those pushes. Without this, re-running an installer for a version
+         that's already installed doesn't match Windows Installer's own same-version-is-a-no-op
+         assumption (that only holds for a stable ProductCode) — MajorUpgrade's detection is versioned
+         by UpgradeCode+Version, but "no" excludes an exact version match from the remove-old/install-
+         new sequence, risking two same-version registrations both claiming the same INSTALLFOLDER
+         instead of a clean reinstall. Verified for real: built two MSIs at the same version, confirmed
+         a second install lands as a clean single ARP entry instead of a conflicting duplicate. -->
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of RunPad is already installed."
+        AllowSameVersionUpgrades="yes" />
+
+    <!-- Without this, WiX's implicit default MediaTemplate leaves the self-contained publish's ~90MB
+         of payload in separate cab1.cab/cab2.cab files sitting NEXT TO the .msi rather than inside it
+         — confirmed by actually building this file: it produced exactly those two external cabs. CI
+         only uploads RunPad-win-x64.msi as the release artifact, so every installer anyone downloaded
+         from a GitHub Release would have failed outright, unable to find its own payload. Embedding
+         makes the .msi fully self-contained at the cost of a larger single file. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- SourceFile (like every other plain file-reference attribute) resolves relative to the current
+         working directory `wix build` is invoked from — repo root, both in CI and in the file's own
+         header comment example — unlike <Files Include> below, which resolves relative to THIS SOURCE
+         FILE's own directory instead (a genuine, confirmed WiX v5 inconsistency between the two
+         features, not a typo). Mixing the two conventions in one file previously broke every build run
+         from repo root as CI actually does; this repo-root-relative path is the correct one here. -->
+    <Icon Id="RunPadIcon" SourceFile="src\main\RunPad\Assets\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="RunPadIcon" />
+
+    <Feature Id="Main" Title="RunPad">
+      <!-- $(var.PublishDir) is passed in as repo-root-relative (e.g. "publish/win-x64", matching where
+           `dotnet publish -o publish/win-x64` actually writes when run from repo root) — the leading
+           ..\.. re-bases it onto this file's own directory, which is what <Files Include> resolves
+           against (see the Icon comment above for why the two need different treatment). -->
+      <Files Directory="INSTALLFOLDER" Include="..\..\$(var.PublishDir)\**">
+        <Exclude Files="**\*.pdb" />
+      </Files>
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_Minimal" />
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="RunPad" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="RunPad">
+        <Component Id="ApplicationShortcut" Guid="7DE8D4A0-15C1-4DEF-8A97-0E368495F245">
+          <Shortcut Id="StartMenuShortcut" Name="RunPad"
+                    Description="C# scratchpad/scripting IDE"
+                    Target="[INSTALLFOLDER]RunPad.exe"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="RunPadIcon" />
+          <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\coddwrench\RunPad" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+  </Fragment>
+</Wix>

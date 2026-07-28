@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RunPad.Windows.AboutWindow"
+        Title="About RunPad"
+        Width="360"
+        MinWidth="320" MinHeight="180"
+        CanResize="False"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+
+    <StackPanel Margin="24" Spacing="4">
+
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+            <Image Source="/Assets/icon.ico" Width="32" Height="32"/>
+            <StackPanel Spacing="0" VerticalAlignment="Center">
+                <TextBlock Text="RunPad" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="VersionBlock" FontSize="12"
+                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock Text="A desktop C# scratchpad/scripting IDE." FontSize="12" TextWrapping="Wrap"/>
+        <TextBlock x:Name="AuthorsBlock" FontSize="12"
+                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" Margin="0,8,0,0"/>
+        <TextBlock x:Name="CopyrightBlock" FontSize="11"
+                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="OK" Width="80" Click="OkButton_Click" IsDefault="True" IsCancel="True"/>
+        </StackPanel>
+
+    </StackPanel>
+
+</Window>
