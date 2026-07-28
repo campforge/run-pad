@@ -1,4 +1,4 @@
-# DotPad
+# RunPad
 
 Десктопный C# "scratchpad"/scripting IDE на Avalonia UI (net10.0) — в одном пространстве с LINQPad,
 RoslynPad и NetPad. Редактирует и запускает `.rpad`-файлы: самодокументируемые Markdown-документы с
@@ -13,6 +13,31 @@ YAML front matter и одним исполняемым блоком кода.
 
 Особенности C#
 - Взят netcoredbg не просто так: на текущий момент это лучший открытый отладчик .NET, который поддерживается сообществом и Samsung.
+
+## Установка
+
+Готовые сборки — на [странице релизов](https://github.com/coddwrench/dot-pad/releases/latest).
+
+**Windows** — скачать `RunPad-win-x64.msi` и запустить (ярлык в меню Пуск, деинсталлятор в «Установка и
+удаление программ», следующая версия ставится поверх). Либо `RunPad-win-x64.zip` — портативный вариант
+без установки, распаковать и запустить `RunPad.exe`.
+
+**Linux** — `runpad_<версия>_amd64.deb` (`sudo dpkg -i runpad_*.deb` или через центр приложений — ставит
+`runpad` в PATH и пункт меню). Либо `RunPad-x86_64.AppImage` — `chmod +x` и запустить, ничего не ставит в
+систему. Либо `RunPad-linux-x64.tar.gz` — распаковать и запустить `RunPad`.
+
+**macOS** — сборка пока не подписана сертификатом Apple Developer, поэтому Gatekeeper заблокирует
+запуск при обычной установке через Finder. Один блок в Терминале — скачивает актуальный релиз под
+вашу архитектуру (Apple Silicon/Intel определяется автоматически), ставит в `/Applications` и снимает
+карантин (это обычная практика для опенсорсных приложений без платной подписи, а не что-то небезопасное —
+вы сами разрешаете уже скачанному вами файлу запускаться):
+
+```bash
+ARCH=$(test "$(uname -m)" = "arm64" && echo arm64 || echo x64)
+curl -L "https://github.com/coddwrench/dot-pad/releases/latest/download/RunPad-osx-$ARCH.tar.gz" | tar -xz -C /Applications
+xattr -cr "/Applications/RunPad.app"
+open "/Applications/RunPad.app"
+```
 
 ## Вдохновение и используемые компоненты
 
@@ -65,7 +90,7 @@ YAML front matter и одним исполняемым блоком кода.
   языка, «показать в проводнике» на всех ОС), окно Dependencies (поиск NuGet по фидам из
   `nuget.config`, локальный кэш пакетов), Preferences (настраиваемые горячие клавиши, шрифт,
   темы, пути к dotnet/netcoredbg), светлые/тёмные темы (Fluent/Simple) с едиными токенами.
-- [x] **DotPad.Cli**: консольный раннер `.rpad` без GUI/отладчика (см. раздел ниже) с рендером
+- [x] **RunPad.Cli**: консольный раннер `.rpad` без GUI/отладчика (см. раздел ниже) с рендером
   `.Dump()` в терминале.
 - [x] **Тесты**: 5 проектов, ~395 тестов, включая headless-UI-тесты полного
   keyboard-пайплайна редактора; CI (format + build + test) на ubuntu/windows/macos.
@@ -84,7 +109,7 @@ YAML front matter и одним исполняемым блоком кода.
   find references, CodeLens (#62).
 - [ ] Интерактивный ввод из панели вывода (stdin-канал к процессу скрипта), макросы путей в
   references, конвертер `.linq` → `.rpad` (#63).
-- [ ] Языки как настоящие плагины (загрузка сборок в рантайме, без пересборки DotPad) — цель;
+- [ ] Языки как настоящие плагины (загрузка сборок в рантайме, без пересборки RunPad) — цель;
   подготовительная работа: #87.
 - [ ] Новые языки на роадмапе: F#, SQL (MVP — SQLite in-memory), Go, PowerShell, Python, C, C++,
   Rust — только архитектурная разведка, ничего не начато (см. TODO.md → «Новые языки на роадмапе»
@@ -102,10 +127,10 @@ YAML front matter и одним исполняемым блоком кода.
 front matter (версия, язык, target SDK, kind, пакеты, референсы, usings) плюс один блок ```` ```csharp run ````
 с самим кодом, остальной Markdown вокруг сохраняется как есть.
 
-## DotPad.Cli — запуск `.rpad` из консоли без GUI
+## RunPad.Cli — запуск `.rpad` из консоли без GUI
 
-`src/main/DotPad.Cli` — лёгкий консольный раннер: компилирует и выполняет run-блок `.rpad`-файла
-напрямую, без Avalonia и без отладчика (тот же «быстрый путь», что и кнопка Run в самом DotPad, без
+`src/main/RunPad.Cli` — лёгкий консольный раннер: компилирует и выполняет run-блок `.rpad`-файла
+напрямую, без Avalonia и без отладчика (тот же «быстрый путь», что и кнопка Run в самом RunPad, без
 DAP/`netcoredbg` вокруг). Годится для CI/автоматизации или когда полноценный редактор не нужен.
 Поддерживает и `language: csharp`, и `language: vb` — front matter (`packages`/`references`/
 `namespaces`/`kind`) учитывается так же, как в GUI.
@@ -113,17 +138,17 @@ DAP/`netcoredbg` вокруг). Годится для CI/автоматизац�
 Запуск прямо из исходников:
 
 ```bash
-dotnet run --project src/main/DotPad.Cli -- path/to/script.rpad
+dotnet run --project src/main/RunPad.Cli -- path/to/script.rpad
 ```
 
-Либо сборка и запуск отдельно (сборка называется `dotpad.dll`):
+Либо сборка и запуск отдельно (сборка называется `runpad.dll`):
 
 ```bash
-dotnet build src/main/DotPad.Cli -c Release
-dotnet src/main/DotPad.Cli/bin/Release/net10.0/dotpad.dll path/to/script.rpad
+dotnet build src/main/RunPad.Cli -c Release
+dotnet src/main/RunPad.Cli/bin/Release/net10.0/runpad.dll path/to/script.rpad
 ```
 
-(Рядом лежит и нативный apphost `dotpad`/`dotpad.exe` — запускается без `dotnet` в префиксе, но
+(Рядом лежит и нативный apphost `runpad`/`runpad.exe` — запускается без `dotnet` в префиксе, но
 только если .NET установлен туда, откуда apphost умеет его находить; при нестандартной установке
 (например, через Homebrew/Linuxbrew) он не найдёт рантайм — тогда используйте вариант с `dotnet
 ... .dll` выше, он работает всегда.)

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="ICSharpCode.Decompiler" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Debug\RunPad.Debug.csproj" />
+    <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
+  </ItemGroup>
+
+</Project>

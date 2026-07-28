@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.SetupWizardWindow"
+        x:DataType="viewModels:SetupWizardViewModel"
+        Title="RunPad — First-time setup"
+        Icon="/Assets/icon.ico"
+        Width="560" Height="380"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,16,Auto,Auto,Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="RunPad needs a couple of things before it can compile and debug scripts."
+                   TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock Grid.Row="1" Text="You can skip this and set them up later in Preferences."
+                   TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+
+        <!-- .NET SDK row -->
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="✅" IsVisible="{Binding HasSuitableSdk}"/>
+                <TextBlock Text="❌" IsVisible="{Binding !HasSuitableSdk}"/>
+                <TextBlock Text=".NET SDK" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1" Name="BrowseDotnetButton" Content="Browse…" Click="BrowseDotnet_Click"
+                    IsVisible="{Binding !HasSuitableSdk}" IsEnabled="{Binding !IsBusy}" Margin="0,0,8,0"/>
+            <Button Grid.Column="2" Content="Install" Command="{Binding InstallSdkCommand}"
+                    IsVisible="{Binding !HasSuitableSdk}" IsEnabled="{Binding !IsBusy}"/>
+        </Grid>
+
+        <!-- netcoredbg row -->
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="✅" IsVisible="{Binding HasValidDebugger}"/>
+                <TextBlock Text="❌" IsVisible="{Binding !HasValidDebugger}"/>
+                <TextBlock Text="netcoredbg (debugger)" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1" Name="BrowseDebuggerButton" Content="Browse…" Click="BrowseDebugger_Click"
+                    IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}" Margin="0,0,8,0"/>
+            <Button Grid.Column="2" Content="Install" Command="{Binding InstallDebuggerCommand}"
+                    IsVisible="{Binding !HasValidDebugger}" IsEnabled="{Binding !IsBusy}"/>
+        </Grid>
+
+        <!-- Thin bar, same convention as DependenciesWindow's search-loading indicator. Fills for real
+             during a download (byte-counted against Content-Length); falls back to indeterminate for
+             steps with no measurable percentage (running dotnet-install, extracting the archive). -->
+        <ProgressBar Grid.Row="5" Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                     IsIndeterminate="{Binding ProgressIsIndeterminate}"
+                     IsVisible="{Binding IsBusy}" Height="2" Margin="0,16,0,0"/>
+
+        <ScrollViewer Grid.Row="6" Margin="0,8,0,0">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Opacity="0.8" FontSize="12"
+                           IsVisible="{Binding !IsStatusError}"/>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource RunPad.Status.ErrorBrush}"
+                           IsVisible="{Binding IsStatusError}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Command="{Binding CancelInstallCommand}" IsVisible="{Binding IsBusy}"/>
+            <Button Name="ContinueButton" Content="Continue to RunPad" Click="Continue_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

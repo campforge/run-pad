@@ -1,0 +1,25 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:templatedControls="clr-namespace:RunPad.TemplatedControls">
+    <Style Selector="StackPanel.Toolbar ComboBox">
+        <Setter Property="FontSize"        Value="12"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="CornerRadius"    Value="4"/>
+
+        <Style Selector="^/template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+        <Style Selector="^:focus /template/ Border#Background">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="^[IsDropDownOpen=true] /template/ Border#Background">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        </Style>
+    </Style>
+</Styles>

@@ -55,7 +55,7 @@ jobs:
 
       # PRs pay per-minute for Windows runners (2x the Linux rate) — build-linux already runs the
       # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
-      # DotPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
+      # RunPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
       # AvaloniaTestFramework disabling collection parallelism assembly-wide) and RealBuildTestCollection
       # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured
       # directly, see проход "минимизация CI-времени"). Everything else — the actual cross-platform
@@ -66,39 +66,78 @@ jobs:
         shell: bash
         run: |
           set -e
-          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
-                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+          for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
+                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
-          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
       - name: 🧪 Test (full suite)
         if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
-      # Release assets — only built on an actual merge to main, not on every PR.
+      # Release assets — only built on an actual merge to main, not on every PR. Ships both a portable
+      # zip (unpack and run) and an MSI (Start Menu shortcut, uninstaller, upgrade-in-place on the
+      # next version via the fixed UpgradeCode in installer/windows/Package.wxs).
       - name: 📦 Publish (win-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/DotPad/DotPad.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
+        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
 
       - name: 🗜️ Archive (win-x64)
         if: github.event_name == 'push'
         shell: pwsh
-        run: Compress-Archive -Path publish/win-x64/* -DestinationPath DotPad-win-x64.zip
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath RunPad-win-x64.zip
 
-      - name: ⬆️ Upload release artifact (win-x64)
+      - name: 🔎 Read version
+        if: github.event_name == 'push'
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Pinned to WiX v5 specifically — v6+ added an Open Source Maintenance Fee EULA-acceptance gate
+      # (harmless for a $0-revenue project, the fee itself only applies above $10k/year, but v5 avoids
+      # needing any EULA-acceptance mechanism in CI at all — see installer/windows/Package.wxs).
+      - name: 📦 Install WiX Toolset
+        if: github.event_name == 'push'
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add WixToolset.UI.wixext/5.0.2
+
+      - name: 🧳 Build MSI (win-x64)
+        if: github.event_name == 'push'
+        env:
+          # Belt-and-suspenders: WiX ships targeting an older net TFM than the SDK version this repo
+          # pins — LatestMajor makes sure it still resolves against whatever .NET setup-dotnet just
+          # installed rather than depending on a second, older runtime also being present.
+          DOTNET_ROLL_FORWARD: LatestMajor
+        run: >
+          wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
+          -d RunPadVersion=${{ steps.version.outputs.version }} -d PublishDir=publish/win-x64
+          -arch x64 -out RunPad-win-x64.msi
+
+      - name: ⬆️ Upload release artifact (win-x64 zip)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: release-win-x64
-          path: DotPad-win-x64.zip
+          path: RunPad-win-x64.zip
           # A self-contained publish zip is ~90MB (measured directly) — this copy only exists to hand
           # off to the `release` job later in the SAME workflow run; the permanent, actually-downloaded
           # copy is the one ncipollo/release-action attaches to the GitHub Release. No reason to keep
           # this intermediate copy for the default 90 days — three platforms' worth of that per merge
           # to main is what exhausted the private-repo Actions storage quota ("Failed to CreateArtifact:
           # Artifact storage quota has been hit").
+          retention-days: 1
+
+      - name: ⬆️ Upload release artifact (win-x64 MSI)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-win-x64-msi
+          path: RunPad-win-x64.msi
           retention-days: 1
 
   build-linux:
@@ -143,23 +182,63 @@ jobs:
           # contributor to the storage-quota failure this was trimmed for.
           retention-days: 7
 
-      # Release assets — only built on an actual merge to main, not on every PR.
+      # Release assets — only built on an actual merge to main, not on every PR. Ships a portable
+      # tar.gz (unpack and run), an AppImage (single executable, no unpack/install step, shows up with
+      # a real icon in file managers/app launchers that support it), and a real .deb (apt/dpkg-tracked
+      # install, Start Menu-equivalent .desktop entry).
       - name: 📦 Publish (linux-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/DotPad/DotPad.csproj -c Release -r linux-x64 --self-contained true -o publish/linux-x64
+        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r linux-x64 --self-contained true -o publish/linux-x64
 
       - name: 🗜️ Archive (linux-x64)
         if: github.event_name == 'push'
-        run: tar -czf DotPad-linux-x64.tar.gz -C publish/linux-x64 .
+        run: tar -czf RunPad-linux-x64.tar.gz -C publish/linux-x64 .
 
-      - name: ⬆️ Upload release artifact (linux-x64)
+      - name: ⬇️ Download appimagetool
+        if: github.event_name == 'push'
+        run: |
+          curl -sL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
+          chmod +x /tmp/appimagetool
+
+      - name: 🧳 Bundle AppImage (linux-x64)
+        if: github.event_name == 'push'
+        env:
+          APPIMAGETOOL: /tmp/appimagetool
+        run: bash scripts/make-linux-appimage.sh publish/linux-x64 dist
+
+      - name: 🔎 Read version
+        if: github.event_name == 'push'
+        id: version
+        run: |
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 🧳 Bundle .deb (linux-x64)
+        if: github.event_name == 'push'
+        run: bash scripts/make-linux-deb.sh publish/linux-x64 ${{ steps.version.outputs.version }} dist
+
+      - name: ⬆️ Upload release artifact (linux-x64 tar.gz)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: release-linux-x64
-          path: DotPad-linux-x64.tar.gz
+          path: RunPad-linux-x64.tar.gz
           # See release-win-x64's own upload step for why this is trimmed to 1 day.
           retention-days: 1
+
+      - name: ⬆️ Upload release artifact (linux-x64 AppImage)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64-appimage
+          path: dist/RunPad-x86_64.AppImage
+
+      - name: ⬆️ Upload release artifact (linux-x64 deb)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64-deb
+          path: dist/runpad_${{ steps.version.outputs.version }}_amd64.deb
 
   build-macos:
     name: Build & Test (macos-latest)
@@ -189,41 +268,67 @@ jobs:
 
       # PRs pay per-minute for macOS runners (10x the Linux rate) — build-linux already runs the FULL
       # suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts: see
-      # build-windows' own comment on the same step for the full rationale (DotPad.Runtime.UI.Tests'
+      # build-windows' own comment on the same step for the full rationale (RunPad.Runtime.UI.Tests'
       # forced serialization + RealBuildTestCollection's real `dotnet build` floor cost).
       - name: 🧪 Test (fast PR subset)
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -e
-          for proj in tests/DotPad.Format.RPad.Tests tests/DotPad.Runtime.Tests \
-                      tests/DotPad.Avalonia.HtmlRenderer.Tests tests/DotPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+          for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
+                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
-          dotnet test tests/DotPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
+          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
       - name: 🧪 Test (full suite)
         if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
-      # Release assets — only built on an actual merge to main, not on every PR.
+      # Release assets — only built on an actual merge to main, not on every PR. Bundled as a real
+      # RunPad.app (Contents/MacOS + Info.plist + icon), not just a raw publish folder, so it's
+      # double-clickable/shows up properly in Finder/Dock — unsigned/not notarized (see TODO.md
+      # проход 136), so the README documents the `xattr -cr` step users need before first launch.
       - name: 📦 Publish (osx-x64)
         if: github.event_name == 'push'
-        run: dotnet publish src/main/DotPad/DotPad.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
+        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
+
+      - name: 📦 Publish (osx-arm64)
+        if: github.event_name == 'push'
+        run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-arm64 --self-contained true -o publish/osx-arm64
+
+      - name: 🧳 Bundle .app (osx-x64)
+        if: github.event_name == 'push'
+        run: bash scripts/make-macos-app-bundle.sh publish/osx-x64 RunPad-osx-x64
+
+      - name: 🧳 Bundle .app (osx-arm64)
+        if: github.event_name == 'push'
+        run: bash scripts/make-macos-app-bundle.sh publish/osx-arm64 RunPad-osx-arm64
 
       - name: 🗜️ Archive (osx-x64)
         if: github.event_name == 'push'
-        run: tar -czf DotPad-osx-x64.tar.gz -C publish/osx-x64 .
+        run: tar -czf RunPad-osx-x64.tar.gz -C RunPad-osx-x64 RunPad.app
+
+      - name: 🗜️ Archive (osx-arm64)
+        if: github.event_name == 'push'
+        run: tar -czf RunPad-osx-arm64.tar.gz -C RunPad-osx-arm64 RunPad.app
 
       - name: ⬆️ Upload release artifact (osx-x64)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: release-osx-x64
-          path: DotPad-osx-x64.tar.gz
+          path: RunPad-osx-x64.tar.gz
           # See release-win-x64's own upload step for why this is trimmed to 1 day.
           retention-days: 1
+
+      - name: ⬆️ Upload release artifact (osx-arm64)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-osx-arm64
+          path: RunPad-osx-arm64.tar.gz
 
   release:
     name: Publish GitHub Release
@@ -243,20 +348,20 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      # Tag/release are named after DotPad.csproj's <Version> — bump it before merging to main
+      # Tag/release are named after RunPad.csproj's <Version> — bump it before merging to main
       # to cut a new release; otherwise this updates the existing release for that version in
-      # place (replacing its three archives) rather than failing or piling up duplicates.
+      # place (replacing its seven archives) rather than failing or piling up duplicates.
       - name: 🔎 Read version
         id: version
         run: |
-          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/DotPad/DotPad.csproj)
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: 🚀 Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.version }}
-          name: DotPad v${{ steps.version.outputs.version }}
+          name: RunPad v${{ steps.version.outputs.version }}
           artifacts: artifacts/*
           allowUpdates: true
           replacesArtifacts: true
