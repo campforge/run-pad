@@ -247,4 +247,51 @@ public class RunPadAnalyzersTests
 
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidArgumentNullCheckAnalyzer.DiagnosticId);
     }
+
+    // ── CultureSensitiveStringCompareAnalyzer (RPAD0005) ────────────────────────
+
+    [Theory]
+    [InlineData("string.Compare(a, b)")]
+    [InlineData("System.String.Compare(a, b)")]
+    public async Task CultureSensitiveStringCompareAnalyzer_Should_Flag_TheTwoArgumentOverload(string call)
+    {
+        var code = $"class C {{ void M(string a, string b) {{ {call}; }} }}";
+
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveStringCompareAnalyzer(), code);
+
+        Assert.Contains(diagnostics, d => d.Id == CultureSensitiveStringCompareAnalyzer.DiagnosticId);
+    }
+
+    [Theory]
+    [InlineData("string.Compare(a, b, System.StringComparison.Ordinal)")]
+    [InlineData("string.Compare(a, b, true)")]
+    [InlineData("string.Compare(a, b, true, System.Globalization.CultureInfo.InvariantCulture)")]
+    public async Task CultureSensitiveStringCompareAnalyzer_Should_NotFlag_OverloadsThatAlreadyChooseExplicitly(string call)
+    {
+        var code = $"class C {{ void M(string a, string b) {{ {call}; }} }}";
+
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveStringCompareAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == CultureSensitiveStringCompareAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task CultureSensitiveStringCompareAnalyzer_Should_NotFlag_TheInstanceCompareToMethod()
+    {
+        var code = "class C { void M(string a, string b) { a.CompareTo(b); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveStringCompareAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == CultureSensitiveStringCompareAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task CultureSensitiveStringCompareAnalyzer_Should_NotFlag_ADifferentTypesStaticCompareMethod()
+    {
+        var code = "class C { void M(System.DateTime a, System.DateTime b) { System.DateTime.Compare(a, b); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveStringCompareAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == CultureSensitiveStringCompareAnalyzer.DiagnosticId);
+    }
 }
