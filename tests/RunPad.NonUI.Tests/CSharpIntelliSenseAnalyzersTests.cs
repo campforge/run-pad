@@ -190,4 +190,25 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("current culture", StringComparison.OrdinalIgnoreCase));
     }
+
+    // TODO.md #74 (сто сорок шестой проход) — same end-to-end proof as above, for
+    // UnusedPrivateMemberAnalyzer. Also the concrete proof behind that проход's own claim that neither
+    // the compiler's CS0169 nor any built-in analyzer already covers this (see PROBE tests mentioned,
+    // now removed, in that проход's TODO.md write-up).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnUnusedPrivateMemberAnalyzer()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Any(x => x.Message.Contains("is never used", StringComparison.OrdinalIgnoreCase)))
+                tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { private int _unused; public void M() { } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is never used", StringComparison.OrdinalIgnoreCase));
+    }
 }
