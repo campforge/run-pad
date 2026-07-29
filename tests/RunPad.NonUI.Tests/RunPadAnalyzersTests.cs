@@ -294,4 +294,109 @@ public class RunPadAnalyzersTests
 
         Assert.DoesNotContain(diagnostics, d => d.Id == CultureSensitiveStringCompareAnalyzer.DiagnosticId);
     }
+
+    // ── UnusedPrivateMemberAnalyzer (RPAD0006) ──────────────────────────────────
+    // Every "the real work happens here" method below is deliberately `public void M()`, not the bare
+    // `void M()` used elsewhere in this file — a private, uncalled M() would itself be flagged by this
+    // very analyzer (correctly!) and contaminate the "should NOT flag X" assertions below.
+
+    [Theory]
+    [InlineData("class C { private int _unused; public void M() { } }")]
+    [InlineData("class C { int _unused; public void M() { } }")] // no modifier — still private by default
+    public async Task UnusedPrivateMemberAnalyzer_Should_Flag_AnUnusedPrivateField(string code)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        var d = Assert.Single(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+        Assert.Contains("_unused", d.GetMessage());
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_Flag_AnUnusedPrivateMethod()
+    {
+        var code = "class C { private void Unused() { } public void M() { } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        var d = Assert.Single(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+        Assert.Contains("Unused", d.GetMessage());
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_AFieldReferencedElsewhereInTheType()
+    {
+        var code = "class C { private int _count; public void M() { _count++; } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_AMethodCalledElsewhereInTheType()
+    {
+        var code = "class C { private void Helper() { } public void M() { Helper(); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_AFieldWithAnAttribute()
+    {
+        // Conservative: could be reached via reflection/serialization/DI.
+        var code = "class C { [System.Obsolete] private int _unused; public void M() { } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_APublicField()
+    {
+        var code = "class C { public int Visible; public void M() { } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_APrivateConstructor()
+    {
+        // Different syntax node entirely (ConstructorDeclarationSyntax) — a common, deliberate
+        // pattern (static factory / singleton), not a candidate for this analyzer.
+        var code = "class C { private C() { } public static C Create() => new C(); }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_NotFlag_APurelySelfRecursiveMethod()
+    {
+        // Documented, accepted false negative — usage detection is a plain "any identifier in the
+        // type resolves to this symbol" search, which the method's own recursive call satisfies.
+        var code = "class C { private void Loop() { Loop(); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task UnusedPrivateMemberAnalyzer_Should_FlagEachUnusedMemberSeparately()
+    {
+        var code = "class C { private int _a; private int _b; public void M() { } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new UnusedPrivateMemberAnalyzer(), code);
+
+        var unused = diagnostics.Where(d => d.Id == UnusedPrivateMemberAnalyzer.DiagnosticId).ToList();
+        Assert.Equal(2, unused.Count);
+        Assert.Contains(unused, d => d.GetMessage().Contains("_a"));
+        Assert.Contains(unused, d => d.GetMessage().Contains("_b"));
+    }
 }
