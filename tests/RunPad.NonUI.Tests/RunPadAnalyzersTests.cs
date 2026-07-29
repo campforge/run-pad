@@ -697,4 +697,80 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantCatchThatOnlyRethrowsAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantCatchThatOnlyRethrowsAnalyzer.DiagnosticId));
     }
+
+    // ── Fifth batch (сто пятьдесят первый проход) — same pace as проходы 147-150.
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { s.ToUpper(); } }", true)]
+    [InlineData("class C { public void M(string s) { s.ToUpperInvariant(); } }", false)]
+    public async Task CultureSensitiveCaseConversionAnalyzer_Should_FlagOnlyTheNoArgOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveCaseConversionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveCaseConversionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public async void Fire() { await System.Threading.Tasks.Task.Delay(1); } }", true)]
+    [InlineData("using System; class C { public async void OnClick(object sender, EventArgs e) { await System.Threading.Tasks.Task.Delay(1); } }", false)]
+    public async Task AvoidAsyncVoidAnalyzer_Should_NotFlag_AnEventHandlerShapedMethod(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new AvoidAsyncVoidAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AvoidAsyncVoidAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var c = xs.ToList().Count; } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var c = xs.Count(); } }", false)]
+    public async Task RemoveRedundantMaterializationBeforeCountAnalyzer_Should_FlagOnlyToListDotCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantMaterializationBeforeCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantMaterializationBeforeCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { if (s == null || s == \"\") { } } }", true)]
+    [InlineData("class C { public void M(string s) { if (string.IsNullOrEmpty(s)) { } } }", false)]
+    public async Task UseStringIsNullOrEmptyAnalyzer_Should_FlagOnlyTheSeparateNullAndEmptyChecks(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseStringIsNullOrEmptyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseStringIsNullOrEmptyAnalyzer.DiagnosticId));
+    }
+
+    // ── Sixth batch (сто пятьдесят второй проход) — same pace as проходы 147-151.
+
+    [Theory]
+    [InlineData("class C { public void M(int x) { var y = x < 0 ? -x : x; } }", true)] // Math.Abs
+    [InlineData("class C { public void M(int x) { var y = x > 0 ? x : x + 1; } }", false)]
+    public async Task MathHelperInsteadOfConditionalAnalyzer_Should_FlagAbsShape(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new MathHelperInsteadOfConditionalAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MathHelperInsteadOfConditionalAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int x, int y) { var z = x < y ? x : y; } }", true)] // Math.Min
+    [InlineData("class C { public void M(int x, int y) { var z = x < y ? y : x; } }", false)] // reversed — not Min/Max
+    public async Task MathHelperInsteadOfConditionalAnalyzer_Should_FlagMinMaxShape(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new MathHelperInsteadOfConditionalAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MathHelperInsteadOfConditionalAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Cast<int>(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> xs) { var y = xs.Cast<int>(); } }", false)]
+    public async Task RedundantEnumerableCastAnalyzer_Should_FlagOnlyWhenElementTypeAlreadyMatches(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantEnumerableCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantEnumerableCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key) { var v = dict.ContainsKey(key) ? dict[key] : 0; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key, string other) { var v = dict.ContainsKey(key) ? dict[other] : 0; } }", false)]
+    public async Task PreferTryGetValueAnalyzer_Should_FlagOnlyWhenTheKeyMatchesOnBothSides(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferTryGetValueAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTryGetValueAnalyzer.DiagnosticId));
+    }
 }

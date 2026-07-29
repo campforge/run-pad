@@ -301,4 +301,71 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Empty", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(diagnostics, d => d.Message.Contains("NaN", StringComparison.OrdinalIgnoreCase));
     }
+
+    // TODO.md #74 (сто пятьдесят первый проход, batch) — same rationale as the проход 147-150
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(string s) { s.ToUpper(); if (s == null || s == \"\") { } } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("ToUpperInvariant", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrEmpty", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // TODO.md #74 (сто пятьдесят второй проход, batch) — same rationale as the проход 147-151
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(int x, Dictionary<string, int> dict, string key) { " +
+            "var abs = x < 0 ? -x : x; var v = dict.ContainsKey(key) ? dict[key] : 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Math.Abs", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("TryGetValue", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PROBE_OverlapCheck7()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) => { if (d.Count > 0) tcs.TrySetResult(d); };
+
+        service.NotifyTextChanged(@"
+using System;
+class C
+{
+    private object _lock = new object();
+    public void M(int? n, int a, int b)
+    {
+        var v = n.HasValue ? n.Value : 0;
+        lock (_lock) { }
+        double result = a / b;
+        var s = string.Format(""{0} {1}"", a);
+    }
+}
+");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        throw new Exception("DIAGS: " + string.Join(" | ", diagnostics.Select(d => $"{d.Severity}:{d.Message}")));
+    }
 }
