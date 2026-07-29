@@ -399,4 +399,116 @@ public class RunPadAnalyzersTests
         Assert.Contains(unused, d => d.GetMessage().Contains("_a"));
         Assert.Contains(unused, d => d.GetMessage().Contains("_b"));
     }
+
+    // ── Batch (сто сорок седьмой проход) — 1-2 tests per analyzer, per explicit user direction to
+    // trade individual test depth for throughput once the backlog of ~671 candidates was raised.
+
+    [Theory]
+    [InlineData("class C { public void M(uint x) { if (x < 0) { } } }", true)]
+    [InlineData("class C { public void M(int x) { if (x < 0) { } } }", false)]
+    public async Task UnsignedValueNeverLessThanZeroAnalyzer_Should_FlagOnlyUnsignedOperands(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnsignedValueNeverLessThanZeroAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UnsignedValueNeverLessThanZeroAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } finally { } } }", true)]
+    [InlineData("class C { public void M() { try { } finally { System.Console.WriteLine(1); } } }", false)]
+    public async Task RemoveEmptyFinallyClauseAnalyzer_Should_FlagOnlyAnEmptyBlock(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyFinallyClauseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyFinallyClauseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { if (true) { } else { } } }", true)]
+    [InlineData("class C { public void M() { if (true) { } else { System.Console.WriteLine(1); } } }", false)]
+    public async Task RemoveEmptyElseClauseAnalyzer_Should_FlagOnlyAnEmptyBlock(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyElseClauseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyElseClauseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { ~C() { } }", true)]
+    [InlineData("class C { ~C() { System.Console.WriteLine(1); } }", false)]
+    public async Task RemoveEmptyDestructorAnalyzer_Should_FlagOnlyAnEmptyBody(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyDestructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyDestructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { ; } }", true)]
+    [InlineData("class C { public void M() { for (;;) ; } }", false)] // deliberate loop-body idiom
+    public async Task RemoveEmptyStatementAnalyzer_Should_NotFlagADeliberateLoopBody(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyStatementAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyStatementAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { s.ToString(); } }", true)]
+    [InlineData("class C { public void M(int i) { i.ToString(); } }", false)]
+    public async Task RemoveRedundantToStringCallAnalyzer_Should_FlagOnlyAStringReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantToStringCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantToStringCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object o) { if ((o as string) != null) { } } }", true)]
+    [InlineData("class C { public void M(object o) { if (o != null) { } } }", false)]
+    public async Task UseIsOperatorInsteadOfAsAndNullCheckAnalyzer_Should_FlagOnlyTheAsPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseIsOperatorInsteadOfAsAndNullCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseIsOperatorInsteadOfAsAndNullCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { lock (this) { } } }", true)]
+    [InlineData("class C { private readonly object _lock = new(); public void M() { lock (_lock) { } } }", false)]
+    public async Task AvoidLockOnThisAnalyzer_Should_FlagOnlyLockOnThis(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new AvoidLockOnThisAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AvoidLockOnThisAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.Any(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { xs.Any(); } }", false)]
+    public async Task UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer_Should_FlagOnlyAnIndexableReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.First(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { xs.First(); } }", false)]
+    public async Task UseElementAccessInsteadOfLinqMethodAnalyzer_Should_FlagOnlyAnIndexableReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseElementAccessInsteadOfLinqMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseElementAccessInsteadOfLinqMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { if (xs.Count() > 0) { } } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { if (xs.Count() > 1) { } } }", false)]
+    public async Task CallAnyInsteadOfCountAnalyzer_Should_FlagOnlyAComparisonAgainstZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CallAnyInsteadOfCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CallAnyInsteadOfCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public C() { Init(); } protected virtual void Init() { } }", true)]
+    [InlineData("sealed class C { public C() { Init(); } private void Init() { } }", false)]
+    public async Task DoNotCallOverridableMemberInConstructorAnalyzer_Should_NotFlag_ASealedTypeOrNonVirtualMember(
+        string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DoNotCallOverridableMemberInConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotCallOverridableMemberInConstructorAnalyzer.DiagnosticId));
+    }
 }
