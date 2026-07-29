@@ -192,4 +192,59 @@ public class RunPadAnalyzersTests
 
         Assert.DoesNotContain(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
     }
+
+    // ── InvalidArgumentNullCheckAnalyzer (RPAD0004) ─────────────────────────────
+
+    [Theory]
+    [InlineData("if (a == null) throw new System.ArgumentNullException(nameof(b));")]
+    [InlineData("if (null == a) throw new System.ArgumentNullException(nameof(b));")]
+    [InlineData("if (a is null) throw new System.ArgumentNullException(nameof(b));")]
+    [InlineData("if (a == null) { throw new System.ArgumentNullException(nameof(b)); }")]
+    [InlineData("if (a == null) throw new System.ArgumentNullException(\"b\");")]
+    public async Task InvalidArgumentNullCheckAnalyzer_Should_Flag_WhenTheNamedParameterDoesNotMatchTheCheckedOne(
+        string guardClause)
+    {
+        var code = $"class C {{ void M(object a, object b) {{ {guardClause} }} }}";
+
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArgumentNullCheckAnalyzer(), code);
+
+        var d = Assert.Single(diagnostics, d => d.Id == InvalidArgumentNullCheckAnalyzer.DiagnosticId);
+        Assert.Contains("'a'", d.GetMessage());
+        Assert.Contains("'b'", d.GetMessage());
+    }
+
+    [Theory]
+    [InlineData("if (a == null) throw new System.ArgumentNullException(nameof(a));")]
+    [InlineData("if (a is null) throw new System.ArgumentNullException(nameof(a));")]
+    [InlineData("if (a == null) throw new System.ArgumentNullException(\"a\");")]
+    public async Task InvalidArgumentNullCheckAnalyzer_Should_NotFlag_WhenTheNamedParameterMatches(string guardClause)
+    {
+        var code = $"class C {{ void M(object a, object b) {{ {guardClause} }} }}";
+
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArgumentNullCheckAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidArgumentNullCheckAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task InvalidArgumentNullCheckAnalyzer_Should_NotFlag_ADifferentExceptionType()
+    {
+        var code = "class C { void M(object a, object b) { if (a == null) throw new System.ArgumentException(nameof(b)); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArgumentNullCheckAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidArgumentNullCheckAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task InvalidArgumentNullCheckAnalyzer_Should_NotFlag_AConditionItDoesNotUnderstand()
+    {
+        // A compound condition isn't a simple "check one identifier" shape — deliberately left alone
+        // rather than guessed at.
+        var code = "class C { void M(object a, object b) { if (a == null || b == null) throw new System.ArgumentNullException(nameof(b)); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArgumentNullCheckAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidArgumentNullCheckAnalyzer.DiagnosticId);
+    }
 }
