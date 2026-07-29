@@ -106,4 +106,28 @@ public class CSharpIntelliSenseAnalyzersTests
         var onlyLine = Assert.Single(collectionInitFixes.Select(f => f.Line).Distinct());
         Assert.Equal(1, onlyLine);
     }
+
+    // TODO.md #74 (сто сорок второй проход) — proves RoslynAnalyzerEngine's own-assembly reflection
+    // extension (added alongside RunPad.Languages.CSharp.IntelliSense.Analyzers.
+    // EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer) actually wires a hand-written analyzer all
+    // the way through the SAME live pipeline the tests above prove for Microsoft's built-in ones — not
+    // a separate/parallel path. See RunPadAnalyzersTests.cs for many more shape variations against the
+    // analyzers directly (no AdhocWorkspace/preamble machinery needed there).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnEmptyCatchAnalyzer()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Any(x => x.Message.Contains("Empty catch", StringComparison.OrdinalIgnoreCase)))
+                tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { void M() { } void N() { try { M(); } catch (System.Exception) { } } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Empty catch", StringComparison.OrdinalIgnoreCase));
+    }
 }
