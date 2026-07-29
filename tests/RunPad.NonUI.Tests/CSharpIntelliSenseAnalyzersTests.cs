@@ -130,4 +130,25 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("Empty catch", StringComparison.OrdinalIgnoreCase));
     }
+
+    // TODO.md #74 (сто сорок третий проход) — same end-to-end proof as above, for the newest
+    // hand-written analyzer (NotImplementedExceptionAnalyzer). Info severity — still visible (only
+    // Hidden is filtered out of the squiggle list, see ComputeDiagnosticsAndCodeFixesAsync).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnNotImplementedExceptionAnalyzer()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Any(x => x.Message.Contains("NotImplementedException", StringComparison.OrdinalIgnoreCase)))
+                tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { void M() { throw new System.NotImplementedException(); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("NotImplementedException", StringComparison.OrdinalIgnoreCase));
+    }
 }
