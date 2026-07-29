@@ -603,4 +603,51 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new DoNotThrowFromFinallyAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotThrowFromFinallyAnalyzer.DiagnosticId));
     }
+
+    // ── Third batch (сто сорок девятый проход) — same pace as проходы 147/148.
+
+    [Theory]
+    [InlineData("using System; class C { public void On() { } public void M() { Action a = new Action(On); } }", true)]
+    [InlineData("using System; class C { public void M() { Action a = () => { }; } }", false)]
+    public async Task RemoveRedundantDelegateCreationAnalyzer_Should_FlagOnlyExplicitDelegateConstruction(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantDelegateCreationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantDelegateCreationAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var x = $\"{s}\"; } }", true)]
+    [InlineData("class C { public void M(string s) { var x = $\"prefix {s}\"; } }", false)]
+    public async Task UnnecessaryInterpolatedStringAnalyzer_Should_FlagOnlyASoleAlreadyStringInterpolation(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnnecessaryInterpolatedStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UnnecessaryInterpolatedStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { s.StartsWith(\"x\"); } }", true)]
+    [InlineData("class C { public void M(string s) { s.StartsWith(\"x\", System.StringComparison.Ordinal); } }", false)]
+    public async Task CultureSensitiveStringMethodAnalyzer_Should_FlagOnlyTheSingleStringArgOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveStringMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveStringMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int a, int b) { object.ReferenceEquals(a, b); } }", true)]
+    [InlineData("class C { public void M(object a, object b) { object.ReferenceEquals(a, b); } }", false)]
+    public async Task DoNotUseReferenceEqualsWithValueTypeAnalyzer_Should_FlagOnlyABoxedValueTypeArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DoNotUseReferenceEqualsWithValueTypeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotUseReferenceEqualsWithValueTypeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { string s = \"\"; for (int i = 0; i < 10; i++) { s += i.ToString(); } } }", true)]
+    [InlineData("class C { public void M() { string s = \"\"; s += \"x\"; } }", false)]
+    public async Task ConcatenateStringsInLoopAnalyzer_Should_FlagOnlyInsideALoop(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ConcatenateStringsInLoopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConcatenateStringsInLoopAnalyzer.DiagnosticId));
+    }
 }
