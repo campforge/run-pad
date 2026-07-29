@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- IntelliSense/Analyzers/*.cs (TODO.md #74) define hand-written DiagnosticAnalyzers, but only
+         to run in-process against RunPad's own RoslynAnalyzerEngine — not published as a standalone
+         analyzer NuGet package, so the "extended analyzer rules" advice these warn about (separate
+         netstandard2.0 analyzer project with no Workspaces reference, release-tracking Shipped/
+         Unshipped.md files) doesn't apply here. -->
+    <NoWarn>$(NoWarn);RS1038;RS1041;RS1036;RS2008</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -15,6 +15,13 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // built-in CodeFixProviders RoslynCodeFixEngine already discovers were permanently silent before this:
 // their triggering diagnostic never got computed when only the compiler's own diagnostics fed the
 // lightbulb.
+//
+// TODO.md #74 (сто сорок второй проход) — also reflects over THIS assembly (RunPad.Languages.CSharp),
+// alongside Microsoft's own Features assembly, so a hand-written analyzer here (IntelliSense/
+// Analyzers/) is discovered the same way, no separate registration list to keep in sync. First tenants:
+// EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer — ported ideas from Roslynator (RCS1075/RCS1234,
+// see that project's Apache-2.0-licensed source referenced in each file), not a dependency on it (TODO
+// #74's own "own hands, not a package" constraint).
 internal sealed class RoslynAnalyzerEngine
 {
     private readonly ImmutableArray<DiagnosticAnalyzer> _analyzers;
@@ -32,6 +39,11 @@ internal sealed class RoslynAnalyzerEngine
         Type[] types;
         try { types = RunPadRoslynHost.CSharpFeaturesAssembly.GetTypes(); }
         catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t != null).ToArray()!; }
+
+        Type[] ownTypes;
+        try { ownTypes = typeof(RoslynAnalyzerEngine).Assembly.GetTypes(); }
+        catch (ReflectionTypeLoadException ex) { ownTypes = ex.Types.Where(t => t != null).ToArray()!; }
+        types = [.. types, .. ownTypes];
 
         var analyzers = ImmutableArray.CreateBuilder<DiagnosticAnalyzer>();
         foreach (var type in types)
