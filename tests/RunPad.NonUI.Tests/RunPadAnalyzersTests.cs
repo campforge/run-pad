@@ -140,4 +140,56 @@ public class RunPadAnalyzersTests
         var d = Assert.Single(diagnostics, d => d.Id == DuplicateEnumValueAnalyzer.DiagnosticId);
         Assert.Contains("Oops", d.GetMessage());
     }
+
+    // ── NotImplementedExceptionAnalyzer (RPAD0003) ──────────────────────────────
+
+    [Fact]
+    public async Task NotImplementedExceptionAnalyzer_Should_Flag_AThrowStatement()
+    {
+        var code = "class C { void M() { throw new System.NotImplementedException(); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new NotImplementedExceptionAnalyzer(), code);
+
+        Assert.Contains(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task NotImplementedExceptionAnalyzer_Should_Flag_AThrowExpression()
+    {
+        var code = "class C { int P => throw new System.NotImplementedException(); }";
+
+        var diagnostics = await GetDiagnosticsAsync(new NotImplementedExceptionAnalyzer(), code);
+
+        Assert.Contains(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task NotImplementedExceptionAnalyzer_Should_Flag_RegardlessOfConstructorArguments()
+    {
+        var code = "class C { void M() { throw new System.NotImplementedException(\"todo\"); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new NotImplementedExceptionAnalyzer(), code);
+
+        Assert.Contains(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task NotImplementedExceptionAnalyzer_Should_NotFlag_ADifferentExceptionType()
+    {
+        var code = "class C { void M() { throw new System.InvalidOperationException(); } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new NotImplementedExceptionAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task NotImplementedExceptionAnalyzer_Should_NotFlag_AMethodWithARealImplementation()
+    {
+        var code = "class C { int M() { return 1; } }";
+
+        var diagnostics = await GetDiagnosticsAsync(new NotImplementedExceptionAnalyzer(), code);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == NotImplementedExceptionAnalyzer.DiagnosticId);
+    }
 }
