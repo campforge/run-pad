@@ -650,4 +650,51 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new ConcatenateStringsInLoopAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConcatenateStringsInLoopAnalyzer.DiagnosticId));
     }
+
+    // ── Fourth batch (сто пятидесятый проход) — same pace as проходы 147/148/149.
+
+    [Theory]
+    [InlineData("class C { public void M() { var x = new int[0]; } }", true)]
+    [InlineData("class C { public void M() { var x = new int[5]; } }", false)]
+    public async Task UseArrayEmptyMethodAnalyzer_Should_FlagOnlyTheBareZeroSizeForm(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseArrayEmptyMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseArrayEmptyMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw ex; } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw; } } }", false)]
+    public async Task RethrowToPreserveStackTraceAnalyzer_Should_NotFlag_ABareThrow(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RethrowToPreserveStackTraceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RethrowToPreserveStackTraceAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public void M() { var x = Color.Red | Color.Green; } }", true)]
+    [InlineData("[System.Flags] enum Color { Red = 1, Green = 2 } class C { public void M() { var x = Color.Red | Color.Green; } }", false)]
+    public async Task BitwiseOperatorOnNonFlagsEnumAnalyzer_Should_NotFlag_AFlagsEnum(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new BitwiseOperatorOnNonFlagsEnumAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == BitwiseOperatorOnNonFlagsEnumAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(double x) { if (x == double.NaN) { } } }", true)]
+    [InlineData("class C { public void M(double x) { if (double.IsNaN(x)) { } } }", false)]
+    public async Task CompareNaNCorrectlyAnalyzer_Should_FlagOnlyDirectNaNComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CompareNaNCorrectlyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CompareNaNCorrectlyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception) { throw; } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { System.Console.WriteLine(ex); throw; } } }", false)]
+    public async Task RemoveRedundantCatchThatOnlyRethrowsAnalyzer_Should_NotFlag_ACatchWithRealLogic(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantCatchThatOnlyRethrowsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantCatchThatOnlyRethrowsAnalyzer.DiagnosticId));
+    }
 }
