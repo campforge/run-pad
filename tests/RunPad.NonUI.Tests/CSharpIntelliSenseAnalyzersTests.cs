@@ -241,31 +241,23 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToString", StringComparison.OrdinalIgnoreCase));
     }
 
+    // TODO.md #74 (сто сорок восьмой проход, batch) — same rationale as the проход 147 combined test
+    // above: one end-to-end proof for the whole 10-analyzer batch instead of one per analyzer.
     [Fact]
-    public async Task PROBE_OverlapCheck()
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSecondBatch()
     {
         using var service = CreateService();
         var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        service.DiagnosticsChanged += (_, d) => { if (d.Count > 0) tcs.TrySetResult(d); };
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
 
-        service.NotifyTextChanged(@"
-class Base { public Base() { } public virtual void V() { } }
-class C : Base
-{
-    public C() : base() { }
-    public bool Flag;
-    public void M(object o)
-    {
-        if (Flag == true) { }
-        int i = 5;
-        object boxed = (object)i;
-        var x = boxed as object;
-    }
-    public override void V() { base.V(); }
-}
-");
+        service.NotifyTextChanged(
+            "class C { public int Foo => Foo; public void M(bool flag) { if (flag == true) { } } }");
 
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
-        throw new Exception("DIAGS: " + string.Join(" | ", diagnostics.Select(d => $"{d.Severity}:{d.Message}")));
+        Assert.Contains(diagnostics, d => d.Message.Contains("recurse forever", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("redundant", StringComparison.OrdinalIgnoreCase));
     }
 }
