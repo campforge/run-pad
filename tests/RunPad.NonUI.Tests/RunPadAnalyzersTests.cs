@@ -511,4 +511,96 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new DoNotCallOverridableMemberInConstructorAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotCallOverridableMemberInConstructorAnalyzer.DiagnosticId));
     }
+
+    // ── Second batch (сто сорок восьмой проход) — same "1-2 tests per analyzer" pace as проход 147.
+
+    [Theory]
+    [InlineData("class C<T> { public bool M(T t) => t == null; }", true)]
+    [InlineData("class C<T> where T : class { public bool M(T t) => t == null; }", false)]
+    public async Task UnconstrainedTypeParameterCheckedForNullAnalyzer_Should_FlagOnlyWhenUnconstrained(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnconstrainedTypeParameterCheckedForNullAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UnconstrainedTypeParameterCheckedForNullAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(bool flag) { if (flag == true) { } } }", true)]
+    [InlineData("class C { public void M(bool? flag) { if (flag == true) { } } }", false)] // nullable bool — not equivalent to the bare value
+    public async Task SimplifyBooleanComparisonAnalyzer_Should_NotFlag_ANullableBool(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SimplifyBooleanComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SimplifyBooleanComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class Base { } class C : Base { public C() : base() { } }", true)]
+    [InlineData("class Base { public Base(int x) { } } class C : Base { public C() : base(1) { } }", false)]
+    public async Task RemoveRedundantBaseConstructorCallAnalyzer_Should_FlagOnlyTheArgumentLessForm(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantBaseConstructorCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantBaseConstructorCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int i) { var x = (int)i; } }", true)]
+    [InlineData("class C { public void M(long i) { var x = (int)i; } }", false)]
+    public async Task RedundantCastAnalyzer_Should_FlagOnlyAnIdentityConversion(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object o) { var x = o as object; } }", true)]
+    [InlineData("class C { public void M(object o) { var x = o as string; } }", false)]
+    public async Task RedundantAsOperatorAnalyzer_Should_FlagOnlyAnIdentityConversion(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantAsOperatorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsOperatorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class Base { public virtual void M(int x) { } } class C : Base { public override void M(int x) { base.M(x); } }", true)]
+    [InlineData("class Base { public virtual void M(int x) { } } class C : Base { public override void M(int x) { base.M(x); System.Console.WriteLine(1); } }", false)]
+    public async Task RemoveRedundantOverridingMemberAnalyzer_Should_NotFlag_AnOverrideWithExtraLogic(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantOverridingMemberAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantOverridingMemberAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public int Foo => Foo; }", true)]
+    [InlineData("class C { private int _foo; public int Foo => _foo; }", false)]
+    public async Task SelfReferencingPropertyAnalyzer_Should_FlagOnlyASelfReturningGetter(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SelfReferencingPropertyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfReferencingPropertyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class Foo { } class C { public void M() { var x = new Foo() { }; } }", true)]
+    [InlineData("class Foo { public int X; } class C { public void M() { var x = new Foo() { X = 1 }; } }", false)]
+    public async Task RemoveRedundantEmptyObjectInitializerAnalyzer_Should_FlagOnlyAnEmptyInitializer(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveRedundantEmptyObjectInitializerAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantEmptyObjectInitializerAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int x) { if (x == 1) { } else if (x == 1) { } } }", true)]
+    [InlineData("class C { public void M(int x) { if (x == 1) { } else if (x == 2) { } } }", false)]
+    public async Task DuplicateIfElseIfConditionAnalyzer_Should_FlagOnlyAStructurallyIdenticalCondition(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DuplicateIfElseIfConditionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DuplicateIfElseIfConditionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } finally { throw new System.Exception(); } } }", true)]
+    [InlineData("class C { public void M() { try { } catch { throw; } } }", false)]
+    public async Task DoNotThrowFromFinallyAnalyzer_Should_NotFlag_ARethrowInsideACatch(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DoNotThrowFromFinallyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotThrowFromFinallyAnalyzer.DiagnosticId));
+    }
 }
