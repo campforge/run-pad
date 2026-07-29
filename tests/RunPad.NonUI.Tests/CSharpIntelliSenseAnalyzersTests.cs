@@ -211,4 +211,61 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("is never used", StringComparison.OrdinalIgnoreCase));
     }
+
+    // TODO.md #74 (сто сорок седьмой проход, batch) — one combined end-to-end proof for the whole
+    // 12-analyzer batch added in that проход, rather than one test per analyzer (explicit user
+    // direction: fewer tests per item once the backlog size made per-item depth impractical). Each
+    // analyzer's own unit-level positive/negative cases live in RunPadAnalyzersTests.cs; this only
+    // confirms RoslynAnalyzerEngine's reflection discovery still finds every new class and merges
+    // their diagnostics into the same live squiggle pipeline.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 3) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(uint x, string s) { " +
+            "if (x < 0) { } " +
+            "try { } finally { } " +
+            "s.ToString(); " +
+            "} }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("never be less than zero", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("finally", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("ToString", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PROBE_OverlapCheck()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) => { if (d.Count > 0) tcs.TrySetResult(d); };
+
+        service.NotifyTextChanged(@"
+class Base { public Base() { } public virtual void V() { } }
+class C : Base
+{
+    public C() : base() { }
+    public bool Flag;
+    public void M(object o)
+    {
+        if (Flag == true) { }
+        int i = 5;
+        object boxed = (object)i;
+        var x = boxed as object;
+    }
+    public override void V() { base.V(); }
+}
+");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        throw new Exception("DIAGS: " + string.Join(" | ", diagnostics.Select(d => $"{d.Severity}:{d.Message}")));
+    }
 }
