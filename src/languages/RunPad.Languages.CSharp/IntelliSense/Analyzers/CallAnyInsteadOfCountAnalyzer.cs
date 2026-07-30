@@ -14,6 +14,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Extended (сто пятьдесят девятый проход, batch) to also cover the predicate-accepting overload —
 // `xs.Count(pred) > 0` walks the whole sequence counting matches just to compare against zero;
 // `xs.Any(pred)` stops at the first match.
+// Extended again (сто шестьдесят третий проход, batch) to also cover the "compare to one" idiom —
+// `xs.Count() >= 1`/`xs.Count() < 1` mean exactly the same thing as `xs.Count() > 0`/`== 0`, just
+// spelled with a different threshold. Deliberately narrow: only the most common written forms
+// (Count() on the left) — the mirrored `1 <= Count()`/`1 > Count()` forms are rare enough in practice
+// not to be worth the extra branching.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class CallAnyInsteadOfCountAnalyzer : DiagnosticAnalyzer
 {
@@ -37,31 +42,28 @@ public sealed class CallAnyInsteadOfCountAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(
             Analyze,
             SyntaxKind.GreaterThanExpression, SyntaxKind.LessThanExpression,
-            SyntaxKind.EqualsExpression, SyntaxKind.NotEqualsExpression);
+            SyntaxKind.EqualsExpression, SyntaxKind.NotEqualsExpression,
+            SyntaxKind.GreaterThanOrEqualExpression);
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var binary = (BinaryExpressionSyntax)context.Node;
 
-        // Normalize to (countInvocation, isZeroLiteral) regardless of which side each is on.
-        var (countSide, zeroSide, countOnLeft) = IsZeroLiteral(binary.Right)
-            ? (binary.Left, binary.Right, true)
-            : IsZeroLiteral(binary.Left) ? (binary.Right, binary.Left, false) : (null, null, false);
-        if (countSide is null || zeroSide is null) return;
-
-        // `xs.Count() > 0` and `0 < xs.Count()` both mean "has any" — same for `!=`; only `>`/`<`
-        // paired with the correct side means "greater than zero" (the other combination, `xs.Count()
-        // < 0` or `0 > xs.Count()`, is nonsensical for an unsigned count and not this analyzer's job).
-        var kind = binary.Kind();
-        var isMeaningful = kind switch
+        // `xs.Count() > 0`/`0 < xs.Count()`/`!= 0`/`== 0`/`>= 1`/`< 1` all mean "has any" (or its
+        // negation) — the other combinations (`xs.Count() < 0`, `0 > xs.Count()`, etc.) are nonsensical
+        // for an unsigned count and not this analyzer's job.
+        ExpressionSyntax? countSide = binary.Kind() switch
         {
-            SyntaxKind.NotEqualsExpression or SyntaxKind.EqualsExpression => true,
-            SyntaxKind.GreaterThanExpression => countOnLeft,
-            SyntaxKind.LessThanExpression => !countOnLeft,
-            _ => false,
+            SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression =>
+                IsZeroLiteral(binary.Right) ? binary.Left : IsZeroLiteral(binary.Left) ? binary.Right : null,
+            SyntaxKind.GreaterThanExpression when IsZeroLiteral(binary.Right) => binary.Left, // Count() > 0
+            SyntaxKind.LessThanExpression when IsZeroLiteral(binary.Left) => binary.Right, // 0 < Count()
+            SyntaxKind.LessThanExpression when IsOneLiteral(binary.Right) => binary.Left, // Count() < 1
+            SyntaxKind.GreaterThanOrEqualExpression when IsOneLiteral(binary.Right) => binary.Left, // Count() >= 1
+            _ => null,
         };
-        if (!isMeaningful) return;
+        if (countSide is null) return;
 
         if (countSide is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 0 or 1 } invocation) return;
         if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Count" }) return;
@@ -74,7 +76,11 @@ public sealed class CallAnyInsteadOfCountAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation()));
     }
 
-    private static bool IsZeroLiteral(ExpressionSyntax expression) =>
+    private static bool IsZeroLiteral(ExpressionSyntax expression) => IsNumericLiteral(expression, "0");
+
+    private static bool IsOneLiteral(ExpressionSyntax expression) => IsNumericLiteral(expression, "1");
+
+    private static bool IsNumericLiteral(ExpressionSyntax expression, string text) =>
         expression is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } literal
-        && literal.Token.ValueText == "0";
+        && literal.Token.ValueText == text;
 }
