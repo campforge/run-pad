@@ -12,6 +12,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // the numeric types Enumerable.Sum() actually has an overload for (int/long/float/double/decimal) —
 // for anything else (e.g. a custom type with its own operator+), Sum() wouldn't even compile, so the
 // suggestion would be actively wrong.
+// Extended (сто шестьдесят шестой проход, batch) to also cover the seeded 2-arg overload —
+// `xs.Aggregate(0, (acc, x) => acc + x)` is the same hand-rolled sum, just with the seed spelled out
+// explicitly instead of implicitly using the first element. Only fires when the seed is a compile-time
+// constant equal to zero (checked via GetConstantValue, not literal text matching, so `0`/`0.0`/`0m`/a
+// `const` field all count) — any other seed changes the result, so Sum() wouldn't be equivalent.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class AggregateSumAnalyzer : DiagnosticAnalyzer
 {
@@ -44,21 +49,24 @@ public sealed class AggregateSumAnalyzer : DiagnosticAnalyzer
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Aggregate" })
             return;
-        if (invocation.ArgumentList.Arguments is not
-            [
+
+        var lambda = invocation.ArgumentList.Arguments switch
+        {
+            [{ Expression: ParenthesizedLambdaExpressionSyntax singleArgLambda }] => singleArgLambda,
+            [{ Expression: var seedExpression }, { Expression: ParenthesizedLambdaExpressionSyntax seededLambda }]
+                when IsZeroConstant(context, seedExpression) => seededLambda,
+            _ => null,
+        };
+        if (lambda is not
             {
-                Expression: ParenthesizedLambdaExpressionSyntax
+                ParameterList.Parameters: [var p1, var p2],
+                Body: BinaryExpressionSyntax
                 {
-                    ParameterList.Parameters: [var p1, var p2],
-                    Body: BinaryExpressionSyntax
-                    {
-                        RawKind: (int)SyntaxKind.AddExpression,
-                        Left: IdentifierNameSyntax leftId,
-                        Right: IdentifierNameSyntax rightId,
-                    },
+                    RawKind: (int)SyntaxKind.AddExpression,
+                    Left: IdentifierNameSyntax leftId,
+                    Right: IdentifierNameSyntax rightId,
                 },
-            },
-            ])
+            })
         {
             return;
         }
@@ -68,9 +76,23 @@ public sealed class AggregateSumAnalyzer : DiagnosticAnalyzer
             return;
         var original = method.ReducedFrom ?? method.OriginalDefinition;
         if (original.ContainingType?.ToDisplayString() != "System.Linq.Enumerable") return;
-        if (method.TypeArguments is not [{ SpecialType: var elementSpecialType }] || !SummableTypes.Contains(elementSpecialType))
+        if (method.TypeArguments is not [{ SpecialType: var elementSpecialType }, ..] || !SummableTypes.Contains(elementSpecialType))
             return;
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
+    }
+
+    private static bool IsZeroConstant(SyntaxNodeAnalysisContext context, ExpressionSyntax expression)
+    {
+        var constant = context.SemanticModel.GetConstantValue(expression, context.CancellationToken);
+        if (!constant.HasValue) return false;
+        try
+        {
+            return Convert.ToDouble(constant.Value) == 0;
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+        {
+            return false;
+        }
     }
 }
