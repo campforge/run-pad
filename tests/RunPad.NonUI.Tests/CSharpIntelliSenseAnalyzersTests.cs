@@ -686,4 +686,47 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("materializes the whole sequence", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("ToCharArray()", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто шестьдесят девятый проход, batch) — same rationale as the проход 147-168
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; using System.Threading.Tasks; " +
+            "class C { public async Task M(List<int> xs) { " +
+            "var a = xs.OrderBy(x => x.ToString()).ThenBy(x => x.ToString()); await Task.Delay(0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("same key", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Task.Yield()", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто семидесятый проход, batch) — same rationale as the проход 147-169 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(object x, string s) { " +
+            "var a = x is int || x is long; var b = s != null && s.Length > 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is A or B", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrEmpty", StringComparison.Ordinal));
+    }
 }
