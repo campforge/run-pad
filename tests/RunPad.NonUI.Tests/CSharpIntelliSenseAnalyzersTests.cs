@@ -554,4 +554,47 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("string.Format", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("NullReferenceException", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто шестьдесят третий проход, batch) — same rationale as the проход 147-162
+    // combined tests above; bigger batch (7 new analyzers + 1 extension) per explicit user request.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSeventeenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; " +
+            "class C { public void M(IEnumerable<int> xs) { " +
+            "var a = xs.Reverse().Reverse(); var b = xs.Distinct().Distinct(); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Reverse().Reverse()", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Distinct().Distinct()", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто шестьдесят четвёртый проход, batch) — same rationale as the проход 147-163
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEighteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(string s, object obj) { " +
+            "var a = s.Trim().Length == 0; var b = obj.GetType().Name == \"Foo\"; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrWhiteSpace", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("GetType().Name", StringComparison.Ordinal));
+    }
 }

@@ -12,6 +12,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // First()` sorts the ENTIRE sequence — O(n log n) — just to read the smallest element off the front;
 // `xs.MinBy(key)` (.NET 6+, always available given this project's own MinSupportedSdkMajorVersion=6)
 // finds it in a single O(n) pass without ever sorting. Same idea for OrderByDescending → MaxBy.
+// Extended (сто шестьдесят четвёртый проход, batch) to also cover FirstOrDefault/Last/LastOrDefault —
+// originally only First() was handled. OrderBy(key).Last()/LastOrDefault() reads the sort's LARGEST
+// element (the opposite end from First), so it maps to MaxBy, not MinBy — same swap for
+// OrderByDescending's Last()/LastOrDefault() → MinBy.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferMinByMaxByOverOrderByFirstAnalyzer : DiagnosticAnalyzer
 {
@@ -28,6 +32,9 @@ public sealed class PreferMinByMaxByOverOrderByFirstAnalyzer : DiagnosticAnalyze
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
+    private static readonly ImmutableHashSet<string> TerminalMethodNames = ImmutableHashSet.Create(
+        "First", "FirstOrDefault", "Last", "LastOrDefault");
+
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -39,8 +46,9 @@ public sealed class PreferMinByMaxByOverOrderByFirstAnalyzer : DiagnosticAnalyze
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (invocation.ArgumentList.Arguments.Count != 0) return;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "First" } memberAccess)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: var terminalName } memberAccess)
             return;
+        if (!TerminalMethodNames.Contains(terminalName)) return;
 
         var ct = context.CancellationToken;
         if (!IsRealEnumerableMethod(context, invocation, ct)) return;
@@ -56,7 +64,11 @@ public sealed class PreferMinByMaxByOverOrderByFirstAnalyzer : DiagnosticAnalyze
         }
         if (!IsRealEnumerableMethod(context, orderByInvocation, ct)) return;
 
-        var suggestion = orderByAccess.Name.Identifier.Text == "OrderBy" ? "MinBy" : "MaxBy";
+        // First-end + ascending (or Last-end + descending) both read the SMALLEST element → MinBy;
+        // the other two combinations read the LARGEST → MaxBy.
+        var isFirstEnd = terminalName is "First" or "FirstOrDefault";
+        var isAscending = orderByAccess.Name.Identifier.Text == "OrderBy";
+        var suggestion = isFirstEnd == isAscending ? "MinBy" : "MaxBy";
         context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), suggestion));
     }
 
