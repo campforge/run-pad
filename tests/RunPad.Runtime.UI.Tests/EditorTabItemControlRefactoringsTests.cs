@@ -67,7 +67,7 @@ public class EditorTabItemControlRefactoringsTests
             .ReturnsAsync((IReadOnlyList<ICodeFixInfo>?)[new FakeCodeFixInfo(5, "Use expression body", DiagnosticSeverity.Info, "refactor-key")]);
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense.Object, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
+            intelliSense.Object, new CSharpReferenceService(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 

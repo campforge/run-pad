@@ -1234,4 +1234,52 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new PreferMinByMaxByOverOrderByFirstAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferMinByMaxByOverOrderByFirstAnalyzer.DiagnosticId));
     }
+
+    // ── Nineteenth batch (сто шестьдесят пятый проход) — same "побольше за раз" pace as проходы
+    // 163-164.
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public void M(string s) { var y = System.Enum.Parse(typeof(Color), s); } }", true)]
+    [InlineData("enum Color { Red, Green } class C { public void M(string s) { var y = System.Enum.Parse<Color>(s); } }", false)]
+    public async Task PreferGenericEnumStaticMethodAnalyzer_Should_NotFlag_ADirectGenericCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericEnumStaticMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = string.Join(\",\", xs.Select(x => x.ToString())); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = string.Join(\",\", xs); } }", false)]
+    public async Task RedundantToStringInStringJoinAnalyzer_Should_NotFlag_ADirectJoinCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantToStringInStringJoinAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantToStringInStringJoinAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.Where(x => x is string).Cast<string>(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.OfType<string>(); } }", false)]
+    public async Task PreferOfTypeOverWhereIsCastAnalyzer_Should_NotFlag_ADirectOfTypeCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOfTypeOverWhereIsCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOfTypeOverWhereIsCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { private bool IsBad(int x) => x < 0; public void M(IEnumerable<int> xs) { var y = xs.All(x => !IsBad(x)); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { private bool IsBad(int x) => x < 0; public void M(IEnumerable<int> xs) { var y = xs.All(x => IsBad(x)); } }", false)]
+    public async Task PreferNotAnyOverAllNegatedPredicateAnalyzer_Should_NotFlag_ADirectNegatedAnyCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNotAnyOverAllNegatedPredicateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNotAnyOverAllNegatedPredicateAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { var y = n.ToString(\"G\"); } }", true)]
+    [InlineData("class C { public void M(int n) { var y = n.ToString(); } }", false)]
+    public async Task RedundantGeneralFormatStringAnalyzer_Should_NotFlag_ANoArgToString(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantGeneralFormatStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGeneralFormatStringAnalyzer.DiagnosticId));
+    }
 }
