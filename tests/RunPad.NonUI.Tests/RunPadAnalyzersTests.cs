@@ -1055,4 +1055,42 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new PreferSpecificCatchTypeOverIsPatternAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferSpecificCatchTypeOverIsPatternAnalyzer.DiagnosticId));
     }
+
+    // ── Sixteenth batch (сто шестьдесят второй проход) — same pace as проходы 147-161.
+
+    [Theory]
+    [InlineData("class C { public void M() { var s = string.Format(\"no placeholders\"); } }", true)]
+    [InlineData("class C { public void M(int n) { var s = string.Format(\"{0}\", n); } }", false)]
+    public async Task RedundantStringFormatCallAnalyzer_Should_NotFlag_AFormatStringWithAPlaceholder(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringFormatCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringFormatCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object a) { var b = a.Equals(null); } }", true)]
+    [InlineData("class C { public void M(object a) { var b = a is null; } }", false)]
+    public async Task SuspiciousEqualsNullAnalyzer_Should_NotFlag_AnIsNullCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SuspiciousEqualsNullAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SuspiciousEqualsNullAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object a, object b) { var eq = a.GetHashCode() == b.GetHashCode(); } }", true)]
+    [InlineData("class C { public void M(object a, object b) { var eq = a.Equals(b); } }", false)]
+    public async Task UnreliableHashCodeEqualityCheckAnalyzer_Should_NotFlag_ADirectEqualsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnreliableHashCodeEqualityCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UnreliableHashCodeEqualityCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { private readonly object _lock = new(); public void M() { lock (_lock) { } } }", true)]
+    [InlineData("class C { private readonly object _lock = new(); public void M() { lock (_lock) { System.Console.WriteLine(1); } } }", false)]
+    public async Task RemoveEmptyLockStatementAnalyzer_Should_FlagOnlyAnEmptyBody(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyLockStatementAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyLockStatementAnalyzer.DiagnosticId));
+    }
 }
