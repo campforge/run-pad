@@ -1282,4 +1282,52 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RedundantGeneralFormatStringAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGeneralFormatStringAnalyzer.DiagnosticId));
     }
+
+    // ── Twentieth batch (сто шестьдесят шестой проход) — same "побольше за раз" pace as проходы
+    // 163-165.
+
+    [Theory]
+    [InlineData("class C { public void M() { var y = new System.Random(System.Environment.TickCount); } }", true)]
+    [InlineData("class C { public void M() { var y = new System.Random(); } }", false)]
+    public async Task RedundantRandomSeedAnalyzer_Should_NotFlag_AParameterlessConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantRandomSeedAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantRandomSeedAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object x) { var y = x.Equals(x); } }", true)]
+    [InlineData("class C { public void M(object x, object z) { var y = x.Equals(z); } }", false)]
+    public async Task SelfEqualityCheckAnalyzer_Should_NotFlag_ADifferentOperand(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SelfEqualityCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfEqualityCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { var y = int.Parse(n.ToString()); } }", true)]
+    [InlineData("class C { public void M(long n) { var y = int.Parse(n.ToString()); } }", false)]
+    public async Task RedundantParseToStringRoundTripAnalyzer_Should_FlagOnlyAMatchingType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantParseToStringRoundTripAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantParseToStringRoundTripAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = double.Parse(s); } }", true)]
+    [InlineData("class C { public void M(string s) { var y = double.Parse(s, System.Globalization.CultureInfo.InvariantCulture); } }", false)]
+    public async Task CultureSensitiveNumericParseAnalyzer_Should_FlagOnlyTheSingleArgOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveNumericParseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveNumericParseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Aggregate(0, (acc, x) => acc + x); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Aggregate(1, (acc, x) => acc + x); } }", false)]
+    public async Task AggregateSumAnalyzer_Should_FlagTheSeededOverloadWithZeroSeedToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new AggregateSumAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateSumAnalyzer.DiagnosticId));
+    }
 }

@@ -620,4 +620,25 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Enum.Parse<T>", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("ToString(\"G\")", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто шестьдесят шестой проход, batch) — same rationale as the проход 147-165
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(object x, string s) { " +
+            "var a = x.Equals(x); var b = double.Parse(s); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("itself", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Double.Parse", StringComparison.Ordinal));
+    }
 }
