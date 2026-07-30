@@ -1462,4 +1462,107 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RedundantStringConcatWithEmptyAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringConcatWithEmptyAnalyzer.DiagnosticId));
     }
+
+    // ── Twenty-third batch (сто шестьдесят девятый проход) — four new analyzers + two extensions.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x.ToString()).ThenBy(x => x.ToString()); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x.ToString()).ThenBy(x => x); } }", false)]
+    public async Task RedundantThenByWithSameKeyAnalyzer_Should_NotFlag_ADifferentKey(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantThenByWithSameKeyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantThenByWithSameKeyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M() { await Task.Delay(0); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M() { await Task.Yield(); } }", false)]
+    public async Task PreferTaskYieldOverZeroDelayAnalyzer_Should_NotFlag_ADirectYieldCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferTaskYieldOverZeroDelayAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTaskYieldOverZeroDelayAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.OrderBy(x => x).ToList().Sort(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var sorted = xs.OrderBy(x => x).ToList(); } }", false)]
+    public async Task PointlessOrderByToListSortAnalyzer_Should_NotFlag_WhenTheResultIsCaptured(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PointlessOrderByToListSortAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PointlessOrderByToListSortAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int[] arr, int item) { var y = System.Array.IndexOf(arr, item) >= 0; } }", true)]
+    [InlineData("using System.Linq; class C { public void M(int[] arr, int item) { var y = arr.Contains(item); } }", false)]
+    public async Task PreferContainsOverIndexOfComparisonAnalyzer_Should_FlagTheStaticArrayFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverIndexOfComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverIndexOfComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.Select(x => x as string).Where(x => x != null); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.OfType<string>(); } }", false)]
+    public async Task PreferOfTypeOverWhereIsCastAnalyzer_Should_FlagTheSelectAsWhereNotNullShapeToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOfTypeOverWhereIsCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOfTypeOverWhereIsCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { private Task Bar() => Task.CompletedTask; public async Task M() { await Task.Run(async () => await Bar()); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { private Task Bar() => Task.CompletedTask; public async Task M() { await Task.Run(Bar); } }", false)]
+    public async Task RedundantAsyncTaskRunWrapperAnalyzer_Should_NotFlag_ADirectMethodGroupCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantAsyncTaskRunWrapperAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsyncTaskRunWrapperAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-fourth batch (сто семидесятый проход) — three new analyzers + two extensions.
+
+    [Theory]
+    [InlineData("class C { public void M(object x) { var y = x is int || x is long; } }", true)]
+    [InlineData("class C { public void M(object x) { var y = x is int or long; } }", false)]
+    public async Task PreferPatternCombinatorOverOrExpressionAnalyzer_Should_NotFlag_ADirectOrPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferPatternCombinatorOverOrExpressionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferPatternCombinatorOverOrExpressionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(System.IDisposable d) { if (d == null) { } else { d.Dispose(); } } }", true)]
+    [InlineData("class C { public void M(System.IDisposable d) { if (d != null) { d.Dispose(); } } }", false)]
+    public async Task InvertibleEmptyIfWithElseAnalyzer_Should_NotFlag_AnAlreadyInvertedIf(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvertibleEmptyIfWithElseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvertibleEmptyIfWithElseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Count(v => v > 0) == xs.Count(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.All(v => v > 0); } }", false)]
+    public async Task PreferAllOverCountComparisonAnalyzer_Should_NotFlag_ADirectAllCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferAllOverCountComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAllOverCountComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s != null && s.Length > 0; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = !string.IsNullOrEmpty(s); } }", false)]
+    public async Task UseStringIsNullOrEmptyAnalyzer_Should_FlagTheNegatedAndFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseStringIsNullOrEmptyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseStringIsNullOrEmptyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s != null && s.Trim().Length > 0; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = !string.IsNullOrWhiteSpace(s); } }", false)]
+    public async Task PreferIsNullOrWhiteSpaceAnalyzer_Should_FlagTheNegatedAndFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOrWhiteSpaceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOrWhiteSpaceAnalyzer.DiagnosticId));
+    }
 }
