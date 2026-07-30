@@ -447,4 +447,68 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Append", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("FirstOrDefault", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто пятьдесят восьмой проход, batch) — same rationale as the проход 147-157
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwelfthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { " +
+            "var s = xs.Select(x => x * 2).Sum(); var y = xs.OrderBy(x => x).Reverse(); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Sum(...)", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("OrderByDescending", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто пятьдесят девятый проход, batch) — same rationale as the проход 147-158
+    // combined tests above; covers both brand-new analyzers and the extended coverage of earlier ones.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; using System.Text; " +
+            "class C { public void M(List<int> xs, StringBuilder sb, int n) { " +
+            "var a = xs.Select(x => x); sb.Append(n.ToString()); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("identity projection", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("StringBuilder.Append", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто шестидесятый проход, batch) — same rationale as the проход 147-159 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFourteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(int n, char ch) { " +
+            "var a = System.Convert.ToInt32(n); var b = char.ToUpper(ch); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Convert.ToInt32", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("char.ToUpper", StringComparison.Ordinal));
+    }
 }

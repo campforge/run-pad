@@ -12,6 +12,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // sequence just to immediately consume it — every one of these methods has its own predicate-accepting
 // overload (`xs.First(pred)`) that does the same filtering in a single pass, without the extra
 // iterator.
+// Extended (сто пятьдесят девятый проход, batch) to also cover Count — but only when the Where().Count()
+// invocation ISN'T itself being compared to zero, since CallAnyInsteadOfCountAnalyzer (RPAD0017)
+// already flags that exact shape with a strictly better suggestion (Any(pred) beats Count(pred) > 0)
+// — reporting both here would double-message the same span.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MergeWhereWithTerminalLinqMethodAnalyzer : DiagnosticAnalyzer
 {
@@ -29,7 +33,7 @@ public sealed class MergeWhereWithTerminalLinqMethodAnalyzer : DiagnosticAnalyze
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
     private static readonly ImmutableHashSet<string> TerminalMethodNames = ImmutableHashSet.Create(
-        "First", "FirstOrDefault", "Single", "SingleOrDefault", "Any", "Last", "LastOrDefault");
+        "First", "FirstOrDefault", "Single", "SingleOrDefault", "Any", "Last", "LastOrDefault", "Count");
 
     public override void Initialize(AnalysisContext context)
     {
@@ -45,6 +49,7 @@ public sealed class MergeWhereWithTerminalLinqMethodAnalyzer : DiagnosticAnalyze
         if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: var terminalName } memberAccess)
             return;
         if (!TerminalMethodNames.Contains(terminalName)) return;
+        if (terminalName == "Count" && IsCompareToZero(invocation)) return; // defer to RPAD0017
 
         var ct = context.CancellationToken;
         if (!IsRealEnumerableMethod(context, invocation, ct)) return;
@@ -62,5 +67,13 @@ public sealed class MergeWhereWithTerminalLinqMethodAnalyzer : DiagnosticAnalyze
         if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method) return false;
         var original = method.ReducedFrom ?? method.OriginalDefinition;
         return original.ContainingType?.ToDisplayString() == "System.Linq.Enumerable";
+    }
+
+    private static bool IsCompareToZero(InvocationExpressionSyntax invocation)
+    {
+        if (invocation.Parent is not BinaryExpressionSyntax binary) return false;
+        var other = binary.Left == invocation ? binary.Right : binary.Left;
+        return other is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } literal
+            && literal.Token.ValueText == "0";
     }
 }

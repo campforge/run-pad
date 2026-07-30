@@ -910,4 +910,111 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RedundantDiscardArmInExhaustiveSwitchExpressionAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDiscardArmInExhaustiveSwitchExpressionAnalyzer.DiagnosticId));
     }
+
+    // ── Twelfth batch (сто пятьдесят восьмой проход) — same pace as проходы 147-157.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var s = xs.Select(x => x * 2).Sum(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var s = xs.Sum(x => x * 2); } }", false)]
+    public async Task MergeSelectWithAggregateMethodAnalyzer_Should_NotFlag_ADirectSelectorCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new MergeSelectWithAggregateMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeSelectWithAggregateMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x).Reverse(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderByDescending(x => x).Reverse(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderByDescending(x => x); } }", false)]
+    public async Task UseOppositeOrderByInsteadOfReverseAnalyzer_Should_FlagBothDirections(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseOppositeOrderByInsteadOfReverseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseOppositeOrderByInsteadOfReverseAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirteenth batch (сто пятьдесят девятый проход) — 3 new analyzers + 3 extensions to earlier
+    // ones, same pace as проходы 147-158.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x * 2); } }", false)]
+    public async Task RedundantIdentitySelectAnalyzer_Should_NotFlag_ARealProjection(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantIdentitySelectAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentitySelectAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb, int n) { sb.Append(n.ToString()); } }", true)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb, int n) { sb.Append(n); } }", false)]
+    public async Task RedundantToStringBeforeStringBuilderAppendAnalyzer_Should_NotFlag_ADirectAppendCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantToStringBeforeStringBuilderAppendAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantToStringBeforeStringBuilderAppendAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public static readonly List<int> Items = new(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { private static readonly List<int> Items = new(); }", false)]
+    public async Task MutableReadonlyCollectionFieldAnalyzer_Should_NotFlag_APrivateField(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new MutableReadonlyCollectionFieldAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MutableReadonlyCollectionFieldAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Count(x => x > 0) > 0; } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Any(x => x > 0); } }", false)]
+    public async Task CallAnyInsteadOfCountAnalyzer_Should_FlagThePredicateOverloadToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CallAnyInsteadOfCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CallAnyInsteadOfCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Where(x => x > 0).Count(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Where(x => x > 0).Count() > 0; } }", false)] // deferred to RPAD0017
+    public async Task MergeWhereWithTerminalLinqMethodAnalyzer_Should_NotFlag_WhenComparedToZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new MergeWhereWithTerminalLinqMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeWhereWithTerminalLinqMethodAnalyzer.DiagnosticId));
+    }
+
+    // ── Fourteenth batch (сто шестидесятый проход) — same pace as проходы 147-159.
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { var x = System.Convert.ToInt32(n); } }", true)]
+    [InlineData("class C { public void M(long n) { var x = System.Convert.ToInt32(n); } }", false)]
+    public async Task RedundantIdentityConvertCallAnalyzer_Should_FlagOnlyAnIdentityConversion(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantIdentityConvertCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentityConvertCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key, int val) { if (!dict.ContainsKey(key)) { dict[key] = val; } } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key, int val) { dict.TryAdd(key, val); } }", false)]
+    public async Task PreferTryAddOverContainsKeyCheckAnalyzer_Should_NotFlag_ADirectTryAddCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferTryAddOverContainsKeyCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTryAddOverContainsKeyCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; enum Color { Red, Green } class C { public void M() { var y = System.Enum.GetValues(typeof(Color)).Cast<Color>(); } }", true)]
+    [InlineData("enum Color { Red, Green } class C { public void M() { var y = System.Enum.GetValues<Color>(); } }", false)]
+    public async Task EnumGetValuesCastAnalyzer_Should_NotFlag_ADirectGenericCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EnumGetValuesCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EnumGetValuesCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(char ch) { var x = char.ToUpper(ch); } }", true)]
+    [InlineData("class C { public void M(char ch) { var x = char.ToUpperInvariant(ch); } }", false)]
+    public async Task CultureSensitiveCharCaseConversionAnalyzer_Should_FlagOnlyTheCultureSensitiveOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveCharCaseConversionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveCharCaseConversionAnalyzer.DiagnosticId));
+    }
 }

@@ -11,6 +11,9 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `xs.Count() > 0` (or `!= 0`/`== 0`) walks the ENTIRE sequence just to compare the total against
 // zero — `xs.Any()` stops at the first element. Same LINQ-hygiene theme as the Count/Length-property
 // analyzer next to this one, just for the case where there's no O(1) property to fall back on.
+// Extended (сто пятьдесят девятый проход, batch) to also cover the predicate-accepting overload —
+// `xs.Count(pred) > 0` walks the whole sequence counting matches just to compare against zero;
+// `xs.Any(pred)` stops at the first match.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class CallAnyInsteadOfCountAnalyzer : DiagnosticAnalyzer
 {
@@ -60,7 +63,7 @@ public sealed class CallAnyInsteadOfCountAnalyzer : DiagnosticAnalyzer
         };
         if (!isMeaningful) return;
 
-        if (countSide is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 0 } invocation) return;
+        if (countSide is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 0 or 1 } invocation) return;
         if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Count" }) return;
 
         if (context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol is not IMethodSymbol method)
