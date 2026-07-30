@@ -375,6 +375,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
             _vm.DependenciesWindowClosed -= OnDependenciesWindowClosed;
         }
+
         _activeTabSub?.Dispose();
 
         foreach (var (tabVm, (_, ctrl)) in _tabs)
@@ -383,6 +384,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             ctrl.Dispose();
             tabVm.Dispose();
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -420,8 +422,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _prefs!,
             intelliSense,
             _referenceService!,
-            _buildCache!,
-            _themeService!.GetBrush("RunPad.Editor.BackgroundBrush"));
+            _buildCache!
+        );
     }
 
     private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)
