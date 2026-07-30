@@ -12,6 +12,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // (a LINQ Enumerable method that could be a plain indexer access on a type that already has one).
 // `list.First()`/`list.ElementAt(n)` walk an IEnumerator to reach the answer; `list[0]`/`list[n]` is
 // direct and just as clear when the receiver is already indexable.
+// Extended (сто шестьдесят седьмой проход, batch) to also cover `Last()` → `[^1]`, using the C# 8+
+// index-from-end operator — requires the receiver to also have a Count/Length property (that's what
+// makes `^1` resolvable at all; a bare int indexer alone isn't enough), unlike First()/ElementAt(n)
+// which only ever need the indexer itself.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class UseElementAccessInsteadOfLinqMethodAnalyzer : DiagnosticAnalyzer
 {
@@ -38,7 +42,7 @@ public sealed class UseElementAccessInsteadOfLinqMethodAnalyzer : DiagnosticAnal
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "First" or "ElementAt" } memberAccess)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "First" or "ElementAt" or "Last" } memberAccess)
             return;
 
         var methodName = memberAccess.Name.Identifier.Text;
@@ -46,6 +50,7 @@ public sealed class UseElementAccessInsteadOfLinqMethodAnalyzer : DiagnosticAnal
         string indexText;
         if (methodName == "First" && arguments.Count == 0) indexText = "0";
         else if (methodName == "ElementAt" && arguments.Count == 1) indexText = arguments[0].Expression.ToString();
+        else if (methodName == "Last" && arguments.Count == 0) indexText = "^1";
         else return;
 
         if (context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol is not IMethodSymbol method)
@@ -55,9 +60,11 @@ public sealed class UseElementAccessInsteadOfLinqMethodAnalyzer : DiagnosticAnal
 
         var receiverType = context.SemanticModel.GetTypeInfo(memberAccess.Expression, context.CancellationToken).Type;
         if (receiverType is null) return;
+        if (!HasInt32Indexer(receiverType)) return;
+        // `^1` additionally needs a Count/Length property to resolve — First()/ElementAt(n) don't.
+        if (methodName == "Last" && !HasCountOrLengthProperty(receiverType)) return;
 
-        if (HasInt32Indexer(receiverType))
-            context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), indexText, methodName));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), indexText, methodName));
     }
 
     private static bool HasInt32Indexer(ITypeSymbol type)
@@ -83,5 +90,21 @@ public sealed class UseElementAccessInsteadOfLinqMethodAnalyzer : DiagnosticAnal
     {
         yield return type;
         foreach (var iface in type.AllInterfaces) yield return iface;
+    }
+
+    private static bool HasCountOrLengthProperty(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol) return true;
+
+        foreach (var candidate in EnumerateSelfAndInterfaces(type))
+        {
+            foreach (var member in candidate.GetMembers())
+            {
+                if (member is IPropertySymbol { Name: "Count" or "Length", Type.SpecialType: SpecialType.System_Int32 })
+                    return true;
+            }
+        }
+
+        return false;
     }
 }

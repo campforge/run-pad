@@ -1330,4 +1330,43 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new AggregateSumAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateSumAnalyzer.DiagnosticId));
     }
+
+    // ── Twenty-first batch (сто шестьдесят седьмой проход) — same "побольше за раз" pace as проходы
+    // 163-166.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item, EqualityComparer<int>.Default); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task RedundantDefaultComparerArgumentAnalyzer_Should_NotFlag_ADirectCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantDefaultComparerArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultComparerArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.GroupBy(x => x % 2).Select(g => g.Key); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x % 2).Distinct(); } }", false)]
+    public async Task PreferDistinctOverGroupByKeyAnalyzer_Should_NotFlag_ADirectSelectDistinctCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDistinctOverGroupByKeyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDistinctOverGroupByKeyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Last(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Last(); } }", false)]
+    public async Task UseElementAccessInsteadOfLinqMethodAnalyzer_Should_FlagLastOnAnIndexableReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseElementAccessInsteadOfLinqMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseElementAccessInsteadOfLinqMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public void M(int v) { var y = System.Enum.GetName(typeof(Color), v); } }", true)]
+    [InlineData("enum Color { Red, Green } class C { public void M(Color v) { var y = System.Enum.GetName<Color>(v); } }", false)]
+    public async Task PreferGenericEnumStaticMethodAnalyzer_Should_FlagGetNameToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericEnumStaticMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
+    }
 }
