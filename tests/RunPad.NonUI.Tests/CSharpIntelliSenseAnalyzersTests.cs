@@ -533,4 +533,25 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Skip(0)", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("Take(0)", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто шестьдесят второй проход, batch) — same rationale as the проход 147-161
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSixteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(object a, object b) { " +
+            "var s = string.Format(\"no placeholders\"); var eq = a.Equals(null); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("string.Format", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("NullReferenceException", StringComparison.Ordinal));
+    }
 }
