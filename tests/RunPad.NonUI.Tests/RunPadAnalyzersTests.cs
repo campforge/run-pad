@@ -1017,4 +1017,42 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveCharCaseConversionAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveCharCaseConversionAnalyzer.DiagnosticId));
     }
+
+    // ── Fifteenth batch (сто шестьдесят первый проход) — same pace as проходы 147-160.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Skip(0); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Skip(2); } }", false)]
+    public async Task RedundantSkipZeroAnalyzer_Should_FlagOnlyALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantSkipZeroAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantSkipZeroAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(0); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(2); } }", false)]
+    public async Task SuspiciousTakeZeroAnalyzer_Should_FlagOnlyALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SuspiciousTakeZeroAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SuspiciousTakeZeroAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(3).First(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(0).First(); } }", false)] // n == 0 changes throw behavior
+    public async Task RedundantTakeBeforeFirstAnalyzer_Should_NotFlag_ALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTakeBeforeFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTakeBeforeFirstAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) when (ex is System.InvalidOperationException) { } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.InvalidOperationException ex) { } } }", false)]
+    public async Task PreferSpecificCatchTypeOverIsPatternAnalyzer_Should_NotFlag_ADirectCatchType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferSpecificCatchTypeOverIsPatternAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferSpecificCatchTypeOverIsPatternAnalyzer.DiagnosticId));
+    }
 }
