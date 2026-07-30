@@ -12,6 +12,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // box/cast the result. `Enum.Parse<T>(s)`/`Enum.IsDefined<T>(v)` (both .NET 5+, always available given
 // this project's own MinSupportedSdkMajorVersion=6) do the same thing strongly-typed, without the
 // boxing round-trip.
+// Extended (сто шестьдесят седьмой проход, batch) to also cover `Enum.GetName(typeof(T), v)` →
+// `Enum.GetName<T>(v)` — same idiom, same fix, one more method in the same family.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferGenericEnumStaticMethodAnalyzer : DiagnosticAnalyzer
 {
@@ -28,7 +30,7 @@ public sealed class PreferGenericEnumStaticMethodAnalyzer : DiagnosticAnalyzer
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
-    private static readonly ImmutableHashSet<string> TargetMethodNames = ImmutableHashSet.Create("Parse", "IsDefined");
+    private static readonly ImmutableHashSet<string> TargetMethodNames = ImmutableHashSet.Create("Parse", "IsDefined", "GetName");
 
     public override void Initialize(AnalysisContext context)
     {
