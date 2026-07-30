@@ -1369,4 +1369,97 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new PreferGenericEnumStaticMethodAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
     }
+
+    // ── Twenty-second batch (сто шестьдесят восьмой проход) — минимум 10 анализаторов за проход по
+    // явному запросу пользователя.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.ToList().Contains(item); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task RedundantMaterializationBeforeContainsAnalyzer_Should_NotFlag_ADirectContainsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantMaterializationBeforeContainsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMaterializationBeforeContainsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.IndexOf(item) >= 0; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task PreferContainsOverIndexOfComparisonAnalyzer_Should_NotFlag_ADirectContainsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverIndexOfComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverIndexOfComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s.ToCharArray()[0]; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = s[0]; } }", false)]
+    public async Task RedundantToCharArrayIndexingAnalyzer_Should_NotFlag_ADirectStringIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantToCharArrayIndexingAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantToCharArrayIndexingAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Pow(x, 2); } }", true)]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Pow(x, 3); } }", false)]
+    public async Task PreferDirectMathOperationOverPowAnalyzer_Should_NotFlag_AnUnrelatedExponent(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectMathOperationOverPowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectMathOperationOverPowAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { xs.Insert(xs.Count, item); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { xs.Insert(0, item); } }", false)]
+    public async Task PreferListAddOverInsertAtCountAnalyzer_Should_NotFlag_AnInsertAtAnotherIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferListAddOverInsertAtCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferListAddOverInsertAtCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw new System.Exception(ex.Message); } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw new System.Exception(ex.Message, ex); } } }", false)]
+    public async Task LossyExceptionWrapAnalyzer_Should_NotFlag_WhenTheOriginalIsPassedAsInnerException(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new LossyExceptionWrapAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == LossyExceptionWrapAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t1, Task t2) { await Task.WhenAll(new[] { t1, t2 }); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t1, Task t2) { await Task.WhenAll(t1, t2); } }", false)]
+    public async Task RedundantParamsArrayForTaskWhenAllAnalyzer_Should_NotFlag_ADirectParamsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantParamsArrayForTaskWhenAllAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantParamsArrayForTaskWhenAllAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Take(xs.Count()); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Take(3); } }", false)]
+    public async Task RedundantTakeCountAnalyzer_Should_NotFlag_ALiteralCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTakeCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTakeCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s.Contains(\"x\"); } }", true)]
+    [InlineData("class C { public void M(string s) { var y = s.Contains(\"xy\"); } }", false)]
+    public async Task PreferCharOverloadForSingleCharStringAnalyzer_Should_NotFlag_AMultiCharLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferCharOverloadForSingleCharStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferCharOverloadForSingleCharStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s + \"\"; } }", true)]
+    [InlineData("class C { public void M(int n) { var y = n + \"\"; } }", false)]
+    public async Task RedundantStringConcatWithEmptyAnalyzer_Should_NotFlag_ANumberToStringIdiom(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringConcatWithEmptyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringConcatWithEmptyAnalyzer.DiagnosticId));
+    }
 }
