@@ -71,8 +71,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         CSharpReferenceService referenceService,
-        IBuildCacheService buildCache,
-        IBrush? editorBackground)
+        IBuildCacheService buildCache)
     {
         _themeService = themeService;
         _windowService = windowService;
@@ -88,7 +87,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
 
-        var editor = new CodeTextEditor { Background = editorBackground };
+        var editor = new CodeTextEditor { Background = _themeService.GetBrush("RunPad.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
         ResultsOutput.DataContext = State.Output;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
@@ -123,9 +122,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // ILanguageHostFactory.Snippets/EditorProfile) — populated here rather than in SetupEditor
         // because SetupEditor runs before SetDocumentContent, when ResolveLanguageId can't yet see
         // the real file's language and would default to C#.
-        foreach (var (keyword, template) in _registry.GetSnippets(ResolveLanguageId()) ?? new Dictionary<string, string>())
+        foreach (var (keyword, template) in _registry.GetSnippets(ResolveLanguageId()) ??
+                                            new Dictionary<string, string>())
             editor.Snippets[keyword] = template;
-        ApplyEditorLanguageProfile(editor, _registry.GetEditorProfile(ResolveLanguageId()) ?? new EditorLanguageProfile());
+        ApplyEditorLanguageProfile(editor,
+            _registry.GetEditorProfile(ResolveLanguageId()) ?? new EditorLanguageProfile());
 
         var themeName = themeService.CurrentTheme.Editor.TextMateName;
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
@@ -154,7 +155,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // its ViewModel are always created/destroyed as a pair today (EditorTabsControl.cs), so it isn't
     // an active leak yet, but leaving it unpaired with the rest of Dispose's own subscriptions
     // (_prefs.Changed/_selectedKindSub) would turn into a real one the moment that assumption changes.
-    private void OnWatchExpressionsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    private void OnWatchExpressionsCollectionChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems is not null)
             foreach (WatchExpression w in e.NewItems)
@@ -311,8 +313,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 State.OutputDirectory!, $"{LanguageHostOptionsDefaults.OutputName}{SourceExtension()}");
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
-                .Where(bp => bp.IsEnabled) // TODO.md #83.3 — disabled breakpoints stay in the gutter but never reach the debugger
-                .Select(bp => (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
+                .Where(bp =>
+                    bp.IsEnabled) // TODO.md #83.3 — disabled breakpoints stay in the gutter but never reach the debugger
+                .Select(bp =>
+                    (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
@@ -591,7 +595,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Split out from ShowRenameSymbolAsync so the actual edit-application logic (order-of-operations
     // and undo-grouping, both easy to get subtly wrong) can be tested directly against a plain
     // TextDocument, without needing a real modal dialog in the loop.
-    internal static void ApplyRenameEdits(TextDocument document, IReadOnlyList<IDocumentHighlightSpan> spans, string newName)
+    internal static void ApplyRenameEdits(TextDocument document, IReadOnlyList<IDocumentHighlightSpan> spans,
+        string newName)
     {
         // Descending order so replacing one span never shifts the offsets of spans still to come —
         // Document.Replace is purely offset-based and doesn't adjust sibling calls for you.
@@ -679,6 +684,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 editor.ContextMenu = menu;
                 menu.Open(editor);
             }
+
             return;
         }
 
@@ -704,7 +710,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         var owner = TopLevel.GetTopLevel(this) as Window;
-        var window = new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
+        var window =
+            new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
         if (owner is not null) window.Show(owner);
         else window.Show();
     }
@@ -964,7 +971,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 var children = await context.GetChildrenAsync(v.VariablesReference);
                 return children.Select(c => CreateDebugLocal(c, context)).ToList();
             }
-        : null;
+            : null;
         return new DebugLocal(v.Name, v.Value, v.TypeName, v.HasChildren, loader);
     }
 
@@ -1016,7 +1023,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var excluded = _prefs.CSharp.ExcludedDiagnosticIds;
         if (excluded.Count > 0)
-            merged = merged.Where(f => f.DiagnosticId is null || !excluded.Contains(f.DiagnosticId, StringComparer.OrdinalIgnoreCase));
+            merged = merged.Where(f =>
+                f.DiagnosticId is null || !excluded.Contains(f.DiagnosticId, StringComparer.OrdinalIgnoreCase));
 
         State.Editor.UpdateCodeFixes([.. merged]);
     }
@@ -1083,7 +1091,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
 
             var trigger = e.IsExplicitInvoke ? CompletionTrigger.Invoked : CompletionTrigger.Insertion(e.Trigger);
-            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger, e.CancellationToken);
+            var list = await intelliSense.GetCompletionsAsync(State.Editor.Text, e.CaretOffset, trigger,
+                e.CancellationToken);
             if (list is null)
             {
                 // Null here (outside member access, already excluded separately) means the language
@@ -1094,6 +1103,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 e.SuppressSnippets = true;
                 return;
             }
+
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
@@ -1221,7 +1231,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
         // that used to dominate the whole IntelliSense pipeline's cost).
         static List<CodeFixEntry> ToEntries(IReadOnlyList<ICodeFixInfo> fixes) =>
-            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key, f.DiagnosticId)).ToList();
+            fixes.Select(f => new CodeFixEntry(f.Line, f.Title, ToMarginSeverity(f.Severity), f.Key, f.DiagnosticId))
+                .ToList();
 
         intelliSense.CodeFixesChanged += (code, fixes) =>
             Dispatcher.UIThread.Post(() =>
@@ -1305,8 +1316,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 try
                 {
                     await Task.Delay(QuickInfoHoverDelay, ct);
-                    var (offset, text) = await Dispatcher.UIThread.InvokeAsync(
-                        () => (editor.GetOffsetFromPoint(pos), editor.Text));
+                    var (offset, text) =
+                        await Dispatcher.UIThread.InvokeAsync(() => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
@@ -1388,7 +1399,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(methodSummary)) parts.Add(methodSummary);
-        if (!string.IsNullOrEmpty(activeParameter?.Summary)) parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
+        if (!string.IsNullOrEmpty(activeParameter?.Summary))
+            parts.Add($"{activeParameter.Name}: {activeParameter.Summary}");
         return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
@@ -1551,7 +1563,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // docs/ImplementationPlanRPad.md), not the visible script — except for a plain script
             // with no front matter to route them to, where they're folded into the text.
             var hasProjectFile = State.RpadDocument is not null;
-            var newCode = hasProjectFile ? materialized.NewCode : PrependUsings(materialized.UsingsToAdd, materialized.NewCode);
+            var newCode = hasProjectFile
+                ? materialized.NewCode
+                : PrependUsings(materialized.UsingsToAdd, materialized.NewCode);
 
             if (editor.Document.Text != newCode)
                 editor.Document.Text = newCode;
@@ -1642,7 +1656,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // VB scripts even though CliRunner.BuildOptions already matched both — ANALYSIS.md #91).
         var projectReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
+                        || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
             .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
 

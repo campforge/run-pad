@@ -25,21 +25,24 @@ namespace RunPad.Windows;
 /// </summary>
 public partial class AssemblyExplorerWindow : Window
 {
-    private readonly IThemeService _themeService;
     private readonly IWindowService _windowService;
-    private string _startFolder = "";
+    private readonly string _startFolder = "";
     private string? _currentAssemblyPath;
     private SyntaxTree? _currentTree;
-    private DecompiledMemberResult? _pendingInitialResult;
+    private readonly DecompiledMemberResult? _pendingInitialResult;
 
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
+
     internal TreeView Tree => TypeTree;
     internal TextBlock AssemblyPathText => AssemblyPathBlock;
 
     /// <summary>"Edit → Assembly Explorer...", or Browse from within an already-open instance — empty
     /// until the user picks a DLL.</summary>
-    public AssemblyExplorerWindow(IThemeService themeService, IWindowService windowService, string startFolder)
+    public AssemblyExplorerWindow(
+        IThemeService themeService,
+        IWindowService windowService,
+        string startFolder)
         : this(themeService, windowService)
     {
         _startFolder = startFolder;
@@ -50,21 +53,24 @@ public partial class AssemblyExplorerWindow : Window
     /// alongside it (null only for the "type not found" fallback result, which has no real assembly
     /// path behind it worth browsing).</summary>
     public AssemblyExplorerWindow(
-        IThemeService themeService, IWindowService windowService, DecompiledMemberResult initialResult, string? assemblyPath)
+        IThemeService themeService,
+        IWindowService windowService,
+        DecompiledMemberResult initialResult,
+        string? assemblyPath)
         : this(themeService, windowService)
     {
         _pendingInitialResult = initialResult;
-        if (assemblyPath is not null)
-        {
-            _startFolder = Path.GetDirectoryName(assemblyPath) ?? "";
-            _ = LoadAssemblyAsync(assemblyPath);
-        }
+        if (assemblyPath is null)
+            return;
+        _startFolder = Path.GetDirectoryName(assemblyPath) ?? "";
+        _ = LoadAssemblyAsync(assemblyPath);
     }
 
-    private AssemblyExplorerWindow(IThemeService themeService, IWindowService windowService)
+    private AssemblyExplorerWindow(
+        IThemeService themeService,
+        IWindowService windowService)
     {
         InitializeComponent();
-        _themeService = themeService;
         _windowService = windowService;
 
         BrowseButton.Click += async (_, _) => await BrowseAsync();
@@ -73,7 +79,10 @@ public partial class AssemblyExplorerWindow : Window
         {
             IsReadOnly = true,
             ShowLineNumberText = true,
+            ShowBreakpoints = false,
+            Background = themeService.GetBrush("RunPad.Editor.BackgroundBrush")
         };
+
         editor.GoToDefinitionRequested += (_, _) => _ = NavigateAsync();
         EditorHost.Content = editor;
 
@@ -93,7 +102,6 @@ public partial class AssemblyExplorerWindow : Window
     public AssemblyExplorerWindow()
     {
         InitializeComponent();
-        _themeService = null!;
         _windowService = null!;
     }
 
@@ -138,6 +146,7 @@ public partial class AssemblyExplorerWindow : Window
                 typeItem.DoubleTapped += (_, _) => _ = OpenTypeAsync(entry);
                 nsItem.Items.Add(typeItem);
             }
+
             TypeTree.Items.Add(nsItem);
         }
     }
@@ -172,7 +181,8 @@ public partial class AssemblyExplorerWindow : Window
         var caretLine = Editor.TextArea.Caret.Line;
         var caretColumn = Editor.TextArea.Caret.Column;
 
-        var reference = await Task.Run(() => CSharpDecompilerService.ResolveReferenceAtPosition(tree, caretLine, caretColumn));
+        var reference = await Task.Run(() =>
+            CSharpDecompilerService.ResolveReferenceAtPosition(tree, caretLine, caretColumn));
         if (reference is null) return;
 
         DecompiledMemberResult next;
@@ -197,10 +207,9 @@ public partial class AssemblyExplorerWindow : Window
         Title = result.Title;
         _currentTree = result.SyntaxTree;
 
-        var editor = Editor;
-        editor.Text = result.Text;
-        editor.TextArea.Caret.Line = result.Line;
-        editor.TextArea.Caret.Column = 1;
-        editor.ScrollToLine(result.Line);
+        Editor.Text = result.Text;
+        Editor.TextArea.Caret.Line = result.Line;
+        Editor.TextArea.Caret.Column = 1;
+        Editor.ScrollToLine(result.Line);
     }
 }

@@ -3,6 +3,7 @@ using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
 
+// TODO: Это все имеет какое то отношение к стеме и стялям, адо перенести в темы
 // The single source of truth for SemanticTokenKind → color, shared by SemanticHighlighter (live
 // editor text) and by anything rendering a DisplayTextSegment signature outside the main text view
 // (completion/signature-help/quick-info tooltips — see ANALYSIS.md TODO #50). Keeping one palette
