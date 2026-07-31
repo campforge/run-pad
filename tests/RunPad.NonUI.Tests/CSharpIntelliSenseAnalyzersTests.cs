@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Contracts.IntelliSense;
+using System.Linq;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
