@@ -1298,6 +1298,7 @@ public class RunPadAnalyzersTests
     [Theory]
     [InlineData("class C { public void M(object x) { var y = x.Equals(x); } }", true)]
     [InlineData("class C { public void M(object x, object z) { var y = x.Equals(z); } }", false)]
+    [InlineData("class C { public void M(int n) { var y = n.CompareTo(n); } }", true)]
     public async Task SelfEqualityCheckAnalyzer_Should_NotFlag_ADifferentOperand(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new SelfEqualityCheckAnalyzer(), code);
@@ -1734,5 +1735,72 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOverStaticObjectEqualsAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOverStaticObjectEqualsAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-ninth batch (сто семьдесят пятый проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int x) { if (xs.Contains(x)) xs.Remove(x); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int x) { xs.Remove(x); } }", false)]
+    public async Task PreferDirectRemoveOverContainsCheckAnalyzer_Should_NotFlag_ADirectRemove(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectRemoveOverContainsCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectRemoveOverContainsCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(bool b) => !!b; }", true)]
+    [InlineData("class C { public bool M(bool b) => !b; }", false)]
+    public async Task DoubleNegationAnalyzer_Should_NotFlag_ASingleNegation(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DoubleNegationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoubleNegationAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public bool M(string a, string b) => string.Equals(a, b, StringComparison.Ordinal); } ", true)]
+    [InlineData("class C { public bool M(string a, string b) => a == b; } ", false)]
+    public async Task PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(string a, string b) => a.ToLowerInvariant() == b.ToLowerInvariant(); } ", true)]
+    [InlineData("using System; class C { public bool M(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase); } ", false)]
+    public async Task PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer_Should_NotFlag_AnAlreadySimplifiedComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirtieth batch (сто семьдесят шестой проход) — three new analyzers + one extension.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public int M() => Task.FromResult(1).Result; } ", true)]
+    [InlineData("class C { public int M() => 1; } ", false)]
+    public async Task RedundantTaskFromResultThenResultAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTaskFromResultThenResultAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTaskFromResultThenResultAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public bool M(Color c) => c.ToString() == \"Red\"; }", true)]
+    [InlineData("enum Color { Red, Green } class C { public bool M(Color c) => c == Color.Red; }", false)]
+    public async Task PreferDirectEnumComparisonOverToStringAnalyzer_Should_NotFlag_ADirectEnumComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectEnumComparisonOverToStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectEnumComparisonOverToStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public int M(int x) => x - x; } ", true)]
+    [InlineData("class C { public int M(int x, int y) => x - y; } ", false)]
+    public async Task SelfSubtractionOrXorAnalyzer_Should_NotFlag_ADifferentOperand(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SelfSubtractionOrXorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfSubtractionOrXorAnalyzer.DiagnosticId));
     }
 }

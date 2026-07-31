@@ -815,4 +815,46 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("GC.Collect", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("is null", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто семьдесят пятый проход, batch) — same rationale as the проход 147-174 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M(bool b) => !!b; " +
+            "public bool N(string a, string b) => a.ToLowerInvariant() == b.ToLowerInvariant(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Negating twice", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("OrdinalIgnoreCase", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто семьдесят шестой проход, batch) — same rationale as the проход 147-175 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M(int x) => x - x; " +
+            "public int N() => System.Threading.Tasks.Task.FromResult(1).Result; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always evaluates to zero", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("wraps and immediately unwraps", StringComparison.Ordinal));
+    }
 }
