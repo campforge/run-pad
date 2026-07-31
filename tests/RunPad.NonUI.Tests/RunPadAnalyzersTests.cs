@@ -1192,6 +1192,7 @@ public class RunPadAnalyzersTests
 
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { public void M() { Task.Delay(1000).Wait(); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public void M() { Task.Delay(1000).GetAwaiter().GetResult(); } }", true)]
     [InlineData("using System.Threading; class C { public void M() { Thread.Sleep(1000); } }", false)]
     public async Task TaskDelayThenWaitAnalyzer_Should_NotFlag_ADirectThreadSleepCall(string code, bool expectFlagged)
     {
@@ -2005,5 +2006,168 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new PreferAppContextBaseDirectoryAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppContextBaseDirectoryAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-seventh batch (сто восемьдесят третий проход) — two new analyzers + one extension.
+
+    [Theory]
+    [InlineData("using System.Net.Http; class C { public void M() { for (int i = 0; i < 10; i++) { var c = new HttpClient(); c.Dispose(); } } }", true)]
+    [InlineData("using System.Net.Http; class C { public void M(HttpClient shared) { for (int i = 0; i < 10; i++) { shared.GetAsync(\"/\"); } } }", false)]
+    public async Task HttpClientInstantiatedInLoopAnalyzer_Should_NotFlag_AReusedClient(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new HttpClientInstantiatedInLoopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == HttpClientInstantiatedInLoopAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text; class C { public string M(string s) => Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(s)); }", true)]
+    [InlineData("class C { public string M(string s) => s; }", false)]
+    public async Task RedundantEncodingRoundTripAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantEncodingRoundTripAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantEncodingRoundTripAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-eighth batch (сто восемьдесят четвёртый проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System; class C { public byte[] M(byte[] bytes) => Convert.FromBase64String(Convert.ToBase64String(bytes)); }", true)]
+    [InlineData("class C { public byte[] M(byte[] bytes) => bytes; }", false)]
+    public async Task RedundantBase64RoundTripAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantBase64RoundTripAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantBase64RoundTripAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public string M(byte[] bytes) => BitConverter.ToString(bytes).Replace(\"-\", \"\"); }", true)]
+    [InlineData("using System; class C { public string M(byte[] bytes) => Convert.ToHexString(bytes); }", false)]
+    public async Task PreferConvertToHexStringOverBitConverterReplaceAnalyzer_Should_NotFlag_ADirectHexString(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferConvertToHexStringOverBitConverterReplaceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferConvertToHexStringOverBitConverterReplaceAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public Guid M(Guid g) => Guid.Parse(g.ToString()); }", true)]
+    [InlineData("using System; class C { public Guid M(Guid g) => g; }", false)]
+    public async Task RedundantGuidParseToStringRoundTripAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantGuidParseToStringRoundTripAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGuidParseToStringRoundTripAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-ninth batch (сто восемьдесят пятый проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.GroupBy(x => x % 2).Select(g => g.First()); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.DistinctBy(x => x % 2); }", false)]
+    public async Task PreferDistinctByOverGroupByFirstAnalyzer_Should_NotFlag_ADirectDistinctBy(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDistinctByOverGroupByFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDistinctByOverGroupByFirstAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.SelectMany(x => new[] { x }); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs; }", false)]
+    public async Task RedundantSelectManySingleElementArrayAnalyzer_Should_NotFlag_ADirectSequence(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantSelectManySingleElementArrayAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantSelectManySingleElementArrayAnalyzer.DiagnosticId));
+    }
+
+    // ── Fortieth batch (сто восемьдесят шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.Count == 0 ? default : xs[0]; }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public int M(List<int> xs) => xs.FirstOrDefault(); }", false)]
+    public async Task PreferFirstOrDefaultOverCountCheckTernaryAnalyzer_Should_NotFlag_ADirectFirstOrDefault(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferFirstOrDefaultOverCountCheckTernaryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferFirstOrDefaultOverCountCheckTernaryAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-first batch (сто восемьдесят седьмой проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System; class C { public DateTime M() => DateTime.Now.Date; }", true)]
+    [InlineData("using System; class C { public DateTime M() => DateTime.Today; }", false)]
+    public async Task PreferDateTimeTodayOverNowDateAnalyzer_Should_NotFlag_ADirectToday(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDateTimeTodayOverNowDateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDateTimeTodayOverNowDateAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public bool M(DateTime x, DateTime y) => DateTime.Compare(x, y) == 0; }", true)]
+    [InlineData("using System; class C { public bool M(DateTime x, DateTime y) => x == y; }", false)]
+    public async Task PreferEqualityOperatorOverDateTimeCompareAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOperatorOverDateTimeCompareAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverDateTimeCompareAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-second batch (сто восемьдесят восьмой проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Runtime.InteropServices; class C { public bool M() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows); }", true)]
+    [InlineData("using System; class C { public bool M() => OperatingSystem.IsWindows(); }", false)]
+    public async Task PreferOperatingSystemIsWindowsOverRuntimeInformationAnalyzer_Should_NotFlag_ADirectCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOperatingSystemIsWindowsOverRuntimeInformationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOperatingSystemIsWindowsOverRuntimeInformationAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public bool M() => IntPtr.Size == 8; }", true)]
+    [InlineData("using System; class C { public bool M() => Environment.Is64BitProcess; }", false)]
+    public async Task PreferIs64BitProcessOverIntPtrSizeAnalyzer_Should_NotFlag_ADirectCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIs64BitProcessOverIntPtrSizeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIs64BitProcessOverIntPtrSizeAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-third batch (сто восемьдесят девятый проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Runtime.InteropServices; struct S { public int X; } class C { public int M() => Marshal.SizeOf(typeof(S)); }", true)]
+    [InlineData("using System.Runtime.InteropServices; struct S { public int X; } class C { public int M() => Marshal.SizeOf<S>(); }", false)]
+    public async Task PreferGenericMarshalSizeOfAnalyzer_Should_NotFlag_ADirectGenericCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericMarshalSizeOfAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericMarshalSizeOfAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class D { } class C { public object M() => Activator.CreateInstance(typeof(D)); }", true)]
+    [InlineData("using System; class D { } class C { public D M() => Activator.CreateInstance<D>(); }", false)]
+    public async Task PreferGenericActivatorCreateInstanceAnalyzer_Should_NotFlag_ADirectGenericCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericActivatorCreateInstanceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericActivatorCreateInstanceAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-fourth batch (сто девяностый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public bool M(string x, string y) => string.Compare(x, y, StringComparison.Ordinal) == 0; }", true)]
+    [InlineData("class C { public bool M(string x, string y) => x == y; }", false)]
+    public async Task PreferEqualityOperatorOverOrdinalStringCompareAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOperatorOverOrdinalStringCompareAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverOrdinalStringCompareAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-fifth batch (сто девяносто первый проход) — one new analyzer, covering two shapes.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.ToDictionary(x => x, x => x); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public ILookup<int, int> M(IEnumerable<int> xs) => xs.ToLookup(x => x, x => x); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.ToDictionary(x => x); }", false)]
+    public async Task RedundantIdentityValueSelectorAnalyzer_Should_NotFlag_ASingleSelectorOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantIdentityValueSelectorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentityValueSelectorAnalyzer.DiagnosticId));
     }
 }
