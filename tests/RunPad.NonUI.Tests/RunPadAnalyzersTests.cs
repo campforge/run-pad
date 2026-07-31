@@ -1017,4 +1017,993 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveCharCaseConversionAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveCharCaseConversionAnalyzer.DiagnosticId));
     }
+
+    // ── Fifteenth batch (сто шестьдесят первый проход) — same pace as проходы 147-160.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Skip(0); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Skip(2); } }", false)]
+    public async Task RedundantSkipZeroAnalyzer_Should_FlagOnlyALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantSkipZeroAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantSkipZeroAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(0); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(2); } }", false)]
+    public async Task SuspiciousTakeZeroAnalyzer_Should_FlagOnlyALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SuspiciousTakeZeroAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SuspiciousTakeZeroAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(3).First(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Take(0).First(); } }", false)] // n == 0 changes throw behavior
+    public async Task RedundantTakeBeforeFirstAnalyzer_Should_NotFlag_ALiteralZero(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTakeBeforeFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTakeBeforeFirstAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) when (ex is System.InvalidOperationException) { } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.InvalidOperationException ex) { } } }", false)]
+    public async Task PreferSpecificCatchTypeOverIsPatternAnalyzer_Should_NotFlag_ADirectCatchType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferSpecificCatchTypeOverIsPatternAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferSpecificCatchTypeOverIsPatternAnalyzer.DiagnosticId));
+    }
+
+    // ── Sixteenth batch (сто шестьдесят второй проход) — same pace as проходы 147-161.
+
+    [Theory]
+    [InlineData("class C { public void M() { var s = string.Format(\"no placeholders\"); } }", true)]
+    [InlineData("class C { public void M(int n) { var s = string.Format(\"{0}\", n); } }", false)]
+    public async Task RedundantStringFormatCallAnalyzer_Should_NotFlag_AFormatStringWithAPlaceholder(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringFormatCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringFormatCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object a) { var b = a.Equals(null); } }", true)]
+    [InlineData("class C { public void M(object a) { var b = a is null; } }", false)]
+    public async Task SuspiciousEqualsNullAnalyzer_Should_NotFlag_AnIsNullCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SuspiciousEqualsNullAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SuspiciousEqualsNullAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object a, object b) { var eq = a.GetHashCode() == b.GetHashCode(); } }", true)]
+    [InlineData("class C { public void M(object a, object b) { var eq = a.Equals(b); } }", false)]
+    public async Task UnreliableHashCodeEqualityCheckAnalyzer_Should_NotFlag_ADirectEqualsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UnreliableHashCodeEqualityCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UnreliableHashCodeEqualityCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { private readonly object _lock = new(); public void M() { lock (_lock) { } } }", true)]
+    [InlineData("class C { private readonly object _lock = new(); public void M() { lock (_lock) { System.Console.WriteLine(1); } } }", false)]
+    public async Task RemoveEmptyLockStatementAnalyzer_Should_FlagOnlyAnEmptyBody(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RemoveEmptyLockStatementAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyLockStatementAnalyzer.DiagnosticId));
+    }
+
+    // ── Seventeenth batch (сто шестьдесят третий проход) — bigger batch per explicit user request
+    // ("бери побольше анализаторов за раз"): 7 new analyzers + 1 extension in one проход.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Reverse().Reverse(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Reverse(); } }", false)]
+    public async Task RedundantDoubleReverseAnalyzer_Should_FlagOnlyTheDoubledCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantDoubleReverseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDoubleReverseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Distinct().Distinct(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Distinct(); } }", false)]
+    public async Task RedundantConsecutiveDistinctCallAnalyzer_Should_FlagOnlyTheDoubledCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantConsecutiveDistinctCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConsecutiveDistinctCallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key) { var y = dict.Keys.Contains(key); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict, string key) { var y = dict.ContainsKey(key); } }", false)]
+    public async Task DictionaryKeysContainsAnalyzer_Should_NotFlag_ADirectContainsKeyCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DictionaryKeysContainsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DictionaryKeysContainsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text.RegularExpressions; class C { public void M(string input, string pattern) { var y = Regex.Match(input, pattern).Success; } }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public void M(string input, string pattern) { var y = Regex.IsMatch(input, pattern); } }", false)]
+    public async Task RegexMatchSuccessAnalyzer_Should_NotFlag_ADirectIsMatchCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RegexMatchSuccessAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RegexMatchSuccessAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { System.Console.Write(n + \"\\n\"); } }", true)]
+    [InlineData("class C { public void M(int n) { System.Console.WriteLine(n); } }", false)]
+    public async Task ConsoleWriteWithNewlineAnalyzer_Should_NotFlag_ADirectWriteLineCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ConsoleWriteWithNewlineAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConsoleWriteWithNewlineAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int value) { var y = xs.Any(x => x == value); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int value) { var y = xs.Contains(value); } }", false)]
+    public async Task PreferContainsOverAnyEqualityAnalyzer_Should_NotFlag_ADirectContainsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverAnyEqualityAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverAnyEqualityAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.ToList().ToArray(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.ToArray(); } }", false)]
+    public async Task RedundantDoubleMaterializationAnalyzer_Should_NotFlag_ASingleMaterialization(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantDoubleMaterializationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDoubleMaterializationAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Count() >= 1; } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Any(); } }", false)]
+    public async Task CallAnyInsteadOfCountAnalyzer_Should_FlagTheAtLeastOneIdiomToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CallAnyInsteadOfCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CallAnyInsteadOfCountAnalyzer.DiagnosticId));
+    }
+
+    // ── Eighteenth batch (сто шестьдесят четвёртый проход) — another bigger batch (6 new + 1
+    // extension) per the standing "побольше за раз" preference from проход 163.
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s.Trim().Length == 0; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = string.IsNullOrWhiteSpace(s); } }", false)]
+    public async Task PreferIsNullOrWhiteSpaceAnalyzer_Should_NotFlag_ADirectCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOrWhiteSpaceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOrWhiteSpaceAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Aggregate((a, b) => a + b); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Sum(); } }", false)]
+    public async Task AggregateSumAnalyzer_Should_NotFlag_ADirectSumCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new AggregateSumAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateSumAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public void M() { Task.Delay(1000).Wait(); } }", true)]
+    [InlineData("using System.Threading; class C { public void M() { Thread.Sleep(1000); } }", false)]
+    public async Task TaskDelayThenWaitAnalyzer_Should_NotFlag_ADirectThreadSleepCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new TaskDelayThenWaitAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TaskDelayThenWaitAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object obj) { var y = obj.GetType().Name == \"Foo\"; } }", true)]
+    [InlineData("class C { public void M(object obj) { var y = obj is string; } }", false)]
+    public async Task SuspiciousTypeNameStringComparisonAnalyzer_Should_NotFlag_AnIsCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SuspiciousTypeNameStringComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SuspiciousTypeNameStringComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Sum(x => x); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Sum(x => x * 2); } }", false)]
+    public async Task RedundantIdentitySelectorInAggregateAnalyzer_Should_NotFlag_ARealSelector(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantIdentitySelectorInAggregateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentitySelectorInAggregateAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; using System.Threading.Tasks; class C { public async Task M() { Thread.Sleep(1000); await Task.Delay(1); } }", true)]
+    [InlineData("using System.Threading; class C { public void M() { Thread.Sleep(1000); } }", false)]
+    public async Task ThreadSleepInAsyncMethodAnalyzer_Should_NotFlag_ASynchronousMethod(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ThreadSleepInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ThreadSleepInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x).Last(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.MaxBy(x => x); } }", false)]
+    public async Task PreferMinByMaxByOverOrderByFirstAnalyzer_Should_FlagLastAsMaxBy(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferMinByMaxByOverOrderByFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferMinByMaxByOverOrderByFirstAnalyzer.DiagnosticId));
+    }
+
+    // ── Nineteenth batch (сто шестьдесят пятый проход) — same "побольше за раз" pace as проходы
+    // 163-164.
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public void M(string s) { var y = System.Enum.Parse(typeof(Color), s); } }", true)]
+    [InlineData("enum Color { Red, Green } class C { public void M(string s) { var y = System.Enum.Parse<Color>(s); } }", false)]
+    public async Task PreferGenericEnumStaticMethodAnalyzer_Should_NotFlag_ADirectGenericCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericEnumStaticMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = string.Join(\",\", xs.Select(x => x.ToString())); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = string.Join(\",\", xs); } }", false)]
+    public async Task RedundantToStringInStringJoinAnalyzer_Should_NotFlag_ADirectJoinCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantToStringInStringJoinAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantToStringInStringJoinAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.Where(x => x is string).Cast<string>(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.OfType<string>(); } }", false)]
+    public async Task PreferOfTypeOverWhereIsCastAnalyzer_Should_NotFlag_ADirectOfTypeCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOfTypeOverWhereIsCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOfTypeOverWhereIsCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { private bool IsBad(int x) => x < 0; public void M(IEnumerable<int> xs) { var y = xs.All(x => !IsBad(x)); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { private bool IsBad(int x) => x < 0; public void M(IEnumerable<int> xs) { var y = xs.All(x => IsBad(x)); } }", false)]
+    public async Task PreferNotAnyOverAllNegatedPredicateAnalyzer_Should_NotFlag_ADirectNegatedAnyCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNotAnyOverAllNegatedPredicateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNotAnyOverAllNegatedPredicateAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { var y = n.ToString(\"G\"); } }", true)]
+    [InlineData("class C { public void M(int n) { var y = n.ToString(); } }", false)]
+    public async Task RedundantGeneralFormatStringAnalyzer_Should_NotFlag_ANoArgToString(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantGeneralFormatStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGeneralFormatStringAnalyzer.DiagnosticId));
+    }
+
+    // ── Twentieth batch (сто шестьдесят шестой проход) — same "побольше за раз" pace as проходы
+    // 163-165.
+
+    [Theory]
+    [InlineData("class C { public void M() { var y = new System.Random(System.Environment.TickCount); } }", true)]
+    [InlineData("class C { public void M() { var y = new System.Random(); } }", false)]
+    public async Task RedundantRandomSeedAnalyzer_Should_NotFlag_AParameterlessConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantRandomSeedAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantRandomSeedAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object x) { var y = x.Equals(x); } }", true)]
+    [InlineData("class C { public void M(object x, object z) { var y = x.Equals(z); } }", false)]
+    [InlineData("class C { public void M(int n) { var y = n.CompareTo(n); } }", true)]
+    public async Task SelfEqualityCheckAnalyzer_Should_NotFlag_ADifferentOperand(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SelfEqualityCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfEqualityCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int n) { var y = int.Parse(n.ToString()); } }", true)]
+    [InlineData("class C { public void M(long n) { var y = int.Parse(n.ToString()); } }", false)]
+    public async Task RedundantParseToStringRoundTripAnalyzer_Should_FlagOnlyAMatchingType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantParseToStringRoundTripAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantParseToStringRoundTripAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = double.Parse(s); } }", true)]
+    [InlineData("class C { public void M(string s) { var y = double.Parse(s, System.Globalization.CultureInfo.InvariantCulture); } }", false)]
+    public async Task CultureSensitiveNumericParseAnalyzer_Should_FlagOnlyTheSingleArgOverload(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CultureSensitiveNumericParseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveNumericParseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Aggregate(0, (acc, x) => acc + x); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Aggregate(1, (acc, x) => acc + x); } }", false)]
+    public async Task AggregateSumAnalyzer_Should_FlagTheSeededOverloadWithZeroSeedToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new AggregateSumAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateSumAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-first batch (сто шестьдесят седьмой проход) — same "побольше за раз" pace as проходы
+    // 163-166.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item, EqualityComparer<int>.Default); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task RedundantDefaultComparerArgumentAnalyzer_Should_NotFlag_ADirectCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantDefaultComparerArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultComparerArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.GroupBy(x => x % 2).Select(g => g.Key); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x % 2).Distinct(); } }", false)]
+    public async Task PreferDistinctOverGroupByKeyAnalyzer_Should_NotFlag_ADirectSelectDistinctCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDistinctOverGroupByKeyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDistinctOverGroupByKeyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Last(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Last(); } }", false)]
+    public async Task UseElementAccessInsteadOfLinqMethodAnalyzer_Should_FlagLastOnAnIndexableReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseElementAccessInsteadOfLinqMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseElementAccessInsteadOfLinqMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public void M(int v) { var y = System.Enum.GetName(typeof(Color), v); } }", true)]
+    [InlineData("enum Color { Red, Green } class C { public void M(Color v) { var y = System.Enum.GetName<Color>(v); } }", false)]
+    public async Task PreferGenericEnumStaticMethodAnalyzer_Should_FlagGetNameToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferGenericEnumStaticMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-second batch (сто шестьдесят восьмой проход) — минимум 10 анализаторов за проход по
+    // явному запросу пользователя.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.ToList().Contains(item); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task RedundantMaterializationBeforeContainsAnalyzer_Should_NotFlag_ADirectContainsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantMaterializationBeforeContainsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMaterializationBeforeContainsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.IndexOf(item) >= 0; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item); } }", false)]
+    public async Task PreferContainsOverIndexOfComparisonAnalyzer_Should_NotFlag_ADirectContainsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverIndexOfComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverIndexOfComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s.ToCharArray()[0]; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = s[0]; } }", false)]
+    public async Task RedundantToCharArrayIndexingAnalyzer_Should_NotFlag_ADirectStringIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantToCharArrayIndexingAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantToCharArrayIndexingAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Pow(x, 2); } }", true)]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Pow(x, 3); } }", false)]
+    public async Task PreferDirectMathOperationOverPowAnalyzer_Should_NotFlag_AnUnrelatedExponent(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectMathOperationOverPowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectMathOperationOverPowAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { xs.Insert(xs.Count, item); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int item) { xs.Insert(0, item); } }", false)]
+    public async Task PreferListAddOverInsertAtCountAnalyzer_Should_NotFlag_AnInsertAtAnotherIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferListAddOverInsertAtCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferListAddOverInsertAtCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw new System.Exception(ex.Message); } } }", true)]
+    [InlineData("class C { public void M() { try { } catch (System.Exception ex) { throw new System.Exception(ex.Message, ex); } } }", false)]
+    public async Task LossyExceptionWrapAnalyzer_Should_NotFlag_WhenTheOriginalIsPassedAsInnerException(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new LossyExceptionWrapAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == LossyExceptionWrapAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t1, Task t2) { await Task.WhenAll(new[] { t1, t2 }); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t1, Task t2) { await Task.WhenAll(t1, t2); } }", false)]
+    public async Task RedundantParamsArrayForTaskWhenAllAnalyzer_Should_NotFlag_ADirectParamsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantParamsArrayForTaskWhenAllAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantParamsArrayForTaskWhenAllAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Take(xs.Count()); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Take(3); } }", false)]
+    public async Task RedundantTakeCountAnalyzer_Should_NotFlag_ALiteralCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTakeCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTakeCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s.Contains(\"x\"); } }", true)]
+    [InlineData("class C { public void M(string s) { var y = s.Contains(\"xy\"); } }", false)]
+    public async Task PreferCharOverloadForSingleCharStringAnalyzer_Should_NotFlag_AMultiCharLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferCharOverloadForSingleCharStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferCharOverloadForSingleCharStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s + \"\"; } }", true)]
+    [InlineData("class C { public void M(int n) { var y = n + \"\"; } }", false)]
+    public async Task RedundantStringConcatWithEmptyAnalyzer_Should_NotFlag_ANumberToStringIdiom(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringConcatWithEmptyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringConcatWithEmptyAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-third batch (сто шестьдесят девятый проход) — four new analyzers + two extensions.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x.ToString()).ThenBy(x => x.ToString()); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x.ToString()).ThenBy(x => x); } }", false)]
+    public async Task RedundantThenByWithSameKeyAnalyzer_Should_NotFlag_ADifferentKey(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantThenByWithSameKeyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantThenByWithSameKeyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M() { await Task.Delay(0); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M() { await Task.Yield(); } }", false)]
+    public async Task PreferTaskYieldOverZeroDelayAnalyzer_Should_NotFlag_ADirectYieldCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferTaskYieldOverZeroDelayAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTaskYieldOverZeroDelayAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.OrderBy(x => x).ToList().Sort(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var sorted = xs.OrderBy(x => x).ToList(); } }", false)]
+    public async Task PointlessOrderByToListSortAnalyzer_Should_NotFlag_WhenTheResultIsCaptured(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PointlessOrderByToListSortAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PointlessOrderByToListSortAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int[] arr, int item) { var y = System.Array.IndexOf(arr, item) >= 0; } }", true)]
+    [InlineData("using System.Linq; class C { public void M(int[] arr, int item) { var y = arr.Contains(item); } }", false)]
+    public async Task PreferContainsOverIndexOfComparisonAnalyzer_Should_FlagTheStaticArrayFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverIndexOfComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverIndexOfComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.Select(x => x as string).Where(x => x != null); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<object> os) { var y = os.OfType<string>(); } }", false)]
+    public async Task PreferOfTypeOverWhereIsCastAnalyzer_Should_FlagTheSelectAsWhereNotNullShapeToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOfTypeOverWhereIsCastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOfTypeOverWhereIsCastAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { private Task Bar() => Task.CompletedTask; public async Task M() { await Task.Run(async () => await Bar()); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { private Task Bar() => Task.CompletedTask; public async Task M() { await Task.Run(Bar); } }", false)]
+    public async Task RedundantAsyncTaskRunWrapperAnalyzer_Should_NotFlag_ADirectMethodGroupCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantAsyncTaskRunWrapperAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsyncTaskRunWrapperAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-fourth batch (сто семидесятый проход) — three new analyzers + two extensions.
+
+    [Theory]
+    [InlineData("class C { public void M(object x) { var y = x is int || x is long; } }", true)]
+    [InlineData("class C { public void M(object x) { var y = x is int or long; } }", false)]
+    public async Task PreferPatternCombinatorOverOrExpressionAnalyzer_Should_NotFlag_ADirectOrPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferPatternCombinatorOverOrExpressionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferPatternCombinatorOverOrExpressionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(System.IDisposable d) { if (d == null) { } else { d.Dispose(); } } }", true)]
+    [InlineData("class C { public void M(System.IDisposable d) { if (d != null) { d.Dispose(); } } }", false)]
+    public async Task InvertibleEmptyIfWithElseAnalyzer_Should_NotFlag_AnAlreadyInvertedIf(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvertibleEmptyIfWithElseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvertibleEmptyIfWithElseAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Count(v => v > 0) == xs.Count(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.All(v => v > 0); } }", false)]
+    public async Task PreferAllOverCountComparisonAnalyzer_Should_NotFlag_ADirectAllCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferAllOverCountComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAllOverCountComparisonAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s != null && s.Length > 0; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = !string.IsNullOrEmpty(s); } }", false)]
+    public async Task UseStringIsNullOrEmptyAnalyzer_Should_FlagTheNegatedAndFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new UseStringIsNullOrEmptyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseStringIsNullOrEmptyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { var y = s != null && s.Trim().Length > 0; } }", true)]
+    [InlineData("class C { public void M(string s) { var y = !string.IsNullOrWhiteSpace(s); } }", false)]
+    public async Task PreferIsNullOrWhiteSpaceAnalyzer_Should_FlagTheNegatedAndFormToo(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOrWhiteSpaceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOrWhiteSpaceAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-fifth batch (сто семьдесят первый проход) — five new analyzers.
+
+    [Theory]
+    [InlineData("class C { public void M(int? x, int y) { var z = x.HasValue && x.Value == y; } }", true)]
+    [InlineData("class C { public void M(int? x, int y) { var z = x == y; } }", false)]
+    public async Task PreferNullableComparisonOverHasValueAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNullableComparisonOverHasValueAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNullableComparisonOverHasValueAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict) { var y = dict.Keys.Count; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<string, int> dict) { var y = dict.Count; } }", false)]
+    public async Task RedundantKeysCountAnalyzer_Should_NotFlag_ADirectCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantKeysCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantKeysCountAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) { for (int i = 0; i <= xs.Count; i++) { var v = xs[i]; } } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) { for (int i = 0; i < xs.Count; i++) { var v = xs[i]; } } }", false)]
+    public async Task OffByOneLoopBoundAnalyzer_Should_NotFlag_AProperLessThanBound(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new OffByOneLoopBoundAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == OffByOneLoopBoundAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int n) { var y = xs.Skip(n).First(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int n) { var y = xs[n]; } }", false)]
+    public async Task PreferElementAccessOverSkipFirstAnalyzer_Should_NotFlag_ADirectIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferElementAccessOverSkipFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferElementAccessOverSkipFirstAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Reverse().First(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Last(); } }", false)]
+    public async Task PreferLastOverReverseFirstAnalyzer_Should_NotFlag_ADirectLastCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferLastOverReverseFirstAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferLastOverReverseFirstAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-sixth batch (сто семьдесят второй проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.ToList().Sort(); } }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var sorted = xs.ToList(); sorted.Sort(); } }", false)]
+    public async Task PointlessMaterializeThenMutateAnalyzer_Should_NotFlag_WhenTheResultIsCaptured(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PointlessMaterializeThenMutateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PointlessMaterializeThenMutateAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Round(x, 0); } }", true)]
+    [InlineData("class C { public void M(double x) { var y = System.Math.Round(x, 2); } }", false)]
+    public async Task RedundantMathRoundDigitsAnalyzer_Should_NotFlag_ANonZeroDigitsArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantMathRoundDigitsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMathRoundDigitsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text.RegularExpressions; class C { public void M(string pattern) { var y = new Regex(pattern, RegexOptions.None); } }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public void M(string pattern) { var y = new Regex(pattern); } }", false)]
+    public async Task RedundantRegexOptionsNoneAnalyzer_Should_NotFlag_ADirectConstructorCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantRegexOptionsNoneAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantRegexOptionsNoneAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(char c) { var y = char.IsLetter(c) || char.IsDigit(c); } }", true)]
+    [InlineData("class C { public void M(char c) { var y = char.IsLetterOrDigit(c); } }", false)]
+    public async Task PreferIsLetterOrDigitAnalyzer_Should_NotFlag_ADirectCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsLetterOrDigitAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsLetterOrDigitAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-seventh batch (сто семьдесят третий проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("class C { public void M(object x) { var y = string.Format(\"{0}\", x); } }", true)]
+    [InlineData("class C { public void M(object x) { var y = $\"{x}\"; } }", false)]
+    public async Task RedundantSingleArgStringFormatAnalyzer_Should_NotFlag_ADirectInterpolation(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantSingleArgStringFormatAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantSingleArgStringFormatAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(object x, object y) { var z = !(x == y); } }", true)]
+    [InlineData("class C { public void M(object x, object y) { var z = x != y; } }", false)]
+    public async Task PreferNotEqualsOverNegatedEqualsAnalyzer_Should_NotFlag_ADirectNotEquals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNotEqualsOverNegatedEqualsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNotEqualsOverNegatedEqualsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; using System.Threading.Tasks; class C { public async Task M(SemaphoreSlim sem) { sem.Wait(); await Task.Delay(1); } }", true)]
+    [InlineData("using System.Threading; class C { public void M(SemaphoreSlim sem) { sem.Wait(); } }", false)]
+    public async Task SemaphoreWaitInAsyncMethodAnalyzer_Should_NotFlag_ASynchronousMethod(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SemaphoreWaitInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SemaphoreWaitInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t) { await t.ConfigureAwait(true); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task M(Task t) { await t.ConfigureAwait(false); } }", false)]
+    public async Task RedundantConfigureAwaitTrueAnalyzer_Should_NotFlag_ConfigureAwaitFalse(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantConfigureAwaitTrueAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConfigureAwaitTrueAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-eighth batch (сто семьдесят четвёртый проход) — five new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task<int> M(Task<int> t) { return t.Result; } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task<int> M(Task<int> t) { return await t; } }", false)]
+    public async Task TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer_Should_NotFlag_AnAwait(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { System.GC.Collect(); } }", true)]
+    [InlineData("class C { public void M() { System.GC.SuppressFinalize(this); } }", false)]
+    public async Task ManualGCCollectAnalyzer_Should_NotFlag_OtherGCMethods(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ManualGCCollectAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ManualGCCollectAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public void M() { for (int i = 0; i < 10; i++) { var r = new Random(); r.Next(); } } }", true)]
+    [InlineData("using System; class C { public void M() { var r = new Random(); for (int i = 0; i < 10; i++) { r.Next(); } } }", false)]
+    public async Task RandomInstantiatedInLoopAnalyzer_Should_NotFlag_ARandomHoistedOutsideTheLoop(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RandomInstantiatedInLoopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RandomInstantiatedInLoopAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.AsEnumerable(); } ", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(List<int> xs) => xs.AsEnumerable(); } ", false)]
+    public async Task RedundantAsEnumerableAnalyzer_Should_NotFlag_AMoreSpecificReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantAsEnumerableAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsEnumerableAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(object x) { return object.Equals(x, null); } }", true)]
+    [InlineData("class C { public bool M(object x) { return x is null; } }", false)]
+    public async Task PreferIsNullOverStaticObjectEqualsAnalyzer_Should_NotFlag_AnIsNullPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOverStaticObjectEqualsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOverStaticObjectEqualsAnalyzer.DiagnosticId));
+    }
+
+    // ── Twenty-ninth batch (сто семьдесят пятый проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int x) { if (xs.Contains(x)) xs.Remove(x); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int x) { xs.Remove(x); } }", false)]
+    public async Task PreferDirectRemoveOverContainsCheckAnalyzer_Should_NotFlag_ADirectRemove(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectRemoveOverContainsCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectRemoveOverContainsCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(bool b) => !!b; }", true)]
+    [InlineData("class C { public bool M(bool b) => !b; }", false)]
+    public async Task DoubleNegationAnalyzer_Should_NotFlag_ASingleNegation(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DoubleNegationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoubleNegationAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public bool M(string a, string b) => string.Equals(a, b, StringComparison.Ordinal); } ", true)]
+    [InlineData("class C { public bool M(string a, string b) => a == b; } ", false)]
+    public async Task PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(string a, string b) => a.ToLowerInvariant() == b.ToLowerInvariant(); } ", true)]
+    [InlineData("using System; class C { public bool M(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase); } ", false)]
+    public async Task PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer_Should_NotFlag_AnAlreadySimplifiedComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirtieth batch (сто семьдесят шестой проход) — three new analyzers + one extension.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public int M() => Task.FromResult(1).Result; } ", true)]
+    [InlineData("class C { public int M() => 1; } ", false)]
+    public async Task RedundantTaskFromResultThenResultAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantTaskFromResultThenResultAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTaskFromResultThenResultAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("enum Color { Red, Green } class C { public bool M(Color c) => c.ToString() == \"Red\"; }", true)]
+    [InlineData("enum Color { Red, Green } class C { public bool M(Color c) => c == Color.Red; }", false)]
+    public async Task PreferDirectEnumComparisonOverToStringAnalyzer_Should_NotFlag_ADirectEnumComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDirectEnumComparisonOverToStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectEnumComparisonOverToStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public int M(int x) => x - x; } ", true)]
+    [InlineData("class C { public int M(int x, int y) => x - y; } ", false)]
+    public async Task SelfSubtractionOrXorAnalyzer_Should_NotFlag_ADifferentOperand(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SelfSubtractionOrXorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfSubtractionOrXorAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-first batch (сто семьдесят седьмой проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { Task M() => Task.CompletedTask; void N() { M(); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { Task M() => Task.CompletedTask; async Task N() { await M(); } }", false)]
+    public async Task DiscardedAsyncTaskResultAnalyzer_Should_NotFlag_AnAwaitedCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DiscardedAsyncTaskResultAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DiscardedAsyncTaskResultAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { xs.ToList().ForEach(x => Console.WriteLine(x)); } }", true)]
+    [InlineData("using System; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { foreach (var x in xs) Console.WriteLine(x); } }", false)]
+    public async Task PreferForeachOverToListForEachAnalyzer_Should_NotFlag_ADirectForeach(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferForeachOverToListForEachAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferForeachOverToListForEachAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { for (int i = 0; i < xs.Count(); i++) { } } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) { for (int i = 0; i < xs.Count; i++) { } } }", false)]
+    public async Task PreferHoistedCountOverLinqCountInLoopConditionAnalyzer_Should_NotFlag_AnO1CountProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferHoistedCountOverLinqCountInLoopConditionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferHoistedCountOverLinqCountInLoopConditionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string x) { if (x != null) { x.ToString(); } } }", true)]
+    [InlineData("class C { public void M(string x) { x?.ToString(); } }", false)]
+    public async Task PreferNullConditionalOverIfNullCheckAnalyzer_Should_NotFlag_AnAlreadyNullConditionalCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNullConditionalOverIfNullCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNullConditionalOverIfNullCheckAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-second batch (сто семьдесят восьмой проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { async Task M(Task t) { t.Wait(); await Task.Delay(1); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { void M(Task t) { t.Wait(); } }", false)]
+    public async Task TaskWaitInAsyncMethodAnalyzer_Should_NotFlag_ASynchronousMethod(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new TaskWaitInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TaskWaitInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(object x) => typeof(string).IsInstanceOfType(x); }", true)]
+    [InlineData("class C { public bool M(object x) => x is string; }", false)]
+    public async Task PreferIsOperatorOverIsInstanceOfTypeAnalyzer_Should_NotFlag_ADirectIsCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsOperatorOverIsInstanceOfTypeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsOperatorOverIsInstanceOfTypeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.OrderBy(x => x).ToDictionary(x => x, x => x); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.ToDictionary(x => x, x => x); }", false)]
+    public async Task PointlessOrderByBeforeToDictionaryAnalyzer_Should_NotFlag_AnUnorderedSource(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PointlessOrderByBeforeToDictionaryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PointlessOrderByBeforeToDictionaryAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(int x) => System.Math.Abs(x) == 0; }", true)]
+    [InlineData("class C { public bool M(int x) => x == 0; }", false)]
+    public async Task RedundantMathAbsInZeroComparisonAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantMathAbsInZeroComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMathAbsInZeroComparisonAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-third batch (сто семьдесят девятый проход) — five new analyzers.
+
+    [Theory]
+    [InlineData("using System.Text; class C { public string M(string s) => new StringBuilder(s).ToString(); }", true)]
+    [InlineData("class C { public string M(string s) => s; }", false)]
+    public async Task RedundantStringBuilderConstructorThenToStringAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringBuilderConstructorThenToStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringBuilderConstructorThenToStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M(IEnumerable<int> source) { var list = new List<int>(); list.AddRange(source); return list; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M(IEnumerable<int> source) => new List<int>(source); }", false)]
+    public async Task PreferListConstructorOverAddRangeAnalyzer_Should_NotFlag_ADirectConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferListConstructorOverAddRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferListConstructorOverAddRangeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(int x) => x == 1 || x == 2; }", true)]
+    [InlineData("class C { public bool M(int x) => x is 1 or 2; }", false)]
+    public async Task PreferPatternCombinatorOverOrEqualityAnalyzer_Should_NotFlag_AnAlreadyCombinedPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferPatternCombinatorOverOrEqualityAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferPatternCombinatorOverOrEqualityAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<(int, int)> M(IEnumerable<int> xs, IEnumerable<int> ys) => xs.Zip(ys, (a, b) => (a, b)); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<(int, int)> M(IEnumerable<int> xs, IEnumerable<int> ys) => xs.Zip(ys); }", false)]
+    public async Task PreferParameterlessZipOverTupleSelectorAnalyzer_Should_NotFlag_AParameterlessZip(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferParameterlessZipOverTupleSelectorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferParameterlessZipOverTupleSelectorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; class C { public bool M(int x, int y) => new[] { x }.Contains(y); }", true)]
+    [InlineData("class C { public bool M(int x, int y) => x == y; }", false)]
+    public async Task PreferEqualityOverSingleElementArrayContainsAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOverSingleElementArrayContainsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOverSingleElementArrayContainsAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-fourth batch (сто восьмидесятый проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("class C { public bool M(string x) => x.Split(',').Length == 1; }", true)]
+    [InlineData("class C { public bool M(string x) => !x.Contains(','); }", false)]
+    public async Task PreferContainsOverSplitLengthCheckAnalyzer_Should_NotFlag_ADirectContains(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverSplitLengthCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverSplitLengthCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { System.Console.Out.WriteLine(s); } }", true)]
+    [InlineData("class C { public void M(string s) { System.Console.WriteLine(s); } }", false)]
+    public async Task PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer_Should_NotFlag_ADirectWriteLine(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public string M(string x) => x.Trim().Trim(); }", true)]
+    [InlineData("class C { public string M(string x) => x.Trim(); }", false)]
+    public async Task RedundantConsecutiveTrimCallAnalyzer_Should_NotFlag_ASingleTrim(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantConsecutiveTrimCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConsecutiveTrimCallAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-fifth batch (сто восемьдесят первый проход) — two new analyzers, each covering two shapes.
+
+    [Theory]
+    [InlineData("class C { public bool M(bool x) { if (x) return true; else return false; } }", true)]
+    [InlineData("class C { public bool M(bool x) { bool y; if (x) { y = true; } else { y = false; } return y; } }", true)]
+    [InlineData("class C { public bool M(bool x) => x; }", false)]
+    public async Task SimplifyIfElseBooleanLiteralAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SimplifyIfElseBooleanLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SimplifyIfElseBooleanLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int[] arr) { System.Array.Sort(arr, 0, arr.Length); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, System.Collections.Generic.IComparer<int> cmp) { xs.Sort(0, xs.Count, cmp); } }", true)]
+    [InlineData("class C { public void M(int[] arr) { System.Array.Sort(arr); } }", false)]
+    public async Task RedundantExplicitFullRangeSortAnalyzer_Should_NotFlag_AShortSortCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantExplicitFullRangeSortAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantExplicitFullRangeSortAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-sixth batch (сто восемьдесят второй проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Text.RegularExpressions; class C { public bool M(string input, string pattern) => new Regex(pattern).IsMatch(input); }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public bool M(string input, string pattern) => Regex.IsMatch(input, pattern); }", false)]
+    public async Task PreferStaticRegexMethodOverNewRegexInstanceAnalyzer_Should_NotFlag_AStaticCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferStaticRegexMethodOverNewRegexInstanceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStaticRegexMethodOverNewRegexInstanceAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; class C { public int M() => Thread.CurrentThread.ManagedThreadId; }", true)]
+    [InlineData("class C { public int M() => System.Environment.CurrentManagedThreadId; }", false)]
+    public async Task PreferEnvironmentCurrentManagedThreadIdAnalyzer_Should_NotFlag_ADirectProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEnvironmentCurrentManagedThreadIdAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEnvironmentCurrentManagedThreadIdAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public string M() => System.AppDomain.CurrentDomain.BaseDirectory; }", true)]
+    [InlineData("class C { public string M() => System.AppContext.BaseDirectory; }", false)]
+    public async Task PreferAppContextBaseDirectoryAnalyzer_Should_NotFlag_ADirectProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferAppContextBaseDirectoryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppContextBaseDirectoryAnalyzer.DiagnosticId));
+    }
 }
