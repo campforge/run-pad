@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #63 "интерактивный типизированный ввод" — Util.ReadLine/GetPassword/ReadLine<T>. Same
+// TODO.md #63 "interactive typed input" — Util.ReadLine/GetPassword/ReadLine<T>. Same
 // Console.SetOut/SetIn redirection technique as ObjectExtensionsTests, since this is the runtime-side
 // half of the same sentinel-prefixed stdout protocol Dump uses (a different prefix char, see
 // Util.InputRequestPrefixChar) paired with a plain-text stdin reply. [Collection(...)] — see

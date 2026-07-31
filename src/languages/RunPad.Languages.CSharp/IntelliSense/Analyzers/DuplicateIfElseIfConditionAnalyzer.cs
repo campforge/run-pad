@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок восьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
 // UnnecessaryIfElseIfEmptyStatement/duplicate-condition family (Apache License 2.0,
 // https://github.com/dotnet/roslynator). In an `if`/`else if` chain, a later branch whose condition
 // is structurally identical (SyntaxNode.IsEquivalentTo — exact structural match, not a guess) to an

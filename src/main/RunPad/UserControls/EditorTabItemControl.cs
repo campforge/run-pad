@@ -110,7 +110,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
 
-        // Dirty indicator (TODO.md, "Жизненный цикл вкладок") — attached only AFTER the initial
+        // Dirty indicator (TODO.md, "tab lifecycle") — attached only AFTER the initial
         // SetDocumentContent call above, not before: setting editor.Document there fires TextChanged
         // synchronously (see the comment inside SetDocumentContent on RefreshIntelliSenseKind's
         // ordering for the same fact), which would otherwise flag a just-opened, untouched tab as
@@ -221,7 +221,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
-    // Deliberately a no-op for a tab with no FilePath yet (TODO.md, "Жизненный цикл вкладок") — an
+    // Deliberately a no-op for a tab with no FilePath yet (TODO.md, "tab lifecycle") — an
     // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
     // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
     internal void SaveIfNeeded()
@@ -574,7 +574,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Focus();
     }
 
-    // TODO.md #62 "умное переименование" — F2 (CodeTextEditor.RenameSymbolRequested).
+    // TODO.md #62 "smart rename" — F2 (CodeTextEditor.RenameSymbolRequested).
     private async Task ShowRenameSymbolAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
     {
         var owner = TopLevel.GetTopLevel(this) as Window;
@@ -861,7 +861,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Dispatcher.UIThread.Post(() => IlOutput.Text = il);
     }
 
-    // TODO.md #63 "интерактивный типизированный ввод" — ILanguageHost.InputRequested (Util.ReadLine/
+    // TODO.md #63 "interactive typed input" — ILanguageHost.InputRequested (Util.ReadLine/
     // GetPassword). Always called on the UI thread (see the Dispatcher.UIThread.Post at the
     // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
     // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
@@ -939,7 +939,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ? context.CallStack[0].Line
             : context.Breakpoint.Line;
 
-        // ToDo: перенести это все в DebugPanel
+        // ToDo: move all of this into DebugPanel
         // Switch to Debugger tab so the user sees variables immediately
         if (_outputTabsControl is { } tc) tc.SelectedIndex = 1;
 
@@ -1002,10 +1002,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // lightbulb visible until the next one of those happens to fire. Filtering here instead means
     // OnPreferencesChanged can just call this directly to reflect a settings change immediately.
     //
-    // Сто шестой проход (2026-07-21) switched exclusion from a Title substring match to an exact,
+    // Pass 106 (2026-07-21) switched exclusion from a Title substring match to an exact,
     // case-insensitive match against DiagnosticId ("CS0184", "IDE0007", ...) — a stable, documented
     // Roslyn identifier instead of prose a provider could phrase however it likes, per user request.
-    // Accepted narrowing versus сто пятый проход's title-based filter: a refactoring's DiagnosticId
+    // Accepted narrowing versus pass 105's title-based filter: a refactoring's DiagnosticId
     // is always null (CodeFixEntry's own doc comment — a CodeRefactoringProvider has no underlying
     // diagnostic to key off), so it can no longer be excluded at all, unlike before when its title
     // could still match a substring. Not worked around (e.g. by keeping a secondary title-based path
@@ -1225,7 +1225,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // preference, not only on the next keystroke/caret-move) and remerges on every update from
         // either one.
 
-        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — just Line/Title/
+        // TODO.md #74 "IntelliSenseService optimization" (pass 104) — just Line/Title/
         // Severity/Key now, no NewCode/UsingsToAdd to fold in here: materializing those got deferred
         // to ApplyCodeFixAsync below, run only for the one entry actually clicked, not eagerly for
         // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
@@ -1411,7 +1411,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (filePath is null)
         {
-            // Deferred creation (TODO.md, "Жизненный цикл вкладок") — a brand-new tab is genuinely
+            // Deferred creation (TODO.md, "tab lifecycle") — a brand-new tab is genuinely
             // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
             // Save/Save As. It still gets a real (in-memory) RpadDocument built from the language/kind
             // chosen in NewFileKindDialog (_vm.NewFileLanguage/NewFileKind) rather than staying null —
@@ -1535,7 +1535,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
             : "";
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the click-time half of
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the click-time half of
     // the lightbulb (both diagnostic fixes and refactorings feed the same CodeFixEntry.Key/
     // FixApplyRequested path — see EditorsTabItemControl's own SetupEditor comment on the merged
     // list). MaterializeFixAsync only now does the expensive work (GetOperationsAsync + diffing) that

@@ -86,7 +86,7 @@ public class CodeTextEditor : TextEditor
     /// #62) — re-queried on every caret move (see the ctor's own PositionChanged wiring).</summary>
     public Func<OccurrencesRequestedEventArgs, Task>? AsyncOccurrencesProvider { get; set; }
 
-    /// <summary>Fired on F2 (TODO.md #62 "умное переименование") — the host resolves what's
+    /// <summary>Fired on F2 (TODO.md #62 "smart rename") — the host resolves what's
     /// renameable at the current caret position and drives the actual rename UI/edit; this control
     /// only recognizes the keypress and hands off, the same shape as
     /// <see cref="BreakpointRightClicked"/>.</summary>
@@ -124,7 +124,7 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Fired when the user clicks a specific lightbulb menu entry — see CodeFixEntry's own
     /// doc comment for why materializing/applying it is left entirely to whoever owns
-    /// IIntelliSenseService (TODO.md #74, сто четвёртый проход).</summary>
+    /// IIntelliSenseService (TODO.md #74, pass 104).</summary>
     public event Action<CodeFixEntry>? FixApplyRequested;
 
     /// <summary>
@@ -354,7 +354,7 @@ public class CodeTextEditor : TextEditor
         // (rename FILE, KeyboardSettings.RenameFile): that handler is likewise scoped to the file
         // tree's own TreeView, so ordinary Avalonia routing (starting from whichever control
         // actually has keyboard focus) keeps the two from ever double-firing on the same keypress —
-        // no explicit focus check needed on either side (TODO.md #62 "умное переименование").
+        // no explicit focus check needed on either side (TODO.md #62 "smart rename").
         TextArea.AddHandler(
             KeyDownEvent,
             (object? _, KeyEventArgs e) =>
@@ -504,7 +504,7 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
-    // TODO.md #62 "подсветка вхождений" — same cancel-a-superseded-request shape as ShowCompletion/
+    // TODO.md #62 "occurrence highlighting" — same cancel-a-superseded-request shape as ShowCompletion/
     // ShowOverloads (ANALYSIS.md #57/#89): fast caret movement can fire several of these before the
     // first one's provider call resolves, so the previous one is cancelled rather than raced, and
     // its CTS deliberately never disposed (only ever Cancel()'d — a CTS with no timer holds no

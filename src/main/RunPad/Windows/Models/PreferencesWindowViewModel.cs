@@ -56,8 +56,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _themeService = themeService;
         _prefs = prefs;
 
-        // Every registered language today is .NET-based (C#, VB — see TODO.md's "Реорганизация
-        // Preferences" note), so they all nest under one ".NET" runtime-family group carrying the
+        // Every registered language today is .NET-based (C#, VB — see TODO.md's "Preferences
+        // reorganization" note), so they all nest under one ".NET" runtime-family group carrying the
         // shared SDK/debugger path fields (still backed by the same DebuggerSettings/AppSettings.
         // Debugger — this is a pure tree-shape change, no settings.json migration). A future non-
         // .NET language would need a real RuntimeFamily concept on ILanguageHostFactory to pick its

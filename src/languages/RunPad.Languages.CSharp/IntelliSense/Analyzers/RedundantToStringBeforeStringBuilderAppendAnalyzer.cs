@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// TODO.md #74 (pass 159, batch) — own pick, not a Roslynator port.
 // `sb.Append(x.ToString())` calls ToString() explicitly before handing the result to
 // StringBuilder.Append — but StringBuilder.Append has an overload for essentially every type
 // (including a plain `object` fallback that calls ToString() internally anyway), so the explicit call

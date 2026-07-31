@@ -5,7 +5,7 @@ using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
 
-// ToDo: перенести в RunPad.Avalonia.CodeTextEditor (тот же долг, что у SemanticHighlighter)
+// ToDo: move to RunPad.Avalonia.CodeTextEditor (same tech debt as SemanticHighlighter)
 // TODO.md #62 "inlay hints" — renders IInlayHint.Text as dim, non-editable inline decoration at
 // IInlayHint.Offset. Same technique AvaloniaEdit's own FoldingElementGenerator ("...") and
 // SingleCharacterElementGenerator (space/tab glyphs) use — a zero-document-length FormattedTextElement,

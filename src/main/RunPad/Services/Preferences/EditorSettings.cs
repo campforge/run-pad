@@ -13,7 +13,7 @@ public sealed class EditorSettings
     public int ColumnRulerPosition { get; set; } = 80;
     public bool WordWrap { get; set; }
 
-    // TODO.md #113: live user report ("слишком крупный шрифт и отступы", LINQPad 4 shown as a
+    // TODO.md #113: live user report ("font and spacing are too big", LINQPad 4 shown as a
     // denser reference) — 14 was the one outlier default nobody had touched; 12 is what testing it
     // live actually settled on.
     public double FontSize { get; set; } = 12;

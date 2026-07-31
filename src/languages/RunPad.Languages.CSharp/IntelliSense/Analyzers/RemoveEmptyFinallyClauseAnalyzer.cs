@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок седьмой проход, batch) — idea ported from Roslynator (Apache License 2.0,
+// TODO.md #74 (pass 147, batch) — idea ported from Roslynator (Apache License 2.0,
 // https://github.com/dotnet/roslynator). An empty `finally { }` block does nothing — pure leftover
 // clutter from an earlier edit (e.g. logging removed but the block left behind).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

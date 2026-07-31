@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "подсветка вхождений" — CSharpIntelliSenseService.GetDocumentHighlightsAsync finds
+// TODO.md #62 "occurrence highlighting" — CSharpIntelliSenseService.GetDocumentHighlightsAsync finds
 // every occurrence of the symbol under the caret elsewhere in the same document. Roslyn ships a
 // ready-made IDocumentHighlightsService for this, but it's internal to Microsoft.CodeAnalysis.
 // Features (confirmed directly — see the method's own comment), so this is a from-scratch

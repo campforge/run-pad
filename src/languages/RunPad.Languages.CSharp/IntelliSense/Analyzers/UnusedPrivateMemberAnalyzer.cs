@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок шестой проход) — idea ported (not copied — own implementation, see
+// TODO.md #74 (pass 146) — idea ported (not copied — own implementation, see
 // EmptyCatchClauseAnalyzer's own doc comment for the same rationale) from Roslynator's
 // RemoveUnusedMemberDeclarationAnalyzer (RCS1213, Apache License 2.0,
 // https://github.com/dotnet/roslynator), narrowed to private fields and methods only (the two shapes
@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // neither the compiler's own CS0169 ("field is never used") nor any built-in analyzer currently
 // surfaces this for RunPad's AdhocWorkspace-based live analysis — a genuine gap, not a duplicate of
 // existing coverage (unlike, say, "introduce local variable", which turned out to already be covered
-// by a built-in CodeRefactoringProvider — see TODO.md's own note on проход 142).
+// by a built-in CodeRefactoringProvider — see TODO.md's own note on pass 142).
 //
 // Deliberately does NOT flag: anything with an attribute (could be reached via reflection/
 // serialization/DI — conservative), constructors/destructors/operators/indexers (different syntax

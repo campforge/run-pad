@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок восьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
 // RemoveRedundantEmptyObjectInitializerAnalyzer (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `new Foo() { }` — an object initializer block with no
 // member assignments in it — behaves identically to `new Foo()` without one; pure clutter.

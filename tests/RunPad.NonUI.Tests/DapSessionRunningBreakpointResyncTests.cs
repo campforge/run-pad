@@ -9,8 +9,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Live user report: "не работает динамическая установка и снятие брекпоинтов на запущенном
-// скрипте" — see DapSession.RequestBreakpointResync's own comment for the root cause: the resync
+// Live user report: "dynamic breakpoint set/unset doesn't work on a running
+// script" — see DapSession.RequestBreakpointResync's own comment for the root cause: the resync
 // used to only fire the next time HandleStoppedAsync reached its pre-resume check, which may never
 // happen at all if nothing else was ever going to stop execution again. These tests script a full
 // fake netcoredbg conversation to reach the exact window the bug lived in: past the initial

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок восьмой проход, batch) — a common, real copy-paste bug (not a Roslynator
+// TODO.md #74 (pass 148, batch) — a common, real copy-paste bug (not a Roslynator
 // port — this specific shape isn't in its catalog, but fits the same "looks like a real bug, near-zero
 // false-positive risk" bar every analyzer in this series is held to): a property whose getter returns
 // ITSELF (`get { return Foo; }` / `=> Foo;`, not a backing field) — infinite recursion, guaranteed

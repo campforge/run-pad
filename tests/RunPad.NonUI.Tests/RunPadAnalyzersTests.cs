@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 (сто сорок второй проход) — direct, real-Roslyn-compilation tests against the two new
+// TODO.md #74 (pass 142) — direct, real-Roslyn-compilation tests against the two new
 // hand-written analyzers (EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer) in isolation, one level
 // below CSharpIntelliSenseAnalyzersTests.cs's full-service integration test — faster to write many
 // shape variations against, since it skips AdhocWorkspace/preamble-offset machinery entirely.
@@ -400,7 +400,7 @@ public class RunPadAnalyzersTests
         Assert.Contains(unused, d => d.GetMessage().Contains("_b"));
     }
 
-    // ── Batch (сто сорок седьмой проход) — 1-2 tests per analyzer, per explicit user direction to
+    // ── Batch (pass 147) — 1-2 tests per analyzer, per explicit user direction to
     // trade individual test depth for throughput once the backlog of ~671 candidates was raised.
 
     [Theory]
@@ -512,7 +512,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotCallOverridableMemberInConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Second batch (сто сорок восьмой проход) — same "1-2 tests per analyzer" pace as проход 147.
+    // ── Second batch (pass 148) — same "1-2 tests per analyzer" pace as pass 147.
 
     [Theory]
     [InlineData("class C<T> { public bool M(T t) => t == null; }", true)]
@@ -604,7 +604,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotThrowFromFinallyAnalyzer.DiagnosticId));
     }
 
-    // ── Third batch (сто сорок девятый проход) — same pace as проходы 147/148.
+    // ── Third batch (pass 149) — same pace as passes 147/148.
 
     [Theory]
     [InlineData("using System; class C { public void On() { } public void M() { Action a = new Action(On); } }", true)]
@@ -651,7 +651,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConcatenateStringsInLoopAnalyzer.DiagnosticId));
     }
 
-    // ── Fourth batch (сто пятидесятый проход) — same pace as проходы 147/148/149.
+    // ── Fourth batch (pass 150) — same pace as passes 147/148/149.
 
     [Theory]
     [InlineData("class C { public void M() { var x = new int[0]; } }", true)]
@@ -698,7 +698,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantCatchThatOnlyRethrowsAnalyzer.DiagnosticId));
     }
 
-    // ── Fifth batch (сто пятьдесят первый проход) — same pace as проходы 147-150.
+    // ── Fifth batch (pass 151) — same pace as passes 147-150.
 
     [Theory]
     [InlineData("class C { public void M(string s) { s.ToUpper(); } }", true)]
@@ -736,7 +736,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseStringIsNullOrEmptyAnalyzer.DiagnosticId));
     }
 
-    // ── Sixth batch (сто пятьдесят второй проход) — same pace as проходы 147-151.
+    // ── Sixth batch (pass 152) — same pace as passes 147-151.
 
     [Theory]
     [InlineData("class C { public void M(int x) { var y = x < 0 ? -x : x; } }", true)] // Math.Abs
@@ -774,7 +774,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTryGetValueAnalyzer.DiagnosticId));
     }
 
-    // ── Seventh batch (сто пятьдесят третий проход) — same pace as проходы 147-152.
+    // ── Seventh batch (pass 153) — same pace as passes 147-152.
 
     [Theory]
     [InlineData("class C { public void M(int a, int b) { double result = a / b; } }", true)]
@@ -813,7 +813,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantOverridingPropertyAnalyzer.DiagnosticId));
     }
 
-    // ── Eighth batch (сто пятьдесят четвёртый проход) — same pace as проходы 147-153.
+    // ── Eighth batch (pass 154) — same pace as passes 147-153.
 
     [Theory]
     [InlineData("class C { public void M(int a) { var s = \"x: \" + a.ToString(); } }", true)]
@@ -842,7 +842,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferConstOverStaticReadonlyAnalyzer.DiagnosticId));
     }
 
-    // ── Ninth batch (сто пятьдесят пятый проход) — same pace as проходы 147-154.
+    // ── Ninth batch (pass 155) — same pace as passes 147-154.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var m = xs.OrderBy(x => x).First(); } }", true)]
@@ -862,7 +862,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeWhereWithTerminalLinqMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Tenth batch (сто пятьдесят шестой проход) — same pace as проходы 147-155.
+    // ── Tenth batch (pass 156) — same pace as passes 147-155.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Where(x => x > 0).Where(x => x < 10); } }", true)]
@@ -882,7 +882,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == OrderByFollowedByOrderByAnalyzer.DiagnosticId));
     }
 
-    // ── Eleventh batch (сто пятьдесят седьмой проход) — same pace as проходы 147-156.
+    // ── Eleventh batch (pass 157) — same pace as passes 147-156.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Concat(new[] { item }); } }", true)]
@@ -911,7 +911,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDiscardArmInExhaustiveSwitchExpressionAnalyzer.DiagnosticId));
     }
 
-    // ── Twelfth batch (сто пятьдесят восьмой проход) — same pace as проходы 147-157.
+    // ── Twelfth batch (pass 158) — same pace as passes 147-157.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var s = xs.Select(x => x * 2).Sum(); } }", true)]
@@ -932,8 +932,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseOppositeOrderByInsteadOfReverseAnalyzer.DiagnosticId));
     }
 
-    // ── Thirteenth batch (сто пятьдесят девятый проход) — 3 new analyzers + 3 extensions to earlier
-    // ones, same pace as проходы 147-158.
+    // ── Thirteenth batch (pass 159) — 3 new analyzers + 3 extensions to earlier
+    // ones, same pace as passes 147-158.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x); } }", true)]
@@ -980,7 +980,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeWhereWithTerminalLinqMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Fourteenth batch (сто шестидесятый проход) — same pace as проходы 147-159.
+    // ── Fourteenth batch (pass 160) — same pace as passes 147-159.
 
     [Theory]
     [InlineData("class C { public void M(int n) { var x = System.Convert.ToInt32(n); } }", true)]

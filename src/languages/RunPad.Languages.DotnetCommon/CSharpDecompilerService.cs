@@ -91,7 +91,7 @@ public static class CSharpDecompilerService
     /// classes/records a real author declared, not just compiler-generated ones) are left for the
     /// user to reach by decompiling their declaring type and reading the source, rather than listed
     /// as their own tree nodes — keeps the initial tree to "one screen per assembly" for anything
-    /// short of a huge one, matching the TODO's own scope ("дерево всех типов/namespace'ов").
+    /// short of a huge one, matching the TODO's own scope ("tree of all types/namespaces").
     /// </summary>
     public static IReadOnlyList<AssemblyTypeEntry> EnumerateTypes(string assemblyPath)
     {

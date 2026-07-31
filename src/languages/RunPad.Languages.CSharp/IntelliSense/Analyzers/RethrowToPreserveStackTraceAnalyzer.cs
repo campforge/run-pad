@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятидесятый проход, batch) — a classic, very well-known C# gotcha (not a
+// TODO.md #74 (pass 150, batch) — a classic, very well-known C# gotcha (not a
 // Roslynator port — same "real bug, near-zero false-positive risk" bar as SelfReferencingPropertyAnalyzer):
 // `catch (Exception ex) { throw ex; }` resets the exception's stack trace to this throw site, hiding
 // where it originally came from. `throw;` (no expression) rethrows the SAME exception object without

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок восьмой проход, batch) — same idea as RedundantCastAnalyzer, for `as`
+// TODO.md #74 (pass 148, batch) — same idea as RedundantCastAnalyzer, for `as`
 // instead of a C-style cast (Roslynator's own catalog treats these as separate rules too, since `as`
 // has different failure semantics — null instead of an exception — worth its own diagnostic even
 // though the "redundant" detection itself is identical).

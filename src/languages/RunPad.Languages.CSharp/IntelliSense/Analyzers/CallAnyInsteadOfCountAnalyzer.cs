@@ -6,12 +6,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок седьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
 // UseAnyMethodInsteadOfCountMethodAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `xs.Count() > 0` (or `!= 0`/`== 0`) walks the ENTIRE sequence just to compare the total against
 // zero — `xs.Any()` stops at the first element. Same LINQ-hygiene theme as the Count/Length-property
 // analyzer next to this one, just for the case where there's no O(1) property to fall back on.
-// Extended (сто пятьдесят девятый проход, batch) to also cover the predicate-accepting overload —
+// Extended (pass 159, batch) to also cover the predicate-accepting overload —
 // `xs.Count(pred) > 0` walks the whole sequence counting matches just to compare against zero;
 // `xs.Any(pred)` stops at the first match.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

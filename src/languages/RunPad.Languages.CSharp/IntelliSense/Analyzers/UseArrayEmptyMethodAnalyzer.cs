@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятидесятый проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 150, batch) — idea ported from Roslynator's
 // UseArrayEmptyMethodAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator). `new T[0]`
 // allocates a fresh, distinct zero-length array object every time it runs; `Array.Empty<T>()` returns
 // the same cached singleton instance for a given T, allocating nothing.

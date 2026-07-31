@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "умное переименование" — CodeTextEditor's own half of F2 rename is just "recognize
+// TODO.md #62 "smart rename" — CodeTextEditor's own half of F2 rename is just "recognize
 // the keypress and raise RenameSymbolRequested"; the host (EditorTabItemControl) resolves what's
 // renameable and drives the actual dialog/edit (see EditorTabItemControlRenameEditsTests.cs for
 // that part, and CSharpIntelliSenseRenameTests.cs for symbol resolution) — this only needs to prove

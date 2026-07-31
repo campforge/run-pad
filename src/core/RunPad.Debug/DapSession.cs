@@ -142,8 +142,8 @@ public sealed class DapSession : IDapSession
         // A gutter edit made while the debuggee is genuinely running (not paused) has no guaranteed
         // future "stopped" event to piggyback HandleStoppedAsync's own resync check on — if nothing
         // else ever stops execution again, the flag above just sits unconsumed and the edit silently
-        // never reaches netcoredbg (live user report: "не работает динамическая установка и снятие
-        // брекпоинтов на запущенном скрипте"). Fire the resend immediately instead of waiting.
+        // never reaches netcoredbg (live user report: "dynamically setting and removing breakpoints
+        // doesn't work on a running script"). Fire the resend immediately instead of waiting.
         if (!_isPaused)
             _ = SendBreakpointsWhileRunningAsync();
     }

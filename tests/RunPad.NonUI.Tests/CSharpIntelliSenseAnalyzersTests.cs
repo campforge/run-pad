@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "Пайплайн анализаторов" (сто третий проход) — RoslynAnalyzerEngine, wired into
+// TODO.md #74 "analyzer pipeline" (pass 103) — RoslynAnalyzerEngine, wired into
 // NotifyTextChanged's existing background pass alongside the compiler's own diagnostics (see
 // CSharpIntelliSenseBackgroundAnalysisTests.cs for that shared pass's other coverage). Real
 // Microsoft.CodeAnalysis.CSharp.Features IDE0xxx analyzers, not mocked — same rationale as every
@@ -45,8 +45,8 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // IDE0040 ("Accessibility modifiers required") fires at Hidden severity — invisible as a
     // squiggle, but its existence is what makes CSharpAddAccessibilityModifiersCodeFixProvider (a
-    // real CodeFixProvider, already discovered by RoslynCodeFixEngine since the проход before this
-    // one) able to fire at all. Before this проход, ComputeDiagnosticsAndCodeFixesAsync only ever
+    // real CodeFixProvider, already discovered by RoslynCodeFixEngine since the pass before this
+    // one) able to fire at all. Before this pass, ComputeDiagnosticsAndCodeFixesAsync only ever
     // computed COMPILER diagnostics — the C# compiler doesn't warn about missing accessibility
     // modifiers (implicit `private` is perfectly legal C#), so this fix could never have appeared,
     // full stop, regardless of anything RoslynCodeFixEngine itself does right.
@@ -107,7 +107,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Equal(1, onlyLine);
     }
 
-    // TODO.md #74 (сто сорок второй проход) — proves RoslynAnalyzerEngine's own-assembly reflection
+    // TODO.md #74 (pass 142) — proves RoslynAnalyzerEngine's own-assembly reflection
     // extension (added alongside RunPad.Languages.CSharp.IntelliSense.Analyzers.
     // EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer) actually wires a hand-written analyzer all
     // the way through the SAME live pipeline the tests above prove for Microsoft's built-in ones — not
@@ -131,7 +131,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Empty catch", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок третий проход) — same end-to-end proof as above, for the newest
+    // TODO.md #74 (pass 143) — same end-to-end proof as above, for the newest
     // hand-written analyzer (NotImplementedExceptionAnalyzer). Info severity — still visible (only
     // Hidden is filtered out of the squiggle list, see ComputeDiagnosticsAndCodeFixesAsync).
     [Fact]
@@ -152,7 +152,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("NotImplementedException", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок четвёртый проход) — same end-to-end proof as above, for
+    // TODO.md #74 (pass 144) — same end-to-end proof as above, for
     // InvalidArgumentNullCheckAnalyzer.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnInvalidArgumentNullCheckAnalyzer()
@@ -172,7 +172,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("is checked for null", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок пятый проход) — same end-to-end proof as above, for
+    // TODO.md #74 (pass 145) — same end-to-end proof as above, for
     // CultureSensitiveStringCompareAnalyzer.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnCultureSensitiveStringCompareAnalyzer()
@@ -191,10 +191,10 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("current culture", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок шестой проход) — same end-to-end proof as above, for
-    // UnusedPrivateMemberAnalyzer. Also the concrete proof behind that проход's own claim that neither
+    // TODO.md #74 (pass 146) — same end-to-end proof as above, for
+    // UnusedPrivateMemberAnalyzer. Also the concrete proof behind that pass's own claim that neither
     // the compiler's CS0169 nor any built-in analyzer already covers this (see PROBE tests mentioned,
-    // now removed, in that проход's TODO.md write-up).
+    // now removed, in that pass's TODO.md write-up).
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForRunPadsOwnUnusedPrivateMemberAnalyzer()
     {
@@ -212,8 +212,8 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("is never used", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок седьмой проход, batch) — one combined end-to-end proof for the whole
-    // 12-analyzer batch added in that проход, rather than one test per analyzer (explicit user
+    // TODO.md #74 (pass 147, batch) — one combined end-to-end proof for the whole
+    // 12-analyzer batch added in that pass, rather than one test per analyzer (explicit user
     // direction: fewer tests per item once the backlog size made per-item depth impractical). Each
     // analyzer's own unit-level positive/negative cases live in RunPadAnalyzersTests.cs; this only
     // confirms RoslynAnalyzerEngine's reflection discovery still finds every new class and merges
@@ -241,7 +241,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToString", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок восьмой проход, batch) — same rationale as the проход 147 combined test
+    // TODO.md #74 (pass 148, batch) — same rationale as the pass 147 combined test
     // above: one end-to-end proof for the whole 10-analyzer batch instead of one per analyzer.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSecondBatch()
@@ -261,7 +261,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("redundant", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто сорок девятый проход, batch) — same rationale as the проход 147/148 combined
+    // TODO.md #74 (pass 149, batch) — same rationale as the pass 147/148 combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirdBatch()
@@ -282,7 +282,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("StringBuilder", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятидесятый проход, batch) — same rationale as the проход 147/148/149 combined
+    // TODO.md #74 (pass 150, batch) — same rationale as the pass 147/148/149 combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFourthBatch()
@@ -302,7 +302,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("NaN", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят первый проход, batch) — same rationale as the проход 147-150
+    // TODO.md #74 (pass 151, batch) — same rationale as the pass 147-150
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFifthBatch()
@@ -322,7 +322,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrEmpty", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят второй проход, batch) — same rationale as the проход 147-151
+    // TODO.md #74 (pass 152, batch) — same rationale as the pass 147-151
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSixthBatch()
@@ -343,7 +343,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("TryGetValue", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят третий проход, batch) — same rationale as the проход 147-152
+    // TODO.md #74 (pass 153, batch) — same rationale as the pass 147-152
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSeventhBatch()
@@ -364,7 +364,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("does not handle", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят четвёртый проход, batch) — same rationale as the проход 147-153
+    // TODO.md #74 (pass 154, batch) — same rationale as the pass 147-153
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEighthBatch()
@@ -385,7 +385,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("never be negative", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят пятый проход, batch) — same rationale as the проход 147-154 combined
+    // TODO.md #74 (pass 155, batch) — same rationale as the pass 147-154 combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheNinthBatch()
@@ -406,7 +406,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("simplified to", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят шестой проход, batch) — same rationale as the проход 147-155
+    // TODO.md #74 (pass 156, batch) — same rationale as the pass 147-155
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTenthBatch()
@@ -427,7 +427,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("starts over", StringComparison.OrdinalIgnoreCase));
     }
 
-    // TODO.md #74 (сто пятьдесят седьмой проход, batch) — same rationale as the проход 147-156
+    // TODO.md #74 (pass 157, batch) — same rationale as the pass 147-156
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEleventhBatch()
@@ -448,7 +448,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("FirstOrDefault", StringComparison.Ordinal));
     }
 
-    // TODO.md #74 (сто пятьдесят восьмой проход, batch) — same rationale as the проход 147-157
+    // TODO.md #74 (pass 158, batch) — same rationale as the pass 147-157
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwelfthBatch()
@@ -469,7 +469,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("OrderByDescending", StringComparison.Ordinal));
     }
 
-    // TODO.md #74 (сто пятьдесят девятый проход, batch) — same rationale as the проход 147-158
+    // TODO.md #74 (pass 159, batch) — same rationale as the pass 147-158
     // combined tests above; covers both brand-new analyzers and the extended coverage of earlier ones.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirteenthBatch()
@@ -491,7 +491,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("StringBuilder.Append", StringComparison.Ordinal));
     }
 
-    // TODO.md #74 (сто шестидесятый проход, batch) — same rationale as the проход 147-159 combined
+    // TODO.md #74 (pass 160, batch) — same rationale as the pass 147-159 combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFourteenthBatch()

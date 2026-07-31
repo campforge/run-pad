@@ -96,7 +96,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
 
         var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
 
-        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): CodeFixesChanged's
+        // TODO.md #74 "IntelliSenseService optimization" (pass 104): CodeFixesChanged's
         // own entries no longer carry UsingsToAdd (that's materialized on demand now, see
         // ICodeFixInfo's own doc comment) — materialize each candidate to find the one that actually
         // adds the expected using, same as a real click would.

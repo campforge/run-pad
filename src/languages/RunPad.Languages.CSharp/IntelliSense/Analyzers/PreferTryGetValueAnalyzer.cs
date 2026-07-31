@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят второй проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 152, batch) — idea ported from Roslynator's
 // UseTryGetValueMethodAnalyzer-adjacent family (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `dict.ContainsKey(k) ? dict[k] : fallback` looks up the same key TWICE — once to check it exists,
 // once to read it — `dict.TryGetValue(k, out var v) ? v : fallback` does both in a single lookup.

@@ -6,8 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят первый проход, batch) — same LINQ-hygiene theme as UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer/
-// CallAnyInsteadOfCountAnalyzer (RPAD0015/RPAD0017, проход 147): `xs.ToList().Count`/`xs.ToArray().Length`
+// TODO.md #74 (pass 151, batch) — same LINQ-hygiene theme as UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer/
+// CallAnyInsteadOfCountAnalyzer (RPAD0015/RPAD0017, pass 147): `xs.ToList().Count`/`xs.ToArray().Length`
 // materializes the ENTIRE sequence into a new list/array just to read its count — `xs.Count()`
 // (LINQ's own Enumerable.Count(), which the earlier CallAnyInsteadOfCountAnalyzer already knows to
 // prefer Any() over when comparing to zero, but is still the right call here) gets the same number

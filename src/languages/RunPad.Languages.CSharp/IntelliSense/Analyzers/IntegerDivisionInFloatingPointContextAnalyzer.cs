@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят третий проход, batch) — a classic, extremely common C#/Java-family bug
+// TODO.md #74 (pass 153, batch) — a classic, extremely common C#/Java-family bug
 // (own pick, not a Roslynator port — same "real bug" bar as SelfReferencingPropertyAnalyzer/
 // CompareNaNCorrectlyAnalyzer): `double result = a / b;` where a and b are both integers performs
 // INTEGER division first (truncating any fractional part), and only THEN converts the truncated

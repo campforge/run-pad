@@ -170,7 +170,7 @@ public class MainWindowHotkeysTests
         Assert.Equal(tabCountBefore - 1, vm.Tabs.Count);
     }
 
-    // TODO.md, "Жизненный цикл вкладок (остаток)": Ctrl+W used to call MainWindowViewModel.
+    // TODO.md, "tab lifecycle (leftover)": Ctrl+W used to call MainWindowViewModel.
     // CloseActiveTab directly, bypassing whatever EditorTabsControl.RequestCloseTabAsync does —
     // confirms the hotkey path now goes through the same unsaved-changes confirmation as the tab's
     // own [x] button (see EditorTabsControlCloseConfirmationTests for the confirmation flow itself).

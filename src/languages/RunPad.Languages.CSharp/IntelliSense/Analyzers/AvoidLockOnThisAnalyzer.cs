@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок седьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
 // AvoidLockingOnPubliclyAccessibleInstanceAnalyzer (Apache License 2.0,
 // https://github.com/dotnet/roslynator), narrowed to its single most unambiguous case: `lock (this)`.
 // Any external caller holding a reference to the same object can lock on it too, deadlocking
