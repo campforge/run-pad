@@ -1688,4 +1688,51 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RedundantConfigureAwaitTrueAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConfigureAwaitTrueAnalyzer.DiagnosticId));
     }
+
+    // ── Twenty-eighth batch (сто семьдесят четвёртый проход) — five new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public async Task<int> M(Task<int> t) { return t.Result; } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public async Task<int> M(Task<int> t) { return await t; } }", false)]
+    public async Task TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer_Should_NotFlag_AnAwait(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M() { System.GC.Collect(); } }", true)]
+    [InlineData("class C { public void M() { System.GC.SuppressFinalize(this); } }", false)]
+    public async Task ManualGCCollectAnalyzer_Should_NotFlag_OtherGCMethods(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ManualGCCollectAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ManualGCCollectAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; class C { public void M() { for (int i = 0; i < 10; i++) { var r = new Random(); r.Next(); } } }", true)]
+    [InlineData("using System; class C { public void M() { var r = new Random(); for (int i = 0; i < 10; i++) { r.Next(); } } }", false)]
+    public async Task RandomInstantiatedInLoopAnalyzer_Should_NotFlag_ARandomHoistedOutsideTheLoop(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RandomInstantiatedInLoopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RandomInstantiatedInLoopAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.AsEnumerable(); } ", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(List<int> xs) => xs.AsEnumerable(); } ", false)]
+    public async Task RedundantAsEnumerableAnalyzer_Should_NotFlag_AMoreSpecificReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantAsEnumerableAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsEnumerableAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(object x) { return object.Equals(x, null); } }", true)]
+    [InlineData("class C { public bool M(object x) { return x is null; } }", false)]
+    public async Task PreferIsNullOverStaticObjectEqualsAnalyzer_Should_NotFlag_AnIsNullPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsNullOverStaticObjectEqualsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOverStaticObjectEqualsAnalyzer.DiagnosticId));
+    }
 }

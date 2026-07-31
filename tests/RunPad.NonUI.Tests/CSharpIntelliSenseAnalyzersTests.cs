@@ -1,6 +1,6 @@
+using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Contracts.IntelliSense;
-using System.Linq;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
 using Xunit;
@@ -793,5 +793,26 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("string interpolation", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(diagnostics, d => d.Message.Contains("!=", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто семьдесят четвёртый проход, batch) — same rationale as the проход 147-173
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() { System.GC.Collect(); } " +
+            "public bool N(object x) { return object.Equals(x, null); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("GC.Collect", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("is null", StringComparison.Ordinal));
     }
 }
