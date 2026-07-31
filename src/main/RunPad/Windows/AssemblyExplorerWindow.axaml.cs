@@ -19,7 +19,7 @@ namespace RunPad.Windows;
 ///  - "Edit → Assembly Explorer..." — an arbitrary DLL the user picks via <see cref="BrowseAsync"/>,
 ///    nothing decompiled until a type is picked from the tree.
 /// F12 inside the source pane keeps working recursively either way (<see cref="NavigateAsync"/>,
-/// девяносто шестой проход) — it resolves against the currently-shown <see cref="SyntaxTree"/>, not
+/// pass 96) — it resolves against the currently-shown <see cref="SyntaxTree"/>, not
 /// against whatever's loaded in the tree, so it also works for entry points where nothing was
 /// browsed via the tree at all.
 /// </summary>
@@ -197,7 +197,7 @@ public partial class AssemblyExplorerWindow : Window
 
         // Back on the UI thread already — Avalonia's own SynchronizationContext resumes the
         // continuation here, same as EditorTabItemControl.ShowGoToDefinitionAsync's identical
-        // await Task.Run(...) pattern (see девяносто шестой проход for why an explicit
+        // await Task.Run(...) pattern (see pass 96 for why an explicit
         // Dispatcher.Post here was a real, caught-by-test bug, not just unnecessary).
         ApplyResult(next);
     }

@@ -6,13 +6,13 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят пятый проход, batch) — same LINQ-hygiene theme as
+// TODO.md #74 (pass 155, batch) — same LINQ-hygiene theme as
 // PreferMinByMaxByOverOrderByFirstAnalyzer next to this one. `xs.Where(pred).First()` (or
 // FirstOrDefault/Single/SingleOrDefault/Any/Last/LastOrDefault) builds an intermediate filtered
 // sequence just to immediately consume it — every one of these methods has its own predicate-accepting
 // overload (`xs.First(pred)`) that does the same filtering in a single pass, without the extra
 // iterator.
-// Extended (сто пятьдесят девятый проход, batch) to also cover Count — but only when the Where().Count()
+// Extended (pass 159, batch) to also cover Count — but only when the Where().Count()
 // invocation ISN'T itself being compared to zero, since CallAnyInsteadOfCountAnalyzer (RPAD0017)
 // already flags that exact shape with a strictly better suggestion (Any(pred) beats Count(pred) > 0)
 // — reporting both here would double-message the same span.

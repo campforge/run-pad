@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят шестой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 156, batch) — idea ported from Roslynator's
 // CombineEnumerableWhereMethodChainAnalyzer, extended to Select as well (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `xs.Where(a).Where(b)` and `xs.Select(f).Select(g)` each
 // build and iterate an extra intermediate sequence for no reason — `xs.Where(x => a(x) && b(x))`/

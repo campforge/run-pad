@@ -12,7 +12,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #63 "интерактивный типизированный ввод" — ILanguageHost.InputRequested/SendInputAsync, the
+// TODO.md #63 "interactive typed input" — ILanguageHost.InputRequested/SendInputAsync, the
 // host-side half of RunPad.Runtime.Util.ReadLine/GetPassword (see UtilTests.cs for the runtime-side
 // half). '\x1f' below mirrors RunPad.Runtime.Util.InputRequestPrefixChar/
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not

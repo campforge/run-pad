@@ -6,8 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестидесятый проход, batch) — the "write" counterpart to PreferTryGetValueAnalyzer
-// (RPAD0046, проход 152, which covers the "read" shape: ContainsKey + indexer get). `if
+// TODO.md #74 (pass 160, batch) — the "write" counterpart to PreferTryGetValueAnalyzer
+// (RPAD0046, pass 152, which covers the "read" shape: ContainsKey + indexer get). `if
 // (!dict.ContainsKey(k)) dict[k] = v;` looks up the same key twice — once to check absence, once to
 // insert — `dict.TryAdd(k, v)` does both in a single lookup. Matched structurally (receiver and key
 // must appear literally the same — SyntaxNode.IsEquivalentTo) plus a semantic check that the

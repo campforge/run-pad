@@ -11,7 +11,7 @@ namespace RunPad.Runtime.UI.Tests;
 // live in EditorTabItemControl.UpdateOutputUi, directly against a bare HtmlPanel x:Name="OutputHtml"
 // declared in its own .axaml — moved into this dedicated control, which now binds to an
 // OutputHtmlViewModel (DataContext) rather than being pushed content through an imperative
-// SetContent(css, content) call — see ANALYSIS.md's "Доследование" on the тридцать пятый проход for
+// SetContent(css, content) call — see ANALYSIS.md's "Follow-up" on pass 35 for
 // why: Css changes once at startup/theme switch, Content on every output line, and a single method
 // taking both meant every write site had to pass the (almost always unchanged) Css back in.
 public class OutputHtmlViewTests
@@ -54,8 +54,8 @@ public class OutputHtmlViewTests
         Assert.Contains("<div>999</div></body>", view.RenderedHtml);
     }
 
-    // Live bug report: "переодически пропадает вывод в results если в процессе работы скрипта
-    // переключать вкладки" (output periodically disappears if you switch tabs while a script is
+    // Live bug report: "output in the results panel periodically disappears if you switch tabs
+    // while a script is running" (output periodically disappears if you switch tabs while a script is
     // running). DataContext (State.Output) is set exactly once per tab and never reassigned
     // (EditorTabItemControl.cs:75) — but switching away from a tab (either the outer file tabs, or
     // this control's own sibling Results/Debugger tabs, EditorTabItemControl.axaml) detaches this

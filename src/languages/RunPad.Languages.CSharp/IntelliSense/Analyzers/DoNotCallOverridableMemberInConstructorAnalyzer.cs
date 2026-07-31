@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок седьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
 // DoNotCallOverridableMemberInConstructorAnalyzer (Apache License 2.0,
 // https://github.com/dotnet/roslynator). A virtual/abstract/overridable call from a constructor can
 // dispatch to a DERIVED class's override before that derived class's own field initializers have run —

@@ -6,8 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят четвёртый проход, batch) — a natural sibling of
-// RemoveRedundantToStringCallAnalyzer (RPAD0012, проход 147): that one catches `.ToString()` on an
+// TODO.md #74 (pass 154, batch) — a natural sibling of
+// RemoveRedundantToStringCallAnalyzer (RPAD0012, pass 147): that one catches `.ToString()` on an
 // expression whose static type is already string; this one catches `.ToString()` on ANY type when
 // it's a direct operand of a string `+` concatenation — the '+' operator already stringifies the
 // other operand implicitly, so the explicit call adds nothing there either.

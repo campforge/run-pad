@@ -8,8 +8,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Live user report ("если нажать ctrl+c и нет выбранных символов, то копируется вся строка, вместе
-// с переносом" / same for Ctrl+X): the forked AvaloniaEdit's EditingCommandHandler already implements
+// Live user report ("if you press ctrl+c with no characters selected, the whole line gets copied,
+// including the line break" / same for Ctrl+X): the forked AvaloniaEdit's EditingCommandHandler already implements
 // this exact behavior (OnCopy/OnCut fall back to CopyWholeLine when TextArea.Selection.IsEmpty), gated
 // behind TextEditorOptions.CutCopyWholeLine, whose class-level default is already `true` — and RunPad's
 // CodeTextEditor never overrides it. Nothing here was RunPad-specific code to write; these tests exist

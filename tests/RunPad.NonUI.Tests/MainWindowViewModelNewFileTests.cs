@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Жизненный цикл вкладок": NewRpadFile used to write a real (sample-boilerplate-filled)
+// TODO.md, "tab lifecycle": NewRpadFile used to write a real (sample-boilerplate-filled)
 // file to disk immediately via IFileSystemService.CreateNewFile — a script only started existing on
 // disk (and in the file tree) once the user explicitly saved it. language/kind are now carried on
 // the tab itself (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter

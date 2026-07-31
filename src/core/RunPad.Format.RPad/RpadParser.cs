@@ -5,7 +5,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace RunPad.Format.RPad;
 
-/// ToDo: надо разобраться со стримом, причем иметь возможность взять непосредственно стрим кода игнорируя заголовки
+/// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
 public static class RpadParser
 {
     private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()

@@ -77,7 +77,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
 
-        // TODO.md, "Жизненный цикл вкладок (остаток)": restores the previous session's open tabs
+        // TODO.md, "tab lifecycle (leftover)": restores the previous session's open tabs
         // (in order) + active tab instead of always starting from one blank tab.
         vm.RestoreSession();
     }
@@ -259,7 +259,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         vm.CloseCommand.Execute().Subscribe();
     }
 
-    // TODO.md, "Жизненный цикл вкладок (остаток)": the per-tab confirmation above only fires when a
+    // TODO.md, "tab lifecycle (leftover)": the per-tab confirmation above only fires when a
     // SPECIFIC tab is closed — quitting the whole app skipped it entirely, discarding every unsaved
     // untitled tab's content at once with no warning. MainWindow's Closing handler checks this first
     // (cheap, synchronous) before deciding whether it even needs to cancel the close and await
@@ -316,7 +316,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // internal (not private): lets tests inspect the built menu's items/headers/click-wiring
     // directly, rather than only through the ContextMenu popup interaction itself, which headless
-    // Avalonia has no reliable way to drive. TODO.md, "Полоса вкладок": built fresh on every click
+    // Avalonia has no reliable way to drive. TODO.md, "tab strip": built fresh on every click
     // (not a persistent binding — this control doesn't set its own DataContext to the ViewModel, it
     // talks to it through _vm directly everywhere else too) rather than keeping one around that
     // would go stale the moment a tab opens/closes.

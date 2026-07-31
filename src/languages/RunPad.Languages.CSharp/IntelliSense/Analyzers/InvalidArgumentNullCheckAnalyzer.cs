@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок четвёртый проход) — idea ported (not copied — own implementation, see
+// TODO.md #74 (pass 144) — idea ported (not copied — own implementation, see
 // EmptyCatchClauseAnalyzer's own doc comment for the same rationale) from Roslynator's
 // InvalidArgumentNullCheckAnalyzer (RCS1256, Apache License 2.0,
 // https://github.com/dotnet/roslynator). A guard clause like `if (a == null) throw new

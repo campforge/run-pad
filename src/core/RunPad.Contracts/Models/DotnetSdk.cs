@@ -1,6 +1,6 @@
 namespace RunPad.Contracts.Models;
 
-// DoTo: это относится к конкретному языку C#/VB/F#
+// DoTo: this is specific to a particular language (C#/VB/F#)
 public class DotnetSdk
 {
     public string Name { get; }

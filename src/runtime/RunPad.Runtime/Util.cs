@@ -74,7 +74,7 @@ public static class Util
 
     // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cache/CacheAsync: a persistent cache keyed by an
     // explicit string, not auto-derived from the call site (no decompiled reference for LINQPad's own
-    // default-key behavior was available to check against — see this bucket's own "по построению"
+    // default-key behavior was available to check against — see this bucket's own "by construction"
     // framing — so a required, explicit key avoids guessing at magic behavior). Entries live under the
     // same UserData folder as Save*/Load* (a "Cache" subdirectory), as a small JSON envelope carrying
     // an optional expiry alongside the value, so no second side-channel file is needed for the TTL.
@@ -357,7 +357,7 @@ public static class Util
     /// Runs <paramref name="action"/>, returning any exception it throws instead of letting it
     /// propagate (<see langword="null"/> if it completed without throwing) — LINQPad-inspired
     /// <c>Util.Try</c>. No decompiled reference for this one's exact original signature was available
-    /// to check against (see TODO.md #111's own note on this bucket being "по построению", not a
+    /// to check against (see TODO.md #111's own note on this bucket being "by construction", not a
     /// byte-for-byte port); this is a straightforward, self-contained try/catch wrapper only.
     /// </summary>
     public static Exception? Try(Action action)

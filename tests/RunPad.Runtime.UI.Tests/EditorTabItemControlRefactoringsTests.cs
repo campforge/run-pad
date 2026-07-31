@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "CodeRefactoringProvider хостинг в лампочке" — the lightbulb margin now merges two
+// TODO.md #74 "CodeRefactoringProvider hosting in the lightbulb" — the lightbulb margin now merges two
 // independent sources (EditorTabItemControl.SetupEditor's own doc comment has the full rationale):
 // diagnostic-driven fixes (CodeFixesChanged, pushed on text change) and caret-position-driven
 // refactorings (GetRefactoringsAsync, pulled on caret move, debounced). These tests drive a REAL

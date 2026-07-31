@@ -6,8 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят четвёртый проход, batch) — same "always false" family as
-// UnsignedValueNeverLessThanZeroAnalyzer (RPAD0007, проход 147), for a different reason: `.Length`/
+// TODO.md #74 (pass 154, batch) — same "always false" family as
+// UnsignedValueNeverLessThanZeroAnalyzer (RPAD0007, pass 147), for a different reason: `.Length`/
 // `.Count` on string/array/the standard collection interfaces is documented to never be negative, so
 // `x.Length < 0` is always false regardless of the type being a plain (signed) int. Deliberately
 // restricted to a short, known-safe list of properties (string.Length, array Length, ICollection(<T>)/

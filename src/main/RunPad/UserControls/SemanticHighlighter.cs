@@ -4,7 +4,7 @@ using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
 
-// ToDo: Перенести в RunPad.Avalonia.CodeTextEditor
+// ToDo: Move to RunPad.Avalonia.CodeTextEditor
 internal sealed class SemanticHighlighter : DocumentColorizingTransformer
 {
     private IReadOnlyList<ISemanticToken> _tokens = [];

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок второй проход) — idea ported (not copied — own implementation, see
+// TODO.md #74 (pass 142) — idea ported (not copied — own implementation, see
 // EmptyCatchClauseAnalyzer's own doc comment for the same rationale) from Roslynator's
 // DuplicateEnumValueAnalyzer (RCS1234, Apache License 2.0, https://github.com/dotnet/roslynator).
 // Two enum members sharing the same underlying value is almost always a copy-paste mistake — nearly

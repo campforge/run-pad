@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок девятый проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 149, batch) — idea ported from Roslynator's
 // UseMethodGroupInsteadOfAnonymousFunctionAnalyzer / explicit-delegate-creation family (Apache
 // License 2.0, https://github.com/dotnet/roslynator). `new EventHandler(OnClick)` (explicitly
 // constructing a delegate from a method group/lambda) is always redundant — C# converts a method

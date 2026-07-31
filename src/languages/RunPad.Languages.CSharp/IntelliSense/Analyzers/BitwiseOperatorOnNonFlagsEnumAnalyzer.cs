@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятидесятый проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 150, batch) — idea ported from Roslynator's
 // EnumShouldDeclareFlagAttribute-adjacent analyzers (Apache License 2.0,
 // https://github.com/dotnet/roslynator). Combining enum members with `|`/`&`/`^` only makes sense if
 // the enum's values are distinct bit flags — an enum without `[Flags]` almost always uses its default

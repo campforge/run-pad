@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят седьмой проход, batch) — same LINQ-hygiene theme as the проходы 155/156
+// TODO.md #74 (pass 157, batch) — same LINQ-hygiene theme as the passes 155/156
 // batch. `xs.FirstOrDefault(pred) != null` finds and returns the whole matching element just to
 // immediately throw it away and keep only whether one existed — `xs.Any(pred)` says exactly that,
 // directly, and reads the same either way regardless of what the found element's default value for T

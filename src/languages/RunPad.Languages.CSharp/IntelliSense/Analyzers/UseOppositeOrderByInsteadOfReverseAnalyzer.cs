@@ -6,15 +6,15 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят восьмой проход, batch) — same LINQ-hygiene theme as
-// OrderByFollowedByOrderByAnalyzer (RPAD0056, проход 155). `xs.OrderBy(key).Reverse()` sorts
+// TODO.md #74 (pass 158, batch) — same LINQ-hygiene theme as
+// OrderByFollowedByOrderByAnalyzer (RPAD0056, pass 155). `xs.OrderBy(key).Reverse()` sorts
 // ascending and then reverses the whole sequence in a second pass — `xs.OrderByDescending(key)` gets
 // the same result (assuming a stable sort, which OrderBy/OrderByDescending both are) in one pass and
 // reads more directly as intent. Same reasoning applies to OrderBy(...).ThenBy(...) chains — deliberately
 // only handles the single-key case, since reversing a multi-key ThenBy chain isn't equivalent to just
 // flipping each key to descending in general (it changes tie-breaking order only when combined with
 // a prior descending key), so this analyzer bails out on any ThenBy in between.
-// Extended (сто пятьдесят девятый проход, batch), and renamed from
+// Extended (pass 159, batch), and renamed from
 // UseOrderByDescendingInsteadOfOrderByThenReverseAnalyzer to match, to also cover the mirrored
 // direction — `xs.OrderByDescending(key).Reverse()` → `xs.OrderBy(key)` — same reasoning, same
 // diagnostic ID (RPAD0061), just symmetric.

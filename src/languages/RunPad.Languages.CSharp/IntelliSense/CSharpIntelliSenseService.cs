@@ -180,7 +180,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private RpadKind _kind = RpadKind.Statements;
     private string _lastCode = "";
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): the full synced document
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104): the full synced document
     // text (preamble + KindPrefix + code + TrailingPad) and the live SourceText it produced, kept
     // alongside _lastCode so SyncDocument can hand Roslyn a minimal TextChange (ComputeMinimalChange)
     // against _lastSourceText instead of rebuilding the whole document from a fresh string on every
@@ -376,7 +376,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             {
                 var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
 
-                // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): hand Roslyn a
+                // TODO.md #74 "IntelliSenseService optimization" (pass 104): hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
                 // one from a full string — see _lastFullText/_lastSourceText's own doc comment for why
                 // (incremental lexing/parsing reuse) and the measured impact. Only the very first sync,
@@ -1104,7 +1104,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
                 .ToList();
 
-            // TODO.md #60.9 ("все перегрузки"): Roslyn only populates CandidateSymbols when
+            // TODO.md #60.9 ("all overloads"): Roslyn only populates CandidateSymbols when
             // resolution is ambiguous — a call already typed correctly and unambiguously resolves
             // straight to one Symbol, which used to collapse "all overloads" down to just that one
             // even when the method has siblings (the insight window's up/down cycling had nothing
@@ -1337,7 +1337,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Document Highlights ──────────────────────────────────────────────────────
 
-    // TODO.md #62 "подсветка вхождений": Roslyn ships a ready-made IDocumentHighlightsService for
+    // TODO.md #62 "occurrence highlighting": Roslyn ships a ready-made IDocumentHighlightsService for
     // exactly this, but it (and its result types DocumentHighlights/HighlightSpan) are internal to
     // Microsoft.CodeAnalysis.Features — not reachable from here even though that assembly is already
     // loaded into RunPadRoslynHost's MEF composition (confirmed directly: referencing the type by
@@ -1636,7 +1636,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
     }
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the deferred half of
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the deferred half of
     // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings, see IIntelliSenseService.
     // MaterializeFixAsync's own doc comment. No SyncDocument call here — the cached CodeAction
     // RoslynCodeFixEngine looks key up already carries its own document snapshot internally (captured
@@ -1827,7 +1827,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
-        // TODO.md #74 "Пайплайн анализаторов" — Roslyn's own IDE-style analyzers ("use var", "make
+        // TODO.md #74 "analyzer pipeline" — Roslyn's own IDE-style analyzers ("use var", "make
         // readonly", ...) alongside the compiler's own diagnostics. GetCompilationAsync is the same
         // cached compilation model.GetDiagnostics() already reads from (Roslyn caches per Project
         // version), not a second build.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок восьмой проход, batch) — idea ported from Roslynator's
+// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
 // RemoveRedundantBaseConstructorCallAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // An explicit `: base()` with no arguments is exactly what the compiler already inserts implicitly
 // when the initializer is omitted — writing it out adds nothing.

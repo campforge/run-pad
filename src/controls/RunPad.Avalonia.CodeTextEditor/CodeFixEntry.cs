@@ -11,7 +11,7 @@ public enum CodeFixSeverity
     Error,
 }
 
-// TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — one available quick fix/
+// TODO.md #74 "IntelliSenseService optimization" (pass 104) — one available quick fix/
 // refactoring for a given 1-based line. Deliberately carries no applied text: materializing that
 // (running the fix provider's own document transform, then diffing it) turned out to be the
 // dominant cost in the whole IntelliSense pipeline when done eagerly for every candidate on every
@@ -23,7 +23,7 @@ public enum CodeFixSeverity
 // FixApplyRequested → EditorTabItemControl). DiagnosticId mirrors ICodeFixInfo.DiagnosticId — a
 // plain nullable string, same as Title/Key, so carrying it doesn't add a RunPad.Contracts dependency
 // — it's null for a caret-position-triggered refactoring, which has no underlying diagnostic to key
-// off (сто шестой проход, user request 2026-07-21). Defaults to null rather than being required —
+// off (pass 106, user request 2026-07-21). Defaults to null rather than being required —
 // most call sites (every test that isn't specifically about ID-based exclusion filtering) don't care
 // about it, same rationale as ICodeFixInfo's real implementation defaulting it for refactorings.
 public sealed record CodeFixEntry(int Line, string Title, CodeFixSeverity Severity, string Key, string? DiagnosticId = null);

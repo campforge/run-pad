@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Cli.Tests;
 
-// TODO.md #40 follow-up (user: "хочу чтобы html выводился красиво ... Spectre.Console"): these dump
+// TODO.md #40 follow-up (user: "I want the html output to look nice ... Spectre.Console"): these dump
 // real DumpRenderer-shaped HTML fragments through DumpHtmlSpectreRenderer into a TestConsole and
 // assert on the captured plain output — the exact box-drawing/ANSI bytes aren't pinned (fragile,
 // Spectre-version-dependent), just that the right text made it through in the right shape.

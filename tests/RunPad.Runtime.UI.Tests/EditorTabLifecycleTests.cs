@@ -16,7 +16,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Жизненный цикл вкладок": a brand-new script starts empty and in-memory-only (no disk
+// TODO.md, "tab lifecycle": a brand-new script starts empty and in-memory-only (no disk
 // write until Save/Save As — see MainWindowViewModel.NewRpadFile), and its tab tracks whether it has
 // unsaved changes (EditorTabItemViewModel.IsDirty, shown as yellow tab text).
 public class EditorTabLifecycleTests

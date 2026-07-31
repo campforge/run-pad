@@ -16,14 +16,14 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "ILSpy-обозреватель сборок" (user request 2026-07-19; merged with the standalone
+// TODO.md #62 "ILSpy assembly explorer" (user request 2026-07-19; merged with the standalone
 // DecompiledViewWindow per user request 2026-07-20) — AssemblyExplorerWindow: file picker +
 // namespace/type tree on the left, a read-only decompiled source pane on the right that updates IN
 // PLACE on double-click (no popped-up child window, dnSpy/ILSpy don't do that either). Also the
 // landing window for Go to Definition (F12) on a symbol outside the user's script — opened straight
 // to that member decompiled, with its assembly's tree loaded alongside it.
 //
-// Проход 134 (CI-cost pass) — ExplorerCode used to get a fresh real `dotnet build` (~1.5s) in each of
+// Pass 134 (CI-cost pass) — ExplorerCode used to get a fresh real `dotnet build` (~1.5s) in each of
 // 3 tests; they only ever READ the resulting binary, so it's compiled once via IClassFixture and
 // shared. RecursiveCode below is still built inline — only one test needs it, so there's nothing to
 // share.

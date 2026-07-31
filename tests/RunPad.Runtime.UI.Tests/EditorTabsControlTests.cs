@@ -292,7 +292,7 @@ public class EditorTabsControlTests
         }
     }
 
-    // TODO.md, "Жизненный цикл вкладок": CreateControlAsync used to always RpadFilePeek.PeekLanguage
+    // TODO.md, "tab lifecycle": CreateControlAsync used to always RpadFilePeek.PeekLanguage
     // (vm.FilePath) to decide whether to build a C# IntelliSense instance — harmless while every new
     // file was written to disk (with correct front matter) before its tab ever opened, since
     // PeekLanguage would then read the real language back off disk. Now that file creation is

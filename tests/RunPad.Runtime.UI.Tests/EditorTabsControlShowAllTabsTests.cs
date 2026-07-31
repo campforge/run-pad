@@ -18,11 +18,11 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Полоса вкладок": the tab strip already scrolls (тридцать... шестьдесят первый проход)
+// TODO.md, "tab strip": the tab strip already scrolls (pass 30... pass 61)
 // once there are too many tabs to fit, but a user still has to scroll blindly to find a specific
 // far-away one — this dropdown (a chevron button next to "+") lists every open tab by name so they
 // can jump straight to it, the other half of what the user originally asked for
-// ("...возможно добавить скролл/кнопки [<][>] или выпадающий список где видны все табы").
+// ("...maybe add a scroll/buttons [<][>] or a dropdown list showing all tabs").
 // EditorTabsControl.BuildAllTabsMenu is internal specifically so these can inspect the built
 // ContextMenu's items directly — headless Avalonia has no reliable way to drive an actual popup
 // open/click interaction, but the menu it would show is real, not a stub.

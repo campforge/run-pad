@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят седьмой проход, batch) — same LINQ-hygiene theme as the проходы 155/156
+// TODO.md #74 (pass 157, batch) — same LINQ-hygiene theme as the passes 155/156
 // batch. `xs.Concat(new[] { item })` allocates a throwaway one-element array just to concatenate a
 // single value onto a sequence — `xs.Append(item)` (and, symmetrically, `new[] { item }.Concat(xs)`
 // → `xs.Prepend(item)`) does the same thing without the array.

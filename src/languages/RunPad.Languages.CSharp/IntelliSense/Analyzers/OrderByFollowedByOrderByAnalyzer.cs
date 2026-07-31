@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто пятьдесят шестой проход, batch) — a real, well-known LINQ gotcha (own pick, not a
+// TODO.md #74 (pass 156, batch) — a real, well-known LINQ gotcha (own pick, not a
 // Roslynator port): `xs.OrderBy(a).OrderBy(b)` does NOT sort by a, then by b as a tiebreaker — the
 // second OrderBy call starts a brand-new sort from scratch, discarding the first one's ordering
 // intent entirely (elements that tie on b keep their relative order from the a-sort only because

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто сорок второй проход) — idea ported (not copied — own implementation against
+// TODO.md #74 (pass 142) — idea ported (not copied — own implementation against
 // RunPad's own analyzer pipeline, see RoslynAnalyzerEngine) from Roslynator's
 // AvoidEmptyCatchClauseThatCatchesSystemExceptionAnalyzer (RCS1075, Apache License 2.0,
 // https://github.com/dotnet/roslynator). A catch clause with an empty body that catches everything —

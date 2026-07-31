@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят первый проход, batch) — own pick, not a Roslynator port.
+// TODO.md #74 (pass 161, batch) — own pick, not a Roslynator port.
 // `xs.Skip(0)` is a no-op — it wraps the sequence in an extra iterator that skips nothing. A common
 // leftover from paging code where the skip count was computed and happened to come out to a literal 0
 // at the call site, or from a refactor that removed the logic feeding the count.
