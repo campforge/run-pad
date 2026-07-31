@@ -14,6 +14,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // on both sides (not general expressions) — comparing the results of two separate method CALLS that
 // happen to look identical isn't necessarily comparing the same value if the call has side effects, so
 // only the unambiguous "exact same local/parameter/field" case is flagged.
+// Extended (сто семьдесят шестой проход, batch) to also cover `x.CompareTo(x)` — an IComparable
+// self-compare always returns 0, same underlying mistake, one more method in the same family.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
 {
@@ -22,11 +24,11 @@ public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Comparing a value to itself",
-        messageFormat: "Comparing a value to itself always returns true — likely a copy-paste mistake",
+        messageFormat: "Comparing a value to itself always returns the same result — likely a copy-paste mistake",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "x.Equals(x) and ReferenceEquals(x, x) always return true; this compiles fine but is almost never the intended comparison.");
+        description: "x.Equals(x), ReferenceEquals(x, x), and x.CompareTo(x) always return the same result regardless of x's value; this compiles fine but is almost never the intended comparison.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -46,6 +48,15 @@ public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
             && invocation.ArgumentList.Arguments is [{ Expression: IdentifierNameSyntax argId }]
             && receiverId.Identifier.Text == argId.Identifier.Text
             && context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is IMethodSymbol { Name: "Equals", Parameters.Length: 1 })
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
+            return;
+        }
+
+        if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "CompareTo", Expression: IdentifierNameSyntax compareReceiverId }
+            && invocation.ArgumentList.Arguments is [{ Expression: IdentifierNameSyntax compareArgId }]
+            && compareReceiverId.Identifier.Text == compareArgId.Identifier.Text
+            && context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is IMethodSymbol { Name: "CompareTo", Parameters.Length: 1 })
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
             return;
