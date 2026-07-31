@@ -2170,4 +2170,84 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new RedundantIdentityValueSelectorAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentityValueSelectorAnalyzer.DiagnosticId));
     }
+
+    // ── Forty-sixth batch (сто девяносто второй проход) — one new analyzer, covering two shapes.
+
+    [Theory]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb, string x) { sb.Append(x).AppendLine(); } }", true)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb) { sb.Append(System.Environment.NewLine); } }", true)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb, string x) { sb.AppendLine(x); } }", false)]
+    public async Task PreferAppendLineOverAppendThenAppendLineAnalyzer_Should_NotFlag_ADirectAppendLine(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferAppendLineOverAppendThenAppendLineAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppendLineOverAppendThenAppendLineAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-seventh batch (сто девяносто третий проход) — one new analyzer, covering two shapes.
+
+    [Theory]
+    [InlineData("using System; class C { public void M(int[] arr) { Array.Clear(arr, 0, arr.Length); } }", true)]
+    [InlineData("using System; class C { public int M(int[] arr, int value) => Array.IndexOf(arr, value, 0, arr.Length); }", true)]
+    [InlineData("using System; class C { public void M(int[] arr) { Array.Clear(arr); } }", false)]
+    public async Task RedundantExplicitFullRangeArrayOperationAnalyzer_Should_NotFlag_AShortCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantExplicitFullRangeArrayOperationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantExplicitFullRangeArrayOperationAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-eighth batch (сто девяносто четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Threading; class C { void M(int x, CancellationToken ct = default) { } public void N() => M(5, CancellationToken.None); }", true)]
+    [InlineData("using System.Threading; class C { void M(int x, CancellationToken ct = default) { } public void N() => M(5); }", false)]
+    public async Task RedundantCancellationTokenNoneArgumentAnalyzer_Should_NotFlag_AnOmittedArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantCancellationTokenNoneArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantCancellationTokenNoneArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Forty-ninth batch (сто девяносто пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public string M(IEnumerable<string> xs) => xs.Aggregate((a, b) => a + b); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public string M(IEnumerable<string> xs) => string.Concat(xs); }", false)]
+    public async Task PreferStringConcatOverAggregateAnalyzer_Should_NotFlag_ADirectConcat(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferStringConcatOverAggregateAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStringConcatOverAggregateAnalyzer.DiagnosticId));
+    }
+
+    // ── Fiftieth batch (сто девяносто шестой проход) — one new analyzer, covering two shapes.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(Dictionary<int, int> dict) => dict.Select(kv => kv.Key); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(Dictionary<int, int> dict) => dict.Select(kv => kv.Value); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public IEnumerable<int> M(Dictionary<int, int> dict) => dict.Keys; }", false)]
+    public async Task PreferKeysOrValuesOverSelectAnalyzer_Should_NotFlag_ADirectKeysProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferKeysOrValuesOverSelectAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferKeysOrValuesOverSelectAnalyzer.DiagnosticId));
+    }
+
+    // ── Fifty-first batch (сто девяносто седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(Dictionary<int, int> dict) => dict.ToDictionary(kv => kv.Key, kv => kv.Value); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public Dictionary<int, int> M(Dictionary<int, int> dict) => new Dictionary<int, int>(dict); }", false)]
+    public async Task PreferDictionaryConstructorOverToDictionaryAnalyzer_Should_NotFlag_ADirectCopyConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferDictionaryConstructorOverToDictionaryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDictionaryConstructorOverToDictionaryAnalyzer.DiagnosticId));
+    }
+
+    // ── Fifty-second batch (сто девяносто восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M(char[] chars) => string.Join(\"\", chars); }", true)]
+    [InlineData("class C { public string M(char[] chars) => new string(chars); }", false)]
+    public async Task PreferNewStringOverJoinOnCharArrayAnalyzer_Should_NotFlag_ADirectStringConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNewStringOverJoinOnCharArrayAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNewStringOverJoinOnCharArrayAnalyzer.DiagnosticId));
+    }
 }
