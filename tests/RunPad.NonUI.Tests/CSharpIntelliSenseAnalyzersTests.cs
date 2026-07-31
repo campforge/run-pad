@@ -878,4 +878,46 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("x?.Member", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("O(n^2)", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто семьдесят восьмой проход, batch) — same rationale as the проход 147-177
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M(object x) => typeof(string).IsInstanceOfType(x); " +
+            "public bool N(int x) => System.Math.Abs(x) == 0; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("x is String", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Math.Abs", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто семьдесят девятый проход, batch) — same rationale as the проход 147-178
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M(int x) => x == 1 || x == 2; " +
+            "public bool N(int x, int y) => new[] { x }.Contains(y); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is a or b", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("single-element array", StringComparison.Ordinal));
+    }
 }

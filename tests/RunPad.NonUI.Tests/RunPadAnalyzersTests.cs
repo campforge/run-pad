@@ -1841,4 +1841,89 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new PreferNullConditionalOverIfNullCheckAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNullConditionalOverIfNullCheckAnalyzer.DiagnosticId));
     }
+
+    // ── Thirty-second batch (сто семьдесят восьмой проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { async Task M(Task t) { t.Wait(); await Task.Delay(1); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { void M(Task t) { t.Wait(); } }", false)]
+    public async Task TaskWaitInAsyncMethodAnalyzer_Should_NotFlag_ASynchronousMethod(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new TaskWaitInAsyncMethodAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TaskWaitInAsyncMethodAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(object x) => typeof(string).IsInstanceOfType(x); }", true)]
+    [InlineData("class C { public bool M(object x) => x is string; }", false)]
+    public async Task PreferIsOperatorOverIsInstanceOfTypeAnalyzer_Should_NotFlag_ADirectIsCheck(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferIsOperatorOverIsInstanceOfTypeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsOperatorOverIsInstanceOfTypeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.OrderBy(x => x).ToDictionary(x => x, x => x); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.ToDictionary(x => x, x => x); }", false)]
+    public async Task PointlessOrderByBeforeToDictionaryAnalyzer_Should_NotFlag_AnUnorderedSource(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PointlessOrderByBeforeToDictionaryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PointlessOrderByBeforeToDictionaryAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(int x) => System.Math.Abs(x) == 0; }", true)]
+    [InlineData("class C { public bool M(int x) => x == 0; }", false)]
+    public async Task RedundantMathAbsInZeroComparisonAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantMathAbsInZeroComparisonAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMathAbsInZeroComparisonAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-third batch (сто семьдесят девятый проход) — five new analyzers.
+
+    [Theory]
+    [InlineData("using System.Text; class C { public string M(string s) => new StringBuilder(s).ToString(); }", true)]
+    [InlineData("class C { public string M(string s) => s; }", false)]
+    public async Task RedundantStringBuilderConstructorThenToStringAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantStringBuilderConstructorThenToStringAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringBuilderConstructorThenToStringAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M(IEnumerable<int> source) { var list = new List<int>(); list.AddRange(source); return list; } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M(IEnumerable<int> source) => new List<int>(source); }", false)]
+    public async Task PreferListConstructorOverAddRangeAnalyzer_Should_NotFlag_ADirectConstructor(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferListConstructorOverAddRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferListConstructorOverAddRangeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public bool M(int x) => x == 1 || x == 2; }", true)]
+    [InlineData("class C { public bool M(int x) => x is 1 or 2; }", false)]
+    public async Task PreferPatternCombinatorOverOrEqualityAnalyzer_Should_NotFlag_AnAlreadyCombinedPattern(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferPatternCombinatorOverOrEqualityAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferPatternCombinatorOverOrEqualityAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<(int, int)> M(IEnumerable<int> xs, IEnumerable<int> ys) => xs.Zip(ys, (a, b) => (a, b)); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<(int, int)> M(IEnumerable<int> xs, IEnumerable<int> ys) => xs.Zip(ys); }", false)]
+    public async Task PreferParameterlessZipOverTupleSelectorAnalyzer_Should_NotFlag_AParameterlessZip(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferParameterlessZipOverTupleSelectorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferParameterlessZipOverTupleSelectorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; class C { public bool M(int x, int y) => new[] { x }.Contains(y); }", true)]
+    [InlineData("class C { public bool M(int x, int y) => x == y; }", false)]
+    public async Task PreferEqualityOverSingleElementArrayContainsAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOverSingleElementArrayContainsAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOverSingleElementArrayContainsAnalyzer.DiagnosticId));
+    }
 }
