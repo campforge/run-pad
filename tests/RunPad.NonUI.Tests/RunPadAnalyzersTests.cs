@@ -1803,4 +1803,42 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new SelfSubtractionOrXorAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfSubtractionOrXorAnalyzer.DiagnosticId));
     }
+
+    // ── Thirty-first batch (сто семьдесят седьмой проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { Task M() => Task.CompletedTask; void N() { M(); } }", true)]
+    [InlineData("using System.Threading.Tasks; class C { Task M() => Task.CompletedTask; async Task N() { await M(); } }", false)]
+    public async Task DiscardedAsyncTaskResultAnalyzer_Should_NotFlag_AnAwaitedCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DiscardedAsyncTaskResultAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DiscardedAsyncTaskResultAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { xs.ToList().ForEach(x => Console.WriteLine(x)); } }", true)]
+    [InlineData("using System; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { foreach (var x in xs) Console.WriteLine(x); } }", false)]
+    public async Task PreferForeachOverToListForEachAnalyzer_Should_NotFlag_ADirectForeach(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferForeachOverToListForEachAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferForeachOverToListForEachAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { for (int i = 0; i < xs.Count(); i++) { } } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) { for (int i = 0; i < xs.Count; i++) { } } }", false)]
+    public async Task PreferHoistedCountOverLinqCountInLoopConditionAnalyzer_Should_NotFlag_AnO1CountProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferHoistedCountOverLinqCountInLoopConditionAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferHoistedCountOverLinqCountInLoopConditionAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string x) { if (x != null) { x.ToString(); } } }", true)]
+    [InlineData("class C { public void M(string x) { x?.ToString(); } }", false)]
+    public async Task PreferNullConditionalOverIfNullCheckAnalyzer_Should_NotFlag_AnAlreadyNullConditionalCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferNullConditionalOverIfNullCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNullConditionalOverIfNullCheckAnalyzer.DiagnosticId));
+    }
 }
