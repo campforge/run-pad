@@ -69,7 +69,7 @@ public class EditorTabItemControlCodeFixApplyTests
         using var intelliSense = CreateRealIntelliSense();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
+            intelliSense, new CSharpReferenceService(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 
