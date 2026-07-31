@@ -920,4 +920,67 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("is a or b", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("single-element array", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто восьмидесятый проход, batch) — same rationale as the проход 147-179 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(string s) { System.Console.Out.WriteLine(s); } " +
+            "public string N(string x) => x.Trim().Trim(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Console.WriteLine", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("calls the same trim method twice", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто восемьдесят первый проход, batch) — same rationale as the проход 147-180
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M(bool x) { if (x) return true; else return false; } " +
+            "public void N(int[] arr) { System.Array.Sort(arr, 0, arr.Length); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("chooses between", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Array.Sort(array, comparer)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто восемьдесят второй проход, batch) — same rationale as the проход 147-181
+    // combined tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => System.Threading.Thread.CurrentThread.ManagedThreadId; " +
+            "public string N() => System.AppDomain.CurrentDomain.BaseDirectory; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Environment.CurrentManagedThreadId", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("AppContext.BaseDirectory", StringComparison.Ordinal));
+    }
 }

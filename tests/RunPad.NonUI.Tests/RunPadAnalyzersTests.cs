@@ -1926,4 +1926,84 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOverSingleElementArrayContainsAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOverSingleElementArrayContainsAnalyzer.DiagnosticId));
     }
+
+    // ── Thirty-fourth batch (сто восьмидесятый проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("class C { public bool M(string x) => x.Split(',').Length == 1; }", true)]
+    [InlineData("class C { public bool M(string x) => !x.Contains(','); }", false)]
+    public async Task PreferContainsOverSplitLengthCheckAnalyzer_Should_NotFlag_ADirectContains(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferContainsOverSplitLengthCheckAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferContainsOverSplitLengthCheckAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(string s) { System.Console.Out.WriteLine(s); } }", true)]
+    [InlineData("class C { public void M(string s) { System.Console.WriteLine(s); } }", false)]
+    public async Task PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer_Should_NotFlag_ADirectWriteLine(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferConsoleWriteLineOverConsoleOutWriteLineAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public string M(string x) => x.Trim().Trim(); }", true)]
+    [InlineData("class C { public string M(string x) => x.Trim(); }", false)]
+    public async Task RedundantConsecutiveTrimCallAnalyzer_Should_NotFlag_ASingleTrim(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantConsecutiveTrimCallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConsecutiveTrimCallAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-fifth batch (сто восемьдесят первый проход) — two new analyzers, each covering two shapes.
+
+    [Theory]
+    [InlineData("class C { public bool M(bool x) { if (x) return true; else return false; } }", true)]
+    [InlineData("class C { public bool M(bool x) { bool y; if (x) { y = true; } else { y = false; } return y; } }", true)]
+    [InlineData("class C { public bool M(bool x) => x; }", false)]
+    public async Task SimplifyIfElseBooleanLiteralAnalyzer_Should_NotFlag_ADirectValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new SimplifyIfElseBooleanLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SimplifyIfElseBooleanLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public void M(int[] arr) { System.Array.Sort(arr, 0, arr.Length); } }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, System.Collections.Generic.IComparer<int> cmp) { xs.Sort(0, xs.Count, cmp); } }", true)]
+    [InlineData("class C { public void M(int[] arr) { System.Array.Sort(arr); } }", false)]
+    public async Task RedundantExplicitFullRangeSortAnalyzer_Should_NotFlag_AShortSortCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantExplicitFullRangeSortAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantExplicitFullRangeSortAnalyzer.DiagnosticId));
+    }
+
+    // ── Thirty-sixth batch (сто восемьдесят второй проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Text.RegularExpressions; class C { public bool M(string input, string pattern) => new Regex(pattern).IsMatch(input); }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public bool M(string input, string pattern) => Regex.IsMatch(input, pattern); }", false)]
+    public async Task PreferStaticRegexMethodOverNewRegexInstanceAnalyzer_Should_NotFlag_AStaticCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferStaticRegexMethodOverNewRegexInstanceAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStaticRegexMethodOverNewRegexInstanceAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; class C { public int M() => Thread.CurrentThread.ManagedThreadId; }", true)]
+    [InlineData("class C { public int M() => System.Environment.CurrentManagedThreadId; }", false)]
+    public async Task PreferEnvironmentCurrentManagedThreadIdAnalyzer_Should_NotFlag_ADirectProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferEnvironmentCurrentManagedThreadIdAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEnvironmentCurrentManagedThreadIdAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public string M() => System.AppDomain.CurrentDomain.BaseDirectory; }", true)]
+    [InlineData("class C { public string M() => System.AppContext.BaseDirectory; }", false)]
+    public async Task PreferAppContextBaseDirectoryAnalyzer_Should_NotFlag_ADirectProperty(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferAppContextBaseDirectoryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppContextBaseDirectoryAnalyzer.DiagnosticId));
+    }
 }
