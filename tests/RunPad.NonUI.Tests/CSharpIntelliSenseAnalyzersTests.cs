@@ -751,4 +751,46 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("HasValue", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("Keys.Count", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (сто семьдесят второй проход, batch) — same rationale as the проход 147-171 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(double x, char c) { " +
+            "var a = System.Math.Round(x, 0); var b = char.IsLetter(c) || char.IsDigit(c); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Math.Round", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("IsLetterOrDigit", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (сто семьдесят третий проход, batch) — same rationale as the проход 147-172 combined
+    // tests above.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count >= 2) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(object x, object y) { " +
+            "var a = string.Format(\"{0}\", x); var b = !(x == y); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("string interpolation", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics, d => d.Message.Contains("!=", StringComparison.Ordinal));
+    }
 }
