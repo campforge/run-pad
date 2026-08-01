@@ -1403,6 +1403,17 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverNumericCompareToAnalyzer.DiagnosticId));
     }
 
+    // ── Eightieth batch (двести двадцать шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public int M(object a, object b) => a.GetHashCode() ^ b.GetHashCode(); }", true)]
+    [InlineData("using System; class C { public int M(object a, object b) => HashCode.Combine(a, b); }", false)]
+    public async Task PreferHashCodeCombineOverXorAnalyzer_Should_NotFlag_ADirectHashCodeCombineCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferHashCodeCombineOverXorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferHashCodeCombineOverXorAnalyzer.DiagnosticId));
+    }
+
     // ── Seventy-sixth batch (двести двадцать второй проход) — one new analyzer, two forms.
 
     [Theory]
