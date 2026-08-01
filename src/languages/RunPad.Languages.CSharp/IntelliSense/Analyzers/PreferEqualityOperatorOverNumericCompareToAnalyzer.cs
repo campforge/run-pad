@@ -6,14 +6,16 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцатый проход, batch) — own pick, not a Roslynator port. A sibling shape to
+// TODO.md #74 (двести двадцатый проход, batch; Version/TimeSpan/Guid added двести двадцать пятый
+// проход) — own pick, not a Roslynator port. A sibling shape to
 // PreferEqualityOperatorOverDateTimeCompareAnalyzer (RPAD0173, проход 187 — that one is the STATIC
 // `DateTime.Compare(a, b) == 0` form). This is the INSTANCE `x.CompareTo(y) == 0` form: `x.CompareTo(y)`
 // computes a full three-way ordering (negative/zero/positive) just to throw away everything except
 // whether it was zero — `x == y` says the same thing directly. Restricted to the built-in numeric
-// types (and char), where the `==`/`!=` operators are guaranteed to exist and to agree with CompareTo's
-// zero result — a custom IComparable<T> type could define CompareTo and == with different semantics,
-// so this deliberately doesn't try to generalize past the types where that can't happen.
+// types (and char) plus a handful of BCL value types (Version/TimeSpan/Guid) where the `==`/`!=`
+// operators are guaranteed to exist and to agree with CompareTo's zero result — a custom IComparable<T>
+// type could define CompareTo and == with different semantics, so this deliberately doesn't try to
+// generalize past the types where that can't happen.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferEqualityOperatorOverNumericCompareToAnalyzer : DiagnosticAnalyzer
 {
@@ -30,13 +32,16 @@ public sealed class PreferEqualityOperatorOverNumericCompareToAnalyzer : Diagnos
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
-    private static readonly ImmutableHashSet<SpecialType> SafeTypes = ImmutableHashSet.Create(
+    private static readonly ImmutableHashSet<SpecialType> SafeSpecialTypes = ImmutableHashSet.Create(
         SpecialType.System_Byte, SpecialType.System_SByte,
         SpecialType.System_Int16, SpecialType.System_UInt16,
         SpecialType.System_Int32, SpecialType.System_UInt32,
         SpecialType.System_Int64, SpecialType.System_UInt64,
         SpecialType.System_Single, SpecialType.System_Double, SpecialType.System_Decimal,
         SpecialType.System_Char);
+
+    private static readonly ImmutableHashSet<string> SafeNamedTypes = ImmutableHashSet.Create(
+        "System.Version", "System.TimeSpan", "System.Guid");
 
     public override void Initialize(AnalysisContext context)
     {
@@ -65,9 +70,10 @@ public sealed class PreferEqualityOperatorOverNumericCompareToAnalyzer : Diagnos
             return;
 
         var receiverType = context.SemanticModel.GetTypeInfo(receiver, ct).Type;
-        if (receiverType?.SpecialType is not { } specialType || !SafeTypes.Contains(specialType))
-            return;
-        if (compareToMethod.ContainingType?.SpecialType != specialType) return;
+        var isSafe = receiverType?.SpecialType is { } specialType && SafeSpecialTypes.Contains(specialType)
+            || receiverType?.ToDisplayString() is { } typeName && SafeNamedTypes.Contains(typeName);
+        if (!isSafe) return;
+        if (!SymbolEqualityComparer.Default.Equals(compareToMethod.ContainingType, receiverType)) return;
 
         var operatorText = binary.IsKind(SyntaxKind.EqualsExpression) ? "==" : "!=";
         context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation(), operatorText));

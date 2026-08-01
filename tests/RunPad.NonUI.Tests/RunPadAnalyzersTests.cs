@@ -1393,11 +1393,50 @@ public class RunPadAnalyzersTests
     [Theory]
     [InlineData("class C { public bool M(int x, int y) => x.CompareTo(y) == 0; }", true)]
     [InlineData("class C { public bool M(int x, int y) => x.CompareTo(y) != 0; }", true)]
+    [InlineData("class C { public bool M(System.Version v1, System.Version v2) => v1.CompareTo(v2) == 0; }", true)]
+    [InlineData("class C { public bool M(System.TimeSpan t1, System.TimeSpan t2) => t1.CompareTo(t2) == 0; }", true)]
+    [InlineData("class C { public bool M(System.Guid g1, System.Guid g2) => g1.CompareTo(g2) == 0; }", true)]
     [InlineData("class C { public bool M(int x, int y) => x == y; }", false)]
     public async Task PreferEqualityOperatorOverNumericCompareToAnalyzer_Should_NotFlag_ADirectEqualityCheck(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new PreferEqualityOperatorOverNumericCompareToAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverNumericCompareToAnalyzer.DiagnosticId));
+    }
+
+    // ── Seventy-sixth batch (двести двадцать второй проход) — one new analyzer, two forms.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(Comparer<int>.Default); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs, int item) => xs.BinarySearch(item, Comparer<int>.Default); }", true)]
+    [InlineData("using System; using System.Collections.Generic; class C { public void M(int[] xs) => Array.Sort(xs, Comparer<int>.Default); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(); }", false)]
+    public async Task RedundantDefaultComparerArgumentForSortAndBinarySearchAnalyzer_Should_NotFlag_ADirectSortCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RedundantDefaultComparerArgumentForSortAndBinarySearchAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultComparerArgumentForSortAndBinarySearchAnalyzer.DiagnosticId));
+    }
+
+    // ── Seventy-seventh batch (двести двадцать третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Diagnostics; class C { public void M() { var sw = new Stopwatch(); sw.Start(); } }", true)]
+    [InlineData("using System.Diagnostics; class C { public void M() { var sw = new Stopwatch(); System.Console.WriteLine(); sw.Start(); } }", false)]
+    [InlineData("using System.Diagnostics; class C { public void M() { var sw = Stopwatch.StartNew(); } }", false)]
+    public async Task PreferStopwatchStartNewOverConstructorThenStartAnalyzer_Should_NotFlag_ANonAdjacentStart(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferStopwatchStartNewOverConstructorThenStartAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStopwatchStartNewOverConstructorThenStartAnalyzer.DiagnosticId));
+    }
+
+    // ── Seventy-eighth batch (двести двадцать четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.IO; class C { public string M(string a, string b, string c) => Path.Combine(Path.Combine(a, b), c); }", true)]
+    [InlineData("using System.IO; class C { public string M(string a, string b, string c) => Path.Combine(a, b, c); }", false)]
+    public async Task PreferFlattenedPathCombineAnalyzer_Should_NotFlag_AFlatCombineCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new PreferFlattenedPathCombineAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferFlattenedPathCombineAnalyzer.DiagnosticId));
     }
 
     [Theory]
