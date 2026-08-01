@@ -41,28 +41,36 @@ public sealed class AggregateCountAnalyzer : DiagnosticAnalyzer
             return;
         if (invocation.ArgumentList.Arguments is not
             [
-                { Expression: var seedExpr },
+            { Expression: var seedExpr },
+            {
+                Expression: ParenthesizedLambdaExpressionSyntax
                 {
-                    Expression: ParenthesizedLambdaExpressionSyntax
+                    ParameterList.Parameters: [{ Identifier.Text: var accParamName }, _],
+                    Body: BinaryExpressionSyntax
                     {
-                        ParameterList.Parameters: [{ Identifier.Text: var accParamName }, _],
-                        Body: BinaryExpressionSyntax
-                        {
-                            RawKind: (int)SyntaxKind.AddExpression,
-                            Left: IdentifierNameSyntax leftId,
-                            Right: ConditionalExpressionSyntax
-                            {
-                                WhenTrue: LiteralExpressionSyntax { Token.Value: 1 },
-                                WhenFalse: LiteralExpressionSyntax { Token.Value: 0 },
-                            },
-                        },
+                        RawKind: (int)SyntaxKind.AddExpression,
+                        Left: IdentifierNameSyntax leftId,
+                        Right: var rightExpr,
                     },
                 },
+            },
             ])
         {
             return;
         }
         if (leftId.Identifier.Text != accParamName) return;
+
+        // The ternary must be parenthesized here — `+` binds tighter than `?:`, so
+        // `acc + x > 0 ? 1 : 0` would parse as `(acc + x > 0) ? 1 : 0` instead.
+        while (rightExpr is ParenthesizedExpressionSyntax parenthesized) rightExpr = parenthesized.Expression;
+        if (rightExpr is not ConditionalExpressionSyntax
+            {
+                WhenTrue: LiteralExpressionSyntax { Token.Value: 1 },
+                WhenFalse: LiteralExpressionSyntax { Token.Value: 0 },
+            })
+        {
+            return;
+        }
 
         var ct = context.CancellationToken;
         if (context.SemanticModel.GetConstantValue(seedExpr, ct).Value is not 0) return;

@@ -46,14 +46,14 @@ public sealed class AggregateAllOrAnyAnalyzer : DiagnosticAnalyzer
             return;
         if (invocation.ArgumentList.Arguments is not
             [
-                { Expression: var seedExpr },
+            { Expression: var seedExpr },
+            {
+                Expression: ParenthesizedLambdaExpressionSyntax
                 {
-                    Expression: ParenthesizedLambdaExpressionSyntax
-                    {
-                        ParameterList.Parameters: [{ Identifier.Text: var accParamName }, _],
-                        Body: BinaryExpressionSyntax { Left: IdentifierNameSyntax leftId } bodyBinary,
-                    },
+                    ParameterList.Parameters: [{ Identifier.Text: var accParamName }, _],
+                    Body: BinaryExpressionSyntax { Left: IdentifierNameSyntax leftId } bodyBinary,
                 },
+            },
             ])
         {
             return;

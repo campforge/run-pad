@@ -1950,4 +1950,62 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Sort(arr, (a, b) => b.CompareTo(a))", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести двадцать восьмой проход, batch) — larger batch at the user's request
+    // ("продолжай, бери сразу 10"): four independent, non-overlapping changes combined in one snippet
+    // (PreferCombinedHasFlagAnalyzer/RPAD0211, PreferFirstOrDefaultOverElementAtOrDefaultZeroAnalyzer/
+    // RPAD0212, PreferTrimOverTrimStartThenTrimEndAnalyzer/RPAD0213, and the new IsNullOrEmpty(Trim())
+    // form on the already-shipped PreferIsNullOrWhiteSpaceAnalyzer/RPAD0084) plus a second Fact below for
+    // the three Aggregate-shaped changes, kept separate so a false-positive double-match on one Aggregate
+    // shape can't hide inside the other.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightySecondBatch_HasFlagTrimAndFirstOrDefaultForms()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; " +
+            "[System.Flags] enum Perm { None = 0, Read = 1, Write = 2 } " +
+            "class C { " +
+            "public bool M1(Perm flags) => flags.HasFlag(Perm.Read) && flags.HasFlag(Perm.Write); " +
+            "public int M2(int[] xs) => xs.ElementAtOrDefault(0); " +
+            "public string M3(string s) => s.TrimStart().TrimEnd(); " +
+            "public bool M4(string s) => string.IsNullOrEmpty(s.Trim()); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("flags.HasFlag(A | B)", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ElementAtOrDefault(0)' can be replaced with 'FirstOrDefault()'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("can be replaced with 'Trim()'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("string.IsNullOrWhiteSpace(...)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightySecondBatch_AggregateForms()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; " +
+            "class C { " +
+            "public bool M1(int[] xs) => xs.Aggregate(true, (acc, x) => acc && x > 0); " +
+            "public int M2(int[] xs) => xs.Aggregate(0, (acc, x) => acc + (x > 0 ? 1 : 0)); " +
+            "public string M3(IEnumerable<string> xs) => xs.Aggregate(\"\", (acc, x) => acc + x); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Use 'All(predicate)'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Use 'Count(predicate)'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Use 'string.Concat(xs)'", StringComparison.Ordinal));
+    }
 }
