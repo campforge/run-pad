@@ -1807,17 +1807,87 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Copy(source, destination, length)", StringComparison.Ordinal));
     }
 
+    // TODO.md #74 (двести двадцать второй проход, batch) — same rationale as the проход 147-221
+    // combined tests above; only one new analyzer this batch, so this proves both of its forms together
+    // through the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
-    public async Task PROBE_OverlapCheck76()
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventySixthBatch()
     {
         using var service = CreateService();
-        IReadOnlyList<IDiagnosticInfo> last = [];
-        service.DiagnosticsChanged += (_, d) => last = d;
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
 
         service.NotifyTextChanged(
-            "class C { public bool M(object x) => x is int && (int)x > 0; }");
+            "class C { " +
+            "public void M(System.Collections.Generic.List<int> xs) => xs.Sort(Comparer<int>.Default); " +
+            "public int N(System.Collections.Generic.List<int> xs, int item) => xs.BinarySearch(item, Comparer<int>.Default); }");
 
-        await Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        throw new Exception(string.Join("\n", last.Select(d => d.Message)));
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Sort", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("BinarySearch", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести двадцать третий проход, batch) — same rationale as the проход 147-222
+    // combined tests above; only one new analyzer this batch, so this proves it alone through the real
+    // pipeline rather than alongside a second one.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() { var sw = new System.Diagnostics.Stopwatch(); sw.Start(); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Stopwatch.StartNew()", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести двадцать четвёртый проход, batch) — same rationale as the проход 147-223
+    // combined tests above; only one new analyzer this batch, so this proves it alone through the real
+    // pipeline rather than alongside a second one.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M(string a, string b, string c) => System.IO.Path.Combine(System.IO.Path.Combine(a, b), c); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Path.Combine", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести двадцать пятый проход, batch) — no new analyzer this batch, just three more
+    // types (Version/TimeSpan/Guid) added to the already-shipped
+    // PreferEqualityOperatorOverNumericCompareToAnalyzer (RPAD0205, проход 220) — this proves one of
+    // the new shapes fires through the real pipeline.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M(System.Guid g1, System.Guid g2) => g1.CompareTo(g2) == 0; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("x == y", StringComparison.Ordinal));
     }
 }
