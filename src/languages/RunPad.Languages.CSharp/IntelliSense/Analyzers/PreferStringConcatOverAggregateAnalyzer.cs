@@ -6,15 +6,18 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто пятый проход, batch) — own pick, not a Roslynator port. Same
-// "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085, проход
-// 164), for string concatenation specifically — AggregateSumAnalyzer is scoped to the numeric
-// SpecialTypes Enumerable.Sum() has overloads for, which excludes string entirely, leaving this
-// pattern uncovered. `xs.Aggregate((a, b) => a + b)` over a string sequence hand-rolls exactly what
-// `string.Concat(xs)` already does — and does it worse: each `+` allocates a new intermediate string,
-// so the fold is O(n^2) in total characters copied, the same quadratic-blowup concern
-// ConcatenateStringsInLoopAnalyzer (RPAD0033) already flags for the loop-shaped version of this
-// mistake.
+// TODO.md #74 (сто девяносто пятый проход, batch; seeded form added двести двадцать восьмой проход) —
+// own pick, not a Roslynator port. Same "hand-rolled fold instead of the dedicated method" theme as
+// AggregateSumAnalyzer (RPAD0085, проход 164), for string concatenation specifically —
+// AggregateSumAnalyzer is scoped to the numeric SpecialTypes Enumerable.Sum() has overloads for, which
+// excludes string entirely, leaving this pattern uncovered. `xs.Aggregate((a, b) => a + b)` over a
+// string sequence hand-rolls exactly what `string.Concat(xs)` already does — and does it worse: each
+// `+` allocates a new intermediate string, so the fold is O(n^2) in total characters copied, the same
+// quadratic-blowup concern ConcatenateStringsInLoopAnalyzer (RPAD0033) already flags for the
+// loop-shaped version of this mistake. `xs.Aggregate("", (acc, x) => acc + x)` is the same mistake with
+// the seed spelled out explicitly instead of implicitly using the first element — only fires when the
+// seed is a compile-time-constant empty string (checked via GetConstantValue), matching
+// AggregateSumAnalyzer's own seeded-zero extension (проход 166).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferStringConcatOverAggregateAnalyzer : DiagnosticAnalyzer
 {
@@ -43,8 +46,24 @@ public sealed class PreferStringConcatOverAggregateAnalyzer : DiagnosticAnalyzer
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Aggregate" })
             return;
-        if (invocation.ArgumentList.Arguments is not [{ Expression: ParenthesizedLambdaExpressionSyntax lambda }])
+
+        ArgumentSyntax? seedArg;
+        ParenthesizedLambdaExpressionSyntax lambda;
+        if (invocation.ArgumentList.Arguments is [{ Expression: ParenthesizedLambdaExpressionSyntax soleLambda }])
+        {
+            seedArg = null;
+            lambda = soleLambda;
+        }
+        else if (invocation.ArgumentList.Arguments is [var seed, { Expression: ParenthesizedLambdaExpressionSyntax seededLambda }])
+        {
+            seedArg = seed;
+            lambda = seededLambda;
+        }
+        else
+        {
             return;
+        }
+
         if (lambda.ParameterList.Parameters is not [var p1, var p2]) return;
         if (lambda.Body is not BinaryExpressionSyntax
             {
@@ -58,13 +77,22 @@ public sealed class PreferStringConcatOverAggregateAnalyzer : DiagnosticAnalyzer
         if (leftId.Identifier.Text != p1.Identifier.Text || rightId.Identifier.Text != p2.Identifier.Text) return;
 
         var ct = context.CancellationToken;
-        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol
-            { Name: "Aggregate", TypeArguments: [var sourceType] } method)
-        {
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Aggregate" } method)
             return;
-        }
         if (method.ContainingType?.ToDisplayString() != "System.Linq.Enumerable") return;
-        if (sourceType.SpecialType != SpecialType.System_String) return;
+
+        if (seedArg is null)
+        {
+            if (method.TypeArguments is not [var sourceType]) return;
+            if (sourceType.SpecialType != SpecialType.System_String) return;
+        }
+        else
+        {
+            if (method.TypeArguments is not [_, var accumulateType]) return;
+            if (accumulateType.SpecialType != SpecialType.System_String) return;
+            if (context.SemanticModel.GetConstantValue(seedArg.Expression, ct).Value is not string { Length: 0 })
+                return;
+        }
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
     }

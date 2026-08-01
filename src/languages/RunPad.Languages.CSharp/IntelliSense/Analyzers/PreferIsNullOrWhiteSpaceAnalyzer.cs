@@ -13,6 +13,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // null (the hand-rolled forms throw NullReferenceException on a null receiver).
 // Extended (сто семидесятый проход, batch) to also cover the negated AND-form —
 // `s != null && s.Trim().Length > 0` says exactly what `!string.IsNullOrWhiteSpace(s)` already says.
+// Extended (двести двадцать восьмой проход, batch) to also cover `string.IsNullOrEmpty(s.Trim())` —
+// a THIRD hand-rolled shape for the same "is this blank" question, and one with a sharper edge than
+// the other two: if s is null, `s.Trim()` throws NullReferenceException before IsNullOrEmpty ever runs,
+// silently defeating the null-tolerance the caller likely thought they were getting by reaching for
+// IsNullOrEmpty in the first place.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferIsNullOrWhiteSpaceAnalyzer : DiagnosticAnalyzer
 {
@@ -33,11 +38,18 @@ public sealed class PreferIsNullOrWhiteSpaceAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.EqualsExpression, SyntaxKind.NotEqualsExpression, SyntaxKind.LogicalAndExpression);
+        context.RegisterSyntaxNodeAction(
+            Analyze, SyntaxKind.EqualsExpression, SyntaxKind.NotEqualsExpression, SyntaxKind.LogicalAndExpression, SyntaxKind.InvocationExpression);
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
+        if (context.Node is InvocationExpressionSyntax invocation)
+        {
+            AnalyzeIsNullOrEmptyOfTrim(context, invocation);
+            return;
+        }
+
         var binary = (BinaryExpressionSyntax)context.Node;
 
         if (binary.IsKind(SyntaxKind.LogicalAndExpression))
@@ -79,6 +91,27 @@ public sealed class PreferIsNullOrWhiteSpaceAnalyzer : DiagnosticAnalyzer
         if (!IsRealTrimMethod(context, trimInvocation)) return;
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation()));
+    }
+
+    // string.IsNullOrEmpty(s.Trim())  →  string.IsNullOrWhiteSpace(s)
+    private static void AnalyzeIsNullOrEmptyOfTrim(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation)
+    {
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "IsNullOrEmpty" })
+            return;
+        if (invocation.ArgumentList.Arguments is not [{ Expression: InvocationExpressionSyntax trimInvocation }])
+            return;
+        if (trimInvocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Trim" })
+            return;
+        if (trimInvocation.ArgumentList.Arguments.Count != 0) return;
+
+        var ct = context.CancellationToken;
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "IsNullOrEmpty" } isNullOrEmptyMethod)
+            return;
+        if (isNullOrEmptyMethod.ContainingType?.SpecialType != SpecialType.System_String) return;
+
+        if (!IsRealTrimMethod(context, trimInvocation)) return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
     }
 
     private static bool IsRealTrimMethod(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax trimInvocation) =>

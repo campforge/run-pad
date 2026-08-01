@@ -1910,4 +1910,44 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("HashCode.Combine(a, b)", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести двадцать седьмой проход, batch) — larger batch at the user's request ("давай
+    // продоолжим, но возьмем побольше"): one new analyzer (PreferCancellationTokenSourceConstructorOver
+    // CancelAfterAnalyzer, RPAD0210) plus a new Array.Sort/Array.Reverse form on the already-shipped
+    // PreferDescendingComparerOverSortThenReverseAnalyzer (RPAD0196, проход 209). Two solo combined
+    // tests, one per change, since neither shares a snippet with the other.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyFirstBatch_CancellationTokenSourceForm()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Threading.CancellationTokenSource M(System.TimeSpan delay) { " +
+            "var cts = new System.Threading.CancellationTokenSource(); cts.CancelAfter(delay); return cts; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("new CancellationTokenSource(delay)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyFirstBatch_ArraySortReverseForm()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(int[] arr) { System.Array.Sort(arr); System.Array.Reverse(arr); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Array.Sort(arr, (a, b) => b.CompareTo(a))", StringComparison.Ordinal));
+    }
 }
