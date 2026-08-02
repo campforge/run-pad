@@ -10,6 +10,9 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `sb.Length = 0` truncates a StringBuilder back to empty by reaching into its Length property
 // directly — `sb.Clear()` says the same intent directly and is what the type's own API was designed
 // for, without relying on the reader knowing that setting Length to zero is how you empty one.
+// Extended (двести пятьдесят девятый проход, batch) to also cover `sb.Remove(0, sb.Length)` — removing
+// every character from the start through the current length is the same truncate-to-empty operation,
+// just spelled through Remove's start/count pair instead of the Length property.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferClearOverStringBuilderLengthZeroAnalyzer : DiagnosticAnalyzer
 {
@@ -18,11 +21,11 @@ public sealed class PreferClearOverStringBuilderLengthZeroAnalyzer : DiagnosticA
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Prefer Clear() over setting StringBuilder.Length to zero",
-        messageFormat: "'sb.Length = 0' can be replaced with 'sb.Clear()' — Clear() says the intent directly instead of relying on the Length-zero convention",
+        messageFormat: "'{0}' can be replaced with 'sb.Clear()' — Clear() says the intent directly instead of relying on the equivalent truncate-to-zero form",
         category: "Simplification",
         DiagnosticSeverity.Info,
         isEnabledByDefault: true,
-        description: "StringBuilder.Clear() truncates the builder back to empty, exactly like setting Length to 0, but names the intent directly.");
+        description: "StringBuilder.Clear() truncates the builder back to empty, exactly like setting Length to 0 or removing from 0 through the current Length, but names the intent directly.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -30,13 +33,14 @@ public sealed class PreferClearOverStringBuilderLengthZeroAnalyzer : DiagnosticA
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.SimpleAssignmentExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeLengthAssignment, SyntaxKind.SimpleAssignmentExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeRemoveFullRange, SyntaxKind.InvocationExpression);
     }
 
-    private static void Analyze(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeLengthAssignment(SyntaxNodeAnalysisContext context)
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
-        if (assignment.Left is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Length", Expression: var receiver })
+        if (assignment.Left is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Length" })
             return;
 
         var ct = context.CancellationToken;
@@ -47,6 +51,31 @@ public sealed class PreferClearOverStringBuilderLengthZeroAnalyzer : DiagnosticA
             return;
         if (lengthProperty.ContainingType?.ToDisplayString() != "System.Text.StringBuilder") return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, assignment.GetLocation()));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, assignment.GetLocation(), "sb.Length = 0"));
+    }
+
+    private static void AnalyzeRemoveFullRange(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Remove", Expression: var removeReceiver })
+            return;
+        if (invocation.ArgumentList.Arguments is not
+            [
+            { Expression: var startArg },
+            { Expression: MemberAccessExpressionSyntax { Name.Identifier.Text: "Length", Expression: var lengthReceiver } },
+            ])
+        {
+            return;
+        }
+
+        var ct = context.CancellationToken;
+        if (context.SemanticModel.GetConstantValue(startArg, ct).Value is not 0) return;
+        if (!removeReceiver.IsEquivalentTo(lengthReceiver)) return;
+
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Remove" } method)
+            return;
+        if (method.ContainingType?.ToDisplayString() != "System.Text.StringBuilder") return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "sb.Remove(0, sb.Length)"));
     }
 }
