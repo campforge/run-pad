@@ -25,6 +25,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Extended again (двести семьдесят третий проход, batch) to also cover the 4-/5-arg
 // `Array.BinarySearch(array, index, length, value[, comparer])` overloads — also throws
 // ArgumentOutOfRangeException (confirmed empirically) for a negative `index` or `length`.
+// Extended again (двести восемьдесят второй проход, batch) to also cover
+// `Array.ConstrainedCopy(source, sourceIndex, destination, destinationIndex, length)` — an EXACT
+// argument-shape match for the already-covered 5-arg `Array.Copy` (same parameter positions, same
+// ArgumentOutOfRangeException), so it reuses that same branch's logic rather than duplicating it.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -32,12 +36,12 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "Negative Array.Resize/Array.Clear/Array.Copy/Array.BinarySearch argument always throws",
+        title: "Negative Array.Resize/Array.Clear/Array.Copy/Array.ConstrainedCopy/Array.BinarySearch argument always throws",
         messageFormat: "'Array.{0}(...)' always throws {1} at runtime — {2} cannot be negative",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Array.Resize, the 5-arg Array.Copy, and the 4-/5-arg Array.BinarySearch all throw ArgumentOutOfRangeException for a negative index/length argument, and Array.Clear throws IndexOutOfRangeException for a negative index or length.");
+        description: "Array.Resize, the 5-arg Array.Copy/Array.ConstrainedCopy, and the 4-/5-arg Array.BinarySearch all throw ArgumentOutOfRangeException for a negative index/length argument, and Array.Clear throws IndexOutOfRangeException for a negative index or length.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -51,7 +55,7 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Resize" or "Clear" or "Copy" or "BinarySearch" } access)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Resize" or "Clear" or "Copy" or "ConstrainedCopy" or "BinarySearch" } access)
             return;
         var methodName = access.Name.Identifier.Text;
 
@@ -82,21 +86,21 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
                 context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "Clear", "IndexOutOfRangeException", "length"));
             }
         }
-        else if (methodName == "Copy")
+        else if (methodName is "Copy" or "ConstrainedCopy")
         {
             if (arguments is not [_, { Expression: var sourceIndexExpr }, _, { Expression: var destIndexExpr }, { Expression: var copyLengthExpr }])
                 return;
             if (IsNegativeLiteral(sourceIndexExpr))
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "Copy", "ArgumentOutOfRangeException", "sourceIndex"));
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "ArgumentOutOfRangeException", "sourceIndex"));
             }
             else if (IsNegativeLiteral(destIndexExpr))
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "Copy", "ArgumentOutOfRangeException", "destinationIndex"));
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "ArgumentOutOfRangeException", "destinationIndex"));
             }
             else if (IsNegativeLiteral(copyLengthExpr))
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "Copy", "ArgumentOutOfRangeException", "length"));
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "ArgumentOutOfRangeException", "length"));
             }
         }
         else
