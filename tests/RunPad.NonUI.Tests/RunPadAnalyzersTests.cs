@@ -3238,4 +3238,193 @@ public class RunPadAnalyzersTests
         var diagnostics = await GetDiagnosticsAsync(new InvalidTimeSpanFromDoubleArgumentAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimeSpanFromDoubleArgumentAnalyzer.DiagnosticId));
     }
+
+    // ── Hundred and twenty-first batch (двести шестьдесят седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M() { new System.IO.MemoryStream(); } }", true)]
+    [InlineData("class C { public void M() { using var s = new System.IO.MemoryStream(); } }", false)]
+    [InlineData("class C { public void M() { var s = new System.IO.MemoryStream(); s.Dispose(); } }", false)]
+    [InlineData("class C { public System.IO.MemoryStream M() { return new System.IO.MemoryStream(); } }", false)]
+    [InlineData("class C { public void M() { new object(); } }", false)]
+    [InlineData("class C { public void M() { new System.IO.MemoryStream().Dispose(); } }", false)]
+    public async Task DiscardedDisposableObjectCreationAnalyzer_Should_NotFlag_AnAssignedOrChainedCreation(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DiscardedDisposableObjectCreationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DiscardedDisposableObjectCreationAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and twenty-second batch (двести шестьдесят восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("record Foo(int[] Data);", true)]
+    [InlineData("record Bar(int Data);", false)]
+    [InlineData("record Baz { public int[] Data { get; init; } = System.Array.Empty<int>(); }", true)]
+    [InlineData("record struct Qux(int[] Data);", true)]
+    [InlineData("class NotARecord { public int[] Data { get; init; } = System.Array.Empty<int>(); }", false)]
+    public async Task RecordWithArrayMemberAnalyzer_Should_NotFlag_ANonArrayMember(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RecordWithArrayMemberAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RecordWithArrayMemberAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and twenty-third batch (двести шестьдесят девятый проход) — extension of an already-
+    // shipped analyzer, no new analyzer.
+
+    [Theory]
+    [InlineData("record Foo(System.Collections.Generic.List<int> Data);", true)]
+    [InlineData("record Bar(System.Collections.Generic.Dictionary<string, int> Data);", true)]
+    [InlineData("record Baz(System.Collections.Generic.HashSet<int> Data);", true)]
+    [InlineData("record Qux { public System.Collections.Generic.List<int> Data { get; init; } = new(); }", true)]
+    [InlineData("record Quux(System.Collections.Generic.IReadOnlyList<int> Data);", false)]
+    [InlineData("record Corge(System.Collections.Immutable.ImmutableArray<int> Data);", false)]
+    public async Task RecordWithArrayMemberAnalyzer_Should_NotFlag_AnInterfaceOrImmutableCollectionMember(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RecordWithArrayMemberAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RecordWithArrayMemberAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and twenty-fourth batch (двести семидесятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("#nullable disable\nclass Foo : System.IEquatable<Foo> { public int X; public bool Equals(Foo other) => other != null && X == other.X; public override int GetHashCode() => X; }", true)]
+    [InlineData("#nullable disable\nclass Bar : System.IEquatable<Bar> { public int X; public bool Equals(Bar other) => other != null && X == other.X; public override bool Equals(object obj) => Equals(obj as Bar); public override int GetHashCode() => X; }", false)]
+    [InlineData("struct Baz : System.IEquatable<Baz> { public int X; public readonly bool Equals(Baz other) => X == other.X; public override readonly int GetHashCode() => X; }", true)]
+    [InlineData("class Quux { public int X; public override bool Equals(object obj) => obj is Quux q && X == q.X; public override int GetHashCode() => X; }", false)]
+    [InlineData("record Corge(int X);", false)]
+    public async Task IEquatableWithoutObjectEqualsOverrideAnalyzer_Should_NotFlag_ATypeWithBothOverrides(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new IEquatableWithoutObjectEqualsOverrideAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == IEquatableWithoutObjectEqualsOverrideAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and twenty-fifth batch (двести семьдесят первый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M(int[] arr) => System.Array.Resize(ref arr, -1); }", true)]
+    [InlineData("class C { public void M(int[] arr) => System.Array.Resize(ref arr, 5); }", false)]
+    [InlineData("class C { public void M(int[] arr) => System.Array.Clear(arr, -1, 1); }", true)]
+    [InlineData("class C { public void M(int[] arr) => System.Array.Clear(arr, 0, -1); }", true)]
+    [InlineData("class C { public void M(int[] arr) => System.Array.Clear(arr, 0, 1); }", false)]
+    [InlineData("class C { public void M(int[] arr, int n) => System.Array.Resize(ref arr, n); }", false)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.Copy(src, -1, dst, 0, 1); }", true)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.Copy(src, 0, dst, -1, 1); }", true)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.Copy(src, 0, dst, 0, -1); }", true)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.Copy(src, 1, dst, 1, 2); }", false)]
+    [InlineData("class C { public void M(int[] src, int[] dst, int n) => System.Array.Copy(src, n, dst, 0, 1); }", false)]
+    [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, -1, 1, 2); }", true)]
+    [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 0, -1, 2); }", true)]
+    [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 0, 1, 2); }", false)]
+    [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 2); }", false)]
+    public async Task NegativeArrayResizeOrClearArgumentAnalyzer_Should_NotFlag_ANonNegativeArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeArrayResizeOrClearArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeArrayResizeOrClearArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and twenty-eighth batch (двести семьдесят четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 13, 1); }", true)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 1, 32); }", true)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 2, 29); }", true)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2024, 2, 29); }", false)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 1, 1, 24, 0, 0); }", true)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 1, 1); }", false)]
+    [InlineData("using System; class C { public DateTime M(int m) => new DateTime(2023, m, 1); }", false)]
+    [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc); }", false)]
+    [InlineData("using System; class C { public DateOnly M() => new DateOnly(2023, 13, 1); }", true)]
+    [InlineData("using System; class C { public DateOnly M() => new DateOnly(2023, 1, 1); }", false)]
+    [InlineData("using System; class C { public TimeOnly M() => new TimeOnly(24, 0, 0); }", true)]
+    [InlineData("using System; class C { public TimeOnly M() => new TimeOnly(1, 60); }", true)]
+    [InlineData("using System; class C { public TimeOnly M() => new TimeOnly(1, 2, 3); }", false)]
+    public async Task InvalidDateTimeConstructorArgumentAnalyzer_Should_NotFlag_AValidDate(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDateTimeConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateTimeConstructorArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirtieth batch (двести семьдесят шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public Version M() => new Version(-1, 0); }", true)]
+    [InlineData("using System; class C { public Version M() => new Version(1, -1); }", true)]
+    [InlineData("using System; class C { public Version M() => new Version(1, 0); }", false)]
+    [InlineData("using System; class C { public Version M() => new Version(1, 0, -1); }", true)]
+    [InlineData("using System; class C { public Version M(int m) => new Version(m, 0); }", false)]
+    public async Task NegativeVersionComponentAnalyzer_Should_NotFlag_ANonNegativeComponent(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeVersionComponentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeVersionComponentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-first batch (двести семьдесят седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public Guid M() => new Guid(new byte[] { 1, 2, 3 }); }", true)]
+    [InlineData("using System; class C { public Guid M() => new Guid(new byte[16]); }", false)]
+    [InlineData("using System; class C { public Guid M() => new Guid(1, 2, 3, new byte[] { 1, 2, 3 }); }", true)]
+    [InlineData("using System; class C { public Guid M() => new Guid(1, 2, 3, new byte[8]); }", false)]
+    [InlineData("using System; class C { public Guid M(byte[] b) => new Guid(b); }", false)]
+    public async Task InvalidGuidByteArrayLengthAnalyzer_Should_NotFlag_ACorrectlySizedArray(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidGuidByteArrayLengthAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidByteArrayLengthAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-second batch (двести семьдесят восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Net; class C { public IPAddress M() => new IPAddress(new byte[] { 1, 2, 3 }); }", true)]
+    [InlineData("using System.Net; class C { public IPAddress M() => new IPAddress(new byte[] { 1, 2, 3, 4 }); }", false)]
+    [InlineData("using System.Net; class C { public IPAddress M() => new IPAddress(new byte[16]); }", false)]
+    [InlineData("using System.Net; class C { public IPAddress M(byte[] b) => new IPAddress(b); }", false)]
+    public async Task InvalidIPAddressByteArrayLengthAnalyzer_Should_NotFlag_ACorrectlySizedArray(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidIPAddressByteArrayLengthAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPAddressByteArrayLengthAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-third batch (двести семьдесят девятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public int M() => BitConverter.ToInt32(new byte[4], -1); }", true)]
+    [InlineData("using System; class C { public int M() => BitConverter.ToInt32(new byte[4], 1); }", true)]
+    [InlineData("using System; class C { public int M() => BitConverter.ToInt32(new byte[4], 0); }", false)]
+    [InlineData("using System; class C { public short M() => BitConverter.ToInt16(new byte[1], 0); }", true)]
+    [InlineData("using System; class C { public int M(int i) => BitConverter.ToInt32(new byte[4], i); }", false)]
+    public async Task InvalidBitConverterArgumentAnalyzer_Should_NotFlag_ASufficientArray(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBitConverterArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBitConverterArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-fourth batch (двухсотвосьмидесятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M() => new string(new char[3], 0, 5); }", true)]
+    [InlineData("class C { public string M() => new string(new char[3], -1, 1); }", true)]
+    [InlineData("class C { public string M() => new string(new char[3], 2, 2); }", true)]
+    [InlineData("class C { public string M() => new string(new char[3], 1, 2); }", false)]
+    [InlineData("class C { public string M() => new string(new char[3], 3, 0); }", false)]
+    [InlineData("class C { public string M(int s, int l) => new string(new char[3], s, l); }", false)]
+    public async Task InvalidStringCharArrayConstructorArgumentAnalyzer_Should_NotFlag_AnInBoundsRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringCharArrayConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringCharArrayConstructorArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-fifth batch (двести восемьдесят первый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M() => System.Text.Encoding.UTF8.GetString(new byte[3], 0, 5); }", true)]
+    [InlineData("class C { public string M() => System.Text.Encoding.UTF8.GetString(new byte[3], -1, 1); }", true)]
+    [InlineData("class C { public string M() => System.Text.Encoding.UTF8.GetString(new byte[3], 1, 2); }", false)]
+    [InlineData("class C { public string M() => System.Text.Encoding.UTF8.GetString(new byte[3], 3, 0); }", false)]
+    [InlineData("class C { public string M(int i, int c) => System.Text.Encoding.UTF8.GetString(new byte[3], i, c); }", false)]
+    public async Task InvalidEncodingGetStringArgumentAnalyzer_Should_NotFlag_AnInBoundsRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEncodingGetStringArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEncodingGetStringArgumentAnalyzer.DiagnosticId));
+    }
 }
