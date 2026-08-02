@@ -3142,4 +3142,22 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("'Encoding.GetString(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести восемьдесят второй проход, batch) — NegativeArrayResizeOrClearArgumentAnalyzer/
+    // RPAD0263 extended to also cover Array.ConstrainedCopy (no new analyzer this batch).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public void M(int[] src, int[] dst) => Array.ConstrainedCopy(src, -1, dst, 0, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.ConstrainedCopy(...)' always throws ArgumentOutOfRangeException at runtime — sourceIndex cannot be negative", StringComparison.Ordinal));
+    }
 }

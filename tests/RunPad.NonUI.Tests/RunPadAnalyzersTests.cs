@@ -3316,6 +3316,9 @@ public class RunPadAnalyzersTests
     [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 0, -1, 2); }", true)]
     [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 0, 1, 2); }", false)]
     [InlineData("class C { public int M(int[] arr) => System.Array.BinarySearch(arr, 2); }", false)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, -1, dst, 0, 1); }", true)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, 0, dst, -1, 1); }", true)]
+    [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, 1, dst, 1, 2); }", false)]
     public async Task NegativeArrayResizeOrClearArgumentAnalyzer_Should_NotFlag_ANonNegativeArgument(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeArrayResizeOrClearArgumentAnalyzer(), code);
