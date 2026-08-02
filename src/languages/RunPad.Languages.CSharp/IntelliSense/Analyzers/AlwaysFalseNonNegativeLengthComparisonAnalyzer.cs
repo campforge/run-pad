@@ -13,6 +13,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // restricted to a short, known-safe list of properties (string.Length, array Length, ICollection(<T>)/
 // IReadOnlyCollection<T>.Count) rather than any int property literally named Length/Count, to avoid
 // guessing at a type's own invariants.
+// Extended (двести тридцать четвёртый проход, batch) to also cover the "always true" mirror —
+// `x.Length >= 0`/`0 <= x.Length` — same non-negative invariant, opposite comparison. Deliberately does
+// NOT add `x.Length <= 0`/`0 >= x.Length` — those are equivalent to the meaningful `x.Length == 0`, not
+// a redundant comparison at all.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class AlwaysFalseNonNegativeLengthComparisonAnalyzer : DiagnosticAnalyzer
 {
@@ -21,7 +25,7 @@ public sealed class AlwaysFalseNonNegativeLengthComparisonAnalyzer : DiagnosticA
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Length/Count is never negative",
-        messageFormat: "This comparison is always false — '{0}' can never be negative",
+        messageFormat: "This comparison is always {1} — '{0}' can never be negative",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -33,14 +37,45 @@ public sealed class AlwaysFalseNonNegativeLengthComparisonAnalyzer : DiagnosticA
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.LessThanExpression, SyntaxKind.GreaterThanExpression);
+        context.RegisterSyntaxNodeAction(
+            Analyze,
+            SyntaxKind.LessThanExpression, SyntaxKind.GreaterThanExpression,
+            SyntaxKind.GreaterThanOrEqualExpression, SyntaxKind.LessThanOrEqualExpression);
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var binary = (BinaryExpressionSyntax)context.Node;
-        var candidate = binary.Kind() == SyntaxKind.LessThanExpression ? binary.Left : binary.Right;
-        var zeroSide = binary.Kind() == SyntaxKind.LessThanExpression ? binary.Right : binary.Left;
+        var kind = binary.Kind();
+
+        ExpressionSyntax candidate;
+        ExpressionSyntax zeroSide;
+        bool isAlwaysTrue;
+        switch (kind)
+        {
+            case SyntaxKind.LessThanExpression: // x.Length < 0 — always false
+                candidate = binary.Left;
+                zeroSide = binary.Right;
+                isAlwaysTrue = false;
+                break;
+            case SyntaxKind.GreaterThanExpression: // 0 > x.Length — always false
+                candidate = binary.Right;
+                zeroSide = binary.Left;
+                isAlwaysTrue = false;
+                break;
+            case SyntaxKind.GreaterThanOrEqualExpression: // x.Length >= 0 — always true
+                candidate = binary.Left;
+                zeroSide = binary.Right;
+                isAlwaysTrue = true;
+                break;
+            case SyntaxKind.LessThanOrEqualExpression: // 0 <= x.Length — always true
+                candidate = binary.Right;
+                zeroSide = binary.Left;
+                isAlwaysTrue = true;
+                break;
+            default:
+                return;
+        }
 
         if (!IsZeroLiteral(zeroSide)) return;
         if (candidate is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Length" or "Count" } memberAccess)
@@ -55,7 +90,10 @@ public sealed class AlwaysFalseNonNegativeLengthComparisonAnalyzer : DiagnosticA
         }
 
         if (IsKnownNonNegativeProperty(property))
-            context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation(), memberAccess.Name.Identifier.Text));
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Rule, binary.GetLocation(), memberAccess.Name.Identifier.Text, isAlwaysTrue ? "true" : "false"));
+        }
     }
 
     private static bool IsKnownNonNegativeProperty(IPropertySymbol property)

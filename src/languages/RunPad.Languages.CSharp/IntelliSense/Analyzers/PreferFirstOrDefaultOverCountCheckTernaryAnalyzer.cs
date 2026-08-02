@@ -12,6 +12,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // collection is empty. Matched structurally (the Count/Length receiver and the indexer receiver must
 // be the literal same expression — SyntaxNode.IsEquivalentTo) and requires the index to be the literal
 // `0` and the "empty" branch to be `default`/`default(T)`/`null`.
+// Extended (двести тридцать второй проход, batch) to also cover the opposite polarity —
+// `xs.Count > 0 ? xs[0] : default` says the same thing the other way around.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferFirstOrDefaultOverCountCheckTernaryAnalyzer : DiagnosticAnalyzer
 {
@@ -20,7 +22,7 @@ public sealed class PreferFirstOrDefaultOverCountCheckTernaryAnalyzer : Diagnost
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Prefer FirstOrDefault over a Count/Length empty-check ternary",
-        messageFormat: "'xs.Count == 0 ? default : xs[0]' can be simplified to 'xs.FirstOrDefault()'",
+        messageFormat: "'{0}' can be simplified to 'xs.FirstOrDefault()'",
         category: "Simplification",
         DiagnosticSeverity.Info,
         isEnabledByDefault: true,
@@ -40,17 +42,36 @@ public sealed class PreferFirstOrDefaultOverCountCheckTernaryAnalyzer : Diagnost
         var conditional = (ConditionalExpressionSyntax)context.Node;
         if (conditional.Condition is not BinaryExpressionSyntax
             {
-                RawKind: (int)SyntaxKind.EqualsExpression,
                 Left: MemberAccessExpressionSyntax { Name.Identifier.Text: "Count" or "Length" } countAccess,
                 Right: LiteralExpressionSyntax { Token.Value: 0 },
-            })
+            } condition)
         {
             return;
         }
 
-        if (!IsDefaultLike(conditional.WhenTrue)) return;
+        ExpressionSyntax defaultBranch;
+        ExpressionSyntax elementBranch;
+        string illustrativeForm;
+        if (condition.IsKind(SyntaxKind.EqualsExpression))
+        {
+            defaultBranch = conditional.WhenTrue;
+            elementBranch = conditional.WhenFalse;
+            illustrativeForm = "xs.Count == 0 ? default : xs[0]";
+        }
+        else if (condition.IsKind(SyntaxKind.GreaterThanExpression))
+        {
+            defaultBranch = conditional.WhenFalse;
+            elementBranch = conditional.WhenTrue;
+            illustrativeForm = "xs.Count > 0 ? xs[0] : default";
+        }
+        else
+        {
+            return;
+        }
 
-        if (conditional.WhenFalse is not ElementAccessExpressionSyntax
+        if (!IsDefaultLike(defaultBranch)) return;
+
+        if (elementBranch is not ElementAccessExpressionSyntax
             {
                 ArgumentList.Arguments: [{ Expression: LiteralExpressionSyntax { Token.Value: 0 } }],
             } elementAccess)
@@ -59,7 +80,7 @@ public sealed class PreferFirstOrDefaultOverCountCheckTernaryAnalyzer : Diagnost
         }
         if (!countAccess.Expression.IsEquivalentTo(elementAccess.Expression)) return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, conditional.GetLocation()));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, conditional.GetLocation(), illustrativeForm));
     }
 
     private static bool IsDefaultLike(ExpressionSyntax expression) => expression switch

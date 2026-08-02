@@ -2008,4 +2008,858 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Use 'Count(predicate)'", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("Use 'string.Concat(xs)'", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести двадцать девятый проход, batch) — two new analyzers this batch
+    // (PreferStringConcatOverJoinWithEmptySeparatorAnalyzer/RPAD0216,
+    // PreferOperatorOverAddSubtractMethodAnalyzer/RPAD0217). A round-1 PROBE of 10 candidates showed the
+    // other four (List/Array Where().ToList()/ToArray() and Select().ToList()/ToArray(), meant as
+    // FindAll/ConvertAll suggestions) all collide with a built-in "Collection initialization can be
+    // simplified" IDE rule on the exact ToList()/ToArray() span — dropped whole, same broad-overlap class
+    // as IDE0090 in проходы 218/227. The two survivors combined in one snippet (5 Add/Subtract forms
+    // plus the Join form — none share a span).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; using System; " +
+            "class C { " +
+            "public string M1(List<string> xs) => string.Join(\"\", xs); " +
+            "public DateTime M2(DateTime dt, TimeSpan ts) => dt.Add(ts); " +
+            "public DateTime M3(DateTime dt, TimeSpan ts) => dt.Subtract(ts); " +
+            "public TimeSpan M4(DateTime dt1, DateTime dt2) => dt1.Subtract(dt2); " +
+            "public TimeSpan M5(TimeSpan ts1, TimeSpan ts2) => ts1.Add(ts2); " +
+            "public TimeSpan M6(TimeSpan ts1, TimeSpan ts2) => ts1.Subtract(ts2); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("string.Concat(xs)", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'x.Add(y)' can be replaced with 'x + y'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'x.Subtract(y)' can be replaced with 'x - y'", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцатый проход, batch) — three new analyzers this batch
+    // (PreferLastOverElementAtCountMinusOneAnalyzer/RPAD0218, RedundantConcatWithEmptyAnalyzer/RPAD0219,
+    // PreferInstanceToStringOverConvertToStringForNumericAnalyzer/RPAD0220), combined in one snippet —
+    // none share a span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; " +
+            "class C { " +
+            "public int M1(IEnumerable<int> xs) => xs.ElementAt(xs.Count() - 1); " +
+            "public IEnumerable<int> M2(IEnumerable<int> xs) => xs.Concat(Enumerable.Empty<int>()); " +
+            "public string M3(int x) => System.Convert.ToString(x); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("can be replaced with 'xs.Last()'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("xs.Concat(Enumerable.Empty<T>())", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Convert.ToString(x)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать первый проход, batch) — one new analyzer this batch
+    // (RedundantTrimBeforeIntegralOrBoolParseAnalyzer/RPAD0221).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M(string s) => int.Parse(s.Trim()); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Int32.Parse(s.Trim())' can be replaced with 'Int32.Parse(s)'", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать второй проход, batch) — one new analyzer
+    // (PreferOrDefaultOverAnyCheckTernaryAnalyzer/RPAD0222) plus a new opposite-polarity form on
+    // PreferFirstOrDefaultOverCountCheckTernaryAnalyzer/RPAD0171, combined in one snippet — no shared
+    // span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; " +
+            "class C { " +
+            "public int M1(IEnumerable<int> xs) => xs.Any() ? xs.First() : default; " +
+            "public int M2(List<int> xs) => xs.Count > 0 ? xs[0] : default; " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("xs.FirstOrDefault()", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("xs.Count > 0 ? xs[0] : default", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать третий проход, batch) — two new analyzers this batch
+    // (PreferThrowIfNullOverIfNullCheckAnalyzer/RPAD0223, HasFlagWithZeroValueAnalyzer/RPAD0224),
+    // combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; " +
+            "[Flags] enum Perm { None = 0, Read = 1, Write = 2 } " +
+            "class C { " +
+            "public void M1(string x) { if (x == null) throw new ArgumentNullException(nameof(x)); } " +
+            "public bool M2(Perm flags) => flags.HasFlag(Perm.None); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("ArgumentNullException.ThrowIfNull(x)", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("always returns true", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать четвёртый проход, batch) — one new analyzer
+    // (SelfArgumentMathMaxMinAnalyzer/RPAD0225) plus new forms on SelfEqualityCheckAnalyzer/RPAD0096
+    // (HasFlag) and AlwaysFalseNonNegativeLengthComparisonAnalyzer/RPAD0051 (>=0 mirror), combined in one
+    // snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; " +
+            "[Flags] enum Perm { None = 0, Read = 1 } " +
+            "class C { " +
+            "public bool M1(Perm x) => x.HasFlag(x); " +
+            "public bool M2(int[] xs) => xs.Length >= 0; " +
+            "public int M3(int x) => Math.Max(x, x); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Comparing a value to itself", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("always true", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Math.Max(x, x)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать пятый проход, batch) — one new analyzer this batch
+    // (SelfLogicalOrBitwiseOperatorAnalyzer/RPAD0226).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public bool M(bool x) => x && x; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'x && x' always evaluates to x's own value", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать шестой проход, batch) — one new analyzer this batch
+    // (LockOnNewObjectAnalyzer/RPAD0227) plus new typeof/string-literal forms on
+    // AvoidLockOnThisAnalyzer/RPAD0014, combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int f; " +
+            "public void M1() { lock (typeof(C)) { f++; } } " +
+            "public void M2() { lock (new object()) { f++; } } " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Locking on a Type object", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("no two threads ever contend for the same lock", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать седьмой проход, batch) — two new analyzers this batch
+    // (MonitorEnterWithoutTryFinallyAnalyzer/RPAD0228, DiscardedMonitorTryEnterResultAnalyzer/RPAD0229),
+    // combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; " +
+            "class C { object o = new(); " +
+            "void M1() { Monitor.Enter(o); DoWork(); Monitor.Exit(o); } " +
+            "void M2() { Monitor.TryEnter(o); } " +
+            "void DoWork() { } " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("immediately followed by a try/finally", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("returns false when the lock was NOT acquired", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать восьмой проход, batch) — one new analyzer this batch
+    // (SemaphoreOrReaderWriterLockAcquireWithoutTryFinallyAnalyzer/RPAD0230).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; " +
+            "class C { SemaphoreSlim s = new(1); " +
+            "void M() { s.Wait(); DoWork(); s.Release(); } " +
+            "void DoWork() { } " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("SemaphoreSlim.Wait(...)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести тридцать девятый проход, batch) — one new analyzer this batch
+    // (NegativeCapacityArgumentAnalyzer/RPAD0231).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; " +
+            "class C { public List<int> M() => new List<int>(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new List(-1)' always throws ArgumentOutOfRangeException", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сороковой проход, batch) — two new analyzers this batch
+    // (NegativeCountArgumentAnalyzer/RPAD0232, NegativeTimeoutArgumentAnalyzer/RPAD0233), combined in
+    // one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Threading.Tasks; " +
+            "class C { " +
+            "public void M1() => Enumerable.Repeat(0, -1); " +
+            "public void M2() => Task.Delay(-2); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Enumerable.Repeat(..., -1)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Task.Delay(-2)' always throws", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок первый проход, batch) — two new analyzers this batch
+    // (InvalidRandomRangeArgumentAnalyzer/RPAD0234, SubstringOutOfRangeAnalyzer/RPAD0235), combined in
+    // one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; " +
+            "class C { " +
+            "public int M1(Random r) => r.Next(10, 5); " +
+            "public string M2() => \"abc\".Substring(1, 10); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Next(10, 5)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Substring(1, 10)' always throws", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок второй проход, batch) — three new analyzers this batch
+    // (NegativeElementAtIndexAnalyzer/RPAD0236, NegativeStringRepeatCountAnalyzer/RPAD0237,
+    // InvalidConvertToIntegralBaseAnalyzer/RPAD0238), combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; using System.Linq; using System.Collections.Generic; " +
+            "class C { " +
+            "public int M1(IEnumerable<int> xs) => xs.ElementAt(-1); " +
+            "public string M2() => new string('x', -1); " +
+            "public int M3(string s) => Convert.ToInt32(s, 3); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("ElementAt(-1)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("new string(c, -1)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Convert.ToInt32(..., 3)' always throws", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок третий проход, batch) — one new analyzer this batch
+    // (AbsolutePathArgumentInPathCombineAnalyzer/RPAD0239).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; " +
+            "class C { public string M(string a) => Path.Combine(a, \"/etc/passwd\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("looks like a rooted path", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок четвёртый проход, batch) — CultureSensitiveNumericParseAnalyzer/
+    // RPAD0098 extended with DateTime.Parse/TimeSpan.Parse forms.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; " +
+            "class C { public DateTime M(string s) => DateTime.Parse(s); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTime.Parse(...)' uses the current culture", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок пятый проход, batch) — one new analyzer this batch
+    // (NonPositiveChunkSizeAnalyzer/RPAD0240) plus a new PriorityQueue form on
+    // NegativeCapacityArgumentAnalyzer/RPAD0231, combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheNinetyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; " +
+            "class C { " +
+            "public void M1(IEnumerable<int> xs) => xs.Chunk(0); " +
+            "public PriorityQueue<int, int> M2() => new PriorityQueue<int, int>(-1); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Chunk(0)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PriorityQueue(-1)' always throws", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок шестой проход, batch) — InvalidRandomRangeArgumentAnalyzer/RPAD0234
+    // extended with the single-argument Random.Next(maxValue) form.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; " +
+            "class C { public int M(Random r) => r.Next(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Next(-1)' always throws", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок седьмой проход, batch) — one new analyzer this batch
+    // (DuplicateKeyInDictionaryInitializerAnalyzer/RPAD0241).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; " +
+            "class C { public Dictionary<string, int> M() => new Dictionary<string, int> { { \"a\", 1 }, { \"a\", 2 } }; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("duplicates an earlier entry", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок восьмой проход, batch) — one new analyzer this batch
+    // (RedundantDuplicateValueInHashSetInitializerAnalyzer/RPAD0242).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; " +
+            "class C { public HashSet<int> M() => new HashSet<int> { 1, 1 }; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("HashSet<T>.Add silently does nothing", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести сорок девятый проход, batch) — DuplicateKeyInDictionaryInitializerAnalyzer/
+    // RPAD0241 extended with case-insensitive comparer detection.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; using System.Collections.Generic; " +
+            "class C { public Dictionary<string, int> M() => new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { { \"a\", 1 }, { \"A\", 2 } }; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("duplicates an earlier entry", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятидесятый проход, batch) — one new analyzer this batch
+    // (InsufficientCollectionCapacityAnalyzer/RPAD0243).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; " +
+            "class C { public List<int> M() => new List<int>(2) { 1, 2, 3 }; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Capacity 2 is less than the 3 element(s)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят первый проход, batch) — one new analyzer this batch
+    // (IsDefinedOnFlagsEnumAnalyzer/RPAD0244).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; [Flags] enum Perm { None = 0, Read = 1, Write = 2 } " +
+            "class C { public bool M(Perm p) => Enum.IsDefined<Perm>(p); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("only matches a single named member", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят второй проход, batch) — one new analyzer this batch
+    // (InvalidBase64LiteralLengthAnalyzer/RPAD0245).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public byte[] M() => Convert.FromBase64String(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a valid Base64 string", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят третий проход, batch) — one new analyzer this batch
+    // (InvalidGuidLiteralFormatAnalyzer/RPAD0246).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public Guid M() => Guid.Parse(\"not-a-guid\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("doesn't match any of Guid's recognized formats", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidVersionLiteralFormatAnalyzer/RPAD0247).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public Version M() => Version.Parse(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("major.minor[.build[.revision]]", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят пятый проход, batch) — one new analyzer this batch
+    // (InvalidCultureNameLiteralAnalyzer/RPAD0248).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Globalization; " +
+            "class C { public CultureInfo M() => CultureInfo.GetCultureInfo(\"!!!invalid!!!\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a recognized culture name", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят шестой проход, batch) — one new analyzer this batch
+    // (InvalidIPAddressLiteralAnalyzer/RPAD0249).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndTenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Net; class C { public IPAddress M() => IPAddress.Parse(\"not-an-ip\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a valid IPv4 or IPv6 address", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят седьмой проход, batch) — one new analyzer this batch
+    // (InvalidMailAddressLiteralAnalyzer/RPAD0250).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEleventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Net.Mail; class C { public MailAddress M() => new MailAddress(\"not-an-email\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a syntactically valid email address", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят восьмой проход, batch) — one new analyzer this batch
+    // (MathAbsOfMinValueAnalyzer/RPAD0251).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndTwelfthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public int M() => Math.Abs(int.MinValue); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws OverflowException", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести пятьдесят девятый проход, batch) — one new analyzer this batch
+    // (PreferAppendOverStringBuilderInsertAtLengthAnalyzer/RPAD0252) plus a new Remove(0, Length) form
+    // on PreferClearOverStringBuilderLengthZeroAnalyzer/RPAD0191, combined in one snippet — no shared
+    // span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Text; " +
+            "class C { " +
+            "public void M1(StringBuilder sb, string x) => sb.Insert(sb.Length, x); " +
+            "public void M2(StringBuilder sb) => sb.Remove(0, sb.Length); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("can be replaced with 'sb.Append(value)'", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("'sb.Remove(0, sb.Length)' can be replaced with 'sb.Clear()'", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двухсотшестидесятый проход, batch) — two new analyzers this batch
+    // (InvalidBooleanLiteralAnalyzer/RPAD0253, InvalidEnumParseLiteralAnalyzer/RPAD0254), combined in
+    // one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFourteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "enum Color { Red, Green, Blue } " +
+            "class C { " +
+            "public bool M1() => bool.Parse(\"yes\"); " +
+            "public Color M2() => Enum.Parse<Color>(\"Purple\"); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not \"True\" or \"False\" (case-insensitive)", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a defined member of 'Color'", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят первый проход, batch) — one new analyzer this batch
+    // (InvalidUriLiteralAnalyzer/RPAD0255). The overlap with the built-in "'new' expression can be
+    // simplified" (IDE0090, target-typed new) suggestion on the same `new Uri(...)` call is a different
+    // reason on the same span — kept, established precedent (e.g. RPAD0090/Enum.Parse boxing concern,
+    // проход 260).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFifteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Uri M() => new System.Uri(\"http://\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws UriFormatException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят второй проход, batch) — one new analyzer this batch
+    // (InvalidHexStringLiteralAnalyzer/RPAD0256), plus InvalidBase64LiteralLengthAnalyzer/RPAD0245
+    // rewritten to the "run the real validator" technique, combined in one snippet — no shared span.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { " +
+            "public byte[] M1() => System.Convert.FromHexString(\"zz\"); " +
+            "public byte[] M2() => System.Convert.FromBase64String(\"!!!!\"); " +
+            "}");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Convert.FromHexString(...)' always throws FormatException", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("Convert.FromBase64String(...)' always throws FormatException", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят третий проход, batch) — one new analyzer this batch
+    // (InvalidXmlLiteralAnalyzer/RPAD0257). A parallel InvalidJsonLiteralAnalyzer candidate for
+    // JsonDocument.Parse was PROBEd and dropped — the IDE's own built-in "JSON issue: ..." diagnostic
+    // already covers the same span for the same reason (JsonDocument.Parse's parameter carries
+    // [StringSyntax("Json")]); XDocument.Parse/XElement.Parse carry no such annotation, so no equivalent
+    // built-in exists to collide with here.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventeenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Xml.Linq.XDocument M() => System.Xml.Linq.XDocument.Parse(\"not xml\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws XmlException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят четвёртый проход, batch) — one new analyzer this batch
+    // (IntegralParseOverflowAnalyzer/RPAD0258).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEighteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte M() => byte.Parse(\"300\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят пятый проход, batch) — one new analyzer this batch
+    // (InvalidTimeSpanFromDoubleArgumentAnalyzer/RPAD0259). The unrelated
+    // PreferTimeSpanZeroOverFromXWithZeroAnalyzer (RPAD0203) firing on a separate `FromDays(0)` call in
+    // the PROBE snippet was a different reason on a different call, not a collision.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNineteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeSpan M() => System.TimeSpan.FromDays(double.NaN); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести шестьдесят шестой проход, batch) — IntegralParseOverflowAnalyzer/RPAD0258
+    // extended to also cover decimal.Parse/Convert.ToDecimal (no new analyzer this batch). A parallel
+    // "mismatched string.Format placeholder count" candidate was PROBEd and dropped — the IDE's own
+    // built-in "Format string contains invalid placeholder" diagnostic already covers the same span for
+    // the same reason (string.Format's format-string parameter carries
+    // [StringSyntax("CompositeFormat")]).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndTwentiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public decimal M() => decimal.Parse(\"79228162514264337593543950336\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
 }
