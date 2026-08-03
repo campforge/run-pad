@@ -167,6 +167,12 @@ file/pipe). Exit codes: `0` — success and nothing written to stderr; `1` — e
 file not found or not parseable as `.rpad`, no SDK installed, compile error, or the script itself
 wrote something to stderr during execution); `130` — interrupted with Ctrl+C.
 
+## License
+
+Copyright (C) 2026 Vadim ([coddwrench](https://github.com/coddwrench))
+
+Licensed under the GNU General Public License v3.0 — see [`LICENSE`](LICENSE) for the full text.
+
 ## Known issues
 
 The current list of bugs and tech debt lives in `TODO.md` (items 85+ are results of the 2026-07-16
