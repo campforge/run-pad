@@ -13,7 +13,7 @@ namespace RunPad.Runtime.UI.Tests;
 // line — structurally zero new lines, same as Statements' passthrough — which misaligned every
 // breakpoint/stack frame in Program-kind scripts by exactly the erroneous offset.
 //
-// TODO.md #107 (this проход): the "Main();{code}" shape itself turned out to be its own bug — it left
+// TODO.md #107 (this pass): the "Main();{code}" shape itself turned out to be its own bug — it left
 // the user's whole script as raw top-level statements, which broke as soon as a Program-kind script had
 // more than just Main (fields declared below Main became CS0165 "unassigned", methods with an access
 // modifier became CS0106 "not valid for this item" — LINQPad-style scripts, the norm for this kind, hit

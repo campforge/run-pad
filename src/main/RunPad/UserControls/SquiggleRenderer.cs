@@ -6,7 +6,7 @@ using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
 
-// ToDo: Перенести в RunPad.Avalonia.CodeTextEditor
+// ToDo: Move to RunPad.Avalonia.CodeTextEditor
 internal sealed class SquiggleRenderer : IBackgroundRenderer
 {
     private IReadOnlyList<IDiagnosticInfo> _diagnostics = [];

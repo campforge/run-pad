@@ -19,7 +19,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 (user request 2026-07-21, refined сто шестым проходом the same day to match against
+// TODO.md #74 (user request 2026-07-21, refined in pass 106 the same day to match against
 // DiagnosticId instead of Title) — Preferences → C# → "code fixes enabled" master switch and the
 // excluded-diagnostic-id list, both filtering the lightbulb margin's merged diagnostic-fix +
 // refactoring list. Driven through a REAL EditorsTabItemControl against a MOCKED
@@ -64,7 +64,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
+            intelliSense, new CSharpReferenceService(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 
@@ -179,7 +179,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         Assert.Empty(margin.Fixes);
     }
 
-    // User request 2026-07-21 (сто шестой проход) — real end-to-end proof, not just the unit-level
+    // User request 2026-07-21 (pass 106) — real end-to-end proof, not just the unit-level
     // "default List<string> contains IDE0055" check (PreferencesWindowViewModelTests.
     // CSharpLanguageSettings_Should_ExcludeFixFormatting_ByDefault): a REAL CSharpIntelliSenseService
     // (Roslyn's own FormattingAnalyzer, not a fake) run against deliberately badly-formatted code,

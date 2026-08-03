@@ -144,7 +144,7 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Once);
     }
 
-    // TODO.md "Реорганизация Preferences": every registered language today is .NET-based, so they
+    // TODO.md "Preferences reorganization": every registered language today is .NET-based, so they
     // all nest one level deeper, under a ".NET" runtime-family group — Languages -> .NET -> C#/VB —
     // rather than sitting directly under Languages the way they used to.
     [Fact]
@@ -295,7 +295,7 @@ public class PreferencesWindowViewModelTests
         Assert.Equal("CS0184\nIDE0007", vm.ExcludedDiagnosticIdsText);
     }
 
-    // User request 2026-07-21 (сто шестой проход): "fix formatting" (IDE0055) should be excluded
+    // User request 2026-07-21 (pass 106): "fix formatting" (IDE0055) should be excluded
     // out of the box — RunPad already has its own dotnet-format-based formatting story, so a live
     // "reformat this" suggestion on every whitespace deviation was judged more noise than help by
     // default. A fresh CSharpLanguageSettings (e.g. a first-ever launch, before settings.json exists)

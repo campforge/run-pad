@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #88 (остаток): RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
+// TODO.md #88 (leftover): RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
 // ForDebugger(...) directly, so exercising them meant either shelling out to a real dotnet/netcoredbg
 // process or not testing them at all — the same gap CompiledDotnetLanguageHostCompilerFactoryTests
 // already closed for the compiler seam. The injected ExecutionChildProcessFactory/
@@ -227,7 +227,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         throw new TimeoutException($"""Never saw a written request containing "{containing}".""");
     }
 
-    // TODO.md #111 — live user report ("Util.CurrentQueryPath не работает под отладкой"): confirms
+    // TODO.md #111 — live user report ("Util.CurrentQueryPath doesn't work while debugging"): confirms
     // the full RunDebugAsync path, not just DapSession in isolation (DapSessionCurrentQueryPathTests.cs
     // already covers that half) — Options.CurrentQueryPath really does reach the real DapSession this
     // host constructs internally, which really does put it in the actual launch request.

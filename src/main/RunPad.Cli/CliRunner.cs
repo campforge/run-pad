@@ -31,7 +31,7 @@ public static class CliRunner
             return 1;
         }
 
-        // TODO.md #63 — the GUI's "File → Import LINQPad Query..." (девяносто третий проход) equivalent
+        // TODO.md #63 — the GUI's "File → Import LINQPad Query..." (pass 93) equivalent
         // for scripting/batch use. Unlike the GUI, overwrites the destination outright rather than
         // picking a free "Foo 2.rpad" — a CLI tool re-run with the same arguments should be idempotent,
         // not silently rename around a leftover file from a previous run.

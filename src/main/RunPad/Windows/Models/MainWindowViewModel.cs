@@ -145,7 +145,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // Remembers which files are open (and in what order) plus which one is active, so the next
     // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
-    // disk, so there's no path to remember them by (TODO.md, "Жизненный цикл вкладок (остаток)").
+    // disk, so there's no path to remember them by (TODO.md, "tab lifecycle (leftover)").
     // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
     // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
@@ -187,7 +187,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             ActiveTab = activeVm;
     }
 
-    // Deliberately doesn't touch disk (TODO.md, "Жизненный цикл вкладок") — a new script starts
+    // Deliberately doesn't touch disk (TODO.md, "tab lifecycle") — a new script starts
     // empty and in-memory-only; it only becomes a real file the first time the user does Save or
     // Save As (SaveTabAsAsync below). language/kind are carried on the tab itself
     // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet

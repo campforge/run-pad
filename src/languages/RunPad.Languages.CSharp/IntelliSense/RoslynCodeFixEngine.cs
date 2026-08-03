@@ -22,8 +22,8 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // RoslynPad/OmniSharp use — rather than the full VS CodeFixService, which needs several workspace
 // services (diagnostic analyzer service, solution crawler, ...) this host never sets up.
 //
-// TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход, живой отчёт пользователя о
-// подтормаживании интерфейса) — ComputeFixesAsync/ComputeRefactoringsAsync used to materialize
+// TODO.md #74 "IntelliSenseService optimization" (pass 104, live user report of the UI lagging) —
+// ComputeFixesAsync/ComputeRefactoringsAsync used to materialize
 // EVERY candidate (CodeAction.GetOperationsAsync + diffing — the expensive part, see
 // TryMaterializeAsync's own comment) from EVERY applicable provider, on EVERY keystroke/caret-move,
 // regardless of whether the user would ever click any of them. Measured cost on realistic script
@@ -57,7 +57,7 @@ internal sealed class RoslynCodeFixEngine
 
     // Two independent caches (not one shared, keys-only-unique-by-luck dictionary): code fixes and
     // refactorings are listed on completely different triggers (text change vs caret move — see
-    // EditorTabItemControl's own diagnosticFixEntries/refactoringFixEntries split, проход 102) and
+    // EditorTabItemControl's own diagnosticFixEntries/refactoringFixEntries split, pass 102) and
     // must not invalidate each other — computing a fresh refactoring list on caret move has no
     // business silently expiring the still-valid, still-displayed diagnostic fixes, and vice versa.
     // Guarded by _cacheLock since a listing pass (background Task.Run) and a materialize call
@@ -210,7 +210,7 @@ internal sealed class RoslynCodeFixEngine
         return resolved.ToList();
     }
 
-    // TODO.md #74 "CodeRefactoringProvider хостинг" — the position-based counterpart to
+    // TODO.md #74 "CodeRefactoringProvider hosting" — the position-based counterpart to
     // ComputeFixesAsync above: no diagnostic to key off, no FixableDiagnosticIds to pre-filter by, so
     // every registered provider gets a chance at the given span every call (same "a couple hundred
     // providers, once per tab, already realized in the constructor" cost model as code fixes —
@@ -268,7 +268,7 @@ internal sealed class RoslynCodeFixEngine
         return result;
     }
 
-    // TODO.md #74 "оптимизация IntelliSenseService" — the deferred half: does the actual expensive
+    // TODO.md #74 "IntelliSenseService optimization" — the deferred half: does the actual expensive
     // work (TryMaterializeAsync — GetOperationsAsync + diffing) for the ONE candidate key identifies,
     // looked up from whichever cache (fix or refactoring) still has it. Null if key isn't in EITHER
     // cache — either it never existed, or a newer ComputeFixesAsync/ComputeRefactoringsAsync call

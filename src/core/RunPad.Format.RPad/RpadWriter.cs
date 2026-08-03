@@ -4,7 +4,7 @@ namespace RunPad.Format.RPad;
 
 public static class RpadWriter
 {
-    /// ToDo: надо разобраться со стримом, причем иметь возможность взять непосредственно стрим кода игнорируя заголовки
+    /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
     /// <summary>Serializes the document back to .rpad file content.</summary>
     public static string Write(RpadDocument doc)
     {

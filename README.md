@@ -1,36 +1,38 @@
 # RunPad
 
-Десктопный C# "scratchpad"/scripting IDE на Avalonia UI (net10.0) — в одном пространстве с LINQPad,
-RoslynPad и NetPad. Редактирует и запускает `.rpad`-файлы: самодокументируемые Markdown-документы с
-YAML front matter и одним исполняемым блоком кода.
+A desktop C# "scratchpad"/scripting IDE built on Avalonia UI (net10.0) — in the same space as
+LINQPad, RoslynPad and NetPad. It edits and runs `.rpad` files: self-documenting Markdown documents
+with a YAML front matter header and one executable code block.
 
-- Архитектура, команды сборки/тестов, стиль кода — `docs/ARCHITECTURE.md`.
-- Актуальные задачи — `TODO.md`; разбор причин и результаты аудита кода — `ANALYSIS.md`.
-  Полная история закрытых пунктов 2026-07 (проходы 1–58, пункты 1–84) — `docs/archive/`.
-- Полная спецификация формата `.rpad` — `docs/SpecificationRPad.md`.
+- Architecture, build/test commands, code style — `docs/ARCHITECTURE.md`.
+- Current tasks — `TODO.md`; root-cause analysis and code-audit results — `ANALYSIS.md`.
+  Full history of closed items from 2026-07 (passes 1-58, items 1-84) — `docs/archive/`.
+- Full `.rpad` format specification — `docs/SpecificationRPad.md`.
 
-Почему Avalonia UI, а не другие UI-фреймворки? Я искал открытый и поддерживаемый сообществом UI с возможностью форкать, изменять и делать пул-реквесты в кодовую базу.
+Why Avalonia UI and not another UI framework? I was looking for an open, community-maintained UI
+that I could fork, modify, and send pull requests to.
 
-Особенности C#
-- Взят netcoredbg не просто так: на текущий момент это лучший открытый отладчик .NET, который поддерживается сообществом и Samsung.
+C# specifics
+- netcoredbg wasn't picked at random: it's currently the best open-source .NET debugger,
+  maintained by the community and Samsung.
 
-## Установка
+## Installation
 
-Готовые сборки — на [странице релизов](https://github.com/coddwrench/dot-pad/releases/latest).
+Prebuilt binaries are on the [releases page](https://github.com/coddwrench/dot-pad/releases/latest).
 
-**Windows** — скачать `RunPad-win-x64.msi` и запустить (ярлык в меню Пуск, деинсталлятор в «Установка и
-удаление программ», следующая версия ставится поверх). Либо `RunPad-win-x64.zip` — портативный вариант
-без установки, распаковать и запустить `RunPad.exe`.
+**Windows** — download `RunPad-win-x64.msi` and run it (adds a Start Menu shortcut, an uninstaller
+under "Add or remove programs", and the next version installs over it). Or `RunPad-win-x64.zip` — a
+portable, install-free option: unzip and run `RunPad.exe`.
 
-**Linux** — `runpad_<версия>_amd64.deb` (`sudo dpkg -i runpad_*.deb` или через центр приложений — ставит
-`runpad` в PATH и пункт меню). Либо `RunPad-x86_64.AppImage` — `chmod +x` и запустить, ничего не ставит в
-систему. Либо `RunPad-linux-x64.tar.gz` — распаковать и запустить `RunPad`.
+**Linux** — `runpad_<version>_amd64.deb` (`sudo dpkg -i runpad_*.deb`, or via your software center —
+puts `runpad` on PATH and adds a menu entry). Or `RunPad-x86_64.AppImage` — `chmod +x` and run it,
+nothing is installed system-wide. Or `RunPad-linux-x64.tar.gz` — unpack and run `RunPad`.
 
-**macOS** — сборка пока не подписана сертификатом Apple Developer, поэтому Gatekeeper заблокирует
-запуск при обычной установке через Finder. Один блок в Терминале — скачивает актуальный релиз под
-вашу архитектуру (Apple Silicon/Intel определяется автоматически), ставит в `/Applications` и снимает
-карантин (это обычная практика для опенсорсных приложений без платной подписи, а не что-то небезопасное —
-вы сами разрешаете уже скачанному вами файлу запускаться):
+**macOS** — the build isn't signed with an Apple Developer certificate yet, so Gatekeeper will block
+launching it through a normal Finder install. A single Terminal block below downloads the latest
+release for your architecture (Apple Silicon/Intel is detected automatically), installs it into
+`/Applications`, and clears the quarantine flag (this is standard practice for unsigned open-source
+apps, not anything unsafe — you're just allowing a file you already downloaded to run):
 
 ```bash
 ARCH=$(test "$(uname -m)" = "arm64" && echo arm64 || echo x64)
@@ -39,141 +41,144 @@ xattr -cr "/Applications/RunPad.app"
 open "/Applications/RunPad.app"
 ```
 
-## Вдохновение и используемые компоненты
+## Inspiration and components used
 
-- Отладчик: [netcoredbg](https://github.com/Samsung/netcoredbg) (через DAP).
-- Референсы при проектировании: [NetPad](https://github.com/tareqimbasher/NetPad),
+- Debugger: [netcoredbg](https://github.com/Samsung/netcoredbg) (via DAP).
+- Design references: [NetPad](https://github.com/tareqimbasher/NetPad),
   [RoslynPad](https://github.com/roslynpad/roslynpad).
 - DI: [Avalonia DI guide](https://docs.avaloniaui.net/docs/guides/implementation-guides/how-to-implement-dependency-injection)
-  (`Microsoft.Extensions.DependencyInjection`, композиция — `App.axaml.cs`).
+  (`Microsoft.Extensions.DependencyInjection`, composition root — `App.axaml.cs`).
 
-## Цели проекта — что уже работает, а что нет
+## Project goals — what works and what doesn't yet
 
-Сводный чеклист по истории `TODO.md`/git (детали любого пункта — в `docs/archive/TODO-2026-07.md`).
+A summary checklist drawn from `TODO.md`/git history (details for any item are in
+`docs/archive/TODO-2026-07.md`).
 
-### Реализовано
+### Done
 
-- [x] **Формат `.rpad`**: YAML front matter (версия, язык, targetSdk, kind, packages, references,
-  namespaces) + Markdown-тело с одним исполняемым код-блоком; ручной позиционный парсер/писатель,
-  спецификация в `docs/`.
-- [x] **Три режима скрипта (kind)**: `Statements` / `Program` / `Expression`, с корректным
-  маппингом строк для отладчика у каждого.
-- [x] **Запуск**: компиляция через `dotnet build` во временный проект; NuGet-пакеты, assembly- и
-  project-референсы из front matter; кэш сборки (пропуск restore/build при неизменных входах,
-  инвалидация при ошибке компиляции), персистентные build-директории с автоочисткой старых.
-- [x] **Отладчик (netcoredbg/DAP)**: брейкпоинты (включая условные и hit-count), verified-статусы
-  и разные иконки по состоянию, шаги (over/in/out), pause, run-to-cursor, редактирование
-  брейкпоинтов во время сессии, локальные переменные с ленивым разворачиванием, watch-выражения,
-  call stack, потоки, break-on-exceptions (all/unhandled).
-- [x] **`.Dump()`**: HTML-вывод (таблицы, вложенные объекты/коллекции, словари), перегрузки
-  `Dump()`/`Dump(label)`/`Dump(depth)`/`DumpOptions` (глубина, лимит строк, collapse, приватные
-  члены и т.д.), `DumpContainer` с обновлением на месте, автозаголовок из текста выражения;
-  ленивая перерисовка панели вывода.
-- [x] **IntelliSense (Roslyn, свой конвейер)**: автодополнение с 24/7 авто-инвоком, member/static/
-  namespace-доступ (`.`, `?.`), фильтрация по контексту (строки/комментарии/имена объявлений/
-  generic-аргументы), сортировка по области видимости, схлопывание перегрузок, собственные члены
-  жирным, автоимпорт типов из подключённых пакетов (авто-`using` при подтверждении),
-  override-стабы с генерацией тела, снипеты, keyword-фильтрация по синтаксической позиции.
-- [x] **Signature help**: методы и конструкторы, выбор перегрузки с учётом типов аргументов,
-  активный параметр, XML-doc summary; quick info по наведению; подсветка синтаксиса и summary в
-  подсказках.
-- [x] **Диагностика в редакторе**: фоновые сквиггли, семантическая подсветка, лампочка быстрых
-  действий на настоящих Roslyn `CodeFixProvider` (авто-`using` уходит в front matter), иконки и
-  severity-цвета, Format Document.
-- [x] **Редактор**: объединённая маржа брейкпоинтов и номеров строк, код-фолдинг (по скобкам и
-  ключевым словам VB — стратегия задаётся языком), подсветка парных скобок, подсветка текущей
-  строки отладки, TextMate-подсветка, языковой профиль редактора (триггеры, скобки, идентификаторы,
-  отступы) — задаётся языковым плагином, контрол языко-агностичен.
-- [x] **Второй язык — Visual Basic**: компиляция, запуск, отладка, kind-трансформы, фолдинг
-  (IntelliSense для VB нет).
-- [x] **UI**: вкладки, дерево файлов (создание/переименование/удаление файлов и папок, иконка
-  языка, «показать в проводнике» на всех ОС), окно Dependencies (поиск NuGet по фидам из
-  `nuget.config`, локальный кэш пакетов), Preferences (настраиваемые горячие клавиши, шрифт,
-  темы, пути к dotnet/netcoredbg), светлые/тёмные темы (Fluent/Simple) с едиными токенами.
-- [x] **RunPad.Cli**: консольный раннер `.rpad` без GUI/отладчика (см. раздел ниже) с рендером
-  `.Dump()` в терминале.
-- [x] **Тесты**: 5 проектов, ~395 тестов, включая headless-UI-тесты полного
-  keyboard-пайплайна редактора; CI (format + build + test) на ubuntu/windows/macos.
+- [x] **`.rpad` format**: YAML front matter (version, language, targetSdk, kind, packages,
+  references, namespaces) + a Markdown body with one executable code block; a hand-rolled
+  position-based parser/writer, specification under `docs/`.
+- [x] **Three script modes (kind)**: `Statements` / `Program` / `Expression`, each with correct
+  line mapping for the debugger.
+- [x] **Running**: compiles via `dotnet build` into a throwaway project; NuGet packages, assembly
+  and project references come from front matter; a build cache (skips restore/build when inputs
+  are unchanged, invalidated on compile error), persistent build directories with automatic
+  cleanup of old ones.
+- [x] **Debugger (netcoredbg/DAP)**: breakpoints (including conditional and hit-count), verified
+  status with per-state icons, stepping (over/in/out), pause, run-to-cursor, editing breakpoints
+  mid-session, local variables with lazy expansion, watch expressions, call stack, threads,
+  break-on-exceptions (all/unhandled).
+- [x] **`.Dump()`**: HTML output (tables, nested objects/collections, dictionaries), `Dump()`/
+  `Dump(label)`/`Dump(depth)`/`DumpOptions` overloads (depth, row limit, collapse, private members,
+  etc.), `DumpContainer` with in-place updates, auto-title derived from the expression text; lazy
+  repaint of the output panel.
+- [x] **IntelliSense (Roslyn, own pipeline)**: autocomplete with 24/7 auto-invoke, member/static/
+  namespace access (`.`, `?.`), context-aware filtering (strings/comments/declaration names/generic
+  arguments), scope-based sorting, overload collapsing, own members shown in bold, auto-import of
+  types from referenced packages (auto-`using` on accept), override stubs with generated bodies,
+  snippets, keyword filtering based on syntactic position.
+- [x] **Signature help**: methods and constructors, overload selection based on argument types,
+  active-parameter highlighting, XML-doc summaries; quick info on hover; syntax highlighting and
+  summaries inside tooltips.
+- [x] **Editor diagnostics**: background squiggles, semantic highlighting, a quick-fix lightbulb
+  backed by real Roslyn `CodeFixProvider`s (auto-`using` goes into front matter), icons and
+  severity colors, Format Document.
+- [x] **Editor**: a combined breakpoint/line-number margin, code folding (brace-based and, for VB,
+  keyword-based — the strategy is supplied by the language), matching-brace highlighting, current
+  debug-line highlighting, TextMate syntax highlighting, a per-language editor profile (triggers,
+  brace pairs, identifiers, indentation) supplied by the language plugin — the control itself is
+  language-agnostic.
+- [x] **A second language — Visual Basic**: compile, run, debug, kind transforms, folding (no
+  IntelliSense for VB yet).
+- [x] **UI**: tabs, a file tree (create/rename/delete files and folders, per-language icon, "reveal
+  in file manager" on every OS), a Dependencies window (NuGet search across feeds from
+  `nuget.config`, local package cache), Preferences (customizable hotkeys, font, themes, dotnet/
+  netcoredbg paths), light/dark themes (Fluent/Simple) sharing a single token set.
+- [x] **RunPad.Cli**: a console runner for `.rpad` files with no GUI/debugger (see the section
+  below), rendering `.Dump()` output in the terminal.
+- [x] **Tests**: 5 test projects, ~395 tests, including headless UI tests covering the editor's
+  full keyboard pipeline; CI (format + build + test) on ubuntu/windows/macos.
 
-### Не реализовано / в планах (номера — пункты `TODO.md`)
+### Not done yet / planned (numbers refer to `TODO.md` items)
 
-- [ ] Автоформатирование при вводе (#17) и format-on-selection.
-- [ ] Soft-selection, MRU и commit-символы per-item в автодополнении (#60), target-type
-  preselection; полноценная fuzzy-фильтрация (#18) — упирается в форк редактора (#61).
-- [ ] Set Next Statement в отладчике (#22).
-- [ ] Выбор kind при создании нового файла (#35).
-- [ ] Мастер первоначальной настройки — автоопределение/скачивание SDK и netcoredbg (#71).
-- [ ] Enabled/Disabled-состояние брейкпоинтов (#83.3).
-- [ ] Рефакторинги и собственные анализаторы поверх лампочки (#74).
-- [ ] Экспорт результатов (Excel/HTML), подключения к БД, IL/syntax-tree viewer, rename symbol,
-  find references, CodeLens (#62).
-- [ ] Интерактивный ввод из панели вывода (stdin-канал к процессу скрипта), макросы путей в
-  references, конвертер `.linq` → `.rpad` (#63).
-- [ ] Языки как настоящие плагины (загрузка сборок в рантайме, без пересборки RunPad) — цель;
-  подготовительная работа: #87.
-- [ ] Новые языки на роадмапе: F#, SQL (MVP — SQLite in-memory), Go, PowerShell, Python, C, C++,
-  Rust — только архитектурная разведка, ничего не начато (см. TODO.md → «Новые языки на роадмапе»
-  за деталями по каждому).
-- [ ] Реорганизация Preferences: группировка настроек по runtime-семейству (например, единая
-  «.NET»-группа с путями к SDK/отладчику для C#/VB/будущего F#) + per-язык подсветка синтаксиса —
-  архитектурная разведка есть, не начато (см. TODO.md).
-- [ ] Восстановление вкладок прошлой сессии, workspaces (#62).
-- [ ] Технический долг по аудиту 2026-07-16: схлопывание дублирования C#/VB-бэкендов (#86),
-  потокобезопасность кэша сборки (#85), тестируемость процессных путей (#88) и пр. — см. `TODO.md`.
+- [ ] Auto-format on type (#17) and format-on-selection.
+- [ ] Soft selection, MRU and per-item commit characters in autocomplete (#60), target-type
+  preselection; full fuzzy filtering (#18) — blocked on the editor fork (#61).
+- [ ] Set Next Statement in the debugger (#22).
+- [ ] Choosing a kind when creating a new file (#35).
+- [ ] First-run setup wizard — auto-detect/download SDK and netcoredbg (#71).
+- [ ] Enabled/disabled state for breakpoints (#83.3).
+- [ ] Refactorings and custom analyzers on top of the lightbulb (#74).
+- [ ] Exporting results (Excel/HTML), database connections, an IL/syntax-tree viewer, rename
+  symbol, find references, CodeLens (#62).
+- [ ] Interactive input from the output panel (an stdin channel to the script process), path
+  macros in references, a `.linq` → `.rpad` converter (#63).
+- [ ] Languages as real plugins (assemblies loaded at runtime, no RunPad rebuild needed) — a goal;
+  groundwork so far: #87.
+- [ ] New languages on the roadmap: F#, SQL (MVP — in-memory SQLite), Go, PowerShell, Python, C,
+  C++, Rust — architectural scouting only so far, nothing started (see TODO.md → "New languages on
+  the roadmap" for details on each).
+- [ ] Preferences reorganization: group settings by runtime family (e.g., a single ".NET" group
+  with SDK/debugger paths shared by C#/VB/a future F#) plus per-language syntax highlighting —
+  architectural scouting done, not started (see TODO.md).
+- [ ] Restoring the previous session's tabs, workspaces (#62).
+- [ ] Tech debt from the 2026-07-16 audit: collapsing C#/VB backend duplication (#86), build-cache
+  thread safety (#85), testability of process paths (#88), and others — see `TODO.md`.
 
-## Формат файла
+## File format
 
-За основу взят Markdown-формат — это позволяет файлу со скриптом быть самодокументируемым: YAML
-front matter (версия, язык, target SDK, kind, пакеты, референсы, usings) плюс один блок ```` ```csharp run ````
-с самим кодом, остальной Markdown вокруг сохраняется как есть.
+The format is built on top of Markdown — this lets a script file be self-documenting: YAML front
+matter (version, language, target SDK, kind, packages, references, usings) plus a single
+```` ```csharp run ```` block with the code itself; everything else in the surrounding Markdown is
+preserved as-is.
 
-## RunPad.Cli — запуск `.rpad` из консоли без GUI
+## RunPad.Cli — running a `.rpad` file from the console without a GUI
 
-`src/main/RunPad.Cli` — лёгкий консольный раннер: компилирует и выполняет run-блок `.rpad`-файла
-напрямую, без Avalonia и без отладчика (тот же «быстрый путь», что и кнопка Run в самом RunPad, без
-DAP/`netcoredbg` вокруг). Годится для CI/автоматизации или когда полноценный редактор не нужен.
-Поддерживает и `language: csharp`, и `language: vb` — front matter (`packages`/`references`/
-`namespaces`/`kind`) учитывается так же, как в GUI.
+`src/main/RunPad.Cli` is a lightweight console runner: it compiles and executes a `.rpad` file's run
+block directly, without Avalonia and without the debugger (the same "fast path" as the Run button in
+RunPad itself, minus DAP/`netcoredbg`). Useful for CI/automation, or whenever a full editor isn't
+needed. Supports both `language: csharp` and `language: vb` — front matter (`packages`/`references`/
+`namespaces`/`kind`) is honored the same way it is in the GUI.
 
-Запуск прямо из исходников:
+Running straight from source:
 
 ```bash
 dotnet run --project src/main/RunPad.Cli -- path/to/script.rpad
 ```
 
-Либо сборка и запуск отдельно (сборка называется `runpad.dll`):
+Or build and run separately (the assembly is named `runpad.dll`):
 
 ```bash
 dotnet build src/main/RunPad.Cli -c Release
 dotnet src/main/RunPad.Cli/bin/Release/net10.0/runpad.dll path/to/script.rpad
 ```
 
-(Рядом лежит и нативный apphost `runpad`/`runpad.exe` — запускается без `dotnet` в префиксе, но
-только если .NET установлен туда, откуда apphost умеет его находить; при нестандартной установке
-(например, через Homebrew/Linuxbrew) он не найдёт рантайм — тогда используйте вариант с `dotnet
-... .dll` выше, он работает всегда.)
+(There's also a native apphost, `runpad`/`runpad.exe`, that runs without a `dotnet` prefix — but
+only if .NET is installed somewhere the apphost knows to look; on a non-standard install (e.g. via
+Homebrew/Linuxbrew) it won't find the runtime, so use the `dotnet ... .dll` form above instead — that
+one always works.)
 
-Обычный вывод скрипта и `Console.Error`/ошибки компиляции идут в stdout/stderr соответственно;
-`.Dump()` рендерится прямо в терминале через [Spectre.Console](https://spectreconsole.net/) —
-таблицы, цвет по типу значения (строки/числа/null/enum/дата и т.д.), вложенные коллекции/объекты
-превращаются во вложенные таблицы. Цвет включается автоматически только когда вывод реально идёт в
-терминал (не в файл/пайп). Коды выхода: `0` — успех и ничего не попало в stderr; `1` — ошибка
-(неверные аргументы, файл не найден/не парсится как `.rpad`, нет установленного SDK, ошибка
-компиляции, либо сам скрипт написал что-то в stderr во время выполнения); `130` — прервано Ctrl+C.
+Normal script output and `Console.Error`/compile errors go to stdout/stderr respectively; `.Dump()`
+renders directly in the terminal via [Spectre.Console](https://spectreconsole.net/) — tables, colors
+by value type (strings/numbers/null/enum/date, etc.), nested collections/objects become nested
+tables. Color is enabled automatically only when output is actually going to a terminal (not a
+file/pipe). Exit codes: `0` — success and nothing written to stderr; `1` — error (bad arguments,
+file not found or not parseable as `.rpad`, no SDK installed, compile error, or the script itself
+wrote something to stderr during execution); `130` — interrupted with Ctrl+C.
 
-## Известные проблемы
+## Known issues
 
-Актуальный список багов и технического долга — `TODO.md` (пункты 85+ — результаты аудита кода
-2026-07-16, детали в `ANALYSIS.md`). Ранее описанный здесь баг резолюции референсов IntelliSense
-на Windows (`error CS0009` про `*.Native.dll`) исправлен — проверка PE-заголовка вместо маски
-имени файла, см. архивный TODO #44.
+The current list of bugs and tech debt lives in `TODO.md` (items 85+ are results of the 2026-07-16
+code audit, details in `ANALYSIS.md`). The IntelliSense reference-resolution bug on Windows
+previously described here (`error CS0009` about `*.Native.dll`) has been fixed — it now checks the
+PE header instead of matching on file name, see archived TODO #44.
 
-## Быстрое TODO
-- Можно попробовать имплементировать https://github.com/IronLanguages/ironpython3, чисто бызовый функционал
-- Где еще можно подглядывать идеи 
+## Quick TODO
+- Could try implementing https://github.com/IronLanguages/ironpython3, basic functionality only.
+- Other places to look for ideas:
   - https://github.com/mono/monodevelop
   - https://github.com/icsharpcode/sharpdevelop
-- Идеи по отладке 
-  - отладка bash https://github.com/rogalmic/vscode-bash-debug
-  - отладка powershell https://github.com/PowerShell/vscode-powershell
-   
+- Debugging ideas:
+  - bash debugging: https://github.com/rogalmic/vscode-bash-debug
+  - PowerShell debugging: https://github.com/PowerShell/vscode-powershell

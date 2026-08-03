@@ -5,8 +5,8 @@ using AM = Avalonia.Media;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #112 — live user report: comments rendered in italic ("достаточно что они выделяются
-// цветом", color alone is enough). Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set,
+// TODO.md #112 — live user report: comments rendered in italic ("color alone is enough for them to
+// stand out"). Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set,
 // including the default Dark+) mark the comment scope's tokenColors fontStyle as italic, mirroring
 // VS Code's own built-in themes — TextTransformation.GetFontStyle() used to translate that straight
 // into Avalonia.Media.FontStyle.Italic. Now always Normal, regardless of what the active theme says.

@@ -106,7 +106,7 @@ public class RpadParserWriterTests
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
     }
 
-    // TODO.md, "Жизненный цикл вкладок": a brand-new, never-saved tab wants genuinely empty code
+    // TODO.md, "tab lifecycle": a brand-new, never-saved tab wants genuinely empty code
     // (not the "Hello, RPad!" sample below), via NewFile's optional code override. An empty code
     // block glues the closing fence onto the same line as the (empty) code instead of its own line —
     // RpadParser.FindClosingFence requires a closing fence to start its own line, so without

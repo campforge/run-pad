@@ -46,7 +46,7 @@ public partial class OutputHtmlView : UserControl
         // tree without ever touching DataContext. Without also rebinding here, a script that keeps
         // running while its tab isn't the visible one writes into a model nobody's listening to
         // anymore — output silently stops updating from the first tab switch onward (live bug
-        // report: "переодически пропадает вывод в results если ... переключать вкладки").
+        // report: "the output in results periodically disappears if ... switching tabs").
         AttachedToVisualTree += (_, _) => Rebind();
         DetachedFromVisualTree += (_, _) => Unbind();
     }

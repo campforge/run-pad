@@ -72,19 +72,19 @@ public sealed class FileSystemService : IFileSystemService
     {
         var result = new List<FileSystemItem>();
 
-        // Идем сперва по папкам. Не пропускаем папки без .rpad-файлов внутри (было раньше, "if
-        // (children.Count > 0)") — иначе только что созданная через TODO #69 пустая папка тут же
-        // исчезала бы из дерева на первом же RefreshNodes(), что и произошло: команда "New Folder"
-        // реально создавала директорию на диске, но GetFilesTreeInternal тут же отфильтровывал её
-        // как "пустую", так что она никогда не попадала в FileTreeViewModel.Nodes, и FindByPath не
-        // мог её найти для входа в режим переименования.
+        // Walk folders first. Don't skip folders with no .rpad files inside (used to have "if
+        // (children.Count > 0)" here) — otherwise a folder just created via TODO #69, while still
+        // empty, would immediately disappear from the tree on the very next RefreshNodes(), which is
+        // exactly what happened: the "New Folder" command really did create the directory on disk, but
+        // GetFilesTreeInternal immediately filtered it out as "empty", so it never made it into
+        // FileTreeViewModel.Nodes, and FindByPath couldn't find it to enter rename mode.
         foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
         {
             var children = GetFilesTreeInternal(dir);
             result.Add(new FileSystemItem(Path.GetFileName(dir), true, dir, children));
         }
 
-        // Потом по файлам
+        // Then files
         foreach (var file in Directory
                      .GetFiles(folder, $"*{FileExtension}")
                      .OrderBy(Path.GetFileName))

@@ -9,7 +9,7 @@ namespace RunPad.Runtime.UI.Tests;
 // ICSharpCode.Decompiler can locate a SPECIFIC overload's declaration line inside a type it just
 // decompiled from a REAL binary, which pure-logic unit testing can't stand in for.
 //
-// Проход 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
+// Pass 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
 // only 3 distinct source snippets. An IClassFixture compiles each snippet exactly once per test class
 // run and every test just reads the shared result. A later pass (test-design cleanup per
 // docs/unit-test.md — real `dotnet build` child processes test the compiler/MSBuild, not RunPad's own
@@ -39,7 +39,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
-    // TODO.md #62 "рекурсивный F12 внутри декомпилированного окна" (user request 2026-07-19) —
+    // TODO.md #62 "recursive F12 inside the decompiled window" (user request 2026-07-19) —
     // ResolveReferenceAtPosition, the other half that makes navigation recursive: given a caret
     // position inside a SyntaxTree Decompile already produced, resolve what's referenced there into
     // another IDefinitionResult that Decompile itself can consume — same round trip dnSpy/ILSpy's own
@@ -56,7 +56,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
-    // TODO.md #62 "ILSpy-обозреватель сборок" (user request 2026-07-19) — EnumerateTypes/DecompileType,
+    // TODO.md #62 "ILSpy assembly explorer" (user request 2026-07-19) — EnumerateTypes/DecompileType,
     // the third leg alongside Decompile/ResolveReferenceAtPosition above: browsing an arbitrary DLL,
     // not one reached by following a reference. The lambda closing over `x` forces the compiler to
     // generate a display-class (nested inside Alpha, name starting with '<') — real noise to filter,
