@@ -41,7 +41,14 @@ public class EditorClipboardWholeLineTests
     {
         for (var i = 0; i < 100; i++)
         {
-            var text = await topLevel.Clipboard!.TryGetValueAsync(DataFormat.Text);
+            var data = await topLevel.Clipboard!.TryGetDataAsync();
+            if (data is null)
+            {
+                await Task.Delay(20);
+                continue;
+            }
+
+            var text = await data.TryGetTextAsync();
             if (text is not null) return text;
             await Task.Delay(20);
         }
