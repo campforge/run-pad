@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Мелкие остатки шестьдесят первого прохода": VbLanguageHost.ApplyKindTransform/
+// TODO.md, "Small leftovers from pass 61": VbLanguageHost.ApplyKindTransform/
 // CalcKindOffset had zero test coverage — unlike CSharpLanguageHost (see
 // CSharpLanguageHostKindTransformTests), nothing pinned VB's transformed text/offset, including the
 // claim (made when closing #63's async-Main fix) that Program's passthrough already handles

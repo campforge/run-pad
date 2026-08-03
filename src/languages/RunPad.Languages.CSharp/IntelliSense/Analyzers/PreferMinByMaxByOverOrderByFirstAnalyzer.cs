@@ -1,0 +1,81 @@
+using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
+
+namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
+
+// TODO.md #74 (pass 155, batch) — same LINQ-hygiene theme as
+// UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer/CallAnyInsteadOfCountAnalyzer/
+// RemoveRedundantMaterializationBeforeCountAnalyzer (RPAD0015/RPAD0017/RPAD0042). `xs.OrderBy(key).
+// First()` sorts the ENTIRE sequence — O(n log n) — just to read the smallest element off the front;
+// `xs.MinBy(key)` (.NET 6+, always available given this project's own MinSupportedSdkMajorVersion=6)
+// finds it in a single O(n) pass without ever sorting. Same idea for OrderByDescending → MaxBy.
+// Extended (сто шестьдесят четвёртый проход, batch) to also cover FirstOrDefault/Last/LastOrDefault —
+// originally only First() was handled. OrderBy(key).Last()/LastOrDefault() reads the sort's LARGEST
+// element (the opposite end from First), so it maps to MaxBy, not MinBy — same swap for
+// OrderByDescending's Last()/LastOrDefault() → MinBy.
+[DiagnosticAnalyzer(LanguageNames.CSharp)]
+public sealed class PreferMinByMaxByOverOrderByFirstAnalyzer : DiagnosticAnalyzer
+{
+    public const string DiagnosticId = "RPAD0053";
+
+    private static readonly DiagnosticDescriptor Rule = new(
+        DiagnosticId,
+        title: "Use MinBy/MaxBy instead of OrderBy(...).First()",
+        messageFormat: "'OrderBy(...).First()' sorts the entire sequence just to read the first element — use '{0}(...)' instead for a single pass",
+        category: "Performance",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "OrderBy(key).First()/OrderByDescending(key).First() sort the whole sequence (O(n log n)) just to find one extreme value — MinBy/MaxBy do it in a single O(n) pass.");
+
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
+
+    private static readonly ImmutableHashSet<string> TerminalMethodNames = ImmutableHashSet.Create(
+        "First", "FirstOrDefault", "Last", "LastOrDefault");
+
+    public override void Initialize(AnalysisContext context)
+    {
+        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+        context.EnableConcurrentExecution();
+        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.InvocationExpression);
+    }
+
+    private static void Analyze(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.ArgumentList.Arguments.Count != 0) return;
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: var terminalName } memberAccess)
+            return;
+        if (!TerminalMethodNames.Contains(terminalName)) return;
+
+        var ct = context.CancellationToken;
+        if (!IsRealEnumerableMethod(context, invocation, ct)) return;
+
+        if (memberAccess.Expression is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 1 } orderByInvocation)
+            return;
+        if (orderByInvocation.Expression is not MemberAccessExpressionSyntax
+            {
+                Name.Identifier.Text: "OrderBy" or "OrderByDescending",
+            } orderByAccess)
+        {
+            return;
+        }
+        if (!IsRealEnumerableMethod(context, orderByInvocation, ct)) return;
+
+        // First-end + ascending (or Last-end + descending) both read the SMALLEST element → MinBy;
+        // the other two combinations read the LARGEST → MaxBy.
+        var isFirstEnd = terminalName is "First" or "FirstOrDefault";
+        var isAscending = orderByAccess.Name.Identifier.Text == "OrderBy";
+        var suggestion = isFirstEnd == isAscending ? "MinBy" : "MaxBy";
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), suggestion));
+    }
+
+    private static bool IsRealEnumerableMethod(SyntaxNodeAnalysisContext context, InvocationExpressionSyntax invocation, CancellationToken ct)
+    {
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method) return false;
+        var original = method.ReducedFrom ?? method.OriginalDefinition;
+        return original.ContainingType?.ToDisplayString() == "System.Linq.Enumerable";
+    }
+}

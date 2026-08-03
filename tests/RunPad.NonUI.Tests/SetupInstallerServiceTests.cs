@@ -71,12 +71,15 @@ public class SetupInstallerServiceTests
             () => service.InstallDotnetSdkAsync(new Progress<SetupProgress>(), TestContext.Current.CancellationToken));
     }
 
-    // InstallNetcoredbgAsync picks zip on Windows and tar.gz everywhere else (ResolveNetcoredbgAsset),
-    // so the fake archive has to match whichever one the OS actually running this test resolves to —
-    // otherwise ZipFile.ExtractToDirectory chokes on tar.gz bytes (or vice versa). Real releases for
-    // every platform (verified against the actual win64/linux-amd64/linux-arm64/osx-arm64/osx-amd64
-    // assets, not guessed) also nest the executable under a top-level "netcoredbg/" folder rather than
-    // extracting flat — matched here too, so this fixture exercises the same layout production sees.
+    // InstallNetcoredbgAsync picks zip on Windows and macOS arm64, tar.gz elsewhere
+    // (ResolveNetcoredbgAsset), so the fake archive has to match whichever one the OS actually
+    // running this test resolves to — otherwise ZipFile.ExtractToDirectory chokes on tar.gz bytes
+    // (or vice versa). Real releases for every platform (verified against the actual win64/
+    // linux-amd64/linux-arm64/osx-arm64/osx-amd64 assets, not guessed) also nest the executable
+    // under a top-level "netcoredbg/" folder rather than extracting flat — matched here too, so this
+    // fixture exercises the same layout production sees. The zip entry uses "netcoredbg.exe" only on
+    // Windows; macOS arm64's zip asset contains a plain "netcoredbg" binary (no .exe extension),
+    // mirroring the non-Windows tar.gz assets.
     private static void WriteFakeNetcoredbgArchive(string destinationPath)
     {
         if (destinationPath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
@@ -92,7 +95,10 @@ public class SetupInstallerServiceTests
         // previous test/manual run would otherwise fail this fixture, not the code under test.
         File.Delete(destinationPath);
         using var zip = ZipFile.Open(destinationPath, ZipArchiveMode.Create);
-        var entry = zip.CreateEntry("netcoredbg/netcoredbg.exe");
+        // Windows uses "netcoredbg.exe"; macOS arm64's zip asset (like the tar.gz assets on other
+        // non-Windows platforms) uses a plain "netcoredbg" binary without the .exe extension.
+        var exeName = OperatingSystem.IsWindows() ? "netcoredbg.exe" : "netcoredbg";
+        var entry = zip.CreateEntry($"netcoredbg/{exeName}");
         using var stream = entry.Open();
         stream.Write("fake netcoredbg binary"u8);
     }

@@ -8,8 +8,8 @@ using Xunit;
 namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #108: live user report — text selection dragged with the mouse over .Dump() output
-// appeared to lag/not visually update ("текст вроде выделяется, но не подсвечивается как
-// выделенный"). Root cause: HtmlControl.Render blits an offscreen cache (LazyRenderCache, TODO.md
+// appeared to lag/not visually update ("looks selected but isn't highlighted as
+// selected"). Root cause: HtmlControl.Render blits an offscreen cache (LazyRenderCache, TODO.md
 // #72) unless told the content is actually stale via InvalidateContent() — but SelectionHandler
 // (External/Core/Handlers/SelectionHandler.cs) drives every mid-drag selection-change repaint through
 // RControl.Invalidate() -> ControlAdapter.Invalidate(), which used to call a bare

@@ -118,7 +118,7 @@ public class App : Application
             return registry;
         });
 
-        // ToDo: Какаято фигня которая должна переехать непосредственно в мплементацию языка
+        // ToDo: some stuff here that should move directly into the language implementation
         services.AddSingleton<CSharpReferenceService>();
         // One IIntelliSenseService instance per tab, not a shared singleton: each open script can
         // reference different NuGet packages, and CSharpIntelliSenseService is stateful (one
@@ -149,7 +149,7 @@ public class App : Application
 
         var provider = services.BuildServiceProvider();
 
-        // ToDo: выделить отдельный сервис прогрева приложения
+        // ToDo: split this out into a dedicated app warmup service
         // Kick off Roslyn warmup in the background so the first tab's completion is fast.
         // Uses a throwaway instance — the expensive part (RunPadRoslynHost.HostServices / MEF
         // composition) is a process-wide lazy singleton shared by every instance the factory creates.

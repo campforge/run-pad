@@ -19,7 +19,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — end-to-end coverage of the
+// TODO.md #74 "IntelliSenseService optimization" (pass 104) — end-to-end coverage of the
 // deferred-materialization click flow: a REAL CSharpIntelliSenseService (not mocked — the point is
 // whether the whole RoslynCodeFixEngine cache + EditorTabItemControl.ApplyCodeFixAsync pipeline
 // actually applies the right result when a specific lightbulb entry is clicked, not whether some mock
@@ -69,7 +69,7 @@ public class EditorTabItemControlCodeFixApplyTests
         using var intelliSense = CreateRealIntelliSense();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
+            intelliSense, new CSharpReferenceService(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 

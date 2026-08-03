@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Жизненный цикл вкладок (остаток)": the app always started with a single blank tab —
+// TODO.md, "tab lifecycle (leftover)": the app always started with a single blank tab —
 // nothing about which files were open (or their order) survived a restart. RestoreSession replaces
 // that unconditional EditorTabsControl.Attach → OpenTab(null) call; PersistSession keeps
 // IPreferencesService.Session in sync with Tabs/ActiveTab on every open/close/switch so there's

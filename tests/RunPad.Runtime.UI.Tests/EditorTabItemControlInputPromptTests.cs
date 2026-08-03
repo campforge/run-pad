@@ -15,7 +15,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #63 "интерактивный типизированный ввод" — EditorsTabItemControl.ShowInputPrompt/
+// TODO.md #63 "interactive typed input" — EditorsTabItemControl.ShowInputPrompt/
 // HideInputPrompt/SubmitInputPromptAsync, the UI half of ILanguageHost.InputRequested/SendInputAsync
 // (see CompiledDotnetLanguageHostInputTests.cs for the host-side half). internal (not private) on the
 // control itself, same rationale as BuildFindReferencesMenu — headless Avalonia has no reliable way to
@@ -51,7 +51,7 @@ public class EditorTabItemControlInputPromptTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense: null, new CSharpReferenceService(), buildCache.Object, editorBackground: null);
+            intelliSense: null, new CSharpReferenceService(), buildCache.Object);
         var window = new Window { Content = ctrl };
         window.Show();
         return ctrl;

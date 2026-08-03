@@ -22,7 +22,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
         return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
     }
 
-    // "предлагает создать конструктор '__RunPadProgram'" — RpadKind.Program wraps the user's code in
+    // "offers to generate a constructor for '__RunPadProgram'" — RpadKind.Program wraps the user's code in
     // a synthetic class (RpadKindTransform.ProgramWrapperClassName) that's a REAL class in the live
     // analysis document, never shown to the user. Confirmed via a live probe (before the fix, with
     // RoslynCodeFixEngine's filter temporarily disabled) that caret position 0 — on the "int x;" field
@@ -42,8 +42,8 @@ public class CSharpIntelliSenseCodeFixQualityTests
         Assert.DoesNotContain(refactorings, r => r.Title.Contains("__RunPadProgram", StringComparison.Ordinal));
     }
 
-    // "Если в одной строке ... JsonSerializer.Serialize(result, new JsonSerializerOptions {}...) то
-    // import будет предложен два раза" — JsonSerializer and JsonSerializerOptions are two SEPARATE
+    // "If on one line ... JsonSerializer.Serialize(result, new JsonSerializerOptions {}...) then the
+    // import gets suggested twice" — JsonSerializer and JsonSerializerOptions are two SEPARATE
     // undefined-type diagnostics on the same line, both fixed by the same `using System.Text.Json;` —
     // each independently discovered and offered that fix, so the lightbulb showed it twice.
     [Fact]
@@ -71,7 +71,7 @@ public class CSharpIntelliSenseCodeFixQualityTests
         Assert.Equal(1, onlyLine.Line);
     }
 
-    // "как в решарпере ... 'using all' который автоматически резолвит все import" — ResolveAllMissingUsingsAsync
+    // "like in ReSharper ... a 'using all' that automatically resolves all imports" — ResolveAllMissingUsingsAsync
     // resolves every unambiguous unresolved-type diagnostic in one pass instead of the lightbulb's fix
     // one at a time. Three undefined types, two different (but each individually unambiguous)
     // namespaces, on three different lines.

@@ -19,7 +19,7 @@ namespace RunPad.Runtime.UI.Tests;
 // TODO.md #42 — WindowDecorations.Full (the Linux fallback, since a CSD request comes back with no
 // border/shadow/corner-radius on a real KDE/KWin/Wayland session) puts the OS's own native titlebar
 // above our custom title row, which still drew its own copy of the app icon — a visible duplicate
-// ("лишняя иконка" from the original TODO note) since the native titlebar already shows Window.Icon.
+// ("extra icon" from the original TODO note) since the native titlebar already shows Window.Icon.
 public class MainWindowChromeTests
 {
     private static MainWindow CreateMainWindow()

@@ -388,7 +388,7 @@ public class CodeFixMarginTests
         Assert.Equal("using System;", Assert.IsType<MenuItem>(items[1]).Header);
     }
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): Apply used to set
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104): Apply used to set
     // _editor.Document.Text directly from CodeFixEntry.NewCode — now it just raises FixApplyRequested
     // with the clicked entry, leaving materializing/applying entirely to whoever owns
     // IIntelliSenseService (EditorTabItemControl). Locks in that the menu item built for a candidate

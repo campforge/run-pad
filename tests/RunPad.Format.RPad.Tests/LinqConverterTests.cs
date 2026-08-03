@@ -2,7 +2,7 @@ using Xunit;
 
 namespace RunPad.Format.RPad.Tests;
 
-// TODO.md #63 "конвертер .linq → .rpad" — LinqConverter.Convert. Fixtures below are representative
+// TODO.md #63 ".linq → .rpad converter" — LinqConverter.Convert. Fixtures below are representative
 // hand-written .linq content matching LINQPad's documented file shape (XML <Query> header + plain
 // trailing source, no XML wrapping on the code itself), not drawn from a real corpus of files (none
 // available in this environment) — the format itself is what's under test, not any specific sample.

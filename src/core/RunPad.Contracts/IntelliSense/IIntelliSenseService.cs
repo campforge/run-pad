@@ -21,7 +21,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "подсветка вхождений": every occurrence of the symbol at position, elsewhere in
+    // TODO.md #62 "occurrence highlighting": every occurrence of the symbol at position, elsewhere in
     // the same document (for highlighting them all while the caret sits on one) — null when
     // position isn't on an identifier that resolves to any symbol.
     Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
@@ -29,7 +29,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "умное переименование": resolves what an F2 rename at position should do — null
+    // TODO.md #62 "smart rename": resolves what an F2 rename at position should do — null
     // when there's nothing renameable there (not on an identifier, or the symbol isn't declared in
     // the user's own script — see IRenameInfo).
     Task<IRenameInfo?> GetRenameInfoAsync(
@@ -59,7 +59,7 @@ public interface IIntelliSenseService : IDisposable
     // the original text in that case.
     Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
 
-    // TODO.md #74 "CodeRefactoringProvider хостинг в лампочке" — real Roslyn refactorings (Use
+    // TODO.md #74 "CodeRefactoringProvider hosting in the lightbulb" — real Roslyn refactorings (Use
     // Expression Body, Introduce Local, Reverse For Statement, Invert If, ...) available AT position,
     // not tied to any diagnostic the way CodeFixesChanged's fixes are — reuses the same ICodeFixInfo
     // shape rather than a parallel contract type (a CodeAction is a CodeAction either way — see
@@ -73,7 +73,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — the deferred half of
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the deferred half of
     // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings (see ICodeFixInfo's own
     // doc comment for the full rationale): does the actual, expensive work of running the fix/
     // refactoring provider's document transform and diffing it, for the ONE candidate identified by

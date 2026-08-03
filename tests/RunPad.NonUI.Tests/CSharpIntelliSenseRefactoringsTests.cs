@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "CodeRefactoringProvider хостинг в лампочке" — GetRefactoringsAsync, the
+// TODO.md #74 "CodeRefactoringProvider hosting in the lightbulb" — GetRefactoringsAsync, the
 // position-based counterpart to CodeFixesChanged's diagnostic-driven fixes. Real dotnet-build-free
 // integration tests against actual Microsoft.CodeAnalysis.CSharp.Features CodeRefactoringProviders
 // (discovered via the same MEF composition RoslynCodeFixEngine already uses for CodeFixProviders),
@@ -34,7 +34,7 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.NotNull(refactorings);
         var useExpressionBody = Assert.Single(refactorings, r => r.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase));
 
-        // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход): NewCode is no longer
+        // TODO.md #74 "IntelliSenseService optimization" (pass 104): NewCode is no longer
         // on the listed candidate itself — materializing it (running the refactoring provider's own
         // document transform + diffing) is deferred to MaterializeFixAsync, called only for the one
         // candidate actually clicked.
@@ -79,7 +79,7 @@ public class CSharpIntelliSenseRefactoringsTests
     // Script.cs synthetic setup) — confirmed upstream Roslyn 4.13.0 behavior, not something this
     // codebase's document handling triggers or could fix.
     //
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) changed WHERE this gets
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) changed WHERE this gets
     // caught: listing candidates (GetRefactoringsAsync) no longer materializes anything — Register/
     // ComputeRefactoringsAsync alone never trips this bug (it only lives inside GetOperationsAsync,
     // now deferred) — so the broken suggestion DOES appear in the list now, same as any other
@@ -114,7 +114,7 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.Null(materialized);
     }
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — RoslynCodeFixEngine's
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — RoslynCodeFixEngine's
     // candidate cache is wholesale-replaced on every new ComputeFixesAsync/ComputeRefactoringsAsync
     // call (its own class doc comment), not merged/appended — a key from an OLDER listing pass simply
     // isn't in the CURRENT cache once a newer one has run. Same "gracefully do nothing" contract as a

@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Жизненный цикл вкладок (остаток)": closing an untitled tab with real typed content used
+// TODO.md, "tab lifecycle (leftover)": closing an untitled tab with real typed content used
 // to discard it silently — SaveIfNeeded is a no-op without a FilePath, so nothing about closing an
 // untitled tab ever asked first. MainWindowViewModel's IEditorTabActions.CloseAsync (the real body
 // behind EditorTabItemViewModel.CloseCommand, ANALYSIS.md #102 — wired to both the tab's [x] button

@@ -23,7 +23,7 @@ internal sealed class FileLogger(string outDir, string category) : ILogger
         LogLevel logLevel, EventId eventId, TState state,
         Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        // ToDo: Вынести в инициализацию
+        // ToDo: move this out into initialization
         var filePrefix = "runpad";
         if (!IsEnabled(logLevel)) return;
         var now = DateTime.Now;

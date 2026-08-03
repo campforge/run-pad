@@ -40,7 +40,7 @@ public sealed partial class MainWindow : Window, IDisposable
         Closing += OnClosing;
     }
 
-    // TODO.md, "Жизненный цикл вкладок (остаток)": quitting the app used to skip the per-tab
+    // TODO.md, "tab lifecycle (leftover)": quitting the app used to skip the per-tab
     // unsaved-changes confirmation entirely, discarding every unsaved untitled tab's content at
     // once. Window.Closing can't itself await a dialog — it has to cancel synchronously first, then
     // (if the user actually wants to proceed) call Close() again for real once the async
@@ -181,7 +181,7 @@ public sealed partial class MainWindow : Window, IDisposable
             if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
 
             // The native titlebar already renders Window.Icon (see the XAML root element) — our own
-            // AppIconImage duplicates it immediately below, which is the "лишняя иконка" from the
+            // AppIconImage duplicates it immediately below, which is the "extra icon" from the
             // original TODO note. Hide it only where a native titlebar is actually present.
             var appIcon = this.FindControl<Image>("AppIconImage");
             if (appIcon is not null) appIcon.IsVisible = false;

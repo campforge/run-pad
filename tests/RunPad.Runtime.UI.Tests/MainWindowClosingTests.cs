@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md, "Жизненный цикл вкладок (остаток)": quitting the app used to skip the unsaved-changes
+// TODO.md, "tab lifecycle (leftover)": quitting the app used to skip the unsaved-changes
 // confirmation entirely (only closing an individual tab asked — see
 // EditorTabsControlCloseConfirmationTests) — MainWindow.OnClosing now cancels the first Closing,
 // awaits EditorTabsControl.ConfirmCloseAllUnsavedTabsAsync, and only actually closes once that

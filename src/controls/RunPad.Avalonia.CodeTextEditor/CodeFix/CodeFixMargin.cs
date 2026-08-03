@@ -59,7 +59,7 @@ public class CodeFixMargin : AbstractMargin
     // the line the icon could be drawn on actually changed, not on every single caret move.
     private int _caretLine;
 
-    // TODO.md #74 "оптимизация IntelliSenseService" (сто четвёртый проход) — raised when the user
+    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — raised when the user
     // clicks a specific menu entry. This control has no notion of Roslyn/IIntelliSenseService (see
     // CodeFixEntry's own doc comment) — materializing the fix's actual text (and routing any usings
     // it wants to import) is entirely the click-time responsibility of whoever owns that (forwarded

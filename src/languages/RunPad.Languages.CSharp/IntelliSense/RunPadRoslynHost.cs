@@ -22,7 +22,7 @@ internal static class RunPadRoslynHost
 
     public static HostServices HostServices => MefHostServices.Create(CompositionHost);
 
-    // TODO.md #74 "Пайплайн анализаторов" (сто третий проход) — RoslynAnalyzerEngine's DiagnosticAnalyzer
+    // TODO.md #74 "analyzer pipeline" (pass 103) — RoslynAnalyzerEngine's DiagnosticAnalyzer
     // discovery can't go through CompositionHost/MEF the way CodeFixProvider/CodeRefactoringProvider do:
     // confirmed via a live probe (compositionHost.GetExports<DiagnosticAnalyzer>() returns 0) that
     // analyzers were never [Export]-decorated for this composition — VS discovers them a completely
