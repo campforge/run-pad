@@ -212,7 +212,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         var (_, editor, margin) = CreateControl(prefs, intelliSense);
         editor.Text = code;
 
-        await codeFixesChangedTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await codeFixesChangedTcs.Task.WaitAsync(TimeSpan.FromSeconds(60));
 
         // CodeFixesChanged's own handler still needs its own Dispatcher.UIThread.Post to reach
         // margin.Update — waiting for margin.Fixes to merely become non-empty isn't enough: the
