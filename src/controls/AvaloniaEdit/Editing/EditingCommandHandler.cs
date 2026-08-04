@@ -418,7 +418,7 @@ internal static class EditingCommandHandler
         text = TextUtilities.NormalizeNewLines(text, Environment.NewLine);
 
 
-        using var df = new DataTransfer();
+        var df = new DataTransfer();
         var item = new DataTransferItem();
         item.Set(DataFormat.Text, text);
         df.Add(item);
@@ -484,7 +484,7 @@ internal static class EditingCommandHandler
         //textArea.RaiseEvent(copyingEventArgs);
         //if (copyingEventArgs.CommandCancelled)
         //    return false;
-        using var df = new DataTransfer();
+        var df = new DataTransfer();
         var item = new DataTransferItem();
         item.Set(DataFormat.Text, text);
         df.Add(item);
