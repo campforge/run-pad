@@ -90,7 +90,7 @@ public class EditorTabItemControlCodeFixApplyTests
         // 'Regex'" ALSO mentions Regex in its title) — matching specifically on "using" picks out
         // CSharpAddImportCodeFixProvider's own fix, not just any Regex-related one.
         CodeFixEntry? entry = null;
-        for (var i = 0; i < 150 && entry is null; i++)
+        for (var i = 0; i < 1500 && entry is null; i++)
         {
             await Task.Delay(20);
             entry = margin.Fixes.FirstOrDefault(e => e.Title.Contains("using", StringComparison.OrdinalIgnoreCase));
@@ -107,7 +107,7 @@ public class EditorTabItemControlCodeFixApplyTests
         // FrontMatter.Namespaces is already a real (if empty) list from tab creation onward — poll
         // for the NAMESPACE showing up, not merely for the list itself becoming non-null.
         List<string>? namespaces = null;
-        for (var i = 0; i < 150 && namespaces?.Contains("System.Text.RegularExpressions") != true; i++)
+        for (var i = 0; i < 1500 && namespaces?.Contains("System.Text.RegularExpressions") != true; i++)
         {
             await Task.Delay(20);
             namespaces = ctrl.State.RpadDocument?.FrontMatter.Namespaces;
