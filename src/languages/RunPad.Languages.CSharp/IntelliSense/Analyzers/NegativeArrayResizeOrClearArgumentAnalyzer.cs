@@ -29,6 +29,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `Array.ConstrainedCopy(source, sourceIndex, destination, destinationIndex, length)` — an EXACT
 // argument-shape match for the already-covered 5-arg `Array.Copy` (same parameter positions, same
 // ArgumentOutOfRangeException), so it reuses that same branch's logic rather than duplicating it.
+// Extended again (триста восьмой проход, batch) to also cover `Array.Reverse(array, index, length)`/
+// `Array.Sort(array, index, length[, comparer])` — the same (index, length) argument shape as `Clear`
+// (array, index, length), but confirmed empirically to throw `ArgumentOutOfRangeException` for a negative
+// index/length (unlike `Clear`'s `IndexOutOfRangeException`), so they share `BinarySearch`'s branch logic
+// (same exception type, same argument positions) rather than `Clear`'s.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -36,12 +41,12 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "Negative Array.Resize/Array.Clear/Array.Copy/Array.ConstrainedCopy/Array.BinarySearch argument always throws",
+        title: "Negative Array.Resize/Clear/Copy/ConstrainedCopy/BinarySearch/Reverse/Sort argument always throws",
         messageFormat: "'Array.{0}(...)' always throws {1} at runtime — {2} cannot be negative",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Array.Resize, the 5-arg Array.Copy/Array.ConstrainedCopy, and the 4-/5-arg Array.BinarySearch all throw ArgumentOutOfRangeException for a negative index/length argument, and Array.Clear throws IndexOutOfRangeException for a negative index or length.");
+        description: "Array.Resize, the 5-arg Array.Copy/Array.ConstrainedCopy, the 4-/5-arg Array.BinarySearch, and the (index, length)-taking Array.Reverse/Array.Sort overloads all throw ArgumentOutOfRangeException for a negative index/length argument, and Array.Clear throws IndexOutOfRangeException for a negative index or length.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -55,7 +60,7 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Resize" or "Clear" or "Copy" or "ConstrainedCopy" or "BinarySearch" } access)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Resize" or "Clear" or "Copy" or "ConstrainedCopy" or "BinarySearch" or "Reverse" or "Sort" } access)
             return;
         var methodName = access.Name.Identifier.Text;
 
@@ -105,16 +110,27 @@ public sealed class NegativeArrayResizeOrClearArgumentAnalyzer : DiagnosticAnaly
         }
         else
         {
-            if (arguments.Count is not (4 or 5)) return;
-            var searchIndexExpr = arguments[1].Expression;
-            var searchLengthExpr = arguments[2].Expression;
-            if (IsNegativeLiteral(searchIndexExpr))
+            // BinarySearch(array, index, length, value[, comparer]) — 4 or 5 args.
+            // Reverse(array, index, length) — exactly 3 args.
+            // Sort(array, index, length[, comparer]) — 3 or 4 args.
+            // All three share the same (index, length) argument positions (1 and 2).
+            var validArgCount = methodName switch
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "BinarySearch", "ArgumentOutOfRangeException", "index"));
+                "BinarySearch" => arguments.Count is 4 or 5,
+                "Reverse" => arguments.Count is 3,
+                _ => arguments.Count is 3 or 4,
+            };
+            if (!validArgCount) return;
+
+            var indexExpr = arguments[1].Expression;
+            var lengthExpr = arguments[2].Expression;
+            if (IsNegativeLiteral(indexExpr))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "ArgumentOutOfRangeException", "index"));
             }
-            else if (IsNegativeLiteral(searchLengthExpr))
+            else if (IsNegativeLiteral(lengthExpr))
             {
-                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "BinarySearch", "ArgumentOutOfRangeException", "length"));
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "ArgumentOutOfRangeException", "length"));
             }
         }
     }

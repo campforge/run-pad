@@ -18,6 +18,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // too, not just numeric literals) inside a try/catch, and reports only if THAT call itself throws — a
 // numeric constant has no culture dependency to worry about (unlike the string-literal Parse analyzers),
 // since GetConstantValue already resolves it to the exact double value the runtime call would receive.
+// Extended in the триста шестнадцатый проход to also cover `TimeSpan.FromMicroseconds(double)` (added in
+// .NET 7, missed in the original батч) — confirmed empirically to throw identically to the other five.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidTimeSpanFromDoubleArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -30,7 +32,7 @@ public sealed class InvalidTimeSpanFromDoubleArgumentAnalyzer : DiagnosticAnalyz
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "TimeSpan.FromDays/FromHours/FromMinutes/FromSeconds/FromMilliseconds throw ArgumentException for NaN and OverflowException for a value outside TimeSpan's representable range.");
+        description: "TimeSpan.FromDays/FromHours/FromMinutes/FromSeconds/FromMilliseconds/FromMicroseconds throw ArgumentException for NaN and OverflowException for a value outside TimeSpan's representable range.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -44,7 +46,7 @@ public sealed class InvalidTimeSpanFromDoubleArgumentAnalyzer : DiagnosticAnalyz
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "FromDays" or "FromHours" or "FromMinutes" or "FromSeconds" or "FromMilliseconds" } access)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "FromDays" or "FromHours" or "FromMinutes" or "FromSeconds" or "FromMilliseconds" or "FromMicroseconds" } access)
             return;
         var methodName = access.Name.Identifier.Text;
         if (invocation.ArgumentList.Arguments is not [{ Expression: var arg }]) return;
@@ -76,6 +78,7 @@ public sealed class InvalidTimeSpanFromDoubleArgumentAnalyzer : DiagnosticAnalyz
                 "FromMinutes" => TimeSpan.FromMinutes(value),
                 "FromSeconds" => TimeSpan.FromSeconds(value),
                 "FromMilliseconds" => TimeSpan.FromMilliseconds(value),
+                "FromMicroseconds" => TimeSpan.FromMicroseconds(value),
                 _ => TimeSpan.Zero,
             };
             return false;
