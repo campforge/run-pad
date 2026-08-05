@@ -2898,6 +2898,10 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public int M(Random r) => r.Next(5, 5); }", false)]
     [InlineData("using System; class C { public int M(Random r) => r.Next(-1); }", true)]
     [InlineData("using System; class C { public int M(Random r) => r.Next(5); }", false)]
+    [InlineData("using System; class C { public long M(Random r) => r.NextInt64(10, 5); }", true)]
+    [InlineData("using System; class C { public long M(Random r) => r.NextInt64(5, 10); }", false)]
+    [InlineData("using System; class C { public long M(Random r) => r.NextInt64(-1); }", true)]
+    [InlineData("using System; class C { public long M(Random r) => r.NextInt64(5); }", false)]
     public async Task InvalidRandomRangeArgumentAnalyzer_Should_NotFlag_AValidOrEqualRange(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidRandomRangeArgumentAnalyzer(), code);
@@ -2921,6 +2925,9 @@ public class RunPadAnalyzersTests
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public int M(IEnumerable<int> xs) => xs.ElementAt(-1); }", true)]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public int M(IEnumerable<int> xs) => xs.ElementAt(1); }", false)]
+    [InlineData("using System.Linq; class C { public int M() => new[] { 1, 2, 3 }.ElementAt(10); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new[] { 1, 2, 3 }.ElementAt(2); }", false)]
+    [InlineData("using System.Linq; class C { public int M(int i) => new[] { 1, 2, 3 }.ElementAt(i); }", false)]
     public async Task NegativeElementAtIndexAnalyzer_Should_NotFlag_ANonnegativeIndex(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeElementAtIndexAnalyzer(), code);
@@ -2940,6 +2947,8 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public int M(string s) => Convert.ToInt32(s, 3); }", true)]
     [InlineData("using System; class C { public int M(string s) => Convert.ToInt32(s, 16); }", false)]
     [InlineData("using System; class C { public int M(string s) => Convert.ToInt32(s, 10); }", false)]
+    [InlineData("using System; class C { public byte M(string s) => Convert.ToByte(s, 3); }", true)]
+    [InlineData("using System; class C { public byte M(string s) => Convert.ToByte(s, 16); }", false)]
     public async Task InvalidConvertToIntegralBaseAnalyzer_Should_NotFlag_AValidBase(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidConvertToIntegralBaseAnalyzer(), code);
@@ -3233,6 +3242,9 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromDays(1); }", false)]
     [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromDays(0); }", false)]
     [InlineData("using System; class C { public TimeSpan M(double x) => TimeSpan.FromDays(x); }", false)]
+    [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromMicroseconds(double.NaN); }", true)]
+    [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromMicroseconds(double.MaxValue); }", true)]
+    [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromMicroseconds(1); }", false)]
     public async Task InvalidTimeSpanFromDoubleArgumentAnalyzer_Should_NotFlag_AnInRangeValue(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidTimeSpanFromDoubleArgumentAnalyzer(), code);
@@ -3319,6 +3331,12 @@ public class RunPadAnalyzersTests
     [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, -1, dst, 0, 1); }", true)]
     [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, 0, dst, -1, 1); }", true)]
     [InlineData("class C { public void M(int[] src, int[] dst) => System.Array.ConstrainedCopy(src, 1, dst, 1, 2); }", false)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Reverse(a, -1, 2); }", true)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Reverse(a, 0, -1); }", true)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Sort(a, -1, 2); }", true)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Sort(a, 0, -1); }", true)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Reverse(a, 0, 4); }", false)]
+    [InlineData("class C { public void M(int[] a) => System.Array.Sort(a, 0, 4); }", false)]
     public async Task NegativeArrayResizeOrClearArgumentAnalyzer_Should_NotFlag_ANonNegativeArgument(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeArrayResizeOrClearArgumentAnalyzer(), code);
@@ -3396,6 +3414,11 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public int M() => BitConverter.ToInt32(new byte[4], 0); }", false)]
     [InlineData("using System; class C { public short M() => BitConverter.ToInt16(new byte[1], 0); }", true)]
     [InlineData("using System; class C { public int M(int i) => BitConverter.ToInt32(new byte[4], i); }", false)]
+    [InlineData("using System; class C { public string M() => BitConverter.ToString(new byte[4], 4, 0); }", true)]
+    [InlineData("using System; class C { public string M() => BitConverter.ToString(new byte[4], 2, 3); }", true)]
+    [InlineData("using System; class C { public string M() => BitConverter.ToString(new byte[4], 0, -1); }", true)]
+    [InlineData("using System; class C { public string M() => BitConverter.ToString(new byte[4], 2, 2); }", false)]
+    [InlineData("using System; class C { public string M() => BitConverter.ToString(new byte[0], 0, 0); }", false)]
     public async Task InvalidBitConverterArgumentAnalyzer_Should_NotFlag_ASufficientArray(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidBitConverterArgumentAnalyzer(), code);
@@ -3429,5 +3452,369 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidEncodingGetStringArgumentAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEncodingGetStringArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-seventh batch (двести восемьдесят третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(1, 5); }", true)]
+    [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(-1, 1); }", true)]
+    [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(1, 2); }", false)]
+    [InlineData("using System; class C { public Memory<byte> M() => new byte[3].AsMemory(1, 5); }", true)]
+    [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(4); }", true)]
+    [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(1); }", false)]
+    [InlineData("using System; class C { public Span<byte> M(int s, int l) => new byte[3].AsSpan(s, l); }", false)]
+    public async Task InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer_Should_NotFlag_AnInBoundsRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-eighth batch (двести восемьдесят четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public string M() => Convert.ToBase64String(new byte[3], 0, 5); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToBase64String(new byte[3], -1, 1); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToBase64String(new byte[3], 1, 2); }", false)]
+    [InlineData("using System; class C { public string M(int o, int l) => Convert.ToBase64String(new byte[3], o, l); }", false)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexString(new byte[4], -1, 2); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexString(new byte[4], 0, -1); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexString(new byte[4], 2, 3); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexString(new byte[4], 0, 4); }", false)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexStringLower(new byte[4], -1, 2); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexStringLower(new byte[4], 2, 3); }", true)]
+    [InlineData("using System; class C { public string M() => Convert.ToHexStringLower(new byte[4], 0, 4); }", false)]
+    public async Task InvalidConvertToBase64StringArgumentAnalyzer_Should_NotFlag_AnInBoundsRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidConvertToBase64StringArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToBase64StringArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and thirty-ninth batch (двести восемьдесят пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(5, 3); }", true)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(1, 0); }", true)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(3, 5); }", false)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(-1, 10); }", false)]
+    [InlineData("using System.Text; class C { public StringBuilder M(int c, int m) => new StringBuilder(c, m); }", false)]
+    public async Task InvalidStringBuilderMaxCapacityArgumentAnalyzer_Should_NotFlag_AValidCapacityPair(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringBuilderMaxCapacityArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringBuilderMaxCapacityArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fortieth batch (двести восемьдесят шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.ECMAScript | RegexOptions.RightToLeft); }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.ECMAScript | RegexOptions.IgnoreCase); }", false)]
+    [InlineData("using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.IgnoreCase); }", false)]
+    [InlineData("using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.NonBacktracking | RegexOptions.RightToLeft); }", true)]
+    [InlineData("using System.Text.RegularExpressions; class C { public Regex M(RegexOptions o) => new Regex(\"a\", o); }", false)]
+    public async Task InvalidRegexOptionsCombinationAnalyzer_Should_NotFlag_AValidCombination(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRegexOptionsCombinationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRegexOptionsCombinationAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and forty-first batch (двести восемьдесят седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Globalization; class C { public int M() => int.Parse(\"1\", NumberStyles.AllowHexSpecifier | NumberStyles.AllowDecimalPoint); }", true)]
+    [InlineData("using System.Globalization; class C { public int M() => int.Parse(\"1\", NumberStyles.AllowHexSpecifier); }", false)]
+    [InlineData("using System.Globalization; class C { public decimal M() => decimal.Parse(\"1\", NumberStyles.AllowHexSpecifier); }", true)]
+    [InlineData("using System.Globalization; class C { public int M() => int.Parse(\"1\", NumberStyles.Integer); }", false)]
+    [InlineData("using System.Globalization; class C { public int M(NumberStyles s) => int.Parse(\"1\", s); }", false)]
+    [InlineData("using System.Globalization; using System.Numerics; class C { public BigInteger M(string s) => BigInteger.Parse(s, NumberStyles.AllowHexSpecifier | NumberStyles.AllowDecimalPoint); }", true)]
+    [InlineData("using System.Globalization; using System.Numerics; class C { public BigInteger M(string s) => BigInteger.Parse(s, NumberStyles.AllowHexSpecifier); }", false)]
+    public async Task InvalidNumberStylesCombinationAnalyzer_Should_NotFlag_AValidCombination(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidNumberStylesCombinationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumberStylesCombinationAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and forty-second batch (двести восемьдесят восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AssumeUniversal); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.RoundtripKind); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.RoundtripKind); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.None); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string s, DateTimeStyles st) => DateTime.Parse(s, CultureInfo.InvariantCulture, st); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTimeOffset M(string s) => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AssumeUniversal); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTimeOffset M(string s) => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal); }", false)]
+    public async Task InvalidDateTimeStylesCombinationAnalyzer_Should_NotFlag_AValidCombination(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDateTimeStylesCombinationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateTimeStylesCombinationAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and forty-third batch (двести восемьдесят девятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Globalization; class C { public int M(string a, string b) => CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.Ordinal | CompareOptions.IgnoreCase); }", true)]
+    [InlineData("using System.Globalization; class C { public int M(string a, string b) => string.Compare(a, b, CultureInfo.InvariantCulture, CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreSymbols); }", true)]
+    [InlineData("using System.Globalization; class C { public int M(string a, string b) => CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.Ordinal); }", false)]
+    [InlineData("using System.Globalization; class C { public int M(string a, string b) => CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols); }", false)]
+    [InlineData("using System.Globalization; class C { public int M(string a, string b, CompareOptions o) => CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, o); }", false)]
+    public async Task InvalidCompareOptionsCombinationAnalyzer_Should_NotFlag_AValidCombination(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCompareOptionsCombinationAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCompareOptionsCombinationAnalyzer.DiagnosticId));
+    }
+
+    [Fact]
+    public async Task PreferInstanceToStringOverConvertToStringForNumericAnalyzer_Should_NotFlag_AConvertToStringBaseCall()
+    {
+        const string code = "class C { public string M(int x) => System.Convert.ToString(x, 3); }";
+        var diagnostics = await GetDiagnosticsAsync(new PreferInstanceToStringOverConvertToStringForNumericAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == PreferInstanceToStringOverConvertToStringForNumericAnalyzer.DiagnosticId);
+    }
+
+    // ── Hundred and forty-fifth batch (двести девяносто первый проход) — one new analyzer, plus a
+    // false-positive fix to PreferInstanceToStringOverConvertToStringForNumericAnalyzer/RPAD0220 found
+    // while brainstorming it (see the [Fact] above).
+
+    [Theory]
+    [InlineData("class C { public string M(int x) => System.Convert.ToString(x, 3); }", true)]
+    [InlineData("class C { public string M(int x) => System.Convert.ToString(x, 16); }", false)]
+    [InlineData("class C { public string M(long x) => System.Convert.ToString(x, 3); }", true)]
+    [InlineData("class C { public string M(int x, int b) => System.Convert.ToString(x, b); }", false)]
+    public async Task InvalidConvertToStringBaseAnalyzer_Should_NotFlag_AValidBase(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidConvertToStringBaseAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToStringBaseAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and forty-eighth batch (двести девяносто четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.None, TimeSpan.Zero); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.None, TimeSpan.FromDays(25)); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.None, TimeSpan.FromSeconds(1)); }", false)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.None, Regex.InfiniteMatchTimeout); }", false)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M(TimeSpan t) => new Regex(\"a\", RegexOptions.None, t); }", false)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public bool M() => Regex.IsMatch(\"a\", \"a\", RegexOptions.None, TimeSpan.Zero); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public Match M() => Regex.Match(\"a\", \"a\", RegexOptions.None, TimeSpan.Zero); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public string M() => Regex.Replace(\"a\", \"a\", \"b\", RegexOptions.None, TimeSpan.Zero); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public string[] M() => Regex.Split(\"a\", \"a\", RegexOptions.None, TimeSpan.Zero); }", true)]
+    [InlineData("using System; using System.Text.RegularExpressions; class C { public bool M() => Regex.IsMatch(\"a\", \"a\", RegexOptions.None, TimeSpan.FromSeconds(1)); }", false)]
+    public async Task InvalidRegexMatchTimeoutAnalyzer_Should_NotFlag_AValidTimeout(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRegexMatchTimeoutAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRegexMatchTimeoutAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fiftieth batch (двести девяносто шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M() => new CancellationTokenSource(TimeSpan.FromSeconds(-5)); }", true)]
+    [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M() => new CancellationTokenSource(Timeout.InfiniteTimeSpan); }", false)]
+    [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M() => new CancellationTokenSource(TimeSpan.Zero); }", false)]
+    [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M() => new CancellationTokenSource(TimeSpan.FromSeconds(5)); }", false)]
+    [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M(TimeSpan t) => new CancellationTokenSource(t); }", false)]
+    [InlineData("using System; using System.Threading.Tasks; class C { public Task M() => Task.Delay(TimeSpan.FromSeconds(-5)); }", true)]
+    [InlineData("using System; using System.Threading; using System.Threading.Tasks; class C { public Task M() => Task.Delay(Timeout.InfiniteTimeSpan); }", false)]
+    [InlineData("using System; using System.Threading.Tasks; class C { public Task M() => Task.Delay(TimeSpan.Zero); }", false)]
+    [InlineData("using System; using System.Threading.Tasks; class C { public Task M() => Task.Delay(TimeSpan.FromSeconds(5)); }", false)]
+    public async Task InvalidCancellationTokenSourceTimeSpanDelayAnalyzer_Should_NotFlag_AValidDelay(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCancellationTokenSourceTimeSpanDelayAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCancellationTokenSourceTimeSpanDelayAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-second batch (двести девяносто восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M() => \"hello\".Remove(1, 10); }", true)]
+    [InlineData("class C { public string M() => \"hello\".Remove(1, 2); }", false)]
+    [InlineData("class C { public string M() => \"hello\".Insert(6, \"x\"); }", true)]
+    [InlineData("class C { public string M() => \"hello\".Insert(-1, \"x\"); }", true)]
+    [InlineData("class C { public string M() => \"hello\".Insert(0, \"x\"); }", false)]
+    [InlineData("class C { public string M() => \"hello\".Insert(5, \"x\"); }", false)]
+    [InlineData("class C { public string M(string s) => s.Remove(1, 10); }", false)]
+    public async Task InvalidStringRemoveOrInsertArgumentAnalyzer_Should_NotFlag_AnInRangeCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringRemoveOrInsertArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringRemoveOrInsertArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-third batch (двести девяносто девятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public char M() => \"hello\"[10]; }", true)]
+    [InlineData("class C { public char M() => \"hello\"[-1]; }", true)]
+    [InlineData("class C { public char M() => \"hello\"[4]; }", false)]
+    [InlineData("class C { public char M() => \"hello\"[5]; }", true)]
+    [InlineData("class C { public char M(int i) => \"hello\"[i]; }", false)]
+    [InlineData("class C { public char M(string s) => s[10]; }", false)]
+    public async Task StringLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInRangeIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new StringLiteralIndexerOutOfRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == StringLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-fourth batch (трёхсотый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public int M() => new[] { 1, 2, 3 }[10]; }", true)]
+    [InlineData("class C { public int M() => new[] { 1, 2, 3 }[2]; }", false)]
+    [InlineData("class C { public int M() => new int[] { 1, 2, 3 }[10]; }", true)]
+    [InlineData("class C { public int M(int i) => new[] { 1, 2, 3 }[i]; }", false)]
+    [InlineData("class C { public int M(int[] xs) => xs[10]; }", false)]
+    public async Task ArrayLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInRangeIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ArrayLiteralIndexerOutOfRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ArrayLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-fifth batch (триста первый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M() => Enumerable.Range(int.MaxValue, 2); }", true)]
+    [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M() => Enumerable.Range(2000000000, 200000000); }", true)]
+    [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M() => Enumerable.Range(int.MaxValue, 1); }", false)]
+    [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M() => Enumerable.Range(0, 5); }", false)]
+    [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M(int s, int c) => Enumerable.Range(s, c); }", false)]
+    public async Task EnumerableRangeOverflowAnalyzer_Should_NotFlag_ANonOverflowingRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EnumerableRangeOverflowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EnumerableRangeOverflowAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-seventh batch (триста третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(-1); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(65536); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(65); }", false)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(65535); }", false)]
+    [InlineData("using System; class C { public char M(int i) => Convert.ToChar(i); }", false)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((sbyte)-1); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((uint)65536); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((ulong)65536); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((sbyte)65); }", false)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((byte)255); }", false)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar((ushort)65535); }", false)]
+    public async Task ConvertToCharOverflowAnalyzer_Should_NotFlag_AnInRangeValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ConvertToCharOverflowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConvertToCharOverflowAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and fifty-ninth batch (триста пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public byte M() => Convert.ToByte(300); }", true)]
+    [InlineData("using System; class C { public byte M() => Convert.ToByte(-1); }", true)]
+    [InlineData("using System; class C { public byte M() => Convert.ToByte(255); }", false)]
+    [InlineData("using System; class C { public sbyte M() => Convert.ToSByte(200); }", true)]
+    [InlineData("using System; class C { public short M() => Convert.ToInt16(40000); }", true)]
+    [InlineData("using System; class C { public ushort M() => Convert.ToUInt16(-1); }", true)]
+    [InlineData("using System; class C { public byte M(int i) => Convert.ToByte(i); }", false)]
+    [InlineData("using System; class C { public byte M() => Convert.ToByte(300L); }", true)]
+    [InlineData("using System; class C { public int M() => Convert.ToInt32(5000000000L); }", true)]
+    [InlineData("using System; class C { public uint M() => Convert.ToUInt32(-1L); }", true)]
+    [InlineData("using System; class C { public uint M() => Convert.ToUInt32(-1); }", true)]
+    [InlineData("using System; class C { public ulong M() => Convert.ToUInt64(-1L); }", true)]
+    [InlineData("using System; class C { public int M() => Convert.ToInt32(100L); }", false)]
+    public async Task ConvertNumericNarrowingOverflowAnalyzer_Should_NotFlag_AnInRangeValue(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ConvertNumericNarrowingOverflowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConvertNumericNarrowingOverflowAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and sixty-third batch (триста девятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(-1, 2, null); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(0, -1, null); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Reverse(-1, 2); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Reverse(0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.GetRange(-1, 2); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.RemoveRange(0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(0, 4, null); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int i, int c) => xs.Sort(i, c, null); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.BinarySearch(-1, 2, 1, null); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.BinarySearch(0, -1, 1, null); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(-1, a, 0, 2); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(0, a, -1, 2); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(0, a, 0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(0, a, 0, 4); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.BinarySearch(0, 4, 1, null); }", false)]
+    public async Task NegativeListIndexOrCountArgumentAnalyzer_Should_NotFlag_ANonNegativeArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeListIndexOrCountArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeListIndexOrCountArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and sixty-fifth batch (триста одиннадцатый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Remove(10, 1); }", true)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Remove(1, 10); }", true)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Insert(10, \"x\"); }", true)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Remove(1, 2); }", false)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Insert(5, \"x\"); }", false)]
+    [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(5).Remove(0, 1); }", false)]
+    [InlineData("using System.Text; class C { public StringBuilder M(StringBuilder sb) => sb.Remove(10, 1); }", false)]
+    public async Task InvalidStringBuilderRemoveOrInsertArgumentAnalyzer_Should_NotFlag_AnInRangeCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringBuilderRemoveOrInsertArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringBuilderRemoveOrInsertArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and sixty-sixth batch (триста двенадцатый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public Guid M(string s) => Guid.ParseExact(s, \"Q\"); }", true)]
+    [InlineData("using System; class C { public Guid M(string s) => Guid.ParseExact(s, \"\"); }", true)]
+    [InlineData("using System; class C { public Guid M(string s) => Guid.ParseExact(s, \"N\"); }", false)]
+    [InlineData("using System; class C { public Guid M(string s) => Guid.ParseExact(s, \"n\"); }", false)]
+    [InlineData("using System; class C { public Guid M(string s, string fmt) => Guid.ParseExact(s, fmt); }", false)]
+    public async Task InvalidGuidParseExactFormatAnalyzer_Should_NotFlag_AValidFormat(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidGuidParseExactFormatAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidParseExactFormatAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and seventy-first batch (триста семнадцатый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].First(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Single(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Last(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].First(x => x > 0); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new[] { 1 }.First(); }", false)]
+    [InlineData("using System.Linq; class C { public int M(int[] xs) => xs.First(); }", false)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Aggregate((a, b) => a + b); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Aggregate(0, (a, b) => a + b); }", false)]
+    [InlineData("using System.Linq; class C { public int M() => new[] { 1, 2 }.Aggregate((a, b) => a + b); }", false)]
+    public async Task EmptyArrayLiteralFirstOrSingleOrLastAnalyzer_Should_NotFlag_ANonemptyReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EmptyArrayLiteralFirstOrSingleOrLastAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyArrayLiteralFirstOrSingleOrLastAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and seventy-third batch (триста девятнадцатый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new Queue<int>().Dequeue(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new Queue<int>().Peek(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new Stack<int>().Pop(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new Stack<int>().Peek(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new Queue<int>(10).Dequeue(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(Queue<int> q) => q.Dequeue(); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new PriorityQueue<int, int>().Dequeue(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new PriorityQueue<int, int>().Peek(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new LinkedList<int>().RemoveFirst(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new LinkedList<int>().RemoveLast(); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(PriorityQueue<int, int> pq) => pq.Dequeue(); }", false)]
+    public async Task EmptyQueueOrStackDequeueOrPopAnalyzer_Should_NotFlag_ANonLiteralReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EmptyQueueOrStackDequeueOrPopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyQueueOrStackDequeueOrPopAnalyzer.DiagnosticId));
     }
 }

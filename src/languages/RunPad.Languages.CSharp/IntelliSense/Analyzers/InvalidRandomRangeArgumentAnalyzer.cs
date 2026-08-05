@@ -18,6 +18,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `random.Next(maxValue)` throws the same `ArgumentOutOfRangeException` when `maxValue` itself is
 // negative (this overload implicitly uses 0 as minValue, and 0 is always greater than a negative
 // maxValue).
+// Extended again (триста пятнадцатый проход, batch) to also cover `random.NextInt64(minValue,
+// maxValue)`/`random.NextInt64(maxValue)` — confirmed empirically to throw identically to `Next` for the
+// same shape of arguments (a plain digit literal without an `L` suffix is still parsed by Roslyn as an
+// `int`-valued token even though it implicitly converts to `long` at the call site, so the existing
+// `TryGetIntLiteralValue` helper works unchanged here).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidRandomRangeArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -25,12 +30,12 @@ public sealed class InvalidRandomRangeArgumentAnalyzer : DiagnosticAnalyzer
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "Random.Next called with an invalid range",
-        messageFormat: "'Next({0})' always throws ArgumentOutOfRangeException at runtime — {1}",
+        title: "Random.Next/NextInt64 called with an invalid range",
+        messageFormat: "'{0}({1})' always throws ArgumentOutOfRangeException at runtime — {2}",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Random.Next(minValue, maxValue) throws ArgumentOutOfRangeException when minValue is greater than maxValue; Random.Next(maxValue) throws when maxValue itself is negative.");
+        description: "Random.Next(minValue, maxValue)/NextInt64(minValue, maxValue) throw ArgumentOutOfRangeException when minValue is greater than maxValue; the single-argument overloads throw when maxValue itself is negative.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -44,8 +49,9 @@ public sealed class InvalidRandomRangeArgumentAnalyzer : DiagnosticAnalyzer
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Next" })
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Next" or "NextInt64" } access)
             return;
+        var methodName = access.Name.Identifier.Text;
 
         string argsText;
         string reason;
@@ -73,11 +79,14 @@ public sealed class InvalidRandomRangeArgumentAnalyzer : DiagnosticAnalyzer
         }
 
         var ct = context.CancellationToken;
-        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Next" } method)
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: var resolvedName } method
+            || resolvedName != methodName)
+        {
             return;
+        }
         if (method.ContainingType?.ToDisplayString() != "System.Random") return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), argsText, reason));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, argsText, reason));
     }
 
     private static bool TryGetIntLiteralValue(ExpressionSyntax expression, out int value)

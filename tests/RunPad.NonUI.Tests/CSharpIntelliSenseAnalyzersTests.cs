@@ -3160,4 +3160,722 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("'Array.ConstrainedCopy(...)' always throws ArgumentOutOfRangeException at runtime — sourceIndex cannot be negative", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести восемьдесят третий проход, batch) — one new analyzer this batch
+    // (InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer/RPAD0271).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public Span<byte> M() => new byte[3].AsSpan(1, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'AsSpan(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidConvertToBase64StringArgumentAnalyzer/RPAD0272).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M() => Convert.ToBase64String(new byte[3], 0, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToBase64String(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят пятый проход, batch) — one new analyzer this batch
+    // (InvalidStringBuilderMaxCapacityArgumentAnalyzer/RPAD0273). Confirmed via PROBE that a negative
+    // capacity is left entirely to the already-shipped NegativeCapacityArgumentAnalyzer (RPAD0231) — no
+    // double-reporting on that case.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Text.StringBuilder M() => new System.Text.StringBuilder(5, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StringBuilder(5, 3)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят шестой проход, batch) — one new analyzer this batch
+    // (InvalidRegexOptionsCombinationAnalyzer/RPAD0274).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.RegularExpressions.Regex M() => new System.Text.RegularExpressions.Regex(\"a\", System.Text.RegularExpressions.RegexOptions.ECMAScript | System.Text.RegularExpressions.RegexOptions.RightToLeft); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Regex(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят седьмой проход, batch) — one new analyzer this batch
+    // (InvalidNumberStylesCombinationAnalyzer/RPAD0275).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => int.Parse(\"1\", System.Globalization.NumberStyles.AllowHexSpecifier | System.Globalization.NumberStyles.AllowDecimalPoint); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'int.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят восьмой проход, batch) — one new analyzer this batch
+    // (InvalidDateTimeStylesCombinationAnalyzer/RPAD0276).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public DateTime M(string s) => DateTime.Parse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal | System.Globalization.DateTimeStyles.AssumeUniversal); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTime.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят девятый проход, batch) — one new analyzer this batch
+    // (InvalidCompareOptionsCombinationAnalyzer/RPAD0277).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M(string a, string b) => System.Globalization.CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, System.Globalization.CompareOptions.Ordinal | System.Globalization.CompareOptions.IgnoreCase); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CompareInfo.Compare(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяностый проход, batch) — extends InvalidConvertToIntegralBaseAnalyzer/RPAD0238
+    // to also cover Convert.ToByte(string, int fromBase), missed in the original batch (проход 242).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte M(string s) => System.Convert.ToByte(s, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToByte(..., 3)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто первый проход, batch) — one new analyzer this batch
+    // (InvalidConvertToStringBaseAnalyzer/RPAD0278).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M(int v) => System.Convert.ToString(v, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToString(x, 3)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто второй проход, batch) — extends InvalidNumberStylesCombinationAnalyzer/
+    // RPAD0275 to also cover System.Numerics.BigInteger.Parse.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Numerics.BigInteger M(string s) => System.Numerics.BigInteger.Parse(s, System.Globalization.NumberStyles.AllowHexSpecifier | System.Globalization.NumberStyles.AllowDecimalPoint); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BigInteger.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто третий проход, batch) — extends InvalidDateTimeStylesCombinationAnalyzer/
+    // RPAD0276 to also cover DateTimeOffset.Parse.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public DateTimeOffset M(string s) => DateTimeOffset.Parse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal | System.Globalization.DateTimeStyles.AssumeUniversal); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTimeOffset.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidRegexMatchTimeoutAnalyzer/RPAD0279).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.RegularExpressions.Regex M() => new System.Text.RegularExpressions.Regex(\"a\", System.Text.RegularExpressions.RegexOptions.None, System.TimeSpan.Zero); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Regex(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто пятый проход, batch) — extends InvalidRegexMatchTimeoutAnalyzer/
+    // RPAD0279 to also cover the static Regex.IsMatch/Match/Matches/Replace/Split overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M() => System.Text.RegularExpressions.Regex.IsMatch(\"a\", \"a\", System.Text.RegularExpressions.RegexOptions.None, System.TimeSpan.Zero); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Regex.IsMatch(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто шестой проход, batch) — one new analyzer this batch
+    // (InvalidCancellationTokenSourceTimeSpanDelayAnalyzer/RPAD0280).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Threading.CancellationTokenSource M() => new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(-5)); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new CancellationTokenSource(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто седьмой проход, batch) — extends
+    // InvalidCancellationTokenSourceTimeSpanDelayAnalyzer/RPAD0280 to also cover Task.Delay(TimeSpan).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Threading.Tasks.Task M() => System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(-5)); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Task.Delay(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто восьмой проход, batch) — one new analyzer this batch
+    // (InvalidStringRemoveOrInsertArgumentAnalyzer/RPAD0281).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => \"hello\".Remove(1, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"hello\".Remove(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто девятый проход, batch) — one new analyzer this batch
+    // (StringLiteralIndexerOutOfRangeAnalyzer/RPAD0282).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => \"hello\"[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"hello\"[10]' always throws IndexOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (трёхсотый проход, batch) — one new analyzer this batch
+    // (ArrayLiteralIndexerOutOfRangeAnalyzer/RPAD0283).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new[] { 1, 2, 3 }[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Indexing this array literal with [10] always throws IndexOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста первый проход, batch) — one new analyzer this batch
+    // (EnumerableRangeOverflowAnalyzer/RPAD0284).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Collections.Generic.IEnumerable<int> M() => System.Linq.Enumerable.Range(int.MaxValue, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentOutOfRangeException at runtime — start + count - 1 overflows Int32.MaxValue", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста второй проход, batch) — extends NegativeElementAtIndexAnalyzer/RPAD0236 to
+    // also catch a positive out-of-range index for an array-literal receiver.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new[] { 1, 2, 3 }.ElementAt(10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.ElementAt(10)' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(-1)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста четвёртый проход, batch) — extends ConvertToCharOverflowAnalyzer/RPAD0285 to
+    // also cover the SByte/UInt32/UInt64 overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar((sbyte)-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(-1)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста пятый проход, batch) — one new analyzer this batch
+    // (ConvertNumericNarrowingOverflowAnalyzer/RPAD0286).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte M() => System.Convert.ToByte(300); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToByte(300)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста шестой проход, batch) — extends ConvertNumericNarrowingOverflowAnalyzer/
+    // RPAD0286 to also cover a long source narrowing to int/uint/ulong.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => System.Convert.ToInt32(5000000000L); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToInt32(5000000000)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста седьмой проход, batch) — extends InvalidBitConverterArgumentAnalyzer/RPAD0268
+    // to also cover the 3-argument BitConverter.ToString(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.BitConverter.ToString(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BitConverter.ToString(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста восьмой проход, batch) — extends NegativeArrayResizeOrClearArgumentAnalyzer/
+    // RPAD0263 to also cover Array.Reverse(array, index, length)/Array.Sort(array, index, length).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(int[] a) => System.Array.Reverse(a, -1, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.Reverse(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Collections.Generic.List<int> xs) => xs.Sort(-1, 2, null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Sort(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста десятый проход, batch) — extends NegativeListIndexOrCountArgumentAnalyzer/
+    // RPAD0287 to also cover List<T>.BinarySearch(index, count, item, comparer) and
+    // List<T>.CopyTo(index, array, arrayIndex, count).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Collections.Generic.List<int> xs, int[] a) => xs.CopyTo(0, a, -1, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.CopyTo(...)' always throws ArgumentOutOfRangeException at runtime — arrayIndex cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста одиннадцатый проход, batch) — one new analyzer this batch
+    // (InvalidStringBuilderRemoveOrInsertArgumentAnalyzer/RPAD0288).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.StringBuilder M() => new System.Text.StringBuilder(\"hello\").Remove(10, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StringBuilder(\"hello\").Remove(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двенадцатый проход, batch) — one new analyzer this batch
+    // (InvalidGuidParseExactFormatAnalyzer/RPAD0289).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Guid M(string s) => System.Guid.ParseExact(s, \"Q\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Guid.ParseExact(..., \"Q\")' always throws FormatException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тринадцатый проход, batch) — extends InvalidConvertToBase64StringArgumentAnalyzer/
+    // RPAD0272 to also cover Convert.ToHexString(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.Convert.ToHexString(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToHexString(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста четырнадцатый проход, batch) — extends InvalidConvertToBase64StringArgumentAnalyzer/
+    // RPAD0272 to also cover Convert.ToHexStringLower(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.Convert.ToHexStringLower(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToHexStringLower(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста пятнадцатый проход, batch) — extends InvalidRandomRangeArgumentAnalyzer/RPAD0234
+    // to also cover Random.NextInt64.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public long M(Random r) => r.NextInt64(5, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'NextInt64(5, 1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста шестнадцатый проход, batch) — extends InvalidTimeSpanFromDoubleArgumentAnalyzer/
+    // RPAD0259 to also cover TimeSpan.FromMicroseconds.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeSpan M() => System.TimeSpan.FromMicroseconds(double.NaN); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeSpan.FromMicroseconds(NaN)' always throws at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста семнадцатый проход, batch) — one new analyzer this batch
+    // (EmptyArrayLiteralFirstOrSingleOrLastAnalyzer/RPAD0290).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new int[0].First(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.First(...)' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста восемнадцатый проход, batch) — extends EmptyArrayLiteralFirstOrSingleOrLastAnalyzer/
+    // RPAD0290 to also cover the no-seed Aggregate(func) overload.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new int[0].Aggregate((a, b) => a + b); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Aggregate(...)' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста девятнадцатый проход, batch) — one new analyzer this batch
+    // (EmptyQueueOrStackDequeueOrPopAnalyzer/RPAD0291).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new System.Collections.Generic.Queue<int>().Dequeue(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Queue(...).Dequeue()' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцатый проход, batch) — extends EmptyQueueOrStackDequeueOrPopAnalyzer/
+    // RPAD0291 to also cover PriorityQueue<TElement, TPriority> and LinkedList<T>.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new System.Collections.Generic.PriorityQueue<int, int>().Dequeue(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PriorityQueue(...).Dequeue()' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
 }
