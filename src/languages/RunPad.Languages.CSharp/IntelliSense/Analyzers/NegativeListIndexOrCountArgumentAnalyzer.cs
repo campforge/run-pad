@@ -20,6 +20,17 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // (same shape as `Sort`) and `list.CopyTo(index, array, arrayIndex, count)` — confirmed empirically that
 // all three of `CopyTo`'s numeric arguments (`index`, `arrayIndex`, AND `count`) independently throw
 // ArgumentOutOfRangeException when negative, unlike the others' two-argument shape.
+// Extended again in the триста тридцать первый проход to also cover `list.IndexOf(item, index[, count])`
+// and `list.LastIndexOf(item, index[, count])` — confirmed empirically to throw for a negative `index`
+// OR `count` exactly like the rest of this family (this analyzer, unlike its Array-family cousins
+// InvalidArrayFillArgumentAnalyzer/InvalidArrayLastIndexOfArgumentAnalyzer, RPAD0294/RPAD0298, never
+// checks the upper-bound "index + count exceeds length" case at all — it only proves negativity, which
+// needs no knowledge of the list's length or even a literal-length list — so this extension is exactly
+// as narrow in scope as the rest of RPAD0287 already is, not a new capability). `item` sits at position
+// 0, shifting `index`/`count` to positions 1/2 — handled via a new per-method-name branch, same pattern
+// as the existing `CopyTo` branch. Both the 2-argument (`item, index`) and 3-argument (`item, index,
+// count`) overloads are covered; the 1-argument `IndexOf(item)`/`LastIndexOf(item)` overload has no
+// index/count to check and is naturally excluded by the argument-count check.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeListIndexOrCountArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -32,7 +43,7 @@ public sealed class NegativeListIndexOrCountArgumentAnalyzer : DiagnosticAnalyze
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "List<T>.Sort(index, count, comparer), Reverse(index, count), GetRange(index, count), RemoveRange(index, count), BinarySearch(index, count, item, comparer), and CopyTo(index, array, arrayIndex, count) all throw ArgumentOutOfRangeException for a negative index/count/arrayIndex.");
+        description: "List<T>.Sort(index, count, comparer), Reverse(index, count), GetRange(index, count), RemoveRange(index, count), BinarySearch(index, count, item, comparer), CopyTo(index, array, arrayIndex, count), IndexOf(item, index, count), and LastIndexOf(item, index, count) all throw ArgumentOutOfRangeException for a negative index/count/arrayIndex.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -46,7 +57,7 @@ public sealed class NegativeListIndexOrCountArgumentAnalyzer : DiagnosticAnalyze
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Sort" or "Reverse" or "GetRange" or "RemoveRange" or "BinarySearch" or "CopyTo" } access)
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Sort" or "Reverse" or "GetRange" or "RemoveRange" or "BinarySearch" or "CopyTo" or "IndexOf" or "LastIndexOf" } access)
             return;
         var methodName = access.Name.Identifier.Text;
 
@@ -55,6 +66,7 @@ public sealed class NegativeListIndexOrCountArgumentAnalyzer : DiagnosticAnalyze
         {
             "Sort" => arguments.Count == 3,
             "BinarySearch" or "CopyTo" => arguments.Count == 4,
+            "IndexOf" or "LastIndexOf" => arguments.Count is 2 or 3,
             _ => arguments.Count == 2,
         };
         if (!validArgCount) return;
@@ -83,6 +95,20 @@ public sealed class NegativeListIndexOrCountArgumentAnalyzer : DiagnosticAnalyze
                 context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "arrayIndex"));
             }
             else if (IsNegativeLiteral(arguments[3].Expression))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "count"));
+            }
+            return;
+        }
+
+        if (methodName is "IndexOf" or "LastIndexOf")
+        {
+            // IndexOf(item, index[, count])/LastIndexOf(item, index[, count]) — item sits at position 0.
+            if (IsNegativeLiteral(arguments[1].Expression))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "index"));
+            }
+            else if (arguments.Count == 3 && IsNegativeLiteral(arguments[2].Expression))
             {
                 context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, "count"));
             }

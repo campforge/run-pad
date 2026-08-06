@@ -2858,6 +2858,8 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int>(4); }", false)]
     [InlineData("using System.Collections.Generic; class C { public List<int> M(int n) => new List<int>(-n); }", false)]
     [InlineData("using System.Collections.Generic; class C { public PriorityQueue<int, int> M() => new PriorityQueue<int, int>(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public SortedList<int, int> M() => new SortedList<int, int>(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public SortedList<int, int> M() => new SortedList<int, int>(5); }", false)]
     public async Task NegativeCapacityArgumentAnalyzer_Should_NotFlag_ANonnegativeOrNonLiteralCapacity(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeCapacityArgumentAnalyzer(), code);
@@ -3744,6 +3746,14 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(0, a, 0, -1); }", true)]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int[] a) => xs.CopyTo(0, a, 0, 4); }", false)]
     [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.BinarySearch(0, 4, 1, null); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.IndexOf(0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.LastIndexOf(0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.IndexOf(0, 0, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.LastIndexOf(0, 2, -1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.IndexOf(0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.IndexOf(0, 0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.IndexOf(0, 0, 3); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs, int n) => xs.IndexOf(0, -n); }", false)]
     public async Task NegativeListIndexOrCountArgumentAnalyzer_Should_NotFlag_ANonNegativeArgument(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeListIndexOrCountArgumentAnalyzer(), code);
@@ -3816,5 +3826,201 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new EmptyQueueOrStackDequeueOrPopAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyQueueOrStackDequeueOrPopAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and seventy-fifth batch (триста двадцать первый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M(string s) => s.PadLeft(-1); }", true)]
+    [InlineData("class C { public string M(string s) => s.PadRight(-1); }", true)]
+    [InlineData("class C { public string M(string s) => s.PadLeft(-1, 'x'); }", true)]
+    [InlineData("class C { public string M(string s) => s.PadLeft(5); }", false)]
+    [InlineData("class C { public string M(string s, int n) => s.PadLeft(n); }", false)]
+    public async Task NegativePadWidthArgumentAnalyzer_Should_NotFlag_ANonNegativeWidth(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativePadWidthArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativePadWidthArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and seventy-seventh batch (триста двадцать третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Capacity = -1; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Capacity = 5; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int n) => xs.Capacity = -n; }", false)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb) => sb.Length = -1; }", true)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb) => sb.Length = 5; }", false)]
+    [InlineData("using System.IO; class C { public void M(MemoryStream ms) => ms.Position = -1; }", true)]
+    [InlineData("using System.IO; class C { public void M(MemoryStream ms) => ms.Position = 5; }", false)]
+    public async Task NegativeListCapacityAssignmentAnalyzer_Should_NotFlag_ANonNegativeCapacity(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeListCapacityAssignmentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeListCapacityAssignmentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and seventy-ninth batch (триста двадцать пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, -1, 1); }", true)]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, 0, -1); }", true)]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, 2, 5); }", true)]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, 3, 0); }", false)]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, 0, 3); }", false)]
+    [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0); }", false)]
+    [InlineData("class C { public void M(int start, int count) => System.Array.Fill(new int[3], 0, start, count); }", false)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, -1, 1); }", true)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, 0, -1); }", true)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, 2, 5); }", true)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, 3, 0); }", false)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, 0, 3); }", false)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0); }", false)]
+    [InlineData("class C { public void M() => System.Array.IndexOf(new int[3], 0, 0); }", false)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, -1, 1); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], -1, 1, x => true); }", true)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], 0, -1, x => true); }", true)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], 2, 5, x => true); }", true)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], 3, 0, x => true); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], 0, 3, x => true); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], x => true); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindIndex(new int[3], 0, x => true); }", false)]
+    public async Task InvalidArrayFillArgumentAnalyzer_Should_NotFlag_AnInBoundsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArrayFillArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayFillArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eighty-fourth batch (триста тридцатый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, -1, 1); }", true)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, 2, -1); }", true)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, 3, 1); }", true)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, 2, 4); }", true)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, 2, 3); }", false)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, 1, 0); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindLastIndex(new int[3], 3, 1, x => true); }", true)]
+    [InlineData("class C { public void M() => System.Array.FindLastIndex(new int[3], 2, 3, x => true); }", false)]
+    [InlineData("class C { public void M() => System.Array.FindLastIndex(new int[3], x => true); }", false)]
+    [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[0], 0, -1, 0); }", false)]
+    public async Task InvalidArrayLastIndexOfArgumentAnalyzer_Should_NotFlag_AnInBoundsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArrayLastIndexOfArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayLastIndexOfArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eightieth batch (триста двадцать шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M() => ArrayPool<int>.Shared.Rent(-1); }", true)]
+    [InlineData("using System.Buffers; class C { public void M() => ArrayPool<int>.Shared.Rent(0); }", false)]
+    [InlineData("using System.Buffers; class C { public void M() => ArrayPool<int>.Shared.Rent(5); }", false)]
+    [InlineData("using System.Buffers; class C { public void M(int n) => ArrayPool<int>.Shared.Rent(-n); }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { var p = ArrayPool<int>.Create(); p.Rent(-1); } }", true)]
+    public async Task NegativeArrayPoolRentLengthAnalyzer_Should_NotFlag_ANonNegativeLength(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeArrayPoolRentLengthAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeArrayPoolRentLengthAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eighty-first batch (триста двадцать седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M() => System.Console.SetCursorPosition(-1, 0); }", true)]
+    [InlineData("class C { public void M() => System.Console.SetCursorPosition(0, -1); }", true)]
+    [InlineData("class C { public void M() => System.Console.SetCursorPosition(-1, -1); }", true)]
+    [InlineData("class C { public void M() => System.Console.SetCursorPosition(0, 0); }", false)]
+    [InlineData("class C { public void M(int x, int y) => System.Console.SetCursorPosition(x, y); }", false)]
+    public async Task NegativeConsoleCursorPositionArgumentAnalyzer_Should_NotFlag_ANonNegativePosition(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeConsoleCursorPositionArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeConsoleCursorPositionArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eighty-sixth batch (триста тридцать второй проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', -1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', 5); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', 3); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', -1, 1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', 0, -1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', 2, 5); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', 0, 3); }", false)]
+    [InlineData("class C { public int M(string s) => s.IndexOf('a', -1); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", -1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", 5); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", 3); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", -1, 1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", 0, 3); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", -1, System.StringComparison.Ordinal); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", 3, System.StringComparison.Ordinal); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", -1, 1, System.StringComparison.Ordinal); }", true)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", 0, 3, System.StringComparison.Ordinal); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf(\"a\", System.StringComparison.Ordinal); }", false)]
+    public async Task InvalidStringIndexOfCharArgumentAnalyzer_Should_NotFlag_AnInBoundsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringIndexOfCharArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringIndexOfCharArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eighty-eighth batch (триста тридцать четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', -1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', 3); }", true)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', 2); }", false)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', 2, -1); }", true)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', 2, 4); }", true)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', 2, 3); }", false)]
+    [InlineData("class C { public int M() => \"abc\".LastIndexOf(\"a\", -1, System.StringComparison.Ordinal); }", true)]
+    [InlineData("class C { public int M() => \"\".LastIndexOf('a', -1); }", false)]
+    [InlineData("class C { public int M() => \"abc\".IndexOf('a', -1); }", false)]
+    public async Task InvalidStringLastIndexOfArgumentAnalyzer_Should_NotFlag_AnInBoundsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringLastIndexOfArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringLastIndexOfArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and eighty-ninth batch (триста тридцать пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3], -1, 1); }", true)]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3], 0, -1); }", true)]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3], 2, 5); }", true)]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3], 3, 0); }", false)]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3], 0, 3); }", false)]
+    [InlineData("class C { public string M() => string.Join(\",\", new string[3]); }", false)]
+    [InlineData("class C { public string M() => string.Join(\",\", (System.Collections.Generic.IEnumerable<string>)new string[3]); }", false)]
+    public async Task InvalidStringJoinArgumentAnalyzer_Should_NotFlag_AnInBoundsCall(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringJoinArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringJoinArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and ninetieth batch (триста тридцать шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.EnsureCapacity(0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<int, int> d) => d.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(HashSet<int> h) => h.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Queue<int> q) => q.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Stack<int> s) => s.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int n) => xs.EnsureCapacity(-n); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<int, int> d) => d.TrimExcess(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(HashSet<int> h) => h.TrimExcess(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Queue<int> q) => q.TrimExcess(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Stack<int> s) => s.TrimExcess(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<int, int> d) => d.TrimExcess(0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(Dictionary<int, int> d) => d.TrimExcess(); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(PriorityQueue<int, int> pq) => pq.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(PriorityQueue<int, int> pq) => pq.EnsureCapacity(0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(PriorityQueue<int, int> pq) => pq.TrimExcess(); }", false)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb) => sb.EnsureCapacity(-1); }", true)]
+    [InlineData("using System.Text; class C { public void M(StringBuilder sb) => sb.EnsureCapacity(0); }", false)]
+    public async Task NegativeEnsureCapacityArgumentAnalyzer_Should_NotFlag_ANonNegativeCapacity(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeEnsureCapacityArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeEnsureCapacityArgumentAnalyzer.DiagnosticId));
     }
 }
