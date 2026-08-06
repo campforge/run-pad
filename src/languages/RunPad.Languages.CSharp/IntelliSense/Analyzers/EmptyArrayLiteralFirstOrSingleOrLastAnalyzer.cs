@@ -28,6 +28,19 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // needs no special-casing here — it's already excluded by the existing `Arguments.Count > 1` guard.
 // Class name/`DiagnosticId` kept as-is despite the scope growing beyond First/Single/Last, same
 // precedent as other same-mechanism extensions in this catalog.
+// Extended in the триста сороковой проход to also cover `.Average()`/`.Min()`/`.Max()`/`.MinBy(...)`/
+// `.MaxBy(...)` — the case explicitly deferred above. Confirmed empirically (scratch `dotnet run`
+// script) that the type-dependence is precisely characterized by the RESOLVED method's RETURN type: when
+// it's a non-nullable value type (the specialized `int`/`long`/`float`/`double`/`decimal` overloads, or
+// `TSource`/`TResult` instantiated with a non-nullable value type), the call always throws
+// `InvalidOperationException` on an empty source; when the return type is `Nullable<T>` or a reference
+// type, it returns `default`/`null` instead — confirmed for EVERY combination tried, including
+// `Average`'s selector overload (returns non-nullable `double` even when the SOURCE element type is a
+// reference type like `string`, and still throws), and `Min`/`Max`/`MinBy`/`MaxBy`'s `IComparer`-taking
+// overloads (still throw — supplying a comparer doesn't change the empty-sequence behavior). This single
+// return-type check subsumes all the argument-count variants (0-arg Min/Max, 1-arg Min/Max-with-comparer
+// or Average-with-selector, 1-/2-arg MinBy/MaxBy), so the argument-count ceiling for these five method
+// names is raised to 2 rather than reusing First/Single/Last/Aggregate's ceiling of 1.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAnalyzer
 {
@@ -35,12 +48,12 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "First/Single/Last/Aggregate on an empty array literal always throws",
+        title: "First/Single/Last/Aggregate/Average/Min/Max/MinBy/MaxBy on an empty array literal always throws",
         messageFormat: "'xs.{0}(...)' always throws InvalidOperationException at runtime — the receiver array literal has no elements",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Enumerable.First/Single/Last (with or without a predicate) and the no-seed Aggregate(func) throw InvalidOperationException when the source sequence has no elements, provable here because the receiver is a freshly created array literal with a known, empty element count.");
+        description: "Enumerable.First/Single/Last (with or without a predicate), the no-seed Aggregate(func), and the non-nullable-value-type overloads of Average/Min/Max/MinBy/MaxBy throw InvalidOperationException when the source sequence has no elements, provable here because the receiver is a freshly created array literal with a known, empty element count.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -54,10 +67,17 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "First" or "Single" or "Last" or "Aggregate" } access)
+        if (invocation.Expression is not MemberAccessExpressionSyntax
+            {
+                Name.Identifier.Text: "First" or "Single" or "Last" or "Aggregate" or "Average" or "Min" or "Max" or "MinBy" or "MaxBy",
+            } access)
+        {
             return;
+        }
         var methodName = access.Name.Identifier.Text;
-        if (invocation.ArgumentList.Arguments.Count > 1) return;
+        var isTypeDependent = methodName is "Average" or "Min" or "Max" or "MinBy" or "MaxBy";
+        var argCeiling = isTypeDependent ? 2 : 1;
+        if (invocation.ArgumentList.Arguments.Count > argCeiling) return;
 
         var ct = context.CancellationToken;
         if (TryGetArrayLiteralElementCount(access.Expression, context.SemanticModel, ct) is not { } elementCount
@@ -72,6 +92,11 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
             return;
         }
         if (method.ContainingType?.ToDisplayString() != "System.Linq.Enumerable") return;
+        if (isTypeDependent
+            && (!method.ReturnType.IsValueType || method.ReturnType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T))
+        {
+            return;
+        }
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName));
     }
