@@ -3802,6 +3802,18 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Linq; class C { public int M() => new int[0].Aggregate((a, b) => a + b); }", true)]
     [InlineData("using System.Linq; class C { public int M() => new int[0].Aggregate(0, (a, b) => a + b); }", false)]
     [InlineData("using System.Linq; class C { public int M() => new[] { 1, 2 }.Aggregate((a, b) => a + b); }", false)]
+    [InlineData("using System.Linq; class C { public double M() => new int[0].Average(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Min(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].Max(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].MinBy(v => v); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new int[0].MaxBy(v => v); }", true)]
+    [InlineData("using System.Linq; class C { public double? M() => new double?[0].Average(); }", false)]
+    [InlineData("using System.Linq; class C { public int? M() => new int?[0].Min(); }", false)]
+    [InlineData("using System.Linq; class C { public string M() => new string[0].Max()!; }", false)]
+    [InlineData("using System.Linq; class C { public string M() => new string[0].MinBy(v => v)!; }", false)]
+    [InlineData("using System.Linq; class C { public double M() => new string[0].Average(s => 1.0); }", true)]
+    [InlineData("using System.Linq; class C { public double M() => new int[] { 1 }.Average(); }", false)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public int M() => new int[0].Min(Comparer<int>.Default); }", true)]
     public async Task EmptyArrayLiteralFirstOrSingleOrLastAnalyzer_Should_NotFlag_ANonemptyReceiver(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new EmptyArrayLiteralFirstOrSingleOrLastAnalyzer(), code);
@@ -4022,5 +4034,54 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeEnsureCapacityArgumentAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeEnsureCapacityArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and ninety-fifth batch (триста сорок первый проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[5]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[-1]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[2]; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.RemoveAt(5); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.RemoveAt(-1); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.RemoveAt(2); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.Insert(5, 0); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.Insert(3, 0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.RemoveAt(5); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int[] M() => new int[3] { 1, 2, 3 }; }", false)]
+    public async Task ListLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInBoundsIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new ListLiteralIndexerOutOfRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ListLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M() => RandomNumberGenerator.GetBytes(-1); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public string M() => RandomNumberGenerator.GetHexString(-1); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public string M() => RandomNumberGenerator.GetHexString(-1, true); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M() => RandomNumberGenerator.GetBytes(0); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(-1); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(int n) => RandomNumberGenerator.GetBytes(-n); }", false)]
+    public async Task NegativeRandomNumberGeneratorArgumentAnalyzer_Should_NotFlag_ANonNegativeCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new NegativeRandomNumberGeneratorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeRandomNumberGeneratorArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Hundred and ninety-seventh batch (триста сорок второй проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(-1); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(0); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(1); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(5, 5); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(5, 4); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(0, 5); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(-5, -1); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M() => RandomNumberGenerator.GetBytes(-1); }", false)]
+    public async Task InvalidRandomNumberGeneratorGetInt32ArgumentAnalyzer_Should_NotFlag_AValidRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRandomNumberGeneratorGetInt32ArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRandomNumberGeneratorGetInt32ArgumentAnalyzer.DiagnosticId));
     }
 }
