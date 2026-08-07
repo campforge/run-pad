@@ -27,6 +27,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Extended (двести семьдесят пятый проход, batch) to also cover `DateOnly(year, month, day)` and
 // `TimeOnly(hour, minute[, second[, millisecond]])` (.NET 6+, within this project's SDK floor) — the
 // same int-only, culture-invariant validation, confirmed empirically for both before extending.
+// Extended again (триста сорок четвёртый проход, batch) to also cover `TimeOnly`'s 5-argument
+// `(hour, minute, second, millisecond, microsecond)` overload — confirmed empirically to throw
+// identically to the other TimeOnly overloads; simply widened the accepted argument count and added a
+// branch to `AlwaysThrows`.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidDateTimeConstructorArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -64,7 +68,7 @@ public sealed class InvalidDateTimeConstructorArgumentAnalyzer : DiagnosticAnaly
         {
             "System.DateTime" when argCount is 3 or 6 or 7 => "DateTime",
             "System.DateOnly" when argCount is 3 => "DateOnly",
-            "System.TimeOnly" when argCount is 2 or 3 or 4 => "TimeOnly",
+            "System.TimeOnly" when argCount is 2 or 3 or 4 or 5 => "TimeOnly",
             _ => null,
         };
         if (typeKeyword is null) return;
@@ -101,7 +105,8 @@ public sealed class InvalidDateTimeConstructorArgumentAnalyzer : DiagnosticAnaly
                 default:
                     if (v.Length == 2) _ = new TimeOnly(v[0], v[1]);
                     else if (v.Length == 3) _ = new TimeOnly(v[0], v[1], v[2]);
-                    else _ = new TimeOnly(v[0], v[1], v[2], v[3]);
+                    else if (v.Length == 4) _ = new TimeOnly(v[0], v[1], v[2], v[3]);
+                    else _ = new TimeOnly(v[0], v[1], v[2], v[3], v[4]);
                     break;
             }
             return false;
