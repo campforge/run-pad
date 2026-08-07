@@ -23,6 +23,9 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Extended again (триста двадцать второй проход, batch) to also cover `SortedList<TKey, TValue>(int
 // capacity)` — confirmed empirically (both the throw and, via reflection, the exact constructor parameter
 // name `"capacity"`, matching the existing check unchanged) — simply added to `TargetTypes`.
+// Extended again (триста сорок третий проход, batch) to also cover `System.IO.MemoryStream(int
+// capacity)` — confirmed via reflection (not assumed) that its constructor parameter is also literally
+// named `"capacity"`, and confirmed empirically it throws identically — simply added to `TargetTypes`.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -35,7 +38,7 @@ public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "List<T>, Dictionary<TKey,TValue>, HashSet<T>, Queue<T>, Stack<T>, PriorityQueue<TElement,TPriority>, SortedList<TKey,TValue>, and StringBuilder all throw ArgumentOutOfRangeException when constructed with a negative capacity.");
+        description: "List<T>, Dictionary<TKey,TValue>, HashSet<T>, Queue<T>, Stack<T>, PriorityQueue<TElement,TPriority>, SortedList<TKey,TValue>, StringBuilder, and MemoryStream all throw ArgumentOutOfRangeException when constructed with a negative capacity.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -47,7 +50,8 @@ public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
         "System.Collections.Generic.Stack<T>",
         "System.Collections.Generic.PriorityQueue<TElement, TPriority>",
         "System.Collections.Generic.SortedList<TKey, TValue>",
-        "System.Text.StringBuilder");
+        "System.Text.StringBuilder",
+        "System.IO.MemoryStream");
 
     public override void Initialize(AnalysisContext context)
     {
