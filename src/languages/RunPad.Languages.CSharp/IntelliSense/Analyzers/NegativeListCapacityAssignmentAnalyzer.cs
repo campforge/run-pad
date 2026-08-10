@@ -24,6 +24,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // so the existing literal-extraction helper works unchanged. Class name/`DiagnosticId` kept as-is despite
 // the scope growing beyond `List<T>.Capacity`, same precedent as other same-mechanism extensions in this
 // catalog.
+// Extended again in the триста сорок девятый проход to also cover `list.Capacity = N` where the
+// receiver is itself a literal `new List<T> { ... }` collection initializer and `N` (non-negative) is
+// still LESS than the initializer's own known element count — confirmed empirically that this throws
+// the identical `ArgumentOutOfRangeException` (capacity can never be shrunk below the current element
+// count). Confirmed this does NOT apply to `StringBuilder.Length`/`MemoryStream.Position` — setting
+// either of those to a smaller-but-non-negative value simply truncates/seeks rather than throwing, so
+// this new check is scoped to `List<T>.Capacity` specifically. The message format is now parameterized
+// with a reason string to describe either condition.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
 {
@@ -31,12 +39,12 @@ public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "Negative property assignment always throws",
-        messageFormat: "'{0}.{1} = {2}' always throws ArgumentOutOfRangeException at runtime — {1} cannot be negative",
+        title: "Invalid property assignment always throws",
+        messageFormat: "'{0}.{1} = {2}' always throws ArgumentOutOfRangeException at runtime — {3}",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Assigning a negative value to List<T>.Capacity, StringBuilder.Length, or System.IO.MemoryStream.Position throws ArgumentOutOfRangeException.");
+        description: "Assigning a negative value to List<T>.Capacity, StringBuilder.Length, or System.IO.MemoryStream.Position throws ArgumentOutOfRangeException; assigning a List<T>.Capacity value less than the list's current element count also throws.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -60,9 +68,27 @@ public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
         var assignment = (AssignmentExpressionSyntax)context.Node;
         if (assignment.Left is not MemberAccessExpressionSyntax access) return;
         var propertyName = access.Name.Identifier.Text;
-        if (!TryGetNegativeLiteralValue(assignment.Right, out var literalText)) return;
 
         var ct = context.CancellationToken;
+        string reason;
+        if (TryGetNegativeLiteralValue(assignment.Right, out var literalText))
+        {
+            reason = $"{propertyName} cannot be negative";
+        }
+        else if (propertyName == "Capacity"
+            && context.SemanticModel.GetConstantValue(assignment.Right, ct).Value is int newCapacity
+            && newCapacity >= 0
+            && TryGetListLiteralElementCount(access.Expression, context.SemanticModel, ct) is { } elementCount
+            && newCapacity < elementCount)
+        {
+            literalText = newCapacity.ToString();
+            reason = $"Capacity ({newCapacity}) cannot be less than the list's current Count ({elementCount})";
+        }
+        else
+        {
+            return;
+        }
+
         if (context.SemanticModel.GetSymbolInfo(access, ct).Symbol is not IPropertySymbol { Name: var resolvedName } property
             || resolvedName != propertyName)
         {
@@ -76,7 +102,24 @@ public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, assignment.GetLocation(), access.Expression.ToString(), propertyName, literalText));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, assignment.GetLocation(), access.Expression.ToString(), propertyName, literalText, reason));
+    }
+
+    private static int? TryGetListLiteralElementCount(ExpressionSyntax expression, SemanticModel semanticModel, System.Threading.CancellationToken ct)
+    {
+        InitializerExpressionSyntax? initializer = expression switch
+        {
+            ObjectCreationExpressionSyntax { Initializer: { } explicitInit } => explicitInit,
+            ImplicitObjectCreationExpressionSyntax { Initializer: { } implicitInit } => implicitInit,
+            _ => null,
+        };
+        if (initializer is null || initializer.Kind() != SyntaxKind.CollectionInitializerExpression) return null;
+        if (semanticModel.GetTypeInfo(expression, ct).Type is not { } type
+            || type.OriginalDefinition.ToDisplayString() != "System.Collections.Generic.List<T>")
+        {
+            return null;
+        }
+        return initializer.Expressions.Count;
     }
 
     private static bool TryGetNegativeLiteralValue(ExpressionSyntax expression, out string literalText)

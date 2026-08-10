@@ -38,6 +38,17 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // anyway), but now that `double`/`decimal` sources are in scope, a value between `long.MaxValue` and
 // `ulong.MaxValue` (e.g. `Convert.ToUInt64(1.5e19)`) is genuinely valid and must NOT be flagged —
 // confirmed empirically before fixing, not just reasoned about.
+// Extended again in the триста сорок девятый проход to also cover `ToDecimal` as a target — confirmed
+// empirically that `Convert.ToDecimal(double)` overflows for a magnitude beyond `decimal`'s own (much
+// smaller) representable range, e.g. `Convert.ToDecimal(double.MaxValue)`. The `int`/`long`/`float`
+// source overloads of `ToDecimal` never overflow (every value of those types fits within `decimal`'s
+// range), so this needed no extra scoping — the existing generic range check simply never fires for
+// those sources, exactly as intended.
+// Extended again in the триста пятьдесят шестой проход to also cover `uint`/`ulong` SOURCE arguments
+// (explicitly deferred back in проход 305) — confirmed empirically that e.g. `Convert.ToSByte(200u)`/
+// `Convert.ToInt16(100000ul)` overflow identically to the already-covered signed sources, same range
+// comparison in `double` (both `uint`/`ulong` convert losslessly enough for boundary purposes, same as
+// the existing `decimal` handling).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
 {
@@ -50,7 +61,7 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Convert.ToByte/ToSByte/ToInt16/ToUInt16/ToInt32/ToUInt32/ToUInt64/ToInt64(int, long, double, float, or decimal) throw OverflowException when the source value is outside the target type's range — unlike a plain unchecked cast, which would silently truncate.");
+        description: "Convert.ToByte/ToSByte/ToInt16/ToUInt16/ToInt32/ToUInt32/ToUInt64/ToInt64/ToDecimal(int, long, double, float, or decimal) throw OverflowException when the source value is outside the target type's range — unlike a plain unchecked cast, which would silently truncate.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -65,6 +76,7 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
                 KeyValuePair.Create("ToUInt32", (0d, (double)uint.MaxValue, "uint")),
                 KeyValuePair.Create("ToUInt64", (0d, (double)ulong.MaxValue, "ulong")),
                 KeyValuePair.Create("ToInt64", ((double)long.MinValue, (double)long.MaxValue, "long")),
+                KeyValuePair.Create("ToDecimal", ((double)decimal.MinValue, (double)decimal.MaxValue, "decimal")),
             ]);
 
     public override void Initialize(AnalysisContext context)
@@ -84,11 +96,13 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
 
         var ct = context.CancellationToken;
         var constant = context.SemanticModel.GetConstantValue(valueArg, ct);
-        if (constant.Value is not (int or long or double or float or decimal)) return;
+        if (constant.Value is not (int or long or uint or ulong or double or float or decimal)) return;
         var value = constant.Value switch
         {
             int i => (double)i,
             long l => (double)l,
+            uint u => (double)u,
+            ulong ul => (double)ul,
             double d => d,
             float f => f,
             decimal m => (double)m,
@@ -106,6 +120,7 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
             [
             {
                 Type.SpecialType: SpecialType.System_Int32 or SpecialType.System_Int64
+                        or SpecialType.System_UInt32 or SpecialType.System_UInt64
                         or SpecialType.System_Double or SpecialType.System_Single or SpecialType.System_Decimal,
             },
             ])
