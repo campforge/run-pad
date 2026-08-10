@@ -16,6 +16,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `array.Length - start`, and the boundary case `AsSpan(array.Length, 0)` which is itself invalid since
 // the start position alone already exceeds the array). Scoped to a LITERAL array whose length is known
 // at the call site, same helper as RPAD0266-0270.
+// Extended (триста пятидесятый проход, batch) to also cover the `new Span<T>(array, start, length)`/
+// `new Memory<T>(array, start, length)`/`new ReadOnlySpan<T>(array, start, length)`/
+// `new ReadOnlyMemory<T>(array, start, length)` constructors — confirmed empirically to follow the
+// EXACT same boundary formula and exception type (ArgumentOutOfRangeException) as the `AsSpan`/
+// `AsMemory` extension methods, just spelled as an object-creation expression instead of a method
+// call, so this analyzer now also registers on `ObjectCreationExpression`/
+// `ImplicitObjectCreationExpression` alongside its existing `InvocationExpression` registration.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -28,7 +35,10 @@ public sealed class InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer : DiagnosticAna
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "array.AsSpan(start[, length]) and array.AsMemory(start[, length]) throw ArgumentOutOfRangeException when start or length is negative, or start + length exceeds the array's length.");
+        description: "array.AsSpan(start[, length]), array.AsMemory(start[, length]), and the equivalent Span<T>/Memory<T>/ReadOnlySpan<T>/ReadOnlyMemory<T> constructors throw ArgumentOutOfRangeException when start or length is negative, or start + length exceeds the array's length.");
+
+    private static readonly ImmutableHashSet<string> TargetConstructorTypeNames = ImmutableHashSet.Create(
+        "System.Span<T>", "System.Memory<T>", "System.ReadOnlySpan<T>", "System.ReadOnlyMemory<T>");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -37,6 +47,30 @@ public sealed class InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer : DiagnosticAna
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.InvocationExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeConstructor, SyntaxKind.ObjectCreationExpression, SyntaxKind.ImplicitObjectCreationExpression);
+    }
+
+    private static void AnalyzeConstructor(SyntaxNodeAnalysisContext context)
+    {
+        var creation = (BaseObjectCreationExpressionSyntax)context.Node;
+        if (creation.ArgumentList is not { Arguments: [{ Expression: var arrayArg }, { Expression: var startArg }, { Expression: var lengthArg }] })
+            return;
+
+        var ct = context.CancellationToken;
+        var arrayLength = TryGetArrayLength(arrayArg, context.SemanticModel, ct);
+        if (arrayLength is null) return;
+        if (context.SemanticModel.GetConstantValue(startArg, ct).Value is not int start) return;
+        if (context.SemanticModel.GetConstantValue(lengthArg, ct).Value is not int length) return;
+        if (start >= 0 && length >= 0 && start + length <= arrayLength) return;
+
+        if (context.SemanticModel.GetSymbolInfo(creation, ct).Symbol is not IMethodSymbol { MethodKind: MethodKind.Constructor } ctor)
+            return;
+        var typeName = ctor.ContainingType?.OriginalDefinition.ToDisplayString();
+        if (typeName is null || !TargetConstructorTypeNames.Contains(typeName)) return;
+        if (ctor.Parameters is not [_, { Type.SpecialType: SpecialType.System_Int32 }, { Type.SpecialType: SpecialType.System_Int32 }])
+            return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, creation.GetLocation(), $"new {ctor.ContainingType!.Name}", start, length, arrayLength));
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)

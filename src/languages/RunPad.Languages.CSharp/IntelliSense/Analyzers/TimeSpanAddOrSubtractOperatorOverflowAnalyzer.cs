@@ -19,6 +19,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // operands must resolve to a known constant `TimeSpan` value for this analyzer to proceed; an operand
 // built from a plain `new TimeSpan(...)` literal constructor call is a possible future extension, left
 // out here to keep the operand-extraction helper's scope manageable.
+// Extended (триста пятьдесят шестой проход, batch) to also cover `TimeSpan * double`/`double *
+// TimeSpan`, `TimeSpan / double`, and unary `-TimeSpan` — confirmed empirically to throw the same
+// OverflowException for the same "result outside TimeSpan's representable range" reason (e.g.
+// `TimeSpan.MaxValue * 2`, `-TimeSpan.MinValue`). `TimeSpan / TimeSpan` (returns `double`, not
+// `TimeSpan`) is naturally excluded by the existing return-type check. The scalar operand for
+// multiply/divide must itself be a literal constant (`int`/`long`/`double`).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TimeSpanAddOrSubtractOperatorOverflowAnalyzer : DiagnosticAnalyzer
 {
@@ -26,12 +32,12 @@ public sealed class TimeSpanAddOrSubtractOperatorOverflowAnalyzer : DiagnosticAn
 
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
-        title: "TimeSpan addition/subtraction always overflows",
+        title: "TimeSpan arithmetic always overflows",
         messageFormat: "'{0}' always throws OverflowException at runtime — the result is outside TimeSpan's representable range",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "TimeSpan1 + TimeSpan2 and TimeSpan1 - TimeSpan2 throw OverflowException when the result overflows TimeSpan's representable range.");
+        description: "TimeSpan1 + TimeSpan2, TimeSpan1 - TimeSpan2, TimeSpan * double, TimeSpan / double, and -TimeSpan throw OverflowException when the result overflows TimeSpan's representable range.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -39,7 +45,35 @@ public sealed class TimeSpanAddOrSubtractOperatorOverflowAnalyzer : DiagnosticAn
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.AddExpression, SyntaxKind.SubtractExpression);
+        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.AddExpression, SyntaxKind.SubtractExpression, SyntaxKind.MultiplyExpression, SyntaxKind.DivideExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeUnaryMinus, SyntaxKind.UnaryMinusExpression);
+    }
+
+    private static void AnalyzeUnaryMinus(SyntaxNodeAnalysisContext context)
+    {
+        var unary = (PrefixUnaryExpressionSyntax)context.Node;
+        var ct = context.CancellationToken;
+
+        if (context.SemanticModel.GetSymbolInfo(unary, ct).Symbol is not IMethodSymbol { MethodKind: MethodKind.BuiltinOperator or MethodKind.UserDefinedOperator } opMethod)
+            return;
+        if (opMethod.ContainingType?.ToDisplayString() != "System.TimeSpan") return;
+        if (opMethod.ReturnType.ToDisplayString() != "System.TimeSpan") return;
+
+        if (TryGetConstantTimeSpan(context.SemanticModel, unary.Operand, ct) is not { } operand) return;
+
+        bool alwaysOverflows;
+        try
+        {
+            _ = -operand;
+            alwaysOverflows = false;
+        }
+        catch (OverflowException)
+        {
+            alwaysOverflows = true;
+        }
+        if (!alwaysOverflows) return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, unary.GetLocation(), unary.ToString()));
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
@@ -52,6 +86,12 @@ public sealed class TimeSpanAddOrSubtractOperatorOverflowAnalyzer : DiagnosticAn
         if (opMethod.ContainingType?.ToDisplayString() != "System.TimeSpan") return;
         if (opMethod.ReturnType.ToDisplayString() != "System.TimeSpan") return;
 
+        if (binary.IsKind(SyntaxKind.MultiplyExpression) || binary.IsKind(SyntaxKind.DivideExpression))
+        {
+            AnalyzeMultiplyOrDivide(context, binary);
+            return;
+        }
+
         if (TryGetConstantTimeSpan(context.SemanticModel, binary.Left, ct) is not { } left) return;
         if (TryGetConstantTimeSpan(context.SemanticModel, binary.Right, ct) is not { } right) return;
 
@@ -60,6 +100,47 @@ public sealed class TimeSpanAddOrSubtractOperatorOverflowAnalyzer : DiagnosticAn
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation(), binary.ToString()));
     }
+
+    private static void AnalyzeMultiplyOrDivide(SyntaxNodeAnalysisContext context, BinaryExpressionSyntax binary)
+    {
+        var ct = context.CancellationToken;
+        var isMultiply = binary.IsKind(SyntaxKind.MultiplyExpression);
+
+        TimeSpan? timeSpanOperand;
+        double? scalarOperand;
+        if (TryGetConstantTimeSpan(context.SemanticModel, binary.Left, ct) is { } leftSpan)
+        {
+            timeSpanOperand = leftSpan;
+            scalarOperand = TryGetConstantScalar(context.SemanticModel, binary.Right, ct);
+        }
+        else if (isMultiply && TryGetConstantTimeSpan(context.SemanticModel, binary.Right, ct) is { } rightSpan)
+        {
+            timeSpanOperand = rightSpan;
+            scalarOperand = TryGetConstantScalar(context.SemanticModel, binary.Left, ct);
+        }
+        else
+        {
+            return;
+        }
+        if (timeSpanOperand is not { } span || scalarOperand is not { } scalar) return;
+
+        bool alwaysOverflows;
+        try
+        {
+            _ = isMultiply ? span * scalar : span / scalar;
+            alwaysOverflows = false;
+        }
+        catch (OverflowException)
+        {
+            alwaysOverflows = true;
+        }
+        if (!alwaysOverflows) return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, binary.GetLocation(), binary.ToString()));
+    }
+
+    private static double? TryGetConstantScalar(SemanticModel model, ExpressionSyntax expr, CancellationToken ct) =>
+        model.GetConstantValue(expr, ct) is { HasValue: true, Value: { } value } ? ToDouble(value) : null;
 
     private static bool AlwaysOverflows(TimeSpan left, TimeSpan right, bool isAdd)
     {
