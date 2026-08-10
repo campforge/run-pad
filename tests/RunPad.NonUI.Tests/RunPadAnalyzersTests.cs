@@ -3704,6 +3704,10 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public char M() => Convert.ToChar((sbyte)65); }", false)]
     [InlineData("using System; class C { public char M() => Convert.ToChar((byte)255); }", false)]
     [InlineData("using System; class C { public char M() => Convert.ToChar((ushort)65535); }", false)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(70000.0); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(-1.0f); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(70000m); }", true)]
+    [InlineData("using System; class C { public char M() => Convert.ToChar(65.0); }", false)]
     public async Task ConvertToCharOverflowAnalyzer_Should_NotFlag_AnInRangeValue(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new ConvertToCharOverflowAnalyzer(), code);
@@ -3726,6 +3730,11 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public uint M() => Convert.ToUInt32(-1); }", true)]
     [InlineData("using System; class C { public ulong M() => Convert.ToUInt64(-1L); }", true)]
     [InlineData("using System; class C { public int M() => Convert.ToInt32(100L); }", false)]
+    [InlineData("using System; class C { public int M() => Convert.ToInt32(1e20); }", true)]
+    [InlineData("using System; class C { public int M() => Convert.ToInt32(1e20m); }", true)]
+    [InlineData("using System; class C { public long M() => Convert.ToInt64(1e20); }", true)]
+    [InlineData("using System; class C { public ulong M() => Convert.ToUInt64(1.5e19); }", false)]
+    [InlineData("using System; class C { public int M() => Convert.ToInt32(1.5); }", false)]
     public async Task ConvertNumericNarrowingOverflowAnalyzer_Should_NotFlag_AnInRangeValue(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new ConvertNumericNarrowingOverflowAnalyzer(), code);
@@ -4207,5 +4216,55 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new TimeSpanAddOrSubtractOperatorOverflowAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TimeSpanAddOrSubtractOperatorOverflowAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and eleventh through two hundred and fourteenth batches (триста сорок восьмой проход) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Linq; class C { public int M() => new[] { int.MaxValue, 1 }.Sum(); }", true)]
+    [InlineData("using System.Linq; class C { public int M() => new[] { 1, 2, 3 }.Sum(); }", false)]
+    [InlineData("using System.Linq; class C { public long M() => new[] { long.MaxValue, 1L }.Sum(); }", true)]
+    [InlineData("using System.Linq; class C { public int M(int[] xs) => xs.Sum(); }", false)]
+    public async Task EnumerableSumOverflowAnalyzer_Should_NotFlag_AnInRangeSum(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EnumerableSumOverflowAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EnumerableSumOverflowAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M() => new[] { 1, 2, 1 }.ToDictionary(x => x); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M() => new[] { 1, 2, 3 }.ToDictionary(x => x); }", false)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(int[] xs) => xs.ToDictionary(x => x); }", false)]
+    [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, string> M() => new[] { 1, 2, 1 }.ToDictionary(x => x.ToString()); }", false)]
+    public async Task EnumerableToDictionaryDuplicateKeyAnalyzer_Should_NotFlag_ANoDuplicateArray(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EnumerableToDictionaryDuplicateKeyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EnumerableToDictionaryDuplicateKeyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.CopyTo(new int[2]); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.CopyTo(new int[3]); }", false)]
+    [InlineData("class C { public void M() => new int[3] { 1, 2, 3 }.CopyTo(new int[5], 3); }", true)]
+    [InlineData("class C { public void M() => new int[3] { 1, 2, 3 }.CopyTo(new int[3], 0); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public void M() => new HashSet<int> { 1, 2, 3 }.CopyTo(new int[2]); }", true)]
+    [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.CopyTo(new int[2]); }", false)]
+    public async Task CopyToDestinationTooSmallAnalyzer_Should_NotFlag_ASufficientDestination(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new CopyToDestinationTooSmallAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CopyToDestinationTooSmallAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(-1, 5); }", true)]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(10, 5); }", true)]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(0, 0); }", true)]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(5, 5); }", false)]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(-1); }", true)]
+    [InlineData("using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(5); }", false)]
+    public async Task InvalidSemaphoreSlimConstructorArgumentAnalyzer_Should_NotFlag_AValidRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSemaphoreSlimConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSemaphoreSlimConstructorArgumentAnalyzer.DiagnosticId));
     }
 }

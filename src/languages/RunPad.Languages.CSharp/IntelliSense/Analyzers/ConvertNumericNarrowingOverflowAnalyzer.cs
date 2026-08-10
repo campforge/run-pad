@@ -20,6 +20,24 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // or `long` (so those two now also accept an `int` source, not just `long` — `Convert.ToUInt32(-1)`
 // throws just as much as `Convert.ToUInt32(-1L)`). `Convert.ToInt64` from a `long` source is identity and
 // has no such overload, so it stays out of scope, same as `Convert.ToInt32` from an `int` source.
+// Extended again in the триста сорок восьмой проход to also cover `double`/`float`/`decimal` SOURCE
+// arguments (explicitly deferred back in проход 305), and one more TARGET method that only overflows
+// meaningfully from these non-integral sources: `ToInt64` (a genuine overload exists for `double`/
+// `float`/`decimal` sources, unlike the `int`/`long` sources this analyzer already handled, where
+// `ToInt64` is identity/widening and therefore stayed out of scope). Deliberately does NOT add `ToChar`
+// here — PROBE for this same batch caught it double-messaging with the already-shipped
+// `ConvertToCharOverflowAnalyzer` (RPAD0285) for `int`/`long` sources; `ToChar`'s `double`/`float`/
+// `decimal` coverage was added to THAT analyzer directly instead (same batch), since it's the more
+// specific, dedicated home for this one target method. Range comparison now happens in `double` (safe
+// for every source type here, including a `decimal` converted via a lossless-enough `(double)` cast for
+// range-boundary purposes) while the ORIGINAL boxed constant value is still what gets reported in the
+// diagnostic message, preserving each source type's own natural `ToString()` formatting rather than a
+// converted one. Also caught and fixed a latent bug this extension would have introduced: `ToUInt64`'s
+// upper bound had previously been hardcoded to `long.MaxValue` rather than the true `ulong.MaxValue` —
+// harmless while only `int`/`long` sources were allowed (neither can ever exceed `long.MaxValue`
+// anyway), but now that `double`/`decimal` sources are in scope, a value between `long.MaxValue` and
+// `ulong.MaxValue` (e.g. `Convert.ToUInt64(1.5e19)`) is genuinely valid and must NOT be flagged —
+// confirmed empirically before fixing, not just reasoned about.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
 {
@@ -32,20 +50,21 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Convert.ToByte/ToSByte/ToInt16/ToUInt16/ToInt32/ToUInt32/ToUInt64(int or long) throw OverflowException when the source value is outside the target type's range — unlike a plain unchecked cast, which would silently truncate.");
+        description: "Convert.ToByte/ToSByte/ToInt16/ToUInt16/ToInt32/ToUInt32/ToUInt64/ToInt64(int, long, double, float, or decimal) throw OverflowException when the source value is outside the target type's range — unlike a plain unchecked cast, which would silently truncate.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
-    private static readonly ImmutableDictionary<string, (long Min, long Max, string TypeKeyword)> TargetRangeByMethod =
+    private static readonly ImmutableDictionary<string, (double Min, double Max, string TypeKeyword)> TargetRangeByMethod =
         ImmutableDictionary.CreateRange(
             [
-                KeyValuePair.Create("ToByte", (0L, (long)byte.MaxValue, "byte")),
-                KeyValuePair.Create("ToSByte", ((long)sbyte.MinValue, (long)sbyte.MaxValue, "sbyte")),
-                KeyValuePair.Create("ToInt16", ((long)short.MinValue, (long)short.MaxValue, "short")),
-                KeyValuePair.Create("ToUInt16", (0L, (long)ushort.MaxValue, "ushort")),
-                KeyValuePair.Create("ToInt32", ((long)int.MinValue, (long)int.MaxValue, "int")),
-                KeyValuePair.Create("ToUInt32", (0L, (long)uint.MaxValue, "uint")),
-                KeyValuePair.Create("ToUInt64", (0L, long.MaxValue, "ulong")),
+                KeyValuePair.Create("ToByte", (0d, (double)byte.MaxValue, "byte")),
+                KeyValuePair.Create("ToSByte", ((double)sbyte.MinValue, (double)sbyte.MaxValue, "sbyte")),
+                KeyValuePair.Create("ToInt16", ((double)short.MinValue, (double)short.MaxValue, "short")),
+                KeyValuePair.Create("ToUInt16", (0d, (double)ushort.MaxValue, "ushort")),
+                KeyValuePair.Create("ToInt32", ((double)int.MinValue, (double)int.MaxValue, "int")),
+                KeyValuePair.Create("ToUInt32", (0d, (double)uint.MaxValue, "uint")),
+                KeyValuePair.Create("ToUInt64", (0d, (double)ulong.MaxValue, "ulong")),
+                KeyValuePair.Create("ToInt64", ((double)long.MinValue, (double)long.MaxValue, "long")),
             ]);
 
     public override void Initialize(AnalysisContext context)
@@ -65,8 +84,16 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
 
         var ct = context.CancellationToken;
         var constant = context.SemanticModel.GetConstantValue(valueArg, ct);
-        if (constant.Value is not (int or long)) return;
-        var value = Convert.ToInt64(constant.Value);
+        if (constant.Value is not (int or long or double or float or decimal)) return;
+        var value = constant.Value switch
+        {
+            int i => (double)i,
+            long l => (double)l,
+            double d => d,
+            float f => f,
+            decimal m => (double)m,
+            _ => 0d,
+        };
         if (value >= range.Min && value <= range.Max) return;
 
         if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: var resolvedName } method
@@ -75,9 +102,17 @@ public sealed class ConvertNumericNarrowingOverflowAnalyzer : DiagnosticAnalyzer
             return;
         }
         if (method.ContainingType?.ToDisplayString() != "System.Convert") return;
-        if (method.Parameters is not [{ Type.SpecialType: SpecialType.System_Int32 or SpecialType.System_Int64 }])
+        if (method.Parameters is not
+            [
+            {
+                Type.SpecialType: SpecialType.System_Int32 or SpecialType.System_Int64
+                        or SpecialType.System_Double or SpecialType.System_Single or SpecialType.System_Decimal,
+            },
+            ])
+        {
             return;
+        }
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, value, range.TypeKeyword));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), methodName, constant.Value, range.TypeKeyword));
     }
 }
