@@ -18,6 +18,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // that all three can overflow char's range, unlike `Byte`/`UInt16`, whose own value ranges (0-255,
 // 0-65535) can never exceed char's, so those two are deliberately left out — there is nothing for this
 // analyzer to ever catch there).
+// Extended again in the триста сорок восьмой проход to also cover `float`/`double`/`decimal` — the
+// case explicitly deferred back in проход 303. Confirmed empirically to throw identically for all
+// three. Kept as an extension of THIS analyzer rather than added to
+// ConvertNumericNarrowingOverflowAnalyzer (RPAD0286, which gained the same three source types in this
+// same проход for its own different target methods) — PROBE caught that RPAD0286 adding `ToChar` would
+// double-message with this analyzer's existing `int`/`long` coverage for the exact same defect, so
+// `ToChar`'s non-integral-source coverage belongs here instead, its more specific, dedicated home.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ConvertToCharOverflowAnalyzer : DiagnosticAnalyzer
 {
@@ -30,7 +37,7 @@ public sealed class ConvertToCharOverflowAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Convert.ToChar(int)/Convert.ToChar(long) throw OverflowException when the value is outside char's valid range (0-65535).");
+        description: "Convert.ToChar(int/long/sbyte/uint/ulong/double/float/decimal) throws OverflowException when the value is outside char's valid range (0-65535).");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -50,7 +57,7 @@ public sealed class ConvertToCharOverflowAnalyzer : DiagnosticAnalyzer
 
         var ct = context.CancellationToken;
         var constant = context.SemanticModel.GetConstantValue(valueArg, ct);
-        if (constant.Value is not (int or long or sbyte or uint or ulong)) return;
+        if (constant.Value is not (int or long or sbyte or uint or ulong or double or float or decimal)) return;
 
         if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "ToChar" } method)
             return;
@@ -59,7 +66,8 @@ public sealed class ConvertToCharOverflowAnalyzer : DiagnosticAnalyzer
             [
             {
                 Type.SpecialType: SpecialType.System_Int32 or SpecialType.System_Int64
-                        or SpecialType.System_SByte or SpecialType.System_UInt32 or SpecialType.System_UInt64,
+                        or SpecialType.System_SByte or SpecialType.System_UInt32 or SpecialType.System_UInt64
+                        or SpecialType.System_Double or SpecialType.System_Single or SpecialType.System_Decimal,
             },
             ])
         {
@@ -78,6 +86,9 @@ public sealed class ConvertToCharOverflowAnalyzer : DiagnosticAnalyzer
         sbyte sb => sb < 0, // sbyte's max (127) always fits within char's range, only the negative side can overflow
         uint u => u > char.MaxValue,
         ulong ul => ul > char.MaxValue,
+        double d => d is < char.MinValue or > char.MaxValue,
+        float f => f is < char.MinValue or > char.MaxValue,
+        decimal m => m is < char.MinValue or > char.MaxValue,
         _ => false,
     };
 }
