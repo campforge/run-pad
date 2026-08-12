@@ -4479,6 +4479,18 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimerConstructorArgumentAnalyzer.DiagnosticId));
     }
 
+    [Theory]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-2, 100); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(100, -2); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-1, 100); }", false)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(100, 100); }", false)]
+    [InlineData("using System.Threading; class C { public void M(Timer t, int d) => t.Change(d, 100); }", false)]
+    public async Task InvalidTimerConstructorArgumentAnalyzer_Should_NotFlag_AValidChangeArgument(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidTimerConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimerConstructorArgumentAnalyzer.DiagnosticId));
+    }
+
     // ── Two hundred and thirtieth through two hundred and thirty-fourth batches (триста пятьдесят второй проход) — five new analyzers.
 
     [Theory]
@@ -4705,5 +4717,192 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new ListLiteralIndexerOutOfRangeAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ListLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and fifty-fourth batch (триста пятьдесят седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; class C { public byte[] M() => Convert.FromHexString(\"abc\"); }", true)]
+    [InlineData("using System; class C { public byte[] M() => Convert.FromHexString(\"zz\"); }", true)]
+    [InlineData("using System; class C { public byte[] M() => Convert.FromHexString(\"ab\"); }", false)]
+    [InlineData("using System; class C { public byte[] M(string s) => Convert.FromHexString(s); }", false)]
+    public async Task InvalidHexStringLiteralAnalyzer_Should_NotFlag_AValidHexString(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidHexStringLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHexStringLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and fifty-fifth batch (триста пятьдесят восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M(int n) => n.ToString(\"Z\"); }", true)]
+    [InlineData("class C { public string M() => 42.ToString(\"X\"); }", false)]
+    [InlineData("class C { public string M() => 42.ToString(\"G\"); }", false)]
+    [InlineData("class C { public string M(double d) => d.ToString(\"X\"); }", true)]
+    [InlineData("class C { public string M(double d) => d.ToString(\"F2\"); }", false)]
+    [InlineData("using System; class C { public string M() => TimeSpan.Zero.ToString(\"Z\"); }", true)]
+    [InlineData("using System; class C { public string M() => TimeSpan.Zero.ToString(\"c\"); }", false)]
+    [InlineData("using System; class C { public string M() => DateTime.MinValue.ToString(\"Z\"); }", true)]
+    [InlineData("using System; class C { public string M() => DateTime.MinValue.ToString(\"O\"); }", false)]
+    [InlineData("class C { public string M(int n, string f) => n.ToString(f); }", false)]
+    [InlineData("using System; class C { public string M() => Guid.Empty.ToString(\"Z\"); }", true)]
+    [InlineData("using System; class C { public string M() => Guid.Empty.ToString(\"D\"); }", false)]
+    [InlineData("using System; class C { public string M() => DateOnly.MinValue.ToString(\"Z\"); }", true)]
+    [InlineData("using System; class C { public string M() => DateOnly.MinValue.ToString(\"d\"); }", false)]
+    [InlineData("using System; class C { public string M() => TimeOnly.MinValue.ToString(\"Z\"); }", true)]
+    [InlineData("using System; class C { public string M() => TimeOnly.MinValue.ToString(\"t\"); }", false)]
+    public async Task InvalidToStringFormatSpecifierAnalyzer_Should_NotFlag_AValidFormatSpecifier(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidToStringFormatSpecifierAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidToStringFormatSpecifierAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and fifty-seventh and two hundred and fifty-eighth batches (триста шестидесятый проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"abc\"); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"\"); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"12.5\"); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"-123\"); }", false)]
+    [InlineData("using System.Numerics; class C { public BigInteger M(string s) => BigInteger.Parse(s); }", false)]
+    public async Task InvalidBigIntegerLiteralAnalyzer_Should_NotFlag_AValidIntegerLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBigIntegerLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBigIntegerLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => new IPEndPoint(IPAddress.Loopback, -1); }", true)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => new IPEndPoint(IPAddress.Loopback, 70000); }", true)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => new IPEndPoint(IPAddress.Loopback, 0); }", false)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => new IPEndPoint(IPAddress.Loopback, 65535); }", false)]
+    [InlineData("using System.Net; class C { public IPEndPoint M(int p) => new IPEndPoint(IPAddress.Loopback, p); }", false)]
+    public async Task InvalidIPEndPointConstructorArgumentAnalyzer_Should_NotFlag_AValidPort(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidIPEndPointConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPEndPointConstructorArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and fifty-ninth through two hundred and sixty-third batches (триста шестьдесят первый проход) — four new analyzers + one extension.
+
+    [Theory]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Pow(2, -1); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Pow(2, 5); }", false)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, -1, 5); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, 5); }", false)]
+    [InlineData("using System.Numerics; class C { public BigInteger M(int e) => BigInteger.Pow(2, e); }", false)]
+    public async Task InvalidBigIntegerPowExponentAnalyzer_Should_NotFlag_ANonNegativeExponent(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBigIntegerPowExponentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBigIntegerPowExponentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Channels; class C { public Channel<int> M() => Channel.CreateBounded<int>(-1); }", true)]
+    [InlineData("using System.Threading.Channels; class C { public Channel<int> M() => Channel.CreateBounded<int>(0); }", false)]
+    [InlineData("using System.Threading.Channels; class C { public Channel<int> M() => Channel.CreateBounded<int>(5); }", false)]
+    [InlineData("using System.Threading.Channels; class C { public Channel<int> M(int n) => Channel.CreateBounded<int>(n); }", false)]
+    public async Task InvalidChannelCreateBoundedArgumentAnalyzer_Should_NotFlag_ANonNegativeCapacity(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidChannelCreateBoundedArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidChannelCreateBoundedArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes) => aes.KeySize = 100; }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes) => aes.KeySize = 128; }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes) => aes.BlockSize = 256; }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes) => aes.BlockSize = 128; }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DES des) => des.KeySize = 128; }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DES des) => des.KeySize = 64; }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(TripleDES tdes) => tdes.KeySize = 100; }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.KeySize = 100; }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.KeySize = 2048; }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes, int n) => aes.KeySize = n; }", false)]
+    public async Task InvalidCryptoAlgorithmKeySizeAnalyzer_Should_NotFlag_AValidSize(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCryptoAlgorithmKeySizeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCryptoAlgorithmKeySizeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading.Tasks; class C { public void M(Task[] t) => Task.WaitAll(t, -2); }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public void M(Task[] t) => Task.WaitAll(t, -1); }", false)]
+    [InlineData("using System.Threading.Tasks; class C { public int M(Task[] t) => Task.WaitAny(t, -2); }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public int M(Task[] t) => Task.WaitAny(t, 0); }", false)]
+    [InlineData("using System.Threading; class C { public bool M(WaitHandle[] h) => WaitHandle.WaitAll(h, -2); }", true)]
+    [InlineData("using System.Threading; class C { public bool M(WaitHandle[] h) => WaitHandle.WaitAll(h, -1); }", false)]
+    [InlineData("using System.Threading; class C { public int M(WaitHandle[] h) => WaitHandle.WaitAny(h, -2); }", true)]
+    [InlineData("using System.Threading.Tasks; class C { public void M(Task[] t, int n) => Task.WaitAll(t, n); }", false)]
+    public async Task InvalidMonitorOrSpinWaitTimeoutArgumentAnalyzer_Should_NotFlag_AValidWaitAllOrWaitAnyTimeout(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMonitorOrSpinWaitTimeoutArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMonitorOrSpinWaitTimeoutArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Threading; class C { public void M(CountdownEvent ce) => ce.Signal(-1); }", true)]
+    [InlineData("using System.Threading; class C { public void M(CountdownEvent ce) => ce.Signal(0); }", true)]
+    [InlineData("using System.Threading; class C { public void M(CountdownEvent ce) => ce.Signal(1); }", false)]
+    [InlineData("using System.Threading; class C { public void M(CountdownEvent ce) => ce.AddCount(-1); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Barrier b) => b.AddParticipants(-1); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Barrier b) => b.AddParticipants(1); }", false)]
+    [InlineData("using System.Threading; class C { public void M(Barrier b) => b.RemoveParticipants(-1); }", true)]
+    [InlineData("using System.Threading; class C { public void M(CountdownEvent ce, int n) => ce.Signal(n); }", false)]
+    public async Task InvalidCountdownEventOrBarrierParticipantCountAnalyzer_Should_NotFlag_APositiveCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCountdownEventOrBarrierParticipantCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCountdownEventOrBarrierParticipantCountAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and sixty-fourth through two hundred and sixty-seventh batches (триста шестьдесят второй проход) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s) => new GZipStream(s, (CompressionLevel)99); }", true)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s) => new GZipStream(s, (CompressionLevel)(-1)); }", true)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s) => new GZipStream(s, CompressionLevel.Optimal); }", false)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public DeflateStream M(Stream s) => new DeflateStream(s, (CompressionLevel)99); }", true)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public ZLibStream M(Stream s) => new ZLibStream(s, (CompressionLevel)99); }", true)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public BrotliStream M(Stream s) => new BrotliStream(s, (CompressionLevel)99); }", true)]
+    [InlineData("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s, CompressionLevel l) => new GZipStream(s, l); }", false)]
+    public async Task InvalidCompressionStreamConstructorArgumentAnalyzer_Should_NotFlag_AValidCompressionLevel(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCompressionStreamConstructorArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCompressionStreamConstructorArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(-1); }", true)]
+    [InlineData("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(99999); }", true)]
+    [InlineData("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(65001); }", false)]
+    [InlineData("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(\"invalid-name\"); }", true)]
+    [InlineData("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(\"utf-8\"); }", false)]
+    [InlineData("using System.Text; class C { public Encoding M(int cp) => Encoding.GetEncoding(cp); }", false)]
+    [InlineData("using System.Text; class C { public Encoding M(string n) => Encoding.GetEncoding(n); }", false)]
+    public async Task InvalidEncodingGetEncodingArgumentAnalyzer_Should_NotFlag_AValidEncoding(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEncodingGetEncodingArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEncodingGetEncodingArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and sixty-eighth batch (триста шестьдесят третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public int M() => int.Parse(\"abc\"); }", true)]
+    [InlineData("class C { public int M() => int.Parse(\"123\"); }", false)]
+    [InlineData("class C { public long M() => long.Parse(\"xyz\"); }", true)]
+    [InlineData("class C { public byte M() => byte.Parse(\"x!\"); }", true)]
+    [InlineData("class C { public double M() => double.Parse(\"abc\"); }", true)]
+    [InlineData("class C { public double M() => double.Parse(\"1e5\"); }", false)]
+    [InlineData("class C { public decimal M() => decimal.Parse(\"abc\"); }", true)]
+    [InlineData("using System; class C { public Half M() => Half.Parse(\"abc\"); }", true)]
+    [InlineData("using System; class C { public Int128 M() => Int128.Parse(\"abc\"); }", true)]
+    [InlineData("using System; class C { public UInt128 M() => UInt128.Parse(\"abc\"); }", true)]
+    [InlineData("class C { public int M(string s) => int.Parse(s); }", false)]
+    [InlineData("class C { public int M() => int.Parse(\"300\"); }", false)]
+    public async Task InvalidNumericParseFormatAnalyzer_Should_NotFlag_ANumericLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidNumericParseFormatAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumericParseFormatAnalyzer.DiagnosticId));
     }
 }
