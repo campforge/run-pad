@@ -20,6 +20,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // throwaway-construction probes risk. Scoped to the plain `(TimerCallback, object?, int, int)` overload
 // only — the `TimeSpan`/`uint`/`long` overloads have different parameter types and aren't matched by
 // this analyzer's all-`int`-in-last-two-positions check.
+// Extended (триста шестьдесят четвёртый проход, batch) to also cover the INSTANCE method
+// `timer.Change(int dueTime, int period)` — confirmed empirically to share the identical `< -1`
+// boundary formula and exception type as the constructor. Purely a static syntactic check on the
+// literal arguments (same as the constructor branch), so it carries none of the "might invoke the
+// callback" risk that ruled out the "run the real validator" technique above — no `Timer` object is
+// ever actually constructed or rescheduled by this analyzer.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidTimerConstructorArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -28,11 +34,11 @@ public sealed class InvalidTimerConstructorArgumentAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Timer dueTime/period argument is invalid",
-        messageFormat: "'new Timer(...)' always throws ArgumentOutOfRangeException at runtime — {0} ({1}) must be -1 (Timeout.Infinite) or non-negative",
+        messageFormat: "'{0}' always throws ArgumentOutOfRangeException at runtime — {1} ({2}) must be -1 (Timeout.Infinite) or non-negative",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "new Timer(callback, state, dueTime, period) throws ArgumentOutOfRangeException when dueTime or period is less than -1.");
+        description: "new Timer(callback, state, dueTime, period) and timer.Change(dueTime, period) throw ArgumentOutOfRangeException when dueTime or period is less than -1.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -41,6 +47,31 @@ public sealed class InvalidTimerConstructorArgumentAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.ObjectCreationExpression, SyntaxKind.ImplicitObjectCreationExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeChange, SyntaxKind.InvocationExpression);
+    }
+
+    private static void AnalyzeChange(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Change" })
+            return;
+        if (invocation.ArgumentList.Arguments is not [{ Expression: var dueTimeArg }, { Expression: var periodArg }])
+            return;
+
+        var ct = context.CancellationToken;
+        if (context.SemanticModel.GetConstantValue(dueTimeArg, ct).Value is not int dueTime) return;
+        if (context.SemanticModel.GetConstantValue(periodArg, ct).Value is not int period) return;
+
+        var (parameterName, value) = GetViolation(dueTime, period);
+        if (parameterName is null) return;
+
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Change" } method)
+            return;
+        if (method.ContainingType?.ToDisplayString() != "System.Threading.Timer") return;
+        if (method.Parameters is not [{ Type.SpecialType: SpecialType.System_Int32 }, { Type.SpecialType: SpecialType.System_Int32 }])
+            return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), invocation.ToString(), parameterName, value));
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
@@ -53,22 +84,8 @@ public sealed class InvalidTimerConstructorArgumentAnalyzer : DiagnosticAnalyzer
         if (context.SemanticModel.GetConstantValue(dueTimeArg, ct).Value is not int dueTime) return;
         if (context.SemanticModel.GetConstantValue(periodArg, ct).Value is not int period) return;
 
-        string parameterName;
-        int value;
-        if (dueTime < -1)
-        {
-            parameterName = "dueTime";
-            value = dueTime;
-        }
-        else if (period < -1)
-        {
-            parameterName = "period";
-            value = period;
-        }
-        else
-        {
-            return;
-        }
+        var (parameterName, value) = GetViolation(dueTime, period);
+        if (parameterName is null) return;
 
         if (context.SemanticModel.GetSymbolInfo(creation, ct).Symbol is not IMethodSymbol { MethodKind: MethodKind.Constructor } ctor)
             return;
@@ -76,6 +93,13 @@ public sealed class InvalidTimerConstructorArgumentAnalyzer : DiagnosticAnalyzer
         if (ctor.Parameters is not [_, _, { Type.SpecialType: SpecialType.System_Int32 }, { Type.SpecialType: SpecialType.System_Int32 }])
             return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, creation.GetLocation(), parameterName, value));
+        context.ReportDiagnostic(Diagnostic.Create(Rule, creation.GetLocation(), "new Timer(...)", parameterName, value));
+    }
+
+    private static (string? ParameterName, int Value) GetViolation(int dueTime, int period)
+    {
+        if (dueTime < -1) return ("dueTime", dueTime);
+        if (period < -1) return ("period", period);
+        return (null, 0);
     }
 }
