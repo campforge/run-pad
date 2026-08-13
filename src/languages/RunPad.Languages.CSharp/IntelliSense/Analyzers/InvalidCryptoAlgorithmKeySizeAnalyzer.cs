@@ -29,6 +29,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // completely dead for every case; fixed by dispatching on the RECEIVER EXPRESSION's own static type
 // instead (`GetTypeInfo(access.Expression).Type`), which correctly reflects the declared/inferred type
 // at the call site regardless of which class actually declares the property.
+// Extended in the триста восемьдесят первый проход (candidate surfaced by the same research subagent
+// survey as RPAD0370-RPAD0373, проход 377) to also cover the static factory overload `RSA.Create(int
+// keySizeInBits)` — a genuinely DIFFERENT syntax shape from the `rsa.KeySize = N` assignment this
+// analyzer already covered (an invocation, not a property assignment), confirmed empirically to throw
+// the same `CryptographicException` for the same reason. `Aes`/`DES`/`TripleDES` have no equivalent
+// `Create(int)` overload (only the parameterless `Create()`), so this extension is RSA-specific.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
 {
@@ -41,15 +47,56 @@ public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property throws CryptographicException.");
+        description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property, or calling RSA.Create(int) with an unsupported key size, throws CryptographicException.");
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
+    // Separate DiagnosticDescriptor, same DiagnosticId, for the RSA.Create(int) invocation shape added in
+    // проход 381 — kept apart from `Rule` above rather than reshaping its "{0}.{1} = {2}" template (which
+    // reads naturally only for an ASSIGNMENT) to also fit an invocation; the existing message text/shape
+    // for the assignment case is preserved byte-for-byte, so no existing test needed updating.
+    private static readonly DiagnosticDescriptor CreateRule = new(
+        DiagnosticId,
+        title: "Crypto algorithm key/block size is invalid",
+        messageFormat: "'RSA.Create({0})' always throws CryptographicException at runtime — {0} is not a valid key size for RSA",
+        category: "Reliability",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property, or calling RSA.Create(int) with an unsupported key size, throws CryptographicException.");
+
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule, CreateRule];
 
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.SimpleAssignmentExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeRsaCreate, SyntaxKind.InvocationExpression);
+    }
+
+    private static void AnalyzeRsaCreate(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Create" })
+            return;
+        if (invocation.ArgumentList.Arguments is not [{ Expression: var sizeArg }]) return;
+
+        var ct = context.CancellationToken;
+        if (context.SemanticModel.GetConstantValue(sizeArg, ct).Value is not int size) return;
+
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol
+            {
+                Name: "Create",
+                IsStatic: true,
+                Parameters: [{ Type.SpecialType: SpecialType.System_Int32 }],
+                ContainingType: { } containingType,
+            })
+        {
+            return;
+        }
+        if (containingType.ToDisplayString() != "System.Security.Cryptography.RSA") return;
+
+        if (!AlwaysThrows("System.Security.Cryptography.RSA", "KeySize", size)) return;
+
+        context.ReportDiagnostic(Diagnostic.Create(CreateRule, invocation.GetLocation(), size));
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
