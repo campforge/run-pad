@@ -15,6 +15,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // runtime-only failure the compiler can't catch on its own. Restricted to a plain literal (or
 // unary-minus-literal) `int` index — the `Index`/`Range` indexer overloads (`s[^1]`, `s[1..3]`) are a
 // different, more involved shape and are NOT handled here.
+// Extended in the триста шестьдесят шестой проход to also handle the `^N` Index-form (`"abc"[^5]`),
+// resolved to a plain offset (`receiverValue.Length - N`) and fed through the same bounds check/
+// exception type — confirmed empirically to still throw `IndexOutOfRangeException`, same as the plain-int
+// form (unlike `List<T>`'s indexer/RPAD0303, which throws `ArgumentOutOfRangeException` for both forms —
+// `string`'s indexer, like `Array`'s, is the CLR-special-cased kind). The `Range` form (`s[1..3]`)
+// remains out of scope here — genuinely different exception type/mechanism (throws when the SLICE
+// doesn't fit, not when a single position is out of bounds), covered instead by the new sibling
+// RangeSliceOutOfRangeAnalyzer (RPAD0363, same проход).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class StringLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
 {
@@ -44,11 +52,27 @@ public sealed class StringLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
         if (elementAccess.Expression is not LiteralExpressionSyntax { RawKind: (int)SyntaxKind.StringLiteralExpression } receiverLiteral)
             return;
         if (elementAccess.ArgumentList.Arguments is not [{ Expression: var indexArg }]) return;
-        if (!TryGetIntLiteralValue(indexArg, out var index)) return;
 
         var ct = context.CancellationToken;
         if (context.SemanticModel.GetConstantValue(receiverLiteral, ct).Value is not string receiverValue)
             return;
+
+        int index;
+        object displayIndex;
+        if (TryGetIntLiteralValue(indexArg, out index))
+        {
+            displayIndex = index;
+        }
+        else if (indexArg is PrefixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.IndexExpression, Operand: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } fromEndLiteral }
+            && fromEndLiteral.Token.Value is int fromEndValue)
+        {
+            index = receiverValue.Length - fromEndValue;
+            displayIndex = $"^{fromEndValue}";
+        }
+        else
+        {
+            return;
+        }
 
         if (index >= 0 && index < receiverValue.Length) return;
 
@@ -57,7 +81,7 @@ public sealed class StringLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
         if (indexer.ContainingType?.SpecialType != SpecialType.System_String) return;
 
         context.ReportDiagnostic(Diagnostic.Create(
-            Rule, elementAccess.GetLocation(), receiverValue, index, receiverValue.Length));
+            Rule, elementAccess.GetLocation(), receiverValue, displayIndex, receiverValue.Length));
     }
 
     private static bool TryGetIntLiteralValue(ExpressionSyntax expression, out int value)

@@ -51,6 +51,15 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // the length-exceeding case here, matching the intentional split already used for `RemoveRange`/
 // `GetRange` vs. RPAD0287. (`RemoveRange`/`GetRange` themselves were left as-is — that split predates
 // this проход and is out of scope for today's fix.)
+// Extended in the триста шестьдесят шестой проход to also handle the `^N` Index-form single-element
+// indexer (`new List<int> { 1, 2, 3 }[^5]`) on the plain indexer only — confirmed empirically that
+// `List<T>` supports `^`/`Index` sugar (it has the `Count` property + `int` indexer pattern the compiler
+// looks for) but NOT `RemoveAt(^N)`/`Insert(^N, x)` (those take a plain `int` parameter, which has no
+// implicit conversion from `Index`, so `^N` there is a compile error, not a runtime concern — confirmed
+// via a real `dotnet build`, not assumed). Resolved to a plain offset (`count - N`) and fed through the
+// same bounds check as the existing literal-index branch, same `ArgumentOutOfRangeException` type
+// (confirmed via scratch `dotnet run` script — same exception type as the plain-int indexer, unlike
+// array's `^N`/RPAD0283, which stays `IndexOutOfRangeException`).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ListLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
 {
@@ -79,12 +88,24 @@ public sealed class ListLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
     {
         var elementAccess = (ElementAccessExpressionSyntax)context.Node;
         if (elementAccess.ArgumentList.Arguments is not [{ Expression: var indexArg }]) return;
-        if (!TryGetIntLiteralValue(indexArg, out var index)) return;
 
         var elementCount = TryGetListLiteralElementCount(elementAccess.Expression, context.SemanticModel, context.CancellationToken);
-        if (elementCount is not { } count || index >= 0 && index < count) return;
+        if (elementCount is not { } count) return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, elementAccess.GetLocation(), elementAccess.ToString(), count, "ArgumentOutOfRangeException"));
+        if (TryGetIntLiteralValue(indexArg, out var index))
+        {
+            if (index >= 0 && index < count) return;
+            context.ReportDiagnostic(Diagnostic.Create(Rule, elementAccess.GetLocation(), elementAccess.ToString(), count, "ArgumentOutOfRangeException"));
+            return;
+        }
+
+        if (indexArg is PrefixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.IndexExpression, Operand: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NumericLiteralExpression } fromEndLiteral }
+            && fromEndLiteral.Token.Value is int fromEndValue)
+        {
+            var resolvedIndex = count - fromEndValue;
+            if (resolvedIndex >= 0 && resolvedIndex < count) return;
+            context.ReportDiagnostic(Diagnostic.Create(Rule, elementAccess.GetLocation(), elementAccess.ToString(), count, "ArgumentOutOfRangeException"));
+        }
     }
 
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)

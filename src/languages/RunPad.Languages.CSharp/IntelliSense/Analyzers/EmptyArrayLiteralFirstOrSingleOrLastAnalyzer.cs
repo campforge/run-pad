@@ -41,6 +41,38 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // return-type check subsumes all the argument-count variants (0-arg Min/Max, 1-arg Min/Max-with-comparer
 // or Average-with-selector, 1-/2-arg MinBy/MaxBy), so the argument-count ceiling for these five method
 // names is raised to 2 rather than reusing First/Single/Last/Aggregate's ceiling of 1.
+// Extended in the триста шестьдесят шестой проход to also recognize `ImmutableArray<T>.Empty`/
+// `ImmutableList<T>.Empty`/`ImmutableHashSet<T>.Empty`/`ImmutableSortedSet<T>.Empty`/
+// `ImmutableStack<T>.Empty`/`ImmutableQueue<T>.Empty` as a known-empty receiver, alongside the existing
+// array-literal one — confirmed empirically (scratch `dotnet run` script) that every one of the six
+// throws identically (`InvalidOperationException`, "Sequence contains no elements") for `.First()`/
+// `.Min()` etc., since they're all plain `IEnumerable<T>` sequences underneath. Message format's
+// "array literal" wording generalized to just "the receiver", since it's no longer always an array.
+// Self-correction (same проход): a Theory row for `ImmutableStack<int>.Empty.First()`/
+// `ImmutableQueue<int>.Empty.First()` failed — the exact same `Empty`-is-a-PROPERTY-not-a-FIELD gap
+// caught and fixed in sibling EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360, same проход), just
+// not yet applied here when this extension was first written; fixed the same way, accepting either
+// `IFieldSymbol` or `IPropertySymbol` named `Empty`. Separately, a Theory row using
+// `ImmutableSortedSet<int>.Empty.Min()` was a bad TEST case, not an analyzer bug: reflection confirmed
+// `ImmutableSortedSet<T>` (unlike the other five types touched this проход) has its own instance
+// PROPERTY named `Min`/`Max` (returning `T`), which C# member lookup resolves in preference to the
+// `Enumerable.Min()` extension entirely — so `.Min()` on it doesn't invoke the LINQ method this analyzer
+// is about at all. Fixed by using `.Aggregate(...)` for that row's SortedSet case instead. A THIRD,
+// more subtle self-correction: even after both fixes above, `ImmutableArray<int>.Empty.First()` alone
+// still failed. A dedicated symbol-resolution check (real `CSharpCompilation` + `GetSymbolInfo`, not
+// reflection) revealed `ImmutableArray<T>` — unlike the other five types — has its OWN specialized,
+// non-boxing `First`/`Single`/`Last`/`Aggregate` overloads in `System.Linq.ImmutableArrayExtensions`
+// (`Average`/`Min`/`Max`/`MinBy`/`MaxBy` are NOT among them, confirmed via reflection — those five still
+// resolve to plain `System.Linq.Enumerable` even for an `ImmutableArray<T>` receiver, so needed no
+// change), and C# overload resolution prefers this more-specific, non-boxing overload over `Enumerable`'s
+// whenever both are in scope. `First`/`Single`/`Last` on `ImmutableArrayExtensions` throw identically to
+// `Enumerable`'s for an empty receiver (confirmed empirically) — but `Aggregate`'s one-arg (no-seed)
+// overload on `ImmutableArrayExtensions` does NOT throw for an empty receiver (confirmed empirically,
+// genuinely different semantics from `Enumerable.Aggregate`'s same-shaped overload, which does throw).
+// Fixed by accepting `System.Linq.ImmutableArrayExtensions` as a second known containing type, but ONLY
+// for `methodName is "First" or "Single" or "Last"` — an explicit allow-list rather than merely excluding
+// `Aggregate`, so any future method added to this analyzer's tracked name set defaults to being rejected
+// from this second containing type unless individually verified, not silently accepted.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAnalyzer
 {
@@ -49,7 +81,7 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "First/Single/Last/Aggregate/Average/Min/Max/MinBy/MaxBy on an empty array literal always throws",
-        messageFormat: "'xs.{0}(...)' always throws InvalidOperationException at runtime — the receiver array literal has no elements",
+        messageFormat: "'xs.{0}(...)' always throws InvalidOperationException at runtime — the receiver has no elements",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -91,7 +123,10 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
         {
             return;
         }
-        if (method.ContainingType?.ToDisplayString() != "System.Linq.Enumerable") return;
+        var containingTypeDisplay = method.ContainingType?.ToDisplayString();
+        var isKnownContainingType = containingTypeDisplay == "System.Linq.Enumerable"
+            || (containingTypeDisplay == "System.Linq.ImmutableArrayExtensions" && methodName is "First" or "Single" or "Last");
+        if (!isKnownContainingType) return;
         if (isTypeDependent
             && (!method.ReturnType.IsValueType || method.ReturnType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T))
         {
@@ -115,6 +150,27 @@ public sealed class EmptyArrayLiteralFirstOrSingleOrLastAnalyzer : DiagnosticAna
         }
         if (expression is ImplicitArrayCreationExpressionSyntax { Initializer: { } implicitInit })
             return implicitInit.Expressions.Count;
+
+        if (expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Empty" } emptyAccess)
+        {
+            var emptyType = semanticModel.GetSymbolInfo(emptyAccess, ct).Symbol switch
+            {
+                IFieldSymbol { Name: "Empty" } field => field.ContainingType,
+                IPropertySymbol { Name: "Empty" } property => property.ContainingType,
+                _ => null,
+            };
+            if (emptyType is { } fieldType && IsKnownEmptyableImmutableCollectionType(fieldType.OriginalDefinition.ToDisplayString()))
+                return 0;
+        }
+
         return null;
     }
+
+    private static bool IsKnownEmptyableImmutableCollectionType(string displayString) => displayString is
+        "System.Collections.Immutable.ImmutableArray<T>" or
+        "System.Collections.Immutable.ImmutableList<T>" or
+        "System.Collections.Immutable.ImmutableHashSet<T>" or
+        "System.Collections.Immutable.ImmutableSortedSet<T>" or
+        "System.Collections.Immutable.ImmutableStack<T>" or
+        "System.Collections.Immutable.ImmutableQueue<T>";
 }
