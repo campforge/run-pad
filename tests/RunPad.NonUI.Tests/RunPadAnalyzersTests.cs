@@ -3656,6 +3656,9 @@ public class RunPadAnalyzersTests
     [InlineData("class C { public char M() => \"hello\"[5]; }", true)]
     [InlineData("class C { public char M(int i) => \"hello\"[i]; }", false)]
     [InlineData("class C { public char M(string s) => s[10]; }", false)]
+    [InlineData("class C { public char M() => \"hello\"[^10]; }", true)]
+    [InlineData("class C { public char M() => \"hello\"[^1]; }", false)]
+    [InlineData("class C { public char M() => \"hello\"[^0]; }", true)]
     public async Task StringLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInRangeIndex(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new StringLiteralIndexerOutOfRangeAnalyzer(), code);
@@ -3670,6 +3673,9 @@ public class RunPadAnalyzersTests
     [InlineData("class C { public int M() => new int[] { 1, 2, 3 }[10]; }", true)]
     [InlineData("class C { public int M(int i) => new[] { 1, 2, 3 }[i]; }", false)]
     [InlineData("class C { public int M(int[] xs) => xs[10]; }", false)]
+    [InlineData("class C { public int M() => new[] { 1, 2, 3 }[^5]; }", true)]
+    [InlineData("class C { public int M() => new[] { 1, 2, 3 }[^1]; }", false)]
+    [InlineData("class C { public int M() => new[] { 1, 2, 3 }[^0]; }", true)]
     public async Task ArrayLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInRangeIndex(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new ArrayLiteralIndexerOutOfRangeAnalyzer(), code);
@@ -3829,6 +3835,15 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Linq; class C { public double M() => new string[0].Average(s => 1.0); }", true)]
     [InlineData("using System.Linq; class C { public double M() => new int[] { 1 }.Average(); }", false)]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public int M() => new int[0].Min(Comparer<int>.Default); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableArray<int>.Empty.First(); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableList<int>.Empty.Single(); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableHashSet<int>.Empty.Last(); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableSortedSet<int>.Empty.Aggregate((a, b) => a + b); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableStack<int>.Empty.First(); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableQueue<int>.Empty.First(); }", true)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableArray.Create(1).First(); }", false)]
+    [InlineData("using System.Linq; using System.Collections.Immutable; class C { public int M() => ImmutableArray<int>.Empty.Aggregate((a, b) => a + b); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray<int>.Empty; }", false)]
     public async Task EmptyArrayLiteralFirstOrSingleOrLastAnalyzer_Should_NotFlag_ANonemptyReceiver(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new EmptyArrayLiteralFirstOrSingleOrLastAnalyzer(), code);
@@ -4075,6 +4090,8 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }.GetRange(0, 10); }", true)]
     [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }.GetRange(0, 3); }", false)]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.RemoveRange(0, 10); }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[^5]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[^1]; }", false)]
     public async Task ListLiteralIndexerOutOfRangeAnalyzer_Should_NotFlag_AnInBoundsIndex(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new ListLiteralIndexerOutOfRangeAnalyzer(), code);
@@ -4180,6 +4197,11 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Collections.Generic; class C { public string M() => new Dictionary<int, string> { { 1, \"a\" }, { 2, \"b\" } }[1]; }", false)]
     [InlineData("using System.Collections.Generic; class C { public string M(Dictionary<int, string> d) => d[3]; }", false)]
     [InlineData("using System.Collections.Generic; class C { public string M() => new Dictionary<int, string> { { 1, \"a\" } }[3]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new SortedList<string, int> { { \"a\", 1 } }[\"b\"]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new SortedList<string, int> { { \"a\", 1 } }[\"a\"]; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new SortedDictionary<string, int> { { \"a\", 1 } }[\"b\"]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public int M() => new SortedDictionary<string, int> { { \"a\", 1 } }[\"a\"]; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public int M(SortedList<string, int> l) => l[\"b\"]; }", false)]
     public async Task DictionaryLiteralMissingKeyAnalyzer_Should_NotFlag_APresentKey(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new DictionaryLiteralMissingKeyAnalyzer(), code);
@@ -4904,5 +4926,231 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidNumericParseFormatAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumericParseFormatAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and seventieth through two hundred and seventy-fourth batches (триста шестьдесят пятый проход) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableArray.Create(1, 2, 3)[10]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableArray.Create(1, 2, 3)[1]; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableArray<int>.Empty[0]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray.Create(1, 2, 3).RemoveAt(10); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray.Create(1, 2, 3).RemoveAt(1); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray.Create(1, 2, 3).Insert(10, 5); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray.Create(1, 2, 3).Insert(3, 5); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M(ImmutableArray<int> a) => a[10]; }", false)]
+    public async Task InvalidImmutableArrayLiteralIndexerAnalyzer_Should_NotFlag_AnInBoundsIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidImmutableArrayLiteralIndexerAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidImmutableArrayLiteralIndexerAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableList.Create(1, 2, 3)[10]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableList.Create(1, 2, 3)[1]; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableList<int>.Empty[0]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableList<int> M() => ImmutableList.Create(1, 2, 3).RemoveAt(10); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableList<int> M() => ImmutableList.Create(1, 2, 3).Insert(10, 5); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableList<int> M() => ImmutableList.Create(1, 2, 3).Insert(3, 5); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M(ImmutableList<int> l) => l[10]; }", false)]
+    public async Task InvalidImmutableListLiteralIndexerAnalyzer_Should_NotFlag_AnInBoundsIndex(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidImmutableListLiteralIndexerAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidImmutableListLiteralIndexerAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public int M() => System.Array.BinarySearch(new int[] { 1, 2, 3 }, 0, 10, 1); }", true)]
+    [InlineData("class C { public int M() => System.Array.BinarySearch(new int[] { 1, 2, 3 }, 2, 5, 1); }", true)]
+    [InlineData("class C { public int M() => System.Array.BinarySearch(new int[] { 1, 2, 3 }, 0, 3, 1); }", false)]
+    [InlineData("class C { public int M() => System.Array.BinarySearch(new int[] { 1, 2, 3 }, -1, 2, 1); }", false)]
+    [InlineData("class C { public int M(int[] a) => System.Array.BinarySearch(a, 0, 10, 1); }", false)]
+    public async Task InvalidArrayBinarySearchRangeArgumentAnalyzer_Should_NotFlag_AnInBoundsRange(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArrayBinarySearchRangeArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayBinarySearchRangeArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and seventy-sixth batch (триста шестьдесят шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableStack<int>.Empty.Peek(); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableStack<int> M() => ImmutableStack<int>.Empty.Pop(); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableQueue<int>.Empty.Peek(); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableQueue<int> M() => ImmutableQueue<int>.Empty.Dequeue(); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableStack.Create(1).Peek(); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M(ImmutableStack<int> s) => s.Peek(); }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public bool M() => ImmutableStack<int>.Empty.IsEmpty; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableStack<int> M() => ImmutableStack<int>.Empty.Pop(out var v); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableQueue<int> M() => ImmutableQueue<int>.Empty.Dequeue(out var v); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableStack<int> M(ImmutableStack<int> s) => s.Pop(out var v); }", false)]
+    public async Task EmptyImmutableStackOrQueuePeekOrPopAnalyzer_Should_NotFlag_ANonemptyReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EmptyImmutableStackOrQueuePeekOrPopAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyImmutableStackOrQueuePeekOrPopAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableDictionary<string, int>.Empty[\"k\"]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableSortedDictionary<string, int>.Empty[\"k\"]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M(ImmutableDictionary<string, int> d) => d[\"k\"]; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M(ImmutableSortedDictionary<string, int> d) => d[\"k\"]; }", false)]
+    public async Task EmptyImmutableDictionaryIndexerAnalyzer_Should_NotFlag_ANonEmptyReceiver(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new EmptyImmutableDictionaryIndexerAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyImmutableDictionaryIndexerAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => default(ImmutableArray<int>)[0]; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => default(ImmutableArray<int>).Length; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public bool M() => default(ImmutableArray<int>).IsEmpty; }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => default(ImmutableArray<int>).RemoveAt(0); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => default(ImmutableArray<int>).Insert(0, 1); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => default(ImmutableArray<int>).Add(1); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public bool M() => default(ImmutableArray<int>).Contains(1); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => default(ImmutableArray<int>).IndexOf(1); }", true)]
+    [InlineData("using System.Collections.Immutable; class C { public bool M() => default(ImmutableArray<int>).IsDefault; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public bool M() => default(ImmutableArray<int>).IsDefaultOrEmpty; }", false)]
+    [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableArray<int>.Empty[0]; }", false)]
+    public async Task DefaultImmutableArrayMemberAccessAnalyzer_Should_NotFlag_ASafeMember(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new DefaultImmutableArrayMemberAccessAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DefaultImmutableArrayMemberAccessAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[2..10]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[1..0]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[0..3]; }", false)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[5..]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[..10]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[..3]; }", false)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[2..]; }", false)]
+    [InlineData("class C { public string M() => \"abc\"[2..10]; }", true)]
+    [InlineData("class C { public string M() => \"abc\"[0..3]; }", false)]
+    [InlineData("class C { public int[] M(int[] a) => a[2..10]; }", false)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[^5..]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[^2..]; }", false)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[..^5]; }", true)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[..^1]; }", false)]
+    [InlineData("class C { public int[] M() => new[] { 1, 2, 3 }[^3..^1]; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }[2..10]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }[1..0]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }[-1..2]; }", true)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int> { 1, 2, 3 }[0..3]; }", false)]
+    [InlineData("using System.Collections.Generic; class C { public List<int> M(List<int> l) => l[2..10]; }", false)]
+    public async Task RangeSliceOutOfRangeAnalyzer_Should_NotFlag_AnInBoundsSlice(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new RangeSliceOutOfRangeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RangeSliceOutOfRangeAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and eighty-seventh batch (триста шестьдесят восьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"b\"); }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"a\"); }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement.GetProperty(\"a\"); }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"42\").RootElement.GetProperty(\"a\"); }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement[10]; }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement[-1]; }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement[1]; }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement[0]; }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":1}}\").RootElement.GetProperty(\"a\").GetProperty(\"b\"); }", true)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":1}}\").RootElement.GetProperty(\"a\").GetProperty(\"c\"); }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[{\\\"a\\\":1}]\").RootElement[0].GetProperty(\"a\"); }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[{\\\"a\\\":1}]\").RootElement[0].GetProperty(\"b\"); }", true)]
+    [InlineData("using System.Text.Json; class C { public bool M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.TryGetProperty(\"b\", out _); }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M(string json) => JsonDocument.Parse(json).RootElement.GetProperty(\"a\"); }", false)]
+    [InlineData("using System.Text.Json; class C { public JsonElement M(JsonElement e) => e.GetProperty(\"a\"); }", false)]
+    [InlineData("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":\\\"hi\\\"}\").RootElement.GetProperty(\"a\").GetInt32(); }", true)]
+    [InlineData("using System.Text.Json; class C { public string? M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"a\").GetString(); }", true)]
+    [InlineData("using System.Text.Json; class C { public bool M() => JsonDocument.Parse(\"{\\\"a\\\":true}\").RootElement.GetProperty(\"a\").GetBoolean(); }", false)]
+    [InlineData("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":42}\").RootElement.GetProperty(\"a\").GetInt32(); }", false)]
+    [InlineData("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":99999999999999}\").RootElement.GetProperty(\"a\").GetInt32(); }", true)]
+    [InlineData("using System.Text.Json; class C { public System.Guid M() => JsonDocument.Parse(\"{\\\"a\\\":\\\"not-a-guid\\\"}\").RootElement.GetProperty(\"a\").GetGuid(); }", true)]
+    [InlineData("using System.Text.Json; class C { public string? M() => JsonDocument.Parse(\"{\\\"a\\\":null}\").RootElement.GetProperty(\"a\").GetString(); }", false)]
+    [InlineData("using System.Text.Json; class C { public byte[] M() => JsonDocument.Parse(\"{\\\"a\\\":\\\"not base64!!\\\"}\").RootElement.GetProperty(\"a\").GetBytesFromBase64(); }", true)]
+    [InlineData("using System.Text.Json; class C { public int M(JsonElement e) => e.GetInt32(); }", false)]
+    [InlineData("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":42}}\").RootElement.GetProperty(\"a\").GetProperty(\"c\").GetInt32(); }", false)]
+    [InlineData("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":\\\"x\\\"}}\").RootElement.GetProperty(\"a\").GetProperty(\"c\").GetInt32(); }", true)]
+    public async Task InvalidJsonElementPropertyOrIndexAnalyzer_Should_NotFlag_AValidAccess(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidJsonElementPropertyOrIndexAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidJsonElementPropertyOrIndexAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and ninety-fifth batch (триста семьдесят второй проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"hello\"); }", true)]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"2024-01-01\"); }", false)]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"January 1, 2024\"); }", false)]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"January\"); }", true)]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"\"); }", true)]
+    [InlineData("class C { public System.DateTime M(string s) => System.DateTime.Parse(s); }", false)]
+    [InlineData("class C { public System.DateTimeOffset M() => System.DateTimeOffset.Parse(\"hello\"); }", true)]
+    [InlineData("class C { public System.TimeSpan M() => System.TimeSpan.Parse(\"hello\"); }", true)]
+    [InlineData("class C { public System.TimeSpan M() => System.TimeSpan.Parse(\"1:30:00\"); }", false)]
+    [InlineData("class C { public System.DateOnly M() => System.DateOnly.Parse(\"hello\"); }", true)]
+    [InlineData("class C { public System.TimeOnly M() => System.TimeOnly.Parse(\"hello\"); }", true)]
+    [InlineData("class C { public System.Guid M() => System.Guid.Parse(\"hello\"); }", false)]
+    [InlineData("class C { public int M() => int.Parse(\"hello\"); }", false)]
+    public async Task InvalidDateOrTimeParseLiteralAnalyzer_Should_NotFlag_APossiblyValidLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDateOrTimeParseLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateOrTimeParseLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and ninety-seventh batch (триста семьдесят третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"hello\"); }", true)]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"192.168.1.0/24\"); }", false)]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"192.168.1.0\"); }", true)]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"192.168.1.0/99\"); }", true)]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"::1/128\"); }", false)]
+    [InlineData("using System.Net; class C { public IPNetwork M(string s) => IPNetwork.Parse(s); }", false)]
+    [InlineData("using System.Net; class C { public IPAddress M() => IPAddress.Parse(\"hello\"); }", false)]
+    public async Task InvalidIPNetworkLiteralAnalyzer_Should_NotFlag_AValidCidrLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidIPNetworkLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPNetworkLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and ninety-eighth batch (триста семьдесят четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"hello\"); }", true)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"192.168.1.1:80\"); }", false)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"192.168.1.1\"); }", false)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"192.168.1.1:99999\"); }", true)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"[::1]:80\"); }", false)]
+    [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"\"); }", true)]
+    [InlineData("using System.Net; class C { public IPEndPoint M(string s) => IPEndPoint.Parse(s); }", false)]
+    [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"hello\"); }", false)]
+    public async Task InvalidIPEndPointLiteralAnalyzer_Should_NotFlag_AValidEndpointLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidIPEndPointLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPEndPointLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Two hundred and ninety-ninth batch (триста семьдесят пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"hello\"); }", true)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"00-14-22-01-23-45\"); }", false)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"00-14-22\"); }", false)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"\"); }", false)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"0\"); }", true)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"--001422\"); }", true)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"00-14:22\"); }", true)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"aabbcc\"); }", false)]
+    [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M(string s) => PhysicalAddress.Parse(s); }", false)]
+    public async Task InvalidPhysicalAddressLiteralAnalyzer_Should_NotFlag_AValidMacLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidPhysicalAddressLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPhysicalAddressLiteralAnalyzer.DiagnosticId));
     }
 }
