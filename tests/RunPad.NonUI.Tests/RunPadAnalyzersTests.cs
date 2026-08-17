@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Security.Cryptography;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -5217,6 +5218,647 @@ public class RunPadAnalyzersTests
             + ValidRsaPublicKeyPem.Replace("\n", "\\n") + "\"); }";
         var diagnostics = await GetDiagnosticsAsync(new InvalidRsaPemLiteralAnalyzer(), code);
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidRsaPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    // проход 408 extension: a structurally-recognized PEM (generic "PUBLIC KEY" label) whose key data is
+    // for a DIFFERENT algorithm (a real EC public key here) throws CryptographicException, not
+    // ArgumentException — discovered while verifying ECDsa's sibling analyzer (RPAD0400).
+    private const string ValidEcPublicKeyPem =
+        "-----BEGIN PUBLIC KEY-----\n" +
+        "MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAe+iaIW7ht+I1DnpXAhdAqh0rEmN/\n" +
+        "rE+oFQfVdOpxNhL9903TV+H/YDR3Kwt7D5JlYxFSbndplMkg3N7nhahbFKABxZuM\n" +
+        "YZ59bicIXYxdNUUNQhnZ3/aAdFDgBHl0y84AhOd4jrDBxgrYZMyNKo+H2A6h1WzW\n" +
+        "vzPZAnDDTqvUTWh3VTQ=\n" +
+        "-----END PUBLIC KEY-----";
+
+    [Fact]
+    public async Task InvalidRsaPemLiteralAnalyzer_Should_Flag_AnEcKeyUnderAGenericLabel_WithCryptographicException()
+    {
+        var code = "using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromPem(\""
+            + ValidEcPublicKeyPem.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRsaPemLiteralAnalyzer(), code);
+        var match = diagnostics.FirstOrDefault(d => d.Id == InvalidRsaPemLiteralAnalyzer.DiagnosticId);
+        Assert.NotNull(match);
+        Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
+    }
+
+    // ── Three hundred and twenty-fifth batch (четыреста первый проход) — one new analyzer.
+
+    private const string ValidCertificatePem =
+        "-----BEGIN CERTIFICATE-----\n" +
+        "MIICvDCCAaSgAwIBAgIIU0VdoqRWyA4wDQYJKoZIhvcNAQELBQAwHjEcMBoGA1UE\n" +
+        "AxMTdGhyb3dhd2F5LXRlc3QtY2VydDAeFw0yNjA4MTIyMTI0MDlaFw0yNjA4MTQy\n" +
+        "MTI0MDlaMB4xHDAaBgNVBAMTE3Rocm93YXdheS10ZXN0LWNlcnQwggEiMA0GCSqG\n" +
+        "SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCzN1mv94Cy4auaWuQZKvtSOB0fqxD5cUGh\n" +
+        "tAuio7S4JUNffonCRqlph0SRCB/OZ1UwFMVoMRR9OCjRqJ2sYtF58HdmiNmfdWNc\n" +
+        "/J683MAPfo5+2VUCt3nvCJw4cVTsJtxesXnRm52FCEXB3mfbMDvwlXCglfuNWrtc\n" +
+        "a8Wt8tmhVVGLY44vqkvrkT4/RDpZDyW7Zvdpak0KJcssHm3LhHpvWGLsnSoj+fKB\n" +
+        "ZZPwGIAG3erj1ti7kTbx5mV9rHBNLiWpJUHfaGev4yzJYycMOEHXqsfLTEkMI3N4\n" +
+        "MbMNsh2UUpg70A+LZs1uNYCwrCIv+ZNzuAhu822J9DCVjJEFYQkdAgMBAAEwDQYJ\n" +
+        "KoZIhvcNAQELBQADggEBAH9Ru5RRqamZULoxjlIjsj8n7VCzm/bSFDJE7XIARGVU\n" +
+        "dKf180IXwnQxcDdKtXOVdvEKukSh+eFfTbkpKWL7QxnGihEZ/+F4ZWKCW3Zz7RY1\n" +
+        "l2OwUO0jklc9YWco6YFQsuRjCT7VQtDzbprw/NFQZxGOvS7P/1MQoVNjaJo2X5hG\n" +
+        "Afpv7vkJW2GrI7/nK0gOknziAOzolz5oyG0u2koW43Jrw/02gAWBYN3j5maXenuc\n" +
+        "8AHgWdPzxrj+RhzbXsBfxoiQb5/KmCfijdXH1KvpoQgF/riRZAnO2L6FKGifisvS\n" +
+        "jlo0hq3gV1kzQthKBEa9IGTdIofYcJOJh9f2C16kn7o=\n" +
+        "-----END CERTIFICATE-----";
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"\"); }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"not a pem\"); }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"-----BEGIN PUBLIC KEY-----\\nABCD\\n-----END PUBLIC KEY-----\"); }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M(string x) => X509Certificate2.CreateFromPem(x); }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"\", \"\"); }", false)]
+    public async Task InvalidCertificatePemLiteralAnalyzer_Should_NotFlag_AValidPemLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCertificatePemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCertificatePemLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Fact]
+    public async Task InvalidCertificatePemLiteralAnalyzer_Should_NotFlag_ARealValidCertificatePem()
+    {
+        var code = "using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\""
+            + ValidCertificatePem.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCertificatePemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidCertificatePemLiteralAnalyzer.DiagnosticId);
+    }
+
+    // ── Three hundred and twenty-sixth batch (четыреста второй проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\" leading\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\"double  space\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\"\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\"1startsWithDigit\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\"valid\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyNMTOKEN(\"\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyNMTOKEN(\"has space\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyNMTOKEN(\"1startsWithDigit\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyNMTOKEN(\"has:colon\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M(string x) => XmlConvert.VerifyTOKEN(x); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyName(\"1bad\"); }", false)]
+    public async Task InvalidXmlTokenLiteralAnalyzer_Should_NotFlag_AValidXmlToken(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlTokenLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlTokenLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and twenty-seventh batch (четыреста третий проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"garbage\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"922337203685477.5808\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"-922337203685477.5809\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"123.45\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"922337203685477.5807\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"-922337203685477.5808\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M(string x) => SqlMoney.Parse(x); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public decimal M() => decimal.Parse(\"garbage\"); }", false)]
+    public async Task InvalidSqlMoneyParseLiteralAnalyzer_Should_NotFlag_AValidSqlMoney(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSqlMoneyParseLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlMoneyParseLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and twenty-eighth batch (четыреста четвёртый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"garbage\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"999999999999999999999999999999999999999\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"99999999999999999999999999999999999999.9\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"99999999999999999999999999999999999999\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"9999999999999999999999999999999999999.9\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"123.45\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M(string x) => SqlDecimal.Parse(x); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public decimal M() => decimal.Parse(\"garbage\"); }", false)]
+    public async Task InvalidSqlDecimalParseLiteralAnalyzer_Should_NotFlag_AValidSqlDecimal(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSqlDecimalParseLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlDecimalParseLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and twenty-ninth batch (четыреста пятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"\"); }", true)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"not-an-email\"); }", true)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"a@b.com, not-an-email\"); }", true)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"a@b.com,,c@d.com\"); }", true)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"a@b.com\"); }", false)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"a@b.com, c@d.com\"); }", false)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c, string x) => c.Add(x); }", false)]
+    [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c, MailAddress a) => c.Add(a); }", false)]
+    public async Task InvalidMailAddressCollectionLiteralAnalyzer_Should_NotFlag_AValidAddressList(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMailAddressCollectionLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMailAddressCollectionLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and thirtieth batch (четыреста шестой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u0000char\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u000Bchar\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u000Cchar\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u0007char\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"valid text\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"line1\\nline2\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"col1\\tcol2\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M(string x) => XmlConvert.VerifyXmlChars(x); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyName(\"1bad\"); }", false)]
+    public async Task InvalidXmlCharsLiteralAnalyzer_Should_NotFlag_LegalXmlText(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlCharsLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlCharsLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and thirty-first batch (четыреста седьмой проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"xml\", \"data\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"XML\", \"data\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"1bad\", \"data\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"valid-target\", \"data\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"valid\", \"data ?> end\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M(string x) => new XProcessingInstruction(x, \"data\"); }", false)]
+    public async Task InvalidXProcessingInstructionLiteralAnalyzer_Should_NotFlag_AValidTarget(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXProcessingInstructionLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXProcessingInstructionLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and thirty-second batch (четыреста девятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\"\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\"not a pem\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDiffieHellman ec) => ec.ImportFromPem(\"\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec, string x) => ec.ImportFromPem(x); }", false)]
+    public async Task InvalidEcAlgorithmPemLiteralAnalyzer_Should_NotFlag_AValidPemLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmPemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEcAlgorithmPemLiteralAnalyzer.DiagnosticId));
+    }
+
+    private const string ValidEcPublicKeyPemForEcAlgorithm =
+        "-----BEGIN PUBLIC KEY-----\n" +
+        "MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAe+iaIW7ht+I1DnpXAhdAqh0rEmN/\n" +
+        "rE+oFQfVdOpxNhL9903TV+H/YDR3Kwt7D5JlYxFSbndplMkg3N7nhahbFKABxZuM\n" +
+        "YZ59bicIXYxdNUUNQhnZ3/aAdFDgBHl0y84AhOd4jrDBxgrYZMyNKo+H2A6h1WzW\n" +
+        "vzPZAnDDTqvUTWh3VTQ=\n" +
+        "-----END PUBLIC KEY-----";
+
+    [Fact]
+    public async Task InvalidEcAlgorithmPemLiteralAnalyzer_Should_NotFlag_ARealValidEcPublicKeyPem()
+    {
+        var code = "using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\""
+            + ValidEcPublicKeyPemForEcAlgorithm.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidEcAlgorithmPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task InvalidEcAlgorithmPemLiteralAnalyzer_Should_Flag_ARsaKeyUnderAGenericLabel_WithCryptographicException()
+    {
+        var code = "using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\""
+            + ValidRsaPublicKeyPem.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmPemLiteralAnalyzer(), code);
+        var match = diagnostics.FirstOrDefault(d => d.Id == InvalidEcAlgorithmPemLiteralAnalyzer.DiagnosticId);
+        Assert.NotNull(match);
+        Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
+    }
+
+    // ── Three hundred and thirty-third batch (четыреста десятый проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\"\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\"not a pem\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa, string x) => dsa.ImportFromPem(x); }", false)]
+    public async Task InvalidDsaPemLiteralAnalyzer_Should_NotFlag_AValidPemLiteral(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDsaPemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDsaPemLiteralAnalyzer.DiagnosticId));
+    }
+
+    private const string ValidDsaPublicKeyPem =
+        "-----BEGIN PUBLIC KEY-----\n" +
+        "MIIDRjCCAjkGByqGSM44BAEwggIsAoIBAQCp4KO7CJog+eAv5H8uTm47SbhQ0hLm\n" +
+        "ffZwp0HwBrQz7AR/00DR2hl+V5cIj9znU84CQoZXw8AVekMZUFAvxGsk6dKO6bW9\n" +
+        "/KyTaLjQc166BwQbPSryqNjmIZBbl/vzc4PJmViF7fosfay+D4pM2x+EtbwWbY8A\n" +
+        "rOuKeb3etx1rwwKovwTMHrBXvdO/PgJ328oN401/wralzGIrcdVX9rnWZCoEPpYP\n" +
+        "nMdH6tb/nyTHAwa4vIihOE7v1R/IcVv9/LB3RJRpQbQzmLG/uqxUtyvpxw4PEACO\n" +
+        "pxR28UzaR2ArmIdplMSNiyJS4PAhq/BCebPnaPVT2kjwxLaxV0niVcpRAiEA4nw/\n" +
+        "DjQ3kfoVJZWk8CvO3hRyFAnQcB99fxd+fHabTGsCggEASe4Bh6ZQA0w0T2C1tXP6\n" +
+        "cMWKNpK3L5sz7SFKB6bHS7qpDDymyZdWFmRId0MT141+O8mMizjZfIk/EMHtplTC\n" +
+        "2TQO5z6O64RsLa2ilRqShaEx6SQMt1rPzs2AJqKeb0pNEGBe9BbgxC/JfIsrYsI7\n" +
+        "qvseILAGNqiYpaUpnNRD8ozsz2/cMV9pKDfNRMb2geEhLoqAvl1HWq2Zdpo7CZw8\n" +
+        "KiDXVBxH37EIyrEoQJ4DGqt8dnpLRAAFEnBM+oHgf5luggQOTZp99FFaACktDHZB\n" +
+        "hcpXDau84MBdS3ARd91m1SXA6OSfMxT87YDwjbIRO6LUFHhNE8xg8psXjeSw1O4O\n" +
+        "dwOCAQUAAoIBAHrDjgyaZnljvAVNvVIuImB4ziQKiAIPdIK0LYjTaN7cvr0HyGMu\n" +
+        "vxu7LEiJop2JHJPQkQcidBqD+b8xp499oC1vDmsjQX6qvzY3pYMDzLlhmfXNcvHM\n" +
+        "3IIvor7cNRoNuImzCQRTP7yTbw48W+a7eHgzDcOjiWrr2cGWwd1L/c1m7HZre4r5\n" +
+        "nfD76hwNI1kvRdoquwveIouY51340ajt2nYtizlVHlIcQYPTZF7WW9OkAvLYqYh0\n" +
+        "+UO442YLmXS7TII5ox6kZc0utWT6tR95SauwqsPxl2hrrF7oDcPlvOQMmS1pMxJ2\n" +
+        "GZrxXUsjKxVoXFyPGpwMu4VIMMWLzB5zfCg=\n" +
+        "-----END PUBLIC KEY-----";
+
+    [Fact]
+    public async Task InvalidDsaPemLiteralAnalyzer_Should_NotFlag_ARealValidDsaPublicKeyPem()
+    {
+        var code = "using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\""
+            + ValidDsaPublicKeyPem.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDsaPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidDsaPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task InvalidDsaPemLiteralAnalyzer_Should_Flag_ARsaKeyUnderAGenericLabel_WithCryptographicException()
+    {
+        var code = "using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\""
+            + ValidRsaPublicKeyPem.Replace("\n", "\\n") + "\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDsaPemLiteralAnalyzer(), code);
+        var match = diagnostics.FirstOrDefault(d => d.Id == InvalidDsaPemLiteralAnalyzer.DiagnosticId);
+        Assert.NotNull(match);
+        Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
+    }
+
+    // ── Three hundred and thirty-fourth batch (411-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public void M() => new System.Guid(\"\"); }", true)]
+    [InlineData("class C { public void M() => new System.Guid(\"not-a-guid\"); }", true)]
+    [InlineData("class C { public void M() => new System.Guid(\"d3adb33f-0000-0000-0000-000000000000\"); }", false)]
+    [InlineData("class C { public void M() => new System.Guid(\"d3adb33f000000000000000000000000\"); }", false)]
+    [InlineData("class C { public void M() => new System.Guid(\"{d3adb33f-0000-0000-0000-000000000000}\"); }", false)]
+    [InlineData("class C { public void M() => new System.Guid(\"(d3adb33f-0000-0000-0000-000000000000)\"); }", false)]
+    [InlineData("class C { public void M() => new System.Guid(\"{0xd3adb33f,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}\"); }", false)]
+    [InlineData("class C { public void M() => new System.Guid(\"  d3adb33f-0000-0000-0000-000000000000  \"); }", false)]
+    [InlineData("class C { public void M(string x) => new System.Guid(x); }", false)]
+    [InlineData("class C { public void M() { System.Guid g = new(\"not-a-guid\"); } }", true)]
+    [InlineData("class C { public void M() => new System.Guid(new byte[16]); }", false)]
+    [InlineData("class Guid { public Guid(string s) {} } class C { public void M() => new Guid(\"not-a-guid\"); }", false)]
+    [InlineData("class C { public void M() => System.Guid.Parse(\"not-a-guid\"); }", false)]
+    public async Task InvalidGuidConstructorLiteralAnalyzer_Should_FlagOnlyMalformedGuidConstructorLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidGuidConstructorLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidConstructorLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and thirty-fifth batch (412-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa, string x) => rsa.ImportFromEncryptedPem(x, \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa, string pw) => rsa.ImportFromEncryptedPem(\"garbage\", pw); }", true)]
+    [InlineData("class RSA { public void ImportFromEncryptedPem(string a, string b) {} } class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"\", \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromPem(\"garbage\"); }", false)]
+    public async Task InvalidRsaEncryptedPemLiteralAnalyzer_Should_FlagOnlyMalformedInputLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRsaEncryptedPemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRsaEncryptedPemLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Fact]
+    public async Task InvalidRsaEncryptedPemLiteralAnalyzer_Should_NotFlag_ARealValidEncryptedPem_EvenWithAWrongPassword()
+    {
+        using var rsa = RSA.Create(2048);
+        var pbe = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000);
+        var encryptedPem = rsa.ExportEncryptedPkcs8PrivateKeyPem("correct-password", pbe);
+        var code = "using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\""
+            + encryptedPem.Replace("\n", "\\n") + "\", \"wrong-password\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRsaEncryptedPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidRsaEncryptedPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    // ── Three hundred and thirty-sixth batch (413-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa, string x) => dsa.ImportFromEncryptedPem(x, \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa, string pw) => dsa.ImportFromEncryptedPem(\"garbage\", pw); }", true)]
+    [InlineData("class DSA { public void ImportFromEncryptedPem(string a, string b) {} } class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\"\", \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\"garbage\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"garbage\", \"pw\"); }", false)]
+    public async Task InvalidDsaEncryptedPemLiteralAnalyzer_Should_FlagOnlyMalformedInputLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDsaEncryptedPemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDsaEncryptedPemLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Fact]
+    public async Task InvalidDsaEncryptedPemLiteralAnalyzer_Should_NotFlag_ARealValidEncryptedPem_EvenWithAWrongPassword()
+    {
+        using var dsa = DSA.Create();
+        var pbe = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000);
+        var encryptedPem = dsa.ExportEncryptedPkcs8PrivateKeyPem("correct-password", pbe);
+        var code = "using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\""
+            + encryptedPem.Replace("\n", "\\n") + "\", \"wrong-password\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDsaEncryptedPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidDsaEncryptedPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    // ── Three hundred and thirty-seventh batch (414-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDiffieHellman ec) => ec.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec, string x) => ec.ImportFromEncryptedPem(x, \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec, string pw) => ec.ImportFromEncryptedPem(\"garbage\", pw); }", true)]
+    [InlineData("class ECDsa { public void ImportFromEncryptedPem(string a, string b) {} } class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\"\", \"pw\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\"garbage\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"garbage\", \"pw\"); }", false)]
+    public async Task InvalidEcAlgorithmEncryptedPemLiteralAnalyzer_Should_FlagOnlyMalformedInputLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmEncryptedPemLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEcAlgorithmEncryptedPemLiteralAnalyzer.DiagnosticId));
+    }
+
+    [Fact]
+    public async Task InvalidEcAlgorithmEncryptedPemLiteralAnalyzer_Should_NotFlag_ARealValidEncryptedPem_EvenWithAWrongPassword()
+    {
+        using var ecdsa = ECDsa.Create();
+        var pbe = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000);
+        var encryptedPem = ecdsa.ExportEncryptedPkcs8PrivateKeyPem("correct-password", pbe);
+        var code = "using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\""
+            + encryptedPem.Replace("\n", "\\n") + "\", \"wrong-password\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmEncryptedPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidEcAlgorithmEncryptedPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    [Fact]
+    public async Task InvalidEcAlgorithmEncryptedPemLiteralAnalyzer_Should_NotFlag_ARealValidEncryptedPem_ViaECDiffieHellman()
+    {
+        using var ecdsa = ECDsa.Create();
+        var pbe = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000);
+        var encryptedPem = ecdsa.ExportEncryptedPkcs8PrivateKeyPem("correct-password", pbe);
+        var code = "using System.Security.Cryptography; class C { public void M(ECDiffieHellman ec) => ec.ImportFromEncryptedPem(\""
+            + encryptedPem.Replace("\n", "\\n") + "\", \"correct-password\"); }";
+        var diagnostics = await GetDiagnosticsAsync(new InvalidEcAlgorithmEncryptedPemLiteralAnalyzer(), code);
+        Assert.DoesNotContain(diagnostics, d => d.Id == InvalidEcAlgorithmEncryptedPemLiteralAnalyzer.DiagnosticId);
+    }
+
+    // ── Three hundred and thirty-eighth batch (415-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"\"); }", false)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"not base64url!!\"); }", true)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"SGVsbG8\"); }", false)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"ab+/c\"); }", true)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"SGVsbG8=\"); }", false)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"a\"); }", true)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"SGVs bG8\"); }", false)]
+    [InlineData("using System.Buffers.Text; class C { public byte[] M(string x) => Base64Url.DecodeFromChars(x); }", false)]
+    [InlineData("using System.Buffers.Text; class C { public int M(System.Span<byte> dest) => Base64Url.DecodeFromChars(\"not base64url!!\", dest); }", false)]
+    [InlineData("class Base64Url { public static byte[] DecodeFromChars(string s) => null; } class C { public byte[] M() => Base64Url.DecodeFromChars(\"not base64url!!\"); }", false)]
+    [InlineData("class C { public byte[] M() => System.Convert.FromBase64String(\"not base64!!\"); }", false)]
+    public async Task InvalidBase64UrlLiteralAnalyzer_Should_FlagOnlyMalformedUrlSafeBase64Literals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBase64UrlLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBase64UrlLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and thirty-ninth batch (416-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"\", null, null, null); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"1bad\", null, null, null); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"bad name\", null, null, null); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"html\", null, null, null); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"ns:html\", null, null, null); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M(string n) => new XDocumentType(n, null, null, null); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"html\", \"not valid!!\", null, null); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"html\", null, \"not valid<>\", null); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public void M() { XDocumentType d = new(\"1bad\", null, null, null); } }", true)]
+    [InlineData("class XDocumentType { public XDocumentType(string a, string b, string c, string d) {} } class C { public void M() => new XDocumentType(\"1bad\", null, null, null); }", false)]
+    public async Task InvalidXDocumentTypeNameLiteralAnalyzer_Should_FlagOnlyInvalidXmlNames(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXDocumentTypeNameLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXDocumentTypeNameLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fortieth batch (417-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"not a pem\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"-----BEGIN FOO-----\\nAAAA\\n-----END FOO-----\"); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"-----BEGIN FOO-----\\nAAAA\\n-----END BAR-----\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"-----BEGIN FOO-----\\n!!!!\\n-----END FOO-----\"); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public void M(string x) => PemEncoding.Find(x); }", false)]
+    [InlineData("class PemEncoding { public static void Find(string s) {} } class C { public void M() => PemEncoding.Find(\"\"); }", false)]
+    public async Task InvalidPemEncodingFindLiteralAnalyzer_Should_FlagOnlyMalformedPemLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidPemEncodingFindLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPemEncodingFindLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-first batch (418-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\" \"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"notabool\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"true\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"False\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"1\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"2\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M(string x) => SqlBoolean.Parse(x); }", false)]
+    [InlineData("class SqlBoolean { public static SqlBoolean Parse(string s) => default; } class C { public void M() => SqlBoolean.Parse(\"\"); }", false)]
+    [InlineData("class C { public bool M() => bool.Parse(\"notabool\"); }", false)]
+    public async Task InvalidSqlBooleanParseLiteralAnalyzer_Should_FlagOnlyUnrecognizedBooleanLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSqlBooleanParseLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlBooleanParseLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-second batch (419-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\" \"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"\\t\\n\\r \"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"a\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"   a\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M(string x) => XmlConvert.VerifyWhitespace(x); }", false)]
+    [InlineData("class XmlConvert { public static string VerifyWhitespace(string s) => s; } class C { public void M() => XmlConvert.VerifyWhitespace(\"a\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyName(\"1bad\"); }", false)]
+    public async Task InvalidXmlWhitespaceLiteralAnalyzer_Should_FlagOnlyNonWhitespaceContainingLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlWhitespaceLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlWhitespaceLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-third batch (420-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"hello\\nworld\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"-//W3C//DTD HTML 4.01//EN\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"<bad>\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"bad{brace}\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"hello\\tworld\"); }", true)]
+    [InlineData("using System.Xml; class C { public string M(string x) => XmlConvert.VerifyPublicId(x); }", false)]
+    [InlineData("class XmlConvert { public static string VerifyPublicId(string s) => s; } class C { public void M() => XmlConvert.VerifyPublicId(\"<bad>\"); }", false)]
+    [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"a\"); }", false)]
+    public async Task InvalidXmlPublicIdLiteralAnalyzer_Should_FlagOnlyLiteralsWithDisallowedCharacters(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlPublicIdLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlPublicIdLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-fourth batch (421-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(\"\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(\"not-a-guid\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(\"d3adb33f-0000-0000-0000-000000000000\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(\"{0xd3adb33f,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => SqlGuid.Parse(\"\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => SqlGuid.Parse(\"not-a-guid\"); }", true)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => SqlGuid.Parse(\"d3adb33f-0000-0000-0000-000000000000\"); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(new byte[16]); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(System.Guid.Empty); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M(string x) => new SqlGuid(x); }", false)]
+    [InlineData("using System.Data.SqlTypes; class C { public void M() { SqlGuid g = new(\"not-a-guid\"); } }", true)]
+    [InlineData("class SqlGuid { public SqlGuid(string s) {} } class C { public void M() => new SqlGuid(\"not-a-guid\"); }", false)]
+    [InlineData("class C { public void M() => System.Guid.Parse(\"not-a-guid\"); }", false)]
+    public async Task InvalidSqlGuidLiteralAnalyzer_Should_FlagOnlyMalformedSqlGuidLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSqlGuidLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlGuidLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-fifth batch (422-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"\"); }", true)]
+    [InlineData("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"not-a-guid\"); }", true)]
+    [InlineData("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"d3adb33f-0000-0000-0000-000000000000\"); }", false)]
+    [InlineData("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"{0xd3adb33f,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}\"); }", false)]
+    [InlineData("using System.Xml; class C { public System.Guid M(string x) => XmlConvert.ToGuid(x); }", false)]
+    [InlineData("class XmlConvert { public static System.Guid ToGuid(string s) => default; } class C { public void M() => XmlConvert.ToGuid(\"not-a-guid\"); }", false)]
+    [InlineData("using System.Xml; class C { public bool M() => XmlConvert.ToBoolean(\"not-a-guid\"); }", false)]
+    [InlineData("class C { public void M() => System.Guid.Parse(\"not-a-guid\"); }", false)]
+    public async Task InvalidXmlGuidLiteralAnalyzer_Should_FlagOnlyMalformedGuidLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlGuidLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlGuidLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-sixth batch (423-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"\", XmlDateTimeSerializationMode.RoundtripKind); }", true)]
+    [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"not-a-date\", XmlDateTimeSerializationMode.RoundtripKind); }", true)]
+    [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"2024-01-01T00:00:00\", XmlDateTimeSerializationMode.RoundtripKind); }", false)]
+    [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"2024-13-01T00:00:00\", XmlDateTimeSerializationMode.RoundtripKind); }", true)]
+    [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"01/01/2024\", XmlDateTimeSerializationMode.RoundtripKind); }", true)]
+    [InlineData("using System.Xml; class C { public System.DateTime M(string x) => XmlConvert.ToDateTime(x, XmlDateTimeSerializationMode.RoundtripKind); }", false)]
+    [InlineData("class XmlConvert { public static System.DateTime ToDateTime(string s, int m) => default; } class C { public void M() => XmlConvert.ToDateTime(\"not-a-date\", 0); }", false)]
+    [InlineData("using System.Xml; class C { public System.DateTimeOffset M() => XmlConvert.ToDateTimeOffset(\"not-a-date\"); }", false)]
+    [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"01/01/2024\"); }", false)]
+    public async Task InvalidXmlDateTimeLiteralAnalyzer_Should_FlagOnlyInvalidXsdDateTimeLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlDateTimeLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlDateTimeLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-seventh batch (425-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"\"); }", true)]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"not xml\"); }", true)]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"<root><child></root>\"); }", true)]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"<a/><b/>\"); }", true)]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"<foo:root/>\"); }", true)]
+    [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"<root/>\"); }", false)]
+    [InlineData("using System.Xml; class C { public void M() { var d = new XmlDocument(); d.LoadXml(\"not xml\"); } }", true)]
+    [InlineData("using System.Xml; class C { public void M(XmlDocument d, string x) => d.LoadXml(x); }", false)]
+    [InlineData("class XmlDocument { public void LoadXml(string s) {} } class C { public void M() => new XmlDocument().LoadXml(\"not xml\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public void M() => XDocument.Parse(\"not xml\"); }", false)]
+    public async Task InvalidXmlDocumentLoadXmlLiteralAnalyzer_Should_FlagOnlyMalformedXmlLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlDocumentLoadXmlLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlDocumentLoadXmlLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-eighth batch (426-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"abc\"); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"0af7651916cd43dd8448eb211c80319c\"); }", false)]
+    [InlineData("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"0AF7651916CD43DD8448EB211C80319C\"); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"00000000000000000000000000000000\"); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivitySpanId M() => ActivitySpanId.CreateFromString(\"abc\"); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivitySpanId M() => ActivitySpanId.CreateFromString(\"b7ad6b7169203331\"); }", false)]
+    [InlineData("using System.Diagnostics; class C { public ActivitySpanId M() => ActivitySpanId.CreateFromString(\"0000000000000000\"); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityTraceId M(string x) => ActivityTraceId.CreateFromString(x); }", false)]
+    [InlineData("class ActivityTraceId { public static ActivityTraceId CreateFromString(string s) => default; } class C { public void M() => ActivityTraceId.CreateFromString(\"abc\"); }", false)]
+    public async Task InvalidActivityIdLiteralAnalyzer_Should_FlagOnlyMalformedActivityIds(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidActivityIdLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidActivityIdLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and forty-ninth batch (427-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"\"); }", true)]
+    [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"abc123\"); }", true)]
+    [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"   \"); }", true)]
+    [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"UTC;0;(UTC) Coordinated Universal Time;Coordinated Universal Time;Coordinated Universal Time;;\"); }", false)]
+    [InlineData("class C { public System.TimeZoneInfo M(string x) => System.TimeZoneInfo.FromSerializedString(x); }", false)]
+    [InlineData("class TimeZoneInfo { public static TimeZoneInfo FromSerializedString(string s) => default; } class C { public void M() => TimeZoneInfo.FromSerializedString(\"\"); }", false)]
+    [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FindSystemTimeZoneById(\"\"); }", false)]
+    public async Task InvalidTimeZoneInfoSerializedStringLiteralAnalyzer_Should_FlagOnlyMalformedSerializedStrings(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidTimeZoneInfoSerializedStringLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimeZoneInfoSerializedStringLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fiftieth batch (428-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"\", true); }", true)]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"System.String[[[\", true); }", true)]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"System.String\", true); }", false)]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"Some.Totally.Fictional.TypeName123\", true); }", false)]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"\", false); }", false)]
+    [InlineData("class C { public System.Type M(bool b) => System.Type.GetType(\"\", b); }", false)]
+    [InlineData("class C { public System.Type M() => System.Type.GetType(\"System.String, mscorlib\", true); }", false)]
+    [InlineData("class C { public System.Type M(string x) => System.Type.GetType(x, true); }", false)]
+    [InlineData("class Type { public static Type GetType(string s, bool b) => default; } class C { public void M() => Type.GetType(\"\", true); }", false)]
+    public async Task InvalidTypeGetTypeLiteralAnalyzer_Should_FlagOnlyEmptyOrMalformedGenericSyntax(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidTypeGetTypeLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTypeGetTypeLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-first batch (429-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public System.Version M() => new System.Version(\"\"); }", true)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1\"); }", true)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1.x\"); }", true)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1.2.3.4.5\"); }", true)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1.-2\"); }", true)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1.2\"); }", false)]
+    [InlineData("class C { public System.Version M() => new System.Version(\"1.2.3.4\"); }", false)]
+    [InlineData("class C { public System.Version M(string x) => new System.Version(x); }", false)]
+    [InlineData("class C { public void M() { System.Version v = new(\"1.x\"); } }", true)]
+    [InlineData("class Version { public Version(string s) {} } class C { public void M() => new Version(\"1.x\"); }", false)]
+    [InlineData("class C { public System.Version M() => System.Version.Parse(\"1.x\"); }", false)]
+    public async Task InvalidVersionConstructorLiteralAnalyzer_Should_FlagOnlyMalformedVersionLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidVersionConstructorLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVersionConstructorLiteralAnalyzer.DiagnosticId));
     }
 
     [Theory]
