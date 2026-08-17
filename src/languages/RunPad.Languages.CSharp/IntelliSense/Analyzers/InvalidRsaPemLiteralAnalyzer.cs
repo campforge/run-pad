@@ -21,12 +21,18 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // the way RPAD0352's `KeySize`/`BlockSize` properties are, so ordinary `ContainingType` resolution already
 // correctly targets exactly `RSA` for a receiver whose static type is `RSA`, no receiver-expression
 // workaround needed here. Scoped to `RSA` only, not `ECDsa`/`DSA`/other asymmetric algorithms — each
-// expects different PEM labels, a separate validation surface not probed here. Confirmed empirically this
-// is a single-exception-type situation: empty string, garbage text, an unlabeled PEM block, and a
-// wrong-label PEM block (e.g. "CERTIFICATE" instead of a key label) all throw `ArgumentException`. A REAL
-// freshly-generated 2048-bit RSA public key PEM (via `RSA.Create(2048).ExportSubjectPublicKeyInfoPem()`,
-// immediately discarded, no real-world key material) was used to confirm the "not flagged" side actually
-// imports successfully, not just assumed.
+// expects different PEM labels, a separate validation surface not probed here (see RPAD0400, ECDsa's
+// sibling). Originally shipped (проход 400) believing this was single-exception-type
+// (`ArgumentException` for empty/garbage/wrong-label text); EXTENDED in проход 408 after empirically
+// discovering a missed case while verifying ECDsa's sibling analyzer: a PEM block that IS structurally
+// recognized (a generic "PUBLIC KEY" label, correctly base64-decodable) but whose key DATA is for a
+// DIFFERENT algorithm (e.g. an EC public key under the generic label) throws `System.Security.
+// Cryptography.CryptographicException` instead — genuinely different from the "PEM structure itself is
+// unrecognized" `ArgumentException` cases. The message format now parameterizes the exception type name,
+// same technique this catalog's other multi-exception-type analyzers already use. A REAL freshly-generated
+// 2048-bit RSA public key PEM (via `RSA.Create(2048).ExportSubjectPublicKeyInfoPem()`, immediately
+// discarded, no real-world key material) was used to confirm the "not flagged" side actually imports
+// successfully, not just assumed.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidRsaPemLiteralAnalyzer : DiagnosticAnalyzer
 {
@@ -35,11 +41,11 @@ public sealed class InvalidRsaPemLiteralAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "RSA.ImportFromPem argument is not a valid PEM-encoded key",
-        messageFormat: "'{0}.ImportFromPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded RSA key",
+        messageFormat: "'{0}.ImportFromPem(...)' always throws {1} at runtime — the text is not a valid PEM-encoded RSA key",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "RSA.ImportFromPem(ReadOnlySpan<char>) throws ArgumentException for text that isn't a recognized PEM-encoded RSA key (wrong label, malformed, or empty).");
+        description: "RSA.ImportFromPem(ReadOnlySpan<char>) throws ArgumentException for text that isn't a recognized PEM structure (wrong label, malformed, or empty), or CryptographicException for a structurally valid PEM whose key data is for a different algorithm.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -78,9 +84,9 @@ public sealed class InvalidRsaPemLiteralAnalyzer : DiagnosticAnalyzer
             using var rsa = RSA.Create();
             rsa.ImportFromPem(pem);
         }
-        catch (ArgumentException)
+        catch (System.Exception ex) when (ex is ArgumentException or CryptographicException)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), access.Expression.ToString()));
+            context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), access.Expression.ToString(), ex.GetType().Name));
         }
     }
 }
