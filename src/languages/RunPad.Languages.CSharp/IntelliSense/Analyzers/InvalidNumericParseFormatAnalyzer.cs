@@ -25,6 +25,16 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // — a superset of RPAD0258's type list, since `float`/`double` (which RPAD0258 deliberately excludes,
 // because they saturate to ±Infinity instead of overflowing) still throw FormatException for a
 // non-numeric literal exactly like the integral types do.
+//
+// EXTENDED проход 438 (TODO #74, candidate #4 from the sixth research subagent survey, Tier 3 — "gap in
+// an existing analyzer, extend rather than new file") to also match the `System.Convert.ToXxx(string)`
+// family (`ToByte`/`ToSByte`/`ToInt16`/`ToUInt16`/`ToInt32`/`ToUInt32`/`ToInt64`/`ToUInt64`/`ToSingle`/
+// `ToDouble`/`ToDecimal`) — confirmed empirically, matching the agent's report, that all eleven throw the
+// identical `FormatException` for the identical non-numeric-literal condition as the corresponding
+// `Xxx.Parse(string)`. `Convert` has no `Half`/`Int128`/`UInt128` overloads, so those three stay Parse-
+// only. Since `Convert.ToXxx`'s `ContainingType` is always `System.Convert` (not the target numeric type,
+// unlike `Parse`), the target-type keyword is now derived by METHOD NAME for `Convert` calls instead of
+// by `ContainingType.SpecialType`.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidNumericParseFormatAnalyzer : DiagnosticAnalyzer
 {
@@ -33,11 +43,11 @@ public sealed class InvalidNumericParseFormatAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new(
         DiagnosticId,
         title: "Non-numeric literal always fails to parse",
-        messageFormat: "'{0}.Parse(...)' always throws FormatException at runtime — '{1}' is not a valid {0}",
+        messageFormat: "'{0}' always throws FormatException at runtime — '{1}' is not a valid {2}",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "byte/sbyte/short/ushort/int/uint/long/ulong/float/double/decimal/Half/Int128/UInt128.Parse(string) throw FormatException when the literal contains a letter (other than the 'e'/'E' exponent marker), regardless of culture.");
+        description: "byte/sbyte/short/ushort/int/uint/long/ulong/float/double/decimal/Half/Int128/UInt128.Parse(string), and the corresponding System.Convert.ToXxx(string) methods, throw FormatException when the literal contains a letter (other than the 'e'/'E' exponent marker), regardless of culture.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -48,25 +58,37 @@ public sealed class InvalidNumericParseFormatAnalyzer : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.InvocationExpression);
     }
 
+    private static readonly ImmutableHashSet<string> ConvertMethodNames = ImmutableHashSet.Create(
+        "ToByte", "ToSByte", "ToInt16", "ToUInt16", "ToInt32", "ToUInt32",
+        "ToInt64", "ToUInt64", "ToSingle", "ToDouble", "ToDecimal");
+
     private static void Analyze(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "Parse" })
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: var methodName })
             return;
+        var isParse = methodName == "Parse";
+        if (!isParse && !ConvertMethodNames.Contains(methodName)) return;
         if (invocation.ArgumentList.Arguments is not [{ Expression: var arg }]) return;
 
         var ct = context.CancellationToken;
         if (context.SemanticModel.GetConstantValue(arg, ct).Value is not string value) return;
         if (!ContainsDisqualifyingLetter(value)) return;
 
-        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Parse", Parameters.Length: 1 } method)
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol
+            {
+                Parameters.Length: 1,
+            } method || method.Name != methodName)
+        {
             return;
+        }
 
-        var typeKeyword = GetTargetTypeKeyword(method);
+        var typeKeyword = isParse ? GetTargetTypeKeyword(method) : GetConvertTargetTypeKeyword(method);
         if (typeKeyword is null) return;
         if (!AlwaysThrows(typeKeyword, value)) return;
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), typeKeyword, value));
+        var callText = isParse ? $"{typeKeyword}.Parse(...)" : $"Convert.{methodName}(...)";
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), callText, value, typeKeyword));
     }
 
     private static bool ContainsDisqualifyingLetter(string value)
@@ -102,6 +124,26 @@ public sealed class InvalidNumericParseFormatAnalyzer : DiagnosticAnalyzer
             "System.Half" => "Half",
             "System.Int128" => "Int128",
             "System.UInt128" => "UInt128",
+            _ => null,
+        };
+    }
+
+    private static string? GetConvertTargetTypeKeyword(IMethodSymbol method)
+    {
+        if (method.ContainingType?.ToDisplayString() != "System.Convert") return null;
+        return method.Name switch
+        {
+            "ToByte" => "byte",
+            "ToSByte" => "sbyte",
+            "ToInt16" => "short",
+            "ToUInt16" => "ushort",
+            "ToInt32" => "int",
+            "ToUInt32" => "uint",
+            "ToInt64" => "long",
+            "ToUInt64" => "ulong",
+            "ToSingle" => "float",
+            "ToDouble" => "double",
+            "ToDecimal" => "decimal",
             _ => null,
         };
     }

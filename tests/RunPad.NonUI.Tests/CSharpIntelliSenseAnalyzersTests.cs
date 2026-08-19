@@ -6840,4 +6840,196 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("'new Version(...)' always throws FormatException at runtime — this literal doesn't have 2 to 4 dot-separated non-negative integer components", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"not a traceparent\", null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ActivityContext.Parse(...)' always throws ArgumentException at runtime — 'not a traceparent' is not a valid W3C traceparent header", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://bad host/\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new UriBuilder(...)' always throws UriFormatException at runtime — 'http://bad host/' is not a valid URI", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M() => \"abc\\uD800def\".Normalize(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'...Normalize(...)' always throws ArgumentException at runtime — this literal contains an unpaired UTF-16 surrogate character", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public string M() => Path.GetFullPath(\"abc\\0def\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Path.GetFullPath(...)' always throws ArgumentException at runtime — the path literal contains an embedded NUL", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"ab\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToChar(...)' always throws FormatException at runtime — 'ab' is not exactly one character long", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToInt32(...)' always throws FormatException at runtime — 'abc' is not a valid XSD numeric literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"bogus\"), d); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CryptographicOperations.HashData(...)' always throws CryptographicException at runtime — 'bogus' is not a known hash algorithm name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws FormatException at runtime — \"not-a-date\" does not match the format \"yyyy-MM-dd\" under CultureInfo.InvariantCulture", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => System.Convert.ToInt32(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToInt32(...)' always throws FormatException at runtime — 'abc' is not a valid int", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public BigInteger M(BigInteger v, BigInteger e) => BigInteger.ModPow(v, e, 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws DivideByZeroException at runtime — modulus cannot be zero", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"###\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CultureInfo.GetCultureInfoByIetfLanguageTag(...)' always throws CultureNotFoundException at runtime — '###' is not a recognized culture name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public XElement M() => new XElement(\"bad name\", \"v\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new XElement(...)' always throws XmlException at runtime — 'bad name' is not a valid expanded XML name", StringComparison.Ordinal));
+    }
 }
