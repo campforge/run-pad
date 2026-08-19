@@ -17,6 +17,20 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // argument was considered for the same "run the real validator" treatment in this проход's PROBE round
 // and dropped — a built-in analyzer already reports "Regex issue: ..." for a syntactically invalid
 // pattern literal, so there was nothing left to add there.
+//
+// EXTENDED проход 440 (TODO #74, candidate #6 from the sixth research subagent survey, Tier 3 — "gap in
+// an existing analyzer, extend rather than new file", explicitly flagged as low-priority/low-novelty by
+// the agent itself) to also match `CultureInfo.GetCultureInfoByIetfLanguageTag(string)` — confirmed via
+// stack-trace reading it's a thin delegate straight to `CultureInfo.GetCultureInfo(name)` internally, so
+// no new validation logic was needed, just one more matched method name reusing the existing real-
+// validator call. Empirically re-confirmed the agent's own characterization of this method as genuinely
+// INCONSISTENT/lenient (not a reason to skip it, since "run the real validator" has no false-positive
+// risk regardless of how lenient the real behavior turns out to be, but worth recording accurately): an
+// EMPTY string does NOT throw, plausible-looking-but-fake tags like `"not-a-real-tag-zzz"` and
+// `"xyz123"` do NOT throw either (silently resolve to something), while `"###"` and an excessively long
+// string DO throw `CultureNotFoundException` — so this extension's real-world hit rate will be lower than
+// the already-shipped `GetCultureInfo`/constructor cases, but it's still a genuine, verified, non-
+// duplicate always-throws pattern for whatever narrow set of literals it does cover.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidCultureNameLiteralAnalyzer : DiagnosticAnalyzer
 {
@@ -54,6 +68,11 @@ public sealed class InvalidCultureNameLiteralAnalyzer : DiagnosticAnalyzer
                 callText = "CultureInfo.GetCultureInfo(...)";
                 symbol = context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol;
                 break;
+            case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.Text: "GetCultureInfoByIetfLanguageTag" } } invocation:
+                argumentList = invocation.ArgumentList;
+                callText = "CultureInfo.GetCultureInfoByIetfLanguageTag(...)";
+                symbol = context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol;
+                break;
             case BaseObjectCreationExpressionSyntax creation:
                 argumentList = creation.ArgumentList;
                 callText = "new CultureInfo(...)";
@@ -69,7 +88,7 @@ public sealed class InvalidCultureNameLiteralAnalyzer : DiagnosticAnalyzer
         if (symbol is not IMethodSymbol method) return;
         var isMatch = method switch
         {
-            { MethodKind: MethodKind.Ordinary, Name: "GetCultureInfo" } => method.ContainingType?.ToDisplayString() == "System.Globalization.CultureInfo",
+            { MethodKind: MethodKind.Ordinary, Name: "GetCultureInfo" or "GetCultureInfoByIetfLanguageTag" } => method.ContainingType?.ToDisplayString() == "System.Globalization.CultureInfo",
             { MethodKind: MethodKind.Constructor } => method.ContainingType?.ToDisplayString() == "System.Globalization.CultureInfo",
             _ => false,
         };

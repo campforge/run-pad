@@ -3100,6 +3100,13 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfo(\"en-US\"); }", false)]
     [InlineData("using System.Globalization; class C { public CultureInfo M() => new CultureInfo(\"!!!invalid!!!\"); }", true)]
     [InlineData("using System.Globalization; class C { public CultureInfo M(string s) => CultureInfo.GetCultureInfo(s); }", false)]
+    // Extended проход 440 (TODO #74, candidate #6 from the sixth research subagent survey) — GetCultureInfoByIetfLanguageTag.
+    [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"###\"); }", true)]
+    [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"\"); }", false)]
+    [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"not-a-real-tag-zzz\"); }", false)]
+    [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"en-US\"); }", false)]
+    [InlineData("using System.Globalization; class C { public CultureInfo M(string x) => CultureInfo.GetCultureInfoByIetfLanguageTag(x); }", false)]
+    [InlineData("class CultureInfo { public static CultureInfo GetCultureInfoByIetfLanguageTag(string s) => default; } class C { public void M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"###\"); }", false)]
     public async Task InvalidCultureNameLiteralAnalyzer_Should_NotFlag_ARecognizedCultureOrNonLiteral(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidCultureNameLiteralAnalyzer(), code);
@@ -4814,6 +4821,10 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, -1, 5); }", true)]
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, 5); }", false)]
     [InlineData("using System.Numerics; class C { public BigInteger M(int e) => BigInteger.Pow(2, e); }", false)]
+    // Extended проход 439 (TODO #74, candidate #5 from the sixth research subagent survey) — ModPow zero modulus.
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, 0); }", true)]
+    [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, -5); }", false)]
+    [InlineData("using System.Numerics; class C { public BigInteger M(BigInteger m) => BigInteger.ModPow(2, 3, m); }", false)]
     public async Task InvalidBigIntegerPowExponentAnalyzer_Should_NotFlag_ANonNegativeExponent(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidBigIntegerPowExponentAnalyzer(), code);
@@ -5861,6 +5872,180 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVersionConstructorLiteralAnalyzer.DiagnosticId));
     }
 
+    // ── Three hundred and fifty-second batch (430-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"\", null); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"not a traceparent\", null); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\", null); }", false)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"00-4BF92F3577B34DA6A3CE929D0E0E4736-00F067AA0BA902B7-01\", null); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"00-00000000000000000000000000000000-00f067aa0ba902b7-01\", null); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\", null); }", true)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\", \"!!!not valid!!!\"); }", false)]
+    [InlineData("using System.Diagnostics; class C { public ActivityContext M(string x) => ActivityContext.Parse(x, null); }", false)]
+    [InlineData("class ActivityContext { public static ActivityContext Parse(string a, string b) => default; } class C { public void M() => ActivityContext.Parse(\"\", null); }", false)]
+    public async Task InvalidActivityContextTraceParentLiteralAnalyzer_Should_FlagOnlyMalformedTraceParents(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidActivityContextTraceParentLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidActivityContextTraceParentLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-third batch (431-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"\"); }", true)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://bad host/\"); }", true)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"   \"); }", true)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://example.com:abc/\"); }", true)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://ex:ample:80/\"); }", true)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://example.com\"); }", false)]
+    [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"example.com\"); }", false)]
+    [InlineData("class C { public System.UriBuilder M(string x) => new System.UriBuilder(x); }", false)]
+    [InlineData("class C { public void M() { System.UriBuilder u = new(\"http://bad host/\"); } }", true)]
+    [InlineData("class C { public System.Uri M() => new System.Uri(\"http://bad host/\"); }", false)]
+    [InlineData("class UriBuilder { public UriBuilder(string s) {} } class C { public void M() => new UriBuilder(\"\"); }", false)]
+    public async Task InvalidUriBuilderLiteralAnalyzer_Should_FlagOnlyMalformedUris(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidUriBuilderLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidUriBuilderLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-fourth batch (432-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("class C { public string M() => \"abc\\uD800def\".Normalize(); }", true)]
+    [InlineData("class C { public string M() => \"abc\\uDC00def\".Normalize(); }", true)]
+    [InlineData("class C { public string M() => \"hello\".Normalize(); }", false)]
+    [InlineData("class C { public string M() => \"\".Normalize(); }", false)]
+    [InlineData("using System.Text; class C { public string M() => \"abc\\uD800def\".Normalize(NormalizationForm.FormKC); }", true)]
+    [InlineData("class C { public bool M() => \"abc\\uD800def\".IsNormalized(); }", true)]
+    [InlineData("class C { public string M(string x) => x.Normalize(); }", false)]
+    [InlineData("class MyString { public string Normalize() => null; } class C { public string M(MyString s) => s.Normalize(); }", false)]
+    [InlineData("class C { public string M() => (\"abc\" + \"\\uD800\" + \"def\").Normalize(); }", true)]
+    public async Task InvalidStringNormalizeLiteralAnalyzer_Should_FlagOnlyUnpairedSurrogateLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStringNormalizeLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringNormalizeLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-fifth batch (433-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.IO; class C { public string M() => Path.GetFullPath(\"abc\\0def\"); }", true)]
+    [InlineData("using System.IO; class C { public FileInfo M() => new FileInfo(\"abc\\0def\"); }", true)]
+    [InlineData("using System.IO; class C { public DirectoryInfo M() => new DirectoryInfo(\"abc\\0def\"); }", true)]
+    [InlineData("using System.IO; class C { public DirectoryInfo M() => Directory.CreateDirectory(\"abc\\0def\"); }", true)]
+    [InlineData("using System.IO; class C { public string M() => Path.GetFullPath(\"not/a/real/path\"); }", false)]
+    [InlineData("using System.IO; class C { public string M() => Path.Combine(\"a\", \"abc\\0def\"); }", false)]
+    [InlineData("using System.IO; class C { public bool M() => File.Exists(\"abc\\0def\"); }", false)]
+    [InlineData("using System.IO; class C { public string M() => Path.GetDirectoryName(\"abc\\0def\"); }", false)]
+    [InlineData("using System.IO; class C { public string M(string x) => Path.GetFullPath(x); }", false)]
+    [InlineData("class Path { public static string GetFullPath(string s) => s; } class C { public void M() => Path.GetFullPath(\"abc\\0def\"); }", false)]
+    public async Task InvalidPathEmbeddedNulLiteralAnalyzer_Should_FlagOnlyEmbeddedNulLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidPathEmbeddedNulLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPathEmbeddedNulLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-sixth batch (434-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"\"); }", true)]
+    [InlineData("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"a\"); }", false)]
+    [InlineData("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"ab\"); }", true)]
+    [InlineData("using System.Xml; class C { public char M(string x) => XmlConvert.ToChar(x); }", false)]
+    [InlineData("class XmlConvert { public static char ToChar(string s) => 'x'; } class C { public void M() => XmlConvert.ToChar(\"\"); }", false)]
+    [InlineData("class C { public char M() => System.Convert.ToChar(\"ab\"); }", false)]
+    public async Task InvalidXmlCharLiteralAnalyzer_Should_FlagOnlyLiteralsNotExactlyOneCharacter(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlCharLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlCharLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-seventh batch (435-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"abc\"); }", true)]
+    [InlineData("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"99999999999999999999\"); }", true)]
+    [InlineData("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"  123  \"); }", false)]
+    [InlineData("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"+123\"); }", false)]
+    [InlineData("using System.Xml; class C { public double M() => XmlConvert.ToDouble(\"INF\"); }", false)]
+    [InlineData("using System.Xml; class C { public double M() => XmlConvert.ToDouble(\"NaN\"); }", false)]
+    [InlineData("using System.Xml; class C { public byte M() => XmlConvert.ToByte(\"999\"); }", true)]
+    [InlineData("using System.Xml; class C { public decimal M() => XmlConvert.ToDecimal(\"abc\"); }", true)]
+    [InlineData("using System.Xml; class C { public int M(string x) => XmlConvert.ToInt32(x); }", false)]
+    [InlineData("class XmlConvert { public static int ToInt32(string s) => 0; } class C { public void M() => XmlConvert.ToInt32(\"abc\"); }", false)]
+    [InlineData("class C { public int M() => int.Parse(\"abc\"); }", false)]
+    [InlineData("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"ab\"); }", false)]
+    public async Task InvalidXmlNumericLiteralAnalyzer_Should_FlagOnlyInvalidXsdNumericLiterals(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXmlNumericLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlNumericLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-eighth batch (436-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"bogus\"), d); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"\"), d); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"SHA256\"), d); }", false)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"sha256\"), d); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public IncrementalHash M() => IncrementalHash.CreateHash(new HashAlgorithmName(\"bogus\")); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public IncrementalHash M(byte[] k) => IncrementalHash.CreateHMAC(new HashAlgorithmName(\"bogus\"), k); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] k, byte[] d) => CryptographicOperations.HmacData(new HashAlgorithmName(\"bogus\"), k, d); }", true)]
+    [InlineData("using System.Security.Cryptography; class C { public byte[] M(string x, byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(x), d); }", false)]
+    [InlineData("class CryptographicOperations { public static byte[] HashData(object a, byte[] d) => d; } class HashAlgorithmName { public HashAlgorithmName(string s) {} } class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"bogus\"), d); }", false)]
+    public async Task InvalidHashAlgorithmNameLiteralAnalyzer_Should_FlagOnlyUnknownAlgorithmNames(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidHashAlgorithmNameLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHashAlgorithmNameLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and fifty-ninth batch (437-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"2024/01/01\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"2024-01-01\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"Januar 01 2024\", \"MMMM dd yyyy\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"Januar 01 2024\", \"MMMM dd yyyy\", CultureInfo.GetCultureInfo(\"de-DE\")); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.CurrentCulture); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(IFormatProvider p) => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", p); }", false)]
+    [InlineData("using System; using System.Globalization; class C { public TimeSpan M() => TimeSpan.ParseExact(\"not-a-timespan\", @\"hh\\:mm\\:ss\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateOnly M() => DateOnly.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public TimeOnly M() => TimeOnly.ParseExact(\"not-a-time\", \"HH:mm:ss\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTimeOffset M() => DateTimeOffset.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", true)]
+    [InlineData("using System; using System.Globalization; class C { public DateTime M(string x) => DateTime.ParseExact(x, \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", false)]
+    [InlineData("using System; class C { public DateTime M() => DateTime.Parse(\"not-a-date\"); }", false)]
+    [InlineData("class DateTime { public static DateTime ParseExact(string a, string b, object c) => default; } class C { public void M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", null); }", false)]
+    public async Task InvalidDateOrTimeParseExactLiteralAnalyzer_Should_FlagOnlyInvariantCultureMismatches(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidDateOrTimeParseExactLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateOrTimeParseExactLiteralAnalyzer.DiagnosticId));
+    }
+
+    // ── Three hundred and sixty-third batch (441-й проход) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Xml.Linq; class C { public XElement M() => new XElement(\"\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XElement M() => new XElement(\"bad name\", \"v\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XElement M() => new XElement(\"\", \"a\", \"b\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XAttribute M() => new XAttribute(\"\", \"v\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XAttribute M() => new XAttribute(\"1bad\", \"v\"); }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XElement M() => new XElement(\"valid\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XAttribute M() => new XAttribute(\"valid\", \"v\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XAttribute M() => new XAttribute(\"{urn:x}local\", \"v\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XElement M(string x) => new XElement(x); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public void M() { XElement e = new(\"\"); } }", true)]
+    [InlineData("using System.Xml.Linq; class C { public XName M() => XName.Get(\"\"); }", false)]
+    [InlineData("class XElement { public XElement(string s) {} } class C { public void M() => new XElement(\"\"); }", false)]
+    [InlineData("using System.Xml.Linq; class C { public XDocument M(XElement e) => new XDocument(e); }", false)]
+    public async Task InvalidXElementOrXAttributeNameLiteralAnalyzer_Should_FlagOnlyInvalidExpandedNames(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidXElementOrXAttributeNameLiteralAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXElementOrXAttributeNameLiteralAnalyzer.DiagnosticId));
+    }
+
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { public void M(Task[] t) => Task.WaitAll(t, -2); }", true)]
     [InlineData("using System.Threading.Tasks; class C { public void M(Task[] t) => Task.WaitAll(t, -1); }", false)]
@@ -5936,6 +6121,16 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public UInt128 M() => UInt128.Parse(\"abc\"); }", true)]
     [InlineData("class C { public int M(string s) => int.Parse(s); }", false)]
     [InlineData("class C { public int M() => int.Parse(\"300\"); }", false)]
+    // Extended проход 438 (TODO #74, candidate #4 from the sixth research subagent survey) — Convert.ToXxx.
+    [InlineData("class C { public int M() => System.Convert.ToInt32(\"abc\"); }", true)]
+    [InlineData("class C { public double M() => System.Convert.ToDouble(\"abc\"); }", true)]
+    [InlineData("class C { public decimal M() => System.Convert.ToDecimal(\"abc\"); }", true)]
+    [InlineData("class C { public byte M() => System.Convert.ToByte(\"abc\"); }", true)]
+    [InlineData("class C { public int M() => System.Convert.ToInt32(\"123\"); }", false)]
+    [InlineData("class C { public char M() => System.Convert.ToChar(\"abc\"); }", false)]
+    [InlineData("class C { public bool M() => System.Convert.ToBoolean(\"abc\"); }", false)]
+    [InlineData("class C { public int M(string x) => System.Convert.ToInt32(x); }", false)]
+    [InlineData("class Convert { public static int ToInt32(string s) => 0; } class C { public void M() => Convert.ToInt32(\"abc\"); }", false)]
     public async Task InvalidNumericParseFormatAnalyzer_Should_NotFlag_ANumericLiteral(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidNumericParseFormatAnalyzer(), code);
