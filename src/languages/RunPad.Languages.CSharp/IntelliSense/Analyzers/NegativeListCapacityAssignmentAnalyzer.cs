@@ -32,6 +32,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // either of those to a smaller-but-non-negative value simply truncates/seeks rather than throwing, so
 // this new check is scoped to `List<T>.Capacity` specifically. The message format is now parameterized
 // with a reason string to describe either condition.
+// Extended again (450-й проход, candidate #7 from the twelfth research subagent survey) to also cover
+// `System.IO.MemoryStream.Capacity = -1` — confirmed empirically as a genuine gap in the lookup table
+// below (`MemoryStream` was only mapped to `Position`, never `Capacity`), same negative-literal-throws
+// mechanism, identical for both an expandable (`new MemoryStream()`) and a fixed-external-buffer
+// (`new MemoryStream(byte[])`) stream. Deliberately does NOT extend to a POSITIVE `Capacity` value that's
+// merely smaller than a fixed-buffer stream's current size (that failure mode is receiver-state-dependent,
+// not literal-invariant — same class of exclusion already documented above for `List<T>.Capacity`'s
+// separate element-count check, which is intentionally its own distinct condition, not generalized here).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
 {
@@ -53,7 +61,7 @@ public sealed class NegativeListCapacityAssignmentAnalyzer : DiagnosticAnalyzer
             [
                 KeyValuePair.Create("System.Collections.Generic.List<T>", ImmutableHashSet.Create("Capacity")),
                 KeyValuePair.Create("System.Text.StringBuilder", ImmutableHashSet.Create("Length")),
-                KeyValuePair.Create("System.IO.MemoryStream", ImmutableHashSet.Create("Position")),
+                KeyValuePair.Create("System.IO.MemoryStream", ImmutableHashSet.Create("Position", "Capacity")),
             ]);
 
     public override void Initialize(AnalysisContext context)
