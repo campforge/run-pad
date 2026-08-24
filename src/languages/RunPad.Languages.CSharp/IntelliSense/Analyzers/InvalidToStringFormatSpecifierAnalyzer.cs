@@ -24,6 +24,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // explicitly deferred back in проход 358, now confirmed empirically (again across culturally-diverse
 // `CurrentCulture` settings) to follow the identical "run the real validator" pattern with their own
 // representative values (`Guid.Empty`/`DateOnly.MinValue`/`TimeOnly.MinValue`).
+// Extended again (446-й проход, candidate #1 from the tenth research subagent survey, re-verified
+// independently before implementing) to also cover `DateTimeOffset`/`BigInteger`/`Int128`/`UInt128`/
+// `Half` — the agent found these missing from the type switch below via a systematic sweep, confirmed
+// empirically to follow the identical pattern (own representative value: `DateTimeOffset.MinValue`/
+// `BigInteger.Zero`/`(Int128)0`/`(UInt128)0`/`(Half)0`), including `DateTimeOffset`'s culture-invariance
+// re-confirmed independently across the same four cultures already used for this file's other types.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidToStringFormatSpecifierAnalyzer : DiagnosticAnalyzer
 {
@@ -92,6 +98,11 @@ public sealed class InvalidToStringFormatSpecifierAnalyzer : DiagnosticAnalyzer
                 "System.Guid" => "Guid",
                 "System.DateOnly" => "DateOnly",
                 "System.TimeOnly" => "TimeOnly",
+                "System.DateTimeOffset" => "DateTimeOffset",
+                "System.Numerics.BigInteger" => "BigInteger",
+                "System.Int128" => "Int128",
+                "System.UInt128" => "UInt128",
+                "System.Half" => "Half",
                 _ => "",
             },
         };
@@ -117,6 +128,11 @@ public sealed class InvalidToStringFormatSpecifierAnalyzer : DiagnosticAnalyzer
                 "Guid" => Guid.Empty.ToString(format),
                 "DateOnly" => DateOnly.MinValue.ToString(format),
                 "TimeOnly" => TimeOnly.MinValue.ToString(format),
+                "DateTimeOffset" => DateTimeOffset.MinValue.ToString(format),
+                "BigInteger" => System.Numerics.BigInteger.Zero.ToString(format),
+                "Int128" => ((Int128)0).ToString(format),
+                "UInt128" => ((UInt128)0).ToString(format),
+                "Half" => ((Half)0).ToString(format),
                 _ => "",
             };
             return false;
