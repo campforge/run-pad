@@ -24,6 +24,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // and `PreferredObjectCreationHandling` (`JsonObjectCreationHandling`, NOT `[Flags]`, also int-backed,
 // valid values `Replace`(0)/`Populate`(1)) — both throw `ArgumentOutOfRangeException` for a value outside
 // their own valid set, confirmed on a freshly-constructed, never-used options instance.
+// Extended (459-й проход, candidate #3 from the twenty-second research subagent survey) to also cover
+// `NewLine` (`string`) — throws `ArgumentOutOfRangeException` unless the value is exactly "\n" or
+// "\r\n" (confirmed "" / " " / "\r" / "ab" all throw); a sibling gap this analyzer's own IndentSize/
+// IndentCharacter checks didn't extend to when they were added.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidJsonSerializerOptionsPropertyAnalyzer : DiagnosticAnalyzer
 {
@@ -36,13 +40,13 @@ public sealed class InvalidJsonSerializerOptionsPropertyAnalyzer : DiagnosticAna
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "JsonSerializerOptions.MaxDepth/DefaultBufferSize/IndentSize/IndentCharacter throw for a value outside their own valid range.");
+        description: "JsonSerializerOptions.MaxDepth/DefaultBufferSize/IndentSize/IndentCharacter/NewLine throw for a value outside their own valid range.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
     private static readonly ImmutableHashSet<string> PropertyNames = ImmutableHashSet.Create(
         "MaxDepth", "DefaultBufferSize", "IndentSize", "IndentCharacter",
-        "NumberHandling", "PreferredObjectCreationHandling");
+        "NumberHandling", "PreferredObjectCreationHandling", "NewLine");
 
     public override void Initialize(AnalysisContext context)
     {
@@ -100,6 +104,9 @@ public sealed class InvalidJsonSerializerOptionsPropertyAnalyzer : DiagnosticAna
                 case "PreferredObjectCreationHandling" when value is int creationHandling:
                     options.PreferredObjectCreationHandling = (System.Text.Json.Serialization.JsonObjectCreationHandling)creationHandling;
                     break;
+                case "NewLine" when value is string newLine:
+                    options.NewLine = newLine;
+                    break;
                 default:
                     return false;
             }
@@ -116,6 +123,7 @@ public sealed class InvalidJsonSerializerOptionsPropertyAnalyzer : DiagnosticAna
                 "IndentCharacter" => "IndentCharacter must be a space or horizontal tab",
                 "NumberHandling" => "NumberHandling must be a valid JsonNumberHandling flags combination (0-7)",
                 "PreferredObjectCreationHandling" => "PreferredObjectCreationHandling must be a defined JsonObjectCreationHandling value",
+                "NewLine" => "NewLine must be exactly \"\\n\" or \"\\r\\n\"",
                 _ => "value is out of range",
             };
             return true;
