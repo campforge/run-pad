@@ -92,14 +92,10 @@ public sealed class InvalidDateTimeFormatInfoCalendarAssignmentAnalyzer : Diagno
 
     private static Calendar? ClassifyGregorian(BaseObjectCreationExpressionSyntax creation, SemanticModel model, System.Threading.CancellationToken ct)
     {
-        if (creation.ArgumentList is not { Arguments: [] or null })
-        {
-            if (creation.ArgumentList is not { Arguments: [{ Expression: var typeArg }] }) return null;
-            if (model.GetConstantValue(typeArg, ct).Value is not int rawType) return null;
-            var type = (GregorianCalendarTypes)rawType;
-            return type == GregorianCalendarTypes.Localized ? null : new GregorianCalendar(type);
-        }
-        return null;
+        if (creation.ArgumentList is not { Arguments: [{ Expression: var typeArg }] }) return null;
+        if (model.GetConstantValue(typeArg, ct).Value is not int rawType) return null;
+        var type = (GregorianCalendarTypes)rawType;
+        return type == GregorianCalendarTypes.Localized ? null : new GregorianCalendar(type);
     }
 
     private static Calendar? TryCreate(string typeName)
