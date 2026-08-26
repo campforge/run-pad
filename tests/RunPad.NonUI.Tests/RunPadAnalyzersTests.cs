@@ -2863,6 +2863,8 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Collections.Generic; class C { public SortedList<int, int> M() => new SortedList<int, int>(5); }", false)]
     [InlineData("using System.IO; class C { public MemoryStream M() => new MemoryStream(-1); }", true)]
     [InlineData("using System.IO; class C { public MemoryStream M() => new MemoryStream(5); }", false)]
+    [InlineData("using System.Collections.Specialized; class C { public NameValueCollection M() => new NameValueCollection(-1); }", true)]
+    [InlineData("using System.Collections.Specialized; class C { public NameValueCollection M() => new NameValueCollection(5); }", false)]
     public async Task NegativeCapacityArgumentAnalyzer_Should_NotFlag_ANonnegativeOrNonLiteralCapacity(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new NegativeCapacityArgumentAnalyzer(), code);
@@ -4506,6 +4508,11 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, -1, 100); }", false)]
     [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, 100, 100); }", false)]
     [InlineData("using System.Threading; class C { public Timer M(int d) => new Timer(_ => { }, null, d, 100); }", false)]
+    [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, -2L, 0L); }", true)]
+    [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, -1L, -1L); }", false)]
+    [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, 0xffffffffL, -1L); }", true)]
+    [InlineData("using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, 0xfffffffeL, -1L); }", false)]
+    [InlineData("using System.Threading; class C { public Timer M(long v) => new Timer(_ => { }, null, v, -1L); }", false)]
     public async Task InvalidTimerConstructorArgumentAnalyzer_Should_NotFlag_AValidDueTimeOrPeriod(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidTimerConstructorArgumentAnalyzer(), code);
@@ -4518,6 +4525,10 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-1, 100); }", false)]
     [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(100, 100); }", false)]
     [InlineData("using System.Threading; class C { public void M(Timer t, int d) => t.Change(d, 100); }", false)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-2L, -1L); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-1L, 0xffffffffL); }", true)]
+    [InlineData("using System.Threading; class C { public void M(Timer t) => t.Change(-1L, 0xfffffffeL); }", false)]
+    [InlineData("using System.Threading; class C { public void M(Timer t, long v) => t.Change(v, -1L); }", false)]
     public async Task InvalidTimerConstructorArgumentAnalyzer_Should_NotFlag_AValidChangeArgument(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidTimerConstructorArgumentAnalyzer(), code);
@@ -6322,6 +6333,12 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Text.Json; using System.Text.Json.Serialization; class C { public void M() { new JsonSerializerOptions().NumberHandling = JsonNumberHandling.Strict; } }", false)]
     [InlineData("using System.Text.Json; using System.Text.Json.Serialization; class C { public void M() { new JsonSerializerOptions().PreferredObjectCreationHandling = (JsonObjectCreationHandling)3; } }", true)]
     [InlineData("using System.Text.Json; using System.Text.Json.Serialization; class C { public void M() { new JsonSerializerOptions().PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().NewLine = \"\"; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().NewLine = \"ab\"; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().NewLine = \"\\r\"; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().NewLine = \"\\n\"; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().NewLine = \"\\r\\n\"; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M(string v) { new JsonSerializerOptions().NewLine = v; } }", false)]
     public async Task InvalidJsonSerializerOptionsPropertyAnalyzer_Should_FlagOnlyOutOfRangeValues(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidJsonSerializerOptionsPropertyAnalyzer(), code);
@@ -6804,6 +6821,462 @@ public class RunPadAnalyzersTests
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidXmlNamespaceManagerReservedPrefixAnalyzer(), code);
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlNamespaceManagerReservedPrefixAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred fourteenth/fifteenth/sixteenth/seventeenth batches (459-й проход continued) —
+    // NewLine extension to RPAD0443 (Theory above) plus three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentSize = -1; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentSize = 0; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentSize = 127; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentSize = 128; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentCharacter = ' '; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentCharacter = '\\t'; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentCharacter = 'a'; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.NewLine = \"\"; } }", true)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.NewLine = \"\\n\"; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.NewLine = \"\\r\\n\"; } }", false)]
+    [InlineData("using System.Text.Json; class C { public void M(int v) { var o = new JsonWriterOptions(); o.IndentSize = v; } }", false)]
+    [InlineData("struct JsonWriterOptions { public int IndentSize; } class C { public void M() { var o = new JsonWriterOptions(); o.IndentSize = -1; } }", false)]
+    public async Task InvalidJsonWriterOptionsPropertyAnalyzer_Should_FlagOnlyOutOfRangeValues(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidJsonWriterOptionsPropertyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidJsonWriterOptionsPropertyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 cert) { new CertificateRevocationListBuilder().Build(cert, -1, DateTimeOffset.UtcNow, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); } }", true)]
+    [InlineData("using System; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 cert) { new CertificateRevocationListBuilder().Build(cert, 0, DateTimeOffset.UtcNow, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); } }", false)]
+    [InlineData("using System; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 cert) { new CertificateRevocationListBuilder().Build(cert, 1, DateTimeOffset.UtcNow, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); } }", false)]
+    [InlineData("using System; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 cert, int n) { new CertificateRevocationListBuilder().Build(cert, n, DateTimeOffset.UtcNow, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); } }", false)]
+    [InlineData("class CertificateRevocationListBuilder { public byte[] Build(object c, System.Numerics.BigInteger n, object a, object b, object d) => null; } class C { public void M() { new CertificateRevocationListBuilder().Build(null, -1, null, null, null); } }", false)]
+    public async Task InvalidCertificateRevocationListCrlNumberAnalyzer_Should_FlagOnlyNegativeCrlNumbers(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidCertificateRevocationListCrlNumberAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCertificateRevocationListCrlNumberAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(-1, 1); } }", true)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0, 1); } }", false)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0x10000, 0); } }", true)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0, -1); } }", true)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0, 0x10000); } }", false)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0, 0x10001); } }", true)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0xFFFF, 1); } }", false)]
+    [InlineData("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(0xFFFF, 2); } }", true)]
+    [InlineData("using System.Text.Unicode; class C { public void M(int v) { var r = new UnicodeRange(v, 1); } }", false)]
+    [InlineData("struct UnicodeRange { public UnicodeRange(int a, int b) {} } class C { public void M() { var r = new UnicodeRange(-1, 1); } }", false)]
+    public async Task InvalidUnicodeRangeConstructorAnalyzer_Should_FlagOnlyOutOfRangeArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidUnicodeRangeConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidUnicodeRangeConstructorAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred eighteenth/nineteenth/twentieth/twenty-first/twenty-second batches
+    // (460-й проход continued) — five new analyzers.
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(-1, 0, 0, 0); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, 0, 0, 0); } }", false)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, -1, 0, 0); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, 0, -1, 0); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, 0, 0, -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, 0, 0, 1); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(0, 0, 0, 16); } }", false)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var b = new MetadataBuilder(v, 0, 0, 0); } }", false)]
+    [InlineData("class MetadataBuilder { public MetadataBuilder(int a, int b, int c, int d) {} } class C { public void M() { var b = new MetadataBuilder(-1, 0, 0, 0); } }", false)]
+    public async Task InvalidMetadataBuilderConstructorAnalyzer_Should_FlagOnlyInvalidOffsets(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMetadataBuilderConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMetadataBuilderConstructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.SetCapacity(TableIndex.Module, -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.SetCapacity(TableIndex.Module, 0); } }", false)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.SetCapacity((TableIndex)56, 0); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.GetRowCount((TableIndex)56); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.GetRowCount(TableIndex.Module); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.SetCapacity(HeapIndex.Guid, -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.SetCapacity((HeapIndex)99, 0); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.ReserveUserString(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.ReserveUserString(0); } }", false)]
+    [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var b = new MetadataBuilder(); b.ReserveUserString(v); } }", false)]
+    public async Task InvalidMetadataBuilderMethodArgumentAnalyzer_Should_FlagOnlyInvalidArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMetadataBuilderMethodArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMetadataBuilderMethodArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new InstructionEncoder(new BlobBuilder()); e.LoadLocal(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new InstructionEncoder(new BlobBuilder()); e.LoadLocal(0); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new InstructionEncoder(new BlobBuilder()); e.LoadArgument(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new InstructionEncoder(new BlobBuilder()); e.StoreArgument(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var e = new InstructionEncoder(new BlobBuilder()); e.LoadLocal(v); } }", false)]
+    public async Task InvalidInstructionEncoderMethodArgumentAnalyzer_Should_FlagOnlyNegativeIndices(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidInstructionEncoderMethodArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidInstructionEncoderMethodArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M() { using var o = MemoryPool<byte>.Shared.Rent(-1); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { using var o = MemoryPool<byte>.Shared.Rent(-2); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { using var o = MemoryPool<byte>.Shared.Rent(0); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { using var o = MemoryPool<byte>.Shared.Rent(1); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(int v) { using var o = MemoryPool<byte>.Shared.Rent(v); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { using var o = MemoryPool<int>.Shared.Rent(-2); } }", true)]
+    public async Task InvalidMemoryPoolRentArgumentAnalyzer_Should_FlagOnlyValuesLessThanNegativeOne(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMemoryPoolRentArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMemoryPoolRentArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"\", false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"a\", false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"ab\", false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"zz\", false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(string v) { var e = new X509SubjectKeyIdentifierExtension(v, false); } }", false)]
+    [InlineData("class X509SubjectKeyIdentifierExtension { public X509SubjectKeyIdentifierExtension(string a, bool b) {} } class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"\", false); } }", false)]
+    public async Task InvalidX509SubjectKeyIdentifierExtensionConstructorAnalyzer_Should_FlagOnlyTooShortValues(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidX509SubjectKeyIdentifierExtensionConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509SubjectKeyIdentifierExtensionConstructorAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred twenty-third/fourth/fifth/sixth batches (461-й проход continued) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 0, 10); } }", true)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 1, 10); } }", false)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 1, 0); } }", true)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 10, 10); } }", true)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(0, 1, 1, 10); } }", false)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspectiveFieldOfView(0, 1, 1, 10); } }", true)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspectiveFieldOfView(1, 1, 1, 10); } }", false)]
+    [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspectiveOffCenter(-1, 1, -1, 1, 0, 10); } }", true)]
+    [InlineData("using System.Numerics; class C { public void M(float v) { var m = Matrix4x4.CreatePerspective(1, 1, v, 10); } }", false)]
+    public async Task InvalidMatrix4x4PerspectiveArgumentAnalyzer_Should_FlagOnlyInvalidDistances(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMatrix4x4PerspectiveArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMatrix4x4PerspectiveArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509BasicConstraintsExtension(true, true, -1, false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509BasicConstraintsExtension(true, true, 0, false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509BasicConstraintsExtension(true, false, -1, false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(bool b) { var e = new X509BasicConstraintsExtension(true, b, -1, false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(int v) { var e = new X509BasicConstraintsExtension(true, true, v, false); } }", false)]
+    public async Task InvalidX509BasicConstraintsExtensionConstructorAnalyzer_Should_FlagOnlyNegativePathLength(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidX509BasicConstraintsExtensionConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509BasicConstraintsExtensionConstructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(fileAlignment: 513); } }", true)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(fileAlignment: 512); } }", false)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(fileAlignment: 65536); } }", false)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(fileAlignment: 131072, sectionAlignment: 131072); } }", true)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(sectionAlignment: 300, fileAlignment: 512); } }", true)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(sectionAlignment: 512, fileAlignment: 1024); } }", true)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(sectionAlignment: 1024, fileAlignment: 1024); } }", false)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M(int v) { var b = new PEHeaderBuilder(fileAlignment: v); } }", false)]
+    [InlineData("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(imageBase: 0); } }", false)]
+    public async Task InvalidPEHeaderBuilderConstructorAnalyzer_Should_FlagOnlyInvalidAlignments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidPEHeaderBuilderConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPEHeaderBuilderConstructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericTypeParameter(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericTypeParameter(0); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericTypeParameter(65536); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericMethodTypeParameter(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().FunctionPointer(genericParameterCount: -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); var h = MetadataTokens.EntityHandle(0x02000001); ps.AddParameter().Type().GenericInstantiation(h, 0, false); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); var h = MetadataTokens.EntityHandle(0x02000001); ps.AddParameter().Type().GenericInstantiation(h, 1, false); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericTypeParameter(v); } }", false)]
+    public async Task InvalidSignatureTypeEncoderArgumentAnalyzer_Should_FlagOnlyOutOfRangeArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSignatureTypeEncoderArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSignatureTypeEncoderArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred twenty-seventh batch (462-й проход continued) — one new analyzer.
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(0); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(codeSize: 1, maxStack: -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(codeSize: 1, maxStack: 65536); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(codeSize: 1, maxStack: 65535); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(codeSize: 1, exceptionRegionCount: -1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(codeSize: 1, exceptionRegionCount: 0); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(v); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var bb = new BlobBuilder(); var ie = new InstructionEncoder(bb); var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(ie, -1, default, default); } }", false)]
+    [InlineData("class MethodBodyStreamEncoder { public void AddMethodBody(int a) {} } class C { public void M() { new MethodBodyStreamEncoder().AddMethodBody(-1); } }", false)]
+    public async Task InvalidMethodBodyStreamEncoderAddMethodBodyAnalyzer_Should_FlagOnlyInvalidArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidMethodBodyStreamEncoderAddMethodBodyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMethodBodyStreamEncoderAddMethodBodyAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred twenty-eighth/ninth/thirtieth batches (463-й проход continued) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Diagnostics; class C { public void M() { var s = new StackTrace(-1); } }", true)]
+    [InlineData("using System.Diagnostics; class C { public void M() { var s = new StackTrace(0); } }", false)]
+    [InlineData("using System.Diagnostics; using System; class C { public void M() { var s = new StackTrace(new Exception(), -1); } }", true)]
+    [InlineData("using System.Diagnostics; class C { public void M() { var s = new StackTrace(-1, true); } }", true)]
+    [InlineData("using System.Diagnostics; class C { public void M(int v) { var s = new StackTrace(v); } }", false)]
+    [InlineData("class StackTrace { public StackTrace(int a) {} } class C { public void M() { var s = new StackTrace(-1); } }", false)]
+    public async Task InvalidStackTraceSkipFramesAnalyzer_Should_FlagOnlyNegativeSkipFrames(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStackTraceSkipFramesAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStackTraceSkipFramesAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetMaxDecodedLength(-1); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetMaxDecodedLength(0); } }", false)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetEncodedLength(1610612733); } }", false)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetEncodedLength(1610612734); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetEncodedLength(-1); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M(int v) { var n = Base64Url.GetMaxDecodedLength(v); } }", false)]
+    public async Task InvalidBase64UrlLengthArgumentAnalyzer_Should_FlagOnlyOutOfRangeArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBase64UrlLengthArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBase64UrlLengthArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Runtime.CompilerServices; class C { public void M() { var p = RuntimeHelpers.AllocateTypeAssociatedMemory(typeof(object), -1); } }", true)]
+    [InlineData("using System.Runtime.CompilerServices; class C { public void M() { var p = RuntimeHelpers.AllocateTypeAssociatedMemory(typeof(object), 0); } }", false)]
+    [InlineData("using System.Runtime.CompilerServices; class C { public void M(int v) { var p = RuntimeHelpers.AllocateTypeAssociatedMemory(typeof(object), v); } }", false)]
+    [InlineData("class RuntimeHelpers { public static System.IntPtr AllocateTypeAssociatedMemory(System.Type t, int s) => default; } class C { public void M() { var p = RuntimeHelpers.AllocateTypeAssociatedMemory(typeof(object), -1); } }", false)]
+    public async Task InvalidRuntimeHelpersAllocateTypeAssociatedMemoryAnalyzer_Should_FlagOnlyNegativeSize(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidRuntimeHelpersAllocateTypeAssociatedMemoryAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRuntimeHelpersAllocateTypeAssociatedMemoryAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred thirty-first/second/third/fourth batches (464-й проход continued) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 100); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 99); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 254); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 255); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(byte v) { var f = new StandardFormat('X', v); } }", false)]
+    [InlineData("struct StandardFormat { public StandardFormat(char s, byte p) {} } class C { public void M() { var f = new StandardFormat('X', 100); } }", false)]
+    public async Task InvalidStandardFormatConstructorAnalyzer_Should_FlagOnlyOutOfRangePrecision(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStandardFormatConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStandardFormatConstructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxDecodedFromUtf8Length(-1); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxDecodedFromUtf8Length(0); } }", false)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxEncodedToUtf8Length(1610612733); } }", false)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxEncodedToUtf8Length(1610612734); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxEncodedToUtf8Length(-1); } }", true)]
+    [InlineData("using System.Buffers.Text; class C { public void M(int v) { var n = Base64.GetMaxDecodedFromUtf8Length(v); } }", false)]
+    public async Task InvalidBase64LengthArgumentAnalyzer_Should_FlagOnlyOutOfRangeArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBase64LengthArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBase64LengthArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(0); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(1); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(); var s = w.GetSpan(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(); var m = w.GetMemory(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(); w.Advance(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(); w.Advance(0); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(int v) { var w = new ArrayBufferWriter<byte>(); w.Advance(v); } }", false)]
+    public async Task InvalidArrayBufferWriterArgumentAnalyzer_Should_FlagOnlyInvalidArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidArrayBufferWriterArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayBufferWriterArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Text; class C { public void M() { var f = new EncoderReplacementFallback(\"\\uD800\"); } }", true)]
+    [InlineData("using System.Text; class C { public void M() { var f = new EncoderReplacementFallback(\"\"); } }", false)]
+    [InlineData("using System.Text; class C { public void M() { var f = new DecoderReplacementFallback(\"\\uDC00\"); } }", true)]
+    [InlineData("using System.Text; class C { public void M() { var f = new DecoderReplacementFallback(\"abc\"); } }", false)]
+    [InlineData("using System.Text; class C { public void M(string v) { var f = new EncoderReplacementFallback(v); } }", false)]
+    [InlineData("class EncoderReplacementFallback { public EncoderReplacementFallback(string s) {} } class C { public void M() { var f = new EncoderReplacementFallback(\"\\uD800\"); } }", false)]
+    public async Task InvalidReplacementFallbackConstructorAnalyzer_Should_FlagOnlyUnpairedSurrogates(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidReplacementFallbackConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidReplacementFallbackConstructorAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred thirty-fifth/sixth/seventh batches (465-й проход continued) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)(-1); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)3; } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)0; } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().TrustMode = (X509ChainTrustMode)2; } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().TrustMode = (X509ChainTrustMode)1; } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().VerificationFlags = (X509VerificationFlags)4096; } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().VerificationFlags = (X509VerificationFlags)4095; } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509RevocationMode m) { new X509ChainPolicy().RevocationMode = m; } }", false)]
+    [InlineData("enum X509RevocationMode { A } class X509ChainPolicy { public X509RevocationMode RevocationMode { get; set; } } class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)(-1); } }", false)]
+    public async Task InvalidX509ChainPolicyPropertyAnalyzer_Should_FlagOnlyUndefinedEnumValues(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidX509ChainPolicyPropertyAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509ChainPolicyPropertyAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M(byte[] a) { var s = new ReadOnlySequence<byte>(a, -1, 1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(byte[] a) { var s = new ReadOnlySequence<byte>(a, 0, -1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(byte[] a) { var s = new ReadOnlySequence<byte>(a, 0, 1); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(ReadOnlySequence<byte> s) { var t = s.Slice(-1, 1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(ReadOnlySequence<byte> s) { var t = s.Slice(0, -1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(ReadOnlySequence<byte> s) { var t = s.Slice(0, 1); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(byte[] a, int v) { var s = new ReadOnlySequence<byte>(a, v, 1); } }", false)]
+    public async Task InvalidReadOnlySequenceArgumentAnalyzer_Should_FlagOnlyNegativeArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidReadOnlySequenceArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidReadOnlySequenceArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new VectorEncoder(new BlobBuilder()); e.Count(-1); } }", true)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new VectorEncoder(new BlobBuilder()); e.Count(0); } }", false)]
+    [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M(int v) { var e = new VectorEncoder(new BlobBuilder()); e.Count(v); } }", false)]
+    [InlineData("class VectorEncoder { public void Count(int c) {} } class C { public void M() { new VectorEncoder().Count(-1); } }", false)]
+    public async Task InvalidVectorEncoderCountAnalyzer_Should_FlagOnlyNegativeCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidVectorEncoderCountAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVectorEncoderCountAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred thirty-eighth/ninth/fortieth batches (466-й проход continued) — three new analyzers.
+
+    [Theory]
+    [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Advance(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Advance(0); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Rewind(-1); } }", true)]
+    [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Rewind(0); } }", false)]
+    [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r, long v) { r.Advance(v); } }", false)]
+    public async Task InvalidSequenceReaderArgumentAnalyzer_Should_FlagOnlyNegativeCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidSequenceReaderArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSequenceReaderArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c) { c.Find((X509FindType)99, \"x\", false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c) { c.Find((X509FindType)(-1), \"x\", false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c) { c.Find(X509FindType.FindBySubjectName, \"x\", false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c) { c.Find((X509FindType)99, null, false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c, X509FindType t) { c.Find(t, \"x\", false); } }", false)]
+    public async Task InvalidX509Certificate2CollectionFindAnalyzer_Should_FlagOnlyUndefinedFindType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidX509Certificate2CollectionFindAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509Certificate2CollectionFindAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.IO; class C { public void M(BinaryReader r) { var b = r.ReadBytes(-1); } }", true)]
+    [InlineData("using System.IO; class C { public void M(BinaryReader r) { var b = r.ReadBytes(0); } }", false)]
+    [InlineData("using System.IO; class C { public void M(BinaryReader r, int v) { var b = r.ReadBytes(v); } }", false)]
+    [InlineData("class BinaryReader { public byte[] ReadBytes(int c) => null; } class C { public void M() { new BinaryReader().ReadBytes(-1); } }", false)]
+    public async Task InvalidBinaryReaderReadBytesArgumentAnalyzer_Should_FlagOnlyNegativeCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBinaryReaderReadBytesArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBinaryReaderReadBytesArgumentAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred forty-first/second/third/fourth batches (467-й проход continued) — four new analyzers.
+
+    [Theory]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var m = BitVector32.CreateMask(int.MinValue); } }", true)]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var m = BitVector32.CreateMask(0); } }", false)]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var m = BitVector32.CreateMask(-1); } }", false)]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var s = BitVector32.CreateSection(0); } }", true)]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var s = BitVector32.CreateSection(-1); } }", true)]
+    [InlineData("using System.Collections.Specialized; class C { public void M() { var s = BitVector32.CreateSection(1); } }", false)]
+    [InlineData("using System.Collections.Specialized; class C { public void M(int v) { var m = BitVector32.CreateMask(v); } }", false)]
+    public async Task InvalidBitVector32ArgumentAnalyzer_Should_FlagOnlyInvalidArguments(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBitVector32ArgumentAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBitVector32ArgumentAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Reflection; class C { public void M() { var p = new ParameterModifier(0); } }", true)]
+    [InlineData("using System.Reflection; class C { public void M() { var p = new ParameterModifier(-1); } }", true)]
+    [InlineData("using System.Reflection; class C { public void M() { var p = new ParameterModifier(1); } }", false)]
+    [InlineData("using System.Reflection; class C { public void M(int v) { var p = new ParameterModifier(v); } }", false)]
+    public async Task InvalidParameterModifierConstructorAnalyzer_Should_FlagOnlyNonPositiveCount(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidParameterModifierConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidParameterModifierConstructorAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.IO; using System.Text; class C { public void M(Stream s) { var r = new StreamReader(s, Encoding.UTF8, true, -1); } }", false)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(Stream s) { var r = new StreamReader(s, Encoding.UTF8, true, 0); } }", true)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(Stream s) { var w = new StreamWriter(s, Encoding.UTF8, -1); } }", false)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(Stream s) { var w = new StreamWriter(s, Encoding.UTF8, 0); } }", true)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(string path) { var r = new StreamReader(path, Encoding.UTF8, true, -1); } }", true)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(string path) { var w = new StreamWriter(path, true, Encoding.UTF8, -1); } }", true)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(string path) { var r = new StreamReader(path, Encoding.UTF8, true, 1); } }", false)]
+    [InlineData("using System.IO; using System.Text; class C { public void M(Stream s, int v) { var r = new StreamReader(s, Encoding.UTF8, true, v); } }", false)]
+    public async Task InvalidStreamReaderWriterBufferSizeAnalyzer_Should_FlagOnlyInvalidBufferSizes(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidStreamReaderWriterBufferSizeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStreamReaderWriterBufferSizeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.IO; class C { public void M(Stream s) { var b = new BufferedStream(s, 0); } }", true)]
+    [InlineData("using System.IO; class C { public void M(Stream s) { var b = new BufferedStream(s, -1); } }", true)]
+    [InlineData("using System.IO; class C { public void M(Stream s) { var b = new BufferedStream(s, 1); } }", false)]
+    [InlineData("using System.IO; class C { public void M(Stream s, int v) { var b = new BufferedStream(s, v); } }", false)]
+    public async Task InvalidBufferedStreamConstructorAnalyzer_Should_FlagOnlyNonPositiveBufferSize(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidBufferedStreamConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBufferedStreamConstructorAnalyzer.DiagnosticId));
+    }
+
+    // ── Four hundred forty-sixth/seventh batches (469-й проход continued) — two new analyzers.
+
+    [Theory]
+    [InlineData("using System.Runtime.InteropServices; class C { public void M() { var h = GCHandle.Alloc(new object(), (GCHandleType)4); } }", true)]
+    [InlineData("using System.Runtime.InteropServices; class C { public void M() { var h = GCHandle.Alloc(new object(), (GCHandleType)(-1)); } }", true)]
+    [InlineData("using System.Runtime.InteropServices; class C { public void M() { var h = GCHandle.Alloc(new object(), GCHandleType.Normal); h.Free(); } }", false)]
+    [InlineData("using System.Runtime.InteropServices; class C { public void M(GCHandleType t) { var h = GCHandle.Alloc(new object(), t); } }", false)]
+    public async Task InvalidGCHandleAllocTypeAnalyzer_Should_FlagOnlyUndefinedGCHandleType(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidGCHandleAllocTypeAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGCHandleAllocTypeAnalyzer.DiagnosticId));
+    }
+
+    [Theory]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509Extension(\"\", new byte[] { 1, 2 }, false); } }", true)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509Extension(\"1.2.3\", new byte[] { 1, 2 }, false); } }", false)]
+    [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(string oid) { var e = new X509Extension(oid, new byte[] { 1, 2 }, false); } }", false)]
+    public async Task InvalidX509ExtensionConstructorAnalyzer_Should_FlagOnlyEmptyOid(string code, bool expectFlagged)
+    {
+        var diagnostics = await GetDiagnosticsAsync(new InvalidX509ExtensionConstructorAnalyzer(), code);
+        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509ExtensionConstructorAnalyzer.DiagnosticId));
     }
 
     [Theory]
