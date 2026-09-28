@@ -68,6 +68,15 @@ internal sealed class RoslynCodeFixEngine
     private Document? _refactoringDocument;
     private Dictionary<string, CodeAction> _refactoringActions = new();
 
+    // Refactoring providers that only make sense for a multi-file project on disk. MoveType offers
+    // "Move type to C.cs", "Rename file to C.cs" and — keyed to CSharpIntelliSenseService's synthetic
+    // document name — "Rename type to Script" on every type declaration (confirmed via a live probe,
+    // TODO.md pass 102 note). A .rpad script is one self-contained file the user never sees as
+    // Script.cs, so all three are meaningless there. Matched by the provider's own type name
+    // (MoveTypeCodeRefactoringProvider is internal to Microsoft.CodeAnalysis.Features, no public type
+    // to compare against) rather than by titles — covers every variant the provider can produce.
+    private static readonly HashSet<string> ExcludedRefactoringProviderTypeNames = ["MoveTypeCodeRefactoringProvider"];
+
     public RoslynCodeFixEngine(CompositionHost compositionHost, ILogger logger)
     {
         _logger = logger;
@@ -91,6 +100,7 @@ internal sealed class RoslynCodeFixEngine
         var refactoringProviders = new List<CodeRefactoringProvider>();
         foreach (var provider in compositionHost.GetExports<CodeRefactoringProvider>())
         {
+            if (ExcludedRefactoringProviderTypeNames.Contains(provider.GetType().Name)) continue;
             var languages = provider.GetType().GetCustomAttribute<ExportCodeRefactoringProviderAttribute>()?.Languages;
             if (languages != null && languages.Contains(LanguageNames.CSharp))
                 refactoringProviders.Add(provider);
@@ -197,7 +207,7 @@ internal sealed class RoslynCodeFixEngine
                 foreach (var leaf in actions.SelectMany(Flatten))
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (MentionsSyntheticWrapper(leaf.Title)) continue;
+                    if (IsUnsupportedLeaf(leaf)) continue;
 
                     var materialized = await TryMaterializeAsync(leaf, document, preambleLength, userCode.Length, ct);
                     if (materialized is { } m && m.NewCode == userCode && m.UsingsToAdd.Count == 1)
@@ -253,7 +263,7 @@ internal sealed class RoslynCodeFixEngine
                 ct.ThrowIfCancellationRequested();
                 foreach (var leaf in Flatten(action))
                 {
-                    if (MentionsSyntheticWrapper(leaf.Title)) continue;
+                    if (IsUnsupportedLeaf(leaf)) continue;
 
                     // No underlying diagnostic (there isn't one) to derive a severity — or a
                     // DiagnosticId (ICodeFixInfo's own doc comment) — from, so both get the same
@@ -322,7 +332,7 @@ internal sealed class RoslynCodeFixEngine
             ct.ThrowIfCancellationRequested();
             foreach (var leaf in Flatten(action))
             {
-                if (MentionsSyntheticWrapper(leaf.Title)) continue;
+                if (IsUnsupportedLeaf(leaf)) continue;
 
                 var key = Guid.NewGuid().ToString("N");
                 cache[key] = leaf;
@@ -348,6 +358,14 @@ internal sealed class RoslynCodeFixEngine
     // provider that could theoretically reference the enclosing type by name.
     private static bool MentionsSyntheticWrapper(string title) =>
         title.Contains(RpadKindTransform.ProgramWrapperClassName, StringComparison.Ordinal);
+
+    // CodeActionWithOptions ("Generate overrides...", "Extract interface...", ...) needs an
+    // interactive options dialog from the host (VS's member picker etc.) before it can produce any
+    // operations. RunPad hosts none, so GetOperationsAsync comes back without an ApplyChangesOperation
+    // and the click silently does nothing (confirmed via a live probe: "Generate overrides..." on
+    // `class C { }` materialized to null). Filtered at listing time so such items never appear.
+    private static bool IsUnsupportedLeaf(CodeAction leaf) =>
+        leaf is CodeActionWithOptions || MentionsSyntheticWrapper(leaf.Title);
 
     // No longer static — needs _logger. Used to be a bare `catch { return null; }` with zero
     // logging, unlike CollectCandidatesAsync's own catch around RegisterCodeFixesAsync right above
