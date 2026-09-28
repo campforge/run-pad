@@ -59,6 +59,21 @@ public sealed class PreferInstanceToStringOverConvertToStringForNumericAnalyzer 
         if (method.ContainingType?.ToDisplayString() != "System.Convert") return;
 
         var hasProvider = arguments.Count == 2;
+        if (hasProvider)
+        {
+            // Convert.ToString also has numeric overloads taking an int `toBase` (e.g.
+            // Convert.ToString(int, int)) — same argument count, but not an equivalent x.ToString(toBase)
+            // rewrite (no such overload exists on the numeric types), so only the genuine (value,
+            // IFormatProvider) overload qualifies here. Matched by name/namespace, not ToDisplayString()
+            // equality — the real BCL parameter is the nullable-annotated `IFormatProvider?`, which
+            // ToDisplayString()s as "System.IFormatProvider?", not a plain "System.IFormatProvider".
+            if (method.Parameters is not [_, { Type: { Name: "IFormatProvider" } secondParamType }]
+                || secondParamType.ContainingNamespace?.ToDisplayString() != "System")
+            {
+                return;
+            }
+        }
+
         var value = arguments[0].Expression;
 
         var valueType = context.SemanticModel.GetTypeInfo(value, ct).Type;

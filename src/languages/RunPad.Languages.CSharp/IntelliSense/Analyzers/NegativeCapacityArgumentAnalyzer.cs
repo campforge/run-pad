@@ -20,6 +20,18 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // negative-capacity constructor throw, just a newer collection type (.NET 6+, within this project's own
 // SDK floor). Its constructor parameter is named `initialCapacity` rather than `capacity`, so the
 // parameter-name check now accepts either spelling.
+// Extended again (триста двадцать второй проход, batch) to also cover `SortedList<TKey, TValue>(int
+// capacity)` — confirmed empirically (both the throw and, via reflection, the exact constructor parameter
+// name `"capacity"`, matching the existing check unchanged) — simply added to `TargetTypes`.
+// Extended again (триста сорок третий проход, batch) to also cover `System.IO.MemoryStream(int
+// capacity)` — confirmed via reflection (not assumed) that its constructor parameter is also literally
+// named `"capacity"`, and confirmed empirically it throws identically — simply added to `TargetTypes`.
+// Extended again (469-й проход, batch, candidate #1 from the thirty-first research subagent survey) to
+// also cover `System.Collections.Specialized.NameValueCollection(int capacity)` — confirmed via
+// reflection its constructor parameter is also literally named `"capacity"`, and confirmed empirically
+// it throws identically — simply added to `TargetTypes`. `HybridDictionary(int)` was checked alongside
+// this and does NOT throw for a negative value (declined); `StringDictionary` has no capacity-taking
+// constructor overload at all (declined).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -32,7 +44,7 @@ public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "List<T>, Dictionary<TKey,TValue>, HashSet<T>, Queue<T>, Stack<T>, PriorityQueue<TElement,TPriority>, and StringBuilder all throw ArgumentOutOfRangeException when constructed with a negative capacity.");
+        description: "List<T>, Dictionary<TKey,TValue>, HashSet<T>, Queue<T>, Stack<T>, PriorityQueue<TElement,TPriority>, SortedList<TKey,TValue>, StringBuilder, MemoryStream, and NameValueCollection all throw ArgumentOutOfRangeException when constructed with a negative capacity.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -43,7 +55,10 @@ public sealed class NegativeCapacityArgumentAnalyzer : DiagnosticAnalyzer
         "System.Collections.Generic.Queue<T>",
         "System.Collections.Generic.Stack<T>",
         "System.Collections.Generic.PriorityQueue<TElement, TPriority>",
-        "System.Text.StringBuilder");
+        "System.Collections.Generic.SortedList<TKey, TValue>",
+        "System.Text.StringBuilder",
+        "System.IO.MemoryStream",
+        "System.Collections.Specialized.NameValueCollection");
 
     public override void Initialize(AnalysisContext context)
     {

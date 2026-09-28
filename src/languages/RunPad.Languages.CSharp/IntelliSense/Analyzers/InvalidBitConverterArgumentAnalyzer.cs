@@ -19,6 +19,15 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `BitConverter.ToInt32(new byte[4], 3)` (valid index, only 1 byte left of 4 needed) throws
 // ArgumentException. Scoped to a LITERAL array (known length, same helper as
 // InvalidGuidByteArrayLengthAnalyzer/RPAD0266) and a literal (constant) `startIndex`.
+// Extended in the триста седьмой проход to also cover the 3-argument `BitConverter.ToString(byte[]
+// value, int startIndex, int length)` — a genuinely different method (not in the ToXxx family above,
+// takes an explicit `length` instead of an implied fixed byte count) with a SUBTLER boundary than the
+// two-argument family: confirmed empirically (scratch `dotnet run` script) that `startIndex ==
+// array.Length` is fine when the array is EMPTY (both zero) but throws `ArgumentOutOfRangeException` for
+// any NON-empty array — rather than hand-coding that edge case, this path constructs a same-LENGTH
+// placeholder `byte[]` (content is irrelevant — the boundary check only depends on length) and calls the
+// REAL `BitConverter.ToString` as the validator, same "run the real validator" technique used elsewhere
+// in this catalog, avoiding the risk of getting the edge case wrong by hand.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidBitConverterArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -54,6 +63,48 @@ public sealed class InvalidBitConverterArgumentAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.InvocationExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeToString, SyntaxKind.InvocationExpression);
+    }
+
+    private static void AnalyzeToString(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "ToString" })
+            return;
+        if (invocation.ArgumentList.Arguments is not [{ Expression: var arrayArg }, { Expression: var startIndexArg }, { Expression: var lengthArg }])
+            return;
+
+        var ct = context.CancellationToken;
+        var arrayLength = TryGetArrayLength(arrayArg, context.SemanticModel, ct);
+        if (arrayLength is null) return;
+        if (context.SemanticModel.GetConstantValue(startIndexArg, ct).Value is not int startIndex) return;
+        if (context.SemanticModel.GetConstantValue(lengthArg, ct).Value is not int length) return;
+
+        if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "ToString" } method)
+            return;
+        if (method.ContainingType?.ToDisplayString() != "System.BitConverter") return;
+
+        var exceptionType = ToStringAlwaysThrows(arrayLength.Value, startIndex, length);
+        if (exceptionType is null) return;
+
+        context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation(), "ToString", exceptionType, arrayLength.Value, startIndex, length));
+    }
+
+    private static string? ToStringAlwaysThrows(int arrayLength, int startIndex, int length)
+    {
+        try
+        {
+            _ = BitConverter.ToString(new byte[arrayLength], startIndex, length);
+            return null;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return "ArgumentOutOfRangeException";
+        }
+        catch (ArgumentException)
+        {
+            return "ArgumentException";
+        }
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
