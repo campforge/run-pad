@@ -140,4 +140,32 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // A diagnostic with no source position (line 0 — "CSC : error CS5001", MSBuild-level errors) must
+    // not be printed with a fake "(0,0):" location.
+    [Theory]
+    [InlineData(1, 5, "CS0103", "(1,5): error CS0103: boom")]
+    [InlineData(0, 0, "CS5001", "error CS5001: boom")]
+    [InlineData(0, 0, "", "error: boom")]
+    public async Task RunAsync_Should_FormatCompileErrors_OmittingAMissingPosition(
+        int line, int column, string code, string expected)
+    {
+        var result = new ProcessCompilerResult(
+            OutputBinaryFile: "",
+            Success: false,
+            Errors: [new ResultItem(code, "", new LineSymbol((uint)line, (uint)column), "boom")],
+            Warnings: []);
+        var (host, _) = CreateHost(RpadKind.Statements, result, out var outputDir);
+        try
+        {
+            var output = new List<(string Text, OutputKind Kind)>();
+
+            await host.RunAsync("x", (text, kind) => output.Add((text, kind)), TestContext.Current.CancellationToken);
+
+            var line0 = Assert.Single(output);
+            Assert.Equal(expected, line0.Text);
+            Assert.Equal(OutputKind.StandardError, line0.Kind);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }
