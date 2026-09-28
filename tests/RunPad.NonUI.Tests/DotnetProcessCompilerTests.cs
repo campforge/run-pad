@@ -359,4 +359,46 @@ public class DotnetProcessCompilerTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // TODO.md pass 97 leftover: MSBuild-level errors carry no "(line,col)" — e.g. "CSC : error CS5001:
+    // Program does not contain a static 'Main' method..." for a script with no entry point. The
+    // positioned-only regex used to miss them entirely: Success = false with an EMPTY Errors list, so
+    // Run failed silently. Real `dotnet build`, not a canned string — the exact output shape is the bug.
+    [Fact]
+    public async Task Compilation_Should_ReportErrorsThatHaveNoSourcePosition()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
+        try
+        {
+            using var compiler = CreateCompiler(outputDir);
+
+            var result = await compiler.Compilation("namespace X { class Y { } }", CancellationToken.None);
+
+            Assert.False(result.Success);
+            var error = Assert.Single(result.Errors);
+            Assert.Equal("CS5001", error.Code);
+            Assert.Equal(new LineSymbol(0, 0), error.LineSymbol);
+            Assert.DoesNotContain(".csproj]", error.Message);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // MSBuild repeats every diagnostic in its closing "Build FAILED." summary — without de-duplication
+    // each compile error showed up twice in Results.
+    [Fact]
+    public async Task Compilation_Should_NotReportTheSameErrorTwice()
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
+        try
+        {
+            using var compiler = CreateCompiler(outputDir);
+
+            var result = await compiler.Compilation("System.Console.WriteLine(undefinedName);", CancellationToken.None);
+
+            Assert.False(result.Success);
+            var error = Assert.Single(result.Errors);
+            Assert.Equal("CS0103", error.Code);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }
