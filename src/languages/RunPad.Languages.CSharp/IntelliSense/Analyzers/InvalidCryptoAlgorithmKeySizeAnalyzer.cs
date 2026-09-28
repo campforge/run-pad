@@ -35,6 +35,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // analyzer already covered (an invocation, not a property assignment), confirmed empirically to throw
 // the same `CryptographicException` for the same reason. `Aes`/`DES`/`TripleDES` have no equivalent
 // `Create(int)` overload (only the parameterless `Create()`), so this extension is RSA-specific.
+// Extended again (470-й проход, batch, candidate #1 from the thirty-third research subagent survey) to
+// also cover `DSA.Create(int keySizeInBits)` — the exact same `Create(int)` shape as `RSA.Create(int)`,
+// confirmed empirically to throw the same `CryptographicException` for the same reason (this machine's
+// real DSA backend rejects an invalid size, same "run the real validator" pattern as everywhere else in
+// this analyzer — inherently platform-safe since whatever the analysis machine's backend accepts is
+// exactly what gets checked, no boundary hardcoded). Confirmed `[UnsupportedOSPlatform("browser"/"ios"/
+// "tvos")]` gating, same shape as `RSA.Create(int)`, fine for RunPad's desktop-only targets.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
 {
@@ -56,11 +63,14 @@ public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor CreateRule = new(
         DiagnosticId,
         title: "Crypto algorithm key/block size is invalid",
-        messageFormat: "'RSA.Create({0})' always throws CryptographicException at runtime — {0} is not a valid key size for RSA",
+        // {0}=type name, {1}=size — for the original RSA-only shape this formats byte-for-byte
+        // identically to the old hardcoded-RSA template ("'RSA.Create(1)' ... 1 is not a valid key
+        // size for RSA"), so no existing permanent test needed updating when DSA was added.
+        messageFormat: "'{0}.Create({1})' always throws CryptographicException at runtime — {1} is not a valid key size for {0}",
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property, or calling RSA.Create(int) with an unsupported key size, throws CryptographicException.");
+        description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property, or calling RSA.Create(int)/DSA.Create(int) with an unsupported key size, throws CryptographicException.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule, CreateRule];
 
@@ -92,11 +102,13 @@ public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
         {
             return;
         }
-        if (containingType.ToDisplayString() != "System.Security.Cryptography.RSA") return;
+        var typeName = containingType.ToDisplayString();
+        if (typeName is not ("System.Security.Cryptography.RSA" or "System.Security.Cryptography.DSA")) return;
 
-        if (!AlwaysThrows("System.Security.Cryptography.RSA", "KeySize", size)) return;
+        if (!AlwaysThrows(typeName, "KeySize", size)) return;
 
-        context.ReportDiagnostic(Diagnostic.Create(CreateRule, invocation.GetLocation(), size));
+        var shortTypeName = typeName[(typeName.LastIndexOf('.') + 1)..];
+        context.ReportDiagnostic(Diagnostic.Create(CreateRule, invocation.GetLocation(), shortTypeName, size));
     }
 
     private static void Analyze(SyntaxNodeAnalysisContext context)
@@ -165,6 +177,12 @@ public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
                     using (var rsa = RSA.Create())
                     {
                         rsa.KeySize = size;
+                    }
+                    break;
+                case "System.Security.Cryptography.DSA":
+                    using (var dsa = DSA.Create())
+                    {
+                        dsa.KeySize = size;
                     }
                     break;
             }
