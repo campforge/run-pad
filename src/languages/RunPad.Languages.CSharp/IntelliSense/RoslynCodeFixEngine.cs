@@ -133,7 +133,9 @@ internal sealed class RoslynCodeFixEngine
             {
                 ct.ThrowIfCancellationRequested();
 
-                var userLine = GetLineNumber(userCode, diagnostic.Location.SourceSpan.Start - preambleLength);
+                var userLine = diagnostic.Id == RemoveUnnecessaryImportsFixableId
+                    ? FirstUnnecessaryUserUsingLine(diagnostics, userCode, preambleLength)
+                    : GetLineNumber(userCode, diagnostic.Location.SourceSpan.Start - preambleLength);
                 if (userLine < 1) continue;
 
                 foreach (var provider in providers)
@@ -446,6 +448,10 @@ internal sealed class RoslynCodeFixEngine
         var userCodeChanges = new List<TextChange>();
         var userCodeEnd = preambleLength + userCodeLength;
 
+        if (changes.Count > 0 && changes.All(c => string.IsNullOrEmpty(c.NewText))
+            && changes.Any(c => c.Span.Start < preambleLength))
+            return ApplyLineDeletionsAcrossPreamble(changes, originalFullText, preambleLength, userCodeLength);
+
         foreach (var change in changes.OrderBy(c => c.Span.Start))
         {
             if (change.Span.Start >= preambleLength)
@@ -481,6 +487,89 @@ internal sealed class RoslynCodeFixEngine
 
         var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
         return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
+    }
+
+    // Deletion-only fixes that also touch the preamble — "Remove unnecessary usings" removes the
+    // preamble's own unused default usings together with the user's (live probe: one TextChange,
+    // [20..207) -> "" with preambleLength 184). Such a minimal diff can't be split at preambleLength:
+    // its boundaries are shifted by whatever text the deleted and surviving lines share ("using "),
+    // so the part past preambleLength isn't the user's deleted line at all. Instead, the fix's result
+    // is matched line by line against the original: every surviving line must still be there in
+    // order (a pure line deletion), deleted preamble lines are ignored — the preamble is regenerated
+    // on every sync and leaving an unneeded using there can't change what the user's code means —
+    // and only deleted user-code lines are applied. Anything that isn't whole-line deletion bails out.
+    private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyLineDeletionsAcrossPreamble(
+        List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
+    {
+        var originalText = originalFullText.ToString();
+        var newLines = SplitLinesKeepingTerminators(originalFullText.WithChanges(changes).ToString());
+        var userCodeEnd = preambleLength + userCodeLength;
+        var userCodeChanges = new List<TextChange>();
+
+        var next = 0;
+        var offset = 0;
+        foreach (var line in SplitLinesKeepingTerminators(originalText))
+        {
+            if (next < newLines.Count && newLines[next] == line)
+            {
+                next++;
+            }
+            else if (offset >= preambleLength && offset < userCodeEnd)
+            {
+                // The user's last line can run on into synthetic trailing text (TrailingPad/KindSuffix)
+                // — only its user-code part is deleted, same clamping rule as the regular path.
+                var end = Math.Min(offset + line.Length, userCodeEnd);
+                userCodeChanges.Add(new TextChange(new TextSpan(offset - preambleLength, end - offset), ""));
+            }
+
+            offset += line.Length;
+        }
+
+        if (next != newLines.Count)
+        {
+            _logger.LogDebug("Discarding fix: preamble-touching deletion isn't a whole-line deletion");
+            return null;
+        }
+
+        var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
+        return (userText.WithChanges(userCodeChanges).ToString(), []);
+    }
+
+    private static List<string> SplitLinesKeepingTerminators(string text)
+    {
+        var lines = new List<string>();
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '\n') continue;
+            lines.Add(text[start..(i + 1)]);
+            start = i + 1;
+        }
+        if (start < text.Length) lines.Add(text[start..]);
+        return lines;
+    }
+
+    // TODO.md #74 / pass 103 gap: "Remove unnecessary usings" is registered by Roslyn not on IDE0005
+    // itself but on a companion "RemoveUnnecessaryImportsFixable" diagnostic whose span covers the
+    // WHOLE using region of the synthetic document — starting at 0, inside the hidden preamble — so the
+    // plain "start before user code, skip" rule always discarded it. Its lightbulb instead goes on the
+    // first user-code line actually covered by an IDE0005 (fading) diagnostic; confirmed via a live
+    // probe that IDE0005 arrives as one merged span that can start in the preamble and run into the
+    // user's own usings (e.g. [14..200) with preambleLength 184). No such line — only preamble usings
+    // are unnecessary — means nothing the user could see would change, so no lightbulb at all.
+    private const string RemoveUnnecessaryImportsFixableId = "RemoveUnnecessaryImportsFixable";
+    private const string RemoveUnnecessaryImportsId = "IDE0005";
+
+    private static int FirstUnnecessaryUserUsingLine(
+        IReadOnlyList<Diagnostic> diagnostics, string userCode, int preambleLength)
+    {
+        var lines = diagnostics
+            .Where(d => d.Id == RemoveUnnecessaryImportsId && d.Location.IsInSource
+                && d.Location.SourceSpan.End > preambleLength)
+            .Select(d => GetLineNumber(userCode, Math.Max(d.Location.SourceSpan.Start, preambleLength) - preambleLength))
+            .Where(line => line >= 1)
+            .ToList();
+        return lines.Count > 0 ? lines.Min() : -1;
     }
 
     private static int GetLineNumber(string code, int offset)
