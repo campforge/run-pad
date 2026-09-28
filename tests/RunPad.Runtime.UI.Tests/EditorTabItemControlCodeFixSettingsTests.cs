@@ -198,7 +198,7 @@ public class EditorTabItemControlCodeFixSettingsTests
 
         // Waits specifically for the CodeFixesChanged firing that matches THIS code (the
         // diagnostic-driven half), rather than polling margin.Fixes for "any entry": a
-        // caret-position-triggered refactoring (Generate overrides, Rename type to Script, ...) can
+        // caret-position-triggered refactoring (Generate constructor, Add 'DebuggerDisplay' attribute, ...) can
         // and does arrive first for this same code/caret, and an earlier CodeFixesChanged firing for
         // the control's initial empty document would also satisfy a same-event-but-wrong-code check —
         // either would race a false pass before the diagnostic-fix pass this test actually cares
