@@ -3160,4 +3160,5556 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("'Array.ConstrainedCopy(...)' always throws ArgumentOutOfRangeException at runtime — sourceIndex cannot be negative", StringComparison.Ordinal));
     }
+
+    // TODO.md #74 (двести восемьдесят третий проход, batch) — one new analyzer this batch
+    // (InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer/RPAD0271).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public Span<byte> M() => new byte[3].AsSpan(1, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'AsSpan(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidConvertToBase64StringArgumentAnalyzer/RPAD0272).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M() => Convert.ToBase64String(new byte[3], 0, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToBase64String(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят пятый проход, batch) — one new analyzer this batch
+    // (InvalidStringBuilderMaxCapacityArgumentAnalyzer/RPAD0273). Confirmed via PROBE that a negative
+    // capacity is left entirely to the already-shipped NegativeCapacityArgumentAnalyzer (RPAD0231) — no
+    // double-reporting on that case.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndThirtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Text.StringBuilder M() => new System.Text.StringBuilder(5, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StringBuilder(5, 3)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят шестой проход, batch) — one new analyzer this batch
+    // (InvalidRegexOptionsCombinationAnalyzer/RPAD0274).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.RegularExpressions.Regex M() => new System.Text.RegularExpressions.Regex(\"a\", System.Text.RegularExpressions.RegexOptions.ECMAScript | System.Text.RegularExpressions.RegexOptions.RightToLeft); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Regex(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят седьмой проход, batch) — one new analyzer this batch
+    // (InvalidNumberStylesCombinationAnalyzer/RPAD0275).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => int.Parse(\"1\", System.Globalization.NumberStyles.AllowHexSpecifier | System.Globalization.NumberStyles.AllowDecimalPoint); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'int.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят восьмой проход, batch) — one new analyzer this batch
+    // (InvalidDateTimeStylesCombinationAnalyzer/RPAD0276).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public DateTime M(string s) => DateTime.Parse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal | System.Globalization.DateTimeStyles.AssumeUniversal); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTime.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести восемьдесят девятый проход, batch) — one new analyzer this batch
+    // (InvalidCompareOptionsCombinationAnalyzer/RPAD0277).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M(string a, string b) => System.Globalization.CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, System.Globalization.CompareOptions.Ordinal | System.Globalization.CompareOptions.IgnoreCase); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CompareInfo.Compare(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяностый проход, batch) — extends InvalidConvertToIntegralBaseAnalyzer/RPAD0238
+    // to also cover Convert.ToByte(string, int fromBase), missed in the original batch (проход 242).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte M(string s) => System.Convert.ToByte(s, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToByte(..., 3)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто первый проход, batch) — one new analyzer this batch
+    // (InvalidConvertToStringBaseAnalyzer/RPAD0278).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M(int v) => System.Convert.ToString(v, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToString(x, 3)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто второй проход, batch) — extends InvalidNumberStylesCombinationAnalyzer/
+    // RPAD0275 to also cover System.Numerics.BigInteger.Parse.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Numerics.BigInteger M(string s) => System.Numerics.BigInteger.Parse(s, System.Globalization.NumberStyles.AllowHexSpecifier | System.Globalization.NumberStyles.AllowDecimalPoint); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BigInteger.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто третий проход, batch) — extends InvalidDateTimeStylesCombinationAnalyzer/
+    // RPAD0276 to also cover DateTimeOffset.Parse.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public DateTimeOffset M(string s) => DateTimeOffset.Parse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal | System.Globalization.DateTimeStyles.AssumeUniversal); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTimeOffset.Parse(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidRegexMatchTimeoutAnalyzer/RPAD0279).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.RegularExpressions.Regex M() => new System.Text.RegularExpressions.Regex(\"a\", System.Text.RegularExpressions.RegexOptions.None, System.TimeSpan.Zero); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Regex(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто пятый проход, batch) — extends InvalidRegexMatchTimeoutAnalyzer/
+    // RPAD0279 to also cover the static Regex.IsMatch/Match/Matches/Replace/Split overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public bool M() => System.Text.RegularExpressions.Regex.IsMatch(\"a\", \"a\", System.Text.RegularExpressions.RegexOptions.None, System.TimeSpan.Zero); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Regex.IsMatch(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто шестой проход, batch) — one new analyzer this batch
+    // (InvalidCancellationTokenSourceTimeSpanDelayAnalyzer/RPAD0280).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Threading.CancellationTokenSource M() => new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(-5)); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new CancellationTokenSource(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто седьмой проход, batch) — extends
+    // InvalidCancellationTokenSourceTimeSpanDelayAnalyzer/RPAD0280 to also cover Task.Delay(TimeSpan).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Threading.Tasks.Task M() => System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(-5)); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Task.Delay(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто восьмой проход, batch) — one new analyzer this batch
+    // (InvalidStringRemoveOrInsertArgumentAnalyzer/RPAD0281).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => \"hello\".Remove(1, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"hello\".Remove(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (двести девяносто девятый проход, batch) — one new analyzer this batch
+    // (StringLiteralIndexerOutOfRangeAnalyzer/RPAD0282).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => \"hello\"[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"hello\"[10]' always throws IndexOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (трёхсотый проход, batch) — one new analyzer this batch
+    // (ArrayLiteralIndexerOutOfRangeAnalyzer/RPAD0283).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new[] { 1, 2, 3 }[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Indexing this array literal with [10] always throws IndexOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста первый проход, batch) — one new analyzer this batch
+    // (EnumerableRangeOverflowAnalyzer/RPAD0284).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Collections.Generic.IEnumerable<int> M() => System.Linq.Enumerable.Range(int.MaxValue, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentOutOfRangeException at runtime — start + count - 1 overflows Int32.MaxValue", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста второй проход, batch) — extends NegativeElementAtIndexAnalyzer/RPAD0236 to
+    // also catch a positive out-of-range index for an array-literal receiver.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new[] { 1, 2, 3 }.ElementAt(10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.ElementAt(10)' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(-1)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста четвёртый проход, batch) — extends ConvertToCharOverflowAnalyzer/RPAD0285 to
+    // also cover the SByte/UInt32/UInt64 overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar((sbyte)-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(-1)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста пятый проход, batch) — one new analyzer this batch
+    // (ConvertNumericNarrowingOverflowAnalyzer/RPAD0286).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte M() => System.Convert.ToByte(300); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToByte(300)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста шестой проход, batch) — extends ConvertNumericNarrowingOverflowAnalyzer/
+    // RPAD0286 to also cover a long source narrowing to int/uint/ulong.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => System.Convert.ToInt32(5000000000L); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToInt32(5000000000)' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста седьмой проход, batch) — extends InvalidBitConverterArgumentAnalyzer/RPAD0268
+    // to also cover the 3-argument BitConverter.ToString(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.BitConverter.ToString(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BitConverter.ToString(...)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста восьмой проход, batch) — extends NegativeArrayResizeOrClearArgumentAnalyzer/
+    // RPAD0263 to also cover Array.Reverse(array, index, length)/Array.Sort(array, index, length).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(int[] a) => System.Array.Reverse(a, -1, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.Reverse(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Collections.Generic.List<int> xs) => xs.Sort(-1, 2, null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Sort(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста десятый проход, batch) — extends NegativeListIndexOrCountArgumentAnalyzer/
+    // RPAD0287 to also cover List<T>.BinarySearch(index, count, item, comparer) and
+    // List<T>.CopyTo(index, array, arrayIndex, count).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Collections.Generic.List<int> xs, int[] a) => xs.CopyTo(0, a, -1, 2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.CopyTo(...)' always throws ArgumentOutOfRangeException at runtime — arrayIndex cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста одиннадцатый проход, batch) — one new analyzer this batch
+    // (InvalidStringBuilderRemoveOrInsertArgumentAnalyzer/RPAD0288).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Text.StringBuilder M() => new System.Text.StringBuilder(\"hello\").Remove(10, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StringBuilder(\"hello\").Remove(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двенадцатый проход, batch) — one new analyzer this batch
+    // (InvalidGuidParseExactFormatAnalyzer/RPAD0289).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Guid M(string s) => System.Guid.ParseExact(s, \"Q\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Guid.ParseExact(..., \"Q\")' always throws FormatException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тринадцатый проход, batch) — extends InvalidConvertToBase64StringArgumentAnalyzer/
+    // RPAD0272 to also cover Convert.ToHexString(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.Convert.ToHexString(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToHexString(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста четырнадцатый проход, batch) — extends InvalidConvertToBase64StringArgumentAnalyzer/
+    // RPAD0272 to also cover Convert.ToHexStringLower(byte[], int, int).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => System.Convert.ToHexStringLower(new byte[4], 2, 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToHexStringLower(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста пятнадцатый проход, batch) — extends InvalidRandomRangeArgumentAnalyzer/RPAD0234
+    // to also cover Random.NextInt64.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSixtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public long M(Random r) => r.NextInt64(5, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'NextInt64(5, 1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста шестнадцатый проход, batch) — extends InvalidTimeSpanFromDoubleArgumentAnalyzer/
+    // RPAD0259 to also cover TimeSpan.FromMicroseconds.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeSpan M() => System.TimeSpan.FromMicroseconds(double.NaN); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeSpan.FromMicroseconds(NaN)' always throws at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста семнадцатый проход, batch) — one new analyzer this batch
+    // (EmptyArrayLiteralFirstOrSingleOrLastAnalyzer/RPAD0290).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new int[0].First(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.First(...)' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста восемнадцатый проход, batch) — extends EmptyArrayLiteralFirstOrSingleOrLastAnalyzer/
+    // RPAD0290 to also cover the no-seed Aggregate(func) overload.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new int[0].Aggregate((a, b) => a + b); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Aggregate(...)' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста девятнадцатый проход, batch) — one new analyzer this batch
+    // (EmptyQueueOrStackDequeueOrPopAnalyzer/RPAD0291).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new System.Collections.Generic.Queue<int>().Dequeue(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Queue(...).Dequeue()' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцатый проход, batch) — extends EmptyQueueOrStackDequeueOrPopAnalyzer/
+    // RPAD0291 to also cover PriorityQueue<TElement, TPriority> and LinkedList<T>.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => new System.Collections.Generic.PriorityQueue<int, int>().Dequeue(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PriorityQueue(...).Dequeue()' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать первый проход, batch) — one new analyzer this batch
+    // (NegativePadWidthArgumentAnalyzer/RPAD0292).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M(string s) => s.PadLeft(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'PadLeft(-1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать второй проход, batch) — extends NegativeCapacityArgumentAnalyzer/
+    // RPAD0231 to also cover SortedList<TKey, TValue>.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Collections.Generic.SortedList<int, int> M() => new System.Collections.Generic.SortedList<int, int>(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new SortedList(-1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать третий проход, batch) — one new analyzer this batch
+    // (NegativeListCapacityAssignmentAnalyzer/RPAD0293).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Collections.Generic.List<int> xs) => xs.Capacity = -1; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Capacity = -1' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать четвёртый проход, batch) — extends NegativeListCapacityAssignmentAnalyzer/
+    // RPAD0293 to also cover StringBuilder.Length and System.IO.MemoryStream.Position.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M(System.Text.StringBuilder sb) => sb.Length = -1; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'sb.Length = -1' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать пятый проход, batch) — one new analyzer this batch
+    // (InvalidArrayFillArgumentAnalyzer/RPAD0294).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndSeventyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Array.Fill(new int[3], 0, -1, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.Fill(...)' always throws ArgumentOutOfRangeException at runtime — startIndex (-1) and count (1) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать шестой проход, batch) — one new analyzer this batch
+    // (NegativeArrayPoolRentLengthAnalyzer/RPAD0295).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Buffers; class C { public void M() => ArrayPool<int>.Shared.Rent(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ArrayPool<T>.Rent(-1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать седьмой проход, batch) — one new analyzer this batch
+    // (NegativeConsoleCursorPositionArgumentAnalyzer/RPAD0296).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Console.SetCursorPosition(-1, 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Console.SetCursorPosition(-1, 0)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать восьмой проход, batch) — extends InvalidArrayFillArgumentAnalyzer/
+    // RPAD0294 to also cover Array.IndexOf<T>(array, value, startIndex, count).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Array.IndexOf(new int[3], 0, -1, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.IndexOf(...)' always throws ArgumentOutOfRangeException at runtime — startIndex (-1) and count (1) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста двадцать девятый проход, batch) — extends InvalidArrayFillArgumentAnalyzer/
+    // RPAD0294 to also cover Array.FindIndex<T>(array, startIndex, count, match).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Array.FindIndex(new int[3], -1, 1, x => true); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.FindIndex(...)' always throws ArgumentOutOfRangeException at runtime — startIndex (-1) and count (1) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцатый проход, batch) — one new analyzer this batch
+    // (InvalidArrayLastIndexOfArgumentAnalyzer/RPAD0298).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Array.LastIndexOf(new int[3], 0, -1, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Array.LastIndexOf(...)' always throws ArgumentOutOfRangeException at runtime — startIndex (-1) and count (1) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать первый проход, batch) — extends NegativeListIndexOrCountArgumentAnalyzer/
+    // RPAD0287 to also cover List<T>.IndexOf(item, index[, count])/LastIndexOf(item, index[, count]).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(List<int> xs) => xs.IndexOf(0, -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.IndexOf(...)' always throws ArgumentOutOfRangeException at runtime — index cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать второй проход, batch) — one new analyzer this batch
+    // (InvalidStringIndexOfCharArgumentAnalyzer/RPAD0299).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => \"abc\".IndexOf('a', -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"abc\".IndexOf(...)' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 character(s)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать третий проход, batch) — extends InvalidStringIndexOfCharArgumentAnalyzer/
+    // RPAD0299 to also cover the string-value and StringComparison overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => \"abc\".IndexOf(\"a\", -1, System.StringComparison.Ordinal); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"abc\".IndexOf(...)' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 character(s)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidStringLastIndexOfArgumentAnalyzer/RPAD0300).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => \"abc\".LastIndexOf('a', -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"abc\".LastIndexOf(...)' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 character(s)", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать пятый проход, batch) — one new analyzer this batch
+    // (InvalidStringJoinArgumentAnalyzer/RPAD0301).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndEightyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => string.Join(\",\", new string[3], -1, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'string.Join(...)' always throws ArgumentOutOfRangeException at runtime — startIndex (-1) and count (1) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать шестой проход, batch) — one new analyzer this batch
+    // (NegativeEnsureCapacityArgumentAnalyzer/RPAD0302).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(List<int> xs) => xs.EnsureCapacity(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.EnsureCapacity(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать седьмой проход, batch) — extends NegativeEnsureCapacityArgumentAnalyzer/
+    // RPAD0302 to also cover TrimExcess(int capacity).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(Dictionary<int, int> d) => d.TrimExcess(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'d.TrimExcess(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать восьмой проход, batch) — extends NegativeEnsureCapacityArgumentAnalyzer/
+    // RPAD0302 to also cover PriorityQueue<TElement, TPriority>.EnsureCapacity.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(PriorityQueue<int, int> pq) => pq.EnsureCapacity(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'pq.EnsureCapacity(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста тридцать девятый проход, batch) — extends NegativeEnsureCapacityArgumentAnalyzer/
+    // RPAD0302 to also cover System.Text.StringBuilder.EnsureCapacity.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Text; class C { public void M(StringBuilder sb) => sb.EnsureCapacity(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'sb.EnsureCapacity(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сороковой проход, batch) — extends EmptyArrayLiteralFirstOrSingleOrLastAnalyzer/
+    // RPAD0290 to also cover Average/Min/Max/MinBy/MaxBy on non-nullable-value-type-returning overloads.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; class C { public int M() => new int[0].Min(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Min(...)' always throws InvalidOperationException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок первый проход, batch) — two new analyzers this batch
+    // (ListLiteralIndexerOutOfRangeAnalyzer/RPAD0303, NegativeRandomNumberGeneratorArgumentAnalyzer/RPAD0304).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[5]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentOutOfRangeException at runtime — this List<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Security.Cryptography; class C { public byte[] M() => RandomNumberGenerator.GetBytes(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'RandomNumberGenerator.GetBytes(-1)' always throws ArgumentOutOfRangeException at runtime — count cannot be negative", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок второй проход, batch) — one new analyzer this batch
+    // (InvalidRandomNumberGeneratorGetInt32ArgumentAnalyzer/RPAD0306).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'RandomNumberGenerator.GetInt32(-1)' always throws ArgumentOutOfRangeException at runtime — toExclusive must be positive", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок третий проход, batch) — three new analyzers this batch
+    // (NegativeStringSplitCountArgumentAnalyzer/RPAD0307, NegativeBitArrayOrArrayCreateInstanceLengthAnalyzer/
+    // RPAD0308, InvalidSortedSetGetViewBetweenArgumentAnalyzer/RPAD0309) plus an extension of
+    // NegativeCapacityArgumentAnalyzer/RPAD0231 to also cover System.IO.MemoryStream.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string[] M() => \"a,b\".Split(',', -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"a,b\".Split(...)' always throws ArgumentOutOfRangeException at runtime — count cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndNinetyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections; class C { public BitArray M() => new BitArray(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BitArray(-1)' always throws ArgumentOutOfRangeException at runtime — length cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public SortedSet<int> M() => new SortedSet<int> { 1, 2, 3 }.GetViewBetween(5, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentException at runtime — lowerValue must not be greater than upperValue", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; class C { public MemoryStream M() => new MemoryStream(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new MemoryStream(-1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок четвёртый проход, batch) — one new analyzer this batch
+    // (InvalidConvertToCharArgumentAnalyzer/RPAD0310) plus an extension of
+    // InvalidDateTimeConstructorArgumentAnalyzer/RPAD0264 to also cover TimeOnly's 5-arg overload.
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeOnly M() => new System.TimeOnly(25, 0, 0, 0, 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new TimeOnly(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar(\"ab\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(\"ab\")' always throws FormatException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок пятый проход, batch) — two new analyzers this batch
+    // (NegativeStringCompareSubstringArgumentAnalyzer/RPAD0311, DictionaryLiteralMissingKeyAnalyzer/RPAD0312).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => string.Compare(\"abc\", -1, \"def\", 0, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'string.Compare(...)' always throws ArgumentOutOfRangeException at runtime — indexA cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public string M() => new Dictionary<int, string> { { 1, \"a\" }, { 2, \"b\" } }[3]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws KeyNotFoundException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок шестой проход, batch) — one new analyzer this batch
+    // (DateTimeOrDateOnlyAddMethodOverflowAnalyzer/RPAD0313).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.DateTime M() => new System.DateTime(9999, 12, 31).AddDays(1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTime.AddDays(1)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок седьмой проход, batch) — two new analyzers this batch
+    // (TimeSpanConstructorOverflowAnalyzer/RPAD0314, TimeSpanAddOrSubtractOperatorOverflowAnalyzer/RPAD0315).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeSpan M() => new System.TimeSpan(int.MaxValue, 0, 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new TimeSpan(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.TimeSpan M() => System.TimeSpan.MaxValue + System.TimeSpan.FromDays(1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws OverflowException at runtime — the result is outside TimeSpan's representable range", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок восьмой проход, batch) — four new analyzers this batch
+    // (EnumerableSumOverflowAnalyzer/RPAD0316, EnumerableToDictionaryDuplicateKeyAnalyzer/RPAD0317,
+    // CopyToDestinationTooSmallAnalyzer/RPAD0318, InvalidSemaphoreSlimConstructorArgumentAnalyzer/RPAD0319)
+    // plus extensions of ConvertNumericNarrowingOverflowAnalyzer/RPAD0286 (double/float/decimal sources,
+    // ToInt64 target) and ConvertToCharOverflowAnalyzer/RPAD0285 (double/float/decimal sources).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public int M() => System.Convert.ToInt32(1e20m); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws OverflowException at runtime — 100000000000000000000 is out of range for int", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public char M() => System.Convert.ToChar(70000.0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToChar(70000)' always throws OverflowException at runtime — value must be between 0 and 65535", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEleventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; class C { public int M() => new[] { int.MaxValue, 1 }.Sum(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.Sum()' always throws OverflowException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwelfthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M() => new[] { 1, 2, 1 }.ToDictionary(x => x); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.ToDictionary(x => x)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.CopyTo(new int[2]); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentException at runtime — the destination array has only 2 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFourteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public SemaphoreSlim M() => new SemaphoreSlim(-1, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new SemaphoreSlim(...)' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    // TODO.md #74 (триста сорок девятый проход, batch) — two new analyzers this batch
+    // (EnumerableCastInvalidElementTypeAnalyzer/RPAD0320, BitArrayLiteralIndexerOutOfRangeAnalyzer/RPAD0321)
+    // plus extensions of NegativeListCapacityAssignmentAnalyzer/RPAD0293 (Capacity < Count),
+    // ConvertNumericNarrowingOverflowAnalyzer/RPAD0286 (ToDecimal target), and
+    // ListLiteralIndexerOutOfRangeAnalyzer/RPAD0303 (RemoveRange/GetRange).
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFifteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.Capacity = 1; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("cannot be less than the list's current Count (3)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public decimal M() => System.Convert.ToDecimal(double.MaxValue); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is out of range for decimal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventeenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Linq; class C { public System.Collections.Generic.List<int> M() => new object[] { \"x\" }.Cast<int>().ToList(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws InvalidCastException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEighteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections; class C { public bool M() => new BitArray(3)[5]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BitArray(3)[5]' always throws ArgumentOutOfRangeException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNineteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.RemoveRange(0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new List<int> { 1, 2, 3 }.RemoveRange(0, 10)' always throws ArgumentException at runtime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public Semaphore M() => new Semaphore(10, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("initialCount (10) cannot exceed maximumCount (5)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public Barrier M() => new Barrier(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Barrier(...)' always throws ArgumentOutOfRangeException at runtime — participantCount cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.ArraySegment<int> M() => new System.ArraySegment<int>(new int[3], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentException at runtime — offset (0) and count (10) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Span<byte> M() => new System.Span<byte>(new byte[3], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Span(...)' always throws ArgumentOutOfRangeException at runtime — start (0) and length (10) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public void M() => System.Array.Copy(new int[2], new int[5], 3); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("the source array has only 2 element(s), not enough for 3 element(s) starting at index 0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => char.ConvertFromUtf32(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("-1 is not a valid Unicode code point", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Text; class C { public Rune M() => new Rune((char)0xD800); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("a lone surrogate half is not a valid Rune", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public System.Index M() => new System.Index(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Index(...)' always throws ArgumentOutOfRangeException at runtime — value cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public ManualResetEventSlim M() => new ManualResetEventSlim(false, 2048); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("spinCount must be between 0 and 2047", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndTwentyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public Timer M() => new Timer(_ => { }, null, -2, 100); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("dueTime (-2) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public void M(Thread t) => t.Join(-2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'t.Join(-2)' always throws ArgumentOutOfRangeException at runtime — millisecondsTimeout (-2) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public bool M() => SpinWait.SpinUntil(() => true, -2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("millisecondsTimeout (-2) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Concurrent; class C { public ConcurrentDictionary<int, int> M() => new ConcurrentDictionary<int, int>(0, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("concurrencyLevel must be positive, or exactly -1 to use the default level", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Concurrent; class C { public BlockingCollection<int> M() => new BlockingCollection<int>(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("boundedCapacity must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Threading; class C { public void M(SemaphoreSlim s) => s.Release(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'s.Release(-1)' always throws ArgumentOutOfRangeException at runtime — releaseCount must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; class C { public MemoryStream M() => new MemoryStream(new byte[3], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentException at runtime — index (0) and count (10) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; class C { public int M(MemoryStream ms) => ms.Read(new byte[2], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ms.Read(new byte[2], 0, 10)' always throws ArgumentOutOfRangeException at runtime — offset (0) and count (10) don't fit within a 2-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; class C { public void M(MemoryStream ms) => ms.CopyTo(new MemoryStream(), -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ms.CopyTo(new MemoryStream(), -1)' always throws ArgumentOutOfRangeException at runtime — bufferSize must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.IO; class C { public void M(MemoryStream ms) => ms.SetLength(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ms.SetLength(-1)' always throws ArgumentOutOfRangeException at runtime — length cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndThirtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public string M() => string.Create(-5, 0, (span, x) => { }); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentOutOfRangeException at runtime — length cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public decimal M() => new decimal(new int[] { 1, 2, 3 }); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new decimal(...)' always throws ArgumentException at runtime — the array is not a valid decimal bit representation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Text; class C { public void M(StringBuilder sb) => sb.CopyTo(0, new char[2], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'sb.CopyTo(0, new char[2], 0, 10)' always throws ArgumentException at runtime — the destination array has only 2 element(s), not enough for 10 element(s) starting at index 0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M(List<int> list) => list.CopyTo(0, new int[2], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'list.CopyTo(0, new int[2], 0, 10)' always throws ArgumentException at runtime — the destination array has only 2 element(s), not enough for 10 element(s) starting at index 0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }.BinarySearch(0, 10, 1, null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new List<int> { 1, 2, 3 }.BinarySearch(0, 10, 1, null)' always throws ArgumentException at runtime — this List<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M() => new List<int> { 1, 2, 3 }.InsertRange(10, new[] { 1 }); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new List<int> { 1, 2, 3 }.InsertRange(10, new[] { 1 })' always throws ArgumentOutOfRangeException at runtime — this List<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Buffers; class C { public ArrayPool<int> M() => ArrayPool<int>.Create(-1, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ArrayPool<int>.Create(-1, 10)' always throws ArgumentOutOfRangeException at runtime — maxArrayLength must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Globalization; class C { public CultureInfo M() => new CultureInfo(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new CultureInfo(...)' always throws ArgumentOutOfRangeException at runtime — culture cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Text; class C { public int M(Encoding e) => e.GetByteCount(new char[3], 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Encoding.GetByteCount(...)' always throws ArgumentOutOfRangeException at runtime — index (0) and count (10) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFortyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }.IndexOf(1, 0, 10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new List<int> { 1, 2, 3 }.IndexOf(1, 0, 10)' always throws ArgumentOutOfRangeException at runtime — this List<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System.Collections.Generic; class C { public void M() => new Queue<int>(new[] { 1, 2, 3 }).CopyTo(new int[2], 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Queue<int>(new[] { 1, 2, 3 }).CopyTo(new int[2], 0)' always throws ArgumentException at runtime — the destination array has only 2 element(s), not enough for 3 element(s) starting at index 0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public TimeSpan M() => TimeSpan.MaxValue * 2; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeSpan.MaxValue * 2' always throws OverflowException at runtime — the result is outside TimeSpan's representable range", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "using System; class C { public DateTime M() => DateTime.MaxValue + TimeSpan.FromDays(1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTime.MaxValue + TimeSpan.FromDays(1)' always throws ArgumentOutOfRangeException at runtime — the result is outside DateTime's representable range", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public sbyte M() => System.Convert.ToSByte(200u); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToSByte(200)' always throws OverflowException at runtime — 200 is out of range for sbyte", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged(
+            "class C { public byte[] M() => System.Convert.FromHexString(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.FromHexString(...)' always throws FormatException at runtime — 'abc' is not a valid hex string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M(int n) => n.ToString(\"Z\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'n.ToString(\"Z\")' always throws FormatException at runtime — 'Z' is not a recognized format specifier for int", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M() => System.Guid.Empty.ToString(\"Z\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'System.Guid.Empty.ToString(\"Z\")' always throws FormatException at runtime — 'Z' is not a recognized format specifier for Guid", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BigInteger.Parse(...)' always throws FormatException at runtime — 'abc' is not a valid integer literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public IPEndPoint M() => new IPEndPoint(IPAddress.Loopback, 70000); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new IPEndPoint(...)' always throws ArgumentOutOfRangeException at runtime — port (70000) must be between 0 and 65535", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public BigInteger M() => BigInteger.Pow(2, -1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BigInteger.Pow(2, -1)' always throws ArgumentOutOfRangeException at runtime — exponent cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Channels; class C { public Channel<int> M() => Channel.CreateBounded<int>(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Channel.CreateBounded<int>(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(Aes aes) => aes.KeySize = 100; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Aes.KeySize = 100' always throws CryptographicException at runtime — 100 is not a valid KeySize for Aes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks; class C { public void M(Task[] t) => Task.WaitAll(t, -2); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Task.WaitAll(t, -2)' always throws ArgumentOutOfRangeException at runtime — millisecondsTimeout (-2) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading; class C { public void M(CountdownEvent ce) => ce.Signal(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ce.Signal(-1)' always throws ArgumentOutOfRangeException at runtime — the argument must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s) => new GZipStream(s, (CompressionLevel)99); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new GZipStream(...)' always throws ArgumentOutOfRangeException at runtime — 99 is not a valid CompressionLevel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; using System.IO.Compression; class C { public BrotliStream M(Stream s) => new BrotliStream(s, (CompressionLevel)99); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BrotliStream(...)' always throws ArgumentException at runtime — 99 is not a valid CompressionLevel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(99999); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Encoding.GetEncoding(99999)' always throws ArgumentOutOfRangeException at runtime — codepage must be between 0 and 65535", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text; class C { public Encoding M() => Encoding.GetEncoding(\"invalid-name\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Encoding.GetEncoding(\"invalid-name\")' always throws ArgumentException at runtime — 'invalid-name' is not a registered encoding name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => int.Parse(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'int.Parse(...)' always throws FormatException at runtime — 'abc' is not a valid int", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSixtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading; class C { public void M(Timer t) => t.Change(-2, 100); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'t.Change(-2, 100)' always throws ArgumentOutOfRangeException at runtime — dueTime (-2) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => ImmutableArray.Create(1, 2, 3)[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableArray.Create(1, 2, 3)[10]' always throws IndexOutOfRangeException at runtime — this ImmutableArray<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public ImmutableArray<int> M() => ImmutableArray.Create(1, 2, 3).RemoveAt(10); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableArray.Create(1, 2, 3).RemoveAt(10)' always throws ArgumentOutOfRangeException at runtime — this ImmutableArray<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => ImmutableList.Create(1, 2, 3)[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableList.Create(1, 2, 3)[10]' always throws ArgumentOutOfRangeException at runtime — this ImmutableList<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public ImmutableList<int> M() => ImmutableList.Create(1, 2, 3).Insert(10, 5); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableList.Create(1, 2, 3).Insert(10, 5)' always throws ArgumentOutOfRangeException at runtime — this ImmutableList<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => System.Array.BinarySearch(new int[] { 1, 2, 3 }, 0, 10, 1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'System.Array.BinarySearch(new int[] { 1, 2, 3 }, 0, 10, 1)' always throws ArgumentException at runtime — index (0) and length (10) don't fit within a 3-element array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => ImmutableList<int>.Empty.First(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'xs.First(...)' always throws InvalidOperationException at runtime — the receiver has no elements", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => ImmutableStack<int>.Empty.Peek(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableStack.Empty.Peek()' always throws InvalidOperationException at runtime — the receiver is the known-empty singleton", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => ImmutableDictionary<string, int>.Empty[\"k\"]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableDictionary.Empty[...]' always throws KeyNotFoundException at runtime — the receiver is the known-empty singleton", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public int M() => default(ImmutableArray<int>)[0]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'default(ImmutableArray<...>)[...]' always throws NullReferenceException at runtime — a default/uninitialized ImmutableArray<T> wraps a null backing array", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndSeventyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => new[] { 1, 2, 3 }[^5]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Indexing this array literal with [^5] always throws IndexOutOfRangeException at runtime — it has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => new System.Collections.Generic.List<int> { 1, 2, 3 }[^5]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentOutOfRangeException at runtime — this List<T> literal has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public char M() => \"abc\"[^5]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'\"abc\"[^5]' always throws IndexOutOfRangeException at runtime — the receiver has only 3 character(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int[] M() => new[] { 1, 2, 3 }[2..10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new[] { 1, 2, 3 }[2..10]' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public ImmutableStack<int> M() => ImmutableStack<int>.Empty.Pop(out var v); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableStack.Empty.Pop(out ...)' always throws InvalidOperationException at runtime — the receiver is the known-empty singleton", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public ImmutableQueue<int> M() => ImmutableQueue<int>.Empty.Dequeue(out var v); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableQueue.Empty.Dequeue(out ...)' always throws InvalidOperationException at runtime — the receiver is the known-empty singleton", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int[] M() => new[] { 1, 2, 3 }[^5..]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new[] { 1, 2, 3 }[^5..]' always throws ArgumentOutOfRangeException at runtime — the receiver has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Collections.Generic.List<int> M() => new System.Collections.Generic.List<int> { 1, 2, 3 }[2..10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws ArgumentException at runtime — the receiver has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"b\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"b\")' always throws KeyNotFoundException at runtime — the parsed JSON object has no property \"b\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"[1,2,3]\").RootElement[10]' always throws IndexOutOfRangeException at runtime — the parsed JSON array has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndEightyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"[1,2,3]\").RootElement.GetProperty(\"a\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"[1,2,3]\").RootElement.GetProperty(\"a\")' always throws InvalidOperationException at runtime — the parsed JSON value is of kind Array, not Object", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":1}}\").RootElement.GetProperty(\"a\").GetProperty(\"b\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"{\\\"a\\\":{\\\"c\\\":1}}\").RootElement.GetProperty(\"a\").GetProperty(\"b\")' always throws KeyNotFoundException at runtime — the parsed JSON object has no property \"b\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public int M() => JsonDocument.Parse(\"{\\\"a\\\":\\\"hi\\\"}\").RootElement.GetProperty(\"a\").GetInt32(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"{\\\"a\\\":\\\"hi\\\"}\").RootElement.GetProperty(\"a\").GetInt32()' always throws InvalidOperationException at runtime — The requested operation requires an element of type 'Number', but the target element has type 'String'.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public System.Guid M() => JsonDocument.Parse(\"{\\\"a\\\":\\\"not-a-guid\\\"}\").RootElement.GetProperty(\"a\").GetGuid(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocument.Parse(\"{\\\"a\\\":\\\"not-a-guid\\\"}\").RootElement.GetProperty(\"a\").GetGuid()' always throws FormatException at runtime — One of the identified items was in an invalid format.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => new System.Collections.Generic.SortedList<string, int> { { \"a\", 1 } }[\"b\"]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Indexing this SortedList<TKey,TValue> literal with this key always throws KeyNotFoundException at runtime — the key is not present in the initializer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => new System.Collections.Generic.SortedDictionary<string, int> { { \"a\", 1 } }[\"b\"]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("Indexing this SortedDictionary<TKey,TValue> literal with this key always throws KeyNotFoundException at runtime — the key is not present in the initializer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.DateTime M() => System.DateTime.Parse(\"hello\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'System.DateTime.Parse(\"hello\")' always throws FormatException at runtime — \"hello\" is not a valid DateTime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.TimeSpan M() => System.TimeSpan.Parse(\"hello\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'System.TimeSpan.Parse(\"hello\")' always throws FormatException at runtime — \"hello\" is not a valid TimeSpan", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"hello\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'IPNetwork.Parse(...)' always throws FormatException at runtime — 'hello' is not a valid IP network in CIDR notation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"hello\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'IPEndPoint.Parse(...)' always throws FormatException at runtime — 'hello' is not a valid IP endpoint", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheTwoHundredAndNinetyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"hello\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'PhysicalAddress.Parse(...)' always throws FormatException at runtime — 'hello' is not a valid physical (MAC) address", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json.Nodes; class C { public JsonNode? M() => JsonNode.Parse(\"[1,2,3]\")[10]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonNode.Parse(\"[1,2,3]\")[10]' always throws ArgumentOutOfRangeException at runtime — the parsed JSON array has only 3 element(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public float M() => new Vector2(1, 2)[2]; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Vector2(1, 2)[2]' always throws ArgumentOutOfRangeException at runtime — Vector2 only has valid indices [0, 1]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Http.Headers; class C { public MediaTypeHeaderValue M() => MediaTypeHeaderValue.Parse(\"\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'MediaTypeHeaderValue.Parse(...)' always throws FormatException at runtime — '' is not a valid MediaTypeHeaderValue", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public RegionInfo M() => new RegionInfo(\"Narnia\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new RegionInfo(...)' always throws ArgumentException at runtime — 'Narnia' is not a recognized region name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Mime; class C { public ContentType M() => new ContentType(\"no-slash-here\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new ContentType(...)' always throws FormatException at runtime — 'no-slash-here' is not a valid MIME content type", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'RSA.Create(1)' always throws CryptographicException at runtime — 1 is not a valid key size for RSA", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Runtime.Versioning; class C { public FrameworkName M() => new FrameworkName(\"NoCommaHere\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new FrameworkName(...)' always throws ArgumentException at runtime — 'NoCommaHere' is not a valid FrameworkName string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Mime; class C { public ContentDisposition M() => new ContentDisposition(\";;;\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new ContentDisposition(...)' always throws FormatException at runtime — ';;;' is not a valid content disposition string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public string M() { var idn = new IdnMapping(); return idn.GetAscii(\"a..b\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'idn.GetAscii(\"a..b\")' always throws ArgumentException at runtime — 'a..b' is not a valid IDN label or domain name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.XPath; class C { public XPathExpression M() => XPathExpression.Compile(\"///bad[\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XPathExpression.Compile(...)' always throws XPathException at runtime — '///bad[' is not a syntactically valid XPath expression", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; using System.Globalization; class C { public Complex M() => Complex.Parse(\"garbage\", CultureInfo.InvariantCulture); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Complex.Parse(...)' always throws OverflowException at runtime — 'garbage' is not a valid Complex string (expected the \"<real; imaginary>\" format)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEleventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public Cookie M() => new Cookie(\"bad=name\", \"value\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Cookie(...)' always throws CookieException at runtime — 'bad=name' is not a valid cookie name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwelfthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public TimeZoneInfo M() => TimeZoneInfo.FindSystemTimeZoneById(\"Not/A/Real/Zone\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeZoneInfo.FindSystemTimeZoneById(...)' always throws TimeZoneNotFoundException at runtime — 'Not/A/Real/Zone' is not a recognized time zone id on this system", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Net.Http.HttpMethod M() => new System.Net.Http.HttpMethod(\"GET POST\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new HttpMethod(...)' always throws FormatException at runtime — 'GET POST' is not a valid HTTP method token", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFourteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public X500DistinguishedName M() => new X500DistinguishedName(\"UNKNOWNKEY=test\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new X500DistinguishedName(...)' always throws CryptographicException at runtime — 'UNKNOWNKEY=test' is not a valid X.500 distinguished name string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFifteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.Common; class C { public void M(DbConnectionStringBuilder b) => b.ConnectionString = \"=noKey\"; }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DbConnectionStringBuilder.ConnectionString = \"=noKey\"' always throws ArgumentException at runtime — not a well-formed \"key=value\" connection string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public string M() => XmlConvert.VerifyNCName(\"has:colon\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.VerifyNCName(...)' always throws XmlException at runtime — 'has:colon' is not a valid XML NCName", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventeenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection; class C { public AssemblyName M() => new AssemblyName(\"MyAssembly, Version=bad\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new AssemblyName(...)' always throws FileLoadException at runtime — 'MyAssembly, Version=bad' is not a valid assembly display name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEighteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public XName M() => XName.Get(\"{unterminated\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XName.Get(...)' always throws ArgumentException at runtime — '{unterminated' is not a valid expanded XML name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNineteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public Oid M() => Oid.FromFriendlyName(\"not-a-real-friendly-name\", OidGroup.All); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Oid.FromFriendlyName(...)' always throws CryptographicException at runtime — 'not-a-real-friendly-name' is not a recognized OID friendly name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlDateTime M() => SqlDateTime.Parse(\"1700-01-01\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlDateTime.Parse(...)' always throws SqlTypeException at runtime — '1700-01-01' is not a valid SqlDateTime literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public bool M() => XmlConvert.ToBoolean(\"True\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToBoolean(...)' always throws FormatException at runtime — 'True' is not a valid XML boolean literal (expected lowercase \"true\"/\"false\" or \"1\"/\"0\")", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public System.TimeSpan M() => XmlConvert.ToTimeSpan(\"1.02:03:04\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToTimeSpan(...)' always throws FormatException at runtime — '1.02:03:04' is not a valid XSD duration literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public System.DateTimeOffset M() => XmlConvert.ToDateTimeOffset(\"1/1/2024\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToDateTimeOffset(...)' always throws FormatException at runtime — '1/1/2024' is not a valid XSD dateTime literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromPem(\"not a pem\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'rsa.ImportFromPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded RSA key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"not a pem\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509Certificate2.CreateFromPem(...)' always throws CryptographicException at runtime — the text is not a valid PEM-encoded certificate", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public string M() => XmlConvert.VerifyNMTOKEN(\"has space\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.VerifyNMTOKEN(...)' always throws XmlException at runtime — 'has space' is not a valid XML NMTOKEN", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"922337203685477.5808\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlMoney.Parse(...)' always throws OverflowException at runtime — '922337203685477.5808' is not a valid SqlMoney literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"999999999999999999999999999999999999999\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlDecimal.Parse(...)' always throws OverflowException at runtime — '999999999999999999999999999999999999999' is not a valid SqlDecimal literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndTwentyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"a@b.com, not-an-email\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'c.Add(...)' always throws FormatException at runtime — 'a@b.com, not-an-email' is not a valid comma-separated email address list", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u0000char\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.VerifyXmlChars(...)' always throws XmlException at runtime — the text contains a character that is illegal in XML 1.0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"1bad\", \"data\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new XProcessingInstruction(...)' always throws XmlException at runtime — '1bad' is not a valid processing instruction target", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\"not a pem\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ec.ImportFromPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded EC key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\"not a pem\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'dsa.ImportFromPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded DSA key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public void M() => new System.Guid(\"not-a-guid\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Guid(...)' always throws FormatException at runtime — 'not-a-guid' doesn't match any of Guid's recognized formats", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'rsa.ImportFromEncryptedPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded (encrypted) RSA key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'dsa.ImportFromEncryptedPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded (encrypted) DSA key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\"not a pem\", \"pw\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ec.ImportFromEncryptedPem(...)' always throws ArgumentException at runtime — the text is not a valid PEM-encoded (encrypted) EC key", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"not base64url!!\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Base64Url.DecodeFromChars(...)' always throws FormatException at runtime — 'not base64url!!' is not a valid URL-safe Base64 string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndThirtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"1bad\", null, null, null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new XDocumentType(...)' always throws XmlException at runtime — '1bad' is not a valid XML Name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"not a pem\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'PemEncoding.Find(...)' always throws ArgumentException at runtime — the text does not contain a valid PEM-encoded structure", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"notabool\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlBoolean.Parse(...)' always throws FormatException at runtime — 'notabool' is not a recognized SqlBoolean representation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"a\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.VerifyWhitespace(...)' always throws XmlException at runtime — 'a' contains a character that is not XML whitespace", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"<bad>\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.VerifyPublicId(...)' always throws XmlException at runtime — '<bad>' contains a character that is not valid in an XML PUBLIC ID literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlGuid M() => SqlGuid.Parse(\"not-a-guid\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlGuid.Parse(...)' always throws FormatException at runtime — 'not-a-guid' doesn't match any of SqlGuid's recognized formats", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"not-a-guid\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToGuid(...)' always throws FormatException at runtime — 'not-a-guid' doesn't match any of Guid's recognized formats", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"not-a-date\", XmlDateTimeSerializationMode.RoundtripKind); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToDateTime(...)' always throws FormatException at runtime — 'not-a-date' is not a valid XSD dateTime literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"not xml\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new XmlDocument().LoadXml(...)' always throws XmlException at runtime — this literal is not well-formed XML", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ActivityTraceId.CreateFromString(...)' always throws ArgumentOutOfRangeException at runtime — 'abc' is not 32 lowercase hex characters", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFortyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"abc123\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeZoneInfo.FromSerializedString(...)' always throws SerializationException at runtime — the text is not a valid TimeZoneInfo serialized string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Type M() => System.Type.GetType(\"System.String[[[\", true); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Type.GetType(...)' always throws ArgumentException at runtime — 'System.String[[[' is empty or has malformed generic-arity syntax", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.Version M() => new System.Version(\"1.x\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Version(...)' always throws FormatException at runtime — this literal doesn't have 2 to 4 dot-separated non-negative integer components", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"not a traceparent\", null); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ActivityContext.Parse(...)' always throws ArgumentException at runtime — 'not a traceparent' is not a valid W3C traceparent header", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public System.UriBuilder M() => new System.UriBuilder(\"http://bad host/\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new UriBuilder(...)' always throws UriFormatException at runtime — 'http://bad host/' is not a valid URI", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public string M() => \"abc\\uD800def\".Normalize(); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'...Normalize(...)' always throws ArgumentException at runtime — this literal contains an unpaired UTF-16 surrogate character", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public string M() => Path.GetFullPath(\"abc\\0def\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Path.GetFullPath(...)' always throws ArgumentException at runtime — the path literal contains an embedded NUL", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"ab\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToChar(...)' always throws FormatException at runtime — 'ab' is not exactly one character long", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToInt32(...)' always throws FormatException at runtime — 'abc' is not a valid XSD numeric literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"bogus\"), d); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CryptographicOperations.HashData(...)' always throws CryptographicException at runtime — 'bogus' is not a known hash algorithm name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws FormatException at runtime — \"not-a-date\" does not match the format \"yyyy-MM-dd\" under CultureInfo.InvariantCulture", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("class C { public int M() => System.Convert.ToInt32(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToInt32(...)' always throws FormatException at runtime — 'abc' is not a valid int", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public BigInteger M(BigInteger v, BigInteger e) => BigInteger.ModPow(v, e, 0); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("always throws DivideByZeroException at runtime — modulus cannot be zero", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"###\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CultureInfo.GetCultureInfoByIetfLanguageTag(...)' always throws CultureNotFoundException at runtime — '###' is not a recognized culture name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public XElement M() => new XElement(\"bad name\", \"v\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new XElement(...)' always throws XmlException at runtime — 'bad name' is not a valid expanded XML name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data; class C { public void M() { var t = new DataTable(); var col = t.Columns.Add(\"E\"); col.Expression = \"1+\"; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DataColumn.Expression = ...' always throws SyntaxErrorException at runtime — '1+' is not a well-formed DataColumn expression", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public string M() => Path.GetRelativePath(\"\", \"/x\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Path.GetRelativePath(...)' always throws ArgumentException at runtime — the 'relativeTo' argument is empty", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; class C { public AssemblyNameInfo M() => AssemblyNameInfo.Parse(\"\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'AssemblyNameInfo.Parse(...)' always throws ArgumentException at runtime — '' is not a valid assembly display name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; class C { public TypeName M() => TypeName.Parse(\"System.Int32[\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TypeName.Parse(...)' always throws ArgumentException at runtime — 'System.Int32[' is not a well-formed reflection type name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; class C { public DateTime M() => Convert.ToDateTime(\"today\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Convert.ToDateTime(...)' always throws FormatException at runtime — \"today\" is not a valid DateTime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSixtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Data.SqlTypes; class C { public SqlInt32 M() => SqlInt32.Parse(\"abc\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SqlInt32.Parse(...)' always throws FormatException at runtime — 'abc' is not a valid SqlInt32 literal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public WebProxy M() => new WebProxy(\"\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new WebProxy(...)' always throws UriFormatException at runtime — '' is not a well-formed URI", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Numerics; class C { public string M(BigInteger b) => b.ToString(\"Z\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("is not a recognized format specifier for BigInteger", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Xml; class C { public string M(DateTime d) => XmlConvert.ToString(d, \"Z\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlConvert.ToString(...)' always throws FormatException at runtime — 'Z' is not a recognized format specifier for DateTime", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; class C { public TimeZoneInfo M() => TimeZoneInfo.CreateCustomTimeZone(\"id\", TimeSpan.FromHours(15), \"d\", \"s\"); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TimeZoneInfo.CreateCustomTimeZone(...)' always throws ArgumentOutOfRangeException at runtime — baseUtcOffset must be within ±14:00:00 and a whole number of minutes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M() { new NumberFormatInfo().CurrencyPositivePattern = 4; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'NumberFormatInfo.CurrencyPositivePattern = 4' always throws ArgumentOutOfRangeException at runtime — valid values are 0-3", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M() { new NumberFormatInfo().NumberGroupSizes = new[] { 3, 0, 2 }; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'NumberFormatInfo.NumberGroupSizes = ...' always throws ArgumentException at runtime — every element must be between 1 and 9, except the last element, which may also be 0", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public void M() { new MemoryStream().Capacity = -1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new MemoryStream().Capacity = -1' always throws ArgumentOutOfRangeException at runtime — Capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M() { new DateTimeFormatInfo().Calendar = new HijriCalendar(); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTimeFormatInfo.Calendar = new HijriCalendar(...)' always throws ArgumentOutOfRangeException at runtime — not a valid calendar for DateTimeFormatInfo", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Globalization; class C { public void M() { new DateTimeFormatInfo().FirstDayOfWeek = (DayOfWeek)7; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DateTimeFormatInfo.FirstDayOfWeek = (DayOfWeek)7' always throws ArgumentOutOfRangeException at runtime — value is outside the valid range for DayOfWeek", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndSeventyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public void M() { new JsonSerializerOptions().MaxDepth = -1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonSerializerOptions.MaxDepth = -1' always throws ArgumentOutOfRangeException at runtime — MaxDepth must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public void M() { new XmlWriterSettings().ConformanceLevel = (ConformanceLevel)99; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlWriterSettings.ConformanceLevel = (ConformanceLevel)99' always throws ArgumentOutOfRangeException at runtime — value is outside the valid range for ConformanceLevel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public void M() { new XmlReaderSettings().MaxCharactersInDocument = -1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlReaderSettings.MaxCharactersInDocument = -1' always throws ArgumentOutOfRangeException at runtime — MaxCharactersInDocument cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Net.Http; class C { public void M() { new HttpClient().Timeout = TimeSpan.Zero; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'HttpClient.Timeout = ...' always throws ArgumentOutOfRangeException at runtime — Timeout must be greater than zero (or Timeout.InfiniteTimeSpan) and not too large", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Http; class C { public void M() { new HttpClientHandler().MaxConnectionsPerServer = 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'HttpClientHandler.MaxConnectionsPerServer = 0' always throws ArgumentOutOfRangeException at runtime — MaxConnectionsPerServer must be greater than zero", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Net.Http; class C { public void M() { new SocketsHttpHandler().ConnectTimeout = TimeSpan.Zero; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SocketsHttpHandler.ConnectTimeout = ...' always throws ArgumentOutOfRangeException at runtime — value is outside the valid range for ConnectTimeout", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Http; class C { public void M() { new SocketsHttpHandler().InitialHttp2StreamWindowSize = 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SocketsHttpHandler.InitialHttp2StreamWindowSize = 0' always throws ArgumentOutOfRangeException at runtime — valid values are between 65535 and 16777216, inclusive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public void M() { new ProcessStartInfo().WindowStyle = (ProcessWindowStyle)999; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ProcessStartInfo.WindowStyle = (ProcessWindowStyle)999' always throws InvalidEnumArgumentException at runtime — value is outside the valid range for ProcessWindowStyle", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net.Cache; class C { public void M() { var p = new HttpRequestCachePolicy((HttpRequestCacheLevel)999); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new HttpRequestCachePolicy((...)999)' always throws ArgumentOutOfRangeException at runtime — value is outside the valid range for HttpRequestCacheLevel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks; class C { public void M(Task t) => t.ContinueWith(_ => { }, TaskContinuationOptions.LongRunning | TaskContinuationOptions.ExecuteSynchronously); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Task.ContinueWith(...)' always throws ArgumentOutOfRangeException at runtime — this TaskContinuationOptions combination is not valid together", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndEightyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public void M() { var o = new JsonDocumentOptions(); o.CommentHandling = JsonCommentHandling.Allow; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonDocumentOptions.CommentHandling = ...' always throws ArgumentOutOfRangeException at runtime — value is outside the supported CommentHandling set", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; using System.Xml.Schema; class C { public void M() { new XmlReaderSettings().ValidationFlags = (XmlSchemaValidationFlags)32; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlReaderSettings.ValidationFlags = (XmlSchemaValidationFlags)32' always throws ArgumentOutOfRangeException at runtime — value is outside the valid range for XmlSchemaValidationFlags", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO.Pipelines; class C { public void M() { var p = new PipeOptions(pauseWriterThreshold: 100, resumeWriterThreshold: 101); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PipeOptions(...)' always throws ArgumentOutOfRangeException at runtime — pauseWriterThreshold (100) and resumeWriterThreshold (101) are not a valid combination", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks; class C { public void M() { new ParallelOptions().MaxDegreeOfParallelism = 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ParallelOptions.MaxDegreeOfParallelism = 0' always throws ArgumentOutOfRangeException at runtime — must be -1 (unlimited) or a positive value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Channels; class C { public void M() { var o = new BoundedChannelOptions(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BoundedChannelOptions(...)' always throws ArgumentOutOfRangeException at runtime — capacity must not be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks.Dataflow; class C { public void M() { new ExecutionDataflowBlockOptions().BoundedCapacity = 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ExecutionDataflowBlockOptions.BoundedCapacity = 0' always throws ArgumentOutOfRangeException at runtime — must be -1 (unbounded/unlimited) or a positive value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks.Dataflow; class C { public void M() { var b = new BatchBlock<int>(0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BatchBlock<T>(...)' always throws ArgumentOutOfRangeException at runtime — batchSize must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; using System.Text.Json.Serialization; class C { public void M() { new JsonSerializerOptions().NumberHandling = (JsonNumberHandling)8; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonSerializerOptions.NumberHandling = (JsonNumberHandling)8' always throws ArgumentOutOfRangeException at runtime — NumberHandling must be a valid JsonNumberHandling flags combination (0-7)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO.Compression; class C { public void M() { new BrotliCompressionOptions().Quality = -1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BrotliCompressionOptions.Quality = -1' always throws ArgumentOutOfRangeException at runtime — valid values are 0-11", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics.Tracing; class C { public void M() { var o = new EventSourceOptions(); o.Level = (EventLevel)256; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'EventSourceOptions.Level = 256' always throws OverflowException at runtime — valid values are 0-255", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheThreeHundredAndNinetyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public void M() { new TraceSwitch(\"t\", \"d\").Level = (TraceLevel)5; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'TraceSwitch.Level = 5' always throws ArgumentException at runtime — valid values are 0-4 (Off/Error/Warning/Info/Verbose)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading.Tasks.Dataflow; class C { public void M() { new DataflowLinkOptions().MaxMessages = 0; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DataflowLinkOptions.MaxMessages = 0' always throws ArgumentOutOfRangeException at runtime — must be -1 (unlimited) or a positive value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[15], 16); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new AesGcm(...)' always throws CryptographicException at runtime — the key length (15 bytes) is not valid — AesGcm requires 16, 24, or 32 bytes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public void M() { var b = ImmutableArray.CreateBuilder<int>(-5); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableArray.CreateBuilder<...>(-5)' always throws ArgumentOutOfRangeException at runtime — initialCapacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public void M(int[] arr) { var x = ImmutableArray.Create(arr, -1, 2); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableArray.Create<...>(...)' always throws ArgumentOutOfRangeException at runtime — start (-1) cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Formats.Tar; class C { public void M() { var e = new PaxTarEntry(TarEntryType.ContiguousFile, \"n\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PaxTarEntry(...)' always throws ArgumentException at runtime — ContiguousFile is not a supported TarEntryType for PaxTarEntry", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Formats.Asn1; class C { public void M() { var w = new AsnWriter((AsnEncodingRules)99); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new AsnWriter(...)' always throws ArgumentOutOfRangeException at runtime — 99 is not a defined AsnEncodingRules value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Formats.Asn1; class C { public void M() { var w = new AsnWriter(AsnEncodingRules.DER); w.WriteObjectIdentifier(\"\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'AsnWriter.WriteObjectIdentifier(...)' always throws ArgumentException at runtime — '' is not a valid dotted-decimal OID", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public byte[] M() => Rfc2898DeriveBytes.Pbkdf2(new byte[16], new byte[16], 0, HashAlgorithmName.SHA256, 32); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Rfc2898DeriveBytes.Pbkdf2(...)' always throws ArgumentOutOfRangeException at runtime — iterations (0) must be a positive value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Immutable; class C { public void M() { var b = ImmutableArray.CreateBuilder<int>(5); b.RemoveRange(-1, 2); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'ImmutableArray<T>.Builder.RemoveRange(...)' always throws ArgumentOutOfRangeException at runtime — index (-1) cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Formats.Tar; using System.IO; class C { public void M() { using var ms = new MemoryStream(); using var w = new TarWriter(ms, TarEntryFormat.Unknown); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new TarWriter(...)' always throws ArgumentOutOfRangeException at runtime — Unknown is not a valid TarEntryFormat for writing", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X500DistinguishedNameBuilder().AddCountryOrRegion(\"USA\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X500DistinguishedNameBuilder.AddCountryOrRegion(...)' always throws ArgumentException at runtime — 'USA' is not exactly two A-Z letters", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndEleventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { new SubjectAlternativeNameBuilder().AddDnsName(\"\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SubjectAlternativeNameBuilder.AddDnsName(\"\")' always throws ArgumentOutOfRangeException at runtime — the value must not be empty", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwelfthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; class C { public void M() { new BlobBuilder().WriteCompressedInteger(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BlobBuilder.WriteCompressedInteger(-1)' always throws ArgumentOutOfRangeException at runtime — the value is outside the valid ECMA-335 compressed-integer range", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml; class C { public void M() { new XmlNamespaceManager(new NameTable()).AddNamespace(\"xmlns\", \"http://foo\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XmlNamespaceManager.AddNamespace(\"xmlns\", ...)' always throws ArgumentException at runtime — the prefix \"xmlns\" is reserved for use by XML", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFourteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public void M() { var o = new JsonSerializerOptions(); o.NewLine = \"ab\"; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonSerializerOptions.NewLine = \"ab\"' always throws ArgumentOutOfRangeException at runtime — NewLine must be exactly \"\\n\" or \"\\r\\n\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFifteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Json; class C { public void M() { var o = new JsonWriterOptions(); o.IndentCharacter = 'a'; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'JsonWriterOptions.IndentCharacter = 'a'' always throws ArgumentOutOfRangeException at runtime — IndentCharacter must be a space or horizontal tab", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System; using System.Security.Cryptography; using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 cert) { new CertificateRevocationListBuilder().Build(cert, -1, DateTimeOffset.UtcNow, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CertificateRevocationListBuilder.Build(...)' always throws ArgumentOutOfRangeException at runtime — crlNumber must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSeventeenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text.Unicode; class C { public void M() { var r = new UnicodeRange(-1, 1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new UnicodeRange(-1, 1)' always throws ArgumentOutOfRangeException at runtime — firstCodePoint must be between 0 and 0xFFFF", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndEighteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(-1, 0, 0, 0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new MetadataBuilder(...)' always throws ArgumentOutOfRangeException at runtime — userStringHeapStartOffset cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndNineteenthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(); b.ReserveUserString(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'MetadataBuilder.ReserveUserString(...)' always throws ArgumentOutOfRangeException at runtime — the value must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new InstructionEncoder(new BlobBuilder()); e.LoadLocal(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'InstructionEncoder.LoadLocal(-1)' always throws ArgumentOutOfRangeException at runtime — the index must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M() { using var o = MemoryPool<byte>.Shared.Rent(-2); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'MemoryPool<...>.Shared.Rent(-2)' always throws ArgumentOutOfRangeException at runtime — minimumBufferSize must be -1 (the default) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509SubjectKeyIdentifierExtension(\"a\", false); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new X509SubjectKeyIdentifierExtension(...)' always throws ArgumentException at runtime — subjectKeyIdentifier must be at least 2 characters", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 0, 10); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Matrix4x4.CreatePerspective(...)' always throws ArgumentOutOfRangeException at runtime — nearPlaneDistance must be positive and less than farPlaneDistance", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509BasicConstraintsExtension(true, true, -1, false); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new X509BasicConstraintsExtension(...)' always throws ArgumentOutOfRangeException at runtime — pathLengthConstraint (-1) must be non-negative when hasPathLengthConstraint is true", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.PortableExecutable; class C { public void M() { var b = new PEHeaderBuilder(fileAlignment: 513); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new PEHeaderBuilder(...)' always throws ArgumentOutOfRangeException at runtime — fileAlignment must be a power of two between 512 and 65536", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new BlobBuilder(); new BlobEncoder(b).MethodSignature().Parameters(1, out _, out var ps); ps.AddParameter().Type().GenericTypeParameter(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SignatureTypeEncoder.GenericTypeParameter(...)' always throws ArgumentOutOfRangeException at runtime — the value must be between 0 and 65535", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'MethodBodyStreamEncoder.AddMethodBody(...)' always throws ArgumentOutOfRangeException at runtime — codeSize must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Diagnostics; class C { public void M() { var s = new StackTrace(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StackTrace(...)' always throws ArgumentOutOfRangeException at runtime — skipFrames must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndTwentyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers.Text; class C { public void M() { var n = Base64Url.GetMaxDecodedLength(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Base64Url.GetMaxDecodedLength(-1)' always throws ArgumentOutOfRangeException at runtime — base64Length must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Runtime.CompilerServices; class C { public void M() { var p = RuntimeHelpers.AllocateTypeAssociatedMemory(typeof(object), -1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'RuntimeHelpers.AllocateTypeAssociatedMemory(...)' always throws ArgumentOutOfRangeException at runtime — size must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 100); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StandardFormat(...)' always throws ArgumentOutOfRangeException at runtime — precision cannot be larger than 99", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers.Text; class C { public void M() { var n = Base64.GetMaxDecodedFromUtf8Length(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Base64.GetMaxDecodedFromUtf8Length(-1)' always throws ArgumentOutOfRangeException at runtime — length must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M() { var w = new ArrayBufferWriter<byte>(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new ArrayBufferWriter<byte>(-1)' always throws ArgumentException at runtime — initialCapacity must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text; class C { public void M() { var f = new EncoderReplacementFallback(\"\\uD800\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new EncoderReplacementFallback(...)' always throws ArgumentException at runtime — the replacement string contains an unpaired UTF-16 surrogate", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509ChainPolicy.RevocationMode = -1' always throws ArgumentException at runtime — the value is not a defined X509RevocationMode member", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M(byte[] a) { var s = new ReadOnlySequence<byte>(a, -1, 1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new ReadOnlySequence<byte>(a, -1, 1)' always throws ArgumentOutOfRangeException at runtime — start must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new VectorEncoder(new BlobBuilder()); e.Count(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'VectorEncoder.Count(-1)' always throws ArgumentOutOfRangeException at runtime — count must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Advance(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'SequenceReader<...>.Advance(-1)' always throws ArgumentOutOfRangeException at runtime — count must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndThirtyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2Collection c) { c.Find((X509FindType)99, \"x\", false); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509Certificate2Collection.Find(...)' always throws CryptographicException at runtime — the value is not a defined X509FindType member", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public void M(BinaryReader r) { var b = r.ReadBytes(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BinaryReader.ReadBytes(-1)' always throws ArgumentOutOfRangeException at runtime — count must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Specialized; class C { public void M() { var m = BitVector32.CreateMask(int.MinValue); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'BitVector32.CreateMask(-2147483648)' always throws InvalidOperationException at runtime — the bit vector is full (previous is int.MinValue)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Reflection; class C { public void M() { var p = new ParameterModifier(0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new ParameterModifier(0)' always throws ArgumentException at runtime — parameterCount must be positive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; using System.Text; class C { public void M(string path) { var r = new StreamReader(path, Encoding.UTF8, true, -1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new StreamReader(...)' always throws ArgumentOutOfRangeException at runtime — bufferSize must be greater than zero", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.IO; class C { public void M(Stream s) { var b = new BufferedStream(s, 0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new BufferedStream(..., 0)' always throws ArgumentOutOfRangeException at runtime — bufferSize must be greater than zero", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Specialized; class C { public void M() { var c = new NameValueCollection(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new NameValueCollection(-1)' always throws ArgumentOutOfRangeException at runtime — capacity cannot be negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Runtime.InteropServices; class C { public void M() { var h = GCHandle.Alloc(new object(), (GCHandleType)4); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'GCHandle.Alloc(..., 4)' always throws ArgumentOutOfRangeException at runtime — the value is not a defined GCHandleType member", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { var e = new X509Extension(\"\", new byte[] { 1, 2 }, false); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new X509Extension(\"\", ...)' always throws ArgumentException at runtime — oid must not be an empty string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Threading; class C { public void M() { var t = new Timer(_ => { }, null, 0xffffffffL, -1L); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new Timer(...)' always throws ArgumentOutOfRangeException at runtime — dueTime (4294967295) must be -1 (Timeout.Infinite) or non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFortyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { var s = new X509Store((StoreName)0); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'new X509Store(...)' always throws ArgumentException at runtime — the value is not a defined StoreName member", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { var l = new Pkcs12LoaderLimits(); l.MacIterationLimit = -1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Pkcs12LoaderLimits.MacIterationLimit = -1' always throws ArgumentOutOfRangeException at runtime — the value must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public DSA M() => DSA.Create(-1); }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'DSA.Create(-1)' always throws CryptographicException at runtime — -1 is not a valid key size for DSA", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M(byte[] d) { var c = X509CertificateLoader.LoadPkcs12(d, null, (X509KeyStorageFlags)48); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509CertificateLoader.LoadPkcs12(...)' always throws ArgumentException at runtime — the keyStorageFlags value is invalid", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Runtime.InteropServices; using System.Collections.Generic; class C { public void M(List<int> l) { CollectionsMarshal.SetCount(l, -1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CollectionsMarshal.SetCount(..., -1)' always throws ArgumentOutOfRangeException at runtime — count must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Collections.Concurrent; class C { public void M() { var p = Partitioner.Create(5, 5); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Partitioner.Create(5, 5)' always throws ArgumentOutOfRangeException at runtime — toExclusive must be greater than fromInclusive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Numerics; class C { public void M(Vector<int> v) { var x = v[-1]; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'v[-1]' always throws ArgumentOutOfRangeException at runtime — the index must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M() { using var c = X509Certificate2.CreateFromPem(\"garbage\", \"garbage\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509Certificate2.CreateFromPem(...)' always throws CryptographicException at runtime — the text is not a valid PEM-encoded certificate", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 c) { var b = c.Export(X509ContentType.Unknown); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'X509Certificate.Export(...)' always throws CryptographicException at runtime — the content type is not supported for this export", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M() { var o = Oid.FromOidValue(\"1.2.3\", OidGroup.All); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Oid.FromOidValue(...)' always throws CryptographicException at runtime — '1.2.3' is not a recognized OID value", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndFiftyNinthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M() { var s = RandomNumberGenerator.GetString(\"abc\", -1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'RandomNumberGenerator.GetString(...)' always throws ArgumentOutOfRangeException at runtime — length must be non-negative", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtiethBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public void M() { var n = XName.Get(\"\", \"ns\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'XName.Get(...)' always throws ArgumentException at runtime — '' is not a valid XML name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtyFirstBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Xml.Linq; class C { public void M(XElement el) { var x = el.Element(\"\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'el.Element(\"\")' always throws ArgumentException at runtime — '' is not a valid expanded XML name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtySecondBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M() { var c = new GregorianCalendar(); c.TwoDigitYearMax = 1; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'GregorianCalendar.TwoDigitYearMax = 1' always throws ArgumentOutOfRangeException at runtime — not a valid year for GregorianCalendar", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtyThirdBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M() { var c = new HijriCalendar(); c.HijriAdjustment = 3; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'HijriCalendar.HijriAdjustment = 3' always throws ArgumentOutOfRangeException at runtime — value must be between -2 and 2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtyFourthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[8], pt, ct, tag); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'AesGcm.Encrypt(...)' always throws ArgumentException at runtime — the nonce length (8 bytes) is not valid for AesGcm (must be exactly 12 bytes)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtyFifthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Text; class C { public void M() { var f = CompositeFormat.Parse(\"Hello {0\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'CompositeFormat.Parse(...)' always throws FormatException at runtime — 'Hello {0' is not a valid composite format string", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtySixthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Net; class C { public void M() { var c = new Cookie(\"n\",\"v\"); c.Port = \"80\"; } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'Cookie.Port = ...' always throws CookieException at runtime — '80' is not a valid port list", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtySeventhBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Globalization; class C { public void M(StringInfo s) { var x = s.SubstringByTextElements(-1); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'StringInfo.SubstringByTextElements(...)' always throws ArgumentOutOfRangeException at runtime — startingTextElement cannot be negative (-1)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheFourHundredAndSixtyEighthBatch()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+
+        service.NotifyTextChanged("using System.Buffers; class C { public void M() { var f = StandardFormat.Parse(\"G123456\"); } }");
+
+        var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.Contains(diagnostics, d => d.Message.Contains("'StandardFormat.Parse(...)' always throws FormatException at runtime — 'G123456' is not a valid standard format string", StringComparison.Ordinal));
+    }
 }
