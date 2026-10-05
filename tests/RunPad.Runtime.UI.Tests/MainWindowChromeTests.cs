@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
@@ -22,7 +23,7 @@ namespace RunPad.Runtime.UI.Tests;
 // ("extra icon" from the original TODO note) since the native titlebar already shows Window.Icon.
 public class MainWindowChromeTests
 {
-    private static MainWindow CreateMainWindow()
+    private static MainWindow CreateMainWindow(IWindowService? windowService = null)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -47,7 +48,7 @@ public class MainWindowChromeTests
         var mainVm = new MainWindowViewModel(
             sdkProviders: [],
             fileSystemService: fileSystem.Object,
-            windowService: new Mock<IWindowService>().Object,
+            windowService: windowService ?? new Mock<IWindowService>().Object,
             prefs: prefs.Object,
             languageRegistry: new LanguageHostRegistry());
 
@@ -77,22 +78,81 @@ public class MainWindowChromeTests
         Assert.False(appIcon!.IsVisible);
     }
 
+    // docs/handoffs/macos-native-header.md — stock macOS titlebar, menu moved to the system menu bar.
     [AvaloniaFact]
-    public void ApplyPlatformChrome_Should_OnlyHideWindowControlButtons_OnMacOS()
+    public void ApplyPlatformChrome_Should_UseNativeTitlebarWithoutCustomHeaderRow_OnMacOS()
     {
         if (!OperatingSystem.IsMacOS()) return;
 
         using var window = CreateMainWindow();
 
-        var windowControlButtons = window.FindControl<StackPanel>("WindowControlButtons");
-        Assert.NotNull(windowControlButtons);
-        Assert.False(windowControlButtons!.IsVisible);
+        Assert.Equal(WindowDecorations.Full, window.WindowDecorations);
+        Assert.False(window.ExtendClientAreaToDecorationsHint);
 
-        // Native traffic lights render over the extended client area on macOS — our own app icon
-        // doesn't collide with a native titlebar the way it does on Linux, so it stays visible.
-        var appIcon = window.FindControl<Image>("AppIconImage");
-        Assert.NotNull(appIcon);
-        Assert.True(appIcon!.IsVisible);
+        Assert.False(window.FindControl<Border>("TitleBar")!.IsVisible);
+        Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
+    }
+
+    [AvaloniaFact]
+    public void NativeMenu_Should_ExposeFileEditViewMenus_OnMacOS()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        using var window = CreateMainWindow();
+
+        var menu = NativeMenu.GetMenu(window);
+        Assert.NotNull(menu);
+        Assert.Equal(["File", "Edit", "View"], menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header));
+
+        string?[] expected =
+        [
+            "New File", "C#", "Visual Basic", "Import LINQPad Query...", "Save", "Save As...",
+            "Dependencies", "Assembly Explorer...", "Toggle File Tree",
+        ];
+        var leaves = Leaves(menu).ToList();
+        Assert.Equal(expected, leaves.Select(i => i.Header));
+        Assert.All(leaves, i => Assert.NotNull(i.Command));
+    }
+
+    [AvaloniaFact]
+    public void NativeMenu_Should_RouteToRealActions_OnMacOS()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        var windowService = new Mock<IWindowService>();
+        using var window = CreateMainWindow(windowService.Object);
+        var vm = (MainWindowViewModel)window.DataContext!;
+        var leaves = Leaves(NativeMenu.GetMenu(window)!).ToDictionary(i => i.Header!);
+
+        var tabCountBefore = vm.Tabs.Count;
+        leaves["New File"].Command!.Execute(null);
+        Assert.Equal(tabCountBefore + 1, vm.Tabs.Count);
+
+        var sizeBefore = vm.Sidebar.Size;
+        leaves["Toggle File Tree"].Command!.Execute(null);
+        Assert.NotEqual(sizeBefore, vm.Sidebar.Size);
+
+        // Application ("RunPad") menu — About/Preferences replace the in-window Help/Edit entries.
+        var appLeaves = Leaves(NativeMenu.GetMenu(Application.Current!)!).ToDictionary(i => i.Header!);
+        appLeaves["About RunPad"].Command!.Execute(null);
+        appLeaves["Preferences..."].Command!.Execute(null);
+        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+        windowService.Verify(w => w.ShowPreferencesAsync(), Times.Once);
+    }
+
+    private static IEnumerable<NativeMenuItem> Leaves(NativeMenu menu)
+    {
+        foreach (var item in menu.Items.OfType<NativeMenuItem>().Where(i => i is not NativeMenuItemSeparator))
+        {
+            if (item.Menu is { } sub)
+            {
+                foreach (var leaf in Leaves(sub)) yield return leaf;
+            }
+            else
+            {
+                yield return item;
+            }
+        }
     }
 
     [AvaloniaFact]
