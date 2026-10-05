@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -25,12 +26,17 @@ public partial class SetupWizardWindow : Window
     private async void BrowseDotnet_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not SetupWizardViewModel viewModel) return;
-
+        var suggestedStartLocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+            : "/usr/";
+        var t = await StorageProvider.TryGetFolderFromPathAsync(suggestedStartLocation);
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Browse for the dotnet executable",
             AllowMultiple = false,
+            SuggestedStartLocation = t
         });
+
         var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
         if (path is not null) viewModel.SetDotnetPathManually(path);
     }
