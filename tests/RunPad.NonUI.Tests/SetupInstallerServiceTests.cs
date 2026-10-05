@@ -12,7 +12,7 @@ namespace RunPad.Runtime.UI.Tests;
 public class SetupInstallerServiceTests
 {
     [Fact]
-    public async Task InstallNetcoredbgAsync_Should_ExtractTheRealExecutable_ToTheAppDataDirectory()
+    public async Task InstallNetcoredbgAsync_Should_ExtractTheRealExecutable_ToTheInstallDirectory()
     {
         var downloader = new Mock<ISetupDownloader>();
         downloader
@@ -25,18 +25,18 @@ public class SetupInstallerServiceTests
             });
         var processRunner = new Mock<ISetupProcessRunner>();
 
-        var installDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
-        if (Directory.Exists(installDir))
-            Directory.Delete(installDir, recursive: true);
+        // A unique temp directory, never the user's real AppData installation — InstallNetcoredbgAsync
+        // deletes its install directory before extracting.
+        var installDir = Path.Combine(Path.GetTempPath(), "runpad-tests-netcoredbg-" + Guid.NewGuid());
         try
         {
-            var service = new SetupInstallerService(downloader.Object, processRunner.Object);
+            var service = new SetupInstallerService(downloader.Object, processRunner.Object, installDir);
 
             var exePath = await service.InstallNetcoredbgAsync(
                 new Progress<SetupProgress>(), TestContext.Current.CancellationToken);
 
             Assert.True(File.Exists(exePath));
+            Assert.StartsWith(installDir, exePath);
             Assert.Equal(
                 "fake netcoredbg binary", await File.ReadAllTextAsync(exePath, TestContext.Current.CancellationToken));
         }

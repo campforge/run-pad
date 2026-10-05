@@ -209,7 +209,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 LineOffset: lineOffset,
                 BreakOnAllExceptions: _options.BreakOnAllExceptions,
                 BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions,
-                CurrentQueryPath: _options.CurrentQueryPath);
+                CurrentQueryPath: _options.CurrentQueryPath,
+                RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath);
             await using var session = new DapSession(
                 process,
                 sessionOptions,
