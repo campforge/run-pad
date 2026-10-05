@@ -46,10 +46,10 @@
 
     </Window.Styles>
 
-    <Grid RowDefinitions="32,*">
+    <Grid x:Name="RootLayout" RowDefinitions="32,*">
 
         <!-- ── Title bar ─────────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
+        <Border x:Name="TitleBar" Grid.Row="0" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}" chrome:WindowDecorationProperties.ElementRole="TitleBar">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
 

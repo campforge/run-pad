@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using ReactiveUI;
 using RunPad.Format.RPad;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
@@ -159,11 +161,10 @@ public sealed partial class MainWindow : Window, IDisposable
     // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
     // wc-btn cluster is hidden.
     //
-    // On macOS, native traffic-light buttons render over the extended client area in the top-left
-    // corner — the standard Avalonia-on-macOS pattern — so only the redundant wc-btn cluster needs
-    // hiding here. This branch is UNVERIFIED on real hardware (none available in this environment);
-    // the icon/menu StackPanel also sitting at top-left may visually collide with the traffic
-    // lights and need further adjustment once someone can test on an actual Mac.
+    // On macOS (docs/handoffs/macos-native-header.md) the window gets the stock titlebar — traffic
+    // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
+    // bar via NativeMenu (see ApplyMacNativeMenu). The whole custom title row would then only
+    // duplicate the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
@@ -188,7 +189,73 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (OperatingSystem.IsMacOS())
         {
-            if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
+            WindowDecorations = WindowDecorations.Full;
+            ExtendClientAreaToDecorationsHint = false;
+
+            this.FindControl<Border>("TitleBar")!.IsVisible = false;
+            this.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height = new GridLength(0);
+
+            ApplyMacNativeMenu();
+        }
+    }
+
+    // NativeMenu items aren't Controls — they don't inherit this window's DataContext, so XAML
+    // {Binding} commands on them would silently resolve to nothing. The menu is built here instead,
+    // pointing straight at the same view-model commands / handlers the in-window Menu uses.
+    //
+    // No NativeMenuItem.Gesture: KeyboardSettings gestures are Ctrl-based and already dispatched by
+    // OnWindowKeyDown; registering them as menu key equivalents too would risk running an action
+    // twice per keypress.
+    private void ApplyMacNativeMenu()
+    {
+        var vm = GetViewModel();
+
+        var newKindMenu = new NativeMenu
+        {
+            new NativeMenuItem("C#") { Command = ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp)) },
+            new NativeMenuItem("Visual Basic") { Command = ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb)) },
+        };
+
+        var fileMenu = new NativeMenu
+        {
+            new NativeMenuItem("New File") { Command = ReactiveCommand.Create(vm.NewRpadFileWithDefaults) },
+            new NativeMenuItem("New RPad File") { Menu = newKindMenu },
+            new NativeMenuItem("Import LINQPad Query...") { Command = vm.ImportLinqFileCommand },
+            new NativeMenuItemSeparator(),
+            new NativeMenuItem("Save") { Command = ReactiveCommand.Create(_editorTabs.SaveActive) },
+            new NativeMenuItem("Save As...") { Command = ReactiveCommand.Create(_editorTabs.SaveAsActive) },
+        };
+
+        var editMenu = new NativeMenu
+        {
+            new NativeMenuItem("Dependencies") { Command = vm.OpenDependenciesCommand },
+            new NativeMenuItem("Assembly Explorer...") { Command = vm.OpenAssemblyExplorerCommand },
+        };
+
+        var viewMenu = new NativeMenu
+        {
+            new NativeMenuItem("Toggle File Tree") { Command = vm.Sidebar.ToggleCommand },
+        };
+
+        NativeMenu.SetMenu(this, new NativeMenu
+        {
+            new NativeMenuItem("File") { Menu = fileMenu },
+            new NativeMenuItem("Edit") { Menu = editMenu },
+            new NativeMenuItem("View") { Menu = viewMenu },
+        });
+
+        // Application menu ("RunPad"): About/Preferences take the place of the in-window Help/Edit
+        // entries. Avalonia's macOS exporter appends the standard Hide/Show All/Quit items itself;
+        // Quit closes windows through the normal Closing path, so OnClosing's unsaved-tab check
+        // still runs.
+        if (Application.Current is { } app)
+        {
+            NativeMenu.SetMenu(app, new NativeMenu
+            {
+                new NativeMenuItem("About RunPad") { Command = vm.OpenAboutCommand },
+                new NativeMenuItemSeparator(),
+                new NativeMenuItem("Preferences...") { Command = vm.OpenPreferencesCommand },
+            });
         }
     }
 
