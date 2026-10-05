@@ -1,4 +1,4 @@
-using Avalonia;
+using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
@@ -93,64 +93,155 @@ public class MainWindowChromeTests
         Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
     }
 
-    [AvaloniaFact]
-    public void NativeMenu_Should_ExposeFileEditViewMenus_OnMacOS()
-    {
-        if (!OperatingSystem.IsMacOS()) return;
+    // docs/handoffs/menu-platform-parity.md — the same application menu paths on every OS. Runs on
+    // any OS: both projections are built from MainWindow.MainMenuEntries regardless of platform.
+    private static readonly string[] ExpectedMenuTree =
+    [
+        "File",
+        "File/New File",
+        "File/New RPad File",
+        "File/New RPad File/C#",
+        "File/New RPad File/Visual Basic",
+        "File/Import LINQPad Query...",
+        "File/---",
+        "File/Save",
+        "File/Save As...",
+        "Edit",
+        "Edit/Dependencies",
+        "Edit/Assembly Explorer...",
+        "Edit/---",
+        "Edit/Preferences",
+        "View",
+        "View/Toggle File Tree",
+        "Help",
+        "Help/About RunPad",
+    ];
 
+    [AvaloniaFact]
+    public void MainMenu_Should_ProjectIdenticalTrees_ForInWindowAndNativeMenus()
+    {
         using var window = CreateMainWindow();
 
-        var menu = NativeMenu.GetMenu(window);
-        Assert.NotNull(menu);
-        Assert.Equal(["File", "Edit", "View"], menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header));
+        var inWindow = Describe(window.FindControl<Menu>("MainMenu")!.Items, "").ToList();
+        var native = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "").ToList();
 
-        string?[] expected =
-        [
-            "New File", "C#", "Visual Basic", "Import LINQPad Query...", "Save", "Save As...",
-            "Dependencies", "Assembly Explorer...", "Toggle File Tree",
-        ];
-        var leaves = Leaves(menu).ToList();
-        Assert.Equal(expected, leaves.Select(i => i.Header));
-        Assert.All(leaves, i => Assert.NotNull(i.Command));
+        Assert.Equal(ExpectedMenuTree, inWindow.Select(n => n.Path));
+        Assert.Equal(ExpectedMenuTree, native.Select(n => n.Path));
+        // Same ICommand instance behind each path → identical routing, not just identical labels.
+        Assert.Equal(inWindow.Select(n => n.Command), native.Select(n => n.Command));
+        Assert.All(inWindow.Where(n => IsLeaf(n.Path)), n => Assert.NotNull(n.Command));
+
+        // Only macOS exports a window NativeMenu (system menu bar); elsewhere it would duplicate the
+        // in-window Menu (e.g. a Linux DBus global menu).
+        var exported = NativeMenu.GetMenu(window);
+        if (OperatingSystem.IsMacOS())
+        {
+            Assert.NotNull(exported);
+            var exportedNodes = Describe(exported!, "").ToList();
+            Assert.Equal(ExpectedMenuTree, exportedNodes.Select(n => n.Path));
+            Assert.Equal(inWindow.Select(n => n.Command), exportedNodes.Select(n => n.Command));
+        }
+        else
+        {
+            Assert.Null(exported);
+        }
     }
 
     [AvaloniaFact]
-    public void NativeMenu_Should_RouteToRealActions_OnMacOS()
+    public void MainMenu_Should_RouteToRealActions()
     {
-        if (!OperatingSystem.IsMacOS()) return;
-
         var windowService = new Mock<IWindowService>();
         using var window = CreateMainWindow(windowService.Object);
         var vm = (MainWindowViewModel)window.DataContext!;
-        var leaves = Leaves(NativeMenu.GetMenu(window)!).ToDictionary(i => i.Header!);
+        var commands = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Command!);
 
         var tabCountBefore = vm.Tabs.Count;
-        leaves["New File"].Command!.Execute(null);
+        commands["File/New File"].Execute(null);
         Assert.Equal(tabCountBefore + 1, vm.Tabs.Count);
 
         var sizeBefore = vm.Sidebar.Size;
-        leaves["Toggle File Tree"].Command!.Execute(null);
+        commands["View/Toggle File Tree"].Execute(null);
         Assert.NotEqual(sizeBefore, vm.Sidebar.Size);
 
-        // Application ("RunPad") menu — About/Preferences replace the in-window Help/Edit entries.
-        var appLeaves = Leaves(NativeMenu.GetMenu(Application.Current!)!).ToDictionary(i => i.Header!);
-        appLeaves["About RunPad"].Command!.Execute(null);
-        appLeaves["Preferences..."].Command!.Execute(null);
-        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+        commands["Edit/Preferences"].Execute(null);
+        commands["Help/About RunPad"].Execute(null);
         windowService.Verify(w => w.ShowPreferencesAsync(), Times.Once);
+        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
     }
 
-    private static IEnumerable<NativeMenuItem> Leaves(NativeMenu menu)
+    // The application menu must already exist when App.Initialize returns — Avalonia.Native's
+    // exporter is created right after (AfterSetup) and otherwise installs "About Avalonia".
+    [AvaloniaFact]
+    public void AppInitialize_Should_SetApplicationMenu_WithoutAvaloniaAbout()
     {
-        foreach (var item in menu.Items.OfType<NativeMenuItem>().Where(i => i is not NativeMenuItemSeparator))
+        var app = new App();
+        app.Initialize();
+
+        var menu = NativeMenu.GetMenu(app);
+        Assert.NotNull(menu);
+        var headers = menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header).ToList();
+        Assert.Equal(["About RunPad"], headers);
+        Assert.DoesNotContain(headers, h => h!.Contains("Avalonia"));
+    }
+
+    [AvaloniaFact]
+    public void ApplicationMenu_About_Should_ShowAboutRunPad()
+    {
+        var windowService = new Mock<IWindowService>();
+        var menu = App.CreateApplicationMenu(() => windowService.Object);
+
+        menu.Items.OfType<NativeMenuItem>().Single(i => i.Header == "About RunPad").Command!.Execute(null);
+
+        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+    }
+
+    private static bool IsLeaf(string path)
+        => !path.EndsWith("---", StringComparison.Ordinal)
+           && !ExpectedMenuTree.Any(p => p.StartsWith(path + "/", StringComparison.Ordinal));
+
+    private sealed record MenuNode(string Path, ICommand? Command);
+
+    private static IEnumerable<MenuNode> Describe(IEnumerable<object?> items, string prefix)
+    {
+        foreach (var item in items)
         {
-            if (item.Menu is { } sub)
+            switch (item)
             {
-                foreach (var leaf in Leaves(sub)) yield return leaf;
+                case Separator:
+                    yield return new MenuNode(prefix + "---", null);
+                    break;
+                case MenuItem menuItem:
+                    var path = prefix + MainMenuDefinition.StripAccessKey((string)menuItem.Header!);
+                    yield return new MenuNode(path, menuItem.Command);
+                    foreach (var child in Describe(menuItem.Items, path + "/")) yield return child;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unexpected menu item {item}");
             }
-            else
+        }
+    }
+
+    private static IEnumerable<MenuNode> Describe(NativeMenu menu, string prefix)
+    {
+        foreach (var item in menu.Items)
+        {
+            switch (item)
             {
-                yield return item;
+                case NativeMenuItemSeparator:
+                    yield return new MenuNode(prefix + "---", null);
+                    break;
+                case NativeMenuItem nativeItem:
+                    var path = prefix + nativeItem.Header;
+                    yield return new MenuNode(path, nativeItem.Command);
+                    if (nativeItem.Menu is { } sub)
+                    {
+                        foreach (var child in Describe(sub, path + "/")) yield return child;
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unexpected native menu item {item}");
             }
         }
     }

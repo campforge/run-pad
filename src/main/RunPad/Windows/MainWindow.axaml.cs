@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -31,6 +30,11 @@ public sealed partial class MainWindow : Window, IDisposable
         DataContext = viewModel;
 
         InitializeComponent();
+
+        MainMenuEntries = CreateMainMenu();
+        var mainMenu = this.FindControl<Menu>("MainMenu")!;
+        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) mainMenu.Items.Add(item);
+
         ApplyPlatformChrome();
 
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
@@ -163,8 +167,9 @@ public sealed partial class MainWindow : Window, IDisposable
     //
     // On macOS (docs/handoffs/macos-native-header.md) the window gets the stock titlebar — traffic
     // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
-    // bar via NativeMenu (see ApplyMacNativeMenu). The whole custom title row would then only
-    // duplicate the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
+    // bar via NativeMenu, projected from the same MainMenuEntries as the in-window Menu
+    // (docs/handoffs/menu-platform-parity.md). The whole custom title row would then only duplicate
+    // the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
@@ -195,68 +200,55 @@ public sealed partial class MainWindow : Window, IDisposable
             this.FindControl<Border>("TitleBar")!.IsVisible = false;
             this.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height = new GridLength(0);
 
-            ApplyMacNativeMenu();
+            NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
         }
     }
 
-    // NativeMenu items aren't Controls — they don't inherit this window's DataContext, so XAML
-    // {Binding} commands on them would silently resolve to nothing. The menu is built here instead,
-    // pointing straight at the same view-model commands / handlers the in-window Menu uses.
+    // docs/handoffs/menu-platform-parity.md — the one menu tree behind both the in-window Menu and
+    // the macOS system menu bar (MainMenuDefinition projects it into either). Built in code rather
+    // than XAML because NativeMenu items aren't Controls: they don't inherit this window's
+    // DataContext, so XAML {Binding} commands on them would silently resolve to nothing.
     //
-    // No NativeMenuItem.Gesture: KeyboardSettings gestures are Ctrl-based and already dispatched by
-    // OnWindowKeyDown; registering them as menu key equivalents too would risk running an action
-    // twice per keypress.
-    private void ApplyMacNativeMenu()
+    // The application ("RunPad") menu is not part of this tree — see App.CreateApplicationMenu.
+    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; }
+
+    private IReadOnlyList<MainMenuGroup> CreateMainMenu()
     {
         var vm = GetViewModel();
 
-        var newKindMenu = new NativeMenu
-        {
-            new NativeMenuItem("C#") { Command = ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp)) },
-            new NativeMenuItem("Visual Basic") { Command = ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb)) },
-        };
-
-        var fileMenu = new NativeMenu
-        {
-            new NativeMenuItem("New File") { Command = ReactiveCommand.Create(vm.NewRpadFileWithDefaults) },
-            new NativeMenuItem("New RPad File") { Menu = newKindMenu },
-            new NativeMenuItem("Import LINQPad Query...") { Command = vm.ImportLinqFileCommand },
-            new NativeMenuItemSeparator(),
-            new NativeMenuItem("Save") { Command = ReactiveCommand.Create(_editorTabs.SaveActive) },
-            new NativeMenuItem("Save As...") { Command = ReactiveCommand.Create(_editorTabs.SaveAsActive) },
-        };
-
-        var editMenu = new NativeMenu
-        {
-            new NativeMenuItem("Dependencies") { Command = vm.OpenDependenciesCommand },
-            new NativeMenuItem("Assembly Explorer...") { Command = vm.OpenAssemblyExplorerCommand },
-        };
-
-        var viewMenu = new NativeMenu
-        {
-            new NativeMenuItem("Toggle File Tree") { Command = vm.Sidebar.ToggleCommand },
-        };
-
-        NativeMenu.SetMenu(this, new NativeMenu
-        {
-            new NativeMenuItem("File") { Menu = fileMenu },
-            new NativeMenuItem("Edit") { Menu = editMenu },
-            new NativeMenuItem("View") { Menu = viewMenu },
-        });
-
-        // Application menu ("RunPad"): About/Preferences take the place of the in-window Help/Edit
-        // entries. Avalonia's macOS exporter appends the standard Hide/Show All/Quit items itself;
-        // Quit closes windows through the normal Closing path, so OnClosing's unsaved-tab check
-        // still runs.
-        if (Application.Current is { } app)
-        {
-            NativeMenu.SetMenu(app, new NativeMenu
-            {
-                new NativeMenuItem("About RunPad") { Command = vm.OpenAboutCommand },
-                new NativeMenuItemSeparator(),
-                new NativeMenuItem("Preferences...") { Command = vm.OpenPreferencesCommand },
-            });
-        }
+        return
+        [
+            new MainMenuGroup("File",
+            [
+                new MainMenuCommand("_New File", ReactiveCommand.Create(vm.NewRpadFileWithDefaults), vm.NewFileGesture),
+                new MainMenuGroup("New _RPad File",
+                [
+                    new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
+                    new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
+                ]),
+                new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
+                new MainMenuSeparator(),
+                new MainMenuCommand("_Save", ReactiveCommand.Create(_editorTabs.SaveActive), vm.SaveGesture),
+                new MainMenuCommand("Save _As...", ReactiveCommand.Create(_editorTabs.SaveAsActive), vm.SaveAsGesture),
+            ]),
+            new MainMenuGroup("Edit",
+            [
+                new MainMenuCommand("_Dependencies", vm.OpenDependenciesCommand, vm.OpenDependenciesGesture),
+                new MainMenuCommand("_Assembly Explorer...", vm.OpenAssemblyExplorerCommand),
+                new MainMenuSeparator(),
+                new MainMenuCommand("_Preferences", vm.OpenPreferencesCommand),
+            ]),
+            // The title-bar sidebar button's command — on macOS that button is hidden with the rest
+            // of the custom title row, so the menu is the only way to reach it there.
+            new MainMenuGroup("View",
+            [
+                new MainMenuCommand("_Toggle File Tree", vm.Sidebar.ToggleCommand),
+            ]),
+            new MainMenuGroup("Help",
+            [
+                new MainMenuCommand("_About RunPad", vm.OpenAboutCommand),
+            ]),
+        ];
     }
 
     // ── Title bar window controls ─────────────────────────────────────────────
@@ -277,14 +269,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private void NewRpadFileWithDefaults_Click(object? sender, RoutedEventArgs e) => GetViewModel().NewRpadFileWithDefaults();
-
-    private async void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
-        => await NewRpadFileWithKindAsync(RpadLanguage.CSharp);
-
-    private async void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
-        => await NewRpadFileWithKindAsync(RpadLanguage.Vb);
-
     private async Task NewRpadFileWithKindAsync(RpadLanguage language)
     {
         var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
@@ -292,10 +276,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
         GetViewModel().NewRpadFile(language, kind.Value);
     }
-
-    private void Save_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveActive();
-
-    private void SaveAs_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveAsActive();
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

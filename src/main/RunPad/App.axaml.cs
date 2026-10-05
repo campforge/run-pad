@@ -1,8 +1,10 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ReactiveUI;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
@@ -31,7 +33,30 @@ public class App : Application
 
     private ServiceProvider? _serviceProvider;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+
+        // docs/handoffs/menu-platform-parity.md — Avalonia.Native creates its application-menu
+        // exporter in an AppBuilder.AfterSetup callback, i.e. right after this method returns and
+        // before OnFrameworkInitializationCompleted. If Application has no NativeMenu by then, the
+        // exporter installs its own default app menu (the "About Avalonia" item) and doesn't pick up
+        // a menu assigned later (e.g. from MainWindow's constructor). Setting it here — before any
+        // window, including SetupWizardWindow — is the earliest point the Application exists. The
+        // command resolves IWindowService lazily since DI isn't built yet. The exporter itself
+        // appends the standard Hide/Show All/Quit items. Other platforms ignore Application menus.
+        NativeMenu.SetMenu(this, CreateApplicationMenu(() => _serviceProvider?.GetService<IWindowService>()));
+    }
+
+    // App-level items only; the application's own commands (Preferences included) live in
+    // MainWindow's menu so every OS gets the same File/Edit/View/Help paths.
+    internal static NativeMenu CreateApplicationMenu(Func<IWindowService?> windowService) => new()
+    {
+        new NativeMenuItem("About RunPad")
+        {
+            Command = ReactiveCommand.CreateFromTask(() => windowService()?.ShowAboutAsync() ?? Task.CompletedTask),
+        },
+    };
 
     public override void OnFrameworkInitializationCompleted()
     {
