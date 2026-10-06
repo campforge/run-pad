@@ -55,6 +55,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // see OnDependenciesEdited. Not "what's on disk": a failed write keeps the tab dirty instead.
     private string _metadataBaseline = "";
 
+    // Editor FontSize relative to the Preferences font size (see EditorZoom) — kept so a Preferences
+    // change, which re-applies the base FontSize, doesn't silently reset the user's zoom.
+    private double _zoomFactor = 1;
+
     // Debounce before firing a Quick Info request after the pointer stops moving — long enough
     // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
     // (ANALYSIS.md #94).
@@ -106,6 +110,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         ApplyEditorSettings(editor, prefs.Editor);
         prefs.Changed += OnPreferencesChanged;
+
+        // Ctrl+wheel (inside CodeTextEditor) and the status-bar zoom menu both just change FontSize.
+        editor.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == CodeTextEditor.FontSizeProperty) OnEditorFontSizeChanged();
+        };
+        OnEditorFontSizeChanged();
 
         _intelliSense = intelliSense;
         SetupEditor(editor, intelliSense);
@@ -1007,7 +1018,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void OnPreferencesChanged()
         => Dispatcher.Post(() =>
         {
+            var zoomFactor = _zoomFactor;
             ApplyEditorSettings(State.Editor, _prefs.Editor);
+            if (zoomFactor != 1)
+                State.Editor.FontSize = Math.Max(1, _prefs.Editor.FontSize * zoomFactor);
 
             if (_inlayHintRenderer is { } renderer && renderer.IsEnabled != _prefs.CSharp.InlayHintsEnabled)
             {
@@ -1021,6 +1035,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // of waiting for the next keystroke.
             UpdateLightbulb();
         });
+
+    // ── Editor zoom ───────────────────────────────────────────────────────────
+
+    private void OnEditorFontSizeChanged()
+    {
+        var baseFontSize = _prefs.Editor.FontSize;
+        _zoomFactor = baseFontSize > 0 ? State.Editor.FontSize / baseFontSize : 1;
+        ZoomButton.Content = $"{EditorZoom.ToPercent(State.Editor.FontSize, baseFontSize)}%";
+    }
+
+    private void SetZoomPercent(int percent)
+    {
+        State.Editor.FontSize = EditorZoom.ToFontSize(percent, _prefs.Editor.FontSize);
+        State.Editor.Focus();
+    }
+
+    private int CurrentZoomPercent => EditorZoom.ToPercent(State.Editor.FontSize, _prefs.Editor.FontSize);
+
+    private void ZoomIn_Click(object? sender, RoutedEventArgs e) =>
+        SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
+
+    private void ZoomOut_Click(object? sender, RoutedEventArgs e) =>
+        SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
+
+    private void ZoomPreset_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: string tag } && int.TryParse(tag, out var percent))
+            SetZoomPercent(percent);
+    }
 
     // TODO.md #74 (user request 2026-07-21) — filters the merged diagnostic-fix + refactoring lists
     // against Preferences → C# → "code fixes enabled"/excluded-diagnostic-id settings at RENDER time,
