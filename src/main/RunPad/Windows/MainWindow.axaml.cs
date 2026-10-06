@@ -16,8 +16,12 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself
-    // cancels to go ask about unsaved untitled tabs.
+    // cancels to go resolve unsaved tabs.
     private bool _confirmedClose;
+
+    // Review R1: a second Close (Cmd+Q / window button again) while the first confirmation is
+    // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
+    private bool _closeConfirmationInProgress;
 
     public MainWindow(
         IPreferencesService prefs,
@@ -55,10 +59,25 @@ public sealed partial class MainWindow : Window, IDisposable
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_confirmedClose) return;
-        if (!_editorTabs.HasUnsavedUntitledTabs()) return;
+        if (_closeConfirmationInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
+        if (!_editorTabs.HasUnsavedTabs()) return;
 
         e.Cancel = true;
-        if (!await _editorTabs.ConfirmCloseAllUnsavedTabsAsync()) return;
+        _closeConfirmationInProgress = true;
+        bool canClose;
+        try
+        {
+            canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+        }
+        finally
+        {
+            _closeConfirmationInProgress = false;
+        }
+        if (!canClose) return;
 
         _confirmedClose = true;
         Close();

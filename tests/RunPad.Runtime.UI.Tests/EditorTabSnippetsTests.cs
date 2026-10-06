@@ -124,9 +124,9 @@ public class EditorTabSnippetsTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            var doc = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
-            doc.FrontMatter.Language = language;
-            File.WriteAllText(filePath, RpadWriter.Write(doc));
+            // NewFile emits the matching ```{language} run fence — retargeting a parsed C# document's
+            // language would leave a C# fence the parser (rightly, review R3) rejects for VB.
+            File.WriteAllText(filePath, RpadWriter.NewFile("Demo", language: language));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());

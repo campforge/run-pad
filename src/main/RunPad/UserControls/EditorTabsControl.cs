@@ -88,9 +88,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // change survives an app close/crash instead of waiting for the next Run or tab close.
     private void OnDependenciesWindowClosed()
     {
-        var ctrl = GetActiveControl();
-        ctrl?.RefreshIntelliSensePackages();
-        ctrl?.SaveIfNeeded();
+        GetActiveControl()?.OnDependenciesEdited();
     }
 
     // ── Tab lifecycle ──────────────────────────────────────────────────────────
@@ -134,7 +132,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
             foreach (EditorTabItemViewModel vm in e.OldItems)
             {
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
-                entry.Control.SaveIfNeeded();
+                // No save here (review R1): a write failure discovered only now would have nowhere
+                // to go — the tab and its editor are being destroyed. Every removal path resolves
+                // unsaved content BEFORE removing (MainWindowViewModel.
+                // ResolveUnsavedChangesBeforeCloseAsync / TrySaveTabsBeforeFileOperation).
                 entry.Control.Dispose();
                 fileTabControl.Items.Remove(entry.Tab);
                 _tabs.Remove(vm);
@@ -260,19 +261,20 @@ public partial class EditorTabsControl : UserControl, IDisposable
     }
 
     // TODO.md, "tab lifecycle (leftover)": the per-tab confirmation above only fires when a
-    // SPECIFIC tab is closed — quitting the whole app skipped it entirely, discarding every unsaved
-    // untitled tab's content at once with no warning. MainWindow's Closing handler checks this first
-    // (cheap, synchronous) before deciding whether it even needs to cancel the close and await
-    // ConfirmCloseAllUnsavedTabsAsync below.
-    public bool HasUnsavedUntitledTabs()
-        => _vm?.Tabs.Any(t => t.FilePath is null && t.IsDirty) ?? false;
+    // SPECIFIC tab is closed — quitting the whole app skipped it entirely. MainWindow's Closing
+    // handler checks this first (cheap, synchronous) before deciding whether it even needs to cancel
+    // the close and await ConfirmCloseAllUnsavedTabsAsync below. Review R1: dirty named tabs count
+    // too — they used to be written by Dispose after the window was already gone, so a failed
+    // write lost the edits silently.
+    public bool HasUnsavedTabs()
+        => _vm?.Tabs.Any(t => t.IsDirty) ?? false;
 
-    // Walks every dirty untitled tab (not just the active one) asking the same Save/Don't
-    // Save/Cancel question RequestCloseTabAsync asks for a single tab — stops at the first Cancel
-    // (or the first Save whose own Save As dialog gets cancelled) rather than working through the
-    // rest, same as VS Code's behavior on quit. Deliberately doesn't remove tabs from Tabs or touch
-    // _tabs itself — the whole window is about to close either way, so there's nothing to tidy up in
-    // the UI, only content to not lose.
+    // Walks every dirty tab (not just the active one) through the same decision a single tab's close
+    // uses (MainWindowViewModel.ResolveUnsavedChangesBeforeCloseAsync: named tabs are written in
+    // place; untitled tabs and failed writes ask Save/Don't Save/Cancel) — stops at the first one
+    // that can't be resolved rather than working through the rest, same as VS Code's behavior on
+    // quit. Deliberately doesn't remove tabs from Tabs or touch _tabs itself — if the quit is
+    // cancelled, every tab must still be there exactly as it was.
     public async Task<bool> ConfirmCloseAllUnsavedTabsAsync()
     {
         if (_vm is null) return true;
@@ -282,17 +284,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // mutation pattern happens not to invalidate the enumerator.
         foreach (var vm in _vm.Tabs.ToList())
         {
-            if (vm.FilePath is not null || !vm.IsDirty) continue;
-            if (!_tabs.TryGetValue(vm, out var entry)) continue;
-
-            var choice = await _vm.ConfirmDiscardUnsavedChangesAsync(vm.FileName);
-            if (choice == UnsavedChangesResult.Cancel) return false;
-
-            if (choice == UnsavedChangesResult.Save)
-            {
-                await _vm.SaveTabAsAsync(vm, entry.Control.WriteFile);
-                if (vm.FilePath is null) return false; // Save As was itself cancelled/failed
-            }
+            if (!vm.IsDirty || !_tabs.ContainsKey(vm)) continue;
+            if (!await _vm.ResolveUnsavedChangesBeforeCloseAsync(vm)) return false;
         }
 
         return true;
@@ -378,9 +371,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         _activeTabSub?.Dispose();
 
+        // No save here (review R1): unsaved content was already resolved by MainWindow's Closing
+        // confirmation — saving again would overwrite a "Don't Save" choice and report a failure
+        // into a window that no longer exists.
         foreach (var (tabVm, (_, ctrl)) in _tabs)
         {
-            ctrl.SaveIfNeeded();
             ctrl.Dispose();
             tabVm.Dispose();
         }
@@ -407,7 +402,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
         // ever opening a tab (see NewRpadFile's old eager-write). Now that creation is deferred (see
         // NewRpadFile), a new VB tab would otherwise get a live C# IntelliSense instance wired up
         // against VB source text until its first save — read the tab's own pending choice instead.
-        var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekLanguage(vm.FilePath);
+        // An invalid document (PeekDocumentLanguage → null) opens as raw text — no IntelliSense.
+        var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekDocumentLanguage(vm.FilePath);
         var factory = _intelliSenseFactory;
         var intelliSense = factory is not null && language == RpadLanguage.CSharp
             ? await Task.Run(factory.Invoke)

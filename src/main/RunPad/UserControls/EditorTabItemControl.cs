@@ -51,6 +51,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedKindSub;
     private bool _disposed;
 
+    // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
+    // see OnDependenciesEdited. Not "what's on disk": a failed write keeps the tab dirty instead.
+    private string _metadataBaseline = "";
+
     // Debounce before firing a Quick Info request after the pointer stops moving — long enough
     // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
     // (ANALYSIS.md #94).
@@ -62,6 +66,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // 500ms — refactorings just can't share that pass (see GetRefactoringsAsync's own doc comment on
     // IIntelliSenseService: availability depends on caret position, not on what changed in the text).
     private static readonly TimeSpan RefactoringDebounceDelay = TimeSpan.FromMilliseconds(400);
+
+    // Background callbacks (these debounces, IntelliSense events, run-host output) marshal back via
+    // this control's own Dispatcher (AvaloniaObject.Dispatcher, captured at construction), never the
+    // static Dispatcher.UIThread: that static is created lazily by whichever thread reads it first
+    // once unset — after Avalonia.Headless resets it between isolated tests, a late callback from a
+    // finished test made a thread-pool thread "the UI thread" and the next test's app setup failed
+    // VerifyAccess (DefaultRenderLoop.Add). Same dispatcher in the real app; no behavior change there.
 
     internal EditorsTabItemControl(
         EditorTabItemViewModel vm,
@@ -234,7 +245,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Called on every text change/tab switch/close/app exit — silently eating a real write
+            // Called for explicit Save and in-place metadata edits (tab close/app exit/rename resolve
+            // unsaved content themselves first — review R1) — silently eating a real write
             // failure (disk full, permissions, file deleted/locked externally) meant the user never
             // found out their edits weren't persisted. Surface it via the same status indicator
             // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
@@ -270,6 +282,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         var s = State;
         if (s.RunCts is { IsCancellationRequested: false }) return;
+
+        // Never run an invalid .rpad as raw code (review R3) — the editor holds the whole file
+        // (front matter + Markdown) there, not a script.
+        if (s.DocumentParseError is { } parseError)
+        {
+            s.Output.Clear();
+            s.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(parseError))}</div>");
+            SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+            return;
+        }
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
         s.Output.Clear();
@@ -333,25 +356,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 s.RunningHost = host;
                 host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
                 host.InputRequested += (prompt, isPassword) =>
-                    Dispatcher.UIThread.Post(() => ShowInputPrompt(prompt, isPassword));
+                    Dispatcher.Post(() => ShowInputPrompt(prompt, isPassword));
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
                     foreach (var bp in breakpoints) host.AddBreakpoint(bp);
                     host.BreakpointHit += ctx =>
-                        Dispatcher.UIThread.Post(() => OnBreakpointHit(ctx));
+                        Dispatcher.Post(() => OnBreakpointHit(ctx));
                     host.BreakpointVerified += (bp, verified, message) =>
-                        Dispatcher.UIThread.Post(() => OnBreakpointVerified(bp, verified, message));
+                        Dispatcher.Post(() => OnBreakpointVerified(bp, verified, message));
                     await host.RunDebugAsync(
                         script,
-                        (data, kind) => Dispatcher.UIThread.Post(() => AppendOutput(data, kind)),
+                        (data, kind) => Dispatcher.Post(() => AppendOutput(data, kind)),
                         s.RunCts.Token);
                 }
                 else
                 {
                     await host.RunAsync(
                         script,
-                        (data, kind) => Dispatcher.UIThread.Post(() => AppendOutput(data, kind)),
+                        (data, kind) => Dispatcher.Post(() => AppendOutput(data, kind)),
                         s.RunCts.Token);
                 }
             }, s.RunCts.Token);
@@ -544,7 +567,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // ResolveAllMissingUsingsAsync wraps its work in Task.Run the same way MaterializeFixAsync
         // does — same not-implicit-by-default rationale as ApplyCodeFixAsync's own comment on why it
         // explicitly marshals back too.
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await Dispatcher.InvokeAsync(() =>
         {
             if (_disposed) return;
             var editor = State.Editor;
@@ -819,6 +842,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
+    private static string InvalidDocumentMessage(string parseError)
+        => $"Cannot run: this file is not a valid .rpad document. {parseError} " +
+           "Fix it in the editor, save, and reopen the file to run it.";
+
     private void AppendError(Exception ex)
     {
         State.HadRunError = true;
@@ -858,11 +885,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
-        Dispatcher.UIThread.Post(() => IlOutput.Text = il);
+        Dispatcher.Post(() => IlOutput.Text = il);
     }
 
     // TODO.md #63 "interactive typed input" — ILanguageHost.InputRequested (Util.ReadLine/
-    // GetPassword). Always called on the UI thread (see the Dispatcher.UIThread.Post at the
+    // GetPassword). Always called on the UI thread (see the Dispatcher.Post at the
     // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
     // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
     // real running script asking for input).
@@ -978,7 +1005,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // ── Editor preferences ────────────────────────────────────────────────────
 
     private void OnPreferencesChanged()
-        => Dispatcher.UIThread.Post(() =>
+        => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor);
 
@@ -1176,7 +1203,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.TextView.BackgroundRenderers.Add(squiggleRenderer);
 
         intelliSense.DiagnosticsChanged += (code, diagnostics) =>
-            Dispatcher.UIThread.Post(() =>
+            Dispatcher.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
@@ -1191,7 +1218,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _semanticHighlighter = semanticHighlighter;
 
         intelliSense.SemanticTokensChanged += (code, tokens) =>
-            Dispatcher.UIThread.Post(() =>
+            Dispatcher.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
@@ -1205,7 +1232,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _inlayHintRenderer = inlayHintRenderer;
 
         intelliSense.InlayHintsChanged += (code, hints) =>
-            Dispatcher.UIThread.Post(() =>
+            Dispatcher.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
@@ -1235,7 +1262,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 .ToList();
 
         intelliSense.CodeFixesChanged += (code, fixes) =>
-            Dispatcher.UIThread.Post(() =>
+            Dispatcher.Post(() =>
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
@@ -1279,7 +1306,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     var refactorings = await intelliSense.GetRefactoringsAsync(text, offset, ct);
                     if (ct.IsCancellationRequested) return;
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    await Dispatcher.InvokeAsync(() =>
                     {
                         if (_disposed || ct.IsCancellationRequested) return;
                         if (!ReferenceEquals(editor.Text, text) && editor.Text != text) return;
@@ -1317,7 +1344,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 {
                     await Task.Delay(QuickInfoHoverDelay, ct);
                     var (offset, text) =
-                        await Dispatcher.UIThread.InvokeAsync(() => (editor.GetOffsetFromPoint(pos), editor.Text));
+                        await Dispatcher.InvokeAsync(() => (editor.GetOffsetFromPoint(pos), editor.Text));
                     if (offset < 0 || ct.IsCancellationRequested) return;
 
                     // A diagnostic under the cursor takes priority over Quick Info — seeing why a
@@ -1329,7 +1356,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         ? await intelliSense.GetQuickInfoAsync(text, offset, ct)
                         : null;
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    await Dispatcher.InvokeAsync(() =>
                     {
                         if (ct.IsCancellationRequested) return;
 
@@ -1425,8 +1452,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         else if (File.Exists(filePath))
         {
             var raw = File.ReadAllText(filePath);
-            rpad = RpadParser.TryParse(raw);
+            var parsed = RpadParser.Parse(raw);
+            rpad = parsed.Document;
+            // Invalid document (review R3): show the whole file as-is instead of default metadata —
+            // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
             content = rpad?.RunCode ?? raw;
+            State.DocumentParseError = parsed.Error;
+            if (parsed.Error is { } error)
+            {
+                State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(error))}</div>");
+                SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
+                UpdateOutputUi();
+            }
 
             // Allocate/reuse this file's persistent build directory now, at open time, rather than
             // lazily on first Run — see EnsureWorkDirectory/BuildRunOptions for how it's consumed.
@@ -1438,6 +1475,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
 
         State.RpadDocument = rpad;
+        _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
 
@@ -1475,6 +1513,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
                                                   new Dictionary<string, Package>());
 
+    // Review R1 follow-up: a front-matter edit (kind, usings, packages, references) is a real unsaved
+    // change just like typed text. It used to be written straight away without ever setting
+    // IsDirty — so if that write failed, the tab still looked clean and the next close/quit
+    // dropped the edit silently. Flag dirty FIRST, then write: a successful write clears it again,
+    // a failed one leaves the tab dirty for the close/quit decision. For an untitled tab
+    // SaveIfNeeded is a no-op, so it simply stays dirty until Save As.
+    private void CommitMetadataChange()
+    {
+        _metadataBaseline = FrontMatterSnapshot();
+        _vm.IsDirty = true;
+        SaveIfNeeded();
+    }
+
+    // Dependencies window closed — it edits packages/namespaces in place with no change
+    // notification, so compare against the last accounted-for snapshot to tell a real edit apart
+    // from just opening and closing the window (which must not make an untitled tab dirty).
+    internal void OnDependenciesEdited()
+    {
+        RefreshIntelliSensePackages();
+        if (FrontMatterSnapshot() != _metadataBaseline)
+            CommitMetadataChange();
+        else if (_vm.IsDirty)
+            SaveIfNeeded();
+    }
+
+    private string FrontMatterSnapshot()
+    {
+        if (State.RpadDocument?.FrontMatter is not { } fm) return "";
+        var packages = fm.Packages is null
+            ? ""
+            : string.Join(";", fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value.Version}"));
+        return string.Join("\n",
+            fm.Version, fm.Language, fm.TargetSdk, fm.Kind, packages,
+            string.Join(";", fm.References ?? []), string.Join(";", fm.Namespaces ?? []));
+    }
+
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
     private void RefreshIntelliSenseUsings()
         => _intelliSense?.UpdateGlobalUsings(State.RpadDocument?.FrontMatter.Namespaces ?? []);
@@ -1508,7 +1582,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         RefreshIntelliSenseUsings();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
-        SaveIfNeeded();
+        CommitMetadataChange();
     }
 
     // FrontMatter.Kind is the source of truth (like usings/packages/references above) — SelectedKind
@@ -1525,7 +1599,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         RefreshIntelliSenseKind();
         UpdateProjectInfoBlock();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
-        SaveIfNeeded();
+        CommitMetadataChange();
     }
 
     // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad (ANALYSIS.md #95) —
@@ -1554,7 +1628,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // isn't guaranteed to resume on the UI thread — same not-implicit-by-default rationale as
         // every other post-Task.Run UI touch in this method (QuickInfo hover, refactoring caret-move
         // handler both explicitly marshal back too, right below this one).
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await Dispatcher.InvokeAsync(() =>
         {
             if (_disposed) return;
             if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;

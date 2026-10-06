@@ -50,6 +50,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Debounce state for watcher-triggered refreshes
     private volatile int _debounceVersion;
 
+    // Review R2: file-tree refresh ordering/lifetime. Each walk gets a version; only the result of
+    // the LATEST requested walk is applied (or reported) — an older walk finishing late can't
+    // overwrite a newer tree, nor resurrect a stale one after a newer walk failed and deliberately
+    // kept the previous tree. _treeErrorReported keeps a persistently unreadable root from re-showing the same error
+    // on every watcher event — reset by the next successful refresh.
+    private int _refreshVersion;
+    private bool _treeErrorReported;
+    private bool _disposed;
+    private readonly CancellationTokenSource _disposeCts = new();
+
     // ── Window commands ───────────────────────────────────────────────────────
 
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
@@ -214,9 +224,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             return;
         }
 
-        // Close the initial blank tab when the first real file is opened.
+        // Close the initial blank tab when the first real file is opened — only while it's still
+        // pristine (review R1: CloseTab never saves, so a typed-into untitled tab must stay).
         EditorTabItemViewModel? blankToClose = null;
-        if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null)
+        if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null && !Tabs[0].IsDirty)
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this);
@@ -330,22 +341,78 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // path the tab's own [x] button/Ctrl+W use, rather than a second, parallel way to trigger this.
     async Task IEditorTabActions.CloseAsync(EditorTabItemViewModel vm)
     {
-        if (vm.FilePath is null && vm.IsDirty)
-        {
-            var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
-            if (choice == UnsavedChangesResult.Cancel) return;
+        if (!await ResolveUnsavedChangesBeforeCloseAsync(vm)) return;
+        CloseTab(vm);
+    }
 
-            if (choice == UnsavedChangesResult.Save)
-            {
-                await ((IEditorTabActions)this).SaveAsAsync(vm);
-                // SaveAsAsync only assigns FilePath on success — still null means the Save As
-                // dialog it opens was itself cancelled (or the write failed), so treat that as
-                // "changed my mind about closing" rather than closing with the content lost anyway.
-                if (vm.FilePath is null) return;
-            }
+    // Review R1: the single "may this dirty tab's content be dropped now?" decision, shared by a
+    // single tab's close (CloseAsync above) and app quit (EditorTabsControl.
+    // ConfirmCloseAllUnsavedTabsAsync). Runs BEFORE the tab is removed — removal itself no longer
+    // saves anything, so a write failure can't be discovered only after the tab/editor is gone.
+    //   - clean tab: nothing to lose.
+    //   - named tab: written in place; on failure the error is shown and the user gets the same
+    //     Save (As)/Don't Save/Cancel choice an untitled tab gets — otherwise a file that can never
+    //     be written (read-only, gone, disk full) would make the tab impossible to close at all.
+    //   - untitled tab: Save/Don't Save/Cancel, Save opening Save As.
+    // Save As only clears IsDirty on success — still dirty means its dialog was cancelled or the
+    // write failed, so that's "changed my mind about closing", not closing with the content lost.
+    internal async Task<bool> ResolveUnsavedChangesBeforeCloseAsync(EditorTabItemViewModel vm)
+    {
+        if (!vm.IsDirty) return true;
+
+        if (vm.FilePath is not null)
+        {
+            if (TryWriteInPlace(vm, out var error)) return true;
+            await _windowService.ShowErrorAsync("Save Failed", error);
         }
 
-        CloseTab(vm);
+        var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
+        if (choice == UnsavedChangesResult.Cancel) return false;
+        if (choice == UnsavedChangesResult.DontSave) return true;
+
+        await ((IEditorTabActions)this).SaveAsAsync(vm);
+        return !vm.IsDirty;
+    }
+
+    // Review R1: writes a dirty named tab to its own path (the same serializer explicit Save uses,
+    // via vm.WriteToFile). A clean or untitled tab is a successful no-op. Fails closed: a dirty
+    // named tab whose editor isn't wired up (no WriteToFile) can't be written, so it must not be
+    // reported as saved and then discarded.
+    private static bool TryWriteInPlace(EditorTabItemViewModel vm, out string error)
+    {
+        error = "";
+        if (!vm.IsDirty || vm.FilePath is not { } path) return true;
+        if (vm.WriteToFile is not { } write)
+        {
+            error = $"Could not save '{Path.GetFileName(path)}': the editor is not ready.";
+            return false;
+        }
+
+        try
+        {
+            write(path);
+            vm.IsDirty = false;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = $"Could not save '{Path.GetFileName(path)}':\n{ex.Message}";
+            return false;
+        }
+    }
+
+    // Review R1: rename/move/delete flush every affected dirty tab first and abort the whole
+    // operation (nothing closed, nothing touched on disk) if any of them can't be written.
+    private bool TrySaveTabsBeforeFileOperation(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
+    {
+        foreach (var tab in tabs)
+        {
+            if (TryWriteInPlace(tab, out var error)) continue;
+            _ = _windowService.ShowErrorAsync(errorTitle, error);
+            return false;
+        }
+
+        return true;
     }
 
     // "File → Import LINQPad Query..." (TODO.md #63) — converts a .linq file (picked via a native
@@ -400,15 +467,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         OpenTab(newPath);
     }
 
-    // Asks whether to save an untitled-but-dirty tab's content before its close discards it — see
-    // CloseAsync above, the sole caller (both the tab's [x] button/CloseCommand and Ctrl+W route
-    // through it). A thin passthrough to _windowService.
+    // Asks whether to save a dirty tab's content before its close discards it — see
+    // ResolveUnsavedChangesBeforeCloseAsync above, the sole caller. A thin passthrough to
+    // _windowService.
     public Task<UnsavedChangesResult> ConfirmDiscardUnsavedChangesAsync(string fileName)
         => _windowService.ShowUnsavedChangesDialogAsync(fileName);
 
     // internal (not private): DeleteFile/MoveOrRenameOnDisk below also remove a tab directly,
-    // bypassing the unsaved-changes confirmation CloseAsync above does — the file's disappearing out
-    // from under the tab either way, so there's nothing meaningful "Cancel" could preserve there.
+    // bypassing the unsaved-changes confirmation CloseAsync above does — they flush affected tabs
+    // themselves first (TrySaveTabsBeforeFileOperation). Removing a tab never saves it (review R1):
+    // every caller must have resolved its unsaved content beforehand.
     internal void CloseTab(EditorTabItemViewModel vm)
     {
         if (vm.FilePath is not null) _openTabs.Remove(vm.FilePath);
@@ -440,17 +508,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // even though the tree acted like it had (ANALYSIS.md TODO #69 follow-up).
         var isDirectory = Directory.Exists(filePath);
 
-        // Close tab(s) first so SaveIfNeeded writes final content before the path disappears —
-        // the file itself, or (for a folder) every tab nested inside it. Tracked before closing
-        // (rather than just checked in the catch) so a failed delete can reopen them, same as
-        // RenameFile — otherwise a failed delete left the tab(s) closed even though the file/folder
-        // was still on disk (code-review finding on the #69/#72-era PR).
-        var hadTab = _openTabs.ContainsKey(filePath);
-        var nestedTabs = isDirectory ? FindOpenTabsUnder(filePath) : [];
-        if (_openTabs.TryGetValue(filePath, out var tab))
-            CloseTab(tab);
-        foreach (var (_, nestedTab) in nestedTabs)
-            CloseTab(nestedTab);
+        // Affected tabs — the file itself, or (for a folder) every tab nested inside it. Review R1:
+        // they're flushed first (a failed write aborts the delete) and only closed once the delete
+        // actually succeeded, so a failed delete leaves the very same tabs (editor state included)
+        // open instead of closing and reloading them from disk.
+        var affectedTabs = FindAffectedTabs(filePath, isDirectory);
+        if (!TrySaveTabsBeforeFileOperation(affectedTabs, "Delete Failed")) return;
 
         try
         {
@@ -461,19 +524,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
         catch (Exception ex)
         {
-            // The tab(s) were already closed above — since the delete didn't happen, the file(s) are
-            // still at the same path(s), so reopen them instead of leaving their tabs silently gone
-            // from the tab bar. Report instead of the previous silent catch-and-ignore — a failed
-            // delete used to leave the tree acting like the folder/file was gone while it was still
-            // on disk, with no way to tell why (ANALYSIS.md TODO #69 follow-up).
-            if (hadTab) OpenTab(filePath);
-            foreach (var (nestedPath, _) in nestedTabs)
-                OpenTab(nestedPath);
+            // Report instead of the previous silent catch-and-ignore — a failed delete used to leave
+            // the tree acting like the folder/file was gone while it was still on disk, with no way
+            // to tell why (ANALYSIS.md TODO #69 follow-up).
             _ = _windowService.ShowErrorAsync(
                 "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
             return;
         }
 
+        foreach (var tab in affectedTabs)
+            CloseTab(tab);
         FileTree.RemoveByPath(filePath);
     }
 
@@ -512,20 +572,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
-    // name) — both close whatever tab(s) are open on the affected path(s) first (so SaveIfNeeded
-    // flushes to the OLD path before the move), attempt the actual File.Move/Directory.Move, and
-    // reopen at the old or new path depending on whether it succeeded.
+    // name). Review R1: affected tab(s) are flushed to the OLD path first (a failed write aborts
+    // the operation), and only closed/reopened at the new path once the move succeeded — a failed
+    // move leaves the very same tabs open rather than closing and reloading them from disk.
     private void MoveOrRenameOnDisk(
         string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
     {
         var isDirectory = Directory.Exists(sourcePath);
 
-        var hadTab = _openTabs.ContainsKey(sourcePath);
-        var nestedTabs = isDirectory ? FindOpenTabsUnder(sourcePath) : [];
-        if (_openTabs.TryGetValue(sourcePath, out var tab))
-            CloseTab(tab);
-        foreach (var (_, nestedTab) in nestedTabs)
-            CloseTab(nestedTab);
+        var affectedTabs = FindAffectedTabs(sourcePath, isDirectory);
+        if (!TrySaveTabsBeforeFileOperation(affectedTabs, errorTitle)) return;
 
         try
         {
@@ -536,12 +592,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
         catch (Exception ex)
         {
-            // The tab(s) were already closed above (so SaveIfNeeded could flush to the old path) —
-            // since the move didn't happen, the file(s) are still at the old path(s), so reopen them
-            // instead of leaving their tabs silently gone from the tab bar.
-            if (hadTab) OpenTab(sourcePath);
-            foreach (var (nestedPath, _) in nestedTabs)
-                OpenTab(nestedPath);
             _ = _windowService.ShowErrorAsync(
                 errorTitle,
                 $"Could not {errorVerb} '{Path.GetFileName(sourcePath)}' {errorDestinationPhrase}:\n{ex.Message}");
@@ -550,10 +600,20 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         RefreshNodes();
 
-        if (hadTab)
-            OpenTab(newPath);
-        foreach (var (nestedPath, _) in nestedTabs)
-            OpenTab(Path.Combine(newPath, Path.GetRelativePath(sourcePath, nestedPath)));
+        var oldPaths = affectedTabs.Select(t => t.FilePath!).ToList();
+        foreach (var tab in affectedTabs)
+            CloseTab(tab);
+        foreach (var oldPath in oldPaths)
+            OpenTab(isDirectory ? Path.Combine(newPath, Path.GetRelativePath(sourcePath, oldPath)) : newPath);
+    }
+
+    // The tab open on `path` itself plus, for a folder, every tab nested inside it.
+    private List<EditorTabItemViewModel> FindAffectedTabs(string path, bool isDirectory)
+    {
+        var tabs = new List<EditorTabItemViewModel>();
+        if (_openTabs.TryGetValue(path, out var tab)) tabs.Add(tab);
+        if (isDirectory) tabs.AddRange(FindOpenTabsUnder(path).Select(kv => kv.Value));
+        return tabs;
     }
 
     // TODO.md #69: creates a new folder next to whatever's selected in the file tree — INSIDE the
@@ -678,17 +738,52 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // except CreateFolderAsync) — GetFilesTreeAsync's own Task.Run means the disk walk never blocks
     // whichever thread called this, only FileTree.Refresh's (already cheap, diff-based) merge runs
     // back on the UI thread once it resolves.
-    private async void RefreshNodes() => await RefreshNodesAsync();
+    private void RefreshNodes() => _ = RefreshNodesAsync();
 
     // CreateFolderAsync is the one caller that needs to actually await this — FileTree_CreateFolder
     // (MainWindow.axaml.cs) calls FileTreeView.StartRenameForPath immediately after, which needs the
     // new folder to already be in FileTree.Nodes to find it.
-    private async Task RefreshNodesAsync() => FileTree.Refresh(await _fileSystemService.GetFilesTreeAsync());
+    //
+    // Review R2: never throws — RefreshNodes discards the Task, and this used to be awaited from an
+    // async void, so any walk failure (unreadable/vanished root, network path gone) escaped onto the
+    // UI dispatcher as an unhandled exception. A failed walk keeps the previous tree as-is.
+    // internal (not private) so tests can await a specific refresh.
+    internal async Task RefreshNodesAsync()
+    {
+        if (_disposed) return;
+        var version = ++_refreshVersion;
+        IReadOnlyList<FileSystemItem> items;
+        try
+        {
+            items = await _fileSystemService.GetFilesTreeAsync(_disposeCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "File tree refresh failed");
+            if (_disposed || version != _refreshVersion || _treeErrorReported) return;
+            _treeErrorReported = true;
+            _ = _windowService.ShowErrorAsync(
+                "Folder Unavailable", $"Could not read '{_fileSystemService.Folder}':\n{ex.Message}");
+            return;
+        }
+
+        if (_disposed || version != _refreshVersion) return;
+        _treeErrorReported = false;
+        FileTree.Refresh(items);
+    }
 
     // ── Dispose ───────────────────────────────────────────────────────────────
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
         _fileSystemService.WatcherEvent -= OnWatcherEvent;
         _fileSystemService.StopWatcher();
 
