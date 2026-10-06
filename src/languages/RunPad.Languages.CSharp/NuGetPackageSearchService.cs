@@ -2,6 +2,7 @@ using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
 using RunPad.Contracts;
 
 namespace RunPad.Languages.CSharp;
@@ -16,8 +17,14 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
     private readonly IReadOnlyList<SourceRepository> _repositories;
 
     public NuGetPackageSearchService()
+        : this(LoadRepositories())
     {
-        _repositories = LoadRepositories();
+    }
+
+    // Tests pass local folder feeds (or deliberately broken sources) instead of the user's nuget.config.
+    internal NuGetPackageSearchService(IReadOnlyList<SourceRepository> repositories)
+    {
+        _repositories = repositories;
     }
 
     // Reads the user's own nuget.config (same sources `dotnet restore` would use — corporate/private
@@ -45,20 +52,12 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
             return [];
 
         var filter = new SearchFilter(includePrerelease: false);
-        var resultsPerSource = await Task.WhenAll(_repositories.Select(async repository =>
+        var resultsPerSource = await QueryAllSourcesAsync(async repository =>
         {
-            try
-            {
-                var resource = await repository.GetResourceAsync<PackageSearchResource>(ct);
-                return await resource.SearchAsync(query, filter, skip: 0, take: MaxResultsPerSource, NullLogger.Instance, ct);
-            }
-            catch
-            {
-                // One misconfigured/unreachable source (e.g. an offline corporate feed) shouldn't
-                // fail the whole search — the other configured sources still get a chance.
-                return [];
-            }
-        }));
+            var resource = await repository.GetResourceAsync<PackageSearchResource>(ct)
+                           ?? throw new NotSupportedException("The package source does not support search.");
+            return await resource.SearchAsync(query, filter, skip: 0, take: MaxResultsPerSource, NullLogger.Instance, ct);
+        }, ct);
 
         return resultsPerSource
             .SelectMany(results => results)
@@ -71,5 +70,54 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
                 Description: r.Description ?? "",
                 TotalDownloads: r.DownloadCount ?? 0L))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetVersionsAsync(string packageId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(packageId))
+            return [];
+
+        using var cacheContext = new SourceCacheContext();
+        var versionsPerSource = await QueryAllSourcesAsync(async repository =>
+        {
+            var resource = await repository.GetResourceAsync<FindPackageByIdResource>(ct)
+                           ?? throw new NotSupportedException("The package source does not support version lookup.");
+            return await resource.GetAllVersionsAsync(packageId.Trim(), cacheContext, NullLogger.Instance, ct);
+        }, ct);
+
+        return versionsPerSource
+            .SelectMany(versions => versions)
+            .Distinct(VersionComparer.Default)
+            .OrderByDescending(v => v, VersionComparer.Default)
+            .Select(v => v.ToNormalizedString())
+            .ToList();
+    }
+
+    // One misconfigured/unreachable source (e.g. an offline corporate feed) shouldn't fail the whole
+    // request — the other configured sources still get a chance. Only when every source fails is it
+    // an error, and the message deliberately names no source URL (it could carry credentials).
+    private async Task<List<IEnumerable<T>>> QueryAllSourcesAsync<T>(
+        Func<SourceRepository, Task<IEnumerable<T>>> query, CancellationToken ct)
+    {
+        var outcomes = await Task.WhenAll(_repositories.Select(async repository =>
+        {
+            try
+            {
+                return (Ok: true, Items: await query(repository));
+            }
+            catch
+            {
+                return (Ok: false, Items: Enumerable.Empty<T>());
+            }
+        }));
+
+        ct.ThrowIfCancellationRequested();
+
+        if (outcomes.Length > 0 && outcomes.All(o => !o.Ok))
+            throw new InvalidOperationException(outcomes.Length == 1
+                ? "The configured package source could not be reached."
+                : $"None of the {outcomes.Length} configured package sources could be reached.");
+
+        return outcomes.Where(o => o.Ok).Select(o => o.Items).ToList();
     }
 }
