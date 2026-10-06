@@ -82,10 +82,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
         vm.RestoreSession();
     }
 
-    // Dependencies window mutates the active tab's RpadFrontMatter in place, in memory only.
-    // On close: push the new package set into that tab's own IntelliSense instance so
-    // completion/diagnostics see it without reopening the tab, and flush to disk immediately so the
-    // change survives an app close/crash instead of waiting for the next Run or tab close.
+    // Dependencies window copies its draft into the active tab's RpadFrontMatter only on OK.
+    // On close: if that changed anything, push the new packages/imports into that tab's own
+    // IntelliSense instance and flush to disk immediately so the change survives an app
+    // close/crash instead of waiting for the next Run or tab close.
     private void OnDependenciesWindowClosed()
     {
         GetActiveControl()?.OnDependenciesEdited();

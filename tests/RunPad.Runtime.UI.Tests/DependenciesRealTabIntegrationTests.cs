@@ -61,14 +61,11 @@ public class DependenciesRealTabIntegrationTests
             var intelliSense = new Mock<IIntelliSenseService>();
 
             var search = new Mock<IPackageSearchService>();
-
             search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-
                 .ReturnsAsync((IReadOnlyList<PackageSearchResult>)
-
                     [new PackageSearchResult("Newtonsoft.Json", "13.0.3", "desc", 100)]);
-
-
+            search.Setup(s => s.GetVersionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IReadOnlyList<string>)["13.0.3"]);
 
             var services = new ServiceCollection();
             services.AddSingleton(search.Object);
@@ -94,38 +91,52 @@ public class DependenciesRealTabIntegrationTests
                 () => intelliSense.Object, referenceService, buildCache.Object);
 
             var host = new Window { Content = editorTabs };
-            host.Show();
-            editorTabs.Attach(mainVm); // opens the initial blank tab
+            DependenciesWindow? depsWindow = null;
+            try
+            {
+                host.Show();
+                editorTabs.Attach(mainVm); // opens the initial blank tab
 
-            // Act: open the already-saved .rpad file, same as double-clicking it in the file tree,
-            // and wait for the async tab load (EditorTabsControl.CreateControlAsync) to finish.
-            mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+                // Act: open the already-saved .rpad file, same as double-clicking it in the file tree,
+                // and wait for the async tab load (EditorTabsControl.CreateControlAsync) to finish.
+                mainVm.OpenTab(filePath);
+                for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
+                    await Task.Delay(20);
 
-            Assert.NotNull(mainVm.ActiveTab?.FrontMatter);
+                Assert.NotNull(mainVm.ActiveTab?.FrontMatter);
 
-            // Same subscription WindowService.ShowDependenciesAsync sets up, minus the modal
-            // ShowDialog plumbing (which needs a real classic-desktop ApplicationLifetime that
-            // Avalonia.Headless.XUnit doesn't provide) — Show() is enough to inspect real bindings.
-            var depsVm = sp.GetRequiredService<DependenciesWindowViewModel>();
-            var depsWindow = new DependenciesWindow(depsVm);
-            using var sub = mainVm.ActiveTab!.WhenAnyValue(x => x.FrontMatter).Subscribe(depsWindow.SetFrontMatter);
-            depsWindow.Show();
+                // Same subscription WindowService.ShowDependenciesAsync sets up, minus the modal
+                // ShowDialog plumbing (which needs a real classic-desktop ApplicationLifetime that
+                // Avalonia.Headless.XUnit doesn't provide) — Show() is enough to inspect real bindings.
+                var depsVm = sp.GetRequiredService<DependenciesWindowViewModel>();
+                depsWindow = new DependenciesWindow(depsVm);
+                using var sub = mainVm.ActiveTab!.WhenAnyValue(x => x.FrontMatter).Subscribe(depsWindow.SetFrontMatter);
+                depsWindow.Show();
 
-            var searchBox = depsWindow.GetVisualDescendants().OfType<TextBox>().First();
-            searchBox.Focus();
-            depsWindow.KeyTextInput("Newtonsoft.Json");
-            // The search itself is mocked (returns instantly) — only the ViewModel's own 350ms
-            // debounce stands between typing and results, so poll instead of a flat 3s sleep. The
-            // 3000ms ceiling is kept only as a generous upper bound for slow CI machines.
-            for (var i = 0; i < 150 && depsVm.Results.Count == 0; i++)
-                await Task.Delay(20);
+                depsVm.Mode = PackageListMode.InScript;
+                Assert.Contains(depsVm.Packages, p => p.Id == "Existing.Package");
+                depsVm.Mode = PackageListMode.Browse;
 
-            // Assert
-            Assert.True(depsVm.HasFrontMatter);
-            Assert.Contains(depsVm.ScriptPackages, p => p.Id == "Existing.Package");
-            Assert.True(depsVm.Results.Count > 0, "Expected at least one real NuGet search result for 'Newtonsoft.Json'.");
+                var searchBox = depsWindow.GetVisualDescendants().OfType<TextBox>().First();
+                searchBox.Focus();
+                depsWindow.KeyTextInput("Newtonsoft.Json");
+                // The search itself is mocked (returns instantly) — only the ViewModel's own 350ms
+                // debounce stands between typing and results, so poll instead of a flat 3s sleep. The
+                // 3000ms ceiling is kept only as a generous upper bound for slow CI machines.
+                for (var i = 0; i < 150 && depsVm.Packages.Count == 0; i++)
+                    await Task.Delay(20);
+
+                // Assert
+                Assert.True(depsVm.HasFrontMatter);
+                Assert.True(depsVm.Packages.Count > 0, "Expected the mocked search result for 'Newtonsoft.Json'.");
+            }
+            finally
+            {
+                depsWindow?.Close();
+                host.Close();
+                editorTabs.Dispose();
+                mainVm.Dispose();
+            }
         }
         finally
         {

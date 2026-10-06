@@ -1526,16 +1526,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         SaveIfNeeded();
     }
 
-    // Dependencies window closed — it edits packages/namespaces in place with no change
+    // Dependencies window closed — on OK it copies its draft into the front matter with no change
     // notification, so compare against the last accounted-for snapshot to tell a real edit apart
-    // from just opening and closing the window (which must not make an untitled tab dirty).
+    // from Cancel or OK without changes. Those must not make an untitled tab dirty, and must not
+    // save unrelated unsaved editor text of a dirty named tab either.
     internal void OnDependenciesEdited()
     {
+        if (FrontMatterSnapshot() == _metadataBaseline) return;
+
         RefreshIntelliSensePackages();
-        if (FrontMatterSnapshot() != _metadataBaseline)
-            CommitMetadataChange();
-        else if (_vm.IsDirty)
-            SaveIfNeeded();
+        RefreshIntelliSenseUsings();
+        CommitMetadataChange();
     }
 
     private string FrontMatterSnapshot()
