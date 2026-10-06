@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
@@ -92,8 +93,24 @@ public class DocumentSafetyHeadlessTests
 
     private static void ThrowDiskFull(string _) => throw new IOException("disk full");
 
+    // Runs after the assertions: the tabs' dirty flags are dropped first so closing the window
+    // neither asks nor writes anything (no production Save/Cancel path), then the window — whose
+    // Dispose releases the EditorTabsControl and its tab controls — and the view model are disposed.
     private static void Cleanup(Harness h)
     {
+        try
+        {
+            foreach (var tab in h.MainVm.Tabs)
+                tab.IsDirty = false;
+            h.Window.Close();
+            Assert.False(h.Window.IsVisible);
+        }
+        finally
+        {
+            h.Window.Dispose();
+            h.MainVm.Dispose();
+        }
+
         foreach (var file in Directory.GetFiles(h.Root, "*", SearchOption.AllDirectories))
             File.SetAttributes(file, FileAttributes.Normal);
         Directory.Delete(h.Root, recursive: true);
@@ -223,5 +240,89 @@ public class DocumentSafetyHeadlessTests
             Assert.True(tab.IsDirty);
         }
         finally { Cleanup(h); }
+    }
+
+    // Dependencies dialog driven through MainWindowViewModel.OpenDependenciesCommand: the mocked
+    // window service hosts a real DependenciesWindowViewModel on the active tab's FrontMatter stream,
+    // edits the draft, then either applies it (OK) or drops it (Cancel/Escape/close).
+    private static void SetupDependenciesDialog(Harness h, bool apply)
+        => h.WindowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RpadFrontMatter?>?>()))
+            .Returns<IObservable<RpadFrontMatter?>?>(stream =>
+            {
+                var cache = new Mock<ILocalPackageCacheService>();
+                cache.Setup(c => c.GetCachedPackages()).Returns([]);
+                var vm = new DependenciesWindowViewModel(new Mock<IPackageSearchService>().Object, cache.Object);
+                using (stream!.Subscribe(vm.SetFrontMatter))
+                {
+                    Assert.True(vm.AddNamespace("System.Linq"));
+                    if (apply) vm.ApplyChanges();
+                }
+                vm.Dispose();
+                return Task.CompletedTask;
+            });
+
+    [AvaloniaFact]
+    public async Task CancellingDependencies_OnADirtyNamedTab_Should_NotWriteTheUnsavedText()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            var onDisk = File.ReadAllText(tab.FilePath!);
+            ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
+            Assert.True(tab.IsDirty);
+            SetupDependenciesDialog(h, apply: false);
+
+            await h.MainVm.OpenDependenciesCommand.Execute();
+
+            Assert.Equal(onDisk, File.ReadAllText(tab.FilePath!));
+            Assert.True(tab.IsDirty);
+            Assert.DoesNotContain("System.Linq", tab.FrontMatter!.Namespaces ?? []);
+        }
+        finally { Cleanup(h); }
+    }
+
+    [AvaloniaFact]
+    public async Task ApplyingDependencies_Should_SaveTheChange_AndLeaveTheTabClean()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, _) = await OpenNamedAsync(h, "a.rpad");
+            SetupDependenciesDialog(h, apply: true);
+
+            await h.MainVm.OpenDependenciesCommand.Execute();
+
+            Assert.False(tab.IsDirty);
+            var saved = RpadParser.TryParse(File.ReadAllText(tab.FilePath!));
+            Assert.Contains("System.Linq", saved!.FrontMatter.Namespaces!);
+        }
+        finally { Cleanup(h); }
+    }
+
+    [AvaloniaFact]
+    public async Task ApplyingDependencies_WhenTheWriteFails_Should_LeaveTheTabDirty()
+    {
+        if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
+
+        var h = CreateHarness();
+        var path = Path.Combine(h.Root, "a.rpad");
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            File.SetUnixFileMode(path, UnixFileMode.UserRead);
+            SetupDependenciesDialog(h, apply: true);
+
+            await h.MainVm.OpenDependenciesCommand.Execute();
+
+            Assert.True(tab.IsDirty);
+            Assert.Contains("Save failed", ctrl.State.ExecStatusText);
+            Assert.Contains("System.Linq", tab.FrontMatter!.Namespaces!);
+        }
+        finally
+        {
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Cleanup(h);
+        }
     }
 }
