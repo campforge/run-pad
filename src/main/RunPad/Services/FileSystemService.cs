@@ -68,8 +68,13 @@ public sealed class FileSystemService : IFileSystemService
     // temp directory, instead of going through the public GetFilesTree()/the class's constructor —
     // which resolves the real Environment.SpecialFolder.MyDocuments as a side effect (see
     // ANALYSIS.md TODO #69 follow-up).
-    internal static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(string folder)
+    internal static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(
+        string folder, ILogger? logger = null, CancellationToken ct = default)
     {
+        // Checked per folder, so a cancelled refresh (window disposed) stops mid-walk instead of
+        // finishing a possibly huge/slow network tree nobody will look at. OperationCanceledException
+        // isn't an IOException, so the per-child handlers below let it through.
+        ct.ThrowIfCancellationRequested();
         var result = new List<FileSystemItem>();
 
         // Walk folders first. Don't skip folders with no .rpad files inside (used to have "if
@@ -78,9 +83,29 @@ public sealed class FileSystemService : IFileSystemService
         // exactly what happened: the "New Folder" command really did create the directory on disk, but
         // GetFilesTreeInternal immediately filtered it out as "empty", so it never made it into
         // FileTreeViewModel.Nodes, and FindByPath couldn't find it to enter rename mode.
+        //
+        // Review R2: a single unreadable subfolder (permissions) or one deleted between
+        // GetDirectories and the recursion used to abort the whole walk — and, through the
+        // fire-and-forget refresh, the app. Only the root's own failure propagates now: a vanished
+        // child is dropped, an unreadable one is still listed but with no children.
         foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
         {
-            var children = GetFilesTreeInternal(dir);
+            IReadOnlyList<FileSystemItem> children;
+            try
+            {
+                children = GetFilesTreeInternal(dir, logger, ct);
+            }
+            catch (DirectoryNotFoundException e)
+            {
+                logger?.LogWarning(e, "Skipping vanished folder {Folder}", dir);
+                continue;
+            }
+            catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+            {
+                logger?.LogWarning(e, "Cannot read folder {Folder}", dir);
+                children = [];
+            }
+
             result.Add(new FileSystemItem(Path.GetFileName(dir), true, dir, children));
         }
 
@@ -100,7 +125,11 @@ public sealed class FileSystemService : IFileSystemService
         {
             try
             {
-                return GetFilesTreeInternal(_rootFolder);
+                return GetFilesTreeInternal(_rootFolder, _logger, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception e)
             {

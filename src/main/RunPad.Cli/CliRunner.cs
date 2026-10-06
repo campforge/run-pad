@@ -46,12 +46,14 @@ public static class CliRunner
         }
 
         var raw = await File.ReadAllTextAsync(filePath, cancellationToken);
-        var document = RpadParser.TryParse(raw);
-        if (document is null)
+        var parsed = RpadParser.Parse(raw);
+        if (!parsed.IsSuccess)
         {
-            stderr.WriteLine($"Failed to parse '{filePath}' as a .rpad document.");
+            stderr.WriteLine($"Failed to parse '{filePath}' as a .rpad document: {parsed.Error}");
             return 1;
         }
+
+        var document = parsed.Document;
 
         var languageId = document.FrontMatter.Language.ToLanguageId();
 

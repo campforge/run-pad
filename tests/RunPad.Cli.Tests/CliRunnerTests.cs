@@ -181,6 +181,55 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
+    // Review R3: malformed YAML used to silently become a default C# document and run (or fail on)
+    // the wrong code — now rejected before any SDK lookup/compilation, with the YAML diagnostic.
+    [Fact]
+    public async Task RunAsync_Should_RejectInvalidFrontMatter_WithDiagnostic()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                "---\nlanguage: vb\nkind: nonsense\npackages:\n  Newtonsoft.Json: 13.0.3\n---\n\n```vb run\nConsole.WriteLine(1)\n```\n");
+            var stdout = new TestConsole();
+            // Wide enough that the diagnostic after the long temp path isn't wrapped mid-phrase.
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync(
+                [path], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Failed to parse", stderr.Output);
+            Assert.Contains("Invalid YAML front matter (line 3)", stderr.Output);
+            Assert.Contains("nonsense", stderr.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
+    // Review finding: `kind: 99` used to parse as an undefined RpadKind and run.
+    [Theory]
+    [InlineData("kind: 99", "Unsupported kind '99'")]
+    [InlineData("kind: Unknown", "Unsupported kind 'Unknown'")]
+    [InlineData("language: 0", "Unsupported language '0'")]
+    public async Task RunAsync_Should_RejectUnsupportedEnumValues_WithDiagnostic(string line, string expected)
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path, $"---\n{line}\n---\n\n```csharp run\nConsole.WriteLine(1);\n```\n");
+            var stdout = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync(
+                [path], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Failed to parse", stderr.Output);
+            Assert.Contains(expected, stderr.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
     // ── convert (TODO.md #63) ────────────────────────────────────────────────────
 
     private const string ValidLinq = """
