@@ -97,8 +97,7 @@ public class EditorTabsControlTabActionsWiringTests
             tab.DuplicateCommand.Execute().Subscribe();
 
             var expectedCopyPath = Path.Combine(rootFolder, "Query 1 copy.rpad");
-            for (var i = 0; i < 100 && !File.Exists(expectedCopyPath); i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => !File.Exists(expectedCopyPath));
 
             Assert.True(File.Exists(expectedCopyPath));
             Assert.Contains(mainVm.Tabs, t => t.FilePath == expectedCopyPath);

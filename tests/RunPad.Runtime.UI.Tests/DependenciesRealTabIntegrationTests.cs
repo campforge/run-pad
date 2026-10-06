@@ -100,8 +100,7 @@ public class DependenciesRealTabIntegrationTests
             // Act: open the already-saved .rpad file, same as double-clicking it in the file tree,
             // and wait for the async tab load (EditorTabsControl.CreateControlAsync) to finish.
             mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
 
             Assert.NotNull(mainVm.ActiveTab?.FrontMatter);
 
@@ -119,8 +118,7 @@ public class DependenciesRealTabIntegrationTests
             // The search itself is mocked (returns instantly) — only the ViewModel's own 350ms
             // debounce stands between typing and results, so poll instead of a flat 3s sleep. The
             // 3000ms ceiling is kept only as a generous upper bound for slow CI machines.
-            for (var i = 0; i < 150 && depsVm.Results.Count == 0; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => depsVm.Results.Count == 0);
 
             // Assert
             Assert.True(depsVm.HasFrontMatter);

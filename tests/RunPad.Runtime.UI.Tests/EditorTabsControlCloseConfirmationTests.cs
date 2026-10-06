@@ -165,8 +165,7 @@ public class EditorTabsControlCloseConfirmationTests
                 .ReturnsAsync(chosenPath);
 
             tab.CloseCommand.Execute().Subscribe();
-            for (var i = 0; i < 100 && !File.Exists(chosenPath); i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => !File.Exists(chosenPath));
 
             Assert.True(File.Exists(chosenPath));
             Assert.Contains("Console.WriteLine(1);", File.ReadAllText(chosenPath));
@@ -210,8 +209,7 @@ public class EditorTabsControlCloseConfirmationTests
             var filePath = Path.Combine(rootFolder, "demo.rpad");
             File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
             mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
             var tab = mainVm.Tabs.Single(t => t.FilePath == filePath);
 
             var ctrl = editorTabs.GetVisualDescendants().OfType<TabItem>()

@@ -15,13 +15,17 @@ namespace RunPad.Runtime.UI.Tests;
 // shape variations against, since it skips AdhocWorkspace/preamble-offset machinery entirely.
 public class RunPadAnalyzersTests
 {
+    // Shared across all ~3000 tests: Roslyn reuses already-bound assembly symbols only for the SAME
+    // MetadataReference instances, so recreating them per test reloaded and rebound the whole BCL
+    // reference set every time (most of this class's run time).
+    private static readonly Lazy<MetadataReference[]> DefaultReferences = new(() =>
+        [.. new CSharpReferenceService().GetDefault().Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))]);
+
     private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(DiagnosticAnalyzer analyzer, string code)
     {
         var tree = CSharpSyntaxTree.ParseText(code);
-        var references = new CSharpReferenceService().GetDefault()
-            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create(
-            "AnalyzerTestAssembly", [tree], references,
+            "AnalyzerTestAssembly", [tree], DefaultReferences.Value,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var withAnalyzers = compilation.WithAnalyzers([analyzer]);
