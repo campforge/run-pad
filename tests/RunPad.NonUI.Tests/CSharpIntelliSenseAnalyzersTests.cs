@@ -22,7 +22,11 @@ public class CSharpIntelliSenseAnalyzersTests
     {
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+        // Every test here calls NotifyTextChanged exactly once — nothing to debounce.
+        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance)
+        {
+            BackgroundAnalysisDebounce = TimeSpan.Zero,
+        };
     }
 
     // IDE0044 ("Make field readonly") fires at Info severity, not Hidden — a real, visible-squiggle
