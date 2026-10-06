@@ -16,6 +16,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // only the unambiguous "exact same local/parameter/field" case is flagged.
 // Extended (сто семьдесят шестой проход, batch) to also cover `x.CompareTo(x)` — an IComparable
 // self-compare always returns 0, same underlying mistake, one more method in the same family.
+// Extended (двести тридцать четвёртый проход, batch) to also cover `x.HasFlag(x)` — checking that
+// every bit of x is set in x itself is always true, same underlying self-comparison mistake.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
 {
@@ -28,7 +30,7 @@ public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
         category: "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "x.Equals(x), ReferenceEquals(x, x), and x.CompareTo(x) always return the same result regardless of x's value; this compiles fine but is almost never the intended comparison.");
+        description: "x.Equals(x), ReferenceEquals(x, x), x.CompareTo(x), and x.HasFlag(x) always return the same result regardless of x's value; this compiles fine but is almost never the intended comparison.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
@@ -57,6 +59,16 @@ public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer
             && invocation.ArgumentList.Arguments is [{ Expression: IdentifierNameSyntax compareArgId }]
             && compareReceiverId.Identifier.Text == compareArgId.Identifier.Text
             && context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is IMethodSymbol { Name: "CompareTo", Parameters.Length: 1 })
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
+            return;
+        }
+
+        if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "HasFlag", Expression: IdentifierNameSyntax hasFlagReceiverId }
+            && invocation.ArgumentList.Arguments is [{ Expression: IdentifierNameSyntax hasFlagArgId }]
+            && hasFlagReceiverId.Identifier.Text == hasFlagArgId.Identifier.Text
+            && context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is IMethodSymbol { Name: "HasFlag" } hasFlagMethod
+            && hasFlagMethod.ContainingType?.ToDisplayString() == "System.Enum")
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
             return;

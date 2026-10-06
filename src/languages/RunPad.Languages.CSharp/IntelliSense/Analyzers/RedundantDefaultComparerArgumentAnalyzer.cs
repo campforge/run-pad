@@ -6,12 +6,15 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// TODO.md #74 (сто шестьдесят седьмой проход, batch; Except/Intersect/Union/GroupBy/ThenBy/
+// ThenByDescending added двести десятый проход; ToDictionary/ToHashSet/MinBy added двести шестнадцатый
+// проход) — own pick, not a Roslynator port.
 // `xs.Contains(item, EqualityComparer<T>.Default)`/`xs.OrderBy(key, Comparer<T>.Default)` spell out
 // exactly the comparer these methods already use when none is supplied — passing `.Default` explicitly
-// changes nothing, it's just extra text. Deliberately scoped to the handful of LINQ methods where this
-// is unambiguous (Contains/Distinct/SequenceEqual for IEqualityComparer, OrderBy/OrderByDescending for
-// IComparer) rather than every overload that happens to accept a comparer.
+// changes nothing, it's just extra text. Scoped to LINQ methods where this is unambiguous
+// (Contains/Distinct/SequenceEqual/Except/Intersect/Union/GroupBy/ToDictionary/ToHashSet for
+// IEqualityComparer, OrderBy/OrderByDescending/ThenBy/ThenByDescending/MinBy/MaxBy for IComparer)
+// rather than every overload that happens to accept a comparer.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RedundantDefaultComparerArgumentAnalyzer : DiagnosticAnalyzer
 {
@@ -28,8 +31,10 @@ public sealed class RedundantDefaultComparerArgumentAnalyzer : DiagnosticAnalyze
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
-    private static readonly ImmutableHashSet<string> EqualityComparerMethods = ImmutableHashSet.Create("Contains", "Distinct", "SequenceEqual");
-    private static readonly ImmutableHashSet<string> ComparerMethods = ImmutableHashSet.Create("OrderBy", "OrderByDescending");
+    private static readonly ImmutableHashSet<string> EqualityComparerMethods = ImmutableHashSet.Create(
+        "Contains", "Distinct", "SequenceEqual", "Except", "Intersect", "Union", "GroupBy", "ToDictionary", "ToHashSet");
+    private static readonly ImmutableHashSet<string> ComparerMethods = ImmutableHashSet.Create(
+        "OrderBy", "OrderByDescending", "ThenBy", "ThenByDescending", "MinBy", "MaxBy");
 
     public override void Initialize(AnalysisContext context)
     {

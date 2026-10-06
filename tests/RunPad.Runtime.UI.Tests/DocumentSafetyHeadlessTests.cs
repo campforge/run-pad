@@ -1,0 +1,227 @@
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
+using Moq;
+using RunPad.Avalonia.Themes;
+using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Services;
+using RunPad.Services.BuildCache;
+using RunPad.Services.Preferences;
+using RunPad.UserControls;
+using RunPad.UserControls.Models;
+using RunPad.Windows;
+using RunPad.Windows.Models;
+using Xunit;
+
+namespace RunPad.Runtime.UI.Tests;
+
+// Review 2026-10-05, R1 follow-up: end-to-end against a real MainWindow + EditorTabsControl +
+// EditorsTabItemControl. The tab's writer is replaced with one that throws IOException, so a write
+// failure is deterministic on every OS; the assertions check the SAME control instance and its live
+// editor text survive a cancelled close/quit, not merely that some tab for the path still exists.
+public class DocumentSafetyHeadlessTests
+{
+    private sealed record Harness(
+        MainWindow Window, MainWindowViewModel MainVm, Mock<IWindowService> WindowService, string Root);
+
+    private static Harness CreateHarness()
+    {
+        var root = Directory.CreateTempSubdirectory("runpad-docsafety-ui-test").FullName;
+
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
+        prefs.Setup(p => p.Session).Returns(new SessionSettings());
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Editor).Returns(new EditorSettings());
+        prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
+
+        var fileSystem = new Mock<IFileSystemService>();
+        fileSystem.Setup(f => f.Folder).Returns(root);
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+
+        var windowService = new Mock<IWindowService>();
+        var mainVm = new MainWindowViewModel(
+            sdkProviders: [],
+            fileSystemService: fileSystem.Object,
+            windowService: windowService.Object,
+            prefs: prefs.Object,
+            languageRegistry: new LanguageHostRegistry());
+
+        var intelliSense = new Mock<IIntelliSenseService>();
+        var editorTabs = new EditorTabsControl(
+            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object, prefs.Object,
+            () => intelliSense.Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+
+        var window = new MainWindow(prefs.Object, editorTabs, mainVm);
+        window.Show();
+        return new Harness(window, mainVm, windowService, root);
+    }
+
+    private static async Task<(EditorTabItemViewModel Tab, EditorsTabItemControl Control)> OpenNamedAsync(
+        Harness h, string name)
+    {
+        var path = Path.Combine(h.Root, name);
+        File.WriteAllText(path, RpadWriter.NewFile(Path.GetFileNameWithoutExtension(name)));
+        h.MainVm.OpenTab(path);
+        var tab = h.MainVm.Tabs.Single(t => t.FilePath == path);
+        var ctrl = await FindControlAsync(h.Window, tab);
+        return (tab, ctrl);
+    }
+
+    private static async Task<EditorsTabItemControl> FindControlAsync(MainWindow window, EditorTabItemViewModel tab)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            var ctrl = window.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>()
+                .FirstOrDefault(c => ReferenceEquals(c.DataContext, tab));
+            if (ctrl is not null && tab.FrontMatter is not null) return ctrl;
+            await Task.Delay(20);
+        }
+        throw new TimeoutException("The tab's control was not realized in time.");
+    }
+
+    private static void ThrowDiskFull(string _) => throw new IOException("disk full");
+
+    private static void Cleanup(Harness h)
+    {
+        foreach (var file in Directory.GetFiles(h.Root, "*", SearchOption.AllDirectories))
+            File.SetAttributes(file, FileAttributes.Normal);
+        Directory.Delete(h.Root, recursive: true);
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingADirtyNamedTab_WhoseWriteThrows_AndCancelling_Should_KeepTheSameControlAndText()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
+            tab.WriteToFile = ThrowDiskFull;
+            h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            tab.CloseCommand.Execute().Subscribe();
+            await Task.Delay(50);
+
+            Assert.Contains(tab, h.MainVm.Tabs);
+            Assert.True(tab.IsDirty);
+            Assert.Same(ctrl, await FindControlAsync(h.Window, tab));
+            Assert.Equal("Console.WriteLine(\"unsaved\");", ctrl.State.Editor.Text);
+            h.WindowService.Verify(w => w.ShowErrorAsync("Save Failed", It.Is<string>(m => m.Contains("disk full"))), Times.Once);
+        }
+        finally { Cleanup(h); }
+    }
+
+    [AvaloniaFact]
+    public async Task QuittingWithAnInactiveDirtyNamedTab_WhoseWriteThrows_AndCancelling_Should_KeepTheWindowControlAndText()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            ctrl.State.Editor.Text = "Console.WriteLine(\"unsaved\");";
+            tab.WriteToFile = ThrowDiskFull;
+            await OpenNamedAsync(h, "b.rpad"); // a.rpad becomes inactive
+            Assert.NotSame(tab, h.MainVm.ActiveTab);
+            h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            var closed = false;
+            h.Window.Closed += (_, _) => closed = true;
+            h.Window.Close();
+            await Task.Delay(50);
+
+            Assert.False(closed);
+            Assert.Contains(tab, h.MainVm.Tabs);
+            Assert.True(tab.IsDirty);
+            Assert.Same(ctrl, await FindControlAsync(h.Window, tab));
+            Assert.Equal("Console.WriteLine(\"unsaved\");", ctrl.State.Editor.Text);
+        }
+        finally { Cleanup(h); }
+    }
+
+    // Review follow-up: kind/usings/packages edits were written without ever flagging the tab dirty.
+    // A failed write left a "clean" tab that the next close dropped along with the edit.
+    [AvaloniaFact]
+    public async Task ChangingKind_WhenTheWriteFails_Should_LeaveTheTabDirty_SoCloseStillAsks()
+    {
+        if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
+
+        var h = CreateHarness();
+        var path = Path.Combine(h.Root, "a.rpad");
+        try
+        {
+            var (tab, ctrl) = await OpenNamedAsync(h, "a.rpad");
+            Assert.False(tab.IsDirty);
+            File.SetUnixFileMode(path, UnixFileMode.UserRead);
+            h.WindowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            tab.SelectedKind = nameof(RpadKind.Program);
+
+            Assert.True(tab.IsDirty);
+            Assert.Contains("Save failed", ctrl.State.ExecStatusText);
+
+            tab.CloseCommand.Execute().Subscribe();
+            await Task.Delay(50);
+
+            Assert.Contains(tab, h.MainVm.Tabs);
+            h.WindowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Cleanup(h);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ChangingKind_WhenTheWriteSucceeds_Should_PersistIt_AndLeaveTheTabClean()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var (tab, _) = await OpenNamedAsync(h, "a.rpad");
+
+            tab.SelectedKind = nameof(RpadKind.Program);
+
+            Assert.False(tab.IsDirty);
+            var saved = RpadParser.TryParse(File.ReadAllText(tab.FilePath!));
+            Assert.Equal(RpadKind.Program, saved!.FrontMatter.Kind);
+        }
+        finally { Cleanup(h); }
+    }
+
+    // Dependencies window edits the front matter in place; only a real change counts — merely
+    // opening and closing it must not make a pristine untitled tab ask on close.
+    [AvaloniaFact]
+    public async Task DependenciesClosed_OnAnUntitledTab_Should_MarkDirtyOnlyForARealChange()
+    {
+        var h = CreateHarness();
+        try
+        {
+            var tab = Assert.Single(h.MainVm.Tabs);
+            Assert.Null(tab.FilePath);
+            var ctrl = await FindControlAsync(h.Window, tab);
+
+            ctrl.OnDependenciesEdited();
+            Assert.False(tab.IsDirty);
+
+            tab.FrontMatter!.Packages["Newtonsoft.Json"] = new Package("13.0.3");
+            ctrl.OnDependenciesEdited();
+            Assert.True(tab.IsDirty);
+        }
+        finally { Cleanup(h); }
+    }
+}
