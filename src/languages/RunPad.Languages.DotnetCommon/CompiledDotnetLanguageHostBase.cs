@@ -209,7 +209,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 LineOffset: lineOffset,
                 BreakOnAllExceptions: _options.BreakOnAllExceptions,
                 BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions,
-                CurrentQueryPath: _options.CurrentQueryPath);
+                CurrentQueryPath: _options.CurrentQueryPath,
+                RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath);
             await using var session = new DapSession(
                 process,
                 sessionOptions,
@@ -364,7 +365,11 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         foreach (IDiagnostic d in diagnostics)
         {
             string severity = d.Severity.ToString().ToLowerInvariant();
-            string text = $"({d.Line},{d.Column}): {severity} {d.Code}: {d.Message}";
+            // Line 0 = no source position (e.g. "CSC : error CS5001", MSBuild-level errors) — a
+            // "(0,0)" prefix would point at a location that doesn't exist.
+            string position = d.Line > 0 ? $"({d.Line},{d.Column}): " : "";
+            string code = d.Code.Length > 0 ? $" {d.Code}" : "";
+            string text = $"{position}{severity}{code}: {d.Message}";
             OutputKind kind = d.Severity == DiagnosticSeverity.Error
                 ? OutputKind.StandardError
                 : OutputKind.StandardOutput;

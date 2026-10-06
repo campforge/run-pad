@@ -136,4 +136,45 @@ public class CSharpIntelliSenseRefactoringsTests
         var materialized = await service.MaterializeFixAsync(code, staleKey, TestContext.Current.CancellationToken);
         Assert.Null(materialized);
     }
+
+    // TODO.md pass 102 note: Roslyn's MoveTypeCodeRefactoringProvider offered "Move type to C.cs",
+    // "Rename file to C.cs" and — keyed to the synthetic document's name — "Rename type to Script" on
+    // every type declaration. A .rpad script is one file the user never sees as Script.cs.
+    [Theory]
+    [InlineData("class C { }\n")]
+    [InlineData("Console.WriteLine(1);\nclass C { }\n")]
+    public async Task GetRefactoringsAsync_Should_NotOfferFileBasedMoveTypeRefactorings(string code)
+    {
+        using var service = CreateService();
+        var position = code.IndexOf("class C", StringComparison.Ordinal) + "class ".Length;
+
+        var refactorings = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(refactorings);
+        Assert.NotEmpty(refactorings); // the caret really is somewhere refactorable ("Generate constructor", ...)
+        Assert.DoesNotContain(refactorings, r => r.Title.Contains("Script", StringComparison.Ordinal));
+        Assert.DoesNotContain(refactorings, r => r.Title.StartsWith("Move type to", StringComparison.Ordinal));
+        Assert.DoesNotContain(refactorings, r => r.Title.StartsWith("Rename file to", StringComparison.Ordinal));
+    }
+
+    // Every listed refactoring must actually do something when clicked. CodeActionWithOptions
+    // ("Generate overrides...") needs a host options dialog RunPad doesn't have, so it used to be
+    // listed and then materialize to null — a lightbulb item that silently did nothing.
+    [Fact]
+    public async Task GetRefactoringsAsync_Should_OnlyListRefactoringsThatMaterialize()
+    {
+        using var service = CreateService();
+        const string code = "class Base { public virtual void M() { } }\nclass C : Base { }\n";
+        var position = code.IndexOf("class C", StringComparison.Ordinal) + "class ".Length;
+
+        var refactorings = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(refactorings);
+        Assert.NotEmpty(refactorings);
+        foreach (var refactoring in refactorings)
+        {
+            var materialized = await service.MaterializeFixAsync(code, refactoring.Key, TestContext.Current.CancellationToken);
+            Assert.True(materialized is not null, $"'{refactoring.Title}' is listed but materializes to nothing");
+        }
+    }
 }

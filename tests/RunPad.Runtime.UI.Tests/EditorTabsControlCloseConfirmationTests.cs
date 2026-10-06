@@ -12,6 +12,7 @@ using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
+using RunPad.UserControls.Models;
 using RunPad.Windows.Models;
 using Xunit;
 
@@ -222,8 +223,8 @@ public class EditorTabsControlCloseConfirmationTests
             tab.CloseCommand.Execute().Subscribe();
             await Task.Delay(50);
 
-            // A tab with a real path already gets saved on close (SaveIfNeeded, unconditional) —
-            // nothing to confirm.
+            // A dirty tab with a real path is written in place before it's removed (review R1) —
+            // nothing to confirm while that write succeeds.
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
             Assert.Empty(mainVm.Tabs);
             Assert.Contains("Console.WriteLine(2);", File.ReadAllText(filePath));
@@ -231,22 +232,22 @@ public class EditorTabsControlCloseConfirmationTests
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
-    // ── App-exit confirmation (MainWindow.Closing → HasUnsavedUntitledTabs/ConfirmCloseAllUnsavedTabsAsync) ──
+    // ── App-exit confirmation (MainWindow.Closing → HasUnsavedTabs/ConfirmCloseAllUnsavedTabsAsync) ──
 
     [AvaloniaFact]
-    public async Task HasUnsavedUntitledTabs_Should_BeFalse_ForAPristineUntitledTab()
+    public async Task HasUnsavedTabs_Should_BeFalse_ForAPristineUntitledTab()
     {
         var (editorTabs, _, _, rootFolder) = CreateHarness();
         try
         {
             await GetSoleControlAsync(editorTabs);
-            Assert.False(editorTabs.HasUnsavedUntitledTabs());
+            Assert.False(editorTabs.HasUnsavedTabs());
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
 
     [AvaloniaFact]
-    public async Task HasUnsavedUntitledTabs_Should_BeTrue_OnceTheUntitledTabIsEdited()
+    public async Task HasUnsavedTabs_Should_BeTrue_OnceTheUntitledTabIsEdited()
     {
         var (editorTabs, _, _, rootFolder) = CreateHarness();
         try
@@ -254,7 +255,7 @@ public class EditorTabsControlCloseConfirmationTests
             var ctrl = await GetSoleControlAsync(editorTabs);
             ctrl.State.Editor.Text = "Console.WriteLine(1);";
 
-            Assert.True(editorTabs.HasUnsavedUntitledTabs());
+            Assert.True(editorTabs.HasUnsavedTabs());
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
     }
@@ -366,5 +367,112 @@ public class EditorTabsControlCloseConfirmationTests
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Exactly(2));
         }
         finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    // ── Review R1: named tabs whose write fails ─────────────────────────────────
+
+    private static async Task<(EditorTabItemViewModel Tab, EditorsTabItemControl Control)> OpenNamedTabAsync(
+        EditorTabsControl editorTabs, MainWindowViewModel mainVm, string filePath)
+    {
+        mainVm.OpenTab(filePath);
+        var tab = mainVm.Tabs.Single(t => t.FilePath == filePath);
+        for (var i = 0; i < 100; i++)
+        {
+            var ctrl = editorTabs.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>()
+                .FirstOrDefault(c => ReferenceEquals(c.DataContext, tab));
+            if (ctrl is not null && tab.FrontMatter is not null) return (tab, ctrl);
+            await Task.Delay(20);
+        }
+        throw new TimeoutException("The named tab was not realized in time.");
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingADirtyNamedTab_WhoseWriteFails_AndCancelling_Should_KeepTheSameTabAndText()
+    {
+        if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
+
+        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var filePath = Path.Combine(rootFolder, "demo.rpad");
+        try
+        {
+            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
+            ctrl.State.Editor.Text = "Console.WriteLine(2);";
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead);
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            tab.CloseCommand.Execute().Subscribe();
+            await Task.Delay(50);
+
+            Assert.Contains(tab, mainVm.Tabs);
+            Assert.True(tab.IsDirty);
+            Assert.Same(ctrl, editorTabs.GetVisualDescendants().OfType<TabItem>()
+                .Select(t => t.Content).OfType<EditorsTabItemControl>()
+                .Single(c => ReferenceEquals(c.DataContext, tab)));
+            Assert.Equal("Console.WriteLine(2);", ctrl.State.Editor.Text);
+            windowService.Verify(w => w.ShowErrorAsync("Save Failed", It.IsAny<string>()), Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Directory.Delete(rootFolder, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_WriteAnInactiveDirtyNamedTab_WithoutAsking()
+    {
+        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        try
+        {
+            var filePath = Path.Combine(rootFolder, "demo.rpad");
+            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
+            ctrl.State.Editor.Text = "Console.WriteLine(3);";
+            mainVm.NewRpadFile(); // makes the named tab inactive
+            Assert.NotSame(tab, mainVm.ActiveTab);
+            Assert.True(editorTabs.HasUnsavedTabs());
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.True(canClose);
+            Assert.False(tab.IsDirty);
+            Assert.Contains("Console.WriteLine(3);", File.ReadAllText(filePath));
+            windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
+        }
+        finally { Directory.Delete(rootFolder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmCloseAllUnsavedTabsAsync_Should_CancelQuit_WhenAnInactiveNamedTabsWriteFails_AndUserCancels()
+    {
+        if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
+
+        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var filePath = Path.Combine(rootFolder, "demo.rpad");
+        try
+        {
+            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
+            ctrl.State.Editor.Text = "Console.WriteLine(4);";
+            mainVm.NewRpadFile();
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead);
+            windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+                .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+            var canClose = await editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+
+            Assert.False(canClose);
+            Assert.Contains(tab, mainVm.Tabs);
+            Assert.True(tab.IsDirty);
+            Assert.Equal("Console.WriteLine(4);", ctrl.State.Editor.Text);
+        }
+        finally
+        {
+            File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Directory.Delete(rootFolder, recursive: true);
+        }
     }
 }

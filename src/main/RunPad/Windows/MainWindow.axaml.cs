@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using ReactiveUI;
 using RunPad.Format.RPad;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
@@ -15,8 +16,12 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself
-    // cancels to go ask about unsaved untitled tabs.
+    // cancels to go resolve unsaved tabs.
     private bool _confirmedClose;
+
+    // Review R1: a second Close (Cmd+Q / window button again) while the first confirmation is
+    // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
+    private bool _closeConfirmationInProgress;
 
     public MainWindow(
         IPreferencesService prefs,
@@ -29,6 +34,11 @@ public sealed partial class MainWindow : Window, IDisposable
         DataContext = viewModel;
 
         InitializeComponent();
+
+        MainMenuEntries = CreateMainMenu();
+        var mainMenu = this.FindControl<Menu>("MainMenu")!;
+        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) mainMenu.Items.Add(item);
+
         ApplyPlatformChrome();
 
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
@@ -49,10 +59,25 @@ public sealed partial class MainWindow : Window, IDisposable
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_confirmedClose) return;
-        if (!_editorTabs.HasUnsavedUntitledTabs()) return;
+        if (_closeConfirmationInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
+        if (!_editorTabs.HasUnsavedTabs()) return;
 
         e.Cancel = true;
-        if (!await _editorTabs.ConfirmCloseAllUnsavedTabsAsync()) return;
+        _closeConfirmationInProgress = true;
+        bool canClose;
+        try
+        {
+            canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+        }
+        finally
+        {
+            _closeConfirmationInProgress = false;
+        }
+        if (!canClose) return;
 
         _confirmedClose = true;
         Close();
@@ -159,11 +184,11 @@ public sealed partial class MainWindow : Window, IDisposable
     // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
     // wc-btn cluster is hidden.
     //
-    // On macOS, native traffic-light buttons render over the extended client area in the top-left
-    // corner — the standard Avalonia-on-macOS pattern — so only the redundant wc-btn cluster needs
-    // hiding here. This branch is UNVERIFIED on real hardware (none available in this environment);
-    // the icon/menu StackPanel also sitting at top-left may visually collide with the traffic
-    // lights and need further adjustment once someone can test on an actual Mac.
+    // On macOS (docs/handoffs/macos-native-header.md) the window gets the stock titlebar — traffic
+    // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
+    // bar via NativeMenu, projected from the same MainMenuEntries as the in-window Menu
+    // (docs/handoffs/menu-platform-parity.md). The whole custom title row would then only duplicate
+    // the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
@@ -188,8 +213,61 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (OperatingSystem.IsMacOS())
         {
-            if (windowControlButtons is not null) windowControlButtons.IsVisible = false;
+            WindowDecorations = WindowDecorations.Full;
+            ExtendClientAreaToDecorationsHint = false;
+
+            this.FindControl<Border>("TitleBar")!.IsVisible = false;
+            this.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height = new GridLength(0);
+
+            NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
         }
+    }
+
+    // docs/handoffs/menu-platform-parity.md — the one menu tree behind both the in-window Menu and
+    // the macOS system menu bar (MainMenuDefinition projects it into either). Built in code rather
+    // than XAML because NativeMenu items aren't Controls: they don't inherit this window's
+    // DataContext, so XAML {Binding} commands on them would silently resolve to nothing.
+    //
+    // The application ("RunPad") menu is not part of this tree — see App.CreateApplicationMenu.
+    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; }
+
+    private IReadOnlyList<MainMenuGroup> CreateMainMenu()
+    {
+        var vm = GetViewModel();
+
+        return
+        [
+            new MainMenuGroup("File",
+            [
+                new MainMenuCommand("_New File", ReactiveCommand.Create(vm.NewRpadFileWithDefaults), vm.NewFileGesture),
+                new MainMenuGroup("New _RPad File",
+                [
+                    new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
+                    new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
+                ]),
+                new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
+                new MainMenuSeparator(),
+                new MainMenuCommand("_Save", ReactiveCommand.Create(_editorTabs.SaveActive), vm.SaveGesture),
+                new MainMenuCommand("Save _As...", ReactiveCommand.Create(_editorTabs.SaveAsActive), vm.SaveAsGesture),
+            ]),
+            new MainMenuGroup("Edit",
+            [
+                new MainMenuCommand("_Dependencies", vm.OpenDependenciesCommand, vm.OpenDependenciesGesture),
+                new MainMenuCommand("_Assembly Explorer...", vm.OpenAssemblyExplorerCommand),
+                new MainMenuSeparator(),
+                new MainMenuCommand("_Preferences", vm.OpenPreferencesCommand),
+            ]),
+            // The title-bar sidebar button's command — on macOS that button is hidden with the rest
+            // of the custom title row, so the menu is the only way to reach it there.
+            new MainMenuGroup("View",
+            [
+                new MainMenuCommand("_Toggle File Tree", vm.Sidebar.ToggleCommand),
+            ]),
+            new MainMenuGroup("Help",
+            [
+                new MainMenuCommand("_About RunPad", vm.OpenAboutCommand),
+            ]),
+        ];
     }
 
     // ── Title bar window controls ─────────────────────────────────────────────
@@ -210,14 +288,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // ── Menu handlers ─────────────────────────────────────────────────────────
 
-    private void NewRpadFileWithDefaults_Click(object? sender, RoutedEventArgs e) => GetViewModel().NewRpadFileWithDefaults();
-
-    private async void NewRpadFileCSharp_Click(object? sender, RoutedEventArgs e)
-        => await NewRpadFileWithKindAsync(RpadLanguage.CSharp);
-
-    private async void NewRpadFileVb_Click(object? sender, RoutedEventArgs e)
-        => await NewRpadFileWithKindAsync(RpadLanguage.Vb);
-
     private async Task NewRpadFileWithKindAsync(RpadLanguage language)
     {
         var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
@@ -225,10 +295,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
         GetViewModel().NewRpadFile(language, kind.Value);
     }
-
-    private void Save_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveActive();
-
-    private void SaveAs_Click(object? sender, RoutedEventArgs e) => _editorTabs.SaveAsActive();
 
     // ── File tree ─────────────────────────────────────────────────────────────
 

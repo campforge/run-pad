@@ -45,6 +45,18 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
     private readonly Regex _errorRegex = new(@"^([\s\S]+)\((\d+,\d+)\): error (\S*): ([\s\S]+)$");
     private readonly Regex _warningRegex = new(@"^([\s\S]+)\((\d+,\d+)\): warning (\S*): ([\s\S]+)$");
 
+    // Errors/warnings with no source position at all — e.g. "CSC : error CS5001: Program does not
+    // contain a static 'Main' method..." or "MSBUILD : error MSB1009: ..." (confirmed against real
+    // `dotnet build` output). The positioned regexes above require "(line,col)", so these used to fall
+    // through both: ExitCode != 0 (Success = false) with an EMPTY Errors list — the build failed and
+    // the user saw nothing at all. Tried only after the positioned regexes miss.
+    private readonly Regex _unpositionedErrorRegex = new(@"^(.+?) : error (\S*): ([\s\S]+)$");
+    private readonly Regex _unpositionedWarningRegex = new(@"^(.+?) : warning (\S*): ([\s\S]+)$");
+
+    // How many trailing build-output lines go into the fallback diagnostic when a build fails
+    // without a single line matching any of the regexes above.
+    private const int FallbackOutputTailLines = 10;
+
     private Process? _process;
 
     public MsBuildProcessCompiler(
@@ -160,11 +172,22 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         // again.
         if (!success) TryDeleteStaleOutput(outputDll);
 
-        return new ProcessCompilerResult(
-            outputDll,
-            success,
-            taskOut.Result.Item1,
-            taskOut.Result.Item2);
+        var (errors, warnings, outputTail) = taskOut.Result;
+
+        // Last line of defense against "Run did nothing, no error anywhere": a failed build must
+        // always surface at least one error, even for an output shape none of the regexes know.
+        if (!success && errors.Count == 0)
+            errors.Add(CreateUnrecognizedFailureItem(_process.ExitCode, outputTail));
+
+        return new ProcessCompilerResult(outputDll, success, errors, warnings);
+    }
+
+    private static ResultItem CreateUnrecognizedFailureItem(int exitCode, IReadOnlyCollection<string> outputTail)
+    {
+        var message = $"dotnet build failed with exit code {exitCode} without reporting a recognizable error.";
+        if (outputTail.Count > 0)
+            message += "\n" + string.Join("\n", outputTail);
+        return new ResultItem("", "", new LineSymbol(0, 0), message);
     }
 
     private string BuildProjectFile(
@@ -259,26 +282,45 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         return false;
     }
 
-    private async Task<(List<ResultItem>, List<ResultItem>)> DrainStdout(CancellationToken cancellationToken)
+    private async Task<(List<ResultItem> Errors, List<ResultItem> Warnings, IReadOnlyCollection<string> OutputTail)> DrainStdout(
+        CancellationToken cancellationToken)
     {
         var errors = new List<ResultItem>();
         var warnings = new List<ResultItem>();
+        // MSBuild prints every error/warning twice — once as it happens, then again in the "Build
+        // FAILED." summary at the end (confirmed against real `dotnet build` output) — so without
+        // this every diagnostic showed up twice in Results. ResultItem is a record, so value
+        // equality is exactly "same code, file, position and message".
+        var seen = new HashSet<ResultItem>();
+        var outputTail = new Queue<string>();
         while (_process != null && await _process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             _logger.LogDebug("{Line}", line);
-            var errorMatch = _errorRegex.Match(line);
-            if (errorMatch.Success)
+
+            outputTail.Enqueue(line.Trim());
+            if (outputTail.Count > FallbackOutputTailLines) outputTail.Dequeue();
+
+            if (TryParseLine(line, _errorRegex, _unpositionedErrorRegex) is { } error)
             {
-                errors.Add(ParseMatch(errorMatch));
+                if (seen.Add(error)) errors.Add(error);
                 continue;
             }
 
-            var warningMatch = _warningRegex.Match(line);
-            if (warningMatch.Success) warnings.Add(ParseMatch(warningMatch));
+            if (TryParseLine(line, _warningRegex, _unpositionedWarningRegex) is { } warning && seen.Add(warning))
+                warnings.Add(warning);
         }
 
-        return (errors, warnings);
+        return (errors, warnings, outputTail);
+    }
+
+    private ResultItem? TryParseLine(string line, Regex positioned, Regex unpositioned)
+    {
+        var match = positioned.Match(line);
+        if (match.Success) return ParseMatch(match);
+
+        match = unpositioned.Match(line);
+        return match.Success ? ParseUnpositionedMatch(match) : null;
     }
 
     private async Task DrainStderr(CancellationToken cancellationToken)
@@ -316,5 +358,14 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
             code, file,
             new LineSymbol(uint.Parse(lineSplit[0]), uint.Parse(lineSplit[1])),
             message);
+    }
+
+    // Line/column 0 is the "no source position" marker (real positions are 1-based).
+    private ResultItem ParseUnpositionedMatch(Match match)
+    {
+        var origin = match.Groups["1"].Value.Trim();
+        var code = match.Groups["2"].Value;
+        var message = match.Groups["3"].Value.Replace($" [{_fileProjPath}]", "");
+        return new ResultItem(code, origin, new LineSymbol(0, 0), message);
     }
 }

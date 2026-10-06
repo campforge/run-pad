@@ -254,4 +254,30 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // docs/handoffs/macos-debug-launch.md — the debug launch must use the same configured dotnet host
+    // as the non-debug run, not netcoredbg's own PATH lookup of "dotnet".
+    [Fact]
+    public async Task RunDebugAsync_Should_LaunchThroughTheConfiguredRuntimePath()
+    {
+        var process = new PipeFakeChildProcess();
+        DebuggerChildProcessFactory factory = _ => process;
+
+        var (host, outputDir) = CreateHost(debuggerProcessFactory: factory);
+        try
+        {
+            var runTask = host.RunDebugAsync(
+                "int x = 1;", outputHandler: static (_, _) => { }, TestContext.Current.CancellationToken);
+
+            process.Output.Push(Frame(new { seq = 1, type = "response", request_seq = 1, command = "initialize", success = true }));
+            var written = await WaitForWrittenRequestAsync(process.Input, "\"command\":\"launch\"");
+
+            Assert.Contains("\"program\":\"dotnet\"", written);
+            Assert.Contains("\"args\":[\"out.dll\"]", written);
+
+            process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
+            await runTask;
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }
