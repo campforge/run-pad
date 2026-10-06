@@ -261,7 +261,7 @@
 
         <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
         <Grid Grid.Row="5"
-              ColumnDefinitions="Auto,Auto,Auto,*,Auto"
+              ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Background="{DynamicResource RunPad.StatusBar.BackgroundBrush}">
             <TextBlock x:Name="ExecStatusBlock"
                        Grid.Column="0"
@@ -284,12 +284,46 @@
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
+            <!-- Editor zoom (Ctrl+wheel changes it too) — percent of the Preferences font size,
+                 kept in sync by UpdateZoomButton. Presets carry their percent in Tag. -->
+            <Button x:Name="ZoomButton"
+                    Grid.Column="4"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="6,0"
+                    Margin="0,0,8,0"
+                    MinHeight="0"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
+                    FontSize="12"
+                    ToolTip.Tip="Editor zoom (Ctrl+Mouse Wheel)"
+                    Content="100%">
+                <Button.Flyout>
+                    <MenuFlyout Placement="TopEdgeAlignedRight">
+                        <MenuItem Header="Zoom In" Click="ZoomIn_Click"/>
+                        <MenuItem Header="Zoom Out" Click="ZoomOut_Click"/>
+                        <MenuItem Header="Reset (100%)" Tag="100" Click="ZoomPreset_Click"/>
+                        <Separator/>
+                        <MenuItem Header="50%" Tag="50" Click="ZoomPreset_Click"/>
+                        <MenuItem Header="75%" Tag="75" Click="ZoomPreset_Click"/>
+                        <MenuItem Header="100%" Tag="100" Click="ZoomPreset_Click"/>
+                        <MenuItem Header="125%" Tag="125" Click="ZoomPreset_Click"/>
+                        <MenuItem Header="150%" Tag="150" Click="ZoomPreset_Click"/>
+                        <MenuItem Header="200%" Tag="200" Click="ZoomPreset_Click"/>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+
+            <!-- "Line 0  Col 0" until the caret first moves (a tab that was never focused has no
+                 known position yet) — kept rather than left blank so the strip doesn't jump. -->
             <TextBlock x:Name="StatusLine"
-                       Grid.Column="4"
+                       Grid.Column="5"
                        Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                        Margin="0,0,8,0"
                        VerticalAlignment="Center"
-                       FontSize="12"/>
+                       FontSize="12"
+                       Text="Line 0  Col 0"/>
         </Grid>
 
     </Grid>
