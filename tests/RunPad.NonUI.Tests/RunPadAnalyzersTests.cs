@@ -5119,6 +5119,9 @@ public class RunPadAnalyzersTests
     public async Task InvalidAssemblyNameLiteralAnalyzer_Should_NotFlag_AValidAssemblyDisplayName(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidAssemblyNameLiteralAnalyzer(), code);
+        // An analyzer exception surfaces as AD0001, not RPAD0385 — reject it so a crash can't pass a
+        // false expectation (e.g. `Culture=badculture` under Windows/invariant globalization).
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidAssemblyNameLiteralAnalyzer.DiagnosticId));
     }
 
@@ -5607,16 +5610,38 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDsaEncryptedPemLiteralAnalyzer.DiagnosticId));
     }
 
+    // Nonsecret throwaway 1024/160-bit DSA key (OpenSSL pkcs8 -v2 aes-256-cbc, password "correct-password").
+    // Fixed rather than generated at runtime: macOS can import DSA keys but cannot generate them, and only
+    // accepts FIPS 186-2 sized (1024/160) private keys.
+    private const string ValidDsaEncryptedPrivateKeyPem =
+        "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" +
+        "MIIBnzBJBgkqhkiG9w0BBQ0wPDAbBgkqhkiG9w0BBQwwDgQIPtz3Ywb+42gCAggA\n" +
+        "MB0GCWCGSAFlAwQBKgQQo6COcQBoaP90jIwYxNqrvQSCAVB1QMuE/2VkvpqVIY+6\n" +
+        "XCwNQqoZWzAacGeIQoGUZoPV26UgwalJ1alH91lYA5pzhaDTo0nksiXVaCz6NVeB\n" +
+        "tHV5L13bz9h3+mJTpH2H+ovJLEKGEAlIc/pyIOXQNGxfrk5KuJoNR7F62xHbiitY\n" +
+        "zmhGuVb8YCoQm28V1EuCPTat6Swp7lyssG1C9CcghkveDCmV6yycInSIwcz5AVor\n" +
+        "vQah83swtSV8MF529V6InYTmaoywyzwM8sLr/5baj7A95mV2GMR08UU6Ttda2wVf\n" +
+        "8yidrECqzFx9WjZEiRostOSNuMvjTm0C1jWgjqA6bPD2FQxIiA5UP8aF03mS/Tjv\n" +
+        "BX3FxVYAHuUs/sRp//Pguja90Wfjh7Lz1WfVeRxp7RXwThBry5+fUDy5+X9yM1JP\n" +
+        "/VbW42RNqZn89CHsdDexiPOrrp76+iWQ9WysUnAOlW36QHY=\n" +
+        "-----END ENCRYPTED PRIVATE KEY-----";
+
     [Fact]
     public async Task InvalidDsaEncryptedPemLiteralAnalyzer_Should_NotFlag_ARealValidEncryptedPem_EvenWithAWrongPassword()
     {
-        using var dsa = DSA.Create();
-        var pbe = new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000);
-        var encryptedPem = dsa.ExportEncryptedPkcs8PrivateKeyPem("correct-password", pbe);
+        using (var dsa = DSA.Create())
+        {
+            dsa.ImportFromEncryptedPem(ValidDsaEncryptedPrivateKeyPem, "correct-password");
+        }
+        using (var dsa = DSA.Create())
+        {
+            Assert.ThrowsAny<CryptographicException>(() => dsa.ImportFromEncryptedPem(ValidDsaEncryptedPrivateKeyPem, "wrong-password"));
+        }
         var code = "using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\""
-            + encryptedPem.Replace("\n", "\\n") + "\", \"wrong-password\"); }";
+            + ValidDsaEncryptedPrivateKeyPem.Replace("\n", "\\n") + "\", \"wrong-password\"); }";
         var diagnostics = await GetDiagnosticsAsync(new InvalidDsaEncryptedPemLiteralAnalyzer(), code);
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidDsaEncryptedPemLiteralAnalyzer.DiagnosticId);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
     }
 
     // ── Three hundred and thirty-seventh batch (414-й проход) — one new analyzer.
@@ -6648,22 +6673,54 @@ public class RunPadAnalyzersTests
 
     // ── Four hundred first through third batches (456-й проход) — three new analyzers.
 
+    // The AEAD analyzers deliberately stay silent when the cipher's IsSupported is false on the current
+    // platform (e.g. AesCcm on macOS), so `expectFlagged` is the verdict on platforms that support `cipher`;
+    // `cipher: null` marks lookalike types that are never flagged.
+    private static bool IsAeadCipherSupported(string? cipher) => cipher switch
+    {
+        null => true,
+        nameof(AesGcm) => AesGcm.IsSupported,
+        nameof(AesCcm) => AesCcm.IsSupported,
+        nameof(ChaCha20Poly1305) => ChaCha20Poly1305.IsSupported,
+        _ => throw new ArgumentOutOfRangeException(nameof(cipher), cipher, null),
+    };
+
     [Theory]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[15], 16); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[16], 16); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[24], 16); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[16], 11); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[16], 12); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesCcm(new byte[15]); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesCcm(new byte[16]); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new ChaCha20Poly1305(new byte[16]); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new ChaCha20Poly1305(new byte[32]); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(byte[] k) { using var x = new AesGcm(k, 16); } }", false)]
-    [InlineData("class AesGcm { public AesGcm(byte[] k) {} } class C { public void M() { var x = new AesGcm(new byte[15]); } }", false)]
-    public async Task InvalidAeadCipherConstructorArgumentAnalyzer_Should_FlagOnlyInvalidKeyOrTagSizes(string code, bool expectFlagged)
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[15], 16); } }", true, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[16], 16); } }", false, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[24], 16); } }", false, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesGcm(new byte[16], 11); } }", true, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesCcm(new byte[15]); } }", true, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new AesCcm(new byte[16]); } }", false, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new ChaCha20Poly1305(new byte[16]); } }", true, "ChaCha20Poly1305")]
+    [InlineData("using System.Security.Cryptography; class C { public void M() { using var x = new ChaCha20Poly1305(new byte[32]); } }", false, "ChaCha20Poly1305")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(byte[] k) { using var x = new AesGcm(k, 16); } }", false, "AesGcm")]
+    [InlineData("class AesGcm { public AesGcm(byte[] k) {} } class C { public void M() { var x = new AesGcm(new byte[15]); } }", false, null)]
+    public async Task InvalidAeadCipherConstructorArgumentAnalyzer_Should_FlagOnlyInvalidKeyOrTagSizes(string code, bool expectFlagged, string? cipher)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidAeadCipherConstructorArgumentAnalyzer(), code);
-        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidAeadCipherConstructorArgumentAnalyzer.DiagnosticId));
+        Assert.Equal(expectFlagged && IsAeadCipherSupported(cipher), diagnostics.Any(d => d.Id == InvalidAeadCipherConstructorArgumentAnalyzer.DiagnosticId));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
+    }
+
+    // AesGcm's accepted tag sizes are platform-specific (12-16 on Windows/Linux, only 16 on macOS), so
+    // the 12-16 range is checked against the platform's own public AesGcm.TagByteSizes metadata.
+    [Theory]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    [InlineData(16)]
+    public async Task InvalidAeadCipherConstructorArgumentAnalyzer_Should_FlagAesGcmTagSize_OnlyWhenThePlatformRejectsIt(int tagSize)
+    {
+        var code = $"using System.Security.Cryptography; class C {{ public void M() {{ using var x = new AesGcm(new byte[16], {tagSize}); }} }}";
+        var sizes = AesGcm.TagByteSizes;
+        var isLegalSize = tagSize >= sizes.MinSize && tagSize <= sizes.MaxSize
+            && (sizes.SkipSize == 0 || (tagSize - sizes.MinSize) % sizes.SkipSize == 0);
+
+        var diagnostics = await GetDiagnosticsAsync(new InvalidAeadCipherConstructorArgumentAnalyzer(), code);
+        Assert.Equal(AesGcm.IsSupported && !isLegalSize, diagnostics.Any(d => d.Id == InvalidAeadCipherConstructorArgumentAnalyzer.DiagnosticId));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
     }
 
     [Theory]
@@ -7504,25 +7561,26 @@ public class RunPadAnalyzersTests
     // ── Four hundred sixty-fourth/fifth batches (478-й проход) — two new analyzers.
 
     [Theory]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[8], pt, ct, tag); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[12], pt, ct, tag); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] nonce, byte[] pt, byte[] ct) { g.Encrypt(nonce, pt, ct, new byte[20]); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] pt, byte[] ct, byte[] tag) { c.Encrypt(new byte[20], pt, ct, tag); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] pt, byte[] ct, byte[] tag) { c.Encrypt(new byte[12], pt, ct, tag); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[5]); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[3]); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[12]); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] pt, byte[] ct, byte[] tag) { cc.Encrypt(new byte[8], pt, ct, tag); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] nonce, byte[] pt, byte[] ct) { cc.Encrypt(nonce, pt, ct, new byte[4]); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] pt, byte[] ct) { cc.Encrypt(new byte[12], pt, ct, new byte[16]); } }", false)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] ct, byte[] tag, byte[] pt) { g.Decrypt(new byte[8], ct, tag, pt); } }", true)]
-    [InlineData("using System; using System.Security.Cryptography; class C { public unsafe void M(AesGcm g, Span<byte> pt, Span<byte> ct, Span<byte> tag) { g.Encrypt(stackalloc byte[8], pt, ct, tag); } }", true)]
-    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] nonce, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(nonce, pt, ct, tag); } }", false)]
-    [InlineData("class C { public void Encrypt(byte[] nonce) {} public void M() { Encrypt(new byte[1]); } }", false)]
-    public async Task InvalidAeadCipherEncryptDecryptArgumentAnalyzer_Should_FlagOnlyInvalidLengths(string code, bool expectFlagged)
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[8], pt, ct, tag); } }", true, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[12], pt, ct, tag); } }", false, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] nonce, byte[] pt, byte[] ct) { g.Encrypt(nonce, pt, ct, new byte[20]); } }", false, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] pt, byte[] ct, byte[] tag) { c.Encrypt(new byte[20], pt, ct, tag); } }", true, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] pt, byte[] ct, byte[] tag) { c.Encrypt(new byte[12], pt, ct, tag); } }", false, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[5]); } }", true, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[3]); } }", true, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesCcm c, byte[] nonce, byte[] pt, byte[] ct) { c.Encrypt(nonce, pt, ct, new byte[12]); } }", false, "AesCcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] pt, byte[] ct, byte[] tag) { cc.Encrypt(new byte[8], pt, ct, tag); } }", true, "ChaCha20Poly1305")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] nonce, byte[] pt, byte[] ct) { cc.Encrypt(nonce, pt, ct, new byte[4]); } }", true, "ChaCha20Poly1305")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(ChaCha20Poly1305 cc, byte[] pt, byte[] ct) { cc.Encrypt(new byte[12], pt, ct, new byte[16]); } }", false, "ChaCha20Poly1305")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] ct, byte[] tag, byte[] pt) { g.Decrypt(new byte[8], ct, tag, pt); } }", true, "AesGcm")]
+    [InlineData("using System; using System.Security.Cryptography; class C { public unsafe void M(AesGcm g, Span<byte> pt, Span<byte> ct, Span<byte> tag) { g.Encrypt(stackalloc byte[8], pt, ct, tag); } }", true, "AesGcm")]
+    [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] nonce, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(nonce, pt, ct, tag); } }", false, "AesGcm")]
+    [InlineData("class C { public void Encrypt(byte[] nonce) {} public void M() { Encrypt(new byte[1]); } }", false, null)]
+    public async Task InvalidAeadCipherEncryptDecryptArgumentAnalyzer_Should_FlagOnlyInvalidLengths(string code, bool expectFlagged, string? cipher)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidAeadCipherEncryptDecryptArgumentAnalyzer(), code);
-        Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidAeadCipherEncryptDecryptArgumentAnalyzer.DiagnosticId));
+        Assert.Equal(expectFlagged && IsAeadCipherSupported(cipher), diagnostics.Any(d => d.Id == InvalidAeadCipherEncryptDecryptArgumentAnalyzer.DiagnosticId));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
     }
 
     [Theory]
