@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text;
-using System.Text.Json;
 using RunPad.Runtime;
 
 // ReSharper disable once CheckNamespace
@@ -116,14 +116,14 @@ public static class Util
         {
             try
             {
-                var entry = JsonSerializer.Deserialize<CacheEntry<T>>(File.ReadAllText(path));
+                var entry = (CacheEntry<T>?)ScriptJson.Deserialize(File.ReadAllText(path), typeof(CacheEntry<T>));
                 if (entry is not null && (entry.ExpiresAtUtc is null || entry.ExpiresAtUtc > DateTimeOffset.UtcNow))
                 {
                     value = entry.Value;
                     return true;
                 }
             }
-            catch (JsonException)
+            catch (Exception ex) when (ScriptJson.IsJsonException(ex))
             {
                 // Corrupt, or the same key was previously used to cache a different, incompatible T —
                 // fall through and recompute rather than throwing.
@@ -137,7 +137,7 @@ public static class Util
     private static void WriteCache<T>(string key, T value, TimeSpan? duration)
     {
         var entry = new CacheEntry<T> { ExpiresAtUtc = duration is { } d ? DateTimeOffset.UtcNow + d : null, Value = value };
-        File.WriteAllText(ResolveUserDataPath(CacheFileName(key)), JsonSerializer.Serialize(entry));
+        File.WriteAllText(ResolveUserDataPath(CacheFileName(key)), ScriptJson.Serialize(entry, typeof(CacheEntry<T>)));
     }
 
     // Sanitizes against a fixed, OS-independent character set (not Path.GetInvalidFileNameChars(),
@@ -406,9 +406,77 @@ public static class Util
 
     private static string? ReadLineCore(string? prompt, bool isPassword)
     {
-        var json = JsonSerializer.Serialize(new { Prompt = prompt, IsPassword = isPassword });
+        // Written by hand: the host (CompiledDotnetLanguageHostBase.ParseInputRequest) reads exactly these
+        // two properties, and this is the only JSON the runtime writes outside Util.Cache.
+        var json = "{\"Prompt\":" + JsonString(prompt) + ",\"IsPassword\":" + (isPassword ? "true" : "false") + "}";
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         Console.WriteLine(InputRequestPrefixChar + encoded);
         return Console.In.ReadLine();
+    }
+
+    // A JSON string literal (or null), escaped per RFC 8259.
+    private static string JsonString(string? value)
+    {
+        if (value is null) return "null";
+        var sb = new StringBuilder(value.Length + 2).Append('"');
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < ' ')
+                        sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+        return sb.Append('"').ToString();
+    }
+
+    // The script's own System.Text.Json, reached by reflection, so this netstandard2.0 library needs no
+    // System.Text.Json package (scripts reference it as a bare DLL anyway, so the package never
+    // reached them). Every .NET a script can run on (net6+) ships STJ in the box; binding at runtime
+    // uses whichever version is there. Only Util.Cache needs a real serializer (arbitrary T).
+    private static class ScriptJson
+    {
+        private static readonly Lazy<(MethodInfo Serialize, MethodInfo Deserialize, Type JsonException)> Api = new(Load);
+
+        private static (MethodInfo, MethodInfo, Type) Load()
+        {
+            var serializer = Type.GetType("System.Text.Json.JsonSerializer, System.Text.Json", throwOnError: false)
+                ?? throw new PlatformNotSupportedException("Util.Cache needs System.Text.Json, which ships with .NET 6 and later.");
+            var assembly = serializer.Assembly;
+            var options = assembly.GetType("System.Text.Json.JsonSerializerOptions", throwOnError: true)!;
+            return (
+                serializer.GetMethod("Serialize", [typeof(object), typeof(Type), options])!,
+                serializer.GetMethod("Deserialize", [typeof(string), typeof(Type), options])!,
+                assembly.GetType("System.Text.Json.JsonException", throwOnError: true)!);
+        }
+
+        public static string Serialize(object? value, Type type) => (string)Invoke(Api.Value.Serialize, value, type)!;
+
+        public static object? Deserialize(string json, Type type) => Invoke(Api.Value.Deserialize, json, type);
+
+        public static bool IsJsonException(Exception ex) => Api.Value.JsonException.IsInstanceOfType(ex);
+
+        // Default options (null), and the serializer's own exception rather than the reflection wrapper.
+        private static object? Invoke(MethodInfo method, object? value, Type type)
+        {
+            try
+            {
+                return method.Invoke(null, [value, type, null]);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
     }
 }
