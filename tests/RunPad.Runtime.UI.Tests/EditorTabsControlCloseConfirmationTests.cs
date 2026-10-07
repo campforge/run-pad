@@ -28,8 +28,11 @@ namespace RunPad.Runtime.UI.Tests;
 // IWindowService, so the dialog's answer is scripted but everything downstream of it is real.
 public class EditorTabsControlCloseConfirmationTests
 {
-    private static (EditorTabsControl EditorTabs, MainWindowViewModel MainVm, Mock<IWindowService> WindowService, string RootFolder)
-        CreateHarness()
+    private sealed record Harness(
+        Window Host, EditorTabsControl EditorTabs, MainWindowViewModel MainVm, Mock<IWindowService> WindowService,
+        string RootFolder);
+
+    private static Harness CreateHarness()
     {
         var rootFolder = Directory.CreateTempSubdirectory("runpad-close-confirm-test").FullName;
 
@@ -69,7 +72,31 @@ public class EditorTabsControlCloseConfirmationTests
         host.Show();
         editorTabs.Attach(mainVm); // opens the initial blank (untitled, not-yet-dirty) tab
 
-        return (editorTabs, mainVm, windowService, rootFolder);
+        return new Harness(host, editorTabs, mainVm, windowService, rootFolder);
+    }
+
+    // Same teardown as DocumentSafetyHeadlessTests.Cleanup, after the assertions: dirty flags are
+    // dropped so teardown never asks or writes, the plain host Window is closed, and — since it has no
+    // Dispose of its own — the EditorTabsControl (and with it the tab controls) and the view model are
+    // disposed explicitly.
+    private static void Cleanup(Harness h)
+    {
+        try
+        {
+            foreach (var tab in h.MainVm.Tabs)
+                tab.IsDirty = false;
+            h.Host.Close();
+            Assert.False(h.Host.IsVisible);
+        }
+        finally
+        {
+            h.EditorTabs.Dispose();
+            h.MainVm.Dispose();
+        }
+
+        foreach (var file in Directory.GetFiles(h.RootFolder, "*", SearchOption.AllDirectories))
+            File.SetAttributes(file, FileAttributes.Normal);
+        Directory.Delete(h.RootFolder, recursive: true);
     }
 
     private static async Task<EditorsTabItemControl> GetSoleControlAsync(EditorTabsControl editorTabs)
@@ -87,7 +114,8 @@ public class EditorTabsControlCloseConfirmationTests
     [AvaloniaFact]
     public async Task ClosingAPristineUntitledTab_Should_NotShowADialog()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -100,13 +128,14 @@ public class EditorTabsControlCloseConfirmationTests
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
             Assert.Empty(mainVm.Tabs);
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ClosingADirtyUntitledTab_AndChoosingCancel_Should_KeepTheTabOpen()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -123,13 +152,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Single(mainVm.Tabs); // still there
             Assert.True(tab.IsDirty); // untouched
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ClosingADirtyUntitledTab_AndChoosingDontSave_Should_DiscardAndClose()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -145,13 +175,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Empty(mainVm.Tabs);
             Assert.Empty(Directory.GetFiles(rootFolder)); // nothing was ever written
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ClosingADirtyUntitledTab_AndChoosingSave_Should_WriteItThenClose()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -171,13 +202,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Contains("Console.WriteLine(1);", File.ReadAllText(chosenPath));
             Assert.Empty(mainVm.Tabs);
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ClosingADirtyUntitledTab_AndCancellingTheSaveAsDialog_Should_KeepTheTabOpen()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -197,13 +229,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Single(mainVm.Tabs);
             Assert.Null(tab.FilePath);
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ClosingADirtyTabWithARealPath_Should_NotShowADialog()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
@@ -227,7 +260,7 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Empty(mainVm.Tabs);
             Assert.Contains("Console.WriteLine(2);", File.ReadAllText(filePath));
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     // ── App-exit confirmation (MainWindow.Closing → HasUnsavedTabs/ConfirmCloseAllUnsavedTabsAsync) ──
@@ -235,19 +268,21 @@ public class EditorTabsControlCloseConfirmationTests
     [AvaloniaFact]
     public async Task HasUnsavedTabs_Should_BeFalse_ForAPristineUntitledTab()
     {
-        var (editorTabs, _, _, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, _, _, rootFolder) = h;
         try
         {
             await GetSoleControlAsync(editorTabs);
             Assert.False(editorTabs.HasUnsavedTabs());
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task HasUnsavedTabs_Should_BeTrue_OnceTheUntitledTabIsEdited()
     {
-        var (editorTabs, _, _, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, _, _, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -255,13 +290,14 @@ public class EditorTabsControlCloseConfirmationTests
 
             Assert.True(editorTabs.HasUnsavedTabs());
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnTrue_AndAskNothing_WhenNothingIsDirty()
     {
-        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, _, windowService, rootFolder) = h;
         try
         {
             await GetSoleControlAsync(editorTabs);
@@ -271,13 +307,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.True(canClose);
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnFalse_WhenUserCancels()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -290,13 +327,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.False(canClose);
             Assert.Single(mainVm.Tabs); // untouched — the tab itself isn't closed by this method either
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_ReturnTrue_WhenUserChoosesDontSave()
     {
-        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, _, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -309,13 +347,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.True(canClose);
             Assert.Empty(Directory.GetFiles(rootFolder)); // discarded, nothing written
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_SaveIt_WhenUserChoosesSave()
     {
-        var (editorTabs, _, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, _, windowService, rootFolder) = h;
         try
         {
             var ctrl = await GetSoleControlAsync(editorTabs);
@@ -332,13 +371,14 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.True(File.Exists(chosenPath));
             Assert.Contains("Console.WriteLine(1);", File.ReadAllText(chosenPath));
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_AskAboutEveryDirtyUntitledTab_NotJustTheFirst()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var firstCtrl = await GetSoleControlAsync(editorTabs);
@@ -364,7 +404,7 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.True(canClose);
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Exactly(2));
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     // ── Review R1: named tabs whose write fails ─────────────────────────────────
@@ -390,7 +430,8 @@ public class EditorTabsControlCloseConfirmationTests
     {
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
@@ -415,14 +456,15 @@ public class EditorTabsControlCloseConfirmationTests
         finally
         {
             File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            Directory.Delete(rootFolder, recursive: true);
+            Cleanup(h);
         }
     }
 
     [AvaloniaFact]
     public async Task ConfirmCloseAllUnsavedTabsAsync_Should_WriteAnInactiveDirtyNamedTab_WithoutAsking()
     {
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
@@ -440,7 +482,7 @@ public class EditorTabsControlCloseConfirmationTests
             Assert.Contains("Console.WriteLine(3);", File.ReadAllText(filePath));
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
         }
-        finally { Directory.Delete(rootFolder, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
@@ -448,7 +490,8 @@ public class EditorTabsControlCloseConfirmationTests
     {
         if (OperatingSystem.IsWindows()) return; // the Unix file-mode trick below doesn't apply
 
-        var (editorTabs, mainVm, windowService, rootFolder) = CreateHarness();
+        var h = CreateHarness();
+        var (_, editorTabs, mainVm, windowService, rootFolder) = h;
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
@@ -470,7 +513,7 @@ public class EditorTabsControlCloseConfirmationTests
         finally
         {
             File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            Directory.Delete(rootFolder, recursive: true);
+            Cleanup(h);
         }
     }
 }
