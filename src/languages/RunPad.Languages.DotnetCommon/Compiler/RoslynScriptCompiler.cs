@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
+using RunPad.Debug;
 using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
@@ -36,8 +37,8 @@ public sealed record ScriptTarget(string TargetFramework, int Major, int Minor, 
 public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 {
     // Bumped whenever the output for the same inputs changes, so the hot path never serves a binary an
-    // older RunPad produced.
-    private const string CompilerRevision = "2";
+    // older RunPad produced. 3: PDB documents use the canonical (symlink-resolved) path.
+    private const string CompilerRevision = "3";
     private const string BinDir = "bin";
 
     // csc/vbc run by the SDK with /preferreduilang:en-US: messages are English whatever the OS language.
@@ -134,7 +135,15 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var runtimeFiles = packages.RuntimeFiles.Where(f => !IsProvidedByFramework(f, pack)).ToList();
         var generatorPaths = pack.GeneratorAssemblies(LanguageFolder).Concat(packages.GeneratorAssemblies).ToList();
 
-        var key = Fingerprint(code, pack, userReferences, packageReferences, runtimeFiles, generatorPaths);
+        // The PDB records the canonical spelling DapSession sends breakpoints for (DebugSourcePath): on
+        // macOS /var/folders/... is /private/var/folders/..., and netcoredbg leaves a breakpoint on the
+        // alias pending forever. A no-op on Windows.
+        var outputDir = DebugSourcePath.Canonicalize(_outputDir);
+        var sourcePath = DebugSourcePath.Canonicalize(_sourcePath);
+        var generatedPath = DebugSourcePath.Canonicalize(
+            Path.Combine(_objDir, Options.OutputName + ".Generated" + SourceFileExtension));
+
+        var key = Fingerprint(code, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
             return new ProcessCompilerResult(_dllPath, true, [], packages.Warnings);
@@ -144,8 +153,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             await File.WriteAllTextAsync(_sourcePath, code, Encoding.UTF8, ct);
 
         var scriptText = SourceText.From(code, Encoding.UTF8, SourceHashAlgorithm.Sha256);
-        var scriptTree = Parse(scriptText, _sourcePath, target, ct);
-        var generatedPath = Path.Combine(_objDir, Options.OutputName + ".Generated" + SourceFileExtension);
+        var scriptTree = Parse(scriptText, sourcePath, target, ct);
         var generatedTree = Parse(SourceText.From(GeneratedSource(target), Encoding.UTF8, SourceHashAlgorithm.Sha256),
             generatedPath, target, ct);
 
@@ -173,8 +181,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             cancellationToken: ct);
         diagnostics.AddRange(emit.Diagnostics);
 
-        var errors = ToResultItems(diagnostics, RoslynSeverity.Error);
-        var warnings = packages.Warnings.Concat(ToResultItems(diagnostics, RoslynSeverity.Warning)).ToList();
+        var errors = ToResultItems(diagnostics, RoslynSeverity.Error, outputDir);
+        var warnings = packages.Warnings.Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();
         if (!emit.Success)
         {
             // Like a failed `dotnet build`: no stale binary from an earlier run is left to execute.
@@ -326,13 +334,16 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     // ── Incremental build ────────────────────────────────────────────────────
 
-    private string Fingerprint(string code, TargetingPack pack, IEnumerable<string> userReferences,
+    private string Fingerprint(string code, TargetingPack pack, IEnumerable<string> documentPaths, IEnumerable<string> userReferences,
         IEnumerable<string> packageReferences, IEnumerable<RuntimeFile> runtimeFiles, IEnumerable<string> generators)
     {
         var builder = new StringBuilder()
             .Append(CompilerRevision).Append('\n')
             .Append(Options.Platform.TargetFrameworkMoniker).Append('\n')
             .Append(pack.ReferenceDirectory).Append('\n');
+        // Recorded in the PDB: a symlink in OutputDirectory's path retargeted means a different binary.
+        foreach (var path in documentPaths)
+            builder.Append(path).Append('\n');
         foreach (var path in userReferences.Concat(packageReferences).Concat(generators).Prepend(Options.RuntimeLibPath))
             builder.Append(path).Append('|').Append(File.GetLastWriteTimeUtc(path).Ticks).Append('\n');
         foreach (var file in runtimeFiles)
@@ -396,8 +407,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     }
 
     // ResultItem shape of the old MSBuild output parser: file relative to OutputDirectory (with its
-    // leading separator), 1-based line/column, 0/0 when there's no source position.
-    private List<ResultItem> ToResultItems(IEnumerable<RoslynDiagnostic> diagnostics, RoslynSeverity severity)
+    // leading separator), 1-based line/column, 0/0 when there's no source position. Diagnostic paths
+    // carry the canonical spelling of OutputDirectory (outputDir).
+    private static List<ResultItem> ToResultItems(IEnumerable<RoslynDiagnostic> diagnostics, RoslynSeverity severity, string outputDir)
     {
         var items = new List<ResultItem>();
         var seen = new HashSet<(string, string, uint, uint, string)>();
@@ -408,7 +420,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             if (d.Location.IsInSource)
             {
                 var span = d.Location.GetMappedLineSpan();
-                item = new ResultItem(d.Id, span.Path.Replace(_outputDir, ""),
+                item = new ResultItem(d.Id, span.Path.Replace(outputDir, ""),
                     new LineSymbol((uint)span.StartLinePosition.Line + 1, (uint)span.StartLinePosition.Character + 1), message);
             }
             else

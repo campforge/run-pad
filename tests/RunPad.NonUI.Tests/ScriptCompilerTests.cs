@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Build.Core.Models;
 using RunPad.Contracts.Models;
+using RunPad.Debug;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.Compiler;
@@ -35,9 +36,9 @@ public sealed class ScriptCompilerTests : IDisposable
     private CompiledDotnetLanguageHostOptions Options(
         DotnetSdk? sdk = null, RpadKind kind = RpadKind.Statements, IReadOnlyList<string>? usings = null,
         IReadOnlyList<string>? assemblyReferences = null, IReadOnlyList<string>? projectReferences = null,
-        string? runtimeLib = null)
+        string? runtimeLib = null, string? outputDirectory = null)
     {
-        var dir = Directory.CreateDirectory(Path.Combine(_root, $"out{++_dirs}")).FullName;
+        var dir = outputDirectory ?? Directory.CreateDirectory(Path.Combine(_root, $"out{++_dirs}")).FullName;
         return new CompiledDotnetLanguageHostOptions
         {
             Platform = sdk ?? LatestSdk,
@@ -75,6 +76,39 @@ public sealed class ScriptCompilerTests : IDisposable
 
     private static string Errors(ProcessCompilerResult result) => string.Join("\n", result.Errors.Select(e => $"{e.Code} {e.Message}"));
 
+    // Document paths recorded in the PDB, and whether each one's source is embedded.
+    private static List<(string Name, bool Embedded)> PdbDocuments(string pdbPath)
+    {
+        var embeddedSource = new Guid("0E8A571B-6926-466E-B4AD-8AB04611F5FE");
+        using var pdb = MetadataReaderProvider.FromPortablePdbStream(File.OpenRead(pdbPath));
+        var reader = pdb.GetMetadataReader();
+        return [.. reader.Documents.Select(h => (
+            reader.GetString(reader.GetDocument(h).Name),
+            reader.GetCustomDebugInformation(h).Any(c => reader.GetGuid(reader.GetCustomDebugInformation(c).Kind) == embeddedSource)))];
+    }
+
+    // An OutputDirectory reached through a directory symlink, like macOS's /var → /private/var: the
+    // alias and real spellings of the same directory. Unix only (links stay unresolved on Windows).
+    private (string Alias, string Real) SymlinkedOutputDirectory(string name)
+    {
+        var real = Directory.CreateDirectory(Path.Combine(_root, name + "-real", "out")).FullName;
+        var link = Path.Combine(_root, name + "-alias");
+        Directory.CreateSymbolicLink(link, Path.GetDirectoryName(real)!);
+        return (Path.Combine(link, "out"), real);
+    }
+
+    // Copies the files with their timestamps, so a cache key stamped with the DLL's still matches.
+    private static void CopyDirectory(string source, string target)
+    {
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination);
+            File.SetLastWriteTimeUtc(destination, File.GetLastWriteTimeUtc(file));
+        }
+    }
+
     // ── Output layout ────────────────────────────────────────────────────────
 
     [Fact]
@@ -103,12 +137,76 @@ public sealed class ScriptCompilerTests : IDisposable
             var codeView = pe.ReadDebugDirectory().Single(e => e.Type == DebugDirectoryEntryType.CodeView);
             Assert.Equal(pdbPath, pe.ReadCodeViewDebugDirectoryData(codeView).Path);
         }
-        using var pdb = MetadataReaderProvider.FromPortablePdbStream(File.OpenRead(pdbPath));
-        var reader = pdb.GetMetadataReader();
-        var document = reader.Documents.Single(h => reader.GetString(reader.GetDocument(h).Name) == sourcePath);
-        var embeddedSource = new Guid("0E8A571B-6926-466E-B4AD-8AB04611F5FE");
-        Assert.Contains(reader.GetCustomDebugInformation(document),
-            h => reader.GetGuid(reader.GetCustomDebugInformation(h).Kind) == embeddedSource);
+        // The document is the canonical spelling DapSession sends breakpoints for (on macOS the temp
+        // directory /var/... becomes /private/var/...; unchanged on Windows).
+        Assert.Contains((DebugSourcePath.Canonicalize(sourcePath), true), PdbDocuments(pdbPath));
+    }
+
+    // docs/handoffs/macos-roslyn-breakpoints.md — the PDB recorded OutputDirectory as given while
+    // DapSession canonicalizes the breakpoint source, so on macOS (/var → /private/var) netcoredbg left
+    // every breakpoint pending. A directory symlink reproduces that on any Unix CI without netcoredbg.
+    [Theory]
+    [InlineData(false, "var x = 41;\nx++;\nConsole.WriteLine(x);\n")]
+    [InlineData(true, "Dim x = 41\nx += 1\nConsole.WriteLine(x)\n")]
+    public async Task Pdb_Should_RecordTheCanonicalScriptPath_WhenOutputDirectoryIsASymlink(bool vb, string code)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Paths are left unchanged on Windows.");
+        var (alias, real) = SymlinkedOutputDirectory(vb ? "vb" : "cs");
+        var options = Options(outputDirectory: alias);
+        using var compiler = vb ? Vb(options) : CSharp(options);
+
+        var result = await compiler.Compilation(vb ? $"Module Program\nSub Main()\n{code}End Sub\nEnd Module\n" : code,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success, Errors(result));
+        var script = "RunPadQuery" + (vb ? ".vb" : ".cs");
+        var breakpointSource = DebugSourcePath.Canonicalize(Path.Combine(alias, script));
+        Assert.Equal(DebugSourcePath.Canonicalize(Path.Combine(real, script)), breakpointSource);
+        var documents = PdbDocuments(Path.Combine(alias, "bin", "RunPadQuery.pdb"));
+        Assert.Contains((breakpointSource, true), documents);
+        Assert.All(documents, d => Assert.DoesNotContain(alias, d.Name));
+    }
+
+    // Diagnostics still come back relative to OutputDirectory although the compiler sees the canonical path.
+    [Fact]
+    public async Task Diagnostics_Should_StayRelative_WhenOutputDirectoryIsASymlink()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Paths are left unchanged on Windows.");
+        var (alias, _) = SymlinkedOutputDirectory("diag");
+        using var compiler = CSharp(Options(outputDirectory: alias));
+
+        var result = await compiler.Compilation("Console.WriteLine(y);\n", TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Equal(Path.DirectorySeparatorChar + "RunPadQuery.cs", Assert.Single(result.Errors).File);
+    }
+
+    // The canonical document path is part of the cache key: otherwise up-to-date outputs whose PDB
+    // records another real directory (an alias retargeted, here to a copy of the outputs) would be reused.
+    [Fact]
+    public async Task CachedBinary_Should_BeRebuilt_WhenTheCanonicalScriptPathChanges()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Paths are left unchanged on Windows.");
+        const string code = "Console.WriteLine(1);";
+        var (alias, real) = SymlinkedOutputDirectory("cache");
+        var options = Options(outputDirectory: alias);
+        using (var compiler = CSharp(options))
+            Assert.True((await compiler.Compilation(code, TestContext.Current.CancellationToken)).Success);
+
+        var moved = Path.Combine(_root, "cache-moved", "out");
+        CopyDirectory(real, moved);
+        var link = Path.GetDirectoryName(alias)!;
+        Directory.Delete(link);
+        Directory.CreateSymbolicLink(link, Path.GetDirectoryName(moved)!);
+        var pdbPath = Path.Combine(alias, "bin", "RunPadQuery.pdb");
+        Assert.Contains((DebugSourcePath.Canonicalize(Path.Combine(real, "RunPadQuery.cs")), true), PdbDocuments(pdbPath));
+
+        using (var compiler = CSharp(options))
+            Assert.True((await compiler.Compilation(code, TestContext.Current.CancellationToken)).Success);
+
+        var documents = PdbDocuments(pdbPath);
+        Assert.Contains((DebugSourcePath.Canonicalize(Path.Combine(moved, "RunPadQuery.cs")), true), documents);
+        Assert.DoesNotContain(documents, d => d.Name.StartsWith(DebugSourcePath.Canonicalize(real) + Path.DirectorySeparatorChar, StringComparison.Ordinal));
     }
 
     // ── Diagnostics ──────────────────────────────────────────────────────────
