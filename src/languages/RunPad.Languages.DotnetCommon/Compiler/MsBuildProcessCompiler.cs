@@ -367,7 +367,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         var file = match.Groups["1"].Value.Replace(_outputDir, "");
         var linePart = match.Groups["2"].Value;
         var code = match.Groups["3"].Value;
-        var message = match.Groups["4"].Value.Replace($" [{_fileProjPath}]", "");
+        var message = RemoveProjectAnnotation(match.Groups["4"].Value, _fileProjPath);
 
         var lineSplit = linePart.Split(',');
         return new ResultItem(
@@ -381,7 +381,28 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
     {
         var origin = match.Groups["1"].Value.Trim();
         var code = match.Groups["2"].Value;
-        var message = match.Groups["3"].Value.Replace($" [{_fileProjPath}]", "");
+        var message = RemoveProjectAnnotation(match.Groups["3"].Value, _fileProjPath);
         return new ResultItem(code, origin, new LineSymbol(0, 0), message);
+    }
+
+    // MSBuild ends every diagnostic with " [<full project path>]". That path isn't always spelled
+    // like projectPath: `dotnet build` runs in _outputDir and finds the project via the process
+    // cwd, which macOS reports symlink-resolved — projectPath "/var/folders/.../Query.csproj" comes
+    // back as "[/private/var/folders/.../Query.csproj]" (confirmed against real output), so an exact
+    // Replace left it in every message. Accepts the exact path or that path behind a rooted prefix;
+    // only a terminal annotation is removed — other bracketed message text stays untouched.
+    internal static string RemoveProjectAnnotation(string message, string projectPath)
+    {
+        var suffix = projectPath + "]";
+        if (!message.EndsWith(suffix, StringComparison.Ordinal)) return message;
+
+        var pathStart = message.Length - suffix.Length;
+        var open = message.LastIndexOf(" [", pathStart, StringComparison.Ordinal);
+        if (open < 0 || open + 2 > pathStart) return message;
+
+        var prefix = message.AsSpan(open + 2, pathStart - open - 2);
+        if (prefix.Length > 0 && prefix[0] is not ('/' or '\\')) return message;
+
+        return message[..open];
     }
 }
