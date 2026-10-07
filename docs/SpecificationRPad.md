@@ -2,36 +2,36 @@
 
 ## Overview
 
-Файл с расширением **`.rpad`** представляет собой обычный Markdown-документ, содержащий:
+A file with the **`.rpad`** extension is a plain Markdown document containing:
 
-* метаданные документа (YAML Front Matter);
-* один или несколько блоков исходного кода;
-* произвольную документацию в формате Markdown.
+* document metadata (YAML front matter);
+* one or more source code blocks;
+* arbitrary documentation in Markdown.
 
-Основные цели формата:
+The main goals of the format:
 
-* полностью текстовый;
-* легко читается человеком;
-* удобно отображается в GitHub/GitLab;
-* хорошо работает с системами контроля версий;
-* допускает ручное редактирование;
-* легко расширяется без нарушения совместимости.
+* fully text-based;
+* easy for humans to read;
+* renders well on GitHub/GitLab;
+* works well with version control systems;
+* allows manual editing;
+* easy to extend without breaking compatibility.
 
-Формат основан на двух существующих стандартах:
+The format is based on two existing standards:
 
 * Markdown (CommonMark)
 * YAML Front Matter
 
 ---
 
-# Структура документа
+# Document structure
 
-Документ состоит из двух частей:
+A document consists of two parts:
 
-1. YAML Front Matter
-2. Markdown-содержимое
+1. YAML front matter
+2. Markdown content
 
-Пример:
+Example:
 
 ````markdown
 ---
@@ -43,7 +43,7 @@ kind: Statements
 
 # Example
 
-Описание примера.
+Description of the example.
 
 ## Program
 
@@ -56,43 +56,43 @@ Console.WriteLine("Hello");
 
 # YAML Front Matter
 
-Метаданные располагаются в начале файла между двумя строками `---`.
+Metadata is located at the beginning of the file between two `---` lines.
 
-Все параметры являются глобальными для документа.
+All parameters are global to the document.
 
 ## version
 
-Версия формата файла.
+The file format version.
 
-Тип: строка.
+Type: string.
 
 ```yaml
 version: "1.0"
 ```
 
-Обязательный параметр.
+Required.
 
-Используется для определения схемы документа.
+Used to determine the document schema.
 
 ---
 
 ## language
 
-Язык программирования.
+The programming language.
 
-Тип:
+Type:
 
 ```yaml
 language: csharp
 ```
 
-Обязательный параметр.
+Required.
 
-Поддерживаемые значения в версии 1:
+Supported values in version 1:
 
 * `csharp`
 
-В будущем могут быть добавлены:
+The following may be added in the future:
 
 * `java`
 * `kotlin`
@@ -105,18 +105,18 @@ language: csharp
 
 ## targetSdk
 
-Целевая версия .NET.
+The target .NET version.
 
-Тип:
+Type:
 
 ```yaml
 targetSdk: net9.0
 ```
 
-Обязательный параметр. Если ключ отсутствует или указан без значения, редактор не выбрасывает
-ошибку, а откатывается на значение по умолчанию `latest`.
+Required. If the key is missing or has no value, the editor does not raise
+an error but falls back to the default value `latest`.
 
-Примеры:
+Examples:
 
 ```yaml
 targetSdk: net8.0
@@ -130,41 +130,41 @@ targetSdk: net9.0
 targetSdk: latest
 ```
 
-> Ключ был переименован из `targetFramework` в `targetSdk` (2026-07-06). Файлы, созданные до этой
-> даты, нужно поправить вручную — автоматической миграции нет.
+> The key was renamed from `targetFramework` to `targetSdk` (2026-07-06). Files created before that
+> date must be fixed manually — there is no automatic migration.
 
 ---
 
 ## kind
 
-Тип исполняемого блока документа. Определяет, как редактор интерпретирует и компилирует код.
+The type of the document's executable block. Determines how the editor interprets and compiles the code.
 
-Тип:
+Type:
 
 ```yaml
 kind: Statements
 ```
 
-Обязательный параметр.
+Required.
 
-Поддерживаемые значения:
+Supported values:
 
-| Значение       | Назначение                                              |
-| -------------- | ------------------------------------------------------- |
-| `Statements`   | Инструкции верхнего уровня (по умолчанию)               |
-| `Program`      | Полная программа с явным `void Main()`                  |
-| `Expression`   | Одно выражение; результат отображается через `.Dump()`  |
+| Value          | Purpose                                                  |
+| -------------- | -------------------------------------------------------- |
+| `Statements`   | Top-level statements (default)                           |
+| `Program`      | A full program with an explicit `void Main()`            |
+| `Expression`   | A single expression; the result is shown via `.Dump()`   |
 
 ---
 
 ### Statements
 
-Код выполняется как C# top-level statements. Допускаются:
-- вызовы методов и операторы;
-- объявления inline-методов (локальные функции);
-- объявления классов, структур, перечислений.
+The code runs as C# top-level statements. Allowed:
+- method calls and statements;
+- inline method declarations (local functions);
+- class, struct, and enum declarations.
 
-Шаблон по умолчанию при создании нового файла:
+Default template when creating a new file:
 
 ```csharp
 Console.WriteLine("Hello, RPad!");
@@ -174,9 +174,9 @@ Console.WriteLine("Hello, RPad!");
 
 ### Program
 
-Пользователь явно объявляет точку входа `void Main()`. Редактор автоматически добавляет вызов `Main()` при компиляции.
+The user explicitly declares a `void Main()` entry point. The editor automatically adds a call to `Main()` when compiling.
 
-Шаблон по умолчанию при создании нового файла:
+Default template when creating a new file:
 
 ```csharp
 void Main()
@@ -191,15 +191,15 @@ void Main()
 
 ### Expression
 
-Одно C# выражение без завершающей точки с запятой. Редактор оборачивает результат в `.Dump()` для вывода.
+A single C# expression without a trailing semicolon. The editor wraps the result in `.Dump()` for output.
 
-Пример:
+Example:
 
 ```csharp
 DateTime.Now
 ```
 
-Редактор компилирует это как:
+The editor compiles this as:
 
 ```csharp
 (
@@ -211,9 +211,9 @@ DateTime.Now
 
 ## references
 
-Список ссылок на проекты или сборки.
+A list of project or assembly references.
 
-Тип:
+Type:
 
 ```yaml
 references:
@@ -221,22 +221,22 @@ references:
   - ../Libraries/Utilities.dll
 ```
 
-Необязательный параметр.
+Optional.
 
-Поддерживаются:
+Supported:
 
-* проекты (`.csproj`, `.vbproj`)
-* сборки (`.dll`)
+* projects (`.csproj`, `.vbproj`)
+* assemblies (`.dll`)
 
-В путях можно использовать макросы (в духе LINQPad):
+Paths may use macros (in the spirit of LINQPad):
 
-* `$(RuntimeDirectory)` — каталог установленной .NET-среды выполнения.
-* `$(MyDocuments)` — каталог "Мои документы" текущего пользователя.
-* `$(CurrentQueryPath)` — каталог, содержащий текущий `.rpad`-файл (не сам файл, а его
-  родительская папка — удобно для путей вида `$(CurrentQueryPath)/lib/Utilities.dll`). Для
-  несохранённой вкладки (нет собственного пути) этот макрос не раскрывается и остаётся в
-  исходном виде — ссылка не будет найдена при сборке, что даёт понятную ошибку вместо
-  неожиданного поведения.
+* `$(RuntimeDirectory)` — the directory of the installed .NET runtime.
+* `$(MyDocuments)` — the current user's "My Documents" directory.
+* `$(CurrentQueryPath)` — the directory containing the current `.rpad` file (not the file itself but its
+  parent folder — handy for paths like `$(CurrentQueryPath)/lib/Utilities.dll`). For an
+  unsaved tab (no path of its own) this macro is not expanded and stays in its
+  original form — the reference will not be found at build time, producing a clear error instead of
+  unexpected behavior.
 
 ```yaml
 references:
@@ -248,9 +248,9 @@ references:
 
 ## packages
 
-NuGet-пакеты.
+NuGet packages.
 
-Тип:
+Type:
 
 ```yaml
 packages:
@@ -258,19 +258,19 @@ packages:
   Newtonsoft.Json: 13.0.4
 ```
 
-Необязательный параметр.
+Optional.
 
-Ключ — идентификатор пакета.
+The key is the package identifier.
 
-Значение — версия.
+The value is the version.
 
 ---
 
 ## namespaces
 
-Список глобальных using.
+A list of global usings.
 
-Тип:
+Type:
 
 ```yaml
 namespaces:
@@ -279,37 +279,37 @@ namespaces:
   - Microsoft.Extensions.Logging
 ```
 
-Необязательный параметр.
+Optional.
 
-Редактор может автоматически добавить их при компиляции.
+The editor may add them automatically when compiling.
 
-> Ключ был переименован из `usings` в `namespaces` (2026-07-09). Файлы, созданные до этой даты,
-> нужно поправить вручную — автоматической миграции нет.
+> The key was renamed from `usings` to `namespaces` (2026-07-09). Files created before that date
+> must be fixed manually — there is no automatic migration.
 
 ---
 
 # Markdown
 
-После YAML располагается обычный Markdown.
+Plain Markdown follows the YAML.
 
-Он может содержать:
+It may contain:
 
-* заголовки;
-* списки;
-* изображения;
-* ссылки;
-* описание;
-* любой другой корректный Markdown.
+* headings;
+* lists;
+* images;
+* links;
+* descriptions;
+* any other valid Markdown.
 
-Редактор не изменяет Markdown, который не относится к специальным блокам.
+The editor does not modify Markdown that does not belong to the special blocks.
 
 ---
 
-# Блок Program
+# The Program block
 
-Исполняемый код размещается внутри fenced code block.
+Executable code is placed inside a fenced code block.
 
-Минимальный пример:
+Minimal example:
 
 ````markdown
 ## Program
@@ -319,25 +319,25 @@ Console.WriteLine("Hello World");
 ```
 ````
 
-Язык блока должен совпадать со значением `language`.
+The block's language must match the `language` value.
 
-В первой версии поддерживается:
+The first version supports:
 
 ```
 csharp
 vb
 ```
 
-`vb` (Visual Basic) компилируется, запускается и отлаживается так же, как `csharp`, но пока без
-IntelliSense (автодополнение/диагностика/quick-fix) — см. `RunPad.Languages.VB`.
+`vb` (Visual Basic) is compiled, run, and debugged the same way as `csharp`, but for now without
+IntelliSense (autocompletion/diagnostics/quick fixes) — see `RunPad.Languages.VB`.
 
 ---
 
-# Атрибут run
+# The run attribute
 
-Ключевое слово `run` указывает, что данный блок является исполняемым.
+The `run` keyword marks the block as executable.
 
-Пример:
+Example:
 
 ````markdown
 ```csharp run
@@ -345,11 +345,11 @@ Console.WriteLine("Hello");
 ```
 ````
 
-Документ может содержать только один блок `run`.
+A document may contain only one `run` block.
 
 ---
 
-# Полный пример
+# Full example
 
 ````markdown
 ---
@@ -372,7 +372,7 @@ namespaces:
 
 # SQL Example
 
-Демонстрация использования Dapper.
+Demonstrates using Dapper.
 
 ## Program
 
@@ -385,39 +385,39 @@ Console.WriteLine("Hello RPad!");
 
 ---
 
-# Требования к формату
+# Format requirements
 
-Файл должен сохраняться в:
+The file must be saved as:
 
 * UTF-8
-* LF или CRLF
+* LF or CRLF
 
 ---
 
-# Совместимость
+# Compatibility
 
-Любой `.rpad` является корректным Markdown-документом.
+Every `.rpad` file is a valid Markdown document.
 
-Если открыть файл:
+When the file is opened:
 
-* в Visual Studio Code;
-* в Obsidian;
-* на GitHub;
-* в GitLab;
+* in Visual Studio Code;
+* in Obsidian;
+* on GitHub;
+* in GitLab;
 
-он должен отображаться как обычный Markdown с подсветкой синтаксиса C#.
+it must render as ordinary Markdown with C# syntax highlighting.
 
-Для интерпретации специальных возможностей (`run`, YAML и т.д.) требуется поддержка формата RPad.
+Interpreting the special features (`run`, YAML, etc.) requires RPad format support.
 
 ---
 
-# Принципы развития формата
+# Format evolution principles
 
-При проектировании формата соблюдаются следующие принципы:
+The format is designed according to the following principles:
 
-* человек может читать файл без специальных инструментов;
-* изменения должны быть минимальными и хорошо отображаться в Git;
-* новые возможности должны добавляться без нарушения совместимости;
-* Markdown остаётся основным способом документирования примеров;
-* YAML содержит только глобальные настройки документа;
-* исполняемый код хранится в стандартных fenced code blocks.
+* a human can read the file without special tools;
+* changes should be minimal and show up well in Git;
+* new features must be added without breaking compatibility;
+* Markdown remains the primary way to document examples;
+* YAML contains only global document settings;
+* executable code is stored in standard fenced code blocks.
