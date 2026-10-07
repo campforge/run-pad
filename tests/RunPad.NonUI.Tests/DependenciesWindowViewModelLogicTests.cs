@@ -746,11 +746,28 @@ public class DependenciesWindowViewModelLogicTests
         Assert.False(vm.AddReference("../lib/My.dll"));
         Assert.Contains("already", vm.ReferenceError);
 
-        vm.NewReference = "  ../lib/Other.csproj ";
+        vm.NewReference = "  $(MyDocuments)/Other.dll ";
         Assert.Null(vm.ReferenceError); // editing clears the message
         Execute(vm.AddReferenceCommand);
         Assert.Equal("", vm.NewReference);
-        Assert.Equal(["../lib/My.dll", "../lib/Other.csproj"], vm.References.Select(r => r.Value));
+        Assert.Equal(["../lib/My.dll", "$(MyDocuments)/Other.dll"], vm.References.Select(r => r.Value));
+        vm.Dispose();
+    }
+
+    // Scripts compile in-process with Roslyn, which can't build another project (no MSBuild).
+    [Theory]
+    [InlineData("../lib/Lib.csproj")]
+    [InlineData("../lib/Lib.VBPROJ")]
+    [InlineData("../lib/Lib.fsproj")]
+    public void ProjectFiles_Should_BeRejected_WithAnExplanation(string project)
+    {
+        var (vm, _, _) = CreateVm();
+        vm.SetFrontMatter(NewFrontMatter());
+
+        Assert.False(vm.AddReference(project));
+
+        Assert.Contains("Project references aren't supported", vm.ReferenceError);
+        Assert.Equal(["../lib/My.dll"], vm.References.Select(r => r.Value));
         vm.Dispose();
     }
 

@@ -12,9 +12,9 @@ namespace RunPad.Windows;
 
 public partial class DependenciesWindow : Window
 {
-    private static readonly FilePickerFileType ReferenceFileType = new("Assemblies and projects")
+    private static readonly FilePickerFileType ReferenceFileType = new("Assemblies")
     {
-        Patterns = ["*.dll", "*.csproj", "*.vbproj", "*.fsproj"]
+        Patterns = ["*.dll"]
     };
 
     public DependenciesWindow(DependenciesWindowViewModel viewModel)

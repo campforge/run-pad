@@ -1227,6 +1227,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             NewReference = "";
     }
 
+    private static readonly HashSet<string> ProjectFileExtensions =
+        new([".csproj", ".vbproj", ".fsproj"], StringComparer.OrdinalIgnoreCase);
+
     // Stored exactly as entered (macros/relative paths kept); nothing is compiled or copied here.
     internal bool AddReference(string? value)
     {
@@ -1235,7 +1238,15 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         var reference = value?.Trim() ?? "";
         if (reference.Length == 0)
         {
-            ReferenceError = "Enter the path to a .dll or project file.";
+            ReferenceError = "Enter the path to a .dll.";
+            return false;
+        }
+
+        // Scripts compile in-process with Roslyn (no MSBuild), which can't build another project;
+        // project references are to be redesigned (docs/handoffs/roslyn-script-compiler.md).
+        if (ProjectFileExtensions.Contains(Path.GetExtension(reference)))
+        {
+            ReferenceError = "Project references aren't supported. Reference the project's built .dll instead.";
             return false;
         }
 

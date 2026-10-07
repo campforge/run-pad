@@ -5,7 +5,7 @@ public interface IBuildCacheService
     /// <summary>
     /// Returns the persistent compile-output directory for <paramref name="filePath"/>, allocating
     /// one under <paramref name="workDir"/> and recording it the first time this file is seen. The
-    /// same directory is returned across app restarts, so MSBuild/NuGet's own caches under obj/
+    /// same directory is returned across app restarts, so the restore lock file and compile fingerprint under obj/
     /// (and the last built binary, for the hot-run path) survive between sessions.
     /// </summary>
     string EnsureOutputDirectory(string filePath, string workDir);

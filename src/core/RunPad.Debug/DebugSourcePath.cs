@@ -2,9 +2,8 @@ namespace RunPad.Debug;
 
 /// <summary>
 /// Maps a source path onto the spelling the compiler recorded in the PDB, which is what netcoredbg
-/// matches breakpoint sources against. MsBuildProcessCompiler runs <c>dotnet build</c> with the
-/// output directory as its working directory, and on Unix the child's <c>getcwd()</c> returns the
-/// fully symlink-resolved path — so on macOS a temp directory spelled <c>/var/folders/...</c> (with
+/// matches breakpoint sources against. The script compiler records this canonical spelling (as
+/// `dotnet build` used to: on Unix its <c>getcwd()</c> returned the fully symlink-resolved path) — so on macOS a temp directory spelled <c>/var/folders/...</c> (with
 /// <c>/var</c> a symlink to <c>/private/var</c>) ends up as <c>/private/var/folders/...</c> in the
 /// PDB, and a breakpoint sent for the <c>/var/...</c> alias stays pending forever. Every symlink in
 /// the path is resolved, not only the leaf. Windows' current directory doesn't resolve links, so

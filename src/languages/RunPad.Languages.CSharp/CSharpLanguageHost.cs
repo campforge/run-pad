@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
+using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 
 namespace RunPad.Languages.CSharp;
 
@@ -36,6 +38,9 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     {
     }
 
+    protected override IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory) =>
+        new CSharpScriptCompiler(options, loggerFactory.CreateLogger<CSharpScriptCompiler>());
+
     // ── Kind transform ───────────────────────────────────────────────────────
 
     public override string ApplyKindTransform(string code) => Options.Kind switch
@@ -45,9 +50,9 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
         _ => code,
     };
 
-    // Lines prepended before the user's first line, both by ApplyKindTransform (above) and by
-    // MsBuildProcessCompiler.Compilation, which separately prepends one "using X;" line per
-    // front-matter namespace (see its own "Prepend global usings/imports" step) BEFORE writing the
+    // Lines prepended before the user's first line, both by ApplyKindTransform (above) and by the
+    // compiler (RoslynScriptCompiler), which separately prepends one "using X;" line per
+    // front-matter namespace BEFORE writing the
     // .cs file that's actually compiled/debugged — a real, per-script, kind-independent source of
     // line drift, on top of the kind-transform offset itself.
     //
