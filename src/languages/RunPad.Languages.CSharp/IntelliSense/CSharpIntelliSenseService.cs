@@ -152,8 +152,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
-    // still feel live (ANALYSIS.md #94).
-    private static readonly TimeSpan _backgroundAnalysisDebounce = TimeSpan.FromMilliseconds(500);
+    // still feel live (ANALYSIS.md #94). Settable only by tests (InternalsVisibleTo): a test that calls
+    // NotifyTextChanged exactly once has nothing to debounce, and 500ms x ~500 such tests was most of
+    // CSharpIntelliSenseAnalyzersTests' run time.
+    internal TimeSpan BackgroundAnalysisDebounce { get; set; } = TimeSpan.FromMilliseconds(500);
 
     // How long Dispose waits for an in-flight background analysis pass to actually observe
     // cancellation before giving up — see Dispose's own comment for why this is bounded rather than
@@ -1716,7 +1718,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             try
             {
-                await Task.Delay(_backgroundAnalysisDebounce, ct);
+                await Task.Delay(BackgroundAnalysisDebounce, ct);
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),

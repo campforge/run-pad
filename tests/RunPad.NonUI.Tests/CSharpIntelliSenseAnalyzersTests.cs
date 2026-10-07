@@ -22,7 +22,11 @@ public class CSharpIntelliSenseAnalyzersTests
     {
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+        // Every test here calls NotifyTextChanged exactly once — nothing to debounce.
+        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance)
+        {
+            BackgroundAnalysisDebounce = TimeSpan.Zero,
+        };
     }
 
     // IDE0044 ("Make field readonly") fires at Info severity, not Hidden — a real, visible-squiggle
@@ -52,13 +56,8 @@ public class CSharpIntelliSenseAnalyzersTests
     // modifiers (implicit `private` is perfectly legal C#), so this fix could never have appeared,
     // full stop, regardless of anything RoslynCodeFixEngine itself does right.
     //
-    // (Deliberately NOT "remove unnecessary using" — investigated first, but that analyzer's own
-    // diagnostic span covers the ENTIRE using-directives region of the WHOLE document, preamble
-    // included, starting at position 0 — RoslynCodeFixEngine.ComputeFixesAsync's existing "diagnostic
-    // starts before user code, skip" guard (correctly built for diagnostics genuinely confined to the
-    // invisible preamble) ends up discarding it too, since it can't tell "starts in the preamble,
-    // stays there" apart from "starts in the preamble, but the fix is really about user code". A
-    // real, narrow gap — noted in TODO.md rather than papered over with a misleading test.)
+    // ("Remove unnecessary usings" was deliberately left out here at first — its fixable diagnostic
+    // starts inside the preamble and got discarded; closed later, see the IDE0005 tests below.)
     [Fact]
     public async Task NotifyTextChanged_Should_OfferAnAddAccessibilityModifierFix_ViaAHiddenSeverityAnalyzerDiagnostic()
     {
@@ -8712,4 +8711,50 @@ public class CSharpIntelliSenseAnalyzersTests
         var diagnostics = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
         Assert.Contains(diagnostics, d => d.Message.Contains("'StandardFormat.Parse(...)' always throws FormatException at runtime — 'G123456' is not a valid standard format string", StringComparison.Ordinal));
     }
+
+    // TODO.md pass 103 gap: Roslyn registers "Remove unnecessary usings" on a companion
+    // "RemoveUnnecessaryImportsFixable" diagnostic spanning the whole using region from offset 0 —
+    // inside the hidden preamble — so the fix used to never reach the lightbulb; and once listed, its
+    // single merged deletion also removed the preamble's own unused usings, which used to discard it at
+    // materialization. Both halves through the real service, not the engine in isolation.
+    [Fact]
+    public async Task NotifyTextChanged_Should_OfferRemoveUnnecessaryUsings_ForAnUnusedUserUsing()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CodeFixesChanged += (_, f) =>
+        {
+            if (f.Any(IsRemoveUnnecessaryUsings)) tcs.TrySetResult(f);
+        };
+        const string code = "using System.IO;\nusing System.Text;\nConsole.WriteLine(new StringBuilder());\n";
+
+        service.NotifyTextChanged(code);
+
+        var fixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        var fix = fixes.Single(IsRemoveUnnecessaryUsings);
+        Assert.Equal(1, fix.Line);
+
+        var materialized = await service.MaterializeFixAsync(code, fix.Key, TestContext.Current.CancellationToken);
+        Assert.NotNull(materialized);
+        Assert.Equal("using System.Text;\nConsole.WriteLine(new StringBuilder());\n", materialized.NewCode);
+        Assert.Empty(materialized.UsingsToAdd);
+    }
+
+    // The same fixable diagnostic exists whenever only the preamble's default usings are unused —
+    // offering it there would be a lightbulb that changes nothing the user can see.
+    [Fact]
+    public async Task NotifyTextChanged_Should_NotOfferRemoveUnnecessaryUsings_WhenOnlyThePreamblesUsingsAreUnused()
+    {
+        using var service = CreateService();
+        var tcs = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CodeFixesChanged += (_, f) => tcs.TrySetResult(f);
+
+        service.NotifyTextChanged("using System.Text;\nConsole.WriteLine(new StringBuilder());\n");
+
+        var fixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(fixes, IsRemoveUnnecessaryUsings);
+    }
+
+    private static bool IsRemoveUnnecessaryUsings(ICodeFixInfo fix) =>
+        fix.Title.Contains("unnecessary using", StringComparison.OrdinalIgnoreCase);
 }

@@ -20,6 +20,11 @@ namespace RunPad.Debug;
 /// RunAsync-only env var, previously never reaching a debug session at all — netcoredbg spawns the
 /// debuggee itself, so ProcessStartInfo.Environment on netcoredbg's own process has no effect on
 /// it). <see langword="null"/> for a never-saved (untitled) tab, same as the non-debug run.</param>
+/// <param name="RuntimePath">The <c>dotnet</c> host that runs <paramref name="ProgramPath"/> — the same
+/// one the non-debug run uses. When set, the launch request names it as <c>program</c> with the
+/// assembly as its first <c>args</c> entry; otherwise netcoredbg turns a bare <c>.dll</c> program into
+/// a PATH lookup of <c>dotnet</c>, which fails (0x80070002) for a macOS GUI app whose launchd PATH
+/// doesn't include the SDK directory. <see langword="null"/>/empty keeps that legacy behavior.</param>
 public sealed record DapSessionOptions(
     string ProgramPath,
     string WorkingDirectory,
@@ -29,4 +34,5 @@ public sealed record DapSessionOptions(
     bool BreakOnAllExceptions = false,
     bool BreakOnUncaughtExceptions = true,
     bool JustMyCode = false,
-    string? CurrentQueryPath = null);
+    string? CurrentQueryPath = null,
+    string? RuntimePath = null);

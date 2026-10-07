@@ -132,4 +132,32 @@ public class MainWindowClosingTests
         // not just that ConfirmCloseAllUnsavedTabsAsync itself returns true in isolation.
         Assert.True(closedFired);
     }
+
+    // Review R1: a second Close (window button / Cmd+Q again) while the first confirmation dialog
+    // is still open must not start a second, overlapping walk over the dirty tabs.
+    [AvaloniaFact]
+    public async Task ClosingTheWindowAgain_WhileTheConfirmationIsPending_Should_NotAskTwice()
+    {
+        var (window, _, windowService) = CreateMainWindow();
+        var ctrl = await GetSoleControlAsync(window);
+        ctrl.State.Editor.Text = "Console.WriteLine(1);";
+        var answer = new TaskCompletionSource<UnsavedChangesResult>();
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>())).Returns(answer.Task);
+
+        var closedFired = false;
+        window.Closed += (_, _) => closedFired = true;
+
+        window.Close();
+        await Task.Delay(20);
+        window.Close();
+        await Task.Delay(20);
+
+        Assert.False(closedFired);
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+
+        answer.SetResult(UnsavedChangesResult.DontSave);
+        await Task.Delay(50);
+
+        Assert.True(closedFired);
+    }
 }

@@ -89,12 +89,10 @@ public class EditorTabItemControlCodeFixApplyTests
         // Multiple real fixes apply here (e.g. CSharpFullyQualifyCodeFixProvider's "Fully qualify
         // 'Regex'" ALSO mentions Regex in its title) — matching specifically on "using" picks out
         // CSharpAddImportCodeFixProvider's own fix, not just any Regex-related one.
-        CodeFixEntry? entry = null;
-        for (var i = 0; i < 1500 && entry is null; i++)
-        {
-            await Task.Delay(20);
-            entry = margin.Fixes.FirstOrDefault(e => e.Title.Contains("using", StringComparison.OrdinalIgnoreCase));
-        }
+        CodeFixEntry? FindUsingFix() =>
+            margin.Fixes.FirstOrDefault(e => e.Title.Contains("using", StringComparison.OrdinalIgnoreCase));
+        await TestWait.WhileAsync(() => FindUsingFix() is null);
+        var entry = FindUsingFix();
         Assert.NotNull(entry);
 
         var item = margin.BuildMenuItem(entry);
@@ -106,12 +104,9 @@ public class EditorTabItemControlCodeFixApplyTests
         // editor text (which is why the raw text is never expected to change here at all).
         // FrontMatter.Namespaces is already a real (if empty) list from tab creation onward — poll
         // for the NAMESPACE showing up, not merely for the list itself becoming non-null.
-        List<string>? namespaces = null;
-        for (var i = 0; i < 1500 && namespaces?.Contains("System.Text.RegularExpressions") != true; i++)
-        {
-            await Task.Delay(20);
-            namespaces = ctrl.State.RpadDocument?.FrontMatter.Namespaces;
-        }
+        await TestWait.WhileAsync(() =>
+            ctrl.State.RpadDocument?.FrontMatter.Namespaces?.Contains("System.Text.RegularExpressions") != true);
+        var namespaces = ctrl.State.RpadDocument?.FrontMatter.Namespaces;
 
         Assert.NotNull(namespaces);
         Assert.Contains("System.Text.RegularExpressions", namespaces);

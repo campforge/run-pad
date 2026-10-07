@@ -71,8 +71,7 @@ public class EditorTabsControlTests
 
             // Act
             mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
 
             // Assert
             Assert.NotNull(mainVm.ActiveTab);
@@ -136,8 +135,7 @@ public class EditorTabsControlTests
             editorTabs.Attach(mainVm);
 
             mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
             var tab = mainVm.ActiveTab!;
 
             // OpenTab already closed the initial blank tab (opening a real file over a single blank
@@ -217,8 +215,7 @@ public class EditorTabsControlTests
             Assert.True(tab.IsDirty);
 
             editorTabs.SaveActive();
-            for (var i = 0; i < 100 && !File.Exists(chosenPath); i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => !File.Exists(chosenPath));
 
             Assert.True(File.Exists(chosenPath));
             Assert.Equal(chosenPath, tab.FilePath);
@@ -281,8 +278,7 @@ public class EditorTabsControlTests
             editorTabs.Attach(mainVm); // opens the initial blank tab
 
             mainVm.OpenTab(filePath);
-            for (var i = 0; i < 100 && mainVm.ActiveTab?.FrontMatter is null; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
 
             intelliSense.Verify(x => x.UpdateKind(RpadKind.Program), Times.AtLeastOnce);
         }
@@ -345,13 +341,11 @@ public class EditorTabsControlTests
             // Wait for the initial blank (C#) tab's own factory call — it runs its Task.Run off the
             // UI thread (see CreateControlAsync), so it isn't guaranteed to have landed the instant
             // Attach() returns above.
-            for (var i = 0; i < 100 && intelliSenseFactoryCalls < 1; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => intelliSenseFactoryCalls < 1);
             Assert.Equal(1, intelliSenseFactoryCalls);
 
             mainVm.NewRpadFile(RpadLanguage.Vb);
-            for (var i = 0; i < 100 && mainVm.Tabs.Count < 2; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
 
             // The VB tab's own CreateControlAsync never hits a real await (PeekLanguage-equivalent
             // resolves to Vb synchronously, see the comment above), so there's no async gap to wait
@@ -436,8 +430,7 @@ public class EditorTabsControlTests
             // Not pinned to an exact count: whether the initial blank tab survives opening the first
             // real file is an unrelated timing detail (see OnFileTabSelectionChanged's own comments)
             // — all that matters here is that every one of the tabs actually opened.
-            for (var i = 0; i < 200 && fileTabControl.Items.Count < tabCount; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => fileTabControl.Items.Count < tabCount);
 
             // Item count alone doesn't mean layout has actually run for the newly realized
             // containers — flush the dispatcher at Background priority (below Layout) so any queued

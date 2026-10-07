@@ -96,8 +96,7 @@ public class EditorTabItemControlCodeFixSettingsTests
             new FakeCodeFixInfo(2, "Add using System;", DiagnosticSeverity.Warning, "kept-key", "CS0246"),
         ]);
 
-        for (var i = 0; i < 100 && margin.Fixes.Count == 0; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => margin.Fixes.Count == 0);
 
         var keys = margin.Fixes.Select(f => f.Key).ToList();
         Assert.DoesNotContain("excluded-key", keys);
@@ -121,8 +120,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         editor.Text = "line1\n";
         editor.TextArea.Caret.Offset = 1;
 
-        for (var i = 0; i < 100 && margin.Fixes.Count == 0; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => margin.Fixes.Count == 0);
 
         Assert.Contains(margin.Fixes, f => f.Key == "refactor-key");
     }
@@ -164,8 +162,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         intelliSense.Raise(s => s.CodeFixesChanged += null, editor.Text,
             (IReadOnlyList<ICodeFixInfo>)[new FakeCodeFixInfo(1, "Add using System;", DiagnosticSeverity.Warning, "fix-key", "CS0246")]);
 
-        for (var i = 0; i < 100 && margin.Fixes.Count == 0; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => margin.Fixes.Count == 0);
         Assert.NotEmpty(margin.Fixes);
 
         // Flip the setting and raise the same change notification EditorTabItemControl.SetupEditor
@@ -173,8 +170,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         settings.CodeFixesEnabled = false;
         prefs.Raise(p => p.Changed += null);
 
-        for (var i = 0; i < 100 && margin.Fixes.Count != 0; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => margin.Fixes.Count != 0);
 
         Assert.Empty(margin.Fixes);
     }
@@ -198,7 +194,7 @@ public class EditorTabItemControlCodeFixSettingsTests
 
         // Waits specifically for the CodeFixesChanged firing that matches THIS code (the
         // diagnostic-driven half), rather than polling margin.Fixes for "any entry": a
-        // caret-position-triggered refactoring (Generate overrides, Rename type to Script, ...) can
+        // caret-position-triggered refactoring (Generate constructor, Add 'DebuggerDisplay' attribute, ...) can
         // and does arrive first for this same code/caret, and an earlier CodeFixesChanged firing for
         // the control's initial empty document would also satisfy a same-event-but-wrong-code check —
         // either would race a false pass before the diagnostic-fix pass this test actually cares
@@ -225,8 +221,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         // DIAGNOSTIC-driven entry (non-null DiagnosticId) instead — the other, non-IDE0055 fixes
         // always survive filtering by default, so this condition is reachable regardless of whether
         // the exclusion under test is even working.
-        for (var i = 0; i < 100 && !margin.Fixes.Any(f => f.DiagnosticId is not null); i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => !margin.Fixes.Any(f => f.DiagnosticId is not null));
 
         Assert.DoesNotContain(margin.Fixes, f => f.Title.Contains("formatting", StringComparison.OrdinalIgnoreCase));
     }

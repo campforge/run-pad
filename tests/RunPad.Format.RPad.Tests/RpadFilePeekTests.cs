@@ -39,4 +39,31 @@ public class RpadFilePeekTests
     [Fact]
     public void PeekLanguage_Should_DefaultToCSharp_ForANullPath()
         => Assert.Equal(RpadLanguage.CSharp, RpadFilePeek.PeekLanguage(null));
+
+    // Review R3: an invalid document has no trustworthy language — PeekDocumentLanguage says so
+    // (null) so the tab gets no language services; PeekLanguage keeps its C# display default.
+    [Fact]
+    public void PeekDocumentLanguage_Should_ReturnNull_ForAnInvalidDocument()
+    {
+        var file = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(file, "---\nlanguage: vb\nkind: nonsense\n---\n\n```vb run\nConsole.WriteLine(1)\n```\n");
+            Assert.Null(RpadFilePeek.PeekDocumentLanguage(file));
+            Assert.Equal(RpadLanguage.CSharp, RpadFilePeek.PeekLanguage(file));
+        }
+        finally { File.Delete(file); }
+    }
+
+    [Fact]
+    public void PeekDocumentLanguage_Should_ReturnTheDeclaredLanguage_ForAValidDocument()
+    {
+        var file = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(file, RpadWriter.NewFile("Demo", language: RpadLanguage.Vb));
+            Assert.Equal(RpadLanguage.Vb, RpadFilePeek.PeekDocumentLanguage(file));
+        }
+        finally { File.Delete(file); }
+    }
 }

@@ -57,6 +57,19 @@ public sealed class DapSession : IDapSession
     private readonly bool _breakOnUncaughtExceptions;
     private readonly bool _justMyCode;
     private readonly string? _currentQueryPath;
+    private readonly string? _runtimePath;
+
+    // exceptionBreakpointFilters ids the adapter declared in its "initialize" response — filters
+    // must come from this list (netcoredbg 3.x declares "user-unhandled"/"all" and rejects the
+    // undeclared "unhandled" with 0x80070057). Empty until the response arrives.
+    private IReadOnlyList<string> _declaredExceptionFilters = [];
+
+    // Requests whose failure means the debuggee will never start — reported as an exception instead
+    // of leaving the session waiting forever for events that can't come.
+    private static readonly HashSet<string> FatalCommands = ["initialize", "launch", "configurationDone"];
+
+    // Preference order for "break on uncaught exceptions": the standard DAP/vsdbg id, then netcoredbg's.
+    private static readonly string[] UncaughtExceptionFilterIds = ["unhandled", "user-unhandled"];
 
     // TODO.md #111 — mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core) and
     // RunPad.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
@@ -121,6 +134,7 @@ public sealed class DapSession : IDapSession
         _onBreakpointVerified = onBreakpointVerified;
         _justMyCode = options.JustMyCode;
         _currentQueryPath = options.CurrentQueryPath;
+        _runtimePath = options.RuntimePath;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -258,7 +272,7 @@ public sealed class DapSession : IDapSession
 
         bool launchSent = false;
 
-        while (!ct.IsCancellationRequested)
+        while (!ct.IsCancellationRequested && !_processExited)
         {
             using var doc = await ReadMessageAsync(ct);
             if (doc is null) break;
@@ -266,23 +280,15 @@ public sealed class DapSession : IDapSession
             var root = doc.RootElement;
             var msgType = GetStr(root, "type");
 
+            if (msgType == "response")
+                ThrowIfFatalResponseFailed(root);
+
             if (msgType == "response" && !launchSent && GetStr(root, "command") == "initialize")
             {
-                await SendAsync(new LaunchRequest
-                {
-                    seq = NextSeq(),
-                    arguments = new LaunchRequestArguments
-                    {
-                        program = _programPath,
-                        cwd = _workingDirectory,
-                        stopAtEntry = false,
-                        justMyCode = _justMyCode,
-                        console = "internalConsole",
-                        env = _currentQueryPath is null
-                            ? null
-                            : new Dictionary<string, string> { [CurrentQueryPathEnvVar] = _currentQueryPath },
-                    }
-                }, ct);
+                if (root.TryGetProperty("body", out var capabilities))
+                    _declaredExceptionFilters = ReadExceptionFilterIds(capabilities);
+
+                await SendAsync(new LaunchRequest { seq = NextSeq(), arguments = BuildLaunchArguments() }, ct);
                 launchSent = true;
             }
             // The only "setBreakpoints" response that can organically reach this top-level dispatch
@@ -366,7 +372,7 @@ public sealed class DapSession : IDapSession
         IBreakpoint matched =
             _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine
                 && (string.IsNullOrEmpty(bp.FileName) || topFrameSourcePath is null
-                    || string.Equals(bp.FileName, topFrameSourcePath, StringComparison.OrdinalIgnoreCase)))
+                    || DebugSourcePath.AreSame(bp.FileName, topFrameSourcePath)))
             ?? new SyntheticBreakpoint(topFrameSourcePath ?? "", topFrameUserLine);
 
         bool wasRunToCursor = _runToCursorLines.Remove(topFrameUserLine);
@@ -444,7 +450,7 @@ public sealed class DapSession : IDapSession
         // coincidentally used the same line number.
         var matched = _breakpoints.FirstOrDefault(bp => bp.Line == userLine
             && (string.IsNullOrEmpty(bp.FileName) || sourcePath is null
-                || string.Equals(bp.FileName, sourcePath, StringComparison.OrdinalIgnoreCase)));
+                || DebugSourcePath.AreSame(bp.FileName, sourcePath)));
         if (matched is null) return;
 
         _logger.LogDebug("[dap bp] (event) verified={Verified} line={Line}{Msg}", verified, userLine, msg is not null ? $" msg={msg}" : "");
@@ -636,9 +642,12 @@ public sealed class DapSession : IDapSession
         // but the binary goes to _workingDirectory/bin/{name}.dll.
         var fallback = Path.Combine(_workingDirectory,
             Path.GetFileNameWithoutExtension(_programPath) + _sourceFileExtension);
-        _sourceFile = _breakpoints.FirstOrDefault()?.FileName is { Length: > 0 } fromBreakpoint
-            ? fromBreakpoint
-            : fallback;
+        // Canonical spelling (DebugSourcePath) — must match the PDB's document path or netcoredbg
+        // leaves every breakpoint pending. Reused by resyncs and run-to-cursor.
+        _sourceFile = DebugSourcePath.Canonicalize(
+            _breakpoints.FirstOrDefault()?.FileName is { Length: > 0 } fromBreakpoint
+                ? fromBreakpoint
+                : fallback);
         _sourceName = Path.GetFileName(_sourceFile);
 
         if (_breakpoints.Count == 0) return;
@@ -711,17 +720,111 @@ public sealed class DapSession : IDapSession
 
     private async Task SendExceptionBreakpointsAsync(CancellationToken ct)
     {
-        var filters = new List<string>();
-        if (_breakOnAllExceptions) filters.Add("all");
-        else if (_breakOnUncaughtExceptions) filters.Add("unhandled");
+        var filters = SelectExceptionFilters(
+            _declaredExceptionFilters, _breakOnAllExceptions, _breakOnUncaughtExceptions, out var warning);
+        if (warning is not null)
+            ReportDebuggerWarning(warning);
 
         await SendAsync(new SetExceptionBreakpointsRequest
         {
             seq = NextSeq(),
             arguments = new SetExceptionBreakpointsArguments { filters = filters },
         }, ct);
-        using var _ = await ReadResponseForCommandAsync("setExceptionBreakpoints", ct);
+        using var doc = await ReadResponseForCommandAsync("setExceptionBreakpoints", ct);
+
+        // Not fatal — the script still runs and line breakpoints still work, only exception
+        // breaking is lost, so tell the user instead of aborting the session.
+        if (doc is not null && !IsSuccess(doc.RootElement))
+            ReportDebuggerWarning($"Exception breakpoints could not be set: {GetStr(doc.RootElement, "message") ?? "unknown error"}");
     }
+
+    /// <summary>
+    /// Maps RunPad's two exception-breaking settings onto filter ids the adapter actually declared.
+    /// "Uncaught" prefers the standard <c>unhandled</c> id and falls back to netcoredbg's
+    /// <c>user-unhandled</c>; a setting with no declared counterpart is dropped with a warning
+    /// rather than sent and rejected.
+    /// </summary>
+    private static List<string> SelectExceptionFilters(
+        IReadOnlyCollection<string> declared, bool breakOnAll, bool breakOnUncaught, out string? warning)
+    {
+        warning = null;
+        if (breakOnAll)
+        {
+            if (declared.Contains("all")) return ["all"];
+            warning = "The debugger doesn't support breaking on all exceptions";
+        }
+
+        if (breakOnAll || breakOnUncaught)
+        {
+            foreach (var id in UncaughtExceptionFilterIds)
+            {
+                if (declared.Contains(id))
+                {
+                    if (warning is not null) warning += $"; breaking on '{id}' exceptions instead.";
+                    return [id];
+                }
+            }
+
+            warning = (warning ?? "The debugger doesn't support breaking on uncaught exceptions")
+                + $"; exception breakpoints are disabled (declared filters: {(declared.Count > 0 ? string.Join(", ", declared) : "none")}).";
+        }
+
+        return [];
+    }
+
+    private static IReadOnlyList<string> ReadExceptionFilterIds(JsonElement capabilities)
+    {
+        if (capabilities.ValueKind != JsonValueKind.Object
+            || !capabilities.TryGetProperty("exceptionBreakpointFilters", out var filtersEl)
+            || filtersEl.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return filtersEl.EnumerateArray()
+            .Select(f => f.ValueKind == JsonValueKind.Object ? GetStr(f, "filter") : null)
+            .OfType<string>()
+            .ToList();
+    }
+
+    private LaunchRequestArguments BuildLaunchArguments()
+    {
+        // Launch through the same dotnet host the non-debug run uses (see DapSessionOptions.RuntimePath)
+        // instead of letting netcoredbg resolve "dotnet" from its own PATH.
+        bool viaRuntime = !string.IsNullOrWhiteSpace(_runtimePath);
+        return new LaunchRequestArguments
+        {
+            program = viaRuntime ? _runtimePath : _programPath,
+            args = viaRuntime ? [_programPath] : null,
+            cwd = _workingDirectory,
+            stopAtEntry = false,
+            justMyCode = _justMyCode,
+            console = "internalConsole",
+            env = _currentQueryPath is null
+                ? null
+                : new Dictionary<string, string> { [CurrentQueryPathEnvVar] = _currentQueryPath },
+        };
+    }
+
+    private void ThrowIfFatalResponseFailed(JsonElement root)
+    {
+        var command = GetStr(root, "command");
+        if (command is null || !FatalCommands.Contains(command) || IsSuccess(root)) return;
+
+        var message = GetStr(root, "message") ?? "unknown error";
+        var detail = command == "initialize"
+            ? ""
+            : $" (program: {(string.IsNullOrWhiteSpace(_runtimePath) ? _programPath : $"{_runtimePath} {_programPath}")}, cwd: {_workingDirectory})";
+        _logger.LogWarning("Debugger request '{Command}' failed: {Message}", command, message);
+        throw new InvalidOperationException($"The debugger failed to start the script — '{command}' request failed: {message}{detail}");
+    }
+
+    private void ReportDebuggerWarning(string warning)
+    {
+        _logger.LogWarning("{Warning}", warning);
+        _outputHandler?.Invoke($"[dbg] {warning}", OutputKind.StandardError);
+    }
+
+    private static bool IsSuccess(JsonElement response) =>
+        response.TryGetProperty("success", out var s) && s.ValueKind == JsonValueKind.True;
 
     private Task SendContinueAsync(int threadId, CancellationToken ct) =>
         SendAsync(new ContinueRequest
@@ -816,6 +919,14 @@ public sealed class DapSession : IDapSession
             if (msgType == "response" && GetStr(root, "command") == command)
                 return doc;
 
+            // netcoredbg answers "launch" only after "initialized", so its (possibly failed)
+            // response can arrive while waiting here for setBreakpoints/setExceptionBreakpoints.
+            if (msgType == "response")
+            {
+                try { ThrowIfFatalResponseFailed(root); }
+                catch { doc.Dispose(); throw; }
+            }
+
             if (msgType == "event")
             {
                 var evt = GetStr(root, "event");
@@ -825,7 +936,8 @@ public sealed class DapSession : IDapSession
                 // threads/stackTrace/variables round-trips) — without this it would be silently
                 // dropped and the margin would never learn the debugger's real verified/message verdict.
                 else if (evt == "breakpoint") HandleBreakpointEvent(root);
-                if (evt is "exited" or "terminated") { doc.Dispose(); return null; }
+                // Remember it: the main loop would otherwise wait forever for an event already consumed here.
+                if (evt is "exited" or "terminated") { _processExited = true; doc.Dispose(); return null; }
             }
 
             doc.Dispose();
