@@ -1,37 +1,37 @@
 # UI Testing Guidelines
 
-## Общие принципы
+## General principles
 
-Данная инструкция определяет единый стиль написания UI-тестов для проекта на **.NET 10**, **Avalonia 12** и **Avalonia.Headless.XUnit**.
+This guide defines a single style for writing UI tests for the project on **.NET 10**, **Avalonia 12**, and **Avalonia.Headless.XUnit**.
 
-Все UI-тесты должны использовать **официальный пакет Avalonia.Headless.XUnit**. Использование других способов тестирования UI допускается только после согласования.
+All UI tests must use the **official Avalonia.Headless.XUnit package**. Other UI testing approaches are allowed only after agreement.
 
-Основные цели тестов:
+The main goals of the tests:
 
-* Проверка пользовательских сценариев.
-* Проверка корректной работы UI.
-* Проверка взаимодействия между View и ViewModel.
-* Защита от регрессий.
-* Поддержка безопасного рефакторинга.
+* Verify user scenarios.
+* Verify that the UI works correctly.
+* Verify the interaction between View and ViewModel.
+* Protect against regressions.
+* Support safe refactoring.
 
 ---
 
-# Используемый стек
+# Stack
 
-Для UI-тестов используется следующий стек:
+UI tests use the following stack:
 
 * Avalonia.Headless.XUnit
 * xUnit
 * Avalonia 12
 * .NET 10
 
-Все тесты должны выполняться в Headless-режиме без открытия реальных окон.
+All tests must run in headless mode without opening real windows.
 
 ---
 
-# Атрибуты тестов
+# Test attributes
 
-Для UI-тестов разрешается использовать только:
+UI tests may use only:
 
 ```csharp
 [AvaloniaFact]
@@ -39,7 +39,7 @@
 [AvaloniaTheory]
 ```
 
-Использование обычных атрибутов xUnit запрещено:
+Using the regular xUnit attributes is forbidden:
 
 ```csharp
 [Fact]
@@ -47,81 +47,81 @@
 [Theory]
 ```
 
-Причина: `AvaloniaFact` и `AvaloniaTheory` автоматически выполняют тесты в UI-потоке Avalonia и корректно инициализируют Headless-платформу.
+Reason: `AvaloniaFact` and `AvaloniaTheory` automatically run tests on the Avalonia UI thread and correctly initialize the headless platform.
 
 ---
 
-# Что тестировать
+# What to test
 
-## Обязательно
+## Required
 
-* отображение данных;
-* работу Binding;
-* нажатие кнопок;
-* ввод текста;
-* изменение состояния элементов;
-* переключение вкладок;
-* видимость элементов;
-* работу меню;
-* диалоговые окна;
-* навигацию;
-* обработку пользовательского ввода;
-* горячие клавиши;
-* Drag & Drop (если используется);
-* поведение после выполнения команд.
-
----
-
-## Не тестировать
-
-Не следует писать тесты для:
-
-* внутренних механизмов Avalonia;
-* стандартных элементов управления (`Button`, `TextBox`, `Grid` и т.д.);
-* внешних библиотек;
-* визуального оформления (если не используется Snapshot Testing);
-* логики платформы.
-
-Тест должен проверять поведение приложения, а не работу фреймворка.
+* data display;
+* bindings;
+* button clicks;
+* text input;
+* element state changes;
+* tab switching;
+* element visibility;
+* menus;
+* dialogs;
+* navigation;
+* user input handling;
+* hotkeys;
+* drag & drop (if used);
+* behavior after commands execute.
 
 ---
 
-# Структура теста
+## Do not test
 
-Каждый тест обязан содержать три логических блока с комментариями.
+Do not write tests for:
+
+* Avalonia's internal mechanisms;
+* standard controls (`Button`, `TextBox`, `Grid`, etc.);
+* external libraries;
+* visual styling (unless snapshot testing is used);
+* platform logic.
+
+A test must verify the application's behavior, not the framework's.
+
+---
+
+# Test structure
+
+Every test must contain three logical blocks with comments.
 
 ```csharp
 // Arrange
-// подготовка данных
+// prepare data
 
 // Act
-// выполнение действия
+// perform the action
 
 // Assert
-// проверка результата
+// verify the result
 ```
 
-Комментарии `// Arrange`, `// Act` и `// Assert` обязательны даже в самых коротких тестах.
+The `// Arrange`, `// Act`, and `// Assert` comments are mandatory even in the shortest tests.
 
 ---
 
-# Один тест — один сценарий
+# One test — one scenario
 
-Каждый тест должен проверять только один сценарий.
+Each test must verify only one scenario.
 
-Если требуется проверить несколько независимых действий, необходимо написать несколько отдельных тестов.
+If several independent actions need to be verified, write several separate tests.
 
 ---
 
-# Именование тестов
+# Test naming
 
-Использовать следующий шаблон:
+Use the following pattern:
 
 ```text
 Method_Should_ExpectedBehavior_When_Condition
 ```
 
-Например:
+For example:
 
 ```text
 Save_Should_SaveDocument_When_DataIsValid
@@ -133,51 +133,51 @@ Delete_Should_RemoveItem_When_UserConfirms
 
 ---
 
-# Работа с UI
+# Working with the UI
 
-Для взаимодействия с интерфейсом использовать только публичный API Avalonia.Headless.XUnit.
+Interact with the interface only through the public Avalonia.Headless.XUnit API.
 
-Поиск элементов:
+Finding elements:
 
 ```csharp
 window.FindControl<T>("ControlName");
 ```
 
-Ввод текста:
+Text input:
 
 ```csharp
 window.KeyTextInput("Hello");
 ```
 
-Клавиатура:
+Keyboard:
 
 ```csharp
 window.KeyPress(Key.Enter);
 window.KeyRelease(Key.Enter);
 ```
 
-Мышь:
+Mouse:
 
 ```csharp
 window.MouseDown(point, MouseButton.Left);
 window.MouseUp(point, MouseButton.Left);
 ```
 
-Фокус:
+Focus:
 
 ```csharp
 control.Focus();
 ```
 
-Не рекомендуется изменять свойства контролов напрямую, если аналогичное действие может выполнить пользователь.
+Avoid changing control properties directly when the same action could be performed by the user.
 
 ---
 
-# Проверки
+# Assertions
 
-Каждый тест должен содержать как минимум один осмысленный `Assert`.
+Every test must contain at least one meaningful `Assert`.
 
-Предпочтительно использовать специализированные проверки:
+Prefer specialized assertions:
 
 * `Assert.True`
 * `Assert.False`
@@ -189,14 +189,14 @@ control.Focus();
 
 ---
 
-# Асинхронный код
+# Asynchronous code
 
-Использовать:
+Use:
 
 * `async Task`
 * `await`
 
-Не использовать:
+Do not use:
 
 * `.Wait()`
 * `.Result`
@@ -205,66 +205,66 @@ control.Focus();
 
 ---
 
-# Работа с зависимостями
+# Dependencies
 
-Все внешние зависимости должны быть замокированы.
+All external dependencies must be mocked.
 
-Рекомендуемые библиотеки:
+Recommended libraries:
 
 * Moq
 * NSubstitute
 
-UI-тесты не должны зависеть от:
+UI tests must not depend on:
 
-* сети;
-* базы данных;
-* файловой системы;
-* внешних API.
-
----
-
-# Хорошие практики
-
-* Использовать Avalonia.Headless.XUnit для всех UI-тестов.
-* Всегда использовать `AvaloniaFact` или `AvaloniaTheory`.
-* Соблюдать структуру `Arrange → Act → Assert`.
-* Обязательно добавлять комментарии `// Arrange`, `// Act` и `// Assert`.
-* Проверять один сценарий в одном тесте.
-* Использовать понятные имена тестов.
-* Имитировать реальные действия пользователя через Headless API.
-* Выносить общую подготовку в Helper, Fixture или Factory.
-* Использовать публичный API приложения.
-* Делать тесты независимыми и детерминированными.
+* the network;
+* a database;
+* the file system;
+* external APIs.
 
 ---
 
-# Плохие практики
+# Good practices
 
-Запрещается:
-
-* использовать `[Fact]` или `[Theory]` для UI-тестов;
-* использовать `Thread.Sleep()`;
-* использовать `.Wait()` и `.Result`;
-* объединять несколько сценариев в одном тесте;
-* изменять состояние UI напрямую вместо пользовательского взаимодействия;
-* обращаться к приватным членам классов;
-* дублировать код подготовки между тестами;
-* делать тесты зависимыми друг от друга;
-* тестировать работу Avalonia вместо логики приложения.
+* Use Avalonia.Headless.XUnit for all UI tests.
+* Always use `AvaloniaFact` or `AvaloniaTheory`.
+* Follow the `Arrange → Act → Assert` structure.
+* Always add the `// Arrange`, `// Act`, and `// Assert` comments.
+* Verify one scenario per test.
+* Use clear test names.
+* Simulate real user actions through the headless API.
+* Move shared setup into a helper, fixture, or factory.
+* Use the application's public API.
+* Keep tests independent and deterministic.
 
 ---
 
-# Чек-лист
+# Bad practices
 
-Перед завершением теста убедитесь, что:
+It is forbidden to:
 
-* используется `AvaloniaFact` или `AvaloniaTheory`;
-* присутствуют блоки `// Arrange`, `// Act` и `// Assert`;
-* проверяется только один сценарий;
-* имя соответствует шаблону `Method_Should_ExpectedBehavior_When_Condition`;
-* отсутствуют `Thread.Sleep`, `.Wait()` и `.Result`;
-* внешние зависимости замокированы;
-* взаимодействие с UI происходит через API Avalonia.Headless.XUnit;
-* присутствует минимум один осмысленный `Assert`;
-* тест не зависит от других тестов;
-* тест можно запускать параллельно с остальными.
+* use `[Fact]` or `[Theory]` for UI tests;
+* use `Thread.Sleep()`;
+* use `.Wait()` and `.Result`;
+* combine several scenarios in one test;
+* change UI state directly instead of through user interaction;
+* access private class members;
+* duplicate setup code between tests;
+* make tests depend on each other;
+* test Avalonia itself instead of the application's logic.
+
+---
+
+# Checklist
+
+Before finishing a test, make sure that:
+
+* `AvaloniaFact` or `AvaloniaTheory` is used;
+* the `// Arrange`, `// Act`, and `// Assert` blocks are present;
+* only one scenario is verified;
+* the name follows the `Method_Should_ExpectedBehavior_When_Condition` pattern;
+* there is no `Thread.Sleep`, `.Wait()`, or `.Result`;
+* external dependencies are mocked;
+* UI interaction goes through the Avalonia.Headless.XUnit API;
+* there is at least one meaningful `Assert`;
+* the test does not depend on other tests;
+* the test can run in parallel with the others.

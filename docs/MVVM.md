@@ -1,16 +1,16 @@
-В Avalonia 12 использование встроенного контейнера Microsoft.Extensions.DependencyInjection (MS.DI) — это самый надежный выбор. В этой версии разработчики Avalonia убрали классический reflection-based ViewLocator из стандартных шаблонов, так как он мешает Native AOT компиляции и обрезке (Trimming). [1] 
-Ниже представлена детальная архитектурная инструкция по организации MVVM + DI в Avalonia 12 и разбор всех критических и «болевых» точек.
+In Avalonia 12, using the built-in Microsoft.Extensions.DependencyInjection (MS.DI) container is the most reliable choice. In this version the Avalonia developers removed the classic reflection-based ViewLocator from the standard templates, because it gets in the way of Native AOT compilation and trimming. [1] 
+Below is a detailed architecture guide to organizing MVVM + DI in Avalonia 12, with a breakdown of all the critical "pain points".
 ------------------------------
-## Архитектурный паттерн: Сквозное разрешение (Zero-Locator)
-Лучшая практика для Avalonia 12 — не использовать Service Locator во View или ViewLocator. Вместо этого вся иерархия интерфейса строится через композицию самих ViewModels (внедрение дочерних VM в родительские), а сопоставление с View происходит через строго типизированные шаблоны данных (DataTemplate) в XAML. [1, 2, 3, 4, 5] 
-## Шаг 1: Конфигурация IoC в App.axaml.cs
-Мы инициализируем контейнер и строим дерево зависимостей. Обратите внимание: MainWindow или MainView запрашиваются из DI, а не создаются через new. [6] 
+## Architectural pattern: end-to-end resolution (Zero-Locator)
+The best practice for Avalonia 12 is not to use a Service Locator in the View or a ViewLocator. Instead, the whole UI hierarchy is built by composing the ViewModels themselves (injecting child VMs into parent ones), and mapping to Views happens through strongly typed data templates (DataTemplate) in XAML. [1, 2, 3, 4, 5] 
+## Step 1: IoC configuration in App.axaml.cs
+We initialize the container and build the dependency tree. Note: MainWindow or MainView is resolved from DI, not created with new. [6] 
 
 using System;using Avalonia;using Avalonia.Controls.ApplicationLifetimes;using Avalonia.Markup.Xaml;using Microsoft.Extensions.DependencyInjection;
 namespace Avalonia12DI;
 public partial class App : Application
 {
-    // Храним провайдер только для корневой инициализации или ленивых фабрик
+    // Keep the provider only for root initialization or lazy factories
     public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -24,7 +24,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Запрашиваем окно из DI, оно автоматически подтянет нужную ViewModel
+            // Resolve the window from DI; it will automatically pull in the required ViewModel
             desktop.MainWindow = ServiceProvider.GetRequiredService<MainWindow>();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
@@ -37,10 +37,10 @@ public partial class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // 1. Сервисы (Бизнес-логика)
+        // 1. Services (business logic)
         services.AddSingleton<IApiService, ApiService>();
 
-        // 2. ViewModels (Как Transient, чтобы не копить старое состояние при перезапусках)
+        // 2. ViewModels (as Transient, so stale state does not accumulate across re-opens)
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<SettingsViewModel>();
@@ -51,21 +51,21 @@ public partial class App : Application
     }
 }
 
-## Шаг 2: Связывание View и ViewModel в Code-Behind
-Конструктор View принимает ViewModel как аргумент. Также обязательно оставляем пустой конструктор — без него сломается Previewer (XAML-превью) в вашей IDE! [6, 7] 
+## Step 2: Connecting the View and ViewModel in code-behind
+The View's constructor takes the ViewModel as an argument. Be sure to also keep a parameterless constructor — without it the Previewer (XAML preview) in your IDE will break! [6, 7] 
 
 using Avalonia.Controls;
 namespace Avalonia12DI;
 public partial class MainWindow : Window
 {
-    // Вызывается DI-контейнером в Runtime
+    // Called by the DI container at runtime
     public MainWindow(MainWindowViewModel viewModel)
     {
         InitializeComponent();
         DataContext = viewModel;
     }
 
-    // Вызывается Avalonia XAML Previewer в режиме дизайна
+    // Called by the Avalonia XAML Previewer in design mode
     public MainWindow()
     {
         InitializeComponent();
@@ -73,10 +73,11 @@ public partial class MainWindow : Window
 }
 
 ------------------------------
-## Разбор спорных моментов и «болевых точек»## 1. Как решать проблему с XAML Previewer?
-Если View ожидает ViewModel в конструкторе, то XAML-превьюер IDE падает, так как он использует пустой конструктор и DataContext остается null. [7] 
+## Contentious points and "pain points"
+## 1. How to solve the XAML Previewer problem?
+If a View expects a ViewModel in its constructor, the IDE's XAML previewer fails, because it uses the parameterless constructor and the DataContext stays null. [7] 
 
-* Решение: Используйте Design.DataContext в XAML. Это подставит фейковые данные исключительно для дизайнера, не мешая DI в рантайме.
+* Solution: use Design.DataContext in XAML. This supplies fake data exclusively for the designer, without interfering with DI at runtime.
 
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://microsoft.com"
@@ -84,7 +85,7 @@ public partial class MainWindow : Window
         x:Class="Avalonia12DI.MainWindow"
         x:DataType="vm:MainWindowViewModel">
     
-    <!-- Этот блок видит ТОЛЬКО дизайнер во время разработки -->
+    <!-- ONLY the designer sees this block during development -->
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
@@ -92,10 +93,10 @@ public partial class MainWindow : Window
     <TextBlock Text="{Binding WelcomeText}" />
 </Window>
 
-## 2. Как открывать новые Окна (Windows) или Диалоги из ViewModel?
-ViewModel не должна создавать экземпляр new MyWindow() напрямую — это нарушает абстракцию UI и ломает юнит-тестирование. [7] 
+## 2. How to open new windows or dialogs from a ViewModel?
+A ViewModel must not create a new MyWindow() instance directly — this breaks the UI abstraction and breaks unit testing. [7] 
 
-* Решение: Паттерн «Сервис Окон» (IWindowService). Мы регистрируем его как Singleton, передавая фабрику для создания окон.
+* Solution: the "window service" pattern (IWindowService). We register it as a Singleton, passing it a factory for creating windows.
 
 public interface IWindowService
 {
@@ -112,68 +113,69 @@ public class WindowService : IWindowService
 
     public void ShowSettings()
     {
-        // Безопасно вытаскиваем Окно из DI-контейнера
+        // Safely resolve the window from the DI container
         var settingsWindow = _serviceProvider.GetRequiredService<SettingsWindow>();
         settingsWindow.Show();
     }
 }
 
-Теперь в любую ViewModel достаточно внедрить IWindowService через конструктор и вызывать метод ShowSettings().
-## 3. Навигация: Как менять View/Страницы на экране?
-Вместо кастомных локаторов в Avalonia 12 лучше использовать строго сгенерированные DataTemplate в App.axaml.
-Если родительская ViewModel хранит текущую дочернюю ViewModel в свойстве CurrentPage, Avalonia сама поймет, какое View отрисовать. [2] 
+Now any ViewModel only needs IWindowService injected through its constructor and can call ShowSettings().
+## 3. Navigation: how to switch Views/pages on screen?
+Instead of custom locators, in Avalonia 12 it is better to use strongly generated DataTemplates in App.axaml.
+If the parent ViewModel holds the current child ViewModel in a CurrentPage property, Avalonia figures out by itself which View to render. [2] 
 
-* В XAML (App.axaml):
+* In XAML (App.axaml):
 
 <Application.DataTemplates>
-    <!-- Если DataContext это MainViewModel, отрендерить MainView -->
+    <!-- If the DataContext is MainViewModel, render MainView -->
     <DataTemplate DataType="using:Avalonia12DI.ViewModels.MainViewModel">
         <views:MainView />
     </DataTemplate>
     
-    <!-- Если DataContext это SettingsViewModel, отрендерить SettingsView -->
+    <!-- If the DataContext is SettingsViewModel, render SettingsView -->
     <DataTemplate DataType="using:Avalonia12DI.ViewModels.SettingsViewModel">
         <views:SettingsView />
     </DataTemplate>
 </Application.DataTemplates>
 
 
-* Во ViewModel:
+* In the ViewModel:
 
 public partial class MainNavigationViewModel : ObservableObject
 {
     [ObservableProperty]
-    private object _currentPage; // Сюда подставляем нужную ViewModel
+    private object _currentPage; // The required ViewModel goes here
 
     public MainNavigationViewModel(MainViewModel mainPage)
     {
-        _currentPage = mainPage; // Изначально открыта главная
+        _currentPage = mainPage; // The main page is open initially
     }
 
     public void GoToSettings(SettingsViewModel settingsPage)
     {
-        CurrentPage = settingsPage; // Avalonia автоматически сменит View на экране!
+        CurrentPage = settingsPage; // Avalonia will switch the View on screen automatically!
     }
 }
 
-## 4. Динамические параметры в ViewModel (Паттерн Фабрика)
-Что делать, если UserDetailViewModel требует ID пользователя (int userId), который становится известен только во время работы программы, но при этом ей также нужен синглтон IApiService из DI?
+## 4. Dynamic parameters in a ViewModel (the factory pattern)
+What if UserDetailViewModel requires a user ID (int userId) that only becomes known while the program runs, but it also needs the IApiService singleton from DI?
 
-* Решение: Использование фабричного делегата или явного класса-фабрики. Microsoft.Extensions.DependencyInjection не поддерживает фабрики "из коробки" с передачей параметров выполнения напрямую, поэтому пишется кастомная фабрика:
+* Solution: use a factory delegate or an explicit factory class. Microsoft.Extensions.DependencyInjection does not support factories with runtime parameters out of the box, so a custom factory is written:
 
 public class UserDetailViewModel : ObservableObject
 {
     private readonly IApiService _apiService;
     public int UserId { get; }
 
-    // Конструктор принимает и сервисы, и runtime-параметр
+    // The constructor takes both services and a runtime parameter
     public UserDetailViewModel(IApiService apiService, int userId)
     {
         _apiService = apiService;
         UserId = userId;
     }
 }
-// Фабрика, управляющая созданиемpublic interface IUserDetailFactory
+// Factory that controls creation
+public interface IUserDetailFactory
 {
     UserDetailViewModel Create(int userId);
 }
@@ -185,26 +187,26 @@ public class UserDetailFactory : IUserDetailFactory
 
     public UserDetailViewModel Create(int userId)
     {
-        // ActivatorUtilities автоматически возьмет IApiService из контейнера, 
-        // а userId подставит вручную в конструктор!
+        // ActivatorUtilities automatically takes IApiService from the container, 
+        // and passes userId into the constructor manually!
         return ActivatorUtilities.CreateInstance<UserDetailViewModel>(_serviceProvider, userId);
     }
 }
 
-Регистрация в DI: services.AddSingleton<IUserDetailFactory, UserDetailFactory>();. [7] 
+DI registration: services.AddSingleton<IUserDetailFactory, UserDetailFactory>();. [7] 
 ------------------------------
-## Чек-лист жизненных циклов (Lifetimes) для Avalonia
-При регистрации в MS.DI важно строго соблюдать правила, чтобы избежать утечек памяти (Memory Leaks):
+## Lifetimes checklist for Avalonia
+When registering in MS.DI, it is important to follow the rules strictly to avoid memory leaks:
 
-* AddSingleton: Ваши инфраструктурные сервисы (ApiService, DatabaseConfiguration, WindowService). Они живут всё время работы приложения. [7] 
-* AddTransient: Все ViewModels и Views. Когда пользователь закрывает страницу/окно, эти объекты должны уничтожаться сборщиком мусора (GC). Если сделать их синглтонами, старые данные будут висеть в памяти вечно. [7] 
-* AddScoped: Не использовать в десктопных приложениях Avalonia. Область видимости (Scope) в десктопе не имеет четких границ (в отличие от HTTP-запросов в веб), её использование приводит к багам и путанице.
+* AddSingleton: your infrastructure services (ApiService, DatabaseConfiguration, WindowService). They live for the entire application run. [7] 
+* AddTransient: all ViewModels and Views. When the user closes a page/window, these objects must be collected by the garbage collector (GC). If you make them singletons, old data will hang in memory forever. [7] 
+* AddScoped: do not use in Avalonia desktop applications. A scope on the desktop has no clear boundaries (unlike HTTP requests on the web); using it leads to bugs and confusion.
 
-Если вы хотите развить эту тему, дайте знать:
+Possible follow-up topics:
 
-* Планируете ли вы использовать Native AOT компиляцию?
-* Нужен ли пример интеграции с ReactiveUI (поскольку вы используете Avalonia 12, синтаксис имеет свои особенности)?
-* Какая архитектура у вашего приложения: одностраничная (SingleView) или многооконная (Desktop)?
+* Is Native AOT compilation planned?
+* Is an example of ReactiveUI integration needed (Avalonia 12 syntax has its own specifics)?
+* What is the application's architecture: single-page (SingleView) or multi-window (Desktop)?
 
 
 [1] [https://github.com](https://github.com/AvaloniaUI/avalonia-docs/issues/525)
@@ -216,35 +218,36 @@ public class UserDetailFactory : IUserDetailFactory
 [7] [https://docs.avaloniaui.net](https://docs.avaloniaui.net/docs/app-development/dependency-injection)
 
 
-Использование Native AOT и ReactiveUI в Avalonia 12 накладывает строжайшие ограничения на архитектуру. Native AOT полностью запрещает динамическую генерацию кода (Reflection.Emit), которая раньше использовалась в ReactiveUI для связывания.
-Поэтому в Avalonia 12 главным правилом становится Compile-Time Safety (компиляционная безопасность). Мы полностью отказываемся от рефлексии в пользу Source Generators (генераторов исходного кода) и строго типизированного XAML.
-Ниже приведено исчерпывающее руководство по организации кода для вашего сценария с множеством окон и UserControl.
+Using Native AOT and ReactiveUI in Avalonia 12 imposes very strict constraints on the architecture. Native AOT completely forbids dynamic code generation (Reflection.Emit), which ReactiveUI used to rely on for bindings.
+So in Avalonia 12 the main rule becomes compile-time safety. We completely abandon reflection in favor of source generators and strongly typed XAML.
+Below is a comprehensive guide to organizing code for a scenario with many windows and UserControls.
 ------------------------------
-## Архитектурный манифест для Native AOT
+## Architectural manifesto for Native AOT
 
-   1. Никакой рефлексии при поиске View: Старый ViewLocator, который искал View по имени класса через строки, несовместим с AOT. Вместо него используется строго типизированный DataTemplate в XAML.
-   2. CompiledBindings — строго обязательны: В каждом .axaml файле корневой элемент должен содержать x:CompileBindings="True". Без этого сборка под Native AOT либо упадет, либо приложение завершится ошибкой в рантайме.
-   3. Source Generators вместо Reflection: Для свойств используем атрибуты [Reactive] из пакета ReactiveUI.Fody? Нет! Fody меняет IL-код и часто конфликтует с AOT. В современных реалиях для ReactiveUI и AOT используется генератор кода из CommunityToolkit.Mvvm (атрибут [ObservableProperty]), либо свойства пишутся вручную по канонам ReactiveUI, либо используется официальный Source Generator от ReactiveUI (зависит от выбранных пакетов). Ниже показан самый безопасный для AOT ручной/генераторный подход.
+   1. No reflection when looking up Views: the old ViewLocator, which found Views by class name via strings, is incompatible with AOT. A strongly typed DataTemplate in XAML is used instead.
+   2. CompiledBindings are strictly required: in every .axaml file the root element must contain x:CompileBindings="True". Without it, a Native AOT build either fails or the application crashes at runtime.
+   3. Source generators instead of reflection: should properties use the [Reactive] attributes from the ReactiveUI.Fody package? No! Fody rewrites IL and often conflicts with AOT. Nowadays, for ReactiveUI and AOT, either the CommunityToolkit.Mvvm code generator (the [ObservableProperty] attribute) is used, or properties are written by hand following ReactiveUI conventions, or the official ReactiveUI source generator is used (depending on the chosen packages). The most AOT-safe manual/generator approach is shown below.
 
 ------------------------------
-## 1. Как оформлять ViewModel (в стиле ReactiveUI + AOT)
-Чтобы свойства гарантированно работали в Native AOT, пишем их через генератор или стандартный RaiseAndSetIfChanged. Использование команд через ReactiveCommand полностью безопасно.
+## 1. How to write a ViewModel (ReactiveUI + AOT style)
+To make sure properties work under Native AOT, write them via a generator or the standard RaiseAndSetIfChanged. Using commands via ReactiveCommand is completely safe.
 
 using System;using System.Reactive;using ReactiveUI;
 namespace AvaloniaAotApp.ViewModels;
-// Все ViewModel регистрируем в DI как Transient!public class MainViewModel : ReactiveObject
+// Register every ViewModel in DI as Transient!
+public class MainViewModel : ReactiveObject
 {
-    private string _title = "Главная страница";
+    private string _title = "Home page";
     private readonly ITransientFactory _factory;
 
-    // 1. Свойства пишем классическим для ReactiveUI способом (безопасно для AOT)
+    // 1. Properties are written the classic ReactiveUI way (AOT-safe)
     public string Title
     {
         get => _title;
         set => this.RaiseAndSetIfChanged(ref _title, value);
     }
 
-    // Дочерние ViewModel, которые будут отображаться как UserControl
+    // Child ViewModels that will be displayed as UserControls
     private ReactiveObject? _currentContent;
     public ReactiveObject? CurrentContent
     {
@@ -252,18 +255,18 @@ namespace AvaloniaAotApp.ViewModels;
         set => this.RaiseAndSetIfChanged(ref _currentContent, value);
     }
 
-    // 2. Команды ReactiveUI
+    // 2. ReactiveUI commands
     public ReactiveCommand<Unit, Unit> OpenSettingsCommand { get; }
 
-    // 3. Конструктор принимает зависимости из DI
+    // 3. The constructor takes dependencies from DI
     public MainViewModel(IWindowService windowService, ITransientFactory factory)
     {
         _factory = factory;
         
-        // Переключение на дочерний UserControl (создается через фабрику)
+        // Switch to a child UserControl (created via the factory)
         CurrentContent = _factory.Create<DashboardViewModel>();
 
-        // Команда открытия нового окна через сервис окон
+        // Command that opens a new window via the window service
         OpenSettingsCommand = ReactiveCommand.Create(() => 
         {
             windowService.ShowSettingsWindow();
@@ -272,10 +275,10 @@ namespace AvaloniaAotApp.ViewModels;
 }
 
 ------------------------------
-## 2. Как оформлять View (.axaml и .axaml.cs)
-В Avalonia 12 + AOT используется концепция Constructor Injection для View. Но чтобы не сломать Previewer (дизайнер), мы делаем специальный трюк.
-## Оформление .axaml (на примере UserControl):
-Обратите внимание на x:CompileBindings="True" и x:DataType.
+## 2. How to write a View (.axaml and .axaml.cs)
+Avalonia 12 + AOT uses constructor injection for Views. But so as not to break the Previewer (designer), we use a special trick.
+## The .axaml (using a UserControl as an example):
+Note x:CompileBindings="True" and x:DataType.
 
 <UserControl xmlns="https://github.com"
              xmlns:x="http://microsoft.com"
@@ -284,33 +287,33 @@ namespace AvaloniaAotApp.ViewModels;
              x:DataType="vm:DashboardViewModel"
              x:CompileBindings="True">
 	
-    <!-- Превьюер подхватит этот DataContext во время разработки -->
+    <!-- The previewer picks up this DataContext during development -->
     <Design.DataContext>
-        <!-- Для AOT тут должен быть пустой конструктор во ViewModel или mock -->
+        <!-- For AOT the ViewModel needs a parameterless constructor here, or a mock -->
         <vm:DashboardViewModel />
     </Design.DataContext>
 
     <StackPanel Spacing="10" Margin="20">
-        <TextBlock Text="Это дочерний UserControl (Dashboard)" Classes="h1"/>
+        <TextBlock Text="This is a child UserControl (Dashboard)" Classes="h1"/>
         <TextBlock Text="{Binding StatusText}" />
     </StackPanel>
 </UserControl>
 
-## Оформление .axaml.cs (Code-Behind):
-Используем Strongly Typed DataContext.
+## The .axaml.cs (code-behind):
+Use a strongly typed DataContext.
 
 using Avalonia.Controls;using AvaloniaAotApp.ViewModels;
 namespace AvaloniaAotApp.Views;
 public partial class DashboardView : UserControl
 {
-    // Этот конструктор вызовет DI-контейнер в рантайме
+    // This constructor is called by the DI container at runtime
     public DashboardView(DashboardViewModel viewModel)
     {
         InitializeComponent();
         DataContext = viewModel;
     }
 
-    // Этот конструктор ОСТАЕТСЯ ПУСТЫМ для Avalonia XAML Previewer
+    // This constructor STAYS EMPTY for the Avalonia XAML Previewer
     public DashboardView()
     {
         InitializeComponent();
@@ -318,26 +321,27 @@ public partial class DashboardView : UserControl
 }
 
 ------------------------------
-## 3. Решение проблемы «Много Окон и UserControls» через DI
-Поскольку рефлексивный ViewLocator забанен компилятором AOT, мы используем два механизма связывания.
-## Механизм А: Для динамических UserControls внутри одного окна
-Используем строго типизированные DataTemplate в App.axaml. Когда Avalonia видит, что во ViewModel свойство CurrentContent изменилось на DashboardViewModel, она не ищет класс по строке, а жестко скомпилировано подставляет DashboardView из DI.
-В App.axaml:
+## 3. Solving the "many windows and UserControls" problem with DI
+Since the reflection-based ViewLocator is banned by the AOT compiler, we use two binding mechanisms.
+## Mechanism A: for dynamic UserControls within one window
+Use strongly typed DataTemplates in App.axaml. When Avalonia sees that the CurrentContent property in the ViewModel changed to DashboardViewModel, it does not look up a class by string but substitutes DashboardView from DI in a hard-compiled way.
+In App.axaml:
 
 <Application.DataTemplates>
-    <!-- Прямое, жесткое маппинг-связывание без рефлексии -->
+    <!-- Direct, hard mapping without reflection -->
     <DataTemplate DataType="using:AvaloniaAotApp.ViewModels.DashboardViewModel">
-        <!-- Важно: чтобы View создавалось из DI, нам нужен фабричный метод в XAML? 
-             Нет, XAML создаст пустой конструктор View, НО мы переопределим это, 
-             инициализируя дочерние элементы через Tree. Лучший способ для AOT ниже: -->
+        <!-- Important: do we need a factory method in XAML for the View to be created from DI? 
+             No, XAML will call the View's parameterless constructor, BUT we will override that 
+             by initializing child elements through the tree. The best way for AOT is below: -->
     </DataTemplate>
 </Application.DataTemplates>
 
-Стоп, если XAML вызывает пустой конструктор View, то View не получит ViewModel через конструктор DI!
-Как решить это правильно для AOT и DI:
-Вместо глобальных DataTemplate, которые вызывают пустой конструктор, внедряйте дочерние View явно через фабрику в родительское View, либо используйте контейнер ContentControl со следующим подходом:
+Wait — if XAML calls the View's parameterless constructor, the View will not receive its ViewModel through the DI constructor!
+How to solve this correctly for AOT and DI:
+Instead of global DataTemplates that call the parameterless constructor, inject child Views explicitly into the parent View via a factory, or use a ContentControl container with the following approach:
 
-// В родительском View (например, MainView.axaml.cs)public partial class MainView : UserControl
+// In the parent View (for example, MainView.axaml.cs)
+public partial class MainView : UserControl
 {
     private readonly ITransientFactory _factory;
 
@@ -347,13 +351,13 @@ public partial class DashboardView : UserControl
         DataContext = viewModel;
         _factory = factory;
 
-        // Следим за изменением CurrentContent во ViewModel (в стиле ReactiveUI)
+        // Watch for CurrentContent changes in the ViewModel (ReactiveUI style)
         viewModel.WhenAnyValue(x => x.CurrentContent)
                  .Subscribe(vm => 
                  {
                      if (vm is DashboardViewModel dashboardVm)
                      {
-                         // Запрашиваем View из DI, передавая готовую VM
+                         // Resolve the View from DI, passing the ready VM
                          var view = _factory.Create<DashboardView>(dashboardVm);
                          ContentControlElement.Content = view;
                      }
@@ -363,8 +367,8 @@ public partial class DashboardView : UserControl
     public MainView() => InitializeComponent();
 }
 
-## Механизм Б: Для открытия новых Window
-Создаем интерфейс IWindowService и фабрику ITransientFactory. Они регистрируются как Singleton.
+## Mechanism B: for opening new Windows
+Create an IWindowService interface and an ITransientFactory factory. They are registered as Singletons.
 
 public interface IWindowService
 {
@@ -381,14 +385,14 @@ public class WindowService : IWindowService
 
     public void ShowSettingsWindow()
     {
-        // Извлекаем Окно из DI. Контейнер сам создаст SettingsWindow, 
-        // внедрит в него SettingsViewModel, а в неё — нужные сервисы.
+        // Resolve the window from DI. The container will create SettingsWindow itself, 
+        // inject SettingsViewModel into it, and the required services into that.
         var window = _serviceProvider.GetRequiredService<SettingsWindow>();
         window.Show();
     }
 }
 
-Класс вспомогательной фабрики для динамического разрешения (замена ActivatorUtilities для улучшения поддержки AOT):
+A helper factory class for dynamic resolution (replacing ActivatorUtilities for better AOT support):
 
 public interface ITransientFactory
 {
@@ -404,23 +408,23 @@ public class TransientFactory : ITransientFactory
 
     public T ViewWithVm<T>(object viewModel) where T : notnull
     {
-        // Если нужно вручную прокинуть VM во View
+        // When a VM needs to be passed into the View manually
         return (T)Activator.CreateInstance(typeof(T), viewModel)!;
     }
 }
 
-Регистрация в App.axaml.cs:
+Registration in App.axaml.cs:
 
 private void ConfigureServices(IServiceCollection services)
 {
     services.AddSingleton<IWindowService, WindowService>();
     services.AddSingleton<ITransientFactory, TransientFactory>();
 
-    // Окна
+    // Windows
     services.AddTransient<MainWindow>();
     services.AddTransient<SettingsWindow>();
 
-    // Элементы управления (UserControls)
+    // Controls (UserControls)
     services.AddTransient<DashboardView>();
     services.AddTransient<ProfileView>();
 
@@ -432,67 +436,67 @@ private void ConfigureServices(IServiceCollection services)
 }
 
 ------------------------------
-## 4. Принципы выделения ViewModel и разделения на UserControls
-Десктопные приложения на Avalonia легко превратить в "спагетти", если вовремя не дробить интерфейс. Придерживайтесь следующих правил:
-## По какому принципу выделять отдельную ViewModel?
+## 4. Principles for extracting ViewModels and splitting into UserControls
+Avalonia desktop applications easily turn into "spaghetti" if the interface is not broken up in time. Follow these rules:
+## When to extract a separate ViewModel?
 
-   1. Принцип единственной ответственности (SRP): Если экран решает две разные задачи (например, список пользователей и детальное редактирование выбранного пользователя), это две разные ViewModel (UserListViewModel и UserEditViewModel).
-   2. Переиспользуемость контекста: Если блок данных (например, карточка товара или виджет погоды) появляется в разных частях приложения, он обязан иметь свою изолированную WidgetViewModel.
-   3. Жизненный цикл данных: Если при закрытии определенной вкладки или панели данные должны полностью очищаться / сбрасываться, выделите эту панель в отдельную Transient ViewModel. При уничтожении View уничтожится и VM.
+   1. Single Responsibility Principle (SRP): if a screen solves two different tasks (for example, a list of users and detailed editing of the selected user), those are two different ViewModels (UserListViewModel and UserEditViewModel).
+   2. Context reuse: if a block of data (for example, a product card or a weather widget) appears in different parts of the application, it must have its own isolated WidgetViewModel.
+   3. Data lifecycle: if the data must be fully cleared/reset when a particular tab or panel is closed, extract that panel into a separate Transient ViewModel. When the View is destroyed, the VM is destroyed too.
 
-## Когда нужно разделять единый AXAML на UserControls?
+## When should a single AXAML be split into UserControls?
 
-   1. Правило 300 строк: Если ваш .axaml файл превышает 300-400 строк разметки — его физически тяжело читать. Выносите логические блоки (боковое меню, шапку, таблицу данных) в отдельные UserControl.
-   2. Сложные состояния отображения (Визуальная изоляция): Если внутри одной страницы есть область, которая сильно меняется в зависимости от состояния (например: состояние Загрузки -> Ошибка -> Показ данных), эту область лучше превратить в ContentControl, в который подставляются разные UserControl.
-   3. Изоляция подписок ReactiveUI: Если во View много логики со сложными Rx-цепочками (this.WhenAnyValue(...)), превращение этого куска в UserControl изолирует эти подписки. Это предотвратит утечки памяти, так как подписки будут выгружаться вместе с жизненным циклом этого маленького UserControl.
+   1. The 300-line rule: if your .axaml file exceeds 300-400 lines of markup, it is physically hard to read. Move logical blocks (side menu, header, data table) into separate UserControls.
+   2. Complex display states (visual isolation): if a page contains an area that changes significantly depending on state (for example: Loading -> Error -> Showing data), that area is better turned into a ContentControl into which different UserControls are swapped.
+   3. Isolating ReactiveUI subscriptions: if a View has a lot of logic with complex Rx chains (this.WhenAnyValue(...)), turning that piece into a UserControl isolates those subscriptions. This prevents memory leaks, because the subscriptions are disposed together with the lifecycle of that small UserControl.
 
-## Резюме для работы
+## Working summary
 
-* Каждому UserControl — своя пара из файла .axaml.cs с двумя конструкторами (с параметром для DI и пустой для превьюера).
-* Все переключения экранов осуществлять через подмену свойства CurrentContent во ViewModel родителя, а само View создавать фабрикой ITransientFactory.
-* Все открытия новых Window инкапсулировать в WindowService.
+* Every UserControl gets its own .axaml.cs file with two constructors (one with a parameter for DI and an empty one for the previewer).
+* All screen switches happen by replacing the CurrentContent property in the parent ViewModel, and the View itself is created by the ITransientFactory factory.
+* All opening of new Windows is encapsulated in WindowService.
 
-Если вы столкнетесь со специфическими ошибками линкера (Trimming/AOT warning) при компиляции ReactiveUI команд, дайте знать. Я могу показать, как настроить файл rd.xml (Runtime Directives) для подавления этих предупреждений.
-Задайте дополнительные вопросы по архитектуре, если:
+If specific linker errors (Trimming/AOT warnings) come up when compiling ReactiveUI commands, an rd.xml file (Runtime Directives) can be configured to suppress those warnings.
+Further architecture questions worth covering:
 
-* У вас планируется модальные диалоги с возвратом результата (например, ShowDialog<TResult>).
-* Вам нужно передавать динамические runtime-параметры вглубь дочерних UserControl при создании.
+* Modal dialogs that return a result (for example, ShowDialog<TResult>).
+* Passing dynamic runtime parameters deep into child UserControls when they are created.
 
-На основе разбора архитектуры Avalonia 12 + ReactiveUI + Native AOT можно четко разделить подходы на рекомендуемые (паттерны) и опасные (антипаттерны).
-Так как Native AOT полностью убирает динамическую генерацию кода в рантайме, классические приемы из WPF/старой Avalonia здесь становятся критическими ошибками.
+Based on this analysis of the Avalonia 12 + ReactiveUI + Native AOT architecture, the approaches can be clearly divided into recommended ones (patterns) and dangerous ones (anti-patterns).
+Since Native AOT completely removes dynamic code generation at runtime, classic techniques from WPF/older Avalonia become critical errors here.
 ------------------------------
-## 🏛️ Архитектурные паттерны (Как делать ПРАВИЛЬНО)
+## 🏛️ Architectural patterns (how to do it RIGHT)
 
-   1. Constructor Injection для View (Внедрение через конструктор)
-   * Суть: Передавать ViewModel напрямую в параметры конструктора View(MyViewModel vm). IoC-контейнер сам разрешит все зависимости по цепочке.
-      * Плюс: Полная compile-time проверка, отсутствие скрытых зависимостей.
-   2. Строгая компиляция привязок (CompiledBindings)
-   * Суть: Обязательное использование атрибутов x:CompileBindings="True" и x:DataType="..." в каждом XAML-файле.
-      * Плюс: Ошибки в путях свойств выявляются на этапе сборки, а Native AOT компилятор генерирует максимально быстрый прямой C#-код вместо медленной рефлексии.
-   3. Паттерн «Сервис Окон» (IWindowService)
-   * Суть: Вынос логики создания, конфигурации и вызова методов .Show() или .ShowDialog() для новых окон во внешний Singleton-сервис.
-      * Плюс: Разделение ответственности. ViewModels остаются чистыми от UI-кода, их можно покрывать Unit-тестами, подменяя этот сервис через Mock.
-   4. Двойной конструктор во View (Паттерн совместимости с Previewer)
-   * Суть: Наличие параметризованного конструктора для работы DI в рантайме и пустого конструктора public MyView() { InitializeComponent(); } исключительно для дизайнера IDE.
-      * Плюс: Дизайнер XAML работает стабильно, а приложение в рантайме сохраняет архитектурную чистоту.
-   5. Композиция ViewModels (Иерархический MVVM)
-   * Суть: Главная ViewModel (MainViewModel) управляет жизненным циклом и хранит ссылки на дочерние Transient ViewModels (CurrentPage = dashboardViewModel). Изменение экранов — это просто подмена объекта в свойстве.
-      * Плюс: Идеально ложится на реактивный манифест ReactiveUI и легко отслеживается через this.WhenAnyValue(...).
+   1. Constructor injection for Views
+   * Essence: pass the ViewModel directly as a View constructor parameter, View(MyViewModel vm). The IoC container resolves all dependencies down the chain by itself.
+      * Benefit: full compile-time checking, no hidden dependencies.
+   2. Strict binding compilation (CompiledBindings)
+   * Essence: mandatory use of the x:CompileBindings="True" and x:DataType="..." attributes in every XAML file.
+      * Benefit: errors in property paths are caught at build time, and the Native AOT compiler generates the fastest possible direct C# code instead of slow reflection.
+   3. The "window service" pattern (IWindowService)
+   * Essence: move the logic for creating, configuring, and calling .Show() or .ShowDialog() for new windows into an external Singleton service.
+      * Benefit: separation of concerns. ViewModels stay free of UI code and can be covered by unit tests by replacing this service with a mock.
+   4. Dual constructor in the View (the Previewer compatibility pattern)
+   * Essence: a parameterized constructor for DI at runtime plus a parameterless constructor public MyView() { InitializeComponent(); } exclusively for the IDE designer.
+      * Benefit: the XAML designer works reliably, and the application keeps its architectural cleanliness at runtime.
+   5. ViewModel composition (hierarchical MVVM)
+   * Essence: the main ViewModel (MainViewModel) manages the lifecycle and holds references to child Transient ViewModels (CurrentPage = dashboardViewModel). Changing screens is simply replacing the object in a property.
+      * Benefit: fits ReactiveUI's reactive manifesto perfectly and is easy to track via this.WhenAnyValue(...).
    
 ------------------------------
-## ⚠️ Антипаттерны (Чего нужно ИЗБЕГАТЬ)
+## ⚠️ Anti-patterns (what to AVOID)
 
-   1. Использование Service Locator (App.ServiceProvider.GetService<T>()) внутри UI или VM
-   * В чем вред: Использование глобальной точки доступа к контейнеру прямо внутри логики скрывает зависимости класса. Код становится хрупким, его невозможно изолированно тестировать. Контейнер должен вызываться только один раз на самом верхнем уровне (в App.axaml.cs при старте).
-   2. Reflection-based ViewLocator (Динамический поиск View по строкам)
-   * В чем вред: Классический подход var viewName = vm.GetType().FullName.Replace("ViewModel", "View") гарантированно сломает Native AOT. При сборке триммер (Trimming) вырежет классы View, решив, что они нигде не используются, и приложение упадет в рантайме с NullReferenceException.
-   3. Использование оператора new для создания View/ViewModel с зависимостями
-   * В чем вред: Если написать var vm = new SettingsViewModel();, то все сервисы, которые требуются этой ViewModel (база данных, API, логирование), придется прокидывать вручную через всю цепочку родительских классов, либо использовать Service Locator. Теряется весь смысл DI.
-   4. Регистрация окон и ViewModels как Singleton
-   * В чем вред: Если зарегистрировать SettingsViewModel как синглтон, то при повторном открытии окна настроек пользователь увидит старые, не сброшенные данные и прошлые ошибки валидации. Окна и ViewModels обязаны иметь лайфтайм Transient (создаваться заново при каждом запросе) во избежание утечек памяти и багов состояния.
-   5. Использование ReactiveUI.Fody ([Reactive] свойства) при Native AOT
-   * В чем вред: Fody занимается модификацией IL-кода (ткачеством/weaving) после компиляции. Это часто приводит к непредсказуемому поведению линкера Native AOT. Для свойств в сценариях AOT безопаснее использовать классический RaiseAndSetIfChanged или генератор исходного кода (Source Generator) из CommunityToolkit.Mvvm.
-   6. Смешивание контекстов (Отсутствие деления на UserControls)
-   * В чем вред: Попытка уместить сложный экран со множеством функций в один массивный файл .axaml на 1000+ строк приводит к тому, что подписки ReactiveUI (WhenAnyValue) начинают пересекаться, а сборщик мусора (GC) не может очистить память, так как мелкие компоненты намертво удерживаются ссылками гигантской родительской View.
+   1. Using a Service Locator (App.ServiceProvider.GetService<T>()) inside the UI or a VM
+   * Why it is harmful: using a global access point to the container right inside the logic hides the class's dependencies. The code becomes fragile and impossible to test in isolation. The container should be called only once, at the very top level (in App.axaml.cs at startup).
+   2. A reflection-based ViewLocator (dynamic View lookup by strings)
+   * Why it is harmful: the classic approach var viewName = vm.GetType().FullName.Replace("ViewModel", "View") is guaranteed to break Native AOT. During the build the trimmer will strip the View classes, deciding they are unused, and the application will crash at runtime with a NullReferenceException.
+   3. Using the new operator to create Views/ViewModels with dependencies
+   * Why it is harmful: if you write var vm = new SettingsViewModel();, all the services this ViewModel requires (database, API, logging) have to be threaded manually through the whole chain of parent classes, or a Service Locator has to be used. The whole point of DI is lost.
+   4. Registering windows and ViewModels as Singletons
+   * Why it is harmful: if SettingsViewModel is registered as a singleton, then when the settings window is reopened the user will see old, un-reset data and previous validation errors. Windows and ViewModels must have a Transient lifetime (created anew on every request) to avoid memory leaks and state bugs.
+   5. Using ReactiveUI.Fody ([Reactive] properties) with Native AOT
+   * Why it is harmful: Fody modifies IL code (weaving) after compilation. This often leads to unpredictable behavior of the Native AOT linker. For properties in AOT scenarios it is safer to use the classic RaiseAndSetIfChanged or the source generator from CommunityToolkit.Mvvm.
+   6. Mixing contexts (not splitting into UserControls)
+   * Why it is harmful: trying to fit a complex screen with many features into one massive 1000+ line .axaml file causes ReactiveUI subscriptions (WhenAnyValue) to start overlapping, and the garbage collector (GC) cannot free memory because small components are held tightly by references from the giant parent View.
 
 
