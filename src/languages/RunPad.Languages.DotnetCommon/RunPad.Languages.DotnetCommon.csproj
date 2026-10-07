@@ -12,4 +12,9 @@
     <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="RunPad.Runtime.UI.Tests" />
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
+  </ItemGroup>
+
 </Project>
