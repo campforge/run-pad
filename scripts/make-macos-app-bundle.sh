@@ -10,7 +10,13 @@ PUBLISH_DIR="$1"
 OUTPUT_DIR="$2"
 APP="$OUTPUT_DIR/RunPad.app"
 
-VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
+CSPROJ=src/main/RunPad/RunPad.csproj
+# Stock awk (not GNU grep -P) so this runs on macOS runners; takes the first <Version> element.
+VERSION=$(awk -F'</?Version>' 'NF > 2 { print $2; exit }' "$CSPROJ")
+if [[ -z "$VERSION" ]]; then
+    echo "error: no <Version> found in $CSPROJ" >&2
+    exit 1
+fi
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
