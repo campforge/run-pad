@@ -66,6 +66,13 @@ public sealed class InvalidAssemblyNameLiteralAnalyzer : DiagnosticAnalyzer
         {
             _ = new AssemblyName(name);
         }
+        // `Culture=` validation is platform-dependent (Windows and invariant-globalization mode reject
+        // `Culture=badculture` with CultureNotFoundException, an ArgumentException subclass; ICU on
+        // macOS/Linux accepts it), so a culture failure is not an "always throws" case and is deliberately
+        // swallowed without a diagnostic rather than escaping the analyzer.
+        catch (System.Globalization.CultureNotFoundException)
+        {
+        }
         catch (System.Exception ex) when (ex is System.ArgumentException or System.IO.FileLoadException)
         {
             context.ReportDiagnostic(Diagnostic.Create(Rule, context.Node.GetLocation(), ex.GetType().Name, name));

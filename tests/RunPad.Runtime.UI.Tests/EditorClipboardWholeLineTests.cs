@@ -29,6 +29,11 @@ public class EditorClipboardWholeLineTests
         return (window, editor);
     }
 
+    // AvaloniaEdit's ApplicationCommands.Copy/Cut gestures use Meta (Cmd) on macOS and Control elsewhere
+    // (AvaloniaEditCommands.GetPlatformCommandKey); a hardcoded Control+C never reaches OnCopy on macOS.
+    private static readonly RawInputModifiers CommandModifier =
+        OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
+
     // CI failure on macOS (Linux/dev machine never showed it): EditingCommandHandler.SetClipboardText
     // (the vendored AvaloniaEdit fork, not RunPad's own code) calls Clipboard.SetDataAsync(text) and
     // discards the returned Task — fire-and-forget, by design there (it's called from a synchronous
@@ -63,7 +68,7 @@ public class EditorClipboardWholeLineTests
         editor.CaretOffset = editor.Document.GetLineByNumber(2).Offset + 2; // inside "line2", nothing selected
         Assert.Equal(0, editor.SelectionLength);
 
-        window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
+        window.KeyPress(Key.C, CommandModifier, PhysicalKey.C, null);
 
         var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line2" + Environment.NewLine, copied);
@@ -76,7 +81,7 @@ public class EditorClipboardWholeLineTests
         editor.CaretOffset = editor.Document.GetLineByNumber(2).Offset + 2;
         Assert.Equal(0, editor.SelectionLength);
 
-        window.KeyPress(Key.X, RawInputModifiers.Control, PhysicalKey.X, null);
+        window.KeyPress(Key.X, CommandModifier, PhysicalKey.X, null);
 
         var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line2" + Environment.NewLine, copied);
@@ -89,7 +94,7 @@ public class EditorClipboardWholeLineTests
         var (window, editor) = CreateEditorWithText("line1\nline2\nline3");
         editor.Select(editor.Document.GetLineByNumber(2).Offset, 4); // "line" out of "line2"
 
-        window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, null);
+        window.KeyPress(Key.C, CommandModifier, PhysicalKey.C, null);
 
         var copied = await WaitForClipboardTextAsync(TopLevel.GetTopLevel(editor)!);
         Assert.Equal("line", copied);

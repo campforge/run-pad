@@ -3,368 +3,396 @@
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         x:Class="RunPad.Windows.DependenciesWindow"
         x:DataType="viewModels:DependenciesWindowViewModel"
-        Title="NuGet Packages"
-        Width="980" Height="620"
-        MinWidth="700" MinHeight="420"
+        Title="Dependencies"
+        Width="1000" Height="640"
+        MinWidth="760" MinHeight="480"
         CanResize="True"
+        WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
-    <Grid RowDefinitions="*,Auto" Margin="12">
+    <Window.Styles>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Status.ErrorBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.state">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="Border.pane">
+            <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+    </Window.Styles>
 
-        <TabControl Grid.Row="0">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
 
-            <!-- ─── Packages ──────────────────────────────────────────────────── -->
-            <TabItem Header="Packages">
-                <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="Dependencies" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock Classes="hint"
+                       Text="Manage packages, references and namespace imports for this script. Changes are applied when you click OK."/>
+            <TextBlock Classes="hint"
+                       FontWeight="SemiBold"
+                       IsVisible="{Binding !HasFrontMatter}"
+                       Text="No script is open. You can browse packages, but dependencies can't be changed."/>
+        </StackPanel>
 
-                    <!-- Search box -->
-                    <TextBox Grid.Row="0"
-                             Text="{Binding SearchText}"
-                             PlaceholderText="Search NuGet packages…"
-                             Margin="0,0,0,8"/>
+        <TabControl Grid.Row="1">
 
-                    <!-- Three columns: search results | local cache | script packages -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,1,230,1,230">
+            <!-- ─── NuGet Packages ────────────────────────────────────────────── -->
+            <TabItem Header="NuGet Packages">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="0,12,0,0">
 
-                        <!-- ── Search results ───────────────────────────────── -->
-                        <Grid Grid.Column="0" RowDefinitions="2,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,6">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
+                                    VerticalAlignment="Center">
+                            <RadioButton GroupName="PackageListMode" Content="Browse"
+                                         IsChecked="{Binding IsBrowseMode}"/>
+                            <RadioButton GroupName="PackageListMode" Content="In this script"
+                                         IsChecked="{Binding IsInScriptMode}"/>
+                            <RadioButton GroupName="PackageListMode" Content="Cached"
+                                         IsChecked="{Binding IsCachedMode}"/>
+                        </StackPanel>
+                        <TextBox x:Name="SearchBox"
+                                 Grid.Column="1"
+                                 Margin="16,0,0,0"
+                                 Text="{Binding SearchText}"
+                                 PlaceholderText="{Binding SearchPlaceholder}"
+                                 AutomationProperties.Name="Search packages"
+                                 KeyDown="SearchBox_KeyDown">
+                            <TextBox.InnerRightContent>
+                                <Button x:Name="ClearSearchButton"
+                                        Content="✕"
+                                        Command="{Binding ClearSearchCommand}"
+                                        IsVisible="{Binding HasSearchText}"
+                                        ToolTip.Tip="Clear search"
+                                        AutomationProperties.Name="Clear search"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="8,2"/>
+                            </TextBox.InnerRightContent>
+                        </TextBox>
+                    </Grid>
 
-                            <ProgressBar Grid.Row="0"
-                                         IsIndeterminate="True"
-                                         IsVisible="{Binding IsLoading}"
-                                         Height="2"/>
+                    <ProgressBar Grid.Row="1"
+                                 IsIndeterminate="True"
+                                 IsVisible="{Binding ShowSearchProgress}"
+                                 Height="2" MinHeight="2"
+                                 Margin="0,0,0,4"/>
 
-                            <Panel Grid.Row="1">
+                    <Grid Grid.Row="2" ColumnDefinitions="*,12,340">
 
-                                <TextBlock Text="Enter a package name to search"
-                                           IsVisible="{Binding ShowIdleMessage}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                           FontSize="14"/>
-
-                                <TextBlock Text="No packages found"
-                                           IsVisible="{Binding ShowEmptyState}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                           FontSize="14"/>
-
-                                <TextBlock Text="{Binding ErrorMessage}"
-                                           IsVisible="{Binding HasError}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="#E05C5C"
-                                           FontSize="13"/>
-
-                                <ListBox ItemsSource="{Binding Results}"
-                                         IsVisible="{Binding HasResults}"
+                        <!-- Package list -->
+                        <Border Grid.Column="0" Classes="pane">
+                            <Panel>
+                                <ListBox x:Name="PackageList"
+                                         ItemsSource="{Binding Packages}"
+                                         SelectedItem="{Binding SelectedPackage}"
+                                         IsVisible="{Binding HasPackages}"
                                          Background="Transparent"
                                          BorderThickness="0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         Padding="0">
+                                         AutomationProperties.Name="Packages"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListBox.Styles>
                                         <Style Selector="ListBoxItem">
-                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Padding" Value="10,6"/>
                                         </Style>
                                     </ListBox.Styles>
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="viewModels:PackageResultViewModel">
-                                            <Border Padding="8,7"
-                                                    BorderBrush="#20808080"
-                                                    BorderThickness="0,0,0,1">
-                                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                                    <!-- Id + version -->
-                                                    <StackPanel Grid.Row="0" Grid.Column="0"
-                                                                Orientation="Horizontal" Spacing="8">
-                                                        <TextBlock Text="{Binding Id}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="13"
-                                                                   Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                                                        <TextBlock Text="{Binding Version}"
-                                                                   VerticalAlignment="Center"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                                        <TextBlock Text="{Binding Downloads}"
-                                                                   VerticalAlignment="Center"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                                    </StackPanel>
-                                                    <!-- Add button -->
-                                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
-                                                            Content="+"
-                                                            Command="{Binding AddCommand}"
-                                                            VerticalAlignment="Center"
-                                                            Padding="10,4"
-                                                            FontSize="16"
-                                                            Margin="8,0,0,0"/>
-                                                    <!-- Description -->
-                                                    <TextBlock Grid.Row="1" Grid.Column="0"
-                                                               Text="{Binding Description}"
+                                        <DataTemplate DataType="viewModels:PackageListItemViewModel">
+                                            <!-- A Grid, not a horizontal StackPanel: the "*" column gives
+                                                 the Id a bounded width so its ellipsis works; version and
+                                                 badge are capped and trimmed too, full text in tooltips. -->
+                                            <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                                           Classes="package-id"
+                                                           Text="{Binding Id}"
+                                                           ToolTip.Tip="{Binding Id}"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                                           Classes="package-version"
+                                                           Text="{Binding Version}"
+                                                           ToolTip.Tip="{Binding Version}"
+                                                           MaxWidth="120"
+                                                           Margin="8,0,0,0"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                                <Border Grid.Row="0" Grid.Column="2"
+                                                        Classes="package-badge"
+                                                        IsVisible="{Binding IsInScript}"
+                                                        ToolTip.Tip="{Binding InScriptLabel}"
+                                                        MaxWidth="140"
+                                                        Background="{DynamicResource RunPad.Accent.BackgroundBrush}"
+                                                        CornerRadius="3"
+                                                        Padding="6,1"
+                                                        Margin="8,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding InScriptLabel}"
                                                                FontSize="11"
                                                                TextTrimming="CharacterEllipsis"
-                                                               MaxLines="2"
-                                                               Margin="0,2,0,0"
-                                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-
-                            </Panel>
-                        </Grid>
-
-                        <!-- Divider -->
-                        <Rectangle Grid.Column="1" Fill="#20808080" Margin="8,0"/>
-
-                        <!-- ── Local cache ──────────────────────────────────── -->
-                        <Grid Grid.Column="2" RowDefinitions="Auto,*">
-
-                            <TextBlock Grid.Row="0"
-                                       Text="LOCAL CACHE"
-                                       FontSize="10" FontWeight="SemiBold"
-                                       LetterSpacing="1"
-                                       Margin="8,0,0,8"
-                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-
-                            <TextBlock Grid.Row="1"
-                                       Text="No packages in local cache"
-                                       IsVisible="{Binding !HasCacheItems}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                       FontSize="12"/>
-
-                            <ListBox Grid.Row="1"
-                                     ItemsSource="{Binding CacheItems}"
-                                     IsVisible="{Binding HasCacheItems}"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     Padding="0">
-                                <ListBox.Styles>
-                                    <Style Selector="ListBoxItem">
-                                        <Setter Property="Padding" Value="0"/>
-                                    </Style>
-                                </ListBox.Styles>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate DataType="viewModels:CachedPackageItemViewModel">
-                                        <Border Padding="6,4"
-                                                BorderBrush="#20808080"
-                                                BorderThickness="0,0,0,1"
-                                                Classes.in-script="{Binding IsInScript}">
-                                            <Border.Styles>
-                                                <Style Selector="Border.in-script TextBlock.pkg-id">
-                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}"/>
-                                                </Style>
-                                                <Style Selector="Border.in-script Button.cache-toggle">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}"/>
-                                                    <Setter Property="Opacity" Value="1"/>
-                                                </Style>
-                                            </Border.Styles>
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <StackPanel Grid.Column="0" Spacing="1">
-                                                    <TextBlock Classes="pkg-id"
-                                                               Text="{Binding Id}"
-                                                               FontSize="12"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                                                    <TextBlock Text="{Binding Version}"
-                                                               FontSize="10"
-                                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                                </StackPanel>
-                                                <Button Grid.Column="1"
-                                                        Classes="cache-toggle"
-                                                        Command="{Binding ToggleCommand}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="6,2"
-                                                        FontSize="14"
-                                                        Opacity="0.5"
-                                                        VerticalAlignment="Center">
-                                                    <Panel>
-                                                        <TextBlock Text="+"
-                                                                   IsVisible="{Binding !IsInScript}"
-                                                                   FontSize="16"/>
-                                                        <TextBlock Text="−"
-                                                                   IsVisible="{Binding IsInScript}"
-                                                                   FontSize="16"/>
-                                                    </Panel>
-                                                </Button>
+                                                               Foreground="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
+                                                </Border>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                                           Text="{Binding Description}"
+                                                           IsVisible="{Binding HasDescription}"
+                                                           FontSize="12"
+                                                           Margin="0,2,0,0"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                             </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-
-                        </Grid>
-
-                        <!-- Divider -->
-                        <Rectangle Grid.Column="3" Fill="#20808080" Margin="8,0"/>
-
-                        <!-- ── Script packages ──────────────────────────────── -->
-                        <Grid Grid.Column="4" RowDefinitions="Auto,*">
-
-                            <TextBlock Grid.Row="0"
-                                       Text="SCRIPT PACKAGES"
-                                       FontSize="10" FontWeight="SemiBold"
-                                       LetterSpacing="1"
-                                       Margin="8,0,0,8"
-                                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-
-                            <Panel Grid.Row="1">
-
-                                <TextBlock Text="Open a script to manage packages"
-                                           IsVisible="{Binding !HasFrontMatter}"
-                                           TextWrapping="Wrap"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                           FontSize="12"
-                                           MaxWidth="180"
-                                           TextAlignment="Center"/>
-
-                                <TextBlock Text="No packages added"
-                                           IsVisible="{Binding ShowNoPackagesHint}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                           FontSize="12"/>
-
-                                <ListBox ItemsSource="{Binding ScriptPackages}"
-                                         IsVisible="{Binding HasScriptPackages}"
-                                         Background="Transparent"
-                                         BorderThickness="0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         Padding="0">
-                                    <ListBox.Styles>
-                                        <Style Selector="ListBoxItem">
-                                            <Setter Property="Padding" Value="0"/>
-                                        </Style>
-                                    </ListBox.Styles>
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="viewModels:ScriptPackageItemViewModel">
-                                            <Border Padding="6,5"
-                                                    BorderBrush="#20808080"
-                                                    BorderThickness="0,0,0,1">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <StackPanel Grid.Column="0" Spacing="1">
-                                                        <TextBlock Text="{Binding Id}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="12"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   Foreground="{DynamicResource SystemAccentColor}"/>
-                                                        <TextBlock Text="{Binding Version}"
-                                                                   FontSize="10"
-                                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                                    </StackPanel>
-                                                    <Button Grid.Column="1"
-                                                            Content="×"
-                                                            Command="{Binding RemoveCommand}"
-                                                            Background="Transparent"
-                                                            BorderThickness="0"
-                                                            Padding="8,2"
-                                                            FontSize="15"
-                                                            Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                                            VerticalAlignment="Center"/>
-                                                </Grid>
-                                            </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                            </Panel>
-                        </Grid>
+                                <TextBlock Classes="state"
+                                           Text="{Binding ListMessage}"
+                                           IsVisible="{Binding ShowListMessage}"
+                                           MaxWidth="360"
+                                           Margin="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
+                                <StackPanel IsVisible="{Binding HasListError}"
+                                            Spacing="8" MaxWidth="360" Margin="16"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Classes="error" Text="{Binding ListError}" TextAlignment="Center"/>
+                                    <Button Content="Retry"
+                                            Command="{Binding RetryListCommand}"
+                                            HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Panel>
+                        </Border>
+
+                        <!-- Package details -->
+                        <Border Grid.Column="2" Classes="pane">
+                            <Panel>
+                                <TextBlock Classes="state"
+                                           Text="Select a package to see its details and versions."
+                                           IsVisible="{Binding !HasSelection}"
+                                           Margin="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                <ScrollViewer x:Name="DetailsScroll"
+                                              IsVisible="{Binding HasSelection}"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel Spacing="8" Margin="14">
+                                        <TextBlock Text="{Binding DetailsTitle}"
+                                                   FontSize="16" FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock Classes="hint"
+                                                   Text="{Binding DetailsDownloads}"
+                                                   IsVisible="{Binding HasDetailsDownloads}"/>
+                                        <TextBlock Text="{Binding PackageStatusText}" FontSize="13"/>
+                                        <TextBlock Classes="hint" Text="{Binding DetailsDescription}"/>
+
+                                        <TextBlock Text="Version" FontSize="12" Margin="0,4,0,0"/>
+                                        <ComboBox x:Name="VersionBox"
+                                                  ItemsSource="{Binding AvailableVersions}"
+                                                  SelectedItem="{Binding SelectedVersion}"
+                                                  HorizontalAlignment="Stretch"
+                                                  AutomationProperties.Name="Version"/>
+                                        <TextBlock Classes="hint"
+                                                   Text="Loading versions…"
+                                                   IsVisible="{Binding IsLoadingVersions}"/>
+                                        <StackPanel IsVisible="{Binding HasVersionsError}" Spacing="6">
+                                            <TextBlock Classes="error" Text="{Binding VersionsError}"/>
+                                            <Button Content="Retry"
+                                                    Command="{Binding RetryVersionsCommand}"
+                                                    AutomationProperties.Name="Retry loading versions"/>
+                                        </StackPanel>
+
+                                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <Button x:Name="AddPackageButton"
+                                                    Content="Add"
+                                                    Command="{Binding AddPackageCommand}"
+                                                    MinWidth="80" Margin="0,0,8,8"
+                                                    ToolTip.Tip="Add this package to the script"/>
+                                            <Button x:Name="UpdatePackageButton"
+                                                    Content="Update"
+                                                    Command="{Binding UpdatePackageCommand}"
+                                                    MinWidth="80" Margin="0,0,8,8"
+                                                    ToolTip.Tip="Use the selected version in the script"/>
+                                            <Button x:Name="RemovePackageButton"
+                                                    Content="Remove"
+                                                    Command="{Binding RemovePackageCommand}"
+                                                    MinWidth="80" Margin="0,0,8,8"
+                                                    ToolTip.Tip="Remove this package from the script"/>
+                                        </WrapPanel>
+
+                                        <TextBlock Classes="hint"
+                                                   Text="Adding a package only records it in the script. It is restored the next time the script is built or run."/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Panel>
+                        </Border>
                     </Grid>
                 </Grid>
             </TabItem>
 
-            <!-- ─── Imports ───────────────────────────────────────────────────── -->
-            <TabItem Header="Imports">
-                <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+            <!-- ─── References ────────────────────────────────────────────────── -->
+            <TabItem Header="References">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="0,12,0,0">
+                    <TextBlock Grid.Row="0" Classes="hint"
+                               Text="Reference local assemblies (.dll) or project files (.csproj, .vbproj, .fsproj). Paths are kept exactly as entered, including relative paths and macros."/>
 
-                    <!-- Add new using (disabled when no script is open) -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8"
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0"
                           IsEnabled="{Binding HasFrontMatter}">
-                        <TextBox Grid.Column="0"
-                                 Text="{Binding NewUsing}"
-                                 PlaceholderText="Namespace (e.g. System.Text.Json)"
-                                 KeyDown="NewUsing_KeyDown"/>
+                        <TextBox x:Name="ReferenceBox"
+                                 Grid.Column="0"
+                                 Text="{Binding NewReference}"
+                                 PlaceholderText="Path to a .dll or project file"
+                                 AutomationProperties.Name="Reference path"
+                                 KeyDown="ReferenceBox_KeyDown"/>
                         <Button Grid.Column="1"
+                                Content="Browse…"
+                                Margin="8,0,0,0"
+                                Click="BrowseReference_Click"
+                                ToolTip.Tip="Choose an assembly or project file"/>
+                        <Button Grid.Column="2"
                                 Content="Add"
-                                Command="{Binding AddUsingCommand}"
-                                Margin="8,0,0,0"/>
+                                Margin="8,0,0,0"
+                                Command="{Binding AddReferenceCommand}"/>
                     </Grid>
 
-                    <!-- Usings list -->
-                    <Panel Grid.Row="1">
+                    <TextBlock Grid.Row="2" Classes="error"
+                               Text="{Binding ReferenceError}"
+                               IsVisible="{Binding HasReferenceError}"
+                               Margin="0,6,0,0"/>
 
-                        <TextBlock Text="Open a .rpad script to manage global imports"
-                                   IsVisible="{Binding !HasFrontMatter}"
-                                   TextWrapping="Wrap"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                   FontSize="13"
-                                   MaxWidth="280"
-                                   TextAlignment="Center"/>
-
-                        <TextBlock Text="No global imports. Add a namespace above to include it as a global using when the script runs."
-                                   IsVisible="{Binding ShowNoUsingsHint}"
-                                   TextWrapping="Wrap"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                   FontSize="13"
-                                   MaxWidth="320"
-                                   TextAlignment="Center"/>
-
-                        <ListBox ItemsSource="{Binding Usings}"
-                                 IsVisible="{Binding HasUsings}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 Padding="0">
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                </Style>
-                            </ListBox.Styles>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate DataType="viewModels:UsingItemViewModel">
-                                    <Border Padding="8,7"
-                                            BorderBrush="#20808080"
-                                            BorderThickness="0,0,0,1">
+                    <Border Grid.Row="3" Classes="pane" Margin="0,8,0,0">
+                        <Panel>
+                            <TextBlock Classes="state"
+                                       Text="No references. Add a path above."
+                                       IsVisible="{Binding ShowNoReferencesHint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ListBox Classes="entries"
+                                     ItemsSource="{Binding References}"
+                                     SelectedItem="{Binding SelectedReference}"
+                                     IsVisible="{Binding HasReferences}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="References"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     KeyDown="EntryList_KeyDown">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="viewModels:DependencyEntryViewModel">
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Grid.Column="0"
-                                                       Text="{Binding Name}"
-                                                       FontSize="13"
+                                                       Text="{Binding Value}"
+                                                       ToolTip.Tip="{Binding Value}"
                                                        FontFamily="Consolas,Menlo,monospace"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
                                             <Button Grid.Column="1"
-                                                    Content="×"
+                                                    Content="Remove"
                                                     Command="{Binding RemoveCommand}"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    Padding="8,2"
-                                                    FontSize="16"
-                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                                                    VerticalAlignment="Center"/>
+                                                    Margin="8,0,0,0"
+                                                    ToolTip.Tip="{Binding RemoveLabel}"
+                                                    AutomationProperties.Name="{Binding RemoveLabel}"/>
                                         </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Panel>
+                    </Border>
+                </Grid>
+            </TabItem>
 
-                    </Panel>
+            <!-- ─── Namespace Imports ─────────────────────────────────────────── -->
+            <TabItem Header="Namespace Imports">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="0,12,0,0">
+                    <TextBlock Grid.Row="0" Classes="hint"
+                               Text="Namespaces imported for the whole script — like global using System.Text.Json; in C# or Imports System.Text.Json in VB. Enter just the namespace name."/>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0"
+                          IsEnabled="{Binding HasFrontMatter}">
+                        <TextBox x:Name="NamespaceBox"
+                                 Grid.Column="0"
+                                 Text="{Binding NewNamespace}"
+                                 PlaceholderText="Namespace, e.g. System.Text.Json"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 AutomationProperties.Name="Namespace"
+                                 KeyDown="NamespaceBox_KeyDown"/>
+                        <Button Grid.Column="1"
+                                Content="Add"
+                                Margin="8,0,0,0"
+                                Command="{Binding AddNamespaceCommand}"/>
+                    </Grid>
+
+                    <TextBlock Grid.Row="2" Classes="error"
+                               Text="{Binding NamespaceError}"
+                               IsVisible="{Binding HasNamespaceError}"
+                               Margin="0,6,0,0"/>
+
+                    <Border Grid.Row="3" Classes="pane" Margin="0,8,0,0">
+                        <Panel>
+                            <TextBlock Classes="state"
+                                       Text="No namespace imports. Add a namespace above."
+                                       IsVisible="{Binding ShowNoNamespacesHint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ListBox Classes="entries"
+                                     ItemsSource="{Binding Namespaces}"
+                                     SelectedItem="{Binding SelectedNamespace}"
+                                     IsVisible="{Binding HasNamespaces}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="Namespace imports"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     KeyDown="EntryList_KeyDown">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="viewModels:DependencyEntryViewModel">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding Value}"
+                                                       ToolTip.Tip="{Binding Value}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1"
+                                                    Content="Remove"
+                                                    Command="{Binding RemoveCommand}"
+                                                    Margin="8,0,0,0"
+                                                    ToolTip.Tip="{Binding RemoveLabel}"
+                                                    AutomationProperties.Name="{Binding RemoveLabel}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Panel>
+                    </Border>
                 </Grid>
             </TabItem>
 
         </TabControl>
 
-        <!-- Footer -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="0,10,0,0" Spacing="8">
-            <Button Content="Close" Click="Close_Click"/>
-        </StackPanel>
+        <!-- Footer: OK applies the draft; Cancel/Escape/closing the window discards it. OK is
+             deliberately not IsDefault so Enter in a field never applies the dialog. -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <TextBlock Grid.Column="0" Classes="hint"
+                       Text="Unapplied changes"
+                       IsVisible="{Binding HasChanges}"
+                       VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="OkButton" Content="OK" Width="80" Click="Ok_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+            </StackPanel>
+        </Grid>
 
     </Grid>
 </Window>

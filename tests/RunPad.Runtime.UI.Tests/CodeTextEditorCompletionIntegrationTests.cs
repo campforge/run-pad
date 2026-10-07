@@ -751,8 +751,7 @@ public class CodeTextEditorCompletionIntegrationTests
         // short delay isn't reliable — polling for the window to actually open is what makes this
         // deterministic regardless of how long that first real query takes.
         window.KeyTextInput("a");
-        for (var i = 0; i < 1500 && !editor.IsCompletionWindowOpen; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => !editor.IsCompletionWindowOpen);
         Assert.True(editor.IsCompletionWindowOpen);
 
         window.KeyTextInput(".");

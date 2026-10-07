@@ -79,8 +79,7 @@ public class EditorTabsControlShowAllTabsTests
             var pathA = Path.Combine(rootFolder, "A.rpad");
             File.WriteAllText(pathA, RpadWriter.NewFile("A"));
             mainVm.OpenTab(pathA);
-            for (var i = 0; i < 100 && mainVm.Tabs.Count < 2; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
 
             var menu = editorTabs.BuildAllTabsMenu();
 
@@ -120,8 +119,7 @@ public class EditorTabsControlShowAllTabsTests
             // NewRpadFile (unlike OpenTab) never auto-closes an existing blank tab — this is the one
             // reliable way to end up with two simultaneous tabs to click between.
             mainVm.NewRpadFile();
-            for (var i = 0; i < 100 && mainVm.Tabs.Count < 2; i++)
-                await Task.Delay(20);
+            await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
             Assert.NotSame(firstTab, mainVm.ActiveTab); // the new tab is active now, not the first one
 
             var menu = editorTabs.BuildAllTabsMenu();

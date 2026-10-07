@@ -197,8 +197,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
             CreateThemeService().Object, windowService.Object, initialResult, _explorerAssembly.BinaryPath);
         window.Show();
 
-        for (var i = 0; i < 100 && window.Tree.Items.Count == 0; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => window.Tree.Items.Count == 0);
 
         Assert.Equal("Alpha", window.Title);
         var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();

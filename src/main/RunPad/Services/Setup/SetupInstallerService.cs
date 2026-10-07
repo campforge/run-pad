@@ -10,6 +10,18 @@ namespace RunPad.Services.Setup;
 // find and install both themselves before RunPad's Run/Debug buttons do anything useful.
 public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupProcessRunner processRunner) : ISetupInstallerService
 {
+    // InstallNetcoredbgAsync wipes and recreates this directory — tests pass their own temp directory
+    // through the internal constructor so they never touch the user's real installation.
+    private readonly string _netcoredbgInstallDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
+
+    internal SetupInstallerService(
+        ISetupDownloader downloader, ISetupProcessRunner processRunner, string netcoredbgInstallDir)
+        : this(downloader, processRunner)
+    {
+        _netcoredbgInstallDir = netcoredbgInstallDir;
+    }
+
     public async Task<string> InstallDotnetSdkAsync(IProgress<SetupProgress> progress, CancellationToken ct)
     {
         var isWindows = OperatingSystem.IsWindows();
@@ -73,8 +85,7 @@ public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupPro
             progress.Report(new SetupProgress(downloadingMessage, percent)));
         await downloader.DownloadFileAsync(downloadUrl, archivePath, downloadPercent, ct);
 
-        var installDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "netcoredbg");
+        var installDir = _netcoredbgInstallDir;
         if (Directory.Exists(installDir))
             Directory.Delete(installDir, recursive: true);
         Directory.CreateDirectory(installDir);

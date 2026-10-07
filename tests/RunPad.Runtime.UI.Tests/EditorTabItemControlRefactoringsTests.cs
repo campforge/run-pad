@@ -81,8 +81,7 @@ public class EditorTabItemControlRefactoringsTests
         intelliSense.Raise(s => s.CodeFixesChanged += null, editor.Text,
             (IReadOnlyList<ICodeFixInfo>)[new FakeCodeFixInfo(2, "Add using", DiagnosticSeverity.Warning, "fix-key")]);
 
-        for (var i = 0; i < 100 && editor.WorstCodeFixSeverityOnLine(2) is null; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => editor.WorstCodeFixSeverityOnLine(2) is null);
 
         Assert.Equal(CodeFixSeverity.Warning, editor.WorstCodeFixSeverityOnLine(2));
         Assert.Null(editor.WorstCodeFixSeverityOnLine(5)); // refactoring hasn't been fetched yet
@@ -90,8 +89,7 @@ public class EditorTabItemControlRefactoringsTests
         // Caret move — triggers the debounced GetRefactoringsAsync fetch.
         editor.TextArea.Caret.Offset = 3;
 
-        for (var i = 0; i < 100 && editor.WorstCodeFixSeverityOnLine(5) is null; i++)
-            await Task.Delay(20);
+        await TestWait.WhileAsync(() => editor.WorstCodeFixSeverityOnLine(5) is null);
 
         // Both present at once: the refactoring didn't clobber the still-valid diagnostic fix, and
         // vice versa — the whole point of tracking the two sources independently.
