@@ -5117,6 +5117,9 @@ public class RunPadAnalyzersTests
     public async Task InvalidAssemblyNameLiteralAnalyzer_Should_NotFlag_AValidAssemblyDisplayName(string code, bool expectFlagged)
     {
         var diagnostics = await GetDiagnosticsAsync(new InvalidAssemblyNameLiteralAnalyzer(), code);
+        // An analyzer exception surfaces as AD0001, not RPAD0385 — reject it so a crash can't pass a
+        // false expectation (e.g. `Culture=badculture` under Windows/invariant globalization).
+        Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidAssemblyNameLiteralAnalyzer.DiagnosticId));
     }
 
