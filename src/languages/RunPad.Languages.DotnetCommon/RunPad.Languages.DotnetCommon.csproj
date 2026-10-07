@@ -3,6 +3,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="ICSharpCode.Decompiler" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" />
+    <PackageReference Include="NuGet.Commands" />
   </ItemGroup>
 
   <ItemGroup>

@@ -375,14 +375,14 @@
                         <TextBox x:Name="ReferenceBox"
                                  Grid.Column="0"
                                  Text="{Binding NewReference}"
-                                 PlaceholderText="Path to a .dll or project file"
+                                 PlaceholderText="Path to a .dll"
                                  AutomationProperties.Name="Reference path"
                                  KeyDown="ReferenceBox_KeyDown"/>
                         <Button Grid.Column="1"
                                 Content="Browse…"
                                 Margin="8,0,0,0"
                                 Click="BrowseReference_Click"
-                                ToolTip.Tip="Choose an assembly or project file"/>
+                                ToolTip.Tip="Choose an assembly"/>
                         <Button Grid.Column="2"
                                 Content="Add"
                                 Margin="8,0,0,0"

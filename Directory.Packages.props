@@ -34,9 +34,13 @@
     <!-- Real Roslyn CodeFixProviders/analyzers (ReSharper/LINQPad-style lightbulb quick fixes) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Features" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="5.9.0" />
+    <!-- VB scripts compile in-process too (no MSBuild) — docs/handoffs/roslyn-script-compiler.md. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="5.9.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
+    <!-- In-process package restore for scripts (the engine `dotnet restore` uses), no MSBuild. -->
+    <PackageVersion Include="NuGet.Commands" Version="7.9.0" />
     <PackageVersion Include="NuGet.Common" Version="7.9.0" />
     <PackageVersion Include="NuGet.Configuration" Version="7.9.0" />
     <PackageVersion Include="NuGet.Protocol" Version="7.9.0" />
@@ -62,4 +66,4 @@
     <!-- IL disassembly for the "IL" output tab (TODO.md #62) — ILSpy/SharpDevelop team, actively maintained. -->
     <PackageVersion Include="ICSharpCode.Decompiler" Version="11.1.0.9782" />
   </ItemGroup>
-</Project>
+</Project>

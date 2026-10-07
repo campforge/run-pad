@@ -2,9 +2,8 @@ using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.VB;
 
-// VB's DotnetLanguageProjectProfile (ANALYSIS.md #86) — VB SDK projects have no
-// <ImplicitUsings> MSBuild property (that's C#-only); the equivalent "usable without an explicit
-// Imports statement" convenience is a project-file <Import> item per default namespace instead.
+// VB's DotnetLanguageProjectProfile (ANALYSIS.md #86). VbScriptCompiler turns these DefaultImportNamespaces
+// plus the SDK's own default VB imports into project-level imports (vbc /imports:).
 internal static class VbProjectProfile
 {
     // RunPad.Runtime (live user request 2026-07-28, LINQPad Runtime API compatibility) added
@@ -18,9 +17,6 @@ internal static class VbProjectProfile
 
     public static readonly DotnetLanguageProjectProfile Instance = new(
         SourceFileExtension: ".vb",
-        ProjectFileExtension: ".vbproj",
-        ExtraPropertyGroupElements: [],
         DefaultImportNamespaces: _defaultImports,
-        ImportItemElementName: "Import",
         FormatImportStatement: ns => $"Imports {ns}");
 }

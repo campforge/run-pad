@@ -177,6 +177,7 @@ public static class CliRunner
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
             .ToList() ?? [];
+        // Not supported any more — collected only so the compiler reports them (see EditorTabItemControl).
         var projectReferences = frontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
                 || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
