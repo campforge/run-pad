@@ -209,16 +209,17 @@ public class DotnetProcessCompilerTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // (2) The error/warning regexes required a NON-empty diagnostic code (\S+) — but the real
-    // "not a valid version string" restore failure has NO code at all ("...NuGet.targets(196,5):
-    // error : 'latest' is not a valid version string.", confirmed by actually forcing this exact
-    // failure). That line matched neither regex, so a failed build (ExitCode != 0, Success correctly
-    // false) came back with an EMPTY Errors list — RunAsync's `if (!compilationResult.Success ...)
-    // return;` then had nothing to show, so nothing appeared anywhere and nothing ran. A different,
-    // still-invalid, non-"latest" version string (so fix #1's translation above doesn't mask this one)
-    // reproduces the same empty-code failure shape independently of that fix.
+    // (2) A failed restore must never come back as Success == false with an EMPTY Errors list —
+    // RunAsync's `if (!compilationResult.Success ...) return;` then has nothing to show, so nothing
+    // appears anywhere and nothing runs. Historically this happened because the error/warning regexes
+    // required a non-empty diagnostic code (\S+), while older SDKs reported an invalid package version
+    // with no code at all ("...NuGet.targets(196,5): error : 'latest' is not a valid version string.").
+    // Newer SDKs (e.g. 10.0.401) report MSB4181 ("RestoreTask returned false") instead, and the exact
+    // wording is localized/SDK-specific — so only the stable contract is asserted: the build fails and
+    // at least one non-blank diagnostic is reported. A different, still-invalid, non-"latest" version
+    // string is used so fix #1's translation above doesn't mask this failure.
     [Fact]
-    public async Task Compilation_Should_ReportTheError_ForARestoreFailureWithNoDiagnosticCode()
+    public async Task Compilation_Should_ReportTheError_ForARestoreFailure()
     {
         var outputDir = Directory.CreateTempSubdirectory("runpad-compiler-test").FullName;
         try
@@ -247,7 +248,7 @@ public class DotnetProcessCompilerTests
 
             Assert.False(result.Success);
             Assert.NotEmpty(result.Errors); // was empty before the fix, despite Success already being false
-            Assert.Contains(result.Errors, e => e.Message.Contains("not a valid version string"));
+            Assert.Contains(result.Errors, e => !string.IsNullOrWhiteSpace(e.Message));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
