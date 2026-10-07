@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Threading;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -552,6 +553,16 @@ public class CodeTextEditorCompletionIntegrationTests
 
         // Assert — a second request went out purely from the caret move.
         Assert.True(callCount > callsAfterOpen);
+
+        // The caret move causes AvaloniaEdit's own OverloadInsightWindow to immediately close the
+        // window that ShowOverloads just opened (AvaloniaEdit closes it on any caret move — see the
+        // companion test's comment below). That rapid Show+Close cycle leaves pending Avalonia
+        // compositor work in the queue; closing the parent window and flushing the dispatcher here
+        // ensures that work completes before the test framework's EnsureIsolatedApplication() cleanup
+        // runs on the next test, preventing a "calling thread cannot access this object because a
+        // different thread owns it" InvalidOperationException in the cleanup phase on CI.
+        window.Close();
+        Dispatcher.UIThread.RunJobs();
     }
 
     // Companion to the test above — once a re-request comes back with no overloads at all, the
