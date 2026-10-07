@@ -97,6 +97,29 @@ public class InvalidDocumentHeadlessTests
         throw new TimeoutException("The tab's control was not realized in time.");
     }
 
+    // Same teardown as DocumentSafetyHeadlessTests.Cleanup, after the assertions: dirty flags are
+    // dropped so closing the window neither asks nor writes, then the window (whose Dispose releases
+    // the EditorTabsControl and its tab controls) and the view model are disposed.
+    private static void Cleanup(Harness h)
+    {
+        try
+        {
+            foreach (var tab in h.MainVm.Tabs)
+                tab.IsDirty = false;
+            h.Window.Close();
+            Assert.False(h.Window.IsVisible);
+        }
+        finally
+        {
+            h.Window.Dispose();
+            h.MainVm.Dispose();
+        }
+
+        foreach (var file in Directory.GetFiles(h.Root, "*", SearchOption.AllDirectories))
+            File.SetAttributes(file, FileAttributes.Normal);
+        Directory.Delete(h.Root, recursive: true);
+    }
+
     private static string WriteMalformed(Harness h)
     {
         var path = Path.Combine(h.Root, "bad.rpad");
@@ -119,7 +142,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal("Invalid document", ctrl.State.ExecStatusText);
             Assert.False(tab.IsDirty);
         }
-        finally { Directory.Delete(h.Root, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
@@ -142,7 +165,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal(MalformedVb, File.ReadAllText(savedAs));
             Assert.Equal(savedAs, tab.FilePath);
         }
-        finally { Directory.Delete(h.Root, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaTheory]
@@ -163,7 +186,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal(RunState.Idle, tab.RunState);
             Assert.Equal(MalformedVb, File.ReadAllText(path));
         }
-        finally { Directory.Delete(h.Root, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     // Review finding: a numeric kind used to parse as an undefined RpadKind and run.
@@ -189,7 +212,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal("Invalid document", ctrl.State.ExecStatusText);
             Assert.Equal(original, File.ReadAllText(path));
         }
-        finally { Directory.Delete(h.Root, recursive: true); }
+        finally { Cleanup(h); }
     }
 
     [AvaloniaFact]
@@ -220,6 +243,6 @@ public class InvalidDocumentHeadlessTests
             await reopenedCtrl.RunAsync(false, Sdk);
             h.Registry.Verify(r => r.Create("vb", It.IsAny<ILanguageHostOptions>()), Times.Once);
         }
-        finally { Directory.Delete(h.Root, recursive: true); }
+        finally { Cleanup(h); }
     }
 }
