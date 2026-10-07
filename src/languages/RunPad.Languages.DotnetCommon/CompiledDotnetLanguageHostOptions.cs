@@ -31,6 +31,9 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     public IReadOnlyList<string> AssemblyReferences { get; init; } = [];
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
 
+    /// <summary>NuGet.Config used for restore (RunPad's own source list); null = dotnet's default lookup.</summary>
+    public string? NuGetConfigFile { get; init; }
+
     public RpadKind Kind { get; init; }
 
     // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — the .rpad file's own path, null for a

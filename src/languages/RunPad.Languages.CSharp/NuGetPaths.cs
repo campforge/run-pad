@@ -10,7 +10,11 @@ internal static class NuGetPaths
     {
         try
         {
-            var settings = Settings.LoadDefaultSettings(root: null);
+            // Scripts restore with RunPad's own NuGet.Config once it exists (RunPadNuGetConfigStore),
+            // so packages land in ITS globalPackagesFolder — follow it, but never create it here.
+            var settings = RunPadNuGetConfigStore.ExistingDefaultConfigFile is { } runPadConfig
+                ? Settings.LoadSpecificSettings(Path.GetDirectoryName(runPadConfig)!, Path.GetFileName(runPadConfig))
+                : Settings.LoadDefaultSettings(root: null);
             return SettingsUtility.GetGlobalPackagesFolder(settings);
         }
         catch
