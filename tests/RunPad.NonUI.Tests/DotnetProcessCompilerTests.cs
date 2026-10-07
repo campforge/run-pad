@@ -399,6 +399,7 @@ public class DotnetProcessCompilerTests
             Assert.False(result.Success);
             var error = Assert.Single(result.Errors);
             Assert.Equal("CS0103", error.Code);
+            Assert.DoesNotContain(".csproj]", error.Message);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
