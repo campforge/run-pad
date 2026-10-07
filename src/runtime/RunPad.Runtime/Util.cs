@@ -440,9 +440,11 @@ public static class Util
     }
 
     // The script's own System.Text.Json, reached by reflection, so this netstandard2.0 library needs no
-    // System.Text.Json package (scripts reference it as a bare DLL anyway, so the package never
-    // reached them). Every .NET a script can run on (net6+) ships STJ in the box; binding at runtime
-    // uses whichever version is there. Only Util.Cache needs a real serializer (arbitrary T).
+    // System.Text.Json package (scripts reference it as a bare DLL, so the package never reached
+    // them). A compile-time reference to STJ 8.0 made Util.Cache throw FileLoadException/
+    // FileNotFoundException on net6/net7 scripts, whose in-box STJ is older (verified against both).
+    // Every .NET a script can run on (net6+) ships STJ in the box; binding at runtime uses whichever
+    // version is there. Only Util.Cache needs a real serializer (arbitrary T).
     private static class ScriptJson
     {
         private static readonly Lazy<(MethodInfo Serialize, MethodInfo Deserialize, Type JsonException)> Api = new(Load);
