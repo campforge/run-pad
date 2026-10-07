@@ -107,6 +107,12 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         var previousProjectFile = File.Exists(_fileProjPath) ? await File.ReadAllTextAsync(_fileProjPath, ctx) : null;
         var projectUnchanged = previousProjectFile == projectFile;
 
+        // R6: a referenced project's own sources, project file and transitive references are outside
+        // everything compared below, so with project references the hot path, --no-restore and
+        // --no-dependencies all go — MSBuild's own incremental build/restore check over the whole
+        // graph decides what's stale instead (a no-op build when nothing changed).
+        var hasProjectReferences = _projectReferences.Count > 0;
+
         // Hot path: source, project file and the binary from the last build in this directory are
         // all still exactly what they were — nothing to recompile, so skip `dotnet build` entirely
         // rather than just skipping restore. Also requires outputDll to be at least as new as every
@@ -118,12 +124,16 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         // RunPad.Runtime.dll copy happened to be sitting in this output directory's bin/ from the
         // last time it was actually built, silently running old runtime code against unchanged
         // script source.
-        if (projectUnchanged && previousSource == code && File.Exists(outputDll)
+        if (!hasProjectReferences && projectUnchanged && previousSource == code && File.Exists(outputDll)
             && !IsAnyReferenceNewerThan(outputDll, allAssemblyRefs))
             return new ProcessCompilerResult(outputDll, true, [], []);
 
-        await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
-        await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, ctx);
+        // Rewriting identical text would only bump timestamps and force MSBuild to recompile the
+        // script on every run with project references, defeating its incremental check.
+        if (previousSource != code)
+            await File.WriteAllTextAsync(_sourceCodePath, code, _encoding, ctx);
+        if (!projectUnchanged)
+            await File.WriteAllTextAsync(_fileProjPath, projectFile, _encoding, ctx);
 
         // _outputDir is reused across runs of the same tab (see EditorTabState.OutputDirectory) so
         // that MSBuild/NuGet's own incremental caches under obj/ survive between runs. If the
@@ -131,15 +141,21 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         // packages/references/target framework haven't changed since the last run in this
         // directory — restore already ran for this exact input and can safely be skipped, cutting
         // build time roughly in half for the common "just edited the code" case.
-        var canSkipRestore = projectUnchanged && File.Exists(Path.Combine(_outputDir, "obj", "project.assets.json"));
+        var canSkipRestore = !hasProjectReferences && projectUnchanged
+            && File.Exists(Path.Combine(_outputDir, "obj", "project.assets.json"));
 
         Directory.CreateDirectory(binDirectory);
 
+        // -nodeReuse:false: a multi-project graph (project references) makes MSBuild start worker
+        // nodes, and with node reuse they outlive `dotnet build` while still holding our redirected
+        // stdout/stderr — the drains below then never see EOF and Compilation hangs (R6 review,
+        // reproduced independently). Only affects the nodes of this build, not other build servers.
+        var graphArguments = hasProjectReferences ? " -nodeReuse:false" : " --no-dependencies";
         var startInfo = new ProcessStartInfo
         {
             FileName = _executionOptions.Runtime.RuntimePath,
             Arguments =
-                @$"build -o ""./{BinDir}"" -c Debug --nologo --no-dependencies --tl:off{(canSkipRestore ? " --no-restore" : "")}",
+                @$"build -o ""./{BinDir}"" -c Debug --nologo{graphArguments} --tl:off{(canSkipRestore ? " --no-restore" : "")}",
             WorkingDirectory = _outputDir,
             CreateNoWindow = true,
             UseShellExecute = false,
