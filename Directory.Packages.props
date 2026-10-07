@@ -37,10 +37,10 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
-    <PackageVersion Include="NuGet.Common" Version="6.12.5" />
-    <PackageVersion Include="NuGet.Configuration" Version="6.12.5" />
-    <PackageVersion Include="NuGet.Protocol" Version="6.12.5" />
-    <PackageVersion Include="NuGet.Versioning" Version="6.12.5" />
+    <PackageVersion Include="NuGet.Common" Version="7.9.0" />
+    <PackageVersion Include="NuGet.Configuration" Version="7.9.0" />
+    <PackageVersion Include="NuGet.Protocol" Version="7.9.0" />
+    <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
     <!-- System -->
     <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.12" />
     <PackageVersion Include="System.Composition.Hosting" Version="10.0.12" />
@@ -48,7 +48,7 @@
     <!-- Source Link -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <!-- Format -->
-    <PackageVersion Include="YamlDotNet" Version="16.3.0" />
+    <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <!-- Tests -->
     <PackageVersion Include="coverlet.collector" Version="10.1.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
@@ -60,6 +60,6 @@
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="Moq" Version="4.21.0" />
     <!-- IL disassembly for the "IL" output tab (TODO.md #62) — ILSpy/SharpDevelop team, actively maintained. -->
-    <PackageVersion Include="ICSharpCode.Decompiler" Version="10.1.1.8388" />
+    <PackageVersion Include="ICSharpCode.Decompiler" Version="11.1.0.9782" />
   </ItemGroup>
 </Project>
