@@ -1,10 +1,10 @@
-Мне нравится идея сделать темы частью бренда, а не просто "Dark" и "Light". Я бы придерживался философии **спокойных поверхностей** и **минимального использования акцентного цвета**.
+I like the idea of making themes part of the brand rather than just "Dark" and "Light". I would stick to a philosophy of **calm surfaces** and **minimal use of the accent color**.
 
 ---
 
 # RunPad Midnight
 
-> Современная темная тема, вдохновленная Visual Studio 2022, Obsidian и GitHub Dark. Основной акцент сделан на комфорт при длительной работе с кодом: мягкие нейтральные поверхности, низкая насыщенность серых оттенков и сдержанное использование синего цвета только для интерактивных элементов. Интерфейс визуально уходит на второй план, позволяя сосредоточиться на документе и исходном коде.
+> A modern dark theme inspired by Visual Studio 2022, Obsidian, and GitHub Dark. The main focus is comfort during long coding sessions: soft neutral surfaces, low-saturation grays, and restrained use of blue for interactive elements only. The interface visually recedes into the background, letting you concentrate on the document and the source code.
 
 ```json
 {
@@ -77,7 +77,7 @@
 
 # RunPad Warm Light
 
-> Светлая тема с теплыми бумажными оттенками, рассчитанная на длительное чтение документации и кода. В отличие от классических белых IDE, использует слегка кремовые поверхности и мягкий контраст, что снижает зрительную нагрузку. Акцентный цвет остается сдержанным, а интерфейс напоминает качественную техническую документацию.
+> A light theme with warm paper tones, designed for long reading sessions of documentation and code. Unlike classic white IDEs, it uses slightly creamy surfaces and soft contrast, which reduces eye strain. The accent color stays restrained, and the interface resembles high-quality technical documentation.
 
 ```json
 {
@@ -146,14 +146,14 @@
 }
 ```
 
-## Небольшая идея для развития
+## A small idea for further development
 
-Я бы ввел единую систему именования внутренних цветов, чтобы темы было проще поддерживать. Вместо того чтобы задавать цвета напрямую каждому элементу, сначала определить базовые токены:
+I would introduce a single naming system for internal colors to make themes easier to maintain. Instead of assigning colors directly to each element, first define base tokens:
 
 ```text
-Surface0  — окно приложения
-Surface1  — редактор
-Surface2  — панели
+Surface0  — application window
+Surface1  — editor
+Surface2  — panels
 Surface3  — toolbar
 Surface4  — hover
 
@@ -168,4 +168,4 @@ Error
 Info
 ```
 
-А уже затем `RunPad.Toolbar.BackgroundBrush` ссылался бы на `Surface3`, `RunPad.Panel.BackgroundBrush` — на `Surface2` и т.д. Это значительно упростит создание новых тем (например, `Midnight`, `Warm Light`, `Nord`, `Solarized`) и обеспечит единообразие интерфейса.
+Only then would `RunPad.Toolbar.BackgroundBrush` reference `Surface3`, `RunPad.Panel.BackgroundBrush` reference `Surface2`, and so on. This would greatly simplify creating new themes (for example, `Midnight`, `Warm Light`, `Nord`, `Solarized`) and keep the interface consistent.

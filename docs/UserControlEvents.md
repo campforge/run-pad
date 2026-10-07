@@ -1,38 +1,39 @@
-В современной разработке на Avalonia UI с паттерном MVVM (ReactiveUI) и Dependency Injection (DI) практика написания логики в Code-Behind (.axaml.cs) считается устаревшей. Вместо перехвата событий в коде окон, правильный архитектурный подход — связывать события (RoutedEvents) или действия UI напрямую с командами во ViewModel (ReactiveCommand).
-Ниже представлено полное руководство, переписанное под стек ReactiveUI + DI. Для связывания события из XAML с ViewModel используется стандартный пакет Avalonia.Xaml.Behaviors.
+In modern Avalonia UI development with the MVVM pattern (ReactiveUI) and Dependency Injection (DI), writing logic in code-behind (.axaml.cs) is considered outdated. Instead of handling events in window code, the correct architectural approach is to bind events (RoutedEvents) or UI actions directly to commands in the ViewModel (ReactiveCommand).
+Below is a complete guide written for the ReactiveUI + DI stack. The standard Avalonia.Xaml.Behaviors package is used to bind an event from XAML to the ViewModel.
 ------------------------------
-## Архитектурное руководство: События UserControl в связке с ReactiveUI и DI## Архитектурный принцип
+## Architecture guide: UserControl events with ReactiveUI and DI
+## Architectural principle
 
-   1. UserControl по-прежнему генерирует RoutedEvent внутри себя (это делает его независимым UI-компонентом).
-   2. Родительский View с помощью EventTriggerBehavior перехватывает это событие прямо в XAML.
-   3. Перехваченное событие вызывает ReactiveCommand на Родительской ViewModel, которая была внедрена через DI (например, через Microsoft.Extensions.DependencyInjection).
+   1. The UserControl still raises a RoutedEvent internally (this keeps it an independent UI component).
+   2. The parent View intercepts this event directly in XAML using EventTriggerBehavior.
+   3. The intercepted event invokes a ReactiveCommand on the parent ViewModel, which was injected via DI (for example, via Microsoft.Extensions.DependencyInjection).
 
 ------------------------------
-## Подготовка: Установка пакета Behaviors
-Для того чтобы связывать события элементов с командами во ViewModel без написания кода в файле .axaml.cs, установите NuGet-пакет:
+## Preparation: installing the Behaviors package
+To bind element events to ViewModel commands without writing code in the .axaml.cs file, install the NuGet package:
 
 dotnet add package Avalonia.Xaml.Behaviors
 
-Добавьте пространство имен во все ваши .axaml файлы, где будете его использовать:
-xmlns:i="using:Avalonia.Xaml.Interactivity" и xmlns:ia="using:Avalonia.Xaml.Interactions.Core"
+Add the namespaces to every .axaml file where you will use it:
+xmlns:i="using:Avalonia.Xaml.Interactivity" and xmlns:ia="using:Avalonia.Xaml.Interactions.Core"
 ------------------------------
-## Шаг 1. Создание независимого UserControl
-Компонент должен оставаться "глупым" (UI-only). Он ничего не знает про DI или родительские ViewModel. Он просто умеет уведомлять внешнюю систему о том, что что-то произошло, и передавать данные.
-## 1. Разметка: CardComponent.axaml
+## Step 1. Creating an independent UserControl
+The component must stay "dumb" (UI-only). It knows nothing about DI or parent ViewModels. It simply knows how to notify the outside world that something happened and pass data along.
+## 1. Markup: CardComponent.axaml
 
 <UserControl xmlns="https://github.com"
              xmlns:x="http://microsoft.com"
              x:Class="AvaloniaApp.Views.CardComponent">
     <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="8" Padding="15">
         <StackPanel Spacing="10">
-            <TextBox x:Name="InputTextBox" Watermark="Введите текст для отправки..." />
-            <Button Content="Отправить родителю" Click="OnSendButtonClick" />
+            <TextBox x:Name="InputTextBox" Watermark="Enter text to send..." />
+            <Button Content="Send to parent" Click="OnSendButtonClick" />
         </StackPanel>
     </Border>
 </UserControl>
 
-## 2. Аргументы события: CardEventArgs.cs
-Создадим класс для безопасной передачи данных наверх.
+## 2. Event arguments: CardEventArgs.cs
+Create a class for passing data upward safely.
 
 using Avalonia.Interactivity;
 namespace AvaloniaApp.Events;
@@ -46,13 +47,13 @@ public class CardEventArgs : RoutedEventArgs
     }
 }
 
-## 3. Логика компонента: CardComponent.axaml.cs
+## 3. Component logic: CardComponent.axaml.cs
 
 using System;using Avalonia.Controls;using Avalonia.Interactivity;using AvaloniaApp.Events;
 namespace AvaloniaApp.Views;
 public partial class CardComponent : UserControl
 {
-    // Регистрируем кастомное всплывающее (Bubble) событие
+    // Register a custom bubbling (Bubble) event
     public static readonly RoutedEvent<CardEventArgs> DataSubmittedEvent =
         RoutedEvent.Register<CardComponent, CardEventArgs>(
             nameof(DataSubmitted), 
@@ -70,23 +71,24 @@ public partial class CardComponent : UserControl
     {
         var textToSend = InputTextBox.Text ?? string.Empty;
         
-        // Создаем аргументы и генерируем событие наверх по дереву UI
+        // Create the arguments and raise the event up the UI tree
         var args = new CardEventArgs(DataSubmittedEvent, textToSend);
         RaiseEvent(args);
     }
 }
 
 ------------------------------
-## Шаг 2. Создание Родительской ViewModel (с DI)
-Предположим, у нас есть MainViewModel, которая управляет главным экраном. Она принимает через конструктор сервис (например, для логирования или отправки данных на сервер), зарегистрированный в DI-контейнере.
+## Step 2. Creating the parent ViewModel (with DI)
+Suppose we have a MainViewModel that manages the main screen. Its constructor takes a service (for example, for logging or sending data to a server) registered in the DI container.
 
 using System;using System.Reactive;using ReactiveUI;
 namespace AvaloniaApp.ViewModels;
-// Демонстрационный сервис для DIpublic interface IDataProcessor { void Process(string input); }
+// Demo service for DI
+public interface IDataProcessor { void Process(string input); }
 public class MainViewModel : ViewModelBase
 {
     private readonly IDataProcessor _dataProcessor;
-    private string _statusMessage = "Ожидание данных...";
+    private string _statusMessage = "Waiting for data...";
 
     public string StatusMessage
     {
@@ -94,31 +96,31 @@ public class MainViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
     }
 
-    // ReactiveCommand, которая будет принимать строку из UserControl
+    // ReactiveCommand that will receive a string from the UserControl
     public ReactiveCommand<string, Unit> HandleCardDataCommand { get; }
 
-    // Конструктор поддерживает полноценный Dependency Injection
+    // The constructor supports full Dependency Injection
     public MainViewModel(IDataProcessor dataProcessor)
     {
         _dataProcessor = dataProcessor;
 
-        // Инициализируем команду ReactiveUI
+        // Initialize the ReactiveUI command
         HandleCardDataCommand = ReactiveCommand.Create<string>(ExecuteHandleCardData);
     }
 
     private void ExecuteHandleCardData(string incomingData)
     {
-        // Вызываем внедренный через DI сервис
+        // Call the service injected via DI
         _dataProcessor.Process(incomingData);
         
-        // Обновляем состояние UI
-        StatusMessage = $"[DI Успех] Получено и обработано: {incomingData}";
+        // Update the UI state
+        StatusMessage = $"[DI Success] Received and processed: {incomingData}";
     }
 }
 
 ------------------------------
-## Шаг 3. Связывание события с командой в родительском View
-В MainWindow.axaml мы объявляем наш CardComponent. С помощью Interactivity мы перехватываем событие DataSubmitted и перенаправляем переданные в него данные прямо в команду HandleCardDataCommand.
+## Step 3. Binding the event to a command in the parent View
+In MainWindow.axaml we declare our CardComponent. Using Interactivity, we intercept the DataSubmitted event and forward the data passed with it directly to the HandleCardDataCommand command.
 
 <Window xmlns="https://github.com"
         xmlns:x="http://microsoft.com"
@@ -133,18 +135,18 @@ public class MainViewModel : ViewModelBase
 
     <StackPanel Margin="30" Spacing="20" VerticalAlignment="Center">
         
-        <TextBlock Text="Родительское окно" FontSize="20" FontWeight="Bold"/>
+        <TextBlock Text="Parent window" FontSize="20" FontWeight="Bold"/>
         <TextBlock Text="{Binding StatusMessage}" Foreground="Green" FontWeight="SemiBold"/>
         
         <Separator Grid.Row="1" Background="LightGray"/>
 
-        <!-- Внедряем наш кастомный UserControl -->
+        <!-- Embed our custom UserControl -->
         <views:CardComponent>
             <i:Interaction.Behaviors>
-                <!-- 1. Слушаем событие DataSubmitted, генерируемое внутри компонента -->
+                <!-- 1. Listen for the DataSubmitted event raised inside the component -->
                 <ia:EventTriggerBehavior EventName="DataSubmitted">
-                    <!-- 2. Вызываем команду во ViewModel родителя -->
-                    <!-- Передаем свойство 'Data' из нашего CardEventArgs в качестве параметра команды -->
+                    <!-- 2. Invoke the command on the parent ViewModel -->
+                    <!-- Pass the 'Data' property of our CardEventArgs as the command parameter -->
                     <ia:InvokeCommandAction 
                         Command="{Binding HandleCardDataCommand}" 
                         CommandParameter="{Binding $parent[views:CardComponent].DataContext, RelativeSource={RelativeSource Self}}"
@@ -156,8 +158,8 @@ public class MainViewModel : ViewModelBase
     </StackPanel>
 </Window>
 
-Важное примечание по InputConverter:
-Чтобы вытащить свойство Data из CardEventArgs и передать его в команду в качестве чистого string, вам потребуется простой конвертер (IValueConverter). Вот его код:
+Important note on InputConverter:
+To extract the Data property from CardEventArgs and pass it to the command as a plain string, you need a simple converter (IValueConverter). Here is its code:
 
 using System;using System.Globalization;using Avalonia.Data.Converters;using AvaloniaApp.Events;
 namespace AvaloniaApp.Converters;
@@ -165,7 +167,7 @@ public class CardEventArgsConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        // Извлекаем кастомные данные из аргументов события Avalonia
+        // Extract the custom data from the Avalonia event arguments
         if (value is CardEventArgs args)
         {
             return args.Data;
@@ -177,17 +179,17 @@ public class CardEventArgsConverter : IValueConverter
         => throw new NotImplementedException();
 }
 
-(Не забудьте зарегистрировать этот конвертер в App.axaml в секции <Application.Resources> чтобы XAML его видел).
+(Do not forget to register this converter in App.axaml in the <Application.Resources> section so that XAML can see it.)
 ------------------------------
-## Шаг 4. Настройка DI Контейнера (Регистрация)
-Чтобы всё это взлетело, ваши View и ViewModel должны правильно создаваться через ваш IoC-контейнер (например, Microsoft.Extensions.DependencyInjection).
-Типичная настройка в App.axaml.cs:
+## Step 4. Configuring the DI container (registration)
+For all of this to work, your Views and ViewModels must be created correctly through your IoC container (for example, Microsoft.Extensions.DependencyInjection).
+A typical setup in App.axaml.cs:
 
 using System;using Avalonia;using Avalonia.Controls.ApplicationLifetimes;using Avalonia.Markup.Xaml;using AvaloniaApp.ViewModels;using AvaloniaApp.Views;using Microsoft.Extensions.DependencyInjection;
 namespace AvaloniaApp;
 public class MyDataProcessor : IDataProcessor
 {
-    public void Process(string input) => Console.WriteLine($"DI сервис обработал: {input}");
+    public void Process(string input) => Console.WriteLine($"DI service processed: {input}");
 }
 public partial class App : Application
 {
@@ -197,14 +199,14 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // 1. Создаем коллекцию сервисов (DI Контейнер)
+        // 1. Create the service collection (DI container)
         var serviceCollection = new ServiceCollection();
         ConfigureServices(serviceCollection);
         Services = serviceCollection.BuildServiceProvider();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // 2. Запрашиваем окно и вьюмодель из контейнера
+            // 2. Resolve the window and view model from the container
             var mainWindow = Services.GetRequiredService<MainWindow>();
             mainWindow.DataContext = Services.GetRequiredService<MainViewModel>();
             
@@ -216,22 +218,22 @@ public partial class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // Регистрация бизнес-логики
+        // Register business logic
         services.AddSingleton<IDataProcessor, MyDataProcessor>();
 
-        // Регистрация UI слоев
+        // Register UI layers
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
     }
 }
 
 ------------------------------
-## Резюме паттерна
+## Pattern summary
 
-* UserControl остался чистым UI-компонентом без ссылок на архитектуру приложения.
-* Данные безопасно поднялись через слои абстракции UI с помощью стандартных механизмов Avalonia (RoutedEvent).
-* Behaviors связал UI-событие с ReactiveCommand без засорения MainWindow.axaml.cs.
-* Родителем управляет полноценная ViewModel, которая легко покрывается Unit-тестами и создается через DI.
+* The UserControl remains a pure UI component with no references to the application architecture.
+* Data travels safely up through the UI abstraction layers using standard Avalonia mechanisms (RoutedEvent).
+* Behaviors bind the UI event to a ReactiveCommand without cluttering MainWindow.axaml.cs.
+* The parent is driven by a full-fledged ViewModel that is easy to cover with unit tests and is created via DI.
 
-Если вы хотите оптимизировать этот процесс и уйти от создания конвертеров (CardEventArgsConverter), я могу показать, как связать UserControl с родителем через двусторонний Binding свойств (AvaloniaProperty) вместо событий. Как вам такой вариант?
+To streamline this process and avoid writing converters (CardEventArgsConverter), the UserControl can instead be connected to its parent through two-way property binding (AvaloniaProperty) rather than events.
 
