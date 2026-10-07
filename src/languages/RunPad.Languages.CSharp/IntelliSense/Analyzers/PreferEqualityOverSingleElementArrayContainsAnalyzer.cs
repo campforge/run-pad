@@ -51,7 +51,11 @@ public sealed class PreferEqualityOverSingleElementArrayContainsAnalyzer : Diagn
         var ct = context.CancellationToken;
         if (context.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol { Name: "Contains" } method)
             return;
-        if (method.ContainingType?.ToDisplayString() != "System.Linq.Enumerable") return;
+        // C# 14 first-class spans: with `using System` in scope (RunPad's implicit usings) an array
+        // receiver binds to MemoryExtensions.Contains(ReadOnlySpan<T>, T) rather than
+        // Enumerable.Contains — the same array allocation, the same fix.
+        if (method.ContainingType?.ToDisplayString() is not ("System.Linq.Enumerable" or "System.MemoryExtensions"))
+            return;
 
         context.ReportDiagnostic(Diagnostic.Create(Rule, invocation.GetLocation()));
     }
