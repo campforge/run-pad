@@ -111,7 +111,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             usings: options.Usings,
             assemblyReferences: options.AssemblyReferences,
             projectReferences: options.ProjectReferences,
-            logger: loggerFactory.CreateLogger<MsBuildProcessCompiler>());
+            logger: loggerFactory.CreateLogger<MsBuildProcessCompiler>(),
+            nugetConfigFile: options.NuGetConfigFile);
 
     // ── Compile ──────────────────────────────────────────────────────────────
 

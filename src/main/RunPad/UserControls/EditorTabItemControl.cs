@@ -1795,6 +1795,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
             CurrentQueryPath = _vm.FilePath,
+            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };
     }
 

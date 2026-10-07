@@ -34,6 +34,10 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
     private readonly IReadOnlyList<string> _assemblyReferences;
     private readonly IReadOnlyList<string> _projectReferences;
 
+    // RunPad's own NuGet.Config (RunPadNuGetConfigStore): restore uses only its sources — the ones the
+    // Dependencies window searches. Null keeps dotnet's default config lookup (tests, CLI without one).
+    private readonly string? _nugetConfigFile;
+
     // Bug report 2026-07-27: a "'latest' is not a valid version string" NuGet restore failure has NO
     // diagnostic code at all — real output is "...NuGet.targets(196,5): error : 'latest' is not a
     // valid version string." (confirmed by actually forcing this exact failure) — the code group used
@@ -70,7 +74,8 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         IReadOnlyList<string> usings,
         IReadOnlyList<string> assemblyReferences,
         IReadOnlyList<string> projectReferences,
-        ILogger<MsBuildProcessCompiler> logger)
+        ILogger<MsBuildProcessCompiler> logger,
+        string? nugetConfigFile = null)
     {
         _profile = profile;
         _sdk = sdk;
@@ -83,6 +88,7 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         _assemblyReferences = assemblyReferences;
         _projectReferences = projectReferences;
         _logger = logger;
+        _nugetConfigFile = nugetConfigFile;
         _sourceCodePath = Path.Combine(_outputDir, $"{_outputName}{_profile.SourceFileExtension}");
         _fileProjPath = Path.Combine(_outputDir, $"{_outputName}{_profile.ProjectFileExtension}");
     }
@@ -213,6 +219,8 @@ public sealed class MsBuildProcessCompiler : IDotnetProcessCompiler
         IReadOnlyDictionary<string, string> nugetPackages)
     {
         var extraProperties = string.Concat(_profile.ExtraPropertyGroupElements.Select(e => $"\n        {e}"));
+        if (_nugetConfigFile is not null)
+            extraProperties += $"\n        <RestoreConfigFile>{SecurityElement.Escape(_nugetConfigFile)}</RestoreConfigFile>";
 
         var imports = _profile.DefaultImportNamespaces.Select(ns =>
             $"""

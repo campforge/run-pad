@@ -9,67 +9,102 @@ namespace RunPad.Languages.CSharp;
 
 public sealed class NuGetPackageSearchService : IPackageSearchService
 {
-    // Cap per-source result count — the Dependencies window's search box only ever shows the top
-    // handful of matches, and multiple configured feeds are already queried in parallel and merged
-    // (ANALYSIS.md #94).
-    private const int MaxResultsPerSource = 20;
+    private readonly INuGetSourceStore? _store;
+    private readonly object _lock = new();
+    private IReadOnlyList<SourceRepository>? _repositories;
 
-    private readonly IReadOnlyList<SourceRepository> _repositories;
-
-    public NuGetPackageSearchService()
-        : this(LoadRepositories())
+    // Sources come from RunPad's own NuGet.Config — the same file every script build restores with —
+    // and are re-read after the configurator saves it, so no restart is needed.
+    public NuGetPackageSearchService(INuGetSourceStore store)
     {
+        _store = store;
+        store.Changed += () =>
+        {
+            lock (_lock) _repositories = null;
+        };
     }
 
-    // Tests pass local folder feeds (or deliberately broken sources) instead of the user's nuget.config.
+    // Tests pass local folder feeds (or deliberately broken sources) instead of a config file.
     internal NuGetPackageSearchService(IReadOnlyList<SourceRepository> repositories)
     {
         _repositories = repositories;
     }
 
-    // Reads the user's own nuget.config (same sources `dotnet restore` would use — corporate/private
-    // feeds included), same pattern as LocalPackageCacheService.GetCachedPackages(). Falls back to
-    // nuget.org only if that fails or the user has no enabled sources configured at all.
-    private static IReadOnlyList<SourceRepository> LoadRepositories()
+    private IReadOnlyList<SourceRepository> Repositories
     {
-        try
+        get
         {
-            var settings = Settings.LoadDefaultSettings(root: null);
-            var sources = new PackageSourceProvider(settings).LoadPackageSources()
-                .Where(s => s.IsEnabled)
-                .Select(Repository.Factory.GetCoreV3)
-                .ToList();
-            if (sources.Count > 0) return sources;
+            lock (_lock)
+                return _repositories ??= LoadRepositories(_store!);
         }
-        catch { /* fall through to the default source below */ }
-
-        return [Repository.Factory.GetCoreV3("https://api.nuget.org/v3/index.json")];
     }
 
-    public async Task<IReadOnlyList<PackageSearchResult>> SearchAsync(string query, CancellationToken ct = default)
+    private static IReadOnlyList<SourceRepository> LoadRepositories(INuGetSourceStore store)
+    {
+        IReadOnlyList<NuGetSource> sources;
+        try
+        {
+            sources = store.Load();
+        }
+        catch
+        {
+            sources = [];
+        }
+
+        return sources.Where(s => s.IsEnabled).Select(ToRepository).ToList();
+    }
+
+    private static SourceRepository ToRepository(NuGetSource source)
+    {
+        var packageSource = new PackageSource(source.Url, source.Name);
+        if (source.HasCredentials)
+            packageSource.Credentials = new PackageSourceCredential(
+                source.Name, source.Username!, source.Password ?? "", isPasswordClearText: true,
+                validAuthenticationTypesText: null);
+        return Repository.Factory.GetCoreV3(packageSource);
+    }
+
+    public async Task<PackageSearchPage> SearchAsync(string query, PackageSearchOptions options, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return [];
+            return new PackageSearchPage([], HasMore: false);
 
-        var filter = new SearchFilter(includePrerelease: false);
-        var resultsPerSource = await QueryAllSourcesAsync(async repository =>
+        var repositories = options.Source is { } name
+            ? Repositories.Where(r => string.Equals(r.PackageSource.Name, name, StringComparison.OrdinalIgnoreCase)).ToList()
+            : Repositories;
+        if (repositories.Count == 0)
+            throw new InvalidOperationException(options.Source is null
+                ? "No package source is enabled. Configure package sources first."
+                : "The selected package source is not configured or not enabled.");
+
+        var filter = new SearchFilter(options.IncludePrerelease);
+        var resultsPerSource = await QueryAllSourcesAsync(repositories, async repository =>
         {
             var resource = await repository.GetResourceAsync<PackageSearchResource>(ct)
                            ?? throw new NotSupportedException("The package source does not support search.");
-            return await resource.SearchAsync(query, filter, skip: 0, take: MaxResultsPerSource, NullLogger.Instance, ct);
+            return (await resource.SearchAsync(query.Trim(), filter, options.Skip, options.Take, NullLogger.Instance, ct))
+                .ToList();
         }, ct);
 
-        return resultsPerSource
-            .SelectMany(results => results)
+        var results = resultsPerSource
+            .SelectMany(r => r)
             .GroupBy(r => r.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(r => r.Identity.Version).First())
-            .OrderBy(r => r.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .Select(r => new PackageSearchResult(
                 Id: r.Identity.Id,
                 Version: r.Identity.Version.ToString(),
                 Description: r.Description ?? "",
                 TotalDownloads: r.DownloadCount ?? 0L))
             .ToList();
+
+        // Keep the feed's own relevance order (nuget.org ranks by popularity) for a single source;
+        // merged results from several sources have no common ranking, so order by downloads.
+        if (resultsPerSource.Count > 1)
+            results = results.OrderByDescending(r => r.TotalDownloads)
+                .ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        return new PackageSearchPage(results, HasMore: resultsPerSource.Any(r => r.Count >= options.Take));
     }
 
     public async Task<IReadOnlyList<string>> GetVersionsAsync(string packageId, CancellationToken ct = default)
@@ -78,7 +113,7 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
             return [];
 
         using var cacheContext = new SourceCacheContext();
-        var versionsPerSource = await QueryAllSourcesAsync(async repository =>
+        var versionsPerSource = await QueryAllSourcesAsync(Repositories, async repository =>
         {
             var resource = await repository.GetResourceAsync<FindPackageByIdResource>(ct)
                            ?? throw new NotSupportedException("The package source does not support version lookup.");
@@ -96,18 +131,18 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
     // One misconfigured/unreachable source (e.g. an offline corporate feed) shouldn't fail the whole
     // request — the other configured sources still get a chance. Only when every source fails is it
     // an error, and the message deliberately names no source URL (it could carry credentials).
-    private async Task<List<IEnumerable<T>>> QueryAllSourcesAsync<T>(
-        Func<SourceRepository, Task<IEnumerable<T>>> query, CancellationToken ct)
+    private static async Task<List<TResult>> QueryAllSourcesAsync<TResult>(
+        IReadOnlyList<SourceRepository> repositories, Func<SourceRepository, Task<TResult>> query, CancellationToken ct)
     {
-        var outcomes = await Task.WhenAll(_repositories.Select(async repository =>
+        var outcomes = await Task.WhenAll(repositories.Select(async repository =>
         {
             try
             {
-                return (Ok: true, Items: await query(repository));
+                return (Ok: true, Result: await query(repository));
             }
             catch
             {
-                return (Ok: false, Items: Enumerable.Empty<T>());
+                return (Ok: false, Result: default(TResult)!);
             }
         }));
 
@@ -115,9 +150,9 @@ public sealed class NuGetPackageSearchService : IPackageSearchService
 
         if (outcomes.Length > 0 && outcomes.All(o => !o.Ok))
             throw new InvalidOperationException(outcomes.Length == 1
-                ? "The configured package source could not be reached."
-                : $"None of the {outcomes.Length} configured package sources could be reached.");
+                ? "The package source could not be reached."
+                : $"None of the {outcomes.Length} package sources could be reached.");
 
-        return outcomes.Where(o => o.Ok).Select(o => o.Items).ToList();
+        return outcomes.Where(o => o.Ok).Select(o => o.Result).ToList();
     }
 }

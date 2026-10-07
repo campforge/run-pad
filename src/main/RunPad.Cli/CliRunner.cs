@@ -197,6 +197,8 @@ public static class CliRunner
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
             CurrentQueryPath = currentQueryPath,
+            // Same source list as the GUI once its NuGet configurator has created RunPad's NuGet.Config.
+            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };
     }
 }
