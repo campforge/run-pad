@@ -16,6 +16,9 @@
     <PackageVersion Include="Avalonia.Themes.Simple" Version="12.1.3" />
     <PackageVersion Include="Avalonia.Headless" Version="12.1.3" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.3" />
+    <!-- RunPad.Avalonia.HtmlRenderer.Tests: real Skia rasterization for render-scaling pixel tests
+         (Avalonia.Desktop already brings it in transitively for the app itself). -->
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.3" />
     <!-- AvaloniaEdit.Tests (local AvaloniaEdit fork, TODO.md #61) uses NUnit — its upstream's own
          test framework, kept as-is rather than ported to xunit along with the rest of the solution. -->
     <PackageVersion Include="Avalonia.Headless.NUnit" Version="12.1.3" />
