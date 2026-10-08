@@ -86,6 +86,7 @@ public class HtmlControl : Control
     // the cache stale rather than just requesting a repaint that Render would then blit the same
     // stale bitmap for.
     internal LazyRenderCache RenderCacheForTests => _renderCache;
+    internal RenderTargetBitmap? CachedBitmapForTests => _cachedBitmap;
 
     #endregion
 
@@ -381,8 +382,9 @@ public class HtmlControl : Control
 
     /// <summary>
     /// Perform paint of the html in the control — reuses the cached offscreen bitmap unless
-    /// content was explicitly invalidated (<see cref="InvalidateContent"/>) or the control was
-    /// resized, in which case it repaints via <see cref="PaintCore"/> first (TODO.md #72).
+    /// content was explicitly invalidated (<see cref="InvalidateContent"/>), the control was
+    /// resized or the render scaling changed, in which case it repaints via
+    /// <see cref="PaintCore"/> first (TODO.md #72).
     /// </summary>
     public override void Render(DrawingContext context)
     {
@@ -395,13 +397,22 @@ public class HtmlControl : Control
             return;
         }
 
-        if (_renderCache.ShouldRedraw(renderSize))
+        // A display scaling change (window moved between monitors) keeps Bounds unchanged but
+        // re-runs Render (TopLevel.HandleScalingChanged) — keying the cache on scaling is what makes
+        // that rebuild the bitmap at the new pixel density instead of resampling the old one.
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        if (_renderCache.ShouldRedraw(renderSize, scaling))
         {
-            RepaintCache(renderSize);
-            _renderCache.MarkRedrawn(renderSize);
+            RepaintCache(renderSize, scaling);
+            _renderCache.MarkRedrawn(renderSize, scaling);
         }
 
-        context.DrawImage(_cachedBitmap!, new Rect(renderSize));
+        // The cache is a 96-DPI bitmap, so its DIP and pixel coordinates coincide and the source rect
+        // below is the exact device-pixel area PaintCore covered — see RepaintCache for why the
+        // bitmap deliberately doesn't carry the display's DPI.
+        context.DrawImage(_cachedBitmap!,
+            new Rect(0, 0, renderSize.Width * scaling, renderSize.Height * scaling),
+            new Rect(renderSize));
     }
 
     /// <summary>
@@ -429,18 +440,30 @@ public class HtmlControl : Control
     /// Render's common case is just blitting it back rather than re-running the html layout
     /// engine's PerformPaint (TODO.md #72).
     /// </summary>
-    private void RepaintCache(Size renderSize)
+    /// <remarks>
+    /// The bitmap is created at 96 DPI with the DIP-to-pixel scaling applied as an explicit
+    /// transform, rather than as a <c>96 * scaling</c> DPI bitmap. Verified empirically on Avalonia
+    /// 12 (HtmlControlRenderScalingTests): a high-DPI bitmap drawn from <see cref="Render"/> with
+    /// <c>DrawImage(bitmap, destRect)</c> has its DIP-sized source rect read as device pixels by the
+    /// compositor, so only the top-left 1/scaling of the cache was stretched over the control —
+    /// Results text/tables showed scaling× too large (and clipped) on a Retina display, while the
+    /// same bitmap drawn through an immediate-mode context is correct. At 96 DPI, DIPs and pixels
+    /// coincide, so the source rect means the same thing to both paths.
+    /// </remarks>
+    private void RepaintCache(Size renderSize, double scaling)
     {
-        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
         var pixelSize = new PixelSize(
             Math.Max(1, (int)Math.Ceiling(renderSize.Width * scaling)),
             Math.Max(1, (int)Math.Ceiling(renderSize.Height * scaling)));
 
         _cachedBitmap?.Dispose();
-        _cachedBitmap = new RenderTargetBitmap(pixelSize, new Vector(96 * scaling, 96 * scaling));
+        _cachedBitmap = new RenderTargetBitmap(pixelSize, new Vector(96, 96));
 
         using var cacheContext = _cachedBitmap.CreateDrawingContext();
-        PaintCore(cacheContext, renderSize);
+        using (cacheContext.PushTransform(Matrix.CreateScale(scaling, scaling)))
+        {
+            PaintCore(cacheContext, renderSize);
+        }
     }
 
     private void PaintCore(DrawingContext context, Size renderSize)

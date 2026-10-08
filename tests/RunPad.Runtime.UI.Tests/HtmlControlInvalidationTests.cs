@@ -30,12 +30,12 @@ public class HtmlControlInvalidationTests
         var controlAdapter = new ControlAdapter(adapter, htmlControl);
 
         var size = new Size(100, 100);
-        htmlControl.RenderCacheForTests.MarkRedrawn(size);
-        Assert.False(htmlControl.RenderCacheForTests.ShouldRedraw(size)); // cache considered fresh
+        htmlControl.RenderCacheForTests.MarkRedrawn(size, 1.0);
+        Assert.False(htmlControl.RenderCacheForTests.ShouldRedraw(size, 1.0)); // cache considered fresh
 
         controlAdapter.Invalidate();
 
-        Assert.True(htmlControl.RenderCacheForTests.ShouldRedraw(size)); // now correctly stale
+        Assert.True(htmlControl.RenderCacheForTests.ShouldRedraw(size, 1.0)); // now correctly stale
     }
 
     // Defensive fallback: ControlAdapter can in principle wrap any Avalonia Control (its field is
