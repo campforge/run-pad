@@ -90,13 +90,20 @@ public class HtmlControlRenderScalingTests : IClassFixture<SkiaHeadlessSessionFi
     public Task TextAndTable_Should_KeepTheirLogicalGeometry_AcrossScalingChanges(double from, double to)
         => _fixture.Session.Dispatch(() =>
         {
+            var baseline = FreshInk(TextHtml, 1.0);
             var (window, panel) = Show(TextHtml, 1.0);
             try
             {
-                var reference = LogicalInk(window.CaptureRenderedFrame()!, 1.0);
-
                 foreach (var scaling in new[] { from, to, from })
                 {
+                    // Layout is in DIPs, but glyph and grey table-border edges rasterize differently per
+                    // pixel density, so the ink box legitimately shifts a few DIPs between scalings
+                    // (Windows CI: 2,2,136,55 at 1x vs 1,2.5,137.5,58 at 2x). Compare against a control
+                    // created fresh at the same scaling instead: a switched or repainted frame must
+                    // look exactly like that.
+                    var reference = FreshInk(TextHtml, scaling);
+                    AssertNotScaledContent(baseline, reference, scaling);
+
                     window.SetRenderScaling(scaling);
                     AssertSameGeometry(reference, LogicalInk(window.CaptureRenderedFrame()!, scaling), $"after switching to {scaling}");
 
@@ -152,6 +159,31 @@ public class HtmlControlRenderScalingTests : IClassFixture<SkiaHeadlessSessionFi
         window.SetRenderScaling(scaling);
         window.CaptureRenderedFrame();
         return (window, panel);
+    }
+
+    private static Rect FreshInk(string html, double scaling)
+    {
+        var (window, _) = Show(html, scaling);
+        try
+        {
+            return LogicalInk(window.CaptureRenderedFrame()!, scaling);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    // A fresh control is wrong too if the cache is drawn scaling× too large (the original defect), so
+    // also bound it against the 1x baseline: rasterization moves the ink by a few DIPs, that defect by
+    // tens (the content doubles and gets clipped). Exact sizes are pinned by the Block tests.
+    private static void AssertNotScaledContent(Rect baseline, Rect actual, double scaling)
+    {
+        const double ratio = 0.1;
+        Assert.True(
+            Math.Abs(baseline.Width - actual.Width) <= baseline.Width * ratio &&
+            Math.Abs(baseline.Height - actual.Height) <= baseline.Height * ratio,
+            $"ink of a fresh control at {scaling}: expected ~{baseline} DIP (1x), got {actual} DIP");
     }
 
     private static void AssertCacheMatchesScaling(HtmlControl control, double scaling)
