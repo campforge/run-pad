@@ -1,0 +1,147 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.NuGetSourcesWindow"
+        x:DataType="viewModels:NuGetSourcesWindowViewModel"
+        Title="NuGet Package Sources"
+        Icon="/Assets/icon.ico"
+        Width="640" Height="560"
+        MinWidth="520" MinHeight="460"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="StackPanel.side > Button">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto,Auto,Auto" Margin="12">
+
+        <!-- Sources list + ordering buttons (LINQPad's NuGet Settings → Package Sources). -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Border Grid.Column="0"
+                    BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+                    BorderThickness="1" CornerRadius="4">
+                <ListBox x:Name="SourceList"
+                         ItemsSource="{Binding Sources}"
+                         SelectedItem="{Binding SelectedSource}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         AutomationProperties.Name="Package sources"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="viewModels:NuGetSourceItemViewModel">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                                <CheckBox Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                          IsChecked="{Binding IsEnabled}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,4,0"
+                                          ToolTip.Tip="Enabled"
+                                          AutomationProperties.Name="Enabled"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding Url}"
+                                           FontSize="12"
+                                           FontStyle="Italic"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <StackPanel Grid.Column="1" Classes="side" Spacing="6" Margin="8,0,0,0" Width="110">
+                <Button Content="Move to Top" Command="{Binding MoveToTopCommand}"/>
+                <Button Content="Move Up" Command="{Binding MoveUpCommand}"/>
+                <Button Content="Move Down" Command="{Binding MoveDownCommand}"/>
+                <Button x:Name="AddButton" Content="Add" Command="{Binding AddCommand}" Margin="0,12,0,0"/>
+                <Button x:Name="RemoveButton" Content="Remove" Command="{Binding RemoveCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Editor for the selected source; edits apply to the list directly, OK saves the file. -->
+        <Grid Grid.Row="1"
+              Margin="0,12,0,0"
+              ColumnDefinitions="Auto,*,Auto"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+              RowSpacing="8"
+              IsEnabled="{Binding HasSelection}">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name:"/>
+            <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                     Text="{Binding SelectedSource.Name, FallbackValue=''}"
+                     AutomationProperties.Name="Source name"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Source:"/>
+            <TextBox x:Name="UrlBox" Grid.Row="1" Grid.Column="1"
+                     Text="{Binding SelectedSource.Url, FallbackValue=''}"
+                     PlaceholderText="https://example.com/nuget/v3/index.json or a local folder"
+                     AutomationProperties.Name="Source URL or folder"/>
+            <Button Grid.Row="1" Grid.Column="2" Content="..." Margin="6,0,0,0"
+                    Click="BrowseFolder_Click"
+                    ToolTip.Tip="Use a local folder as the source"
+                    AutomationProperties.Name="Browse for a folder"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Authentication:"
+                       VerticalAlignment="Top"/>
+            <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Spacing="2">
+                <RadioButton GroupName="Authentication" Content="None"
+                             IsChecked="{Binding SelectedSource.UseNoAuth, FallbackValue=False}"/>
+                <RadioButton GroupName="Authentication" Content="Basic (username and password or personal access token)"
+                             IsChecked="{Binding SelectedSource.UseBasicAuth, FallbackValue=False}"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Username:"/>
+            <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                     Text="{Binding SelectedSource.Username, FallbackValue=''}"
+                     IsEnabled="{Binding SelectedSource.UseBasicAuth, FallbackValue=False}"
+                     AutomationProperties.Name="Username"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Password:"/>
+            <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                     Text="{Binding SelectedSource.Password, FallbackValue=''}"
+                     PasswordChar="●"
+                     PlaceholderText="Password or personal access token"
+                     IsEnabled="{Binding SelectedSource.UseBasicAuth, FallbackValue=False}"
+                     AutomationProperties.Name="Password"/>
+        </Grid>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,10,0,0"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource RunPad.Status.ErrorBrush}"
+                   Text="{Binding ValidationError}"
+                   IsVisible="{Binding HasValidationError}"/>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <TextBlock Grid.Column="0" Classes="hint" VerticalAlignment="Center"
+                       Text="Used by package search and by restore of every script. RunPad keeps its own NuGet.Config; your global NuGet settings are not changed."/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                <Button x:Name="OkButton" Content="OK" Width="80"
+                        IsEnabled="{Binding CanSave}"
+                        Click="Ok_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" Width="80"
+                        IsCancel="True"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

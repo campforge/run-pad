@@ -1769,9 +1769,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
-        // Both .csproj and .vbproj — a VB script's own project-reference should work the same as a
-        // C# one's does (this used to only match .csproj, silently dropping .vbproj references for
-        // VB scripts even though CliRunner.BuildOptions already matched both — ANALYSIS.md #91).
+        // Project references aren't supported any more (scripts compile in-process, no MSBuild): they're
+        // still collected so the compiler reports them as an error instead of silently ignoring them.
         var projectReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
                         || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
@@ -1795,6 +1794,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
             CurrentQueryPath = _vm.FilePath,
+            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };
     }
 

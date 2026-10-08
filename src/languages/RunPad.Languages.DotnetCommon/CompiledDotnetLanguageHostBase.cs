@@ -15,7 +15,7 @@ namespace RunPad.Languages.DotnetCommon;
 /// <summary>
 /// Builds the <see cref="IDotnetProcessCompiler"/> a <see cref="CompiledDotnetLanguageHostBase"/> uses
 /// to compile a given run — injectable seam (ANALYSIS.md #88) so tests can substitute a fake compiler
-/// instead of always shelling out to a real <c>dotnet build</c>.
+/// for the language's own in-process Roslyn compiler (<see cref="CreateCompiler"/>).
 /// </summary>
 public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
     DotnetLanguageProjectProfile profile, CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
@@ -35,12 +35,11 @@ public delegate IChildProcess ExecutionChildProcessFactory(
 public delegate IChildProcess DebuggerChildProcessFactory(ExecutionOptions options);
 
 /// <summary>
-/// Shared compile/run/debug orchestration for every .NET language compiled the same way (via
-/// <c>dotnet build</c> against a throwaway single-file project, with debugging over DAP against
-/// netcoredbg) — was duplicated near-verbatim between CSharpLanguageHost and VbLanguageHost before
+/// Shared compile/run/debug orchestration for every .NET language compiled the same way (in-process
+/// Roslyn, <see cref="RoslynScriptCompiler"/>, with debugging over DAP against netcoredbg) — was duplicated near-verbatim between CSharpLanguageHost and VbLanguageHost before
 /// this base class existed (ANALYSIS.md #86). A concrete language host only needs to supply
 /// <see cref="Language"/>/<see cref="ILanguageHost.Capabilities"/> (from <see cref="LanguageHostBase"/>),
-/// <see cref="ProjectProfile"/>, <see cref="ApplyKindTransform"/> and <see cref="CalcKindOffset"/> —
+/// <see cref="ProjectProfile"/>, <see cref="CreateCompiler"/>, <see cref="ApplyKindTransform"/> and <see cref="CalcKindOffset"/> —
 /// see CSharpLanguageHost/VbLanguageHost for how small that makes each one.
 /// </summary>
 public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
@@ -92,26 +91,14 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     {
         _options = options;
         _loggerFactory = loggerFactory;
-        _compilerFactory = compilerFactory ?? CreateDefaultCompiler;
+        _compilerFactory = compilerFactory ?? ((_, o, lf) => CreateCompiler(o, lf));
         _executionProcessFactory = executionProcessFactory ?? ChildProcess.ForExecution;
         _debuggerProcessFactory = debuggerProcessFactory ?? ChildProcess.ForDebugger;
         Directory.CreateDirectory(options.OutputDirectory);
     }
 
-    private static IDotnetProcessCompiler CreateDefaultCompiler(
-        DotnetLanguageProjectProfile profile, CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory) =>
-        new MsBuildProcessCompiler(
-            profile,
-            sdk: options.Platform,
-            executionOptions: options.ExecutionOptions,
-            outputDir: options.OutputDirectory,
-            runPadRuntimeLib: options.RuntimeLibPath,
-            outputName: options.OutputName,
-            nugetPackages: options.Packages,
-            usings: options.Usings,
-            assemblyReferences: options.AssemblyReferences,
-            projectReferences: options.ProjectReferences,
-            logger: loggerFactory.CreateLogger<MsBuildProcessCompiler>());
+    // The language's compiler: in-process Roslyn (RoslynScriptCompiler) — RunPad doesn't use MSBuild.
+    protected abstract IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory);
 
     // ── Compile ──────────────────────────────────────────────────────────────
 

@@ -123,6 +123,7 @@ public class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
+        services.AddSingleton<INuGetSourceStore, RunPadNuGetConfigStore>();
         services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
         services.AddSingleton<IWindowService, WindowService>();

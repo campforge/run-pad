@@ -2131,6 +2131,8 @@ public class RunPadAnalyzersTests
 
     [Theory]
     [InlineData("using System.Linq; class C { public bool M(int x, int y) => new[] { x }.Contains(y); }", true)]
+    // C# 14: with `using System` the array binds to MemoryExtensions.Contains (first-class spans).
+    [InlineData("using System; using System.Linq; class C { public bool M(int x, int y) => new[] { x }.Contains(y); }", true)]
     [InlineData("class C { public bool M(int x, int y) => x == y; }", false)]
     public async Task PreferEqualityOverSingleElementArrayContainsAnalyzer_Should_NotFlag_ADirectComparison(string code, bool expectFlagged)
     {

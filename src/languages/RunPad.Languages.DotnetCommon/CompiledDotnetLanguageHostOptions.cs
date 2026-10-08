@@ -29,7 +29,15 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     public IReadOnlyList<string> Usings { get; init; } = [];
 
     public IReadOnlyList<string> AssemblyReferences { get; init; } = [];
+
+    /// <summary>
+    /// .csproj/.vbproj references from the front matter. Not supported (scripts compile in-process with
+    /// Roslyn, no MSBuild): a non-empty list fails the compilation with an explanatory error.
+    /// </summary>
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
+
+    /// <summary>NuGet.Config the in-process package restore uses (RunPad's own source list); null = the user's NuGet settings.</summary>
+    public string? NuGetConfigFile { get; init; }
 
     public RpadKind Kind { get; init; }
 

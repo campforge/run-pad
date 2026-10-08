@@ -166,4 +166,38 @@ public class UtilTests
         }
         finally { Environment.SetEnvironmentVariable(Util.CurrentQueryPathEnvVar, original); }
     }
+
+    // The request JSON is written by hand (no System.Text.Json package in RunPad.Runtime): any prompt
+    // text, quotes/backslashes/control characters/non-ASCII included, must reach the host intact.
+    [Theory]
+    [InlineData("Say \"hi\"\\")]
+    [InlineData("line1\nline2\r\n\ttab \u0001\u001f end")]
+    [InlineData("Пароль 🔑:")]
+    [InlineData(null)]
+    public void ReadLine_Should_EncodeAnyPromptAsValidJson(string? prompt)
+    {
+        var originalOut = Console.Out;
+        var originalIn = Console.In;
+        try
+        {
+            var sw = new StringWriter();
+            Console.SetOut(sw);
+            Console.SetIn(new StringReader("x\n"));
+
+            Util.ReadLine(prompt);
+
+            using var doc = JsonDocument.Parse(DecodeRequest(sw.ToString()));
+            var root = doc.RootElement;
+            if (prompt is null)
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("Prompt").ValueKind);
+            else
+                Assert.Equal(prompt, root.GetProperty("Prompt").GetString());
+            Assert.False(root.GetProperty("IsPassword").GetBoolean());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetIn(originalIn);
+        }
+    }
 }

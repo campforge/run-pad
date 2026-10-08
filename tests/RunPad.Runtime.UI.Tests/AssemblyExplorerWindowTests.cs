@@ -6,6 +6,7 @@ using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Build.Core.Models;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
@@ -45,28 +46,21 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         return theme;
     }
 
-    private static MsBuildProcessCompiler CreateCompiler(string outputDir)
-    {
-        var sdk = new DotnetSdkProvider().Get().First();
-        var runtimeLib = new CSharpReferenceService().GetExtensionReference();
-        return new MsBuildProcessCompiler(
-            CSharpProjectProfile.Instance,
-            sdk: sdk,
-            executionOptions: new ExecutionOptions
+    // The script compiler RunPad itself uses (in-process Roslyn) — a real assembly to explore.
+    private static CSharpScriptCompiler CreateCompiler(string outputDir) => new(
+        new CompiledDotnetLanguageHostOptions
+        {
+            Platform = new DotnetSdkProvider().Get().First(),
+            ExecutionOptions = new ExecutionOptions
             {
                 WorkingDirectory = outputDir,
                 Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
                 Debugger = new DebuggerOptions { DebuggerPath = "" },
             },
-            outputDir: outputDir,
-            runPadRuntimeLib: runtimeLib,
-            outputName: "Query",
-            nugetPackages: new Dictionary<string, string>(),
-            usings: [],
-            assemblyReferences: [],
-            projectReferences: [],
-            logger: NullLogger<MsBuildProcessCompiler>.Instance);
-    }
+            OutputDirectory = outputDir,
+            RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+        },
+        NullLogger.Instance);
 
     private const string ExplorerCode = """
         _ = 0;

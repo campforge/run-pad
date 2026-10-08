@@ -61,14 +61,16 @@ public class DependenciesRealTabIntegrationTests
             var intelliSense = new Mock<IIntelliSenseService>();
 
             var search = new Mock<IPackageSearchService>();
-            search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((IReadOnlyList<PackageSearchResult>)
-                    [new PackageSearchResult("Newtonsoft.Json", "13.0.3", "desc", 100)]);
+            search.Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<PackageSearchOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PackageSearchPage([new PackageSearchResult("Newtonsoft.Json", "13.0.3", "desc", 100)], HasMore: false));
+            var sources = new Mock<INuGetSourceStore>();
+            sources.Setup(s => s.Load()).Returns([new NuGetSource("nuget.org", "https://api.nuget.org/v3/index.json")]);
             search.Setup(s => s.GetVersionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((IReadOnlyList<string>)["13.0.3"]);
 
             var services = new ServiceCollection();
             services.AddSingleton(search.Object);
+            services.AddSingleton(sources.Object);
 
             services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
             services.AddTransient<DependenciesWindowViewModel>();
@@ -112,21 +114,19 @@ public class DependenciesRealTabIntegrationTests
                 using var sub = mainVm.ActiveTab!.WhenAnyValue(x => x.FrontMatter).Subscribe(depsWindow.SetFrontMatter);
                 depsWindow.Show();
 
-                depsVm.Mode = PackageListMode.InScript;
-                Assert.Contains(depsVm.Packages, p => p.Id == "Existing.Package");
-                depsVm.Mode = PackageListMode.Browse;
+                Assert.Contains(depsVm.LocalPackages, p => p.Id == "Existing.Package" && p.IsInScript);
 
-                var searchBox = depsWindow.GetVisualDescendants().OfType<TextBox>().First();
+                var searchBox = depsWindow.FindControl<TextBox>("SearchBox")!;
                 searchBox.Focus();
                 depsWindow.KeyTextInput("Newtonsoft.Json");
                 // The search itself is mocked (returns instantly) — only the ViewModel's own 350ms
                 // debounce stands between typing and results, so poll instead of a flat 3s sleep. The
                 // 3000ms ceiling is kept only as a generous upper bound for slow CI machines.
-                await TestWait.WhileAsync(() => depsVm.Packages.Count == 0);
+                await TestWait.WhileAsync(() => depsVm.OnlinePackages.Count == 0);
 
                 // Assert
                 Assert.True(depsVm.HasFrontMatter);
-                Assert.True(depsVm.Packages.Count > 0, "Expected the mocked search result for 'Newtonsoft.Json'.");
+                Assert.True(depsVm.OnlinePackages.Count > 0, "Expected the mocked search result for 'Newtonsoft.Json'.");
             }
             finally
             {

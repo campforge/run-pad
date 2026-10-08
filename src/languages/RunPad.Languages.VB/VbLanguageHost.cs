@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 
 namespace RunPad.Languages.VB;
 
@@ -33,6 +34,9 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     {
     }
 
+    protected override IDotnetProcessCompiler CreateCompiler(CompiledDotnetLanguageHostOptions options, ILoggerFactory loggerFactory) =>
+        new VbScriptCompiler(options, loggerFactory.CreateLogger<VbScriptCompiler>());
+
     // ── Kind transform ───────────────────────────────────────────────────────
 
     // VB has no top-level-statements feature (unlike C# 9+), so every runnable entry point needs an
@@ -49,7 +53,7 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     };
 
     // Lines prepended before the user's first line, both by ApplyKindTransform (above) and by
-    // MsBuildProcessCompiler.Compilation, which separately prepends one "Imports X" line per
+    // the compiler (RoslynScriptCompiler), which separately prepends one "Imports X" line per
     // front-matter namespace before writing the .vb file that's actually compiled/debugged — a
     // real, kind-independent source of line drift, not accounted for by the kind-transform
     // component alone (see CSharpLanguageHost.CalcKindOffset's identical fix).

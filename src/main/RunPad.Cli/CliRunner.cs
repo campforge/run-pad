@@ -177,6 +177,7 @@ public static class CliRunner
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
             .ToList() ?? [];
+        // Not supported any more — collected only so the compiler reports them (see EditorTabItemControl).
         var projectReferences = frontMatter.References?
             .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
                 || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
@@ -197,6 +198,8 @@ public static class CliRunner
             AssemblyReferences = assemblyReferences,
             ProjectReferences = projectReferences,
             CurrentQueryPath = currentQueryPath,
+            // Same source list as the GUI once its NuGet configurator has created RunPad's NuGet.Config.
+            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };
     }
 }

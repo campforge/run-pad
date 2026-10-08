@@ -251,10 +251,12 @@ public class DocumentSafetyHeadlessTests
             {
                 var cache = new Mock<ILocalPackageCacheService>();
                 cache.Setup(c => c.GetCachedPackages()).Returns([]);
-                var vm = new DependenciesWindowViewModel(new Mock<IPackageSearchService>().Object, cache.Object);
+                var vm = new DependenciesWindowViewModel(new Mock<IPackageSearchService>().Object, cache.Object,
+                    new Mock<INuGetSourceStore>().Object);
                 using (stream!.Subscribe(vm.SetFrontMatter))
                 {
-                    Assert.True(vm.AddNamespace("System.Linq"));
+                    vm.NamespacesText += "\nSystem.Linq";
+                    Assert.True(vm.HasChanges);
                     if (apply) vm.ApplyChanges();
                 }
                 vm.Dispose();

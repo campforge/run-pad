@@ -11,11 +11,11 @@ using Xunit;
 namespace RunPad.Runtime.UI.Tests;
 
 // docs/handoffs/macos-debug-launch.md — end-to-end regression for "breakpoints never hit on macOS":
-// real MsBuildProcessCompiler (through CSharpLanguageHost) → real DapSession → real netcoredbg, with
+// real script compiler (through CSharpLanguageHost) → real DapSession → real netcoredbg, with
 // the output directory reached through a symlinked ancestor (like /var → /private/var for the
 // default temp directory), a Program-kind script (non-zero line offset) and Stop while paused.
 // Opt-in: needs a netcoredbg executable in RUNPAD_TEST_NETCOREDBG (never downloaded or installed
-// by the test); skipped otherwise. Category=RealBuild like every other real `dotnet build` test.
+// by the test); skipped otherwise. Category=RealBuild like every other real-build test.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
 public class RealNetcoredbgDebugTests : IDisposable

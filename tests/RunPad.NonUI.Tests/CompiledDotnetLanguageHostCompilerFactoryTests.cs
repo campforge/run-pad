@@ -11,7 +11,7 @@ namespace RunPad.Runtime.UI.Tests;
 
 // TODO.md #88: CompileInternalAsync used to always `new MsBuildProcessCompiler(...)` directly, so
 // exercising CompileAsync's own logic (kind-transform wiring, ProcessCompilerResult → ICompilationResult
-// mapping) meant either shelling out to a real `dotnet build` or not testing it at all. The injected
+// mapping) meant either a real build or not testing it at all. The injected
 // DotnetProcessCompilerFactory lets a fake compiler stand in instead — no disk/process involved.
 public class CompiledDotnetLanguageHostCompilerFactoryTests
 {

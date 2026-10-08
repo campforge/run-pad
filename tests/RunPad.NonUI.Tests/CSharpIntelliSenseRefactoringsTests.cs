@@ -69,32 +69,17 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.Null(refactorings);
     }
 
-    // Live report (2026-07-21): CSharpIntroduceVariableService's "Introduce local for all
-    // occurrences" throws InvalidCastException (ParenthesizedExpressionSyntax -> SimpleNameSyntax)
-    // deep inside Microsoft.CodeAnalysis.CSharp.Features' own generated CSharpSyntaxRewriter when one
-    // matched occurrence is syntactically NESTED inside another (here: "p.Name" inside "p.Name.Length"
-    // — replacing the inner occurrence briefly produces a MemberAccessExpressionSyntax whose Name slot
-    // isn't a SimpleNameSyntax, which the rewriter's own generated cast doesn't tolerate). Reproduced
-    // on a bare AdhocWorkspace document with NO RunPad-specific wrapping at all (no preamble, no
-    // Script.cs synthetic setup) — confirmed upstream Roslyn 4.13.0 behavior, not something this
-    // codebase's document handling triggers or could fix.
+    // Live report (2026-07-21): under Roslyn 4.13, CSharpIntroduceVariableService's "Introduce local
+    // for all occurrences" threw InvalidCastException deep inside Microsoft.CodeAnalysis.CSharp.Features
+    // when one matched occurrence was NESTED inside another ("p.Name" inside "p.Name.Length"). Listing
+    // candidates never materializes anything (TODO.md #74 pass 104), so the broken item was listed and
+    // RoslynCodeFixEngine.TryMaterializeAsync's try/catch made clicking it a safe no-op.
     //
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) changed WHERE this gets
-    // caught: listing candidates (GetRefactoringsAsync) no longer materializes anything — Register/
-    // ComputeRefactoringsAsync alone never trips this bug (it only lives inside GetOperationsAsync,
-    // now deferred) — so the broken suggestion DOES appear in the list now, same as any other
-    // candidate. MaterializeFixAsync (the click-time half) is what actually runs GetOperationsAsync,
-    // and RoslynCodeFixEngine.TryMaterializeAsync's existing try/catch still covers it there —
-    // clicking this specific broken suggestion safely does nothing (materializes to null) rather than
-    // never having been offered in the first place. A user seeing a menu item that turns out to do
-    // nothing on click is a real, minor regression from the old eager-materialization behavior — an
-    // accepted tradeoff for not paying GetOperationsAsync's cost for all ~63 providers' candidates on
-    // every caret move (see RoslynCodeFixEngine's own class doc comment for the measured cost this
-    // avoids) — worth exactly one broken upstream refactoring provider silently doing nothing when
-    // clicked, not worth eagerly materializing every candidate just to filter out the rare no-op ones
-    // in advance.
+    // Roslyn 5.9 fixed the upstream bug: the same refactoring (offered on the "." of "p.Name") now
+    // materializes. This pins that the nested-occurrence case works end to end; the try/catch stays
+    // as the guard for any other provider that throws while computing its operations.
     [Fact]
-    public async Task GetRefactoringsAsync_Should_ListEvenAOwnMaterializationFailingRefactoring_ButMaterializeSafelyToNull()
+    public async Task GetRefactoringsAsync_Should_ListAndMaterialize_IntroduceLocalForAllNestedOccurrences()
     {
         using var service = CreateService();
         const string code =
@@ -103,15 +88,16 @@ public class CSharpIntelliSenseRefactoringsTests
             "System.Console.WriteLine(p.Name.Length);\n" +
             "System.Console.WriteLine(p.Name);\n";
 
-        var position = code.IndexOf(".Name", StringComparison.Ordinal) + 1;
+        var position = code.IndexOf(".Name", StringComparison.Ordinal);
 
         var refactorings = await service.GetRefactoringsAsync(code, position, TestContext.Current.CancellationToken);
         Assert.NotNull(refactorings);
 
-        var broken = Assert.Single(refactorings, r => r.Title.Contains("all occurrences", StringComparison.OrdinalIgnoreCase));
+        var allOccurrences = Assert.Single(refactorings,
+            r => r.Title.Contains("all occurrences of 'p.Name'", StringComparison.OrdinalIgnoreCase));
 
-        var materialized = await service.MaterializeFixAsync(code, broken.Key, TestContext.Current.CancellationToken);
-        Assert.Null(materialized);
+        var materialized = await service.MaterializeFixAsync(code, allOccurrences.Key, TestContext.Current.CancellationToken);
+        Assert.NotNull(materialized);
     }
 
     // TODO.md #74 "IntelliSenseService optimization" (pass 104) — RoslynCodeFixEngine's
