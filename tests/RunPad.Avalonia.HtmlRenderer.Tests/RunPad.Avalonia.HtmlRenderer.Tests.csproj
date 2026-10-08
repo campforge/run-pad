@@ -9,6 +9,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <!-- HtmlControlRenderScalingTests only: a private HeadlessUnitTestSession with real Skia
+         drawing, so render-scaling changes can be checked against actual rendered pixels. -->
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="coverlet.collector">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

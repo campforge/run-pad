@@ -138,11 +138,61 @@ public class UtilCacheTests
         finally { DeleteIfExists(key); }
     }
 
-    private static void DeleteIfExists(string key)
+    // Util.Cache reaches the script's own System.Text.Json by reflection (no STJ package in
+    // RunPad.Runtime): a corrupt file must still surface as the serializer's JsonException and be
+    // treated as a miss, not as a wrapped TargetInvocationException that escapes to the script.
+    [Fact]
+    public void Cache_Should_Recompute_WhenTheCacheFileIsCorrupt()
+    {
+        var key = $"runpad-test-{Guid.NewGuid()}";
+        try
+        {
+            Util.Cache(() => 1, key);
+            File.WriteAllText(CachePath(key), "{ not json");
+
+            var result = Util.Cache(() => 2, key);
+
+            Assert.Equal(2, result);
+            Assert.Equal(2, Util.Cache(() => 3, key)); // rewritten with the fresh value
+        }
+        finally { DeleteIfExists(key); }
+    }
+
+    public sealed class Report
+    {
+        public string Title { get; set; } = "";
+        public List<int> Values { get; set; } = [];
+        public DateTimeOffset CreatedAt { get; set; }
+    }
+
+    [Fact]
+    public void Cache_Should_RoundTripAComplexType()
+    {
+        var key = $"runpad-test-{Guid.NewGuid()}";
+        try
+        {
+            var created = new DateTimeOffset(2026, 10, 7, 12, 30, 0, TimeSpan.FromHours(3));
+            Util.Cache(() => new Report { Title = "Q3 \"final\"", Values = [1, 2, 3], CreatedAt = created }, key);
+
+            var cached = Util.Cache(() => new Report { Title = "recomputed" }, key);
+
+            Assert.Equal("Q3 \"final\"", cached.Title);
+            Assert.Equal([1, 2, 3], cached.Values);
+            Assert.Equal(created, cached.CreatedAt);
+        }
+        finally { DeleteIfExists(key); }
+    }
+
+    private static string CachePath(string key)
     {
         var sanitized = new string(key.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
-        var path = Path.Combine(
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "UserData", "Cache", sanitized + ".json");
+    }
+
+    private static void DeleteIfExists(string key)
+    {
+        var path = CachePath(key);
         if (File.Exists(path)) File.Delete(path);
     }
 }

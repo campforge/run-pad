@@ -40,7 +40,7 @@ internal sealed class EditorTabState
     public string? DocumentParseError { get; set; }
 
     // Compile output directory, reused across runs of this tab (allocated once, on first run).
-    // Lets MsBuildProcessCompiler skip NuGet restore when packages/references haven't changed —
+    // Lets the script compiler skip NuGet restore and recompiling when nothing changed —
     // see EditorTabItemControl.BuildRunOptions.
     public string? OutputDirectory { get; set; }
 

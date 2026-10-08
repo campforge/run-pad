@@ -61,9 +61,10 @@ A summary checklist drawn from `TODO.md`/git history (details for any item are i
   position-based parser/writer, specification under `docs/`.
 - [x] **Three script modes (kind)**: `Statements` / `Program` / `Expression`, each with correct
   line mapping for the debugger.
-- [x] **Running**: compiles via `dotnet build` into a throwaway project; NuGet packages, assembly
-  and project references come from front matter; a build cache (skips restore/build when inputs
-  are unchanged, invalidated on compile error), persistent build directories with automatic
+- [x] **Running**: compiles in-process with Roslyn (no MSBuild); NuGet packages (restored
+  in-process) and assembly references come from front matter (project references are not
+  supported); a build cache (skips restore/compile when inputs are unchanged, invalidated on
+  compile error), persistent build directories with automatic
   cleanup of old ones.
 - [x] **Debugger (netcoredbg/DAP)**: breakpoints (including conditional and hit-count), verified
   status with per-state icons, stepping (over/in/out), pause, run-to-cursor, editing breakpoints
