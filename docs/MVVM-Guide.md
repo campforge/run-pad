@@ -1,51 +1,51 @@
-# Avalonia + MVVM + ReactiveUI + Native AOT — Руководство
+# Avalonia + MVVM + ReactiveUI + Native AOT — Guide
 
-> Исчерпывающее руководство по архитектуре десктопного приложения без рефлексии, без Service Locator и без утечек памяти.
-> Стек: **Avalonia 12**, **ReactiveUI**, **Microsoft.Extensions.DependencyInjection**, **Native AOT**, **C# 13**.
-
----
-
-## Содержание
-
-1. [Пять принципов](#пять-принципов)
-2. [Настройка проекта](#настройка-проекта)
-3. [Жизненные циклы (Lifetimes)](#жизненные-циклы-lifetimes)
-4. [Пошаговая инструкция](#пошаговая-инструкция)
-   - [Шаг 1: App.axaml.cs — IoC](#шаг-1-appaxamlcs--ioc)
-   - [Шаг 2: ViewModel](#шаг-2-viewmodel)
-   - [Шаг 3: Window / View](#шаг-3-window--view)
-   - [Шаг 4: UserControl + Attach(vm)](#шаг-4-usercontrol--attachvm)
-   - [Шаг 5: IWindowService](#шаг-5-iwindowservice)
-   - [Шаг 6: AXAML-привязки](#шаг-6-axaml-привязки)
-   - [Шаг 7: Подписки и Dispose](#шаг-7-подписки-и-dispose)
-5. [Паттерны — как делать правильно](#паттерны--как-делать-правильно)
-6. [Антипаттерны — чего избегать](#антипаттерны--чего-избегать)
-7. [Анализ и корректировки](#анализ-и-корректировки)
+> A comprehensive guide to desktop application architecture with no reflection, no Service Locator, and no memory leaks.
+> Stack: **Avalonia 12**, **ReactiveUI**, **Microsoft.Extensions.DependencyInjection**, **Native AOT**, **C# 13**.
 
 ---
 
-## Пять принципов
+## Contents
 
-### 1. Zero-Locator во View и ViewModel
-Никакого `App.ServiceProvider.GetService<T>()` внутри окон, UserControl или ViewModel. Все зависимости — только через DI-конструктор. Service Locator допустим лишь в инфраструктурном классе `WindowService`.
-
-### 2. Compile-Time Safety
-Native AOT вырежет триммером всё, что не вызвано явно. Все привязки обязаны быть скомпилированными (`x:DataType` на каждом элементе), ViewLocator по строкам запрещён, Fody-weaving запрещён.
-
-### 3. Constructor Injection + Previewer-совместимость
-Каждый Window и UserControl имеет два конструктора: параметризованный для DI и пустой для XAML Previewer. DataContext устанавливается в параметризованном конструкторе, а не через XAML к сервис-локатору.
-
-### 4. Transient для VM и Windows
-Singleton ViewModel = утечка памяти и «грязное» состояние при повторном открытии. Все ViewModels и Windows регистрируются как `Transient`. Singleton — только для инфраструктурных сервисов.
-
-### 5. ViewModel владеет своим состоянием
-View не пишет в ViewModel напрямую и не читает сервисы самостоятельно. Tooltip-тексты, вычисляемые свойства, команды — всё живёт в ViewModel. View только привязывается к готовым свойствам и командам.
+1. [Five principles](#five-principles)
+2. [Project setup](#project-setup)
+3. [Lifetimes](#lifetimes)
+4. [Step-by-step guide](#step-by-step-guide)
+   - [Step 1: App.axaml.cs — IoC](#step-1-appaxamlcs--ioc)
+   - [Step 2: ViewModel](#step-2-viewmodel)
+   - [Step 3: Window / View](#step-3-window--view)
+   - [Step 4: UserControl + Attach(vm)](#step-4-usercontrol--attachvm)
+   - [Step 5: IWindowService](#step-5-iwindowservice)
+   - [Step 6: AXAML bindings](#step-6-axaml-bindings)
+   - [Step 7: Subscriptions and Dispose](#step-7-subscriptions-and-dispose)
+5. [Patterns — how to do it right](#patterns--how-to-do-it-right)
+6. [Anti-patterns — what to avoid](#anti-patterns--what-to-avoid)
+7. [Analysis and corrections](#analysis-and-corrections)
 
 ---
 
-## Настройка проекта
+## Five principles
 
-> **Важно**: одна строка в `.csproj` включает скомпилированные привязки для всего проекта. Не нужно писать `x:CompileBindings="True"` в каждом файле.
+### 1. Zero-Locator in Views and ViewModels
+No `App.ServiceProvider.GetService<T>()` inside windows, UserControls, or ViewModels. All dependencies come only through the DI constructor. A Service Locator is acceptable only in the `WindowService` infrastructure class.
+
+### 2. Compile-time safety
+The Native AOT trimmer strips everything that is not called explicitly. All bindings must be compiled (`x:DataType` on every element); a string-based ViewLocator is forbidden; Fody weaving is forbidden.
+
+### 3. Constructor injection + Previewer compatibility
+Every Window and UserControl has two constructors: a parameterized one for DI and a parameterless one for the XAML Previewer. The DataContext is set in the parameterized constructor, not via XAML through a service locator.
+
+### 4. Transient for VMs and Windows
+A singleton ViewModel = a memory leak and "dirty" state when reopened. All ViewModels and Windows are registered as `Transient`. Singleton is only for infrastructure services.
+
+### 5. The ViewModel owns its state
+The View does not write to the ViewModel directly and does not read services on its own. Tooltip texts, computed properties, commands — all of it lives in the ViewModel. The View only binds to ready-made properties and commands.
+
+---
+
+## Project setup
+
+> **Important**: one line in the `.csproj` enables compiled bindings for the whole project. There is no need to write `x:CompileBindings="True"` in every file.
 
 ```xml
 <PropertyGroup>
@@ -53,10 +53,10 @@ View не пишет в ViewModel напрямую и не читает серв
   <TargetFramework>net9.0</TargetFramework>
   <Nullable>enable</Nullable>
 
-  <!-- Включает скомпилированные привязки глобально -->
+  <!-- Enables compiled bindings globally -->
   <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 
-  <!-- Native AOT (опционально) -->
+  <!-- Native AOT (optional) -->
   <PublishAot>true</PublishAot>
   <TrimmerRootDescriptor>rd.xml</TrimmerRootDescriptor>
 </PropertyGroup>
@@ -71,21 +71,21 @@ View не пишет в ViewModel напрямую и не читает серв
 
 ---
 
-## Жизненные циклы (Lifetimes)
+## Lifetimes
 
-| Lifetime | Что регистрировать | Причина |
+| Lifetime | What to register | Reason |
 |---|---|---|
-| `AddSingleton` | Инфраструктурные сервисы: `IPreferencesService`, `IThemeService`, `IWindowService`, логгеры | Живут весь срок приложения. Состояние должно сохраняться между открытиями окон. |
-| `AddTransient` | Все ViewModels, все Windows, все UserControls | Каждое открытие окна — чистое состояние. GC очистит объект после закрытия. |
-| `AddScoped` | **Не использовать** | Scope в десктопном приложении не имеет естественных границ (нет HTTP-запросов), ведёт к утечкам и непредсказуемому поведению. |
+| `AddSingleton` | Infrastructure services: `IPreferencesService`, `IThemeService`, `IWindowService`, loggers | They live for the whole application lifetime. State must persist between window openings. |
+| `AddTransient` | All ViewModels, all Windows, all UserControls | Every window opening gets clean state. The GC cleans up the object after it is closed. |
+| `AddScoped` | **Do not use** | A scope in a desktop application has no natural boundaries (there are no HTTP requests); it leads to leaks and unpredictable behavior. |
 
 ---
 
-## Пошаговая инструкция
+## Step-by-step guide
 
-### Шаг 1: App.axaml.cs — IoC
+### Step 1: App.axaml.cs — IoC
 
-Инициализируем контейнер и регистрируем все зависимости. MainWindow запрашивается из DI, а не через `new`. Контейнер не хранится как статическое поле — только используется для разрешения корневого объекта.
+Initialize the container and register all dependencies. MainWindow is resolved from DI, not created with `new`. The container is not stored in a static field — it is used only to resolve the root object.
 
 ```csharp
 public class App : Application
@@ -107,7 +107,7 @@ public class App : Application
     {
         var services = new ServiceCollection();
 
-        // Singleton — инфраструктурные сервисы
+        // Singleton — infrastructure services
         services.AddSingleton<IPreferencesService, PreferencesService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IWindowService, WindowService>();
@@ -125,16 +125,16 @@ public class App : Application
 
 ---
 
-### Шаг 2: ViewModel
+### Step 2: ViewModel
 
-ViewModel наследуется от `ReactiveObject`. Свойства используют `RaiseAndSetIfChanged` или C# 13 `field`-keyword (AOT-безопасная альтернатива Fody). Асинхронные команды создаются через `CreateFromTask`, а не через fire-and-forget.
+The ViewModel inherits from `ReactiveObject`. Properties use `RaiseAndSetIfChanged` or the C# 13 `field` keyword (an AOT-safe alternative to Fody). Asynchronous commands are created with `CreateFromTask`, not fire-and-forget.
 
 ```csharp
 public sealed class MainWindowViewModel : ReactiveObject
 {
     private readonly IWindowService _windowService;
 
-    // Классический способ (любая версия C#)
+    // The classic way (any C# version)
     private string _title = "RunPad";
     public string Title
     {
@@ -142,14 +142,14 @@ public sealed class MainWindowViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _title, value);
     }
 
-    // C# 13 field-keyword (AOT-safe, без Fody/IL-weaving)
+    // C# 13 field keyword (AOT-safe, no Fody/IL weaving)
     public bool DebugModeEnabled
     {
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
 
-    // Команды: CreateFromTask для async, Create для sync
+    // Commands: CreateFromTask for async, Create for sync
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
     public ReactiveCommand<Unit, Unit> RunCommand { get; }
 
@@ -157,13 +157,13 @@ public sealed class MainWindowViewModel : ReactiveObject
     {
         _windowService = windowService;
 
-        // Правильно: async команда через CreateFromTask
+        // Correct: an async command via CreateFromTask
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(
             _windowService.ShowPreferencesAsync);
 
         RunCommand = ReactiveCommand.CreateFromTask(RunAsync);
 
-        // Перехват необработанных исключений из команды
+        // Catch unhandled exceptions from the command
         RunCommand.ThrownExceptions.Subscribe(ex => HandleError(ex));
     }
 
@@ -173,16 +173,16 @@ public sealed class MainWindowViewModel : ReactiveObject
 
 ---
 
-### Шаг 3: Window / View
+### Step 3: Window / View
 
-Параметризованный конструктор для DI-рантайма + пустой конструктор для XAML Previewer. `DataContext` устанавливается только в параметризованном конструкторе.
+A parameterized constructor for the DI runtime + a parameterless constructor for the XAML Previewer. `DataContext` is set only in the parameterized constructor.
 
 ```csharp
 public sealed partial class MainWindow : Window, IDisposable
 {
     private readonly EditorTabsControl _editorTabs;
 
-    // ── DI-конструктор (рантайм) ─────────────────────────────────
+    // ── DI constructor (runtime) ─────────────────────────────────
     public MainWindow(
         IPreferencesService prefs,
         EditorTabsControl editorTabsCtrl,
@@ -192,12 +192,12 @@ public sealed partial class MainWindow : Window, IDisposable
         DataContext = viewModel;
         InitializeComponent();
 
-        // Монтируем UserControl в ContentControl-слот
+        // Mount the UserControl into the ContentControl slot
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
     }
 
-    // ── Previewer-конструктор (дизайнер) ─────────────────────────
+    // ── Previewer constructor (designer) ─────────────────────────
     public MainWindow() => InitializeComponent();
 
     public void Dispose() { _editorTabs.Dispose(); GC.SuppressFinalize(this); }
@@ -205,7 +205,7 @@ public sealed partial class MainWindow : Window, IDisposable
 ```
 
 ```xml
-<!-- MainWindow.axaml — команды вместо Click-handlers -->
+<!-- MainWindow.axaml — commands instead of Click handlers -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:vm="clr-namespace:MyApp.ViewModels"
         x:DataType="vm:MainWindowViewModel">
@@ -213,7 +213,7 @@ public sealed partial class MainWindow : Window, IDisposable
   <MenuItem Header="Preferences"
             Command="{Binding OpenPreferencesCommand}"/>
 
-  <!-- UserControl монтируется через ContentControl, не напрямую -->
+  <!-- The UserControl is mounted via a ContentControl, not directly -->
   <ContentControl x:Name="EditorTabsHost" Grid.Column="1"/>
 
 </Window>
@@ -221,9 +221,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
 ---
 
-### Шаг 4: UserControl + Attach(vm)
+### Step 4: UserControl + Attach(vm)
 
-UserControl получает сервисы через DI-конструктор, а ссылку на ViewModel — через метод `Attach(vm)`, который вызывает Window после своей инициализации. Это разделяет момент подключения сервисов и момент подключения данных.
+The UserControl receives services through its DI constructor and a reference to the ViewModel through an `Attach(vm)` method, which the Window calls after its own initialization. This separates the moment services are connected from the moment data is connected.
 
 ```csharp
 public partial class EditorTabsControl : UserControl, IDisposable
@@ -234,7 +234,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // ── Previewer ─────────────────────────────────────────────────
     public EditorTabsControl() => InitializeComponent();
 
-    // ── DI-рантайм ───────────────────────────────────────────────
+    // ── DI runtime ───────────────────────────────────────────────
     public EditorTabsControl(IThemeService themeService, IPreferencesService prefs)
     {
         InitializeComponent();
@@ -242,7 +242,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
-    // ── Вызывается из Window после его инициализации ─────────────
+    // ── Called from the Window after its initialization ──────────
     public void Attach(MainWindowViewModel vm)
     {
         DataContext = vm;
@@ -263,9 +263,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
 ---
 
-### Шаг 5: IWindowService
+### Step 5: IWindowService
 
-ViewModel вызывает `IWindowService`, не зная ничего об Avalonia. Сам `WindowService` использует `IServiceProvider` — единственное легитимное место для Service Locator в этой архитектуре.
+The ViewModel calls `IWindowService` without knowing anything about Avalonia. `WindowService` itself uses `IServiceProvider` — the only legitimate place for a Service Locator in this architecture.
 
 ```csharp
 public interface IWindowService
@@ -298,9 +298,9 @@ public sealed class WindowService : IWindowService
 
 ---
 
-### Шаг 6: AXAML-привязки
+### Step 6: AXAML bindings
 
-При глобальных CompiledBindings каждый корневой элемент **и** каждый `DataTemplate` должны объявлять `x:DataType`. Без него компилятор не знает тип контекста.
+With global CompiledBindings, every root element **and** every `DataTemplate` must declare `x:DataType`. Without it, the compiler does not know the context type.
 
 ```xml
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -310,27 +310,27 @@ public sealed class WindowService : IWindowService
 
   <ItemsControl ItemsSource="{Binding Items}">
     <ItemsControl.ItemTemplate>
-      <!-- DataTemplate тоже обязан объявить x:DataType -->
+      <!-- A DataTemplate must also declare x:DataType -->
       <DataTemplate x:DataType="models:ItemViewModel">
         <TextBlock Text="{Binding Name}"/>
       </DataTemplate>
     </ItemsControl.ItemTemplate>
   </ItemsControl>
 
-  <!-- Кнопка привязана к команде, не к Click-handler -->
-  <Button Command="{Binding OpenSettingsCommand}" Content="Настройки"/>
+  <!-- The button is bound to a command, not a Click handler -->
+  <Button Command="{Binding OpenSettingsCommand}" Content="Settings"/>
 
 </UserControl>
 ```
 
 ---
 
-### Шаг 7: Подписки и Dispose
+### Step 7: Subscriptions and Dispose
 
-Rx-подписки внутри UserControl привязываются к жизненному циклу через `WhenActivated` + `DisposeWith`. Если UserControl монтируется динамически, это единственный способ гарантировать отписку при размонтировании.
+Rx subscriptions inside a UserControl are tied to its lifecycle via `WhenActivated` + `DisposeWith`. If the UserControl is mounted dynamically, this is the only way to guarantee unsubscription when it is unmounted.
 
 ```csharp
-// Паттерн WhenActivated (для UserControl с IViewFor<TViewModel>)
+// The WhenActivated pattern (for a UserControl with IViewFor<TViewModel>)
 public partial class MyPanel : UserControl, IViewFor<MyPanelViewModel>
 {
     public MyPanel()
@@ -347,7 +347,7 @@ public partial class MyPanel : UserControl, IViewFor<MyPanelViewModel>
 ```
 
 ```csharp
-// ViewModel сама подписывается на сервис и отписывается в Dispose
+// The ViewModel subscribes to the service itself and unsubscribes in Dispose
 public sealed class EditorTabViewModel : ReactiveObject, IDisposable
 {
     private readonly IPreferencesService _prefs;
@@ -362,7 +362,7 @@ public sealed class EditorTabViewModel : ReactiveObject, IDisposable
     {
         _prefs = prefs;
         SyncTooltips();
-        _prefs.Changed += OnPreferencesChanged; // ViewModel сама подписывается
+        _prefs.Changed += OnPreferencesChanged; // The ViewModel subscribes itself
     }
 
     private void OnPreferencesChanged() => SyncTooltips();
@@ -370,7 +370,7 @@ public sealed class EditorTabViewModel : ReactiveObject, IDisposable
 
     public void Dispose()
     {
-        _prefs.Changed -= OnPreferencesChanged; // Явная отписка
+        _prefs.Changed -= OnPreferencesChanged; // Explicit unsubscription
         GC.SuppressFinalize(this);
     }
 }
@@ -378,198 +378,198 @@ public sealed class EditorTabViewModel : ReactiveObject, IDisposable
 
 ---
 
-## Паттерны — как делать правильно
+## Patterns — how to do it right
 
-### ✅ Constructor Injection для всех зависимостей
-Window, UserControl и ViewModel получают все зависимости через конструктор. DI-контейнер строит весь граф автоматически. Нет скрытых зависимостей — всё видно в сигнатуре.
+### ✅ Constructor injection for all dependencies
+Windows, UserControls, and ViewModels receive all dependencies through the constructor. The DI container builds the whole graph automatically. No hidden dependencies — everything is visible in the signature.
 
 ```csharp
 public MainWindow(IPreferencesService prefs, MainWindowViewModel vm) { ... }
 ```
 
-### ✅ Двойной конструктор (Previewer-совместимость)
-Параметризованный конструктор для DI + пустой конструктор только для XAML Previewer. DataContext устанавливается только в параметризованном.
+### ✅ Dual constructor (Previewer compatibility)
+A parameterized constructor for DI + a parameterless constructor only for the XAML Previewer. DataContext is set only in the parameterized one.
 
 ```csharp
-public MyView() => InitializeComponent(); // только InitializeComponent, никакой логики
+public MyView() => InitializeComponent(); // only InitializeComponent, no logic
 ```
 
-### ✅ IWindowService для открытия окон
-ViewModel вызывает интерфейс сервиса, не зная ни о каких Avalonia-типах. ViewModel остаётся тестируемой — сервис легко мокируется.
+### ✅ IWindowService for opening windows
+The ViewModel calls a service interface without knowing about any Avalonia types. The ViewModel stays testable — the service is easy to mock.
 
-### ✅ ReactiveCommand.CreateFromTask для async
-Команда автоматически управляет флагом `IsExecuting` и предотвращает повторный запуск.
+### ✅ ReactiveCommand.CreateFromTask for async
+The command automatically manages the `IsExecuting` flag and prevents re-entrant execution.
 
 ```csharp
 RunCommand = ReactiveCommand.CreateFromTask(RunAsync);
 ```
 
-### ✅ ThrownExceptions.Subscribe на командах
-Необработанные исключения из ReactiveCommand терминируют Rx-поток и могут упасть тихо.
+### ✅ ThrownExceptions.Subscribe on commands
+Unhandled exceptions from a ReactiveCommand terminate the Rx stream and can fail silently.
 
 ```csharp
 RunCommand.ThrownExceptions.Subscribe(LogError);
 ```
 
-### ✅ ViewModel сама управляет tooltip-свойствами
-Tooltip-тексты, вычисляемые свойства — это состояние ViewModel. ViewModel подписывается на `IPreferencesService.Changed` в конструкторе и обновляет свои свойства. View только привязывается.
+### ✅ The ViewModel manages tooltip properties itself
+Tooltip texts and computed properties are ViewModel state. The ViewModel subscribes to `IPreferencesService.Changed` in its constructor and updates its own properties. The View only binds.
 
-### ✅ Attach(vm) для UserControl с DI
-Когда UserControl требует и сервисы (DI), и ViewModel (передаётся позже) — DI-конструктор получает сервисы, метод `Attach(vm)` вызывается из Window после монтирования.
+### ✅ Attach(vm) for a UserControl with DI
+When a UserControl needs both services (DI) and a ViewModel (passed later), the DI constructor receives the services, and the `Attach(vm)` method is called from the Window after mounting.
 
-### ✅ C# 13 field-keyword вместо Fody
-AOT-safe, без IL-weaving, без отдельного backing field.
+### ✅ The C# 13 field keyword instead of Fody
+AOT-safe, no IL weaving, no separate backing field.
 
 ```csharp
 public bool Flag { get; set => this.RaiseAndSetIfChanged(ref field, value); }
 ```
 
-### ✅ Transient для VM и Windows
-Каждое открытие окна создаёт новый экземпляр ViewModel через DI. При закрытии GC уберёт оба объекта. Никакого «грязного состояния» при повторном открытии.
+### ✅ Transient for VMs and Windows
+Every window opening creates a new ViewModel instance via DI. On close, the GC removes both objects. No "dirty state" when reopening.
 
-### ✅ x:DataType на каждом элементе с привязкой
-При `AvaloniaUseCompiledBindingsByDefault=true` каждый корневой элемент и каждый `DataTemplate` обязан объявлять `x:DataType`. Без него компилятор не может сгенерировать типобезопасный код.
+### ✅ x:DataType on every element with a binding
+With `AvaloniaUseCompiledBindingsByDefault=true`, every root element and every `DataTemplate` must declare `x:DataType`. Without it, the compiler cannot generate type-safe code.
 
 ---
 
-## Антипаттерны — чего избегать
+## Anti-patterns — what to avoid
 
-### ❌ Service Locator в View или ViewModel
-`App.ServiceProvider.GetService<T>()` внутри окна или VM скрывает зависимости, делает класс нетестируемым и нарушает принцип инверсии зависимостей. Допустимо только в `WindowService`.
+### ❌ Service Locator in a View or ViewModel
+`App.ServiceProvider.GetService<T>()` inside a window or VM hides dependencies, makes the class untestable, and violates the dependency inversion principle. Acceptable only in `WindowService`.
 
 ### ❌ Reflection-based ViewLocator
 ```csharp
-// НЕЛЬЗЯ: триммер AOT вырежет View-классы
+// DON'T: the AOT trimmer will strip the View classes
 var viewName = vm.GetType().FullName.Replace("ViewModel", "View");
 ```
-Приложение упадёт с `NullReferenceException` в рантайме.
+The application will crash with a `NullReferenceException` at runtime.
 
-### ❌ new MyWindow() или new MyViewModel()
-Ручное создание объектов с зависимостями ломает DI-цепочку. Используйте DI-контейнер или `IWindowService`.
+### ❌ new MyWindow() or new MyViewModel()
+Manually creating objects with dependencies breaks the DI chain. Use the DI container or `IWindowService`.
 
-### ❌ Singleton для ViewModels и Windows
-При повторном открытии пользователь увидит старые данные и ошибки валидации. Singleton ViewModel держит в памяти весь граф данных вечно.
+### ❌ Singleton for ViewModels and Windows
+When reopened, the user will see old data and validation errors. A singleton ViewModel keeps the whole data graph in memory forever.
 
-### ❌ ReactiveUI.Fody [Reactive] при Native AOT
-Fody модифицирует IL-код после компиляции. Native AOT компилирует IL в нативный код до модификации Fody — результат непредсказуем. Используйте `RaiseAndSetIfChanged` или C# 13 `field`-keyword.
+### ❌ ReactiveUI.Fody [Reactive] with Native AOT
+Fody modifies IL code after compilation. Native AOT compiles IL into native code before Fody's modification — the result is unpredictable. Use `RaiseAndSetIfChanged` or the C# 13 `field` keyword.
 
-### ❌ Fire-and-forget в ReactiveCommand
+### ❌ Fire-and-forget in a ReactiveCommand
 ```csharp
-// НЕЛЬЗЯ: IsExecuting не работает, исключения теряются
+// DON'T: IsExecuting does not work, exceptions are lost
 ReactiveCommand.Create(() => { _ = AsyncMethod(); });
 
-// Правильно:
+// Correct:
 ReactiveCommand.CreateFromTask(AsyncMethod);
 ```
 
-### ❌ View пишет в ViewModel напрямую
-`SyncHotkeyLabels()` в code-behind читает сервис и пишет в ViewModel — нарушение направления потока данных. ViewModel должна сама обновлять своё состояние.
+### ❌ The View writes to the ViewModel directly
+`SyncHotkeyLabels()` in code-behind reads a service and writes to the ViewModel — a violation of the data-flow direction. The ViewModel must update its own state.
 
-### ❌ Click-handler вместо Command
+### ❌ Click handler instead of a Command
 ```xml
-<!-- НЕЛЬЗЯ -->
-<Button Click="OpenPreferences_Click" Content="Настройки"/>
+<!-- DON'T -->
+<Button Click="OpenPreferences_Click" Content="Settings"/>
 
-<!-- Правильно -->
-<Button Command="{Binding OpenPreferencesCommand}" Content="Настройки"/>
+<!-- Correct -->
+<Button Command="{Binding OpenPreferencesCommand}" Content="Settings"/>
 ```
 
-### ❌ Activator.CreateInstance в фабрике
+### ❌ Activator.CreateInstance in a factory
 ```csharp
-// НЕЛЬЗЯ: триммер AOT удалит конструктор как «неиспользуемый»
+// DON'T: the AOT trimmer will remove the constructor as "unused"
 return (T)Activator.CreateInstance(typeof(T), viewModel)!;
 ```
-Регистрируйте тип явно в DI и запрашивайте через `GetRequiredService<T>`.
+Register the type explicitly in DI and resolve it via `GetRequiredService<T>`.
 
-### ❌ Смешивание ReactiveUI и CommunityToolkit.Mvvm
-`ObservableObject` + `[ObservableProperty]` (CommunityToolkit) и `ReactiveObject` + `WhenAnyValue` (ReactiveUI) — несовместимые экосистемы. Выберите одну и придерживайтесь её во всём проекте.
-
----
-
-## Анализ и корректировки
-
-Разбор конкретных проблем, которые встречаются в типовых руководствах по теме.
-
-### 1. App.ServiceProvider как статическое поле — антипаттерн
-
-**Проблема:** `public static IServiceProvider ServiceProvider { get; private set; }` — глобальная точка доступа к контейнеру.
-
-**Решение:** Хранить `ServiceProvider` как приватное поле экземпляра `App`. `WindowService` принимает `IServiceProvider` через конструктор — только он имеет право его использовать. Все остальные получают зависимости через Constructor Injection.
+### ❌ Mixing ReactiveUI and CommunityToolkit.Mvvm
+`ObservableObject` + `[ObservableProperty]` (CommunityToolkit) and `ReactiveObject` + `WhenAnyValue` (ReactiveUI) are incompatible ecosystems. Pick one and stick with it throughout the project.
 
 ---
 
-### 2. ITransientFactory.ViewWithVm использует Activator.CreateInstance
+## Analysis and corrections
 
-**Проблема:** `(T)Activator.CreateInstance(typeof(T), viewModel)!` — триммер AOT удалит конструктор, приложение упадёт.
+A breakdown of specific problems that occur in typical guides on this topic.
 
-**Решение:** UserControl с DI-конструктором нужно регистрировать в DI как `Transient` и получать через `GetRequiredService<T>`. Для передачи ViewModel использовать паттерн `Attach(vm)`.
+### 1. App.ServiceProvider as a static field is an anti-pattern
 
----
+**Problem:** `public static IServiceProvider ServiceProvider { get; private set; }` — a global access point to the container.
 
-### 3. ActivatorUtilities.CreateInstance требует аннотаций для строгого AOT
-
-**Проблема:** `ActivatorUtilities.CreateInstance<T>` для фабрик с runtime-параметрами без `[DynamicallyAccessedMembers]` или `rd.xml` выдаст предупреждения или упадёт при строгом AOT.
-
-**Решение:** Если нужны runtime-параметры, передавать их через явный конструктор или фабричный метод самого сервиса, не через `ActivatorUtilities`.
+**Solution:** Store `ServiceProvider` as a private instance field of `App`. `WindowService` takes `IServiceProvider` through its constructor — only it is allowed to use it. Everyone else receives dependencies through constructor injection.
 
 ---
 
-### 4. Смешение CommunityToolkit и ReactiveUI в примерах
+### 2. ITransientFactory.ViewWithVm uses Activator.CreateInstance
 
-**Проблема:** Раздел про навигацию использует `ObservableObject` + `[ObservableProperty]` (CommunityToolkit.Mvvm), тогда как остальные разделы описывают ReactiveUI. Это несовместимые экосистемы.
+**Problem:** `(T)Activator.CreateInstance(typeof(T), viewModel)!` — the AOT trimmer will remove the constructor, and the application will crash.
 
-**Решение:** Для проекта с ReactiveUI — везде использовать `ReactiveObject`, `RaiseAndSetIfChanged`, `WhenAnyValue`. `[ObservableProperty]` из CommunityToolkit.Mvvm не использовать.
-
----
-
-### 5. Per-file x:CompileBindings vs глобальный .csproj-флаг
-
-**Проблема:** `x:CompileBindings="True"` в каждом файле легко забыть, нет гарантии единообразия.
-
-**Решение:** Одна строка в `.csproj` — `<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>` — включает компиляцию для всего проекта. Per-file флаг нужен только для точечного отключения.
+**Solution:** A UserControl with a DI constructor should be registered in DI as `Transient` and resolved via `GetRequiredService<T>`. Use the `Attach(vm)` pattern to pass the ViewModel.
 
 ---
 
-### 6. Отсутствует WhenActivated + DisposeWith для UserControl
+### 3. ActivatorUtilities.CreateInstance requires annotations for strict AOT
 
-**Проблема:** Ручной `Subscribe` без `DisposeWith`. Если UserControl монтируется динамически, подписки накапливаются и не освобождаются.
+**Problem:** `ActivatorUtilities.CreateInstance<T>` for factories with runtime parameters, without `[DynamicallyAccessedMembers]` or `rd.xml`, produces warnings or fails under strict AOT.
 
-**Решение:** Использовать `this.WhenActivated(d => { subscription.DisposeWith(d); })`. Avalonia вызовет dispose при размонтировании UserControl. Или явно реализовывать `IDisposable` с ручной отпиской.
-
----
-
-### 7. Fire-and-forget в примере команды открытия окна
-
-**Проблема:** `ReactiveCommand.Create(() => { windowService.ShowSettingsWindow(); })` — если метод async, это fire-and-forget. Исключения теряются.
-
-**Решение:** `ReactiveCommand.CreateFromTask(() => windowService.ShowSettingsAsync())` с подпиской на `ThrownExceptions`.
+**Solution:** If runtime parameters are needed, pass them through an explicit constructor or a factory method on the service itself, not through `ActivatorUtilities`.
 
 ---
 
-### 8. DataTemplate создаёт View через пустой конструктор — конфликт с DI
+### 4. Mixing CommunityToolkit and ReactiveUI in examples
 
-**Проблема:** Если View зарегистрирована в DI с DI-конструктором, но `DataTemplate` в `App.axaml` вызывает её создание — Avalonia использует пустой конструктор. DI-зависимости View не будут внедрены.
+**Problem:** The navigation section uses `ObservableObject` + `[ObservableProperty]` (CommunityToolkit.Mvvm), while the other sections describe ReactiveUI. These are incompatible ecosystems.
 
-**Решение:** Для Views, используемых в DataTemplate, пустой конструктор должен быть полностью самодостаточен (без DI-зависимостей), либо использовать паттерн `Attach(vm)`.
+**Solution:** For a ReactiveUI project, use `ReactiveObject`, `RaiseAndSetIfChanged`, and `WhenAnyValue` everywhere. Do not use `[ObservableProperty]` from CommunityToolkit.Mvvm.
 
 ---
 
-### 9. Не упомянут C# 13 field-keyword
+### 5. Per-file x:CompileBindings vs. a global .csproj flag
 
-**Проблема:** Перечисляются Fody, CommunityToolkit и ручной `ref _field` как опции для свойств. Не упоминается C# 13 `field`-keyword.
+**Problem:** `x:CompileBindings="True"` in every file is easy to forget; there is no guarantee of consistency.
 
-**Решение:** C# 13 `field`-keyword — лучшая опция для проектов с AOT:
+**Solution:** One line in the `.csproj` — `<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>` — enables compilation for the whole project. The per-file flag is only needed to disable it selectively.
+
+---
+
+### 6. WhenActivated + DisposeWith is missing for UserControls
+
+**Problem:** A manual `Subscribe` without `DisposeWith`. If a UserControl is mounted dynamically, subscriptions accumulate and are never released.
+
+**Solution:** Use `this.WhenActivated(d => { subscription.DisposeWith(d); })`. Avalonia will call dispose when the UserControl is unmounted. Or explicitly implement `IDisposable` with manual unsubscription.
+
+---
+
+### 7. Fire-and-forget in the open-window command example
+
+**Problem:** `ReactiveCommand.Create(() => { windowService.ShowSettingsWindow(); })` — if the method is async, this is fire-and-forget. Exceptions are lost.
+
+**Solution:** `ReactiveCommand.CreateFromTask(() => windowService.ShowSettingsAsync())` with a subscription to `ThrownExceptions`.
+
+---
+
+### 8. A DataTemplate creates the View through the parameterless constructor — a conflict with DI
+
+**Problem:** If a View is registered in DI with a DI constructor but a `DataTemplate` in `App.axaml` triggers its creation, Avalonia uses the parameterless constructor. The View's DI dependencies will not be injected.
+
+**Solution:** For Views used in a DataTemplate, the parameterless constructor must be fully self-sufficient (no DI dependencies), or use the `Attach(vm)` pattern.
+
+---
+
+### 9. The C# 13 field keyword is not mentioned
+
+**Problem:** Fody, CommunityToolkit, and a manual `ref _field` are listed as options for properties. The C# 13 `field` keyword is not mentioned.
+
+**Solution:** The C# 13 `field` keyword is the best option for AOT projects:
 
 ```csharp
 public bool Flag { get; set => this.RaiseAndSetIfChanged(ref field, value); }
 ```
 
-Нет отдельного backing field, нет IL-weaving, полная AOT-совместимость.
+No separate backing field, no IL weaving, full AOT compatibility.
 
 ---
 
-### 10. ITransientFactory не нужна при правильной DI-архитектуре
+### 10. ITransientFactory is unnecessary with a proper DI architecture
 
-**Проблема:** `ITransientFactory` с методами `Create<T>()` и `ViewWithVm<T>()` — по сути ещё один Service Locator, обёрнутый в интерфейс, плюс нарушающий AOT `Activator.CreateInstance`.
+**Problem:** `ITransientFactory` with `Create<T>()` and `ViewWithVm<T>()` methods is essentially another Service Locator wrapped in an interface, plus the AOT-breaking `Activator.CreateInstance`.
 
-**Решение:** Если нужно создать UserControl с ViewModel — регистрировать оба как `Transient` и получать из DI напрямую. Для UserControl со сложной инициализацией — паттерн `Attach(vm)` без фабрики.
+**Solution:** If you need to create a UserControl with a ViewModel, register both as `Transient` and resolve them from DI directly. For a UserControl with complex initialization, use the `Attach(vm)` pattern without a factory.

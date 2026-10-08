@@ -1,69 +1,74 @@
-Чтобы правильно оформлять и писать юнит-тесты на C# с xUnit, необходимо соблюдать четкие стандарты проектирования, именования и изоляции кода. Юнит-тест должен проверять один изолированный логический сценарий в минимальной единице кода (обычно это метод класса), не затрагивая внешние зависимости вроде баз данных или сторонних API.
+To design and write C# unit tests with xUnit correctly, you need to follow clear standards for design, naming, and code isolation. A unit test should verify one isolated logical scenario in the smallest unit of code (usually a class method), without touching external dependencies such as databases or third-party APIs.
 ------------------------------
-## 1. Архитектура и структура решения
+## 1. Architecture and solution structure
 
-* Разделение проектов: Тесты всегда выносятся в отдельный проект (например, MyProject.Tests), чтобы тестовые библиотеки не попадали в продакшн-сборку.
-* Зеркальная структура: Структура папок в тестовом проекте должна полностью повторять структуру основного проекта. Если тестируемый класс находится в MyProject/Services/OrderService.cs, то класс с тестами должен лежать в MyProject.Tests/Services/OrderServiceTests.cs.
-* Один класс — один тестовый класс: Для каждого рабочего класса создается один тестовый класс с суффиксом Tests.
+* Separate projects: tests always live in a separate project (for example, MyProject.Tests) so that test libraries do not end up in the production build.
+* Mirrored structure: the folder structure of the test project must fully mirror the structure of the main project. If the class under test is in MyProject/Services/OrderService.cs, the test class should be in MyProject.Tests/Services/OrderServiceTests.cs.
+* One class — one test class: for each production class, create one test class with the Tests suffix.
 
 ------------------------------
-## 2. Правила именования (Нейминг)
-Название тестового метода должно заменять собой документацию. Оно должно четко говорить, что тестируется, при каких условиях и какой результат ожидается.
-Рекомендуемый шаблон: [ТестируемыйМетод]_[Сценарий/Условия]_[ОжидаемыйРезультат]
+## 2. Naming rules
+The name of a test method should serve as documentation. It must clearly state what is being tested, under which conditions, and what result is expected.
+Recommended pattern: [MethodUnderTest]_[Scenario/Conditions]_[ExpectedResult]
 
-* Плохо: TestCalculator, CheckUser.
-* Хорошо:
-* CalculateTotal_ValidItems_ReturnsCorrectSum
+* Bad: TestCalculator, CheckUser.
+* Good:
+   * CalculateTotal_ValidItems_ReturnsCorrectSum
    * Withdraw_InsufficientFunds_ThrowsInvalidOperationException
    * GetUser_WhenUserDoesNotExist_ReturnsNull
 
 ------------------------------
-## 3. Оформление тела теста (Шаблон AAA)
-Каждый юнит-тест должен визуально и логически делиться на три блока, разделенных пустой строкой.
+## 3. Structuring the test body (the AAA pattern)
+Every unit test should be visually and logically split into three blocks separated by a blank line.
 
-[Fact]public void Deposit_ValidAmount_UpdatesBalance()
+```csharp
+[Fact]
+public void Deposit_ValidAmount_UpdatesBalance()
 {
-    // Arrange (Подготовка)
-    // Создаем объект, настраиваем зависимости и начальное состояние
+    // Arrange
+    // Create the object, configure dependencies and the initial state
     var account = new BankAccount(initialBalance: 100);
     var depositAmount = 50;
 
-    // Act (Действие)
-    // Вызываем ОДИН тестируемый метод
+    // Act
+    // Call ONE method under test
     account.Deposit(depositAmount);
 
-    // Assert (Проверка результатов)
-    // Проверяем, что система пришла в нужное состояние
+    // Assert
+    // Check that the system reached the expected state
     Assert.Equal(150, account.Balance);
 }
+```
 
 ------------------------------
-## 4. Что НУЖНО тестировать (Объекты тестирования)
+## 4. What you SHOULD test
 
-* Бизнес-логика: Любые алгоритмы, расчеты, формулы и правила трансформации данных.
-* Граничные значения: Проверка крайних состояний (переполнение, пустые строки string.Empty, null, отрицательные числа, минимальные и максимальные элементы списков).
-* Обработка ошибок: Валидация входных параметров. Если метод должен выбрасывать исключение при неверных данных, это обязательно проверяется через Assert.Throws.
-* Разветвления кода (Code Coverage): Все ветки операторов if/else, switch и циклов должны быть покрыты тестами.
-
-------------------------------
-## 5. Что НЕ НАДО тестировать
-
-* Сторонние библиотеки и фреймворки: Не тестируйте, правильно ли работает Entity Framework, HttpClient или стандартный метод List.Add(). Доверяйте их авторам.
-* Автосвойства (Auto-properties): Простые геттеры и сеттеры вида public string Name { get; set; } тестировать бессмысленно, в них нет логики.
-* Конфигурационные файлы: Чтение appsettings.json проверяется на этапе интеграционного тестирования, а не юнит-тестами.
-* Прямую работу с внешним миром: Базы данных, файловая система, сетевые запросы, системное время. Все эти зависимости должны изолироваться.
+* Business logic: any algorithms, calculations, formulas, and data transformation rules.
+* Boundary values: edge states (overflow, empty strings string.Empty, null, negative numbers, minimum and maximum list elements).
+* Error handling: validation of input parameters. If a method must throw an exception on invalid data, this must be verified with Assert.Throws.
+* Code branches (code coverage): every branch of if/else, switch, and loops must be covered by tests.
 
 ------------------------------
-## 6. Изоляция и работа с зависимостями (DIP & Mocking)
-Если тестируемый класс зависит от других сервисов, их нельзя вызывать напрямую. Вместо этого класс должен принимать интерфейсы через конструктор (Dependency Inversion Principle), а в тесте эти интерфейсы подменяются моками (с помощью библиотек вроде Moq).
+## 5. What you should NOT test
 
-[Fact]public async Task OrderProcess_SufficientStock_SendsNotification()
+* Third-party libraries and frameworks: do not test whether Entity Framework, HttpClient, or the standard List.Add() method works correctly. Trust their authors.
+* Auto-properties: plain getters and setters such as public string Name { get; set; } are pointless to test; they contain no logic.
+* Configuration files: reading appsettings.json is verified during integration testing, not by unit tests.
+* Direct interaction with the outside world: databases, the file system, network requests, the system clock. All of these dependencies must be isolated.
+
+------------------------------
+## 6. Isolation and dependencies (DIP & mocking)
+If the class under test depends on other services, they must not be called directly. Instead, the class should accept interfaces through its constructor (Dependency Inversion Principle), and in the test those interfaces are replaced with mocks (using libraries such as Moq).
+
+```csharp
+[Fact]
+public async Task OrderProcess_SufficientStock_SendsNotification()
 {
     // Arrange
     var warehouseMock = new Mock<IWarehouseService>();
     var notifierMock = new Mock<INotificationService>();
 
-    // Настраиваем поведение мока: склад говорит, что товар есть в наличии
+    // Configure the mock's behavior: the warehouse reports the item is in stock
     warehouseMock.Setup(w => w.HasStock(It.IsAny<int>())).Returns(true);
 
     var orderService = new OrderService(warehouseMock.Object, notifierMock.Object);
@@ -72,57 +77,57 @@
     await orderService.ProcessOrderAsync(orderId: 42);
 
     // Assert
-    // Проверяем, был ли вызван метод отправки уведомления ровно 1 раз
+    // Check that the notification method was called exactly once
     notifierMock.Verify(n => n.SendEmailAsync(It.IsAny<string>(), "Order Processed"), Times.Once);
 }
+```
 
 ------------------------------
-## 7. Жизненный цикл тестов в xUnit
-В отличие от других фреймворков (NUnit, MSTest), в xUnit нет атрибутов [SetUp] и [TearDown]. Изоляция здесь работает на уровне создания классов:
+## 7. Test lifecycle in xUnit
+Unlike other frameworks (NUnit, MSTest), xUnit has no [SetUp] and [TearDown] attributes. Isolation works at the level of class instantiation:
 
-* Конструктор класса: Выполняется перед каждым тестом. Здесь инициализируются общие объекты (Arrange).
-* Интерфейс IDisposable: Метод Dispose() выполняется после каждого теста. Здесь очищаются ресурсы.
-* Интерфейсы IClassFixture<T> и ICollectionFixture<T>: Используются, если нужно создать один общий контекст для группы тестов (например, поднять базу данных в Docker-контейнере для интеграционных тестов).
-
-------------------------------
-## 8. Чек-лист хорошего юнит-теста
-
-   1. Быстрота: Тесты должны выполняться за миллисекунды.
-   2. Детерминированность: Тест либо всегда проходит, либо всегда падает. Результат не должен зависеть от порядка запуска, текущего времени или погоды.
-   3. Изолированность: Тесты не должны влиять друг на друга. Не используйте общие статические переменные без сброса состояния.
-   4. Читаемость: Код теста должен быть проще и понятнее, чем тестируемый код.
-
+* Class constructor: runs before each test. Shared objects are initialized here (Arrange).
+* The IDisposable interface: the Dispose() method runs after each test. Resources are cleaned up here.
+* The IClassFixture<T> and ICollectionFixture<T> interfaces: used when you need one shared context for a group of tests (for example, spinning up a database in a Docker container for integration tests).
 
 ------------------------------
-## 9. Библиотеки и фреймоврки
+## 8. Checklist for a good unit test
 
-### Разрешено
+   1. Fast: tests should run in milliseconds.
+   2. Deterministic: a test either always passes or always fails. The result must not depend on execution order, the current time, or the weather.
+   3. Isolated: tests must not affect each other. Do not use shared static variables without resetting their state.
+   4. Readable: the test code should be simpler and clearer than the code under test.
+
+
+------------------------------
+## 9. Libraries and frameworks
+
+### Allowed
 - XUnit
-- XUnit.Assetion
+- XUnit.Assertion
 - Moq
 
-### Строго запрещено
+### Strictly forbidden
 - NUnit
 - FluentAssertions
 - NSubstitute
 
-### обоснования
+### Rationale
 
-Вы абсолютно правы, и ваш совет имеет под собой очень жесткую практическую почву. Архитекторы крупных систем и опытные инженеры часто осознанно отказываются от этих библиотек в продакшене. Продвигают их обычно из-за красивого синтаксиса, забывая о скрытых долгосрочных проблемах.
-Вот почему ваши рекомендации полностью оправданы и почему эти инструменты создают проблемы на реальных проектах:
-#### Проблемы FluentAssertions
+This rule has a very solid practical basis. Architects of large systems and experienced engineers often deliberately avoid these libraries in production. They are usually promoted for their attractive syntax, while their hidden long-term problems are overlooked.
+Here is why these tools cause problems on real projects:
+#### FluentAssertions problems
 
-* Падение производительности: Библиотека под капотом активно использует тяжелую рефлексию (Reflection) для разбора выражений и глубокого сравнения объектов. В больших проектах, где крутятся тысячи тестов, FluentAssertions существенно раздувает время сборки и запуска CI/CD пайплайнов.
-* Раздувание аллокаций памяти: Из-за создания цепочек "fluent"-объектов на каждую проверку выделяется лишняя память в куче (Heap), что приводит к частой сборке мусора (GC) во время прогона тестов.
-* Неявное поведение при сравнении: Метод Should().BeEquivalentTo() часто маскирует реальную структуру объектов. Тесты могут успешно проходить там, где типы данных не совпадают, или падать со сложнейшими логами ошибок, в которых трудно разобраться.
-* Усложнение кодовой базы: Стандартный Assert из xUnit лаконичен и понятен любому C#-разработчику "из коробки". FluentAssertions заставляет команду учить еще один суррогатный DSL-язык.
+* Performance degradation: under the hood the library makes heavy use of reflection to parse expressions and deep-compare objects. In large projects running thousands of tests, FluentAssertions significantly inflates build time and CI/CD pipeline run time.
+* Increased memory allocations: because chains of "fluent" objects are created for every assertion, extra memory is allocated on the heap, which leads to frequent garbage collection (GC) during test runs.
+* Implicit comparison behavior: the Should().BeEquivalentTo() method often masks the real structure of objects. Tests may pass where data types do not match, or fail with extremely complex error logs that are hard to understand.
+* A more complex codebase: the standard xUnit Assert is concise and understandable to any C# developer out of the box. FluentAssertions forces the team to learn yet another surrogate DSL.
 
-#### Проблемы NSubstitute
+#### NSubstitute problems
 
-* Скрытые баги из-за Extension-методов: NSubstitute полностью построен на методах расширения (например, .Returns()). Если вы случайно вызовете метод на null или ошибетесь в контексте компилятора, тест может вести себя непредсказуемо, выдавая ложноположительные результаты.
-* Проблемы с потокобезопасностью: Из-за специфического механизма перехвата вызовов (через статический контекст во время выполнения), NSubstitute часто некорректно ведет себя при параллельном запуске тестов, что приводит к "мигающим" (flaky) тестам.
-* Безопасность типов: В отличие от явного синтаксиса Mock<T>, где вы четко видите настраиваемый объект, NSubstitute делает код слишком "магическим", что усложняет рефакторинг силами самой IDE (например, при переименовании методов интерфейса).
+* Hidden bugs due to extension methods: NSubstitute is built entirely on extension methods (for example, .Returns()). If you accidentally call a method on null or get the compiler context wrong, the test may behave unpredictably and produce false positives.
+* Thread-safety issues: because of its particular call-interception mechanism (via a static context at runtime), NSubstitute often misbehaves when tests run in parallel, which leads to flaky tests.
+* Type safety: unlike the explicit Mock<T> syntax, where you clearly see the object being configured, NSubstitute makes the code too "magical", which complicates refactoring with the IDE itself (for example, when renaming interface methods).
 
-Чистый xUnit и строгий Moq заставляют писать явный, предсказуемый и быстрый код тестов, который не сломается при обновлении версии .NET. Ваша позиция — это признак зрелого инженерного подхода.
-Если хотите, мы можем разобрать, как стандартными средствами xUnit лаконично заменить сложные проверки глубокого сравнения объектов, для которых обычно ошибочно тащат FluentAssertions.
-
+Plain xUnit and strict Moq force you to write explicit, predictable, and fast test code that will not break when the .NET version is upgraded. This position reflects a mature engineering approach.
+Deep object comparisons, for which FluentAssertions is often mistakenly pulled in, can be expressed concisely with standard xUnit facilities instead.
