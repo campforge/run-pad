@@ -631,12 +631,16 @@ public class HtmlControl : Control
 
     #region Private event handlers
 
+    // Off-thread branches marshal via this control's own Dispatcher, not the static
+    // Dispatcher.UIThread — reading that from a background thread after Avalonia.Headless reset it
+    // between isolated tests makes that thread "the UI thread" for the next test.
+
     private void OnLoadComplete(object? sender, EventArgs e)
     {
         if (CheckAccess())
             OnLoadComplete(e);
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnLoadComplete(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnLoadComplete(e)).Wait();
     }
 
     private void OnLinkClicked(object? sender, HtmlLinkClickedEventArgs e)
@@ -644,7 +648,7 @@ public class HtmlControl : Control
         if (CheckAccess())
             OnLinkClicked(e);
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnLinkClicked(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnLinkClicked(e)).Wait();
     }
 
     private void OnRenderError(object? sender, HtmlRenderErrorEventArgs e)
@@ -652,7 +656,7 @@ public class HtmlControl : Control
         if (CheckAccess())
             OnRenderError(e);
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnRenderError(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnRenderError(e)).Wait();
     }
 
     private void OnStylesheetLoad(object? sender, HtmlStylesheetLoadEventArgs e)
@@ -660,7 +664,7 @@ public class HtmlControl : Control
         if (CheckAccess())
             OnStylesheetLoad(e);
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnStylesheetLoad(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnStylesheetLoad(e)).Wait();
     }
 
     private void OnImageLoad(object? sender, HtmlImageLoadEventArgs e)
@@ -668,16 +672,16 @@ public class HtmlControl : Control
         if (CheckAccess())
             OnImageLoad(e);
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnImageLoad(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnImageLoad(e)).Wait();
     }
 
     private void OnRefresh(object? sender, HtmlRefreshEventArgs e)
     {
         if (CheckAccess())
             // Visual invalidation should always go on the dispatcher.
-            Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e));
+            Dispatcher.InvokeAsync(() => OnRefresh(e));
         else
-            Dispatcher.UIThread.InvokeAsync(() => OnRefresh(e)).Wait();
+            Dispatcher.InvokeAsync(() => OnRefresh(e)).Wait();
     }
 
     #endregion
