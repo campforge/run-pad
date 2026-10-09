@@ -61,6 +61,7 @@ jobs:
       # directly, see проход "минимизация CI-времени"). Everything else — the actual cross-platform
       # risk surface (process/file-path handling, real dotnet-build behavior on THIS os specifically)
       # still runs here; only the parts whose outcome doesn't meaningfully vary by OS are skipped.
+      # (Windows-only failures later brought parts of both back as the separate steps below.)
       - name: 🧪 Test (fast PR subset)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -73,15 +74,24 @@ jobs:
           dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
-      # RealBuild is skipped above, but ScriptCompilerTests' cleanup (deleting a script's output directory
-      # right after its process exits) failed on Windows only — RunPad.Runtime.dll still locked, see
-      # docs/handoffs/release-windows-checks.md. Run this one class on PRs so the bounded retry is
-      # exercised here before main, not only in the full suite after merge.
-      - name: 🧪 Test (ScriptCompilerTests, Windows cleanup)
+      # RealBuild is skipped above, but ScriptCompilerTests'/ScriptPackageRestoreTests' cleanup (deleting
+      # a script's output directory right after its process exits) failed on Windows only — a DLL the
+      # script loaded still locked, see docs/handoffs/release-windows-checks.md and
+      # release-test-isolation.md. Run these two classes on PRs so the bounded retry
+      # (TempDirectoryCleanup) is exercised here before main, not only in the full suite after merge.
+      - name: 🧪 Test (RealBuild cleanup classes, Windows)
         if: github.event_name == 'pull_request'
         run: >
           dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal
-          --filter "FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptCompilerTests"
+          --filter "FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptCompilerTests|FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptPackageRestoreTests"
+
+      # The headless UI assembly is skipped above for cost, but its isolated-session setup failed
+      # (Dispatcher.VerifyAccess in HeadlessUnitTestSession.EnsureIsolatedApplication) only in the
+      # post-merge Windows run, see docs/handoffs/release-test-isolation.md. The failure depends on what
+      # a previous test left running, so the whole assembly runs here (a class filter changes the order).
+      - name: 🧪 Test (RunPad.Runtime.UI.Tests, Windows)
+        if: github.event_name == 'pull_request'
+        run: dotnet test tests/RunPad.Runtime.UI.Tests --no-build --configuration Release --verbosity normal
 
       - name: 🧪 Test (full suite)
         if: github.event_name != 'pull_request'
