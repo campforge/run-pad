@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
@@ -13,11 +14,38 @@ namespace RunPad.Runtime.UI.Tests;
 // pipeline (CodeRefactoringContext -> materialize -> preamble-relocation) intact.
 public class CSharpIntelliSenseRefactoringsTests
 {
-    private static CSharpIntelliSenseService CreateService()
+    private static CSharpIntelliSenseService CreateService(ILogger<CSharpIntelliSenseService>? logger = null)
     {
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance);
+        return new CSharpIntelliSenseService(refs, logger ?? NullLogger<CSharpIntelliSenseService>.Instance);
+    }
+
+    // Keeps RoslynCodeFixEngine's debug log (raw TextChanges, which discard branch fired, swallowed
+    // exceptions) so a failure that only reproduces on another OS reports why, not just that it failed.
+    private sealed class RecordingLogger : ILogger<CSharpIntelliSenseService>
+    {
+        private readonly List<string> _lines = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            lock (_lines) _lines.Add(formatter(state, exception) + (exception is null ? "" : " " + exception));
+        }
+
+        public string Drain()
+        {
+            lock (_lines)
+            {
+                var text = string.Join("\n", _lines);
+                _lines.Clear();
+                return text;
+            }
+        }
     }
 
     [Fact]
@@ -149,7 +177,8 @@ public class CSharpIntelliSenseRefactoringsTests
     [Fact]
     public async Task GetRefactoringsAsync_Should_OnlyListRefactoringsThatMaterialize()
     {
-        using var service = CreateService();
+        var log = new RecordingLogger();
+        using var service = CreateService(log);
         const string code = "class Base { public virtual void M() { } }\nclass C : Base { }\n";
         var position = code.IndexOf("class C", StringComparison.Ordinal) + "class ".Length;
 
@@ -159,8 +188,10 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.NotEmpty(refactorings);
         foreach (var refactoring in refactorings)
         {
+            log.Drain();
             var materialized = await service.MaterializeFixAsync(code, refactoring.Key, TestContext.Current.CancellationToken);
-            Assert.True(materialized is not null, $"'{refactoring.Title}' is listed but materializes to nothing");
+            Assert.True(materialized is not null,
+                $"'{refactoring.Title}' is listed but materializes to nothing. Engine log:\n{log.Drain()}");
         }
     }
 }
