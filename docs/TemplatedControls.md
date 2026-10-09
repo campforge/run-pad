@@ -1,17 +1,19 @@
-В Avalonia UI TemplatedControl (шаблонный элемент управления) принципиально отличается от UserControl. Если UserControl жестко связывает разметку и логику, то TemplatedControl разделяет их: вся логика пишется в C#-классе, а внешний вид полностью выносится в XAML-шаблон (обычно в файл .axaml в папке Themes или Styles).
-Это идеальный подход для создания переиспользуемых библиотек компонентов (дизайн-систем), которые должны поддерживать ReactiveUI, DI и гибкую кастомизацию.
-Ниже представлено подробное архитектурное руководство по созданию TemplatedControl с поддержкой кастомных событий, интеграцией в ReactiveUI и работой через DI.
+In Avalonia UI a TemplatedControl is fundamentally different from a UserControl. Whereas a UserControl tightly couples markup and logic, a TemplatedControl separates them: all logic is written in a C# class, and the appearance is moved entirely into a XAML template (usually an .axaml file in a Themes or Styles folder).
+This is the ideal approach for building reusable component libraries (design systems) that need to support ReactiveUI, DI, and flexible customization.
+Below is a detailed architecture guide to creating a TemplatedControl with custom events, ReactiveUI integration, and DI.
 ------------------------------
-## Руководство: Маршрутизируемые события в TemplatedControl (ReactiveUI + DI)## Главное отличие в архитектуре
-В TemplatedControl у нас нет прямого Code-Behind для разметки. Вместо этого элемент управления переопределяет метод OnApplyTemplate(). В этом методе он находит элементы внутри своего шаблона (например, кнопки), подписывается на их локальные действия и транслирует их наружу в виде RoutedEvent.
+## Guide: routed events in a TemplatedControl (ReactiveUI + DI)
+## The main architectural difference
+A TemplatedControl has no direct code-behind for its markup. Instead, the control overrides the OnApplyTemplate() method. In that method it finds the elements inside its template (for example, buttons), subscribes to their local actions, and forwards them outward as a RoutedEvent.
 ------------------------------
-## Шаг 1. Создание C# класса элемента управления
-Создадим кастомный элемент управления CustomCard.cs. Он будет содержать регистрацию события и логику захвата элементов из будущего шаблона.
-Файл: CustomCard.cs
+## Step 1. Creating the control's C# class
+Create a custom control, CustomCard.cs. It will contain the event registration and the logic for grabbing elements from the template.
+File: CustomCard.cs
 
 using System;using Avalonia;using Avalonia.Controls;using Avalonia.Controls.Primitives;using Avalonia.Interactivity;
 namespace AvaloniaApp.Controls;
-// Класс для передачи данных из TemplatedControl наружуpublic class CardSubmittedEventArgs : RoutedEventArgs
+// Class for passing data out of the TemplatedControl
+public class CardSubmittedEventArgs : RoutedEventArgs
 {
 public string Value { get; }
 public CardSubmittedEventArgs(RoutedEvent routedEvent, string value) : base(routedEvent)
@@ -21,7 +23,7 @@ Value = value;
 }
 public class CustomCard : TemplatedControl
 {
-// 1. Регистрируем Bubble-событие, которое будет всплывать по дереву UI
+// 1. Register a Bubble event that will bubble up the UI tree
 public static readonly RoutedEvent<CardSubmittedEventArgs> SubmittedEvent =
 RoutedEvent.Register<CustomCard, CardSubmittedEventArgs>(
 nameof(Submitted),
@@ -33,24 +35,24 @@ RoutingStrategies.Bubble);
         remove => RemoveHandler(SubmittedEvent, value);
     }
 
-    // Ссылки на элементы внутри шаблона, которые понадобятся для логики
+    // References to the template elements needed by the logic
     private Button? _submitButton;
     private TextBox? _inputTextBox;
 
-    // 2. Метод вызывается, когда Avalonia применила XAML-шаблон к этому контролу
+    // 2. Called when Avalonia has applied the XAML template to this control
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
 
-        // Отписываемся от старых элементов, если шаблон переприменяется (для предотвращения утечек памяти)
+        // Unsubscribe from old elements if the template is re-applied (to prevent memory leaks)
         if (_submitButton != null)
             _submitButton.Click -= OnSubmitButtonClick;
 
-        // Находим нужные элементы внутри шаблона по их именам (PART_...)
+        // Find the required elements inside the template by name (PART_...)
         _submitButton = e.NameScope.Find<Button>("PART_SubmitButton");
         _inputTextBox = e.NameScope.Find<TextBox>("PART_InputTextBox");
 
-        // Подписываемся на событие клика внутренней кнопки
+        // Subscribe to the inner button's click event
         if (_submitButton != null)
             _submitButton.Click += OnSubmitButtonClick;
     }
@@ -61,32 +63,32 @@ RoutingStrategies.Bubble);
 
         string currentText = _inputTextBox.Text ?? string.Empty;
 
-        // 3. Генерируем наше кастомное событие наружу
+        // 3. Raise our custom event outward
         var args = new CardSubmittedEventArgs(SubmittedEvent, currentText);
         RaiseEvent(args);
     }
 }
 
-Важно по именованию: В TemplatedControl принято называть элементы внутри шаблона с префиксом PART_ (например, PART_SubmitButton). Это дает понять разработчикам, что данные элементы критически важны для работы логики класса.
+Naming note: in a TemplatedControl, elements inside the template are conventionally named with the PART_ prefix (for example, PART_SubmitButton). This signals to developers that these elements are critical for the class's logic to work.
 
 ------------------------------
-## Шаг 2. Определение XAML-шаблона (Стиля)
-Теперь опишем, как наш CustomCard должен выглядеть. Создадим файл стилей.
-Файл: CustomCardStyle.axaml
+## Step 2. Defining the XAML template (style)
+Now describe what our CustomCard should look like. Create a styles file.
+File: CustomCardStyle.axaml
 
 <Styles xmlns="https://github.com"
 xmlns:x="http://microsoft.com"
 xmlns:controls="using:AvaloniaApp.Controls">
 
-    <!-- Нацеливаем стиль на наш кастомный класс -->
+    <!-- Target the style at our custom class -->
     <Style Selector="controls|CustomCard">
-        <!-- Задаем дефолтные свойства, если они не указаны явно -->
+        <!-- Set default properties in case they are not specified explicitly -->
         <Setter Property="Background" Value="#F5F5F5"/>
         <Setter Property="BorderBrush" Value="#E0E0E0"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="15"/>
 
-        <!-- Определяем сам шаблон -->
+        <!-- Define the template itself -->
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
@@ -96,11 +98,11 @@ xmlns:controls="using:AvaloniaApp.Controls">
                         CornerRadius="8">
 
                     <StackPanel Spacing="10">
-                        <TextBlock Text="Компонент: TemplatedControl" FontWeight="Bold"/>
+                        <TextBlock Text="Component: TemplatedControl" FontWeight="Bold"/>
 
-                        <!-- Имена должны строго совпадать с тем, что мы ищем в OnApplyTemplate -->
-                        <TextBox x:Name="PART_InputTextBox" Watermark="Введите текст..." />
-                        <Button x:Name="PART_SubmitButton" Content="Подтвердить" HorizontalAlignment="Right"/>
+                        <!-- Names must exactly match what we look up in OnApplyTemplate -->
+                        <TextBox x:Name="PART_InputTextBox" Watermark="Enter text..." />
+                        <Button x:Name="PART_SubmitButton" Content="Confirm" HorizontalAlignment="Right"/>
                     </StackPanel>
 
                 </Border>
@@ -109,17 +111,17 @@ xmlns:controls="using:AvaloniaApp.Controls">
     </Style>
 </Styles>
 
-Чтобы проект увидел этот стиль, его нужно зарегистрировать в файле App.axaml:
+For the project to see this style, register it in App.axaml:
 
 <Application.Styles>
 <FluentTheme />
-<!-- Подключаем наш файл со стилем элемента -->
+<!-- Include our control's style file -->
 <StyleInclude Source="using:AvaloniaApp.Controls/CustomCardStyle.axaml" />
 </Application.Styles>
 
 ------------------------------
-## Шаг 3. Создание Родительской ViewModel и Сервиса (DI + ReactiveUI)
-ViewModel здесь абсолютно идентична той, что используется для UserControl. Ей всё равно, какой именно тип элемента сгенерировал событие. Она работает только с чистыми данными и зависит от сервисов через DI.
+## Step 3. Creating the parent ViewModel and service (DI + ReactiveUI)
+The ViewModel here is exactly the same as the one used for the UserControl. It does not care which kind of element raised the event. It works only with plain data and depends on services via DI.
 
 using System;using System.Reactive;using ReactiveUI;
 namespace AvaloniaApp.ViewModels;
@@ -127,7 +129,7 @@ public interface INotificationService { void Send(string message); }
 public class MainViewModel : ViewModelBase
 {
 private readonly INotificationService _notificationService;
-private string _logText = "Сообщений нет";
+private string _logText = "No messages";
 
     public string LogText
     {
@@ -135,29 +137,29 @@ private string _logText = "Сообщений нет";
         set => this.RaiseAndSetIfChanged(ref _logText, value);
     }
 
-    // Команда ReactiveUI для обработки данных
+    // ReactiveUI command for processing the data
     public ReactiveCommand<string, Unit> ProcessTextCommand { get; }
 
-    // Конструктор, в который DI-контейнер передаст нужный сервис
+    // Constructor into which the DI container passes the required service
     public MainViewModel(INotificationService notificationService)
     {
         _notificationService = notificationService;
 
         ProcessTextCommand = ReactiveCommand.Create<string>(text =>
         {
-            // Вызываем логику внешнего сервиса
+            // Call the external service's logic
             _notificationService.Send(text);
 
-            // Обновляем UI-состояние во ViewModel
-            LogText = $"[DI Сервис]: Данные '{text}' успешно отправлены!";
+            // Update the UI state in the ViewModel
+            LogText = $"[DI Service]: Data '{text}' sent successfully!";
         });
     }
 }
 
 ------------------------------
-## Шаг 4. Использование в родительском View (XAML)
-В родительском окне мы внедряем CustomCard и с помощью Avalonia.Xaml.Behaviors связываем всплывающее событие Submitted напрямую с ProcessTextCommand.
-Файл: MainWindow.axaml
+## Step 4. Using it in the parent View (XAML)
+In the parent window we embed CustomCard and use Avalonia.Xaml.Behaviors to bind the bubbling Submitted event directly to ProcessTextCommand.
+File: MainWindow.axaml
 
 <Window xmlns="https://github.com"
 xmlns:x="http://microsoft.com"
@@ -171,7 +173,7 @@ x:DataType="vm:MainViewModel"
 Title="TemplatedControl + ReactiveUI" Width="450" Height="350"
 WindowStartupLocation="CenterScreen">
 
-    <!-- Регистрируем конвертер аргументов внутри ресурсов окна (или в App.axaml) -->
+    <!-- Register the argument converter in the window resources (or in App.axaml) -->
     <Window.Resources>
         <converters:CardSubmittedConverter x:Key="CardSubmittedConverter"/>
     </Window.Resources>
@@ -180,12 +182,12 @@ WindowStartupLocation="CenterScreen">
 
         <TextBlock Text="{Binding LogText}" Foreground="DarkBlue" FontSize="14" HorizontalAlignment="Center"/>
 
-        <!-- Используем наш TemplatedControl -->
+        <!-- Use our TemplatedControl -->
         <controls:CustomCard Background="#FFF9E7" BorderBrush="Orange">
             <i:Interaction.Behaviors>
-                <!-- Слушаем событие, объявленное в C#-классе CustomCard.cs -->
+                <!-- Listen for the event declared in the CustomCard.cs C# class -->
                 <ia:EventTriggerBehavior EventName="Submitted">
-                    <!-- Вызываем ReactiveCommand из MainViewModel -->
+                    <!-- Invoke the ReactiveCommand from MainViewModel -->
                     <ia:InvokeCommandAction
                         Command="{Binding ProcessTextCommand}"
                         InputConverter="{StaticResource CardSubmittedConverter}"/>
@@ -196,8 +198,8 @@ WindowStartupLocation="CenterScreen">
     </StackPanel>
 </Window>
 
-## Конвертер аргументов события
-Для извлечения свойства Value из CardSubmittedEventArgs и передачи его строкой в команду, используется простой конвертер:
+## Event argument converter
+A simple converter extracts the Value property from CardSubmittedEventArgs and passes it to the command as a string:
 
 using System;using System.Globalization;using Avalonia.Data.Converters;using AvaloniaApp.Controls;
 namespace AvaloniaApp.Converters;
@@ -207,7 +209,7 @@ public object? Convert(object? value, Type targetType, object? parameter, Cultur
 {
 if (value is CardSubmittedEventArgs args)
 {
-return args.Value; // Возвращаем чистую строку для ReactiveCommand<string, Unit>
+return args.Value; // Return a plain string for ReactiveCommand<string, Unit>
 }
 return null;
 }
@@ -217,14 +219,14 @@ return null;
 }
 
 ------------------------------
-## Шаг 5. Конфигурация DI-контейнера
-При инициализации приложения регистрируем все зависимости, включая сервисы, Окна и Вью-Модели в App.axaml.cs.
+## Step 5. Configuring the DI container
+When the application initializes, register all dependencies, including services, windows, and view models, in App.axaml.cs.
 
 using System;using Avalonia;using Avalonia.Controls.ApplicationLifetimes;using Avalonia.Markup.Xaml;using AvaloniaApp.ViewModels;using AvaloniaApp.Views;using Microsoft.Extensions.DependencyInjection;
 namespace AvaloniaApp;
 public class ConsoleNotificationService : INotificationService
 {
-public void Send(string message) => Console.WriteLine($"[DI Бэкенд] Лог: {message}");
+public void Send(string message) => Console.WriteLine($"[DI Backend] Log: {message}");
 }
 public partial class App : Application
 {
@@ -236,10 +238,10 @@ public IServiceProvider? Services { get; private set; }
     {
         var serviceCollection = new ServiceCollection();
 
-        // Регистрируем синглтон сервиса уведомлений
+        // Register the notification service as a singleton
         serviceCollection.AddSingleton<INotificationService, ConsoleNotificationService>();
 
-        // Регистрируем UI
+        // Register the UI
         serviceCollection.AddTransient<MainViewModel>();
         serviceCollection.AddTransient<MainWindow>();
 
@@ -257,10 +259,10 @@ public IServiceProvider? Services { get; private set; }
 }
 
 ------------------------------
-## Архитектурные выводы
+## Architectural takeaways
 
-* Полное разделение (Decoupling): Логика TemplatedControl сосредоточена в .cs файле, разметка — в файле стилей .axaml. Внешний вид можно полностью переписать (изменить цвета, структуру, анимации), не ломая логику событий и отправки данных.
-* Чистый MVVM: Окно знает о существовании контрола, контрол знает о своих внутренних элементах, но никто из них ничего не знает про конкретную ViewModel или DI-сервисы.
-* Готовность к переиспользованию: Такой контрол можно вынести в отдельную Class Library (NuGet-пакет) и использовать во множестве разных проектов.
+* Full decoupling: the TemplatedControl's logic lives in the .cs file and its markup in the .axaml styles file. The appearance can be rewritten entirely (colors, structure, animations) without breaking the event and data-submission logic.
+* Clean MVVM: the window knows the control exists, the control knows its inner elements, but none of them know anything about a specific ViewModel or DI services.
+* Ready for reuse: such a control can be moved into a separate class library (NuGet package) and used across many different projects.
 
 
