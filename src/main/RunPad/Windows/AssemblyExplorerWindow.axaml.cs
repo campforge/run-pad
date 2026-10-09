@@ -50,6 +50,12 @@ public partial class AssemblyExplorerWindow : Window
     private DecompilerView _view = DecompilerView.Default;
     private bool _syncingViewBoxes;
 
+    // Search (ILSpy's search pane): the index is built once per loaded assembly, on first use.
+    internal static TimeSpan SearchDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    internal const int SearchLimit = 200;
+    private Task<IReadOnlyList<AssemblySearchEntry>>? _searchIndex;
+    private CancellationTokenSource? _searchCts;
+
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
 
@@ -112,12 +118,34 @@ public partial class AssemblyExplorerWindow : Window
         // editor or tree can use the keys).
         AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.KeyModifiers != KeyModifiers.Alt) return;
-            if (e.Key == Key.Left) GoBack();
-            else if (e.Key == Key.Right) GoForward();
+            if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Left) GoBack();
+            else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Right) GoForward();
+            else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.F)
+            {
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+            }
             else return;
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
+
+        SearchBox.TextChanged += (_, _) => _ = SearchDebouncedAsync(SearchBox.Text ?? "");
+        SearchBox.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) SearchBox.Text = "";
+            else if (e.Key == Key.Down && SearchResults.ItemCount > 0)
+            {
+                SearchResults.SelectedIndex = 0;
+                SearchResults.ContainerFromIndex(0)?.Focus();
+            }
+            else return;
+            e.Handled = true;
+        };
+        SearchResults.SelectionChanged += (_, _) =>
+        {
+            if (SearchResults.SelectedItem is AssemblyTreeNode result)
+                _ = OpenSearchResultAsync(result);
+        };
         AddHandler(PointerPressedEvent, (_, e) =>
         {
             var kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
@@ -190,6 +218,9 @@ public partial class AssemblyExplorerWindow : Window
         AssemblyPathBlock.Text = assemblyPath;
         _loadedAssemblyPath = assemblyPath;
         DetachHistoryFromTree(); // its rows belong to the tree being replaced
+        _searchIndex = null;
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            _ = SearchAsync(SearchBox.Text);
         BuildTree(types, assemblyPath);
     }
 
@@ -307,6 +338,94 @@ public partial class AssemblyExplorerWindow : Window
             Show(result, item, target);
     }
 
+    // ── Search (ILSpy's search pane, Ctrl+Shift+F) ──
+
+    // Waits for typing to pause before searching; a newer keystroke cancels the pending search.
+    private async Task SearchDebouncedAsync(string query)
+    {
+        _searchCts?.Cancel();
+        var cts = _searchCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(SearchDelay, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        await SearchAsync(query, cts.Token);
+    }
+
+    // internal: test hook (no debounce). Builds the index off the UI thread on first use, filters it
+    // off the UI thread too, and drops results a newer query or another assembly made stale.
+    internal async Task SearchAsync(string query, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query) || _loadedAssemblyPath is not { } assemblyPath)
+        {
+            SearchResults.ItemsSource = null;
+            SearchPanel.IsVisible = false;
+            return;
+        }
+
+        var indexTask = _searchIndex ??= Task.Run(() => CSharpDecompilerService.BuildSearchIndex(assemblyPath));
+        IReadOnlyList<AssemblySearchEntry> hits;
+        try
+        {
+            var index = await indexTask;
+            hits = await Task.Run(() => CSharpDecompilerService.Search(index, query, SearchLimit + 1), cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            if (indexTask == _searchIndex) _searchIndex = null; // let the next keystroke retry
+            SearchStatus.Text = $"Search failed: {ex.Message}";
+            SearchResults.ItemsSource = null;
+            SearchPanel.IsVisible = true;
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested || indexTask != _searchIndex) return;
+
+        SearchResults.ItemsSource = hits.Take(SearchLimit)
+            .Select(hit => Node(hit.Kind, hit.Text, hit.Member?.Access ?? hit.Type.Access,
+                hit.Member?.IsStatic ?? hit.Type.IsStatic, hit.Member?.IsAbstract ?? hit.Type.IsAbstract,
+                assemblyPath, hit.Type, hit.Member, hit.Location))
+            .ToList();
+        SearchStatus.Text = hits.Count switch
+        {
+            0 => "No results",
+            1 => "1 result",
+            > SearchLimit => $"First {SearchLimit} results",
+            _ => $"{hits.Count} results",
+        };
+        SearchPanel.IsVisible = true;
+    }
+
+    internal ListBox SearchResultList => SearchResults;
+
+    // Like ILSpy: a search hit is revealed and selected in the tree, and decompiled from there.
+    internal async Task OpenSearchResultAsync(AssemblyTreeNode result)
+    {
+        if (result.Type is not { } type) return;
+
+        var version = ++_requestVersion;
+        var (_, target) = await RevealAsync(type.FullTypeName, result.Member?.MetadataToken);
+        if (version != _requestVersion) return;
+
+        if (target is { Header: AssemblyTreeNode node })
+        {
+            SelectSilently(target);
+            await SelectNodeAsync(node, target);
+        }
+        else
+        {
+            await SelectNodeAsync(result); // not in the tree (shouldn't happen): decompile the hit itself
+        }
+    }
+
     // ── C# / IL (ILSpy's language and version boxes) ──
 
     /// <summary>The C# versions offered, newest first — "Latest" is the decompiler's own latest.</summary>
@@ -412,7 +531,7 @@ public partial class AssemblyExplorerWindow : Window
     private AssemblyTreeNode Node(
         AssemblyNodeKind kind, string text, AssemblyAccess access = AssemblyAccess.Public,
         bool isStatic = false, bool isAbstract = false, string? assemblyPath = null,
-        AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null)
+        AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null, string? location = null)
     {
         var (iconKey, color) = KindIcons[kind];
         var accessKey = access switch
@@ -427,7 +546,7 @@ public partial class AssemblyExplorerWindow : Window
             new SolidColorBrush(color),
             accessKey is null ? null : Geometry("AsmOverlay." + accessKey),
             isStatic ? Geometry("AsmOverlay.Static") : null);
-        return new AssemblyTreeNode(kind, text, access, icons, isStatic, isAbstract, assemblyPath, type, member);
+        return new AssemblyTreeNode(kind, text, access, icons, isStatic, isAbstract, assemblyPath, type, member, location);
 
         Geometry? Geometry(string key) => this.TryFindResource(key, out var resource) ? resource as Geometry : null;
     }
@@ -462,16 +581,9 @@ public partial class AssemblyExplorerWindow : Window
         TreeViewItem? typeItem = null;
         if (_loadedAssemblyPath is { } loaded && SamePath(reference.AssemblyPath, loaded))
         {
-            typeItem = await RevealTypeAsync(reference.ContainingTypeFullName);
+            (typeItem, var target) = await RevealAsync(
+                reference.ContainingTypeFullName, reference.MemberName is null ? null : reference.MetadataToken);
             if (version != _requestVersion) return;
-            var target = typeItem;
-            if (typeItem is not null && reference.MemberName is not null)
-            {
-                await ExpandAsync(typeItem);
-                if (version != _requestVersion) return;
-                target = typeItem.Items.OfType<TreeViewItem>().FirstOrDefault(i =>
-                    i.Header is AssemblyTreeNode { Member.MetadataToken: var token } && token == reference.MetadataToken);
-            }
 
             if (target is { Header: AssemblyTreeNode node })
             {
@@ -493,6 +605,19 @@ public partial class AssemblyExplorerWindow : Window
         if (version != _requestVersion) return;
         if (typeItem is not null) SelectSilently(typeItem);
         Show(next, typeItem, page);
+    }
+
+    // The rows of a type of the loaded assembly and, when memberToken is given, of that member (null
+    // when the tree doesn't list it, e.g. an accessor) — expanding the path to them on the way.
+    private async Task<(TreeViewItem? TypeItem, TreeViewItem? Target)> RevealAsync(string typeFullName, int? memberToken)
+    {
+        var typeItem = await RevealTypeAsync(typeFullName);
+        if (typeItem is null || memberToken is not { } token) return (typeItem, typeItem);
+
+        await ExpandAsync(typeItem);
+        var memberItem = typeItem.Items.OfType<TreeViewItem>().FirstOrDefault(i =>
+            i.Header is AssemblyTreeNode { Member.MetadataToken: var t } && t == token);
+        return (typeItem, memberItem);
     }
 
     // Expands the path to a type of the loaded assembly ("Ns.Outer+Inner": namespace row → Outer →

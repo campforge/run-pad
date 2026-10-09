@@ -97,6 +97,21 @@ public sealed record AssemblyMemberEntry(
     public bool IsPublic => CSharpDecompilerService.IsVisible(Access);
 }
 
+/// <summary>
+/// One hit of the explorer's search (<see cref="CSharpDecompilerService.BuildSearchIndex"/>): a type
+/// (<see cref="Member"/> null) or a member of <see cref="Type"/>. <see cref="Name"/> is what's matched
+/// (a constructor matches by its type's name); <see cref="Location"/> is where it's declared — the
+/// namespace of a top-level type, the declaring type otherwise. <see cref="TypeFullName"/> (the type's,
+/// or the declaring type's, reflection name) is what the tree reveals.
+/// </summary>
+public sealed record AssemblySearchEntry(
+    string Name, string Location, string TypeFullName, AssemblyTypeEntry Type, AssemblyMemberEntry? Member)
+{
+    public AssemblyNodeKind Kind => Member?.Kind ?? Type.Kind;
+    public string Text => Member?.Text ?? Type.Text;
+    internal string QualifiedName => Location.Length > 0 ? Location + "." + Name : Name;
+}
+
 /// <summary>What a type node expands to, in ILSpy's order.</summary>
 public sealed record AssemblyTypeContents(
     IReadOnlyList<AssemblyTypeEntry> BaseTypes,
@@ -215,13 +230,8 @@ public static class CSharpDecompilerService
                 .OrderBy(e => e.Text, StringComparer.Ordinal)
                 .ToList();
 
-            var members = typeDef.Members
-                .Where(m => !m.Name.StartsWith('<') && m is not IMethod { IsAccessor: true }
-                            // a field-like event's backing field shares the event's name
-                            && !(m is IField && m.HasAttribute(KnownAttribute.CompilerGenerated)))
-                .Select(m => new AssemblyMemberEntry(MemberKind(m), MemberText(m), ToAccess(m.Accessibility),
-                    MetadataTokens.GetToken(m.MetadataToken), m.IsStatic,
-                    m.IsAbstract && typeDef.Kind != TypeKind.Interface))
+            var members = ListedMembers(typeDef)
+                .Select(m => ToMemberEntry(typeDef, m))
                 .OrderBy(m => m.Kind)
                 .ThenBy(m => m.Text, StringComparer.Ordinal)
                 .ToList();
@@ -281,6 +291,86 @@ public static class CSharpDecompilerService
         first.AddLeadingTrivia(new Comment(" " + decompiler.TypeSystem.MainModule.FullAssemblyName));
         if (declaringType is not null)
             first.AddLeadingTrivia(new Comment(" " + FullTypeText(declaringType)));
+    }
+
+    // The members the tree lists: compiler-generated ones (names starting with '<'), property/event
+    // accessors and a field-like event's backing field (it shares the event's name) are left out.
+    private static IEnumerable<IMember> ListedMembers(ITypeDefinition type) => type.Members
+        .Where(m => !m.Name.StartsWith('<') && m is not IMethod { IsAccessor: true }
+                    && !(m is IField && m.HasAttribute(KnownAttribute.CompilerGenerated)));
+
+    private static AssemblyMemberEntry ToMemberEntry(ITypeDefinition declaringType, IMember member) => new(
+        MemberKind(member), MemberText(member), ToAccess(member.Accessibility),
+        MetadataTokens.GetToken(member.MetadataToken), member.IsStatic,
+        member.IsAbstract && declaringType.Kind != TypeKind.Interface);
+
+    // Neither the type nor any type it's nested in is compiler-generated (closures, state machines).
+    private static bool IsListed(ITypeDefinition type)
+    {
+        for (var t = type; t is not null; t = t.DeclaringTypeDefinition)
+        {
+            if (t.Name.StartsWith('<')) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Everything the explorer's search can find in <paramref name="assemblyPath"/>: every listed type
+    /// (nested ones too) and every member the tree would list, built once per assembly and then
+    /// filtered in memory by <see cref="Search"/> on each keystroke.
+    /// </summary>
+    public static IReadOnlyList<AssemblySearchEntry> BuildSearchIndex(string assemblyPath)
+    {
+        return WithDecompiler(assemblyPath, (decompiler, _) =>
+        {
+            var entries = new List<AssemblySearchEntry>();
+            foreach (var type in decompiler.TypeSystem.MainModule.TypeDefinitions.Where(IsListed))
+            {
+                var typeEntry = ToEntry(type, browsedAssembly: null);
+                var typeName = type.FullTypeName.ReflectionName;
+                var location = type.DeclaringTypeDefinition is { } outer ? FullTypeText(outer) : type.Namespace;
+                entries.Add(new AssemblySearchEntry(type.Name, location, typeName, typeEntry, Member: null));
+
+                var memberLocation = FullTypeText(type);
+                foreach (var member in ListedMembers(type))
+                {
+                    var name = member is IMethod { IsConstructor: true } ? type.Name : member.Name;
+                    entries.Add(new AssemblySearchEntry(name, memberLocation, typeName, typeEntry, ToMemberEntry(type, member)));
+                }
+            }
+            return entries;
+        });
+    }
+
+    /// <summary>
+    /// ILSpy-style name search over a <see cref="BuildSearchIndex"/> result, case-insensitive: exact
+    /// name matches first, then names starting with <paramref name="query"/>, then names containing it,
+    /// alphabetical within each. A query with a '.' matches the qualified name instead
+    /// (<c>Shape.Echo</c>, <c>Tree.Shape</c>). At most <paramref name="limit"/> results.
+    /// </summary>
+    public static IReadOnlyList<AssemblySearchEntry> Search(
+        IReadOnlyList<AssemblySearchEntry> index, string query, int limit = 200)
+    {
+        query = query.Trim();
+        if (query.Length == 0) return [];
+        var qualified = query.Contains('.');
+
+        return index
+            .Select(e => (Entry: e, Rank: Rank(qualified ? e.QualifiedName : e.Name)))
+            .Where(r => r.Rank >= 0)
+            .OrderBy(r => r.Rank)
+            .ThenBy(r => r.Entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Entry.Location, StringComparer.Ordinal)
+            .Take(limit)
+            .Select(r => r.Entry)
+            .ToList();
+
+        int Rank(string name) =>
+            name.Equals(query, StringComparison.OrdinalIgnoreCase) ? 0
+            : name.EndsWith("." + query, StringComparison.OrdinalIgnoreCase) ? 0
+            : name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 1
+            : name.Contains(query, StringComparison.OrdinalIgnoreCase) ? 2
+            : -1;
     }
 
     private static AssemblyTypeEntry ToEntry(ITypeDefinition type, string? browsedAssembly)

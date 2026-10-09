@@ -11,8 +11,12 @@ namespace RunPad.Windows.Models;
 public sealed class AssemblyTreeNode(
     AssemblyNodeKind kind, string text, AssemblyAccess access, AssemblyTreeNodeIcons icons,
     bool isStatic = false, bool isAbstract = false,
-    string? assemblyPath = null, AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null)
+    string? assemblyPath = null, AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null,
+    string? location = null)
 {
+    /// <summary>Search results only: where the hit is declared (namespace or declaring type).</summary>
+    public string? Location { get; } = location;
+
     public AssemblyNodeKind Kind { get; } = kind;
     public string Text { get; } = text;
     public AssemblyAccess Access { get; } = access;

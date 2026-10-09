@@ -375,6 +375,49 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
     }
 
     [Fact]
+    public void BuildSearchIndex_Should_ListTypes_NestedTypes_AndMembers_WithTheirLocation()
+    {
+        var index = CSharpDecompilerService.BuildSearchIndex(_fixtures.TreeCodeBinary);
+
+        Assert.Contains(index, e => e is { Name: "Shape", Location: "Tree", Member: null });
+        Assert.Contains(index, e => e is { Name: "Inner", Location: "Tree.Shape", Member: null, TypeFullName: "Tree.Shape+Inner" });
+        var echo = Assert.Single(index, e => e.Name == "Echo");
+        Assert.Equal("Tree.Shape", echo.Location);
+        Assert.Equal("Echo<T>(T, ref int) : T", echo.Text);
+        Assert.Equal(AssemblyNodeKind.Method, echo.Kind);
+        // same filters as the tree: no compiler-generated names, accessors or event backing fields
+        Assert.DoesNotContain(index, e => e.Name.StartsWith('<') || e.Name.StartsWith("get_"));
+        Assert.Single(index, e => e.Name == "Changed");
+        // a constructor is found by its type's name
+        Assert.Contains(index, e => e is { Name: "Shape", Member.Kind: AssemblyNodeKind.Constructor });
+    }
+
+    [Fact]
+    public void Search_Should_RankExactThenPrefixThenContains_CaseInsensitively()
+    {
+        var index = CSharpDecompilerService.BuildSearchIndex(_fixtures.TreeCodeBinary);
+
+        var hits = CSharpDecompilerService.Search(index, "shape");
+
+        Assert.Equal("Shape", hits[0].Name); // exact (the type or its constructor)
+        Assert.Contains(hits, h => h.Name == "IShape"); // contains
+        Assert.True(hits.ToList().FindIndex(h => h.Name == "IShape") > hits.ToList().FindLastIndex(h => h.Name == "Shape"));
+        Assert.Empty(CSharpDecompilerService.Search(index, "   "));
+        Assert.Empty(CSharpDecompilerService.Search(index, "NoSuchName"));
+    }
+
+    [Fact]
+    public void Search_WithADot_Should_MatchTheQualifiedName()
+    {
+        var index = CSharpDecompilerService.BuildSearchIndex(_fixtures.TreeCodeBinary);
+
+        var hit = Assert.Single(CSharpDecompilerService.Search(index, "Shape.Echo"));
+        Assert.Equal("Echo", hit.Name);
+        Assert.Contains(CSharpDecompilerService.Search(index, "Tree.Circle"), h => h is { Name: "Circle", Member: null });
+        Assert.Single(CSharpDecompilerService.Search(index, "x", limit: 1));
+    }
+
+    [Fact]
     public void GetTypeContents_Should_ListBaseAndDerivedTypes()
     {
         var contents = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape");
