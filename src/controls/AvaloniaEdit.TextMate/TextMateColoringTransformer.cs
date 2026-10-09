@@ -469,7 +469,10 @@ public class TextMateColoringTransformer :
         // This eliminates the race between the Post() call (background thread) and
         // the lambda execution (UI thread), where SetModel or Dispose could have
         // nulled _document or changed the visible line range.
-        Dispatcher.UIThread.Post(() =>
+        // Posted via the TextView's own dispatcher, not the static Dispatcher.UIThread: reading that
+        // static from this background thread after Avalonia.Headless reset it between isolated tests
+        // made the tokenizer thread "the UI thread" for the next test (same dispatcher in the app).
+        _textView.Dispatcher.Post(() =>
         {
             // Guard against disposal that occurred between Post() and execution
             if (Volatile.Read(ref _isDisposed))

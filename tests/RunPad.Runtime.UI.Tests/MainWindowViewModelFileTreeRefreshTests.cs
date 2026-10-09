@@ -1,4 +1,6 @@
+using System.Reflection;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using Moq;
 using RunPad.Contracts;
 using RunPad.Services;
@@ -82,6 +84,66 @@ public class MainWindowViewModelFileTreeRefreshTests
         var newPath = await vm.CreateFolderAsync(null);
 
         Assert.NotNull(vm.FileTree.FindByPath(newPath));
+
+        vm.Dispose();
+    }
+
+    // Release 0.3.0 (docs/handoffs/release-test-isolation.md): Avalonia.Headless resets the static
+    // Dispatcher.UIThread between isolated tests, and the next read creates it on the reading thread.
+    // The watcher debounce's late thread-pool callback used to read it there, making a pool thread
+    // "the UI thread" so the next test's setup failed VerifyAccess. Simulates that reset (Avalonia's
+    // private static field, restored afterwards) and waits for the callback's post without pumping
+    // the UI dispatcher — pumping could recreate the static on this thread and hide the defect.
+    [AvaloniaFact]
+    public void LateWatcherCallback_Should_PostToTheCapturedDispatcher_WhenUIThreadWasReset()
+    {
+        var fileSystem = CreateFileSystemMock();
+        var walks = 0;
+        fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => Interlocked.Increment(ref walks))
+            .ReturnsAsync([]);
+        var vm = new MainWindowViewModel(
+            sdkProviders: [],
+            fileSystemService: fileSystem.Object,
+            windowService: new Mock<IWindowService>().Object,
+            prefs: CreatePrefsMock().Object,
+            languageRegistry: new LanguageHostRegistry());
+        var uiDispatcher = Dispatcher.UIThread;
+        uiDispatcher.RunJobs();
+        var walksBefore = Volatile.Read(ref walks);
+        Assert.False(uiDispatcher.HasJobsWithPriority(DispatcherPriority.Default));
+
+        var uiThreadField = typeof(Dispatcher).GetField("s_uiThread", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(uiThreadField);
+        object? recreated;
+        bool posted;
+        try
+        {
+            uiThreadField.SetValue(null, null);
+            Task.Run(() => fileSystem.Raise(f => f.WatcherEvent += null,
+                new FileSystemEventArgs(WatcherChangeTypes.Changed, "/root", "a.rpad")));
+
+            // Either outcome ends the wait: the callback posted to the captured dispatcher, or it read
+            // the static and recreated it on its own thread.
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            do
+            {
+                recreated = uiThreadField.GetValue(null);
+                posted = uiDispatcher.HasJobsWithPriority(DispatcherPriority.Default);
+                if (recreated is not null || posted) break;
+                Thread.Sleep(10);
+            }
+            while (DateTime.UtcNow < deadline);
+        }
+        finally
+        {
+            uiThreadField.SetValue(null, uiDispatcher);
+        }
+
+        Assert.Null(recreated);
+        Assert.True(posted, "the watcher callback never posted its refresh");
+        uiDispatcher.RunJobs();
+        Assert.True(Volatile.Read(ref walks) > walksBefore, "the posted refresh never ran on the UI dispatcher");
 
         vm.Dispose();
     }
