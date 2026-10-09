@@ -24,12 +24,33 @@ namespace RunPad.Runtime.UI.Tests;
 // regression tests, ported here).
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
-public sealed class ScriptCompilerTests : IDisposable
+public sealed class ScriptCompilerTests : IAsyncDisposable
 {
     private readonly string _root = Directory.CreateTempSubdirectory("runpad-script-compiler").FullName;
     private int _dirs;
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    // Windows CI (release 0.3.0): deleting bin/RunPad.Runtime.dll right after a script run threw
+    // UnauthorizedAccessException. Code review found no holder in the test process (the compiler
+    // references RuntimeLibPath, not the bin/ copy, and RunAsync waits for the script process to exit
+    // before returning), but that wasn't verified on Windows. The working hypothesis — Windows or a
+    // scanner keeping the just-unloaded image busy briefly — is inferred from the same symptom TODO.md
+    // pass 127 handled in a test this one replaced. Retry for a bounded time only; a lock that
+    // outlives it still fails the test.
+    public async ValueTask DisposeAsync()
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(_root, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException && attempt < 10)
+            {
+                await Task.Delay(200);
+            }
+        }
+    }
 
     private static DotnetSdk LatestSdk => new DotnetSdkProvider().Get().First();
 

@@ -73,6 +73,16 @@ jobs:
           dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
             --filter "Category!=RealBuild"
 
+      # RealBuild is skipped above, but ScriptCompilerTests' cleanup (deleting a script's output directory
+      # right after its process exits) failed on Windows only — RunPad.Runtime.dll still locked, see
+      # docs/handoffs/release-windows-checks.md. Run this one class on PRs so the bounded retry is
+      # exercised here before main, not only in the full suite after merge.
+      - name: 🧪 Test (ScriptCompilerTests, Windows cleanup)
+        if: github.event_name == 'pull_request'
+        run: >
+          dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal
+          --filter "FullyQualifiedName~RunPad.Runtime.UI.Tests.ScriptCompilerTests"
+
       - name: 🧪 Test (full suite)
         if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
