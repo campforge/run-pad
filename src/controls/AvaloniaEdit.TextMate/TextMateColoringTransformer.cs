@@ -28,6 +28,13 @@ public class TextMateColoringTransformer :
     private readonly TextView _textView;
     private readonly Action<Exception> _exceptionHandler;
 
+    // Captured on the UI thread at construction. ModelTokensChanged runs on the background tokenizer
+    // thread, and reading the static Dispatcher.UIThread there makes that thread the UI thread
+    // whenever the static has just been reset (Avalonia headless test isolation) — the known
+    // "Test Case Cleanup Failure ... a different thread owns it" flake, docs/handoffs/
+    // review-runtime-format-setup.md (experiment B2: posting through a captured instance is clean).
+    private readonly Dispatcher _dispatcher;
+
     // These fields are only accessed under _lock so volatile is unnecessary
     private bool _areVisualLinesValid;
     private int _firstVisibleLineIndex = -1;
@@ -59,6 +66,7 @@ public class TextMateColoringTransformer :
     {
         _textView = textView ?? throw new ArgumentNullException(nameof(textView));
         _exceptionHandler = exceptionHandler;
+        _dispatcher = Dispatcher.UIThread;
 
         _brushes = new Dictionary<int, IBrush>();
         _textView.VisualLinesChanged += TextView_VisualLinesChanged;
@@ -469,7 +477,7 @@ public class TextMateColoringTransformer :
         // This eliminates the race between the Post() call (background thread) and
         // the lambda execution (UI thread), where SetModel or Dispose could have
         // nulled _document or changed the visible line range.
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             // Guard against disposal that occurred between Post() and execution
             if (Volatile.Read(ref _isDisposed))
