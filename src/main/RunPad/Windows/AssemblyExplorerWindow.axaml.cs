@@ -1,8 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using ICSharpCode.Decompiler.CSharp;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
+using RunPad.Windows.Models;
 using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 
 namespace RunPad.Windows;
@@ -12,7 +17,9 @@ namespace RunPad.Windows;
 /// previously separate <c>DecompiledViewWindow</c> per user request 2026-07-20 — dnSpy/ILSpy don't
 /// pop a new window per decompiled type either, they update one code pane in place) — a tree of
 /// namespaces/types on the left, a read-only decompiled source pane on the right that updates in
-/// place on double-click. Serves two entry points:
+/// place on selection. The tree follows ILSpy (user request 2026-10-07): types expand lazily into
+/// Base Types / Derived Types / nested types / members, every node has a kind icon, non-public API is
+/// greyed, and selecting a member decompiles just that member. Serves two entry points:
 ///  - Go to Definition (F12) from the user's own script, for a symbol outside it — opened with the
 ///    resolved member already decompiled AND its assembly loaded into the tree, so the user can keep
 ///    browsing right from there (<see cref="UserControls.EditorsTabItemControl.ShowGoToDefinitionAsync"/>).
@@ -27,9 +34,21 @@ public partial class AssemblyExplorerWindow : Window
 {
     private readonly IWindowService _windowService;
     private readonly string _startFolder = "";
-    private string? _currentAssemblyPath;
     private SyntaxTree? _currentTree;
     private readonly DecompiledMemberResult? _pendingInitialResult;
+    private readonly Dictionary<TreeViewItem, Task> _expansions = [];
+
+    // Bumped by every selection/navigation — a decompile that finishes after a newer one started
+    // (fast clicking through the tree) is dropped instead of overwriting the newer result.
+    private int _requestVersion;
+
+    private string? _loadedAssemblyPath;
+    private HistoryEntry? _current;
+    private readonly Stack<HistoryEntry> _back = new();
+    private readonly Stack<HistoryEntry> _forward = new();
+    private bool _suppressSelection;
+    private DecompilerView _view = DecompilerView.Default;
+    private bool _syncingViewBoxes;
 
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
@@ -74,6 +93,39 @@ public partial class AssemblyExplorerWindow : Window
         _windowService = windowService;
 
         BrowseButton.Click += async (_, _) => await BrowseAsync();
+        BackButton.Click += (_, _) => GoBack();
+        ForwardButton.Click += (_, _) => GoForward();
+
+        LanguageBox.ItemsSource = new[] { "C#", "IL" };
+        LanguageBox.SelectedIndex = 0;
+        VersionBox.ItemsSource = LanguageVersions.Select(v => v.Label).ToList();
+        VersionBox.SelectedIndex = 0;
+        LanguageBox.SelectionChanged += (_, _) => OnViewBoxChanged();
+        VersionBox.SelectionChanged += (_, _) => OnViewBoxChanged();
+        TypeTree.SelectionChanged += (_, _) =>
+        {
+            if (!_suppressSelection && TypeTree.SelectedItem is TreeViewItem { Header: AssemblyTreeNode node } item)
+                _ = SelectNodeAsync(node, item);
+        };
+
+        // Alt+←/→ and the mouse's back/forward buttons, anywhere in the window (Tunnel: before the
+        // editor or tree can use the keys).
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.KeyModifiers != KeyModifiers.Alt) return;
+            if (e.Key == Key.Left) GoBack();
+            else if (e.Key == Key.Right) GoForward();
+            else return;
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            var kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+            if (kind == PointerUpdateKind.XButton1Pressed) GoBack();
+            else if (kind == PointerUpdateKind.XButton2Pressed) GoForward();
+            else return;
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
 
         var editor = new CodeTextEditor
         {
@@ -84,6 +136,15 @@ public partial class AssemblyExplorerWindow : Window
         };
 
         editor.GoToDefinitionRequested += (_, _) => _ = NavigateAsync();
+        // Ctrl+click = F12 at the clicked spot (Tunnel: before the text area starts a selection).
+        editor.TextArea.AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            if (e.KeyModifiers != KeyModifiers.Control
+                || !e.GetCurrentPoint(editor).Properties.IsLeftButtonPressed) return;
+            if (editor.GetPositionFromPoint(e.GetPosition(editor)) is not { } position) return;
+            e.Handled = true;
+            _ = NavigateAtAsync(position.Line, position.Column);
+        }, RoutingStrategies.Tunnel);
         EditorHost.Content = editor;
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
@@ -93,7 +154,7 @@ public partial class AssemblyExplorerWindow : Window
         {
             editor.AttachedToVisualTree -= onAttached;
             editor.SetLanguage(themeService.CurrentTheme.Editor.TextMateName, ".cs");
-            if (_pendingInitialResult is { } initial) ApplyResult(initial);
+            if (_pendingInitialResult is { } initial) Show(initial, item: null, target: null);
         };
         editor.AttachedToVisualTree += onAttached;
     }
@@ -126,54 +187,262 @@ public partial class AssemblyExplorerWindow : Window
             return;
         }
 
-        _currentAssemblyPath = assemblyPath;
         AssemblyPathBlock.Text = assemblyPath;
-        BuildTree(types);
+        _loadedAssemblyPath = assemblyPath;
+        DetachHistoryFromTree(); // its rows belong to the tree being replaced
+        BuildTree(types, assemblyPath);
     }
 
-    private void BuildTree(IReadOnlyList<AssemblyTypeEntry> types)
+    private void BuildTree(IReadOnlyList<AssemblyTypeEntry> types, string assemblyPath)
     {
         TypeTree.Items.Clear();
+        _expansions.Clear();
         foreach (var group in types.GroupBy(t => t.Namespace).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
             var nsItem = new TreeViewItem
             {
-                Header = string.IsNullOrEmpty(group.Key) ? "(global)" : group.Key,
+                Header = Node(AssemblyNodeKind.Namespace, string.IsNullOrEmpty(group.Key) ? "-" : group.Key),
             };
-            foreach (var entry in group.OrderBy(e => e.Name, StringComparer.Ordinal))
-            {
-                var typeItem = new TreeViewItem { Header = entry.Name, Tag = entry };
-                typeItem.DoubleTapped += (_, _) => _ = OpenTypeAsync(entry);
-                nsItem.Items.Add(typeItem);
-            }
+            foreach (var entry in group.OrderBy(e => e.Text, StringComparer.Ordinal))
+                nsItem.Items.Add(CreateTypeItem(entry, assemblyPath));
 
             TypeTree.Items.Add(nsItem);
         }
     }
 
-    // Double-click in the tree — decompiles in place, same pane recursive F12 uses (no new window;
-    // that's the whole point of the merge — dnSpy/ILSpy don't pop one per type either).
-    internal async Task OpenTypeAsync(AssemblyTypeEntry entry)
+    // A type row — top-level, nested, or a base/derived entry (which expands too, like ILSpy, from its
+    // own assembly: a BCL base type lists the BCL's members). Gets a placeholder child (so the expander
+    // shows) and loads its contents on first expansion; an unresolved base type stays a leaf.
+    private TreeViewItem CreateTypeItem(AssemblyTypeEntry entry, string browsedAssemblyPath)
     {
-        if (_currentAssemblyPath is not { } assemblyPath) return;
+        var node = Node(entry.Kind, entry.Text, entry.Access, entry.IsStatic, entry.IsAbstract,
+            entry.AssemblyPath ?? browsedAssemblyPath, type: entry);
+        var item = new TreeViewItem { Header = node };
+        if (!entry.IsResolved) return item;
 
-        DecompiledMemberResult result;
+        item.Items.Add(new TreeViewItem { Header = "Loading..." });
+        item.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == TreeViewItem.IsExpandedProperty && item.IsExpanded)
+                _ = ExpandAsync(item);
+        };
+        return item;
+    }
+
+    // internal: test hook (expanding a TreeViewItem headlessly fires this too, but tests need the Task).
+    internal Task ExpandAsync(TreeViewItem item)
+    {
+        if (!_expansions.TryGetValue(item, out var task))
+        {
+            task = LoadTypeContentsAsync(item);
+            _expansions[item] = task;
+        }
+        return task;
+    }
+
+    private async Task LoadTypeContentsAsync(TreeViewItem item)
+    {
+        if (item.Header is not AssemblyTreeNode { Type: { } type, AssemblyPath: { } assemblyPath }) return;
+
+        AssemblyTypeContents contents;
         try
         {
-            result = await Task.Run(() => CSharpDecompilerService.DecompileType(
-                assemblyPath, entry.FullTypeName, entry.Name));
+            contents = await Task.Run(() => CSharpDecompilerService.GetTypeContents(assemblyPath, type.FullTypeName));
         }
         catch (Exception ex)
         {
-            result = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, entry.Name);
+            item.Items.Clear();
+            item.Items.Add(new TreeViewItem { Header = $"Failed to load: {ex.Message}" });
+            return;
         }
 
-        ApplyResult(result);
+        item.Items.Clear();
+        AddGroup(AssemblyNodeKind.BaseTypes, "Base Types", contents.BaseTypes);
+        AddGroup(AssemblyNodeKind.DerivedTypes, "Derived Types", contents.DerivedTypes);
+        foreach (var nested in contents.NestedTypes)
+            item.Items.Add(CreateTypeItem(nested, assemblyPath));
+        foreach (var member in contents.Members)
+        {
+            item.Items.Add(new TreeViewItem
+            {
+                Header = Node(member.Kind, member.Text, member.Access, member.IsStatic, member.IsAbstract,
+                    assemblyPath, member: member),
+            });
+        }
+
+        void AddGroup(AssemblyNodeKind kind, string text, IReadOnlyList<AssemblyTypeEntry> entries)
+        {
+            if (entries.Count == 0) return;
+            var group = new TreeViewItem { Header = Node(kind, text) };
+            foreach (var entry in entries)
+                group.Items.Add(CreateTypeItem(entry, assemblyPath));
+            item.Items.Add(group);
+        }
+    }
+
+    // Selecting a tree row decompiles it in place, same pane recursive F12 uses (no new window — dnSpy/
+    // ILSpy don't pop one per type either): a type shows the whole type, a member only itself.
+    // Namespace and Base/Derived Types group rows have nothing to decompile. `item` is the row the
+    // result is remembered with in the Back/Forward history (null: tests driving a bare node).
+    internal async Task SelectNodeAsync(AssemblyTreeNode node, TreeViewItem? item = null)
+    {
+        if (node.Type is { IsResolved: false } unresolved)
+        {
+            ++_requestVersion;
+            Show(new DecompiledMemberResult($"// Could not resolve '{unresolved.FullTypeName}'.", 1, node.Text), item, target: null);
+            return;
+        }
+
+        var target = node switch
+        {
+            { Member: { } member, AssemblyPath: { } path } => new PageTarget(path, member.MetadataToken, node.Text),
+            { Type: { } type, AssemblyPath: { } path } => new PageTarget(path, type.MetadataToken, node.Text),
+            _ => null,
+        };
+        if (target is null) return;
+
+        var version = ++_requestVersion;
+        var result = await RenderAsync(target, _view);
+        if (version == _requestVersion)
+            Show(result, item, target);
+    }
+
+    // ── C# / IL (ILSpy's language and version boxes) ──
+
+    /// <summary>The C# versions offered, newest first — "Latest" is the decompiler's own latest.</summary>
+    internal static readonly IReadOnlyList<(string Label, LanguageVersion Version)> LanguageVersions =
+    [
+        ("C# latest", LanguageVersion.Latest),
+        ("C# 14.0", LanguageVersion.CSharp14_0),
+        ("C# 13.0", LanguageVersion.CSharp13_0),
+        ("C# 12.0", LanguageVersion.CSharp12_0),
+        ("C# 11.0", LanguageVersion.CSharp11_0),
+        ("C# 10.0", LanguageVersion.CSharp10_0),
+        ("C# 9.0", LanguageVersion.CSharp9_0),
+        ("C# 8.0", LanguageVersion.CSharp8_0),
+        ("C# 7.3", LanguageVersion.CSharp7_3),
+        ("C# 7.0", LanguageVersion.CSharp7),
+        ("C# 6.0", LanguageVersion.CSharp6),
+        ("C# 5.0", LanguageVersion.CSharp5),
+        ("C# 4.0", LanguageVersion.CSharp4),
+        ("C# 3.0", LanguageVersion.CSharp3),
+        ("C# 2.0", LanguageVersion.CSharp2),
+        ("C# 1.0", LanguageVersion.CSharp1),
+    ];
+
+    internal DecompilerView View => _view;
+
+    private void OnViewBoxChanged()
+    {
+        if (_syncingViewBoxes || LanguageBox.SelectedIndex < 0 || VersionBox.SelectedIndex < 0) return;
+        _ = SetViewAsync(new DecompilerView(
+            LanguageBox.SelectedIndex == 1 ? DecompilerLanguage.IL : DecompilerLanguage.CSharp,
+            LanguageVersions[VersionBox.SelectedIndex].Version));
+    }
+
+    // Switching language/version re-renders the page in place (not a new history page); pages left in
+    // another view are re-rendered when Back/Forward returns to them.
+    internal async Task SetViewAsync(DecompilerView view)
+    {
+        if (view == _view) return;
+        _view = view;
+        _syncingViewBoxes = true;
+        try
+        {
+            LanguageBox.SelectedIndex = view.Language == DecompilerLanguage.IL ? 1 : 0;
+            VersionBox.SelectedIndex = Math.Max(0, LanguageVersions.ToList().FindIndex(v => v.Version == view.Version));
+            VersionBox.IsVisible = view.Language == DecompilerLanguage.CSharp;
+        }
+        finally
+        {
+            _syncingViewBoxes = false;
+        }
+
+        await RefreshCurrentAsync();
+    }
+
+    private async Task RefreshCurrentAsync()
+    {
+        if (_current is not { Target: { } target } current || current.View == _view) return;
+
+        var version = ++_requestVersion;
+        var view = _view;
+        var result = await RenderAsync(target, view);
+        if (version != _requestVersion) return;
+        _current = current with { Result = result, CaretLine = result.Line, View = view };
+        ApplyResult(result, result.Line);
+    }
+
+    private static async Task<DecompiledMemberResult> RenderAsync(PageTarget target, DecompilerView view)
+    {
+        try
+        {
+            return await Task.Run(() => view.Language == DecompilerLanguage.IL
+                ? IlDisassembler.DisassembleEntity(target.AssemblyPath, target.Token, target.Title)
+                : CSharpDecompilerService.DecompileEntity(
+                    target.AssemblyPath, target.Token, target.Title, view.Version, target.FocusToken));
+        }
+        catch (Exception ex)
+        {
+            return new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, target.Title);
+        }
+    }
+
+    // One palette for every theme: icons sit straight on the panel background, and each colour keeps a
+    // WCAG non-text contrast of at least 3:1 against all eight themes' panel backgrounds (#20242B ...
+    // #F6F3EE) — checked by AssemblyExplorerWindowTests, so a new theme or colour can't silently fail it.
+    internal static readonly IReadOnlyDictionary<AssemblyNodeKind, (string IconKey, Color Color)> KindIcons =
+        new Dictionary<AssemblyNodeKind, (string, Color)>
+        {
+            [AssemblyNodeKind.Namespace] = ("Namespace", Color.FromRgb(0x86, 0x86, 0x86)),
+            [AssemblyNodeKind.Class] = ("Type", Color.FromRgb(0xC2, 0x7C, 0x0E)),
+            [AssemblyNodeKind.Struct] = ("Type", Color.FromRgb(0x2F, 0x86, 0xD6)),
+            [AssemblyNodeKind.Interface] = ("Interface", Color.FromRgb(0x2E, 0x8B, 0xC0)),
+            [AssemblyNodeKind.Enum] = ("Enum", Color.FromRgb(0xC2, 0x7C, 0x0E)),
+            [AssemblyNodeKind.Delegate] = ("Delegate", Color.FromRgb(0x90, 0x61, 0xD6)),
+            [AssemblyNodeKind.Field] = ("Field", Color.FromRgb(0x3D, 0x8A, 0xC7)),
+            [AssemblyNodeKind.Property] = ("Property", Color.FromRgb(0x86, 0x86, 0x86)),
+            [AssemblyNodeKind.Event] = ("Event", Color.FromRgb(0xD0, 0x76, 0x0B)),
+            [AssemblyNodeKind.Constructor] = ("Member", Color.FromRgb(0x7F, 0x6B, 0xD8)),
+            [AssemblyNodeKind.Method] = ("Member", Color.FromRgb(0x90, 0x61, 0xD6)),
+            [AssemblyNodeKind.BaseTypes] = ("BaseTypes", Color.FromRgb(0x86, 0x86, 0x86)),
+            [AssemblyNodeKind.DerivedTypes] = ("DerivedTypes", Color.FromRgb(0x86, 0x86, 0x86)),
+        };
+
+    private AssemblyTreeNode Node(
+        AssemblyNodeKind kind, string text, AssemblyAccess access = AssemblyAccess.Public,
+        bool isStatic = false, bool isAbstract = false, string? assemblyPath = null,
+        AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null)
+    {
+        var (iconKey, color) = KindIcons[kind];
+        var accessKey = access switch
+        {
+            AssemblyAccess.Private or AssemblyAccess.PrivateProtected => "Private",
+            AssemblyAccess.Protected or AssemblyAccess.ProtectedInternal => "Protected",
+            AssemblyAccess.Internal => "Internal",
+            _ => null,
+        };
+        var icons = new AssemblyTreeNodeIcons(
+            Geometry("AsmIcon." + iconKey),
+            new SolidColorBrush(color),
+            accessKey is null ? null : Geometry("AsmOverlay." + accessKey),
+            isStatic ? Geometry("AsmOverlay.Static") : null);
+        return new AssemblyTreeNode(kind, text, access, icons, isStatic, isAbstract, assemblyPath, type, member);
+
+        Geometry? Geometry(string key) => this.TryFindResource(key, out var resource) ? resource as Geometry : null;
     }
 
     // internal (not private): lets tests drive a navigation directly without simulating a real F12
     // keypress + caret placement — same rationale as every other "internal test hook" in this session
     // (headless Avalonia has no reliable way to fake caret-dependent keyboard interaction either).
+    // Ctrl+click: F12 at the clicked position. internal: test hook (no pixel-to-text mapping needed).
+    internal Task NavigateAtAsync(int line, int column)
+    {
+        Editor.TextArea.Caret.Line = line;
+        Editor.TextArea.Caret.Column = column;
+        return NavigateAsync();
+    }
+
     internal async Task NavigateAsync()
     {
         if (_currentTree is not { } tree) return;
@@ -185,31 +454,173 @@ public partial class AssemblyExplorerWindow : Window
             CSharpDecompilerService.ResolveReferenceAtPosition(tree, caretLine, caretColumn));
         if (reference is null) return;
 
-        DecompiledMemberResult next;
-        try
+        var version = ++_requestVersion;
+
+        // Like ILSpy: a target inside the loaded assembly is revealed and selected in the tree, and
+        // the selection decompiles it (a member on its own). Anything else (another assembly, or a
+        // member the tree hides, e.g. an accessor) falls back to its whole declaring type, caret on it.
+        TreeViewItem? typeItem = null;
+        if (_loadedAssemblyPath is { } loaded && SamePath(reference.AssemblyPath, loaded))
         {
-            next = await Task.Run(() => CSharpDecompilerService.Decompile(reference));
+            typeItem = await RevealTypeAsync(reference.ContainingTypeFullName);
+            if (version != _requestVersion) return;
+            var target = typeItem;
+            if (typeItem is not null && reference.MemberName is not null)
+            {
+                await ExpandAsync(typeItem);
+                if (version != _requestVersion) return;
+                target = typeItem.Items.OfType<TreeViewItem>().FirstOrDefault(i =>
+                    i.Header is AssemblyTreeNode { Member.MetadataToken: var token } && token == reference.MetadataToken);
+            }
+
+            if (target is { Header: AssemblyTreeNode node })
+            {
+                SelectSilently(target);
+                await SelectNodeAsync(node, target);
+                return;
+            }
         }
-        catch (Exception ex)
-        {
-            next = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, reference.DisplayName);
-        }
+
+        var page = new PageTarget(
+            reference.AssemblyPath, reference.ContainingTypeMetadataToken, reference.DisplayName,
+            reference.MemberName is null ? 0 : reference.MetadataToken);
+        var next = await RenderAsync(page, _view);
 
         // Back on the UI thread already — Avalonia's own SynchronizationContext resumes the
         // continuation here, same as EditorTabItemControl.ShowGoToDefinitionAsync's identical
         // await Task.Run(...) pattern (see pass 96 for why an explicit
         // Dispatcher.Post here was a real, caught-by-test bug, not just unnecessary).
-        ApplyResult(next);
+        if (version != _requestVersion) return;
+        if (typeItem is not null) SelectSilently(typeItem);
+        Show(next, typeItem, page);
     }
 
-    private void ApplyResult(DecompiledMemberResult result)
+    // Expands the path to a type of the loaded assembly ("Ns.Outer+Inner": namespace row → Outer →
+    // Inner) and returns its row, or null if the tree doesn't list it (e.g. compiler-generated).
+    private async Task<TreeViewItem?> RevealTypeAsync(string reflectionName)
+    {
+        var parts = reflectionName.Split('+');
+        TreeViewItem? current = null;
+        foreach (var nsItem in TypeTree.Items.OfType<TreeViewItem>())
+        {
+            current = nsItem.Items.OfType<TreeViewItem>().FirstOrDefault(i => FullName(i) == parts[0]);
+            if (current is null) continue;
+            nsItem.IsExpanded = true;
+            break;
+        }
+
+        var name = parts[0];
+        for (var i = 1; current is not null && i < parts.Length; i++)
+        {
+            await ExpandAsync(current);
+            current.IsExpanded = true;
+            name += "+" + parts[i];
+            current = current.Items.OfType<TreeViewItem>().FirstOrDefault(c => FullName(c) == name);
+        }
+        return current;
+
+        static string? FullName(TreeViewItem item) => (item.Header as AssemblyTreeNode)?.Type?.FullTypeName;
+    }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+    // Selects a row without decompiling it again (Back/Forward restores, F12 reveals) — and expands
+    // its ancestors and scrolls to it, so the tree shows where the code pane is.
+    private void SelectSilently(TreeViewItem? item)
+    {
+        for (var parent = item?.Parent as TreeViewItem; parent is not null; parent = parent.Parent as TreeViewItem)
+            parent.IsExpanded = true;
+
+        _suppressSelection = true;
+        try
+        {
+            TypeTree.SelectedItem = item;
+        }
+        finally
+        {
+            _suppressSelection = false;
+        }
+        item?.BringIntoView();
+    }
+
+    // ── Back/Forward (Alt+←/→, mouse buttons 4/5, toolbar) ──
+
+    internal bool CanGoBack => _back.Count > 0;
+    internal bool CanGoForward => _forward.Count > 0;
+
+    internal void GoBack()
+    {
+        if (_current is null || !_back.TryPop(out var entry)) return;
+        _forward.Push(Remember(_current));
+        Restore(entry);
+    }
+
+    internal void GoForward()
+    {
+        if (_current is null || !_forward.TryPop(out var entry)) return;
+        _back.Push(Remember(_current));
+        Restore(entry);
+    }
+
+    private HistoryEntry Remember(HistoryEntry entry) => entry with { CaretLine = Editor.TextArea.Caret.Line };
+
+    private void Restore(HistoryEntry entry)
+    {
+        ++_requestVersion; // a decompile still running for the page we're leaving must not land
+        _current = entry;
+        ApplyResult(entry.Result, entry.CaretLine);
+        SelectSilently(entry.Item);
+        UpdateHistoryButtons();
+        _ = RefreshCurrentAsync(); // rendered in another language/version than the current one
+    }
+
+    // A new page: the current one goes onto the Back stack, Forward is dropped (browser semantics).
+    // `target` null: a page that can't be re-rendered (an F12 result from the user's script, an error).
+    private void Show(DecompiledMemberResult result, TreeViewItem? item, PageTarget? target)
+    {
+        if (_current is not null)
+        {
+            _back.Push(Remember(_current));
+            _forward.Clear();
+        }
+        _current = new HistoryEntry(result, item, result.Line, target, _view);
+        ApplyResult(result, result.Line);
+        UpdateHistoryButtons();
+    }
+
+    private void DetachHistoryFromTree()
+    {
+        Detach(_back);
+        Detach(_forward);
+        _current = _current is null ? null : _current with { Item = null };
+
+        static void Detach(Stack<HistoryEntry> stack)
+        {
+            var entries = stack.Reverse().Select(e => e with { Item = null }).ToList();
+            stack.Clear();
+            foreach (var entry in entries) stack.Push(entry);
+        }
+    }
+
+    private void UpdateHistoryButtons()
+    {
+        BackButton.IsEnabled = CanGoBack;
+        ForwardButton.IsEnabled = CanGoForward;
+    }
+
+    private void ApplyResult(DecompiledMemberResult result, int caretLine)
     {
         Title = result.Title;
         _currentTree = result.SyntaxTree;
 
         Editor.Text = result.Text;
-        Editor.TextArea.Caret.Line = result.Line;
+        Editor.TextArea.Caret.Line = caretLine;
         Editor.TextArea.Caret.Column = 1;
-        Editor.ScrollToLine(result.Line);
+        Editor.ScrollToLine(caretLine);
     }
+
+    private sealed record HistoryEntry(
+        DecompiledMemberResult Result, TreeViewItem? Item, int CaretLine, PageTarget? Target, DecompilerView View);
 }

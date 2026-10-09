@@ -77,11 +77,42 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
+    // ILSpy-style tree contents: every member kind, an indexer, a generic method with a ref parameter,
+    // non-public members, a nested type, a base class + interface and a derived type.
+    private const string TreeCode = """
+        _ = 0;
+
+        namespace Tree
+        {
+            public interface IShape { double Area { get; } }
+            public class Shape : IShape
+            {
+                private int _id;
+                public double Area => 0;
+                public int this[int i] => i;
+                public event System.EventHandler? Changed;
+                public Shape(int id) { _id = id; }
+                public T Echo<T>(T value, ref int count) => value;
+                internal void Hidden() { Changed?.Invoke(this, System.EventArgs.Empty); }
+                public class Inner { }
+            }
+            public sealed class Circle : Shape { public Circle() : base(1) { } }
+            public abstract class Base
+            {
+                private protected int _x;
+                public abstract int Size { get; }
+                protected internal static void Make() { }
+            }
+            public static class Helpers { internal static int Count; }
+        }
+        """;
+
     public sealed class CompiledFixtures : IAsyncLifetime
     {
         public string CodeBinary { get; private set; } = null!;
         public string RecursiveCodeBinary { get; private set; } = null!;
         public string ExplorerCodeBinary { get; private set; } = null!;
+        public string TreeCodeBinary { get; private set; } = null!;
 
         private readonly List<string> _binaries = [];
 
@@ -90,6 +121,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
             CodeBinary = Compile(Code, "CodeFixture");
             RecursiveCodeBinary = Compile(RecursiveCode, "RecursiveCodeFixture");
             ExplorerCodeBinary = Compile(ExplorerCode, "ExplorerCodeFixture");
+            TreeCodeBinary = Compile(TreeCode, "TreeCodeFixture");
             return ValueTask.CompletedTask;
         }
 
@@ -225,5 +257,148 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
 
         Assert.Contains("class Alpha", decompiled.Text);
         Assert.NotNull(decompiled.SyntaxTree);
+    }
+
+    [Fact]
+    public void DecompileType_Should_StartWithTheAssemblyHeaderComment()
+    {
+        var decompiled = CSharpDecompilerService.DecompileType(_fixtures.TreeCodeBinary, "Tree.Shape");
+
+        Assert.StartsWith("// TreeCodeFixture, Version=", decompiled.Text);
+        Assert.Contains("class Shape", decompiled.Text.Split('\n')[decompiled.Line - 1]);
+    }
+
+    [Fact]
+    public void GetTypeContents_Should_ListMembers_InIlSpyOrder_WithIlSpyText()
+    {
+        var contents = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape");
+
+        Assert.Equal(
+            [
+                (AssemblyNodeKind.Field, "_id : int", false),
+                (AssemblyNodeKind.Property, "Area : double", true),
+                (AssemblyNodeKind.Property, "this[int] : int", true),
+                (AssemblyNodeKind.Event, "Changed : EventHandler?", true),
+                (AssemblyNodeKind.Constructor, "Shape(int)", true),
+                (AssemblyNodeKind.Method, "Echo<T>(T, ref int) : T", true),
+                (AssemblyNodeKind.Method, "Hidden() : void", false),
+            ],
+            contents.Members.Select(m => (m.Kind, m.Text, m.IsPublic)));
+        Assert.Equal(["Inner"], contents.NestedTypes.Select(t => t.Text));
+    }
+
+    [Fact]
+    public void GetTypeContents_Should_ReportAccess_Static_AndAbstract()
+    {
+        var contents = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Base");
+
+        Assert.Equal(
+            [
+                ("_x : int", AssemblyAccess.PrivateProtected, false, false),
+                ("Size : int", AssemblyAccess.Public, false, true),
+                ("Base()", AssemblyAccess.Protected, false, false),
+                ("Make() : void", AssemblyAccess.ProtectedInternal, true, false),
+            ],
+            contents.Members.Select(m => (m.Text, m.Access, m.IsStatic, m.IsAbstract)));
+    }
+
+    [Fact]
+    public void EnumerateTypes_Should_MarkAbstractClasses_AndStaticClasses_ButNotInterfaces()
+    {
+        var types = CSharpDecompilerService.EnumerateTypes(_fixtures.TreeCodeBinary);
+
+        Assert.Contains(types, t => t is { Name: "Base", IsAbstract: true, IsStatic: false });
+        Assert.Contains(types, t => t is { Name: "Helpers", IsAbstract: false, IsStatic: true });
+        Assert.Contains(types, t => t is { Name: "IShape", IsAbstract: false, Kind: AssemblyNodeKind.Interface });
+    }
+
+    private AssemblyMemberEntry ShapeMember(string textPrefix) =>
+        CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape").Members
+            .Single(m => m.Text.StartsWith(textPrefix, StringComparison.Ordinal));
+
+    private int ShapeToken() =>
+        CSharpDecompilerService.EnumerateTypes(_fixtures.TreeCodeBinary).Single(t => t.Name == "Shape").MetadataToken;
+
+    [Fact]
+    public void DisassembleEntity_Should_ShowOnlyThatMethodsIl_UnderTheHeader()
+    {
+        var echo = ShapeMember("Echo");
+
+        var il = IlDisassembler.DisassembleEntity(_fixtures.TreeCodeBinary, echo.MetadataToken, echo.Text);
+
+        var lines = il.Text.Split('\n');
+        Assert.StartsWith("// TreeCodeFixture, Version=", lines[0]);
+        Assert.Equal("// Tree.Shape", lines[1].TrimEnd());
+        Assert.Contains(".method", lines[il.Line - 1]);
+        Assert.Contains("IL_0000", il.Text);
+        Assert.DoesNotContain(".class", il.Text);
+        Assert.Null(il.SyntaxTree);
+    }
+
+    [Fact]
+    public void DisassembleEntity_Should_ShowAWholeType_AndAProperty()
+    {
+        var type = IlDisassembler.DisassembleEntity(_fixtures.TreeCodeBinary, ShapeToken(), "Shape");
+        var area = IlDisassembler.DisassembleEntity(_fixtures.TreeCodeBinary, ShapeMember("Area").MetadataToken, "Area");
+
+        Assert.Contains(".class", type.Text);
+        Assert.Contains("Echo", type.Text);
+        Assert.Contains(".property", area.Text);
+        Assert.Equal("// Tree.Shape", area.Text.Split('\n')[1].TrimEnd());
+    }
+
+    [Fact]
+    public void DecompileEntity_Should_HonourTheCSharpVersion()
+    {
+        var area = ShapeMember("Area");
+
+        var latest = CSharpDecompilerService.DecompileEntity(
+            _fixtures.TreeCodeBinary, area.MetadataToken, area.Text, ICSharpCode.Decompiler.CSharp.LanguageVersion.Latest);
+        var csharp5 = CSharpDecompilerService.DecompileEntity(
+            _fixtures.TreeCodeBinary, area.MetadataToken, area.Text, ICSharpCode.Decompiler.CSharp.LanguageVersion.CSharp5);
+
+        Assert.Contains("=>", latest.Text); // expression-bodied: C# 6+
+        Assert.DoesNotContain("=>", csharp5.Text);
+        Assert.Contains("return", csharp5.Text);
+    }
+
+    [Fact]
+    public void DecompileEntity_Should_PutTheCaretOnTheFocusMember_OfATypePage()
+    {
+        var echo = ShapeMember("Echo");
+
+        var page = CSharpDecompilerService.DecompileEntity(
+            _fixtures.TreeCodeBinary, ShapeToken(), "Shape", focusToken: echo.MetadataToken);
+
+        Assert.Contains("class Shape", page.Text);
+        Assert.Contains("Echo", page.Text.Split('\n')[page.Line - 1]);
+    }
+
+    [Fact]
+    public void GetTypeContents_Should_ListBaseAndDerivedTypes()
+    {
+        var contents = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape");
+
+        Assert.Contains(contents.BaseTypes, t => t is { Text: "object", IsResolved: true, AssemblyPath: not null });
+        Assert.Contains(contents.BaseTypes, t => t is { Text: "IShape", Kind: AssemblyNodeKind.Interface, AssemblyPath: null });
+        var circle = Assert.Single(contents.DerivedTypes);
+        Assert.Equal("Tree.Circle", circle.FullTypeName);
+    }
+
+    [Fact]
+    public void DecompileMember_Should_DecompileOnlyThatMember_UnderTheDeclaringTypeHeader()
+    {
+        var contents = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape");
+        var echo = contents.Members.Single(m => m.Text.StartsWith("Echo"));
+
+        var decompiled = CSharpDecompilerService.DecompileMember(_fixtures.TreeCodeBinary, echo.MetadataToken, echo.Text);
+
+        var lines = decompiled.Text.Split('\n');
+        Assert.StartsWith("// TreeCodeFixture, Version=", lines[0]);
+        Assert.Equal("// Tree.Shape", lines[1].TrimEnd());
+        Assert.Contains("Echo", lines[decompiled.Line - 1]);
+        Assert.DoesNotContain("class Shape", decompiled.Text);
+        Assert.DoesNotContain("Hidden", decompiled.Text);
+        Assert.Equal(echo.Text, decompiled.Title);
     }
 }

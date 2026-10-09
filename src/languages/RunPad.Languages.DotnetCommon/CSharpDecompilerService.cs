@@ -1,9 +1,11 @@
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.Syntax;
 using ICSharpCode.Decompiler.Metadata;
+using ICSharpCode.Decompiler.Output;
 using ICSharpCode.Decompiler.TypeSystem;
 using RunPad.Contracts.IntelliSense;
 
@@ -20,11 +22,87 @@ namespace RunPad.Languages.DotnetCommon;
 public sealed record DecompiledMemberResult(string Text, int Line, string Title, SyntaxTree? SyntaxTree = null);
 
 /// <summary>
-/// One top-level (non-nested) type found by <see cref="CSharpDecompilerService.EnumerateTypes"/> —
-/// TODO.md #62's remaining half, the ILSpy-style assembly explorer (<c>AssemblyExplorerWindow</c>).
-/// <see cref="FullTypeName"/> is ready to feed straight into <see cref="CSharpDecompilerService.DecompileType"/>.
+/// What <see cref="CSharpDecompilerService.ResolveReferenceAtPosition"/> found under the caret — an
+/// <see cref="IDefinitionResult"/> ready for <see cref="CSharpDecompilerService.Decompile"/>, plus the
+/// target's <see cref="MetadataToken"/> (the type's, or the member definition's) within
+/// <see cref="AssemblyPath"/>, which lets the assembly explorer find the matching tree node.
 /// </summary>
-public sealed record AssemblyTypeEntry(string Namespace, string Name, string FullTypeName);
+public sealed record DecompiledReference(
+    string AssemblyPath, string ContainingTypeFullName, string? MemberName,
+    IReadOnlyList<string> ParameterTypeNames, string DisplayName, int MetadataToken,
+    int ContainingTypeMetadataToken) : IDefinitionResult
+{
+    public bool IsInSource => false;
+    public int Offset => 0;
+}
+
+/// <summary>What an Assembly Explorer node is — drives its icon (ILSpy-style tree).</summary>
+public enum AssemblyNodeKind
+{
+    Namespace,
+    Class,
+    Struct,
+    Interface,
+    Enum,
+    Delegate,
+    Field,
+    Property,
+    Event,
+    Constructor,
+    Method,
+    BaseTypes,
+    DerivedTypes,
+}
+
+/// <summary>C# accessibility of a tree node — drives ILSpy's access overlay (lock, key, house).</summary>
+public enum AssemblyAccess
+{
+    Public,
+    Protected,
+    ProtectedInternal,
+    Internal,
+    PrivateProtected,
+    Private,
+}
+
+/// <summary>
+/// A type in the assembly explorer (TODO.md #62, <c>AssemblyExplorerWindow</c>): a top-level or nested
+/// type, or a base/derived type entry. <see cref="FullTypeName"/> (reflection name) feeds
+/// <see cref="CSharpDecompilerService.DecompileType"/>; <see cref="AssemblyPath"/> is the assembly that
+/// defines it when that differs from the browsed one (a base type from the BCL) — null means the browsed
+/// assembly, or that the type couldn't be resolved at all (<see cref="IsResolved"/>).
+/// </summary>
+public sealed record AssemblyTypeEntry(
+    string Namespace, string Name, string FullTypeName,
+    AssemblyNodeKind Kind = AssemblyNodeKind.Class, AssemblyAccess Access = AssemblyAccess.Public,
+    string? DisplayName = null, string? AssemblyPath = null, bool IsResolved = true,
+    bool IsStatic = false, bool IsAbstract = false, int MetadataToken = 0)
+{
+    /// <summary>ILSpy-style tree text: generic types with their parameters (<c>Dictionary&lt;TKey, TValue&gt;</c>).</summary>
+    public string Text => DisplayName ?? Name;
+
+    /// <summary>Visible outside its assembly (ILSpy greys everything else).</summary>
+    public bool IsPublic => CSharpDecompilerService.IsVisible(Access);
+}
+
+/// <summary>A field/property/event/constructor/method of a type, as the explorer lists it.</summary>
+/// <param name="Text">ILSpy-style: <c>name : type</c>, <c>Name(params) : return</c>, <c>TypeName(params)</c>.</param>
+/// <param name="MetadataToken">Feeds <see cref="CSharpDecompilerService.DecompileMember"/>.</param>
+/// <param name="IsAbstract">Abstract in a class (interface members don't count — they all are).</param>
+public sealed record AssemblyMemberEntry(
+    AssemblyNodeKind Kind, string Text, AssemblyAccess Access, int MetadataToken,
+    bool IsStatic = false, bool IsAbstract = false)
+{
+    /// <summary>Visible outside its assembly (ILSpy greys everything else).</summary>
+    public bool IsPublic => CSharpDecompilerService.IsVisible(Access);
+}
+
+/// <summary>What a type node expands to, in ILSpy's order.</summary>
+public sealed record AssemblyTypeContents(
+    IReadOnlyList<AssemblyTypeEntry> BaseTypes,
+    IReadOnlyList<AssemblyTypeEntry> DerivedTypes,
+    IReadOnlyList<AssemblyTypeEntry> NestedTypes,
+    IReadOnlyList<AssemblyMemberEntry> Members);
 
 /// <summary>
 /// Decompiles the type an <see cref="IDefinitionResult"/> points at (TODO.md #62, "Go to Definition"/
@@ -62,6 +140,7 @@ public static class CSharpDecompilerService
             }
 
             var syntaxTree = decompiler.DecompileType(fullTypeName);
+            AddHeader(syntaxTree, decompiler, typeDef);
             var text = RenderWithLocations(syntaxTree, settings);
 
             ISymbol? target = definition.MemberName is { } memberName
@@ -97,11 +176,201 @@ public static class CSharpDecompilerService
     {
         return WithDecompiler(assemblyPath, (decompiler, _) => decompiler.TypeSystem.MainModule.TypeDefinitions
             .Where(t => t.DeclaringTypeDefinition is null && !t.Name.StartsWith('<'))
-            .Select(t => new AssemblyTypeEntry(t.Namespace, t.Name, t.FullTypeName.ReflectionName))
+            .Select(t => ToEntry(t, browsedAssembly: null))
             .OrderBy(e => e.Namespace, StringComparer.Ordinal)
             .ThenBy(e => e.Name, StringComparer.Ordinal)
             .ToList());
     }
+
+    /// <summary>
+    /// What a type node of the ILSpy-style tree expands to: base types (direct base class + interfaces),
+    /// derived types within <paramref name="assemblyPath"/>, nested types and members — fields,
+    /// properties, events, constructors, methods, alphabetical within each group. Compiler-generated
+    /// members (names starting with <c>&lt;</c>) and property/event accessors are left out, like ILSpy.
+    /// </summary>
+    public static AssemblyTypeContents GetTypeContents(string assemblyPath, string typeFullName)
+    {
+        return WithDecompiler(assemblyPath, (decompiler, _) =>
+        {
+            var typeDef = decompiler.TypeSystem.FindType(new FullTypeName(typeFullName)).GetDefinition();
+            if (typeDef is null) return new AssemblyTypeContents([], [], [], []);
+
+            var baseTypes = typeDef.DirectBaseTypes
+                .Where(t => t.Kind != TypeKind.Unknown || t.Name.Length > 0)
+                .Select(t => t.GetDefinition() is { } def
+                    ? ToEntry(def, assemblyPath) with { DisplayName = TypeText(t) }
+                    : new AssemblyTypeEntry(t.Namespace, t.Name, t.ReflectionName, DisplayName: TypeText(t), IsResolved: false))
+                .ToList();
+
+            var derivedTypes = decompiler.TypeSystem.MainModule.TypeDefinitions
+                .Where(t => !t.Name.StartsWith('<')
+                            && t.DirectBaseTypes.Any(b => b.GetDefinition() is { } def && def.Equals(typeDef)))
+                .Select(t => ToEntry(t, assemblyPath))
+                .OrderBy(e => e.Text, StringComparer.Ordinal)
+                .ToList();
+
+            var nestedTypes = typeDef.NestedTypes
+                .Where(t => !t.Name.StartsWith('<'))
+                .Select(t => ToEntry(t, assemblyPath))
+                .OrderBy(e => e.Text, StringComparer.Ordinal)
+                .ToList();
+
+            var members = typeDef.Members
+                .Where(m => !m.Name.StartsWith('<') && m is not IMethod { IsAccessor: true }
+                            // a field-like event's backing field shares the event's name
+                            && !(m is IField && m.HasAttribute(KnownAttribute.CompilerGenerated)))
+                .Select(m => new AssemblyMemberEntry(MemberKind(m), MemberText(m), ToAccess(m.Accessibility),
+                    MetadataTokens.GetToken(m.MetadataToken), m.IsStatic,
+                    m.IsAbstract && typeDef.Kind != TypeKind.Interface))
+                .OrderBy(m => m.Kind)
+                .ThenBy(m => m.Text, StringComparer.Ordinal)
+                .ToList();
+
+            return new AssemblyTypeContents(baseTypes, derivedTypes, nestedTypes, members);
+        });
+    }
+
+    /// <summary>
+    /// Decompiles ONE member (field, property, event, constructor, method) on its own, the way ILSpy
+    /// shows a selected member — not its whole declaring type — under the assembly/declaring-type header.
+    /// </summary>
+    public static DecompiledMemberResult DecompileMember(string assemblyPath, int metadataToken, string title)
+        => DecompileEntity(assemblyPath, metadataToken, title);
+
+    /// <summary>
+    /// The assembly explorer's C# view of one entity, by metadata token: a type definition shows the
+    /// whole type, anything else just that member (<see cref="DecompileMember"/>).
+    /// <paramref name="languageVersion"/> is the C# the decompiler may use (ILSpy's version box: older
+    /// versions spell out what newer syntax would shorten). <paramref name="focusToken"/>, when set,
+    /// is the member within a type page to put the caret on (F12 to a member the tree doesn't list).
+    /// </summary>
+    public static DecompiledMemberResult DecompileEntity(
+        string assemblyPath, int metadataToken, string title,
+        LanguageVersion? languageVersion = null, int focusToken = 0)
+    {
+        return WithDecompiler(assemblyPath, languageVersion, (decompiler, settings) =>
+        {
+            var handle = MetadataTokens.EntityHandle(metadataToken);
+            var entity = decompiler.TypeSystem.MainModule.ResolveEntity(handle);
+            SyntaxTree syntaxTree;
+            if (entity is ITypeDefinition typeDef)
+            {
+                syntaxTree = decompiler.DecompileType(typeDef.FullTypeName);
+                AddHeader(syntaxTree, decompiler, typeDef);
+            }
+            else
+            {
+                syntaxTree = decompiler.Decompile(handle);
+                AddHeader(syntaxTree, decompiler, entity?.DeclaringTypeDefinition);
+            }
+
+            var text = RenderWithLocations(syntaxTree, settings);
+            var focus = focusToken != 0
+                ? decompiler.TypeSystem.MainModule.ResolveEntity(MetadataTokens.EntityHandle(focusToken))
+                : entity;
+            var line = FindDeclarationLine(syntaxTree, focus) ?? 1;
+            return new DecompiledMemberResult(text, line, title, syntaxTree);
+        });
+    }
+
+    // ILSpy's header: the assembly's full name, then (for a member) its declaring type — as comments
+    // inside the tree itself, so rendered locations (F12, declaration lines) stay consistent.
+    private static void AddHeader(SyntaxTree syntaxTree, CSharpDecompiler decompiler, ITypeDefinition? declaringType)
+    {
+        if (syntaxTree.FirstChild is not { } first) return;
+        first.AddLeadingTrivia(new Comment(" " + decompiler.TypeSystem.MainModule.FullAssemblyName));
+        if (declaringType is not null)
+            first.AddLeadingTrivia(new Comment(" " + FullTypeText(declaringType)));
+    }
+
+    private static AssemblyTypeEntry ToEntry(ITypeDefinition type, string? browsedAssembly)
+    {
+        var definingAssembly = type.ParentModule?.MetadataFile?.FileName;
+        return new AssemblyTypeEntry(
+            type.Namespace, type.Name, type.FullTypeName.ReflectionName,
+            type.Kind switch
+            {
+                TypeKind.Interface => AssemblyNodeKind.Interface,
+                TypeKind.Struct => AssemblyNodeKind.Struct,
+                TypeKind.Enum => AssemblyNodeKind.Enum,
+                TypeKind.Delegate => AssemblyNodeKind.Delegate,
+                _ => AssemblyNodeKind.Class,
+            },
+            ToAccess(type.Accessibility),
+            TypeText(type),
+            browsedAssembly is not null && !string.Equals(definingAssembly, browsedAssembly, StringComparison.OrdinalIgnoreCase)
+                ? definingAssembly
+                : null,
+            IsStatic: type.IsStatic,
+            // a static class is abstract + sealed in metadata; only a real abstract class counts
+            IsAbstract: type.Kind == TypeKind.Class && type.IsAbstract && !type.IsStatic,
+            MetadataToken: MetadataTokens.GetToken(type.MetadataToken));
+    }
+
+    private static AssemblyAccess ToAccess(Accessibility accessibility) => accessibility switch
+    {
+        Accessibility.Public => AssemblyAccess.Public,
+        Accessibility.Protected => AssemblyAccess.Protected,
+        Accessibility.ProtectedOrInternal => AssemblyAccess.ProtectedInternal,
+        Accessibility.Internal => AssemblyAccess.Internal,
+        Accessibility.ProtectedAndInternal => AssemblyAccess.PrivateProtected,
+        _ => AssemblyAccess.Private,
+    };
+
+    // ILSpy greys non-public API: private and internal (incl. private protected) look disabled.
+    internal static bool IsVisible(AssemblyAccess access) =>
+        access is AssemblyAccess.Public or AssemblyAccess.Protected or AssemblyAccess.ProtectedInternal;
+
+    private static AssemblyNodeKind MemberKind(IMember member) => member switch
+    {
+        IField => AssemblyNodeKind.Field,
+        IProperty => AssemblyNodeKind.Property,
+        IEvent => AssemblyNodeKind.Event,
+        IMethod { IsConstructor: true } => AssemblyNodeKind.Constructor,
+        _ => AssemblyNodeKind.Method,
+    };
+
+    // ILSpy's tree text: "name : type", "Name<T>(params) : return", "TypeName(params)", "this[params] : type".
+    private static string MemberText(IMember member)
+    {
+        string Parameters(IReadOnlyList<IParameter> parameters) => string.Join(", ", parameters.Select(p =>
+            (p.ReferenceKind switch
+            {
+                ReferenceKind.Ref => "ref ",
+                ReferenceKind.Out => "out ",
+                ReferenceKind.In => "in ",
+                _ => "",
+            }) + TypeText(p.Type is ByReferenceType byRef ? byRef.ElementType : p.Type)));
+
+        switch (member)
+        {
+            case IProperty { IsIndexer: true } indexer:
+                return $"this[{Parameters(indexer.Parameters)}] : {TypeText(indexer.ReturnType)}";
+            case IMethod { IsConstructor: true } ctor:
+                return $"{ctor.DeclaringTypeDefinition?.Name ?? ctor.Name}({Parameters(ctor.Parameters)})";
+            case IMethod method:
+                var typeParameters = method.TypeParameters.Count > 0
+                    ? "<" + string.Join(", ", method.TypeParameters.Select(t => t.Name)) + ">"
+                    : "";
+                return $"{method.Name}{typeParameters}({Parameters(method.Parameters)}) : {TypeText(method.ReturnType)}";
+            default:
+                return $"{member.Name} : {TypeText(member.ReturnType)}";
+        }
+    }
+
+    // Short C# type names with keywords and type arguments: "int", "IEqualityComparer<TKey>".
+    private static readonly CSharpAmbience ShortTypeAmbience = new()
+    {
+        ConversionFlags = ConversionFlags.ShowTypeParameterList | ConversionFlags.UseNullableSpecifierForValueTypes,
+    };
+
+    private static string TypeText(IType type) => ShortTypeAmbience.ConvertType(type);
+
+    // "System.Collections.Generic.Dictionary<TKey, TValue>", nested types joined by '.'.
+    private static string FullTypeText(ITypeDefinition type)
+        => type.DeclaringTypeDefinition is { } declaring
+            ? FullTypeText(declaring) + "." + TypeText(type)
+            : (type.Namespace.Length > 0 ? type.Namespace + "." : "") + TypeText(type);
 
     // Owns the PEFile for exactly the duration of `body` (CSharpDecompiler's (MetadataFile, ...)
     // overload below instead of the convenience CSharpDecompiler(string, ...) constructor, which
@@ -115,6 +384,11 @@ public static class CSharpDecompilerService
     // via linuxbrew at a nonstandard prefix. Adding THIS process's own runtime directory explicitly
     // (the compiled script runs against the very same installed runtime) is a robust fallback either way.
     private static T WithDecompiler<T>(string assemblyPath, Func<CSharpDecompiler, DecompilerSettings, T> body)
+        => WithDecompiler(assemblyPath, languageVersion: null, body);
+
+    // languageVersion null: DecompilerSettings' defaults (every feature on), as before the version box.
+    private static T WithDecompiler<T>(
+        string assemblyPath, LanguageVersion? languageVersion, Func<CSharpDecompiler, DecompilerSettings, T> body)
     {
         // `using var peFile = new PEFile(assemblyPath)` alone only disposes peFile once construction
         // SUCCEEDS — that convenience constructor opens a FileStream inline as part of a chained
@@ -132,7 +406,7 @@ public static class CSharpDecompilerService
         var resolver = new UniversalAssemblyResolver(
             assemblyPath, throwOnError: false, peFile.DetectTargetFrameworkId());
         resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-        var settings = new DecompilerSettings();
+        var settings = languageVersion is { } version ? new DecompilerSettings(version) : new DecompilerSettings();
         var decompiler = new CSharpDecompiler(peFile, resolver, settings);
         return body(decompiler, settings);
     }
@@ -147,7 +421,7 @@ public static class CSharpDecompilerService
     /// reference — <see cref="UniversalAssemblyResolver"/> didn't find it under the search directories
     /// <see cref="Decompile"/> configures).
     /// </summary>
-    public static IDefinitionResult? ResolveReferenceAtPosition(SyntaxTree tree, int line, int column)
+    public static DecompiledReference? ResolveReferenceAtPosition(SyntaxTree tree, int line, int column)
     {
         var node = FindInnermostNodeAt(tree, line, column);
 
@@ -161,6 +435,7 @@ public static class CSharpDecompilerService
         string? memberName;
         IReadOnlyList<string> parameterTypeNames;
         string displayName;
+        int metadataToken;
 
         switch (node?.GetSymbol())
         {
@@ -169,6 +444,7 @@ public static class CSharpDecompilerService
                 memberName = null;
                 parameterTypeNames = [];
                 displayName = typeDef.FullTypeName.ReflectionName;
+                metadataToken = MetadataTokens.GetToken(typeDef.MetadataToken);
                 break;
             case IMember member:
                 containingType = member.DeclaringTypeDefinition;
@@ -177,6 +453,8 @@ public static class CSharpDecompilerService
                     ? parameters.Select(p => p.Type.Name).ToList()
                     : [];
                 displayName = member.FullName;
+                // the definition's token, not a generic specialization's (List<int>.Add → List<T>.Add)
+                metadataToken = MetadataTokens.GetToken(member.MemberDefinition.MetadataToken);
                 break;
             default:
                 return null; // e.g. a local variable, or genuinely nothing resolvable at this position
@@ -187,8 +465,9 @@ public static class CSharpDecompilerService
         var targetAssemblyPath = containingType.ParentModule?.MetadataFile?.FileName;
         if (targetAssemblyPath is null) return null; // e.g. an unresolved reference assembly
 
-        return new RecursiveDefinitionResult(
-            targetAssemblyPath, containingType.FullTypeName.ReflectionName, memberName, parameterTypeNames, displayName);
+        return new DecompiledReference(
+            targetAssemblyPath, containingType.FullTypeName.ReflectionName, memberName, parameterTypeNames, displayName,
+            metadataToken, MetadataTokens.GetToken(containingType.MetadataToken));
     }
 
     // The innermost node containing (line, column) — Descendants is pre-order (parent before its own
@@ -241,14 +520,6 @@ public static class CSharpDecompilerService
         }
 
         return candidates[0];
-    }
-
-    private sealed record RecursiveDefinitionResult(
-        string AssemblyPath, string ContainingTypeFullName, string? MemberName,
-        IReadOnlyList<string> ParameterTypeNames, string DisplayName) : IDefinitionResult
-    {
-        public bool IsInSource => false;
-        public int Offset => 0;
     }
 
     private sealed record TypeOnlyDefinitionResult(

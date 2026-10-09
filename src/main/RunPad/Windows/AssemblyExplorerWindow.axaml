@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:RunPad.Windows.Models"
         x:Class="RunPad.Windows.AssemblyExplorerWindow"
         Title="Assembly Explorer"
         Width="1100" Height="720"
@@ -8,17 +9,75 @@
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
 
+    <Window.Resources>
+        <!-- ILSpy-style node icons (24x24 viewbox), coloured per kind in AssemblyExplorerWindow.Icon(). -->
+        <StreamGeometry x:Key="AsmIcon.Namespace">M8,3A2,2 0 0,0 6,5V9A2,2 0 0,1 4,11H3V13H4A2,2 0 0,1 6,15V19A2,2 0 0,0 8,21H10V19H8V14A2,2 0 0,0 6,12A2,2 0 0,0 8,10V5H10V3M16,3A2,2 0 0,1 18,5V9A2,2 0 0,0 20,11H21V13H20A2,2 0 0,0 18,15V19A2,2 0 0,1 16,21H14V19H16V14A2,2 0 0,1 18,12A2,2 0 0,1 16,10V5H14V3H16Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Type">M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Interface">M12,2A5,5 0 1,1 12,12A5,5 0 1,1 12,2M12,4.5A2.5,2.5 0 1,0 12,9.5A2.5,2.5 0 1,0 12,4.5M11,12H13V22H11Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Enum">M3,4H21V8H3ZM3,10H21V14H3ZM3,16H21V20H3Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Delegate">M4,11H14V7L20,12L14,17V13H4Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Member">M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Field">M12,3L21,12L12,21L3,12Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Property">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.6,4.7C0.4,7.1 0.9,10.1 2.9,12.1C4.8,14 7.5,14.5 9.8,13.6L18.9,22.7C19.3,23.1 19.9,23.1 20.3,22.7L22.6,20.4C23.1,20 23.1,19.3 22.7,19Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Event">M7,2V13H10V22L17,10H13L17,2Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.BaseTypes">M12,3L4,11H9V21H15V11H20Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.DerivedTypes">M12,21L4,13H9V3H15V13H20Z</StreamGeometry>
+
+        <!-- ILSpy's overlays: access (bottom-right) and static (top-left), drawn in the text colour. -->
+        <StreamGeometry x:Key="AsmOverlay.Private">M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmOverlay.Protected">M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmOverlay.Internal">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmOverlay.Static">M17,4H9A5,5 0 0,0 9,14H15A1,1 0 0,1 15,16H5V20H15A5,5 0 0,0 15,10H9A1,1 0 0,1 9,8H17Z</StreamGeometry>
+    </Window.Resources>
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="models:AssemblyTreeNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" Opacity="{Binding Opacity}">
+                <Grid Width="18" Height="18">
+                    <PathIcon Data="{Binding Icon}" Foreground="{Binding IconBrush}" Width="14" Height="14"/>
+                    <PathIcon Data="{Binding StaticOverlay}" IsVisible="{Binding StaticOverlay, Converter={x:Static ObjectConverters.IsNotNull}}"
+                              Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
+                              Width="7" Height="7" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    <PathIcon Data="{Binding AccessOverlay}" IsVisible="{Binding AccessOverlay, Converter={x:Static ObjectConverters.IsNotNull}}"
+                              Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
+                              Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                </Grid>
+                <TextBlock Text="{Binding Text}" FontStyle="{Binding FontStyle}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.DataTemplates>
+
     <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
-        <Button x:Name="BrowseButton" Grid.Row="0" Content="Browse..." HorizontalAlignment="Left"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4">
+            <Button x:Name="BackButton" IsEnabled="False"
+                    ToolTip.Tip="Back (Alt+Left)" AutomationProperties.Name="Back">
+                <PathIcon Data="{StaticResource Icon.ChevronLeft}" Width="14" Height="14"/>
+            </Button>
+            <Button x:Name="ForwardButton" IsEnabled="False"
+                    ToolTip.Tip="Forward (Alt+Right)" AutomationProperties.Name="Forward">
+                <PathIcon Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14"/>
+            </Button>
+            <Button x:Name="BrowseButton" Content="Browse..." Margin="8,0,0,0"/>
+            <ComboBox x:Name="LanguageBox" Margin="8,0,0,0" MinWidth="70"
+                      ToolTip.Tip="Language" AutomationProperties.Name="Language"/>
+            <ComboBox x:Name="VersionBox" MinWidth="110"
+                      ToolTip.Tip="C# version the decompiler may use" AutomationProperties.Name="C# version"/>
+        </StackPanel>
 
         <TextBlock x:Name="AssemblyPathBlock" Grid.Row="1" Margin="0,8,0,8"
                    TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
 
-        <Grid Grid.Row="2" ColumnDefinitions="260,5,*">
+        <Grid Grid.Row="2" ColumnDefinitions="320,5,*">
 
-            <TreeView x:Name="TypeTree" Grid.Column="0"/>
+            <TreeView x:Name="TypeTree" Grid.Column="0" SelectionMode="Single">
+                <TreeView.Styles>
+                    <Style Selector="TreeViewItem">
+                        <Setter Property="MinHeight" Value="24"/>
+                    </Style>
+                </TreeView.Styles>
+            </TreeView>
 
             <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns"
                           Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
