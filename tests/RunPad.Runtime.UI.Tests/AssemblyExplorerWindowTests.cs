@@ -336,6 +336,94 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.False(versionBox.IsVisible);
     }
 
+    // ── Search ──
+
+    private async Task<AssemblyExplorerWindow> OpenLoadedWindowAsync()
+    {
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        window.Show();
+        await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+        return window;
+    }
+
+    private static List<AssemblyTreeNode> Results(AssemblyExplorerWindow window) =>
+        window.SearchResultList.Items.OfType<AssemblyTreeNode>().ToList();
+
+    [AvaloniaFact]
+    public async Task SearchAsync_Should_ListMatchingMembers_WithIconAndLocation()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var panel = window.FindControl<StackPanel>("SearchPanel")!;
+        Assert.False(panel.IsVisible);
+
+        await window.SearchAsync("run");
+
+        var hit = Assert.Single(Results(window));
+        Assert.Equal("Run() : void", hit.Text);
+        Assert.Equal("Foo.Bar.Alpha", hit.Location);
+        Assert.NotNull(hit.Icon);
+        Assert.True(panel.IsVisible);
+        Assert.Equal("1 result", window.FindControl<TextBlock>("SearchStatus")!.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task SearchAsync_Should_HideTheResults_ForAnEmptyQuery_AndSayWhenNothingMatches()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var panel = window.FindControl<StackPanel>("SearchPanel")!;
+
+        await window.SearchAsync("NoSuchName");
+        Assert.True(panel.IsVisible);
+        Assert.Empty(Results(window));
+        Assert.Equal("No results", window.FindControl<TextBlock>("SearchStatus")!.Text);
+
+        await window.SearchAsync("  ");
+        Assert.False(panel.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task OpenSearchResultAsync_Should_RevealTheHitInTheTree_AndDecompileIt()
+    {
+        var window = await OpenLoadedWindowAsync();
+        await window.SearchAsync("run");
+
+        await window.OpenSearchResultAsync(Results(window).Single());
+
+        var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
+        Assert.Equal("Run() : void", Text(selected));
+        Assert.Equal("Alpha", Text((TreeViewItem)selected.Parent!));
+        Assert.Equal("Run() : void", window.Title);
+        Assert.Contains("void Run()", window.Editor.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task TypingInTheSearchBox_AndPickingAResult_Should_OpenIt()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var searchBox = window.FindControl<TextBox>("SearchBox")!;
+
+        searchBox.Text = "Gamm";
+        await TestWait.WhileAsync(() => Results(window).Count == 0);
+        Assert.Contains(Results(window), r => r is { Text: "Gamma", Location: "Foo.Bar" });
+
+        window.SearchResultList.SelectedItem = Results(window).First(r => r.Text == "Gamma");
+        await TestWait.WhileAsync(() => window.Title != "Gamma");
+
+        Assert.Contains("class Gamma", window.Editor.Text);
+        Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
+    }
+
+    [AvaloniaFact]
+    public async Task CtrlShiftF_Should_FocusTheSearchBox()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var searchBox = window.FindControl<TextBox>("SearchBox")!;
+
+        window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+        Assert.True(searchBox.IsFocused);
+    }
+
     [AvaloniaFact]
     public async Task AltLeft_Should_GoBack()
     {
