@@ -17,8 +17,10 @@ public class TextEditorModel : AbstractLineList, IDisposable
     private InvalidLineRange? _invalidRange;
     private bool _isDisposed;
 
-    // Captured on the UI thread at construction, never read from the static later — same reason as
-    // TextMateColoringTransformer._dispatcher.
+    // Captured on the UI thread at construction, never read from the static later: reading the static
+    // Dispatcher.UIThread from another thread right after Avalonia.Headless reset it between isolated
+    // tests makes that thread "the UI thread" (TextMateColoringTransformer posts via its TextView's
+    // Dispatcher for the same reason).
     private readonly Dispatcher _dispatcher = Dispatcher.UIThread;
 
     public DocumentSnapshot DocumentSnapshot => _documentSnapshot;

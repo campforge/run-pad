@@ -16,7 +16,7 @@ namespace RunPad.Runtime.UI.Tests;
 // the user's NuGet settings or their package cache.
 [Trait("Category", "RealBuild")]
 [Collection(RealBuildTestCollection.Name)]
-public sealed class ScriptPackageRestoreTests : IDisposable
+public sealed class ScriptPackageRestoreTests : IAsyncDisposable
 {
     private readonly string _root = Directory.CreateTempSubdirectory("runpad-restore").FullName;
     private readonly string _feed;
@@ -39,7 +39,8 @@ public sealed class ScriptPackageRestoreTests : IDisposable
             """);
     }
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    // Bounded retry for a briefly locked Feed.Greeter.dll on Windows — see TempDirectoryCleanup.
+    public ValueTask DisposeAsync() => TempDirectoryCleanup.DeleteAsync(_root);
 
     private CompiledDotnetLanguageHostOptions Options(IReadOnlyDictionary<string, string> packages, string? outputDirectory = null)
     {

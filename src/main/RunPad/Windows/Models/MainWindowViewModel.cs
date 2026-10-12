@@ -50,6 +50,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Debounce state for watcher-triggered refreshes
     private volatile int _debounceVersion;
 
+    // The UI dispatcher, captured at construction for the watcher debounce's thread-pool continuation
+    // (same target as before). Reading the static Dispatcher.UIThread from that continuation instead
+    // would, after Avalonia.Headless resets it between isolated tests, make a thread-pool thread
+    // "the UI thread" and fail the next test's app setup (VerifyAccess).
+    private readonly Dispatcher _dispatcher = Dispatcher.UIThread;
+
     // Review R2: file-tree refresh ordering/lifetime. Each walk gets a version; only the result of
     // the LATEST requested walk is applied (or reported) — an older walk finishing late can't
     // overwrite a newer tree, nor resurrect a stale one after a newer walk failed and deliberately
@@ -729,7 +735,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
-                Dispatcher.UIThread.Post(RefreshNodes);
+                _dispatcher.Post(RefreshNodes);
         });
     }
 
