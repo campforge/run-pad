@@ -18,7 +18,7 @@ C# specifics
 
 ## Installation
 
-Prebuilt binaries are on the [releases page](https://github.com/coddwrench/dot-pad/releases/latest).
+Prebuilt binaries are on the [releases page](https://github.com/coddwrench/run-pad/releases/latest).
 
 **Windows** — download `RunPad-win-x64.msi` and run it (adds a Start Menu shortcut, an uninstaller
 under "Add or remove programs", and the next version installs over it). Or `RunPad-win-x64.zip` — a
@@ -28,18 +28,17 @@ portable, install-free option: unzip and run `RunPad.exe`.
 puts `runpad` on PATH and adds a menu entry). Or `RunPad-x86_64.AppImage` — `chmod +x` and run it,
 nothing is installed system-wide. Or `RunPad-linux-x64.tar.gz` — unpack and run `RunPad`.
 
-**macOS** — the build isn't signed with an Apple Developer certificate yet, so Gatekeeper will block
-launching it through a normal Finder install. A single Terminal block below downloads the latest
-release for your architecture (Apple Silicon/Intel is detected automatically), installs it into
-`/Applications`, and clears the quarantine flag (this is standard practice for unsigned open-source
-apps, not anything unsafe — you're just allowing a file you already downloaded to run):
+**macOS** — download the disk image for your Mac: `RunPad-osx-arm64.dmg` for Apple Silicon (M1 and
+later) or `RunPad-osx-x64.dmg` for Intel (Apple menu → About This Mac shows which). Open it, drag
+`RunPad.app` onto the `Applications` folder shown next to it, eject the disk image, then start RunPad
+from Applications.
 
-```bash
-ARCH=$(test "$(uname -m)" = "arm64" && echo arm64 || echo x64)
-curl -L "https://github.com/coddwrench/dot-pad/releases/latest/download/RunPad-osx-$ARCH.tar.gz" | tar -xz -C /Applications
-xattr -cr "/Applications/RunPad.app"
-open "/Applications/RunPad.app"
-```
+The app is only ad-hoc signed — not signed with an Apple Developer ID certificate or notarized yet —
+so on first launch macOS may refuse to open it because it can't verify the developer. If you downloaded it from the
+releases page above, open System Settings → Privacy & Security and click "Open Anyway" next to the
+RunPad message, then confirm. macOS offers that button only for a while after a blocked launch, and
+depending on your macOS version and security settings may not offer it at all. The disk image
+contains a `Read Me First.txt` with the same steps.
 
 ## Inspiration and components used
 

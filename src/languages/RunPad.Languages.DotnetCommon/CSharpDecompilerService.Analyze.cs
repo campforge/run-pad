@@ -1,5 +1,6 @@
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
+using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.Disassembler;
 using ICSharpCode.Decompiler.Documentation;
 using ICSharpCode.Decompiler.Metadata;
@@ -124,13 +125,14 @@ public static partial class CSharpDecompilerService
         MetadataModule module, AnalysisKind kind, AnalysisTarget target, string assemblyPath,
         Dictionary<string, AssemblySearchEntry> results, CancellationToken cancellationToken)
     {
+        var mappings = new CodeMappings();
         foreach (var type in module.TypeDefinitions)
         {
             cancellationToken.ThrowIfCancellationRequested();
             foreach (var method in type.Methods)
             {
                 if (!ReadsTarget(module, method, kind, target)) continue;
-                if (ToResult(OwningMember(method), assemblyPath) is not { } result) continue;
+                if (ToResult(OwningMember(method, mappings), assemblyPath) is not { } result) continue;
                 // a type's own code isn't "used by" for that type — only other code is
                 if (kind == AnalysisKind.UsedBy && target.Type is { } targetType
                     && result.TypeFullName == targetType.ReflectionName) continue;
@@ -169,34 +171,36 @@ public static partial class CSharpDecompilerService
         }
     }
 
-    // The members of `type` that implement the target interface member: explicit implementations,
-    // and the public member with the same name and parameters (after substituting the interface's
-    // type arguments as `type` implements it). Implementations inherited from a base class aren't
-    // looked for here — the base class reports them itself.
+    // The members of `type` that implement the target interface member: its explicit implementations,
+    // or else the public member with the same signature — kind, name, generic arity, parameters and
+    // return type, after substituting the interface's type arguments as `type` implements it (so
+    // M<T>() doesn't implement M(), nor does object M() implement string M()). Implementations
+    // inherited from a base class aren't looked for here — the base class reports them itself.
     private static IEnumerable<IMember> ImplementationsIn(ITypeDefinition type, AnalysisTarget target)
     {
-        if (type.Kind == TypeKind.Interface || target.Member is not IMember) yield break;
+        if (type.Kind == TypeKind.Interface || target.Member is not IMember) return [];
         var implementedInterface = type.GetAllBaseTypes().FirstOrDefault(target.MatchesDeclaringType);
-        if (implementedInterface is null) yield break;
+        if (implementedInterface is null) return [];
+
+        var explicitImplementations = type.Members
+            .Where(m => m.ExplicitlyImplementedInterfaceMembers.Any(i => target.MatchesSelf(i.MemberDefinition)))
+            .ToList();
+        if (explicitImplementations.Count > 0) return explicitImplementations; // C# prefers them
 
         var specialized = implementedInterface
             .GetMembers(m => target.MatchesSelf(m.MemberDefinition), GetMemberOptions.IgnoreInheritedMembers)
             .FirstOrDefault();
-        foreach (var member in type.Members)
-        {
-            if (member.ExplicitlyImplementedInterfaceMembers.Any(i => target.MatchesSelf(i.MemberDefinition)))
-            {
-                yield return member;
-            }
-            else if (specialized is not null && !member.IsExplicitInterfaceImplementation && !member.IsStatic
-                     && member.Accessibility == Accessibility.Public && member.SymbolKind == specialized.SymbolKind
-                     && member.Name == specialized.Name
-                     && (member is not IParameterizedMember candidate || specialized is not IParameterizedMember wanted
-                         || ParameterListComparer.Instance.Equals(candidate.Parameters, wanted.Parameters)))
-            {
-                yield return member;
-            }
-        }
+        if (specialized is null) return [];
+        return type.Members.Where(member =>
+            !member.IsExplicitInterfaceImplementation && member.IsStatic == specialized.IsStatic
+            && member.Accessibility == Accessibility.Public
+            && SignatureComparer.Ordinal.Equals(member, specialized)
+            && ParameterListComparer.Instance.Equals([AsParameter(member.ReturnType)], [AsParameter(specialized.ReturnType)]));
+
+        // the return types compared like parameter types are: method type parameters by position,
+        // dynamic as object, tuples without element names, no nullability (its normalization is internal)
+        static IParameter AsParameter(IType type) =>
+            new ICSharpCode.Decompiler.TypeSystem.Implementation.DefaultParameter(type, name: "");
     }
 
     // Every type a member's signature mentions at the top level: a field's/property's/event's type,
@@ -214,17 +218,19 @@ public static partial class CSharpDecompilerService
     private static bool ReadsTarget(MetadataModule module, IMethod method, AnalysisKind kind, AnalysisTarget target)
     {
         var found = false;
-        ForEachOperand(module, method, (opCode, entity) =>
+        ForEachOperand(module, method, (opCode, entity, type) =>
         {
             found |= kind switch
             {
-                AnalysisKind.UsedBy when target.Type is null => IsCall(opCode) && target.MatchesCall(opCode, entity),
-                AnalysisKind.UsedBy => target.MatchesTypeOrMember(entity),
+                AnalysisKind.UsedBy when target.Type is null =>
+                    IsCall(opCode) && entity is not null && target.MatchesCall(opCode, entity),
+                AnalysisKind.UsedBy => target.MatchesTypeOrMember(entity, type),
                 AnalysisKind.InstantiatedBy => opCode == ILOpCode.Newobj && entity is IMethod ctor
                                                && target.MatchesType(ctor.DeclaringType),
                 AnalysisKind.ReadBy => opCode is ILOpCode.Ldfld or ILOpCode.Ldsfld or ILOpCode.Ldflda or ILOpCode.Ldsflda
-                                       && target.Matches(entity),
-                AnalysisKind.AssignedBy => opCode is ILOpCode.Stfld or ILOpCode.Stsfld && target.Matches(entity),
+                                       && entity is not null && target.Matches(entity),
+                AnalysisKind.AssignedBy => opCode is ILOpCode.Stfld or ILOpCode.Stsfld
+                                           && entity is not null && target.Matches(entity),
                 _ => false,
             };
             return !found; // stop at the first hit
@@ -242,24 +248,17 @@ public static partial class CSharpDecompilerService
         MetadataModule module, int targetToken, Dictionary<string, AssemblySearchEntry> results,
         CancellationToken cancellationToken)
     {
-        if (module.ResolveEntity(MetadataTokens.EntityHandle(targetToken)) is not IMethod targetMethod
-            || targetMethod.DeclaringTypeDefinition is not { } owner) return;
+        if (module.ResolveEntity(MetadataTokens.EntityHandle(targetToken)) is not IMethod targetMethod) return;
 
-        var bodies = new List<IMethod> { targetMethod };
-        foreach (var nested in AllNestedTypes(owner).Prepend(owner))
-        {
-            bodies.AddRange(nested.Methods.Where(m =>
-                !m.Equals(targetMethod) && IsCompilerGenerated(m) && OwningMember(m) is { } o && o.Equals(targetMethod)));
-        }
-
-        foreach (var body in bodies)
+        var mappings = new CodeMappings();
+        foreach (var body in mappings.PartsOf(targetMethod))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ForEachOperand(module, body, (_, entity) =>
+            ForEachOperand(module, body, (_, entity, _) =>
             {
                 var used = entity switch
                 {
-                    IMethod m => OwningMember(m.MemberDefinition as IMethod ?? m),
+                    IMethod m => OwningMember(m.MemberDefinition as IMethod ?? m, mappings),
                     IField f => f.MemberDefinition as IEntity ?? f,
                     _ => null,
                 };
@@ -274,12 +273,12 @@ public static partial class CSharpDecompilerService
         }
     }
 
-    private static IEnumerable<ITypeDefinition> AllNestedTypes(ITypeDefinition type) =>
-        type.NestedTypes.SelectMany(n => AllNestedTypes(n).Prepend(n));
-
     // Calls `visit` with every member/type operand of `method`'s IL, resolved (operands that can't be
-    // resolved — an assembly that isn't on disk — are skipped). `visit` returns false to stop.
-    private static void ForEachOperand(MetadataModule module, IMethod method, Func<ILOpCode, IEntity, bool> visit)
+    // resolved — an assembly that isn't on disk — are skipped): a member as itself, constructed (a
+    // method of List<Animal>, Array.Empty<Animal>), a type operand as its definition (null for one
+    // without, e.g. Animal[]) plus the type itself, constructed. `visit` returns false to stop.
+    private static void ForEachOperand(
+        MetadataModule module, IMethod method, Func<ILOpCode, IEntity?, IType?, bool> visit)
     {
         if (method.MetadataToken.IsNil || !method.HasBody) return;
         var metadataFile = module.MetadataFile;
@@ -309,22 +308,26 @@ public static partial class CSharpDecompilerService
             }
 
             var handle = MetadataTokens.EntityHandle(reader.ReadInt32());
-            IEntity? entity;
+            IEntity? entity = null;
+            IType? type = null;
             try
             {
-                entity = handle.Kind switch
+                if (handle.Kind is HandleKind.TypeDefinition or HandleKind.TypeReference or HandleKind.TypeSpecification)
                 {
-                    HandleKind.TypeDefinition or HandleKind.TypeReference or HandleKind.TypeSpecification =>
-                        module.ResolveType(handle, context).GetDefinition(),
-                    _ => module.ResolveEntity(handle, context),
-                };
+                    type = module.ResolveType(handle, context);
+                    entity = type.GetDefinition();
+                }
+                else
+                {
+                    entity = module.ResolveEntity(handle, context);
+                }
             }
             catch (Exception ex) when (ex is BadImageFormatException or InvalidOperationException or NotSupportedException)
             {
-                entity = null;
+                (entity, type) = (null, null);
             }
 
-            if (entity is not null && !visit(opCode, entity)) return;
+            if ((entity is not null || type is not null) && !visit(opCode, entity, type)) return;
         }
     }
 
@@ -332,29 +335,71 @@ public static partial class CSharpDecompilerService
         entity.Name.StartsWith('<') || (entity.DeclaringTypeDefinition is { } t && !IsListed(t));
 
     // The member the user wrote that `method` belongs to: an accessor → its property/event; a lambda,
-    // local function or state machine method ("<Caller>b__0_0", "<Later>d__3.MoveNext") → the member
-    // named between '<' and '>' in the nearest declaring type the user wrote. Null when nothing matches.
-    private static IEntity? OwningMember(IMethod method)
+    // local function or state machine method → the method (or the accessor's property/event) the
+    // compiler generated it for, by the code mapping — not by the "<Caller>" in its name, which can't
+    // tell overloads apart; one no method claims → the nearest declaring type the user wrote. Null
+    // when there's no such type.
+    private static IEntity? OwningMember(IMethod method, CodeMappings mappings)
     {
         if (method.AccessorOwner is { } accessorOwner) return accessorOwner;
         if (!IsCompilerGenerated(method)) return method;
 
-        var name = GeneratedOwnerName(method.Name);
-        ITypeDefinition? owner = method.DeclaringTypeDefinition;
+        var owner = method.DeclaringTypeDefinition;
         while (owner is not null && !IsListed(owner))
-        {
-            name ??= GeneratedOwnerName(owner.Name);
             owner = owner.DeclaringTypeDefinition;
-        }
         if (owner is null) return null;
-        if (name is null) return owner;
 
-        var member = owner.Members.FirstOrDefault(m => m.Name == name);
-        return member is IMethod { AccessorOwner: { } owningProperty } ? owningProperty : (IEntity?)member ?? owner;
+        return mappings.ParentOf(owner, method) is { } parent ? parent.AccessorOwner ?? parent : owner;
+    }
 
-        // "<Caller>b__0_0" → "Caller"; "<>c" / "<>c__DisplayClass0_0" → null (no name to go by)
-        static string? GeneratedOwnerName(string generated) =>
-            generated.StartsWith('<') && generated.IndexOf('>') is > 1 and var end ? generated[1..end] : null;
+    // The decompiler's code mapping, ILSpy's own: which compiler-generated methods (lambdas, local
+    // functions, state machine methods) belong to which method of a type the user wrote — read off
+    // metadata (the ldftn/call chains from the method, its state machine attribute) — computed once
+    // per such type.
+    private sealed class CodeMappings
+    {
+        private readonly Dictionary<ITypeDefinition, CodeMappingInfo?> _infos = [];
+
+        // the method `part` was generated for; null when no method of `owner` claims it
+        public IMethod? ParentOf(ITypeDefinition owner, IMethod part)
+        {
+            if (part.MetadataToken.IsNil || part.ParentModule is not MetadataModule module
+                || Info(owner) is not { } info) return null;
+            var handle = (MethodDefinitionHandle)part.MetadataToken;
+            var parent = info.GetParentMethod(handle);
+            return parent.IsNil || parent == handle ? null : module.GetDefinition(parent);
+        }
+
+        // `method` and every compiler-generated method that belongs to it
+        public IEnumerable<IMethod> PartsOf(IMethod method)
+        {
+            IEnumerable<IMethod> parts = [method];
+            if (method.MetadataToken.IsNil || method.ParentModule is not MetadataModule module
+                || method.DeclaringTypeDefinition is not { } owner || Info(owner) is not { } info) return parts;
+            return parts.Concat(info.GetMethodParts((MethodDefinitionHandle)method.MetadataToken)
+                .Select(module.GetDefinition)).Distinct();
+        }
+
+        private CodeMappingInfo? Info(ITypeDefinition owner)
+        {
+            if (_infos.TryGetValue(owner, out var cached)) return cached;
+            CodeMappingInfo? info = null;
+            // the mapping covers the declaring type of the member it's asked for: any method of `owner`
+            if (owner.ParentModule?.MetadataFile is { } file && !owner.MetadataToken.IsNil
+                && file.Metadata.GetTypeDefinition((TypeDefinitionHandle)owner.MetadataToken).GetMethods()
+                    is { Count: > 0 } methods)
+            {
+                try
+                {
+                    info = CSharpDecompiler.GetCodeMappingInfo(file, methods.First());
+                }
+                catch (BadImageFormatException)
+                {
+                    info = null;
+                }
+            }
+            return _infos[owner] = info;
+        }
     }
 
     private static AssemblySearchEntry? ToResult(IEntity? entity, string assemblyPath)
@@ -475,11 +520,14 @@ public static partial class CSharpDecompilerService
         public bool MatchesType(IType? type) =>
             type?.GetDefinition() is { } definition && Key(definition) is { } key && key == _typeKey;
 
-        // a reference to the type itself or to any of its members
-        public bool MatchesTypeOrMember(IEntity entity) => entity switch
+        // a reference to the type itself or to any of its members — also inside a constructed type
+        // (typeof(List<Animal>), Animal[]), to a member of one (new List<Animal>()) and to a generic
+        // method instantiated with it (Array.Empty<Animal>())
+        public bool MatchesTypeOrMember(IEntity? entity, IType? type) => (entity, type) switch
         {
-            ITypeDefinition type => Key(type) is { } key && key == _typeKey,
-            IMember member => MatchesType(member.DeclaringType),
+            (_, { } operandType) => MatchesTypeInside(operandType),
+            (IMember member, _) => MatchesTypeInside(member.DeclaringType)
+                                   || (member is IMethod method && method.TypeArguments.Any(MatchesTypeInside)),
             _ => false,
         };
 
