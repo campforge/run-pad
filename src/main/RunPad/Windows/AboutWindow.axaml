@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RunPad.Windows.AboutWindow"
+        Icon="/Assets/icon.ico"
         Title="About RunPad"
         Width="360"
         MinWidth="320" MinHeight="180"

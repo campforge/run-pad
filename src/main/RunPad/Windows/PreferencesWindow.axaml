@@ -6,6 +6,7 @@
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="480"
         x:Class="RunPad.Windows.PreferencesWindow"
+        Icon="/Assets/icon.ico"
         Title="Preferences"
         Width="760" Height="480"
         MinWidth="640" MinHeight="420"

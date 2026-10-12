@@ -17,6 +17,12 @@ public class TextEditorModel : AbstractLineList, IDisposable
     private InvalidLineRange? _invalidRange;
     private bool _isDisposed;
 
+    // Captured on the UI thread at construction, never read from the static later: reading the static
+    // Dispatcher.UIThread from another thread right after Avalonia.Headless reset it between isolated
+    // tests makes that thread "the UI thread" (TextMateColoringTransformer posts via its TextView's
+    // Dispatcher for the same reason).
+    private readonly Dispatcher _dispatcher = Dispatcher.UIThread;
+
     public DocumentSnapshot DocumentSnapshot => _documentSnapshot;
     internal InvalidLineRange? InvalidRange => _invalidRange;
 
@@ -200,7 +206,7 @@ public class TextEditorModel : AbstractLineList, IDisposable
         // Post is fire-and-forget - avoids the Task allocation that
         // InvokeAsync incurs. DispatcherPriority.Default is the default
         // for Post, matching the original InvokeAsync behavior
-        Dispatcher.UIThread.Post(TokenizeViewPortCore, DispatcherPriority.Default);
+        _dispatcher.Post(TokenizeViewPortCore, DispatcherPriority.Default);
     }
 
     /// <summary>

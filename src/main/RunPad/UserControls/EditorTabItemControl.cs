@@ -743,11 +743,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             decompiled = new DecompiledMemberResult($"// Failed to decompile: {ex.Message}", 1, definition.DisplayName);
         }
 
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        var window =
-            new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
-        if (owner is not null) window.Show(owner);
-        else window.Show();
+        // a new tab of the open explorer, or a new explorer (one per app — WindowService)
+        await _windowService.ShowDefinitionInAssemblyExplorerAsync(decompiled, definition);
     }
 
     // internal (not private): same rationale as BuildFindReferencesMenu — lets tests inspect the
