@@ -1,3 +1,4 @@
+using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using ICSharpCode.Decompiler;
@@ -52,6 +53,9 @@ public enum AssemblyNodeKind
     Method,
     BaseTypes,
     DerivedTypes,
+    Assembly,
+    References,
+    Reference,
 }
 
 /// <summary>C# accessibility of a tree node — drives ILSpy's access overlay (lock, key, house).</summary>
@@ -105,12 +109,27 @@ public sealed record AssemblyMemberEntry(
 /// or the declaring type's, reflection name) is what the tree reveals.
 /// </summary>
 public sealed record AssemblySearchEntry(
-    string Name, string Location, string TypeFullName, AssemblyTypeEntry Type, AssemblyMemberEntry? Member)
+    string Name, string Location, string TypeFullName, AssemblyTypeEntry Type, AssemblyMemberEntry? Member,
+    string AssemblyPath)
 {
     public AssemblyNodeKind Kind => Member?.Kind ?? Type.Kind;
     public string Text => Member?.Text ?? Type.Text;
     internal string QualifiedName => Location.Length > 0 ? Location + "." + Name : Name;
 }
+
+/// <summary>
+/// An assembly row of the explorer (<see cref="CSharpDecompilerService.DescribeAssembly"/>).
+/// <see cref="Token"/> is the AssemblyDefinition token: <see cref="CSharpDecompilerService.DecompileEntity"/>
+/// shows the assembly's attributes for it, <c>IlDisassembler.DisassembleEntity</c> its manifest.
+/// </summary>
+public sealed record AssemblyDescription(
+    string Name, string FullName, Version? Version, IReadOnlyList<AssemblyReferenceEntry> References)
+{
+    public const int Token = 0x20000001;
+}
+
+/// <summary>A referenced assembly; <see cref="ResolvedPath"/> null when the file can't be found.</summary>
+public sealed record AssemblyReferenceEntry(string Name, string FullName, string? ResolvedPath);
 
 /// <summary>What a type node expands to, in ILSpy's order.</summary>
 public sealed record AssemblyTypeContents(
@@ -133,7 +152,7 @@ public sealed record AssemblyTypeContents(
 /// request 2026-07-19 follow-up) — browsing an arbitrary DLL the user picked, not one reached by
 /// following a reference from their own script.
 /// </summary>
-public static class CSharpDecompilerService
+public static partial class CSharpDecompilerService
 {
     public static DecompiledMemberResult Decompile(IDefinitionResult definition)
     {
@@ -261,6 +280,17 @@ public static class CSharpDecompilerService
         return WithDecompiler(assemblyPath, languageVersion, (decompiler, settings) =>
         {
             var handle = MetadataTokens.EntityHandle(metadataToken);
+            if (handle.Kind == HandleKind.AssemblyDefinition)
+            {
+                // the assembly row: its assembly- and module-level attributes, under the header
+                var attributes = decompiler.DecompileModuleAndAssemblyAttributes();
+                AddHeader(attributes, decompiler, declaringType: null);
+                var attributesText = RenderWithLocations(attributes, settings);
+                return new DecompiledMemberResult(
+                    attributesText.Length > 0 ? attributesText : $"// {decompiler.TypeSystem.MainModule.FullAssemblyName}\n",
+                    1, title, attributes);
+            }
+
             var entity = decompiler.TypeSystem.MainModule.ResolveEntity(handle);
             SyntaxTree syntaxTree;
             if (entity is ITypeDefinition typeDef)
@@ -329,13 +359,14 @@ public static class CSharpDecompilerService
                 var typeEntry = ToEntry(type, browsedAssembly: null);
                 var typeName = type.FullTypeName.ReflectionName;
                 var location = type.DeclaringTypeDefinition is { } outer ? FullTypeText(outer) : type.Namespace;
-                entries.Add(new AssemblySearchEntry(type.Name, location, typeName, typeEntry, Member: null));
+                entries.Add(new AssemblySearchEntry(type.Name, location, typeName, typeEntry, Member: null, assemblyPath));
 
                 var memberLocation = FullTypeText(type);
                 foreach (var member in ListedMembers(type))
                 {
                     var name = member is IMethod { IsConstructor: true } ? type.Name : member.Name;
-                    entries.Add(new AssemblySearchEntry(name, memberLocation, typeName, typeEntry, ToMemberEntry(type, member)));
+                    entries.Add(new AssemblySearchEntry(
+                        name, memberLocation, typeName, typeEntry, ToMemberEntry(type, member), assemblyPath));
                 }
             }
             return entries;
@@ -493,12 +524,35 @@ public static class CSharpDecompilerService
         // succeeds or throws.
         using var stream = new FileStream(assemblyPath, FileMode.Open, FileAccess.Read);
         using var peFile = new PEFile(assemblyPath, stream);
+        var settings = languageVersion is { } version ? new DecompilerSettings(version) : new DecompilerSettings();
+        var decompiler = new CSharpDecompiler(peFile, CreateResolver(assemblyPath, peFile), settings);
+        return body(decompiler, settings);
+    }
+
+    private static UniversalAssemblyResolver CreateResolver(string assemblyPath, PEFile peFile)
+    {
         var resolver = new UniversalAssemblyResolver(
             assemblyPath, throwOnError: false, peFile.DetectTargetFrameworkId());
         resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-        var settings = languageVersion is { } version ? new DecompilerSettings(version) : new DecompilerSettings();
-        var decompiler = new CSharpDecompiler(peFile, resolver, settings);
-        return body(decompiler, settings);
+        return resolver;
+    }
+
+    /// <summary>
+    /// The assembly explorer's assembly row: its name and full name, and its References node — every
+    /// referenced assembly with the file it resolves to (null when it can't be found), resolved the same
+    /// way decompilation resolves them, so a reference that opens here is the one F12 would land in.
+    /// </summary>
+    public static AssemblyDescription DescribeAssembly(string assemblyPath)
+    {
+        using var stream = new FileStream(assemblyPath, FileMode.Open, FileAccess.Read);
+        using var peFile = new PEFile(assemblyPath, stream);
+        var resolver = CreateResolver(assemblyPath, peFile);
+        var references = peFile.AssemblyReferences
+            .Select(r => new AssemblyReferenceEntry(r.Name, r.FullName, resolver.FindAssemblyFile(r)))
+            .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var version = peFile.Metadata.IsAssembly ? peFile.Metadata.GetAssemblyDefinition().Version : null;
+        return new AssemblyDescription(peFile.Name, peFile.FullName, version, references);
     }
 
     /// <summary>

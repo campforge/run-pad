@@ -67,6 +67,12 @@ public static class IlDisassembler
 
         switch (handle.Kind)
         {
+            case HandleKind.AssemblyDefinition: // the assembly row: its manifest, like ildasm's
+                disassembler.WriteAssemblyReferences(reader);
+                disassembler.WriteAssemblyHeader(peFile);
+                output.WriteLine();
+                disassembler.WriteModuleHeader(peFile, skipMVID: false);
+                break;
             case HandleKind.TypeDefinition:
                 disassembler.DisassembleType(peFile, (TypeDefinitionHandle)handle);
                 break;

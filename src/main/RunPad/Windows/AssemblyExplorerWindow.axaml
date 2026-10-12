@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="using:RunPad.Windows.Models"
         x:Class="RunPad.Windows.AssemblyExplorerWindow"
+        Icon="/Assets/icon.ico"
         Title="Assembly Explorer"
         Width="1100" Height="720"
         MinWidth="600" MinHeight="400"
@@ -22,6 +23,8 @@
         <StreamGeometry x:Key="AsmIcon.Event">M7,2V13H10V22L17,10H13L17,2Z</StreamGeometry>
         <StreamGeometry x:Key="AsmIcon.BaseTypes">M12,3L4,11H9V21H15V11H20Z</StreamGeometry>
         <StreamGeometry x:Key="AsmIcon.DerivedTypes">M12,21L4,13H9V3H15V13H20Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Assembly">M12,8A3,3 0 0,0 15,5A3,3 0 0,0 12,2A3,3 0 0,0 9,5A3,3 0 0,0 12,8M12,11.54C9.64,9.35 6.5,8 3,8V19C6.5,19 9.64,20.35 12,22.54C14.36,20.35 17.5,19 21,19V8C17.5,8 14.36,9.35 12,11.54Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.References">M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z</StreamGeometry>
 
         <!-- ILSpy's overlays: access (bottom-right) and static (top-left), drawn in the text colour. -->
         <StreamGeometry x:Key="AsmOverlay.Private">M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z</StreamGeometry>
@@ -75,7 +78,7 @@
         <Grid Grid.Row="2" ColumnDefinitions="320,5,*">
 
             <!-- ILSpy's search pane above the tree: results show while the box has text. -->
-            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*">
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
                 <TextBox x:Name="SearchBox" Grid.Row="0" PlaceholderText="Search types and members (Ctrl+Shift+F)"
                          AutomationProperties.Name="Search"/>
                 <StackPanel Grid.Row="1" IsVisible="False" x:Name="SearchPanel" Margin="0,4,0,4">
@@ -85,12 +88,36 @@
                              AutomationProperties.Name="Search results"/>
                 </StackPanel>
                 <TreeView x:Name="TypeTree" Grid.Row="2" SelectionMode="Single">
+                    <TreeView.ContextMenu>
+                        <ContextMenu x:Name="TreeContextMenu">
+                            <MenuItem x:Name="RemoveAssemblyMenuItem" Header="Remove assembly" InputGesture="Delete"/>
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
                     <TreeView.Styles>
                         <Style Selector="TreeViewItem">
                             <Setter Property="MinHeight" Value="24"/>
                         </Style>
                     </TreeView.Styles>
                 </TreeView>
+
+                <!-- ILSpy's analyzer pane: results of "Analyze" (context menu / Ctrl+R). -->
+                <Border Grid.Row="3" x:Name="AnalysisPanel" IsVisible="False" Margin="0,6,0,0" Padding="0,4,0,0"
+                        BorderThickness="0,1,0,0" BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock x:Name="AnalysisTitle" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="CloseAnalysisButton" Grid.Column="1" Padding="4"
+                                    ToolTip.Tip="Close" AutomationProperties.Name="Close analysis">
+                                <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10"/>
+                            </Button>
+                        </Grid>
+                        <TextBlock x:Name="AnalysisStatus" Margin="2,2,0,2" FontSize="11"
+                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                        <ListBox x:Name="AnalysisResults" MaxHeight="260"
+                                 AutomationProperties.Name="Analysis results"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns"
