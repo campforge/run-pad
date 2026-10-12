@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RunPad.Windows.UnsavedChangesDialog"
+        Icon="/Assets/icon.ico"
         Title="Unsaved Changes"
         Width="380"
         MinWidth="320" MinHeight="140"
