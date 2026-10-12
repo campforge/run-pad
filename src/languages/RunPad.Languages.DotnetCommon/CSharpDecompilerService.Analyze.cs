@@ -70,12 +70,20 @@ public static partial class CSharpDecompilerService
     /// so a reference assembly and its implementation (different tokens) still match. Results reuse
     /// <see cref="AssemblySearchEntry"/>, ordered by location then name, without duplicates.
     /// </summary>
+    /// <param name="includeVirtualCalls">
+    /// Used By of a member only: also count virtual calls (<c>callvirt</c>/<c>ldvirtftn</c>) of the base and
+    /// interface members it overrides or implements — a call that may reach it at run time, like ILSpy's
+    /// option. C# itself compiles <c>dog.Sound()</c> to <c>callvirt Animal::Sound</c>, so without this
+    /// even calls through a <c>Dog</c> aren't found. A direct <c>call</c> of a base (<c>base.Sound()</c>)
+    /// isn't one: it can only reach that base method.
+    /// </param>
     public static IReadOnlyList<AssemblySearchEntry> Analyze(
         AnalysisKind kind, string targetAssemblyPath, int targetToken, IReadOnlyList<string> assemblyPaths,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool includeVirtualCalls = false)
     {
         var target = WithDecompiler(targetAssemblyPath, (decompiler, _) =>
-            AnalysisTarget.Create(decompiler.TypeSystem.MainModule, targetToken));
+            AnalysisTarget.Create(decompiler.TypeSystem.MainModule, targetToken,
+                includeVirtualCalls && kind == AnalysisKind.UsedBy));
         if (target is null) return [];
 
         var results = new Dictionary<string, AssemblySearchEntry>();
@@ -210,7 +218,7 @@ public static partial class CSharpDecompilerService
         {
             found |= kind switch
             {
-                AnalysisKind.UsedBy when target.Type is null => IsCall(opCode) && target.Matches(entity),
+                AnalysisKind.UsedBy when target.Type is null => IsCall(opCode) && target.MatchesCall(opCode, entity),
                 AnalysisKind.UsedBy => target.MatchesTypeOrMember(entity),
                 AnalysisKind.InstantiatedBy => opCode == ILOpCode.Newobj && entity is IMethod ctor
                                                && target.MatchesType(ctor.DeclaringType),
@@ -377,6 +385,9 @@ public static partial class CSharpDecompilerService
     private sealed class AnalysisTarget
     {
         private readonly HashSet<string> _memberKeys = [];
+        // the base/interface members the target overrides or implements: a virtual call of one of
+        // them may reach the target (Used By with includeVirtualCalls)
+        private readonly HashSet<string> _virtualKeys = [];
         private string? _typeKey;
         private string? _selfKey; // the member itself (a property, not its accessors)
         private string? _declaringTypeKey;
@@ -384,7 +395,7 @@ public static partial class CSharpDecompilerService
         public IEntity? Member { get; private init; }
         public ITypeDefinition? Type { get; private init; }
 
-        public static AnalysisTarget? Create(MetadataModule module, int token)
+        public static AnalysisTarget? Create(MetadataModule module, int token, bool includeVirtualCalls = false)
         {
             var entity = module.ResolveEntity(MetadataTokens.EntityHandle(token));
             if (entity is ITypeDefinition type)
@@ -397,20 +408,40 @@ public static partial class CSharpDecompilerService
                 _selfKey = Key(member),
                 _declaringTypeKey = member.DeclaringTypeDefinition is { } declaring ? Key(declaring) : null,
             };
-            switch (member)
+            target.AddKeys(target._memberKeys, member);
+            if (includeVirtualCalls)
             {
-                case IProperty property: // calls of its accessors
-                    target.AddKeys(property.Getter, property.Setter);
-                    break;
-                case IEvent @event:
-                    target.AddKeys(@event.AddAccessor, @event.RemoveAccessor, @event.InvokeAccessor);
-                    break;
-                default:
-                    target.AddKeys(member);
-                    break;
+                var bases = InheritanceHelper.GetBaseMembers(member, includeImplementedInterfaces: true)
+                    .Concat(member.ExplicitlyImplementedInterfaceMembers);
+                foreach (var baseMember in bases)
+                    target.AddKeys(target._virtualKeys, baseMember);
             }
             return target;
         }
+
+        // a property/event is called through its accessors
+        private void AddKeys(HashSet<string> keys, IMember member)
+        {
+            switch (member)
+            {
+                case IProperty property:
+                    AddKeys(keys, property.Getter, property.Setter);
+                    break;
+                case IEvent @event:
+                    AddKeys(keys, @event.AddAccessor, @event.RemoveAccessor, @event.InvokeAccessor);
+                    break;
+                default:
+                    AddKeys(keys, (IEntity)member);
+                    break;
+            }
+        }
+
+        // a call that reaches the target: of the target itself, or — virtually dispatched — of a member
+        // it overrides/implements (a `call` of a base method can only reach that base method)
+        public bool MatchesCall(ILOpCode opCode, IEntity entity) =>
+            Matches(entity)
+            || (opCode is ILOpCode.Callvirt or ILOpCode.Ldvirtftn && _virtualKeys.Count > 0
+                && entity is IMember member && Key(member.MemberDefinition) is { } key && _virtualKeys.Contains(key));
 
         // the target member itself (Overridden By / Implemented By compare members, not accessors)
         public bool MatchesSelf(IEntity entity) =>
@@ -430,11 +461,11 @@ public static partial class CSharpDecompilerService
             _ => MatchesType(type),
         };
 
-        private void AddKeys(params IEntity?[] entities)
+        private static void AddKeys(HashSet<string> keys, params IEntity?[] entities)
         {
             foreach (var entity in entities)
             {
-                if (entity is not null && Key(entity) is { } key) _memberKeys.Add(key);
+                if (entity is not null && Key(entity) is { } key) keys.Add(key);
             }
         }
 
