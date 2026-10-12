@@ -11,6 +11,18 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Jobs that touch the draft release ask for contents: write themselves.
+permissions:
+  contents: read
+
+# Pushes to main share one group so two release runs never write drafts at the same time (queued,
+# not cancelled — a cancelled run would leave its draft half-filled). GitHub keeps at most one
+# pending run per group, so a newer queued push replaces an older queued one. PR runs each get their
+# own group (the run id) and stay fully parallel, as before.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && format('release-{0}', github.ref) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: false
+
 jobs:
   format:
     name: Code Format
@@ -18,6 +30,17 @@ jobs:
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
+
+      # Mock-REST tests for the draft-release helper the platform/release jobs run on push
+      # (docs/handoffs/draft-release-transfer.md). Run on every PR and push so a broken helper is
+      # caught before main; Node 20 is the runtime actions/github-script@v7 executes it with.
+      - name: 🧲 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🧪 Test draft-release helper
+        run: node --test .github/scripts/draft-release.test.js
 
       - name: 🧲 Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -31,6 +54,11 @@ jobs:
     name: Build & Test (windows-latest)
     needs: format
     runs-on: windows-latest
+    permissions:
+      contents: write # creates/uploads to the draft release on push only
+    outputs:
+      release-id: ${{ steps.draft.outputs.release-id }}
+      version: ${{ steps.draft.outputs.version }}
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
@@ -97,6 +125,23 @@ jobs:
         if: github.event_name != 'pull_request'
         run: dotnet test --no-build --configuration Release --verbosity normal
 
+      # Release assets go straight to one draft GitHub Release (the Actions artifact quota is
+      # exhausted, see docs/handoffs/draft-release-transfer.md). The draft is tagged after
+      # RunPad.csproj's <Version>, tied to this commit and run, and reused if this run is retried;
+      # the `release` job publishes it only after every platform uploaded its archives. A version
+      # that is already published fails here — bump <Version> before merging to cut a new release.
+      - name: 📝 Prepare draft release
+        if: github.event_name == 'push'
+        id: draft
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
+            const version = helper.readVersionFromFile('src/main/RunPad/RunPad.csproj');
+            const release = await helper.prepareDraft({ github, context, core, version });
+            core.setOutput('release-id', String(release.id));
+            core.setOutput('version', version);
+
       # Release assets — only built on an actual merge to main, not on every PR. Ships both a portable
       # zip (unpack and run) and an MSI (Start Menu shortcut, uninstaller, upgrade-in-place on the
       # next version via the fixed UpgradeCode in installer/windows/Package.wxs).
@@ -108,14 +153,6 @@ jobs:
         if: github.event_name == 'push'
         shell: pwsh
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath RunPad-win-x64.zip
-
-      - name: 🔎 Read version
-        if: github.event_name == 'push'
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       # Pinned to WiX v5 specifically — v6+ added an Open Source Maintenance Fee EULA-acceptance gate
       # (harmless for a $0-revenue project, the fee itself only applies above $10k/year, but v5 avoids
@@ -135,37 +172,31 @@ jobs:
           DOTNET_ROLL_FORWARD: LatestMajor
         run: >
           wix build installer/windows/Package.wxs -ext WixToolset.UI.wixext
-          -d RunPadVersion=${{ steps.version.outputs.version }} -d PublishDir=publish/win-x64
+          -d RunPadVersion=${{ steps.draft.outputs.version }} -d PublishDir=publish/win-x64
           -arch x64 -out RunPad-win-x64.msi
 
-      - name: ⬆️ Upload release artifact (win-x64 zip)
+      - name: ⬆️ Upload to draft release (win-x64)
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ steps.draft.outputs.release-id }}
+          RELEASE_VERSION: ${{ steps.draft.outputs.version }}
         with:
-          name: release-win-x64
-          path: RunPad-win-x64.zip
-          # Already a compressed archive — re-zipping it for the artifact upload only burns CPU time.
-          compression-level: 0
-          # A self-contained publish zip is ~90MB (measured directly) — this copy only exists to hand
-          # off to the `release` job later in the SAME workflow run; the permanent, actually-downloaded
-          # copy is the one ncipollo/release-action attaches to the GitHub Release. No reason to keep
-          # this intermediate copy for the default 90 days — three platforms' worth of that per merge
-          # to main is what exhausted the private-repo Actions storage quota ("Failed to CreateArtifact:
-          # Artifact storage quota has been hit").
-          retention-days: 1
-
-      - name: ⬆️ Upload release artifact (win-x64 MSI)
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-win-x64-msi
-          path: RunPad-win-x64.msi
-          retention-days: 1
+          script: |
+            const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
+            await helper.uploadAssets({
+              github, context, core,
+              releaseId: process.env.RELEASE_ID,
+              version: process.env.RELEASE_VERSION,
+              files: ['RunPad-win-x64.zip', 'RunPad-win-x64.msi'],
+            });
 
   build-linux:
     name: Build & Test (ubuntu-latest)
     needs: build-windows
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # uploads to the draft release on push only
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
@@ -200,8 +231,8 @@ jobs:
           if-no-files-found: warn
           # Uploaded on every PR/push, not just merges — the default 90-day retention has no real
           # value here (nothing re-reads an old run's coverage after a handful of days) and adds up
-          # fast across a busy PR history. See the release-artifact uploads below for the bigger
-          # contributor to the storage-quota failure this was trimmed for.
+          # fast across a busy PR history. Release archives no longer go through Actions artifacts at
+          # all (they were the bigger contributor to the storage-quota failure this was trimmed for).
           retention-days: 7
 
       # Release assets — only built on an actual merge to main, not on every PR. Ships a portable
@@ -228,47 +259,37 @@ jobs:
           APPIMAGETOOL: /tmp/appimagetool
         run: bash scripts/make-linux-appimage.sh publish/linux-x64 dist
 
-      - name: 🔎 Read version
-        if: github.event_name == 'push'
-        id: version
-        run: |
-          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
+      # Version comes from build-windows (the one the draft is tagged with), not re-read here.
       - name: 🧳 Bundle .deb (linux-x64)
         if: github.event_name == 'push'
-        run: bash scripts/make-linux-deb.sh publish/linux-x64 ${{ steps.version.outputs.version }} dist
+        env:
+          RELEASE_VERSION: ${{ needs.build-windows.outputs.version }}
+        run: bash scripts/make-linux-deb.sh publish/linux-x64 "$RELEASE_VERSION" dist
 
-      - name: ⬆️ Upload release artifact (linux-x64 tar.gz)
+      - name: ⬆️ Upload to draft release (linux-x64)
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.build-windows.outputs.release-id }}
+          RELEASE_VERSION: ${{ needs.build-windows.outputs.version }}
         with:
-          name: release-linux-x64
-          path: RunPad-linux-x64.tar.gz
-          compression-level: 0
-          # See release-win-x64's own upload step for why this is trimmed to 1 day.
-          retention-days: 1
-
-      - name: ⬆️ Upload release artifact (linux-x64 AppImage)
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-x64-appimage
-          path: dist/RunPad-x86_64.AppImage
-          retention-days: 1
-
-      - name: ⬆️ Upload release artifact (linux-x64 deb)
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-x64-deb
-          path: dist/runpad_${{ steps.version.outputs.version }}_amd64.deb
-          retention-days: 1
+          script: |
+            const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
+            const version = process.env.RELEASE_VERSION;
+            await helper.uploadAssets({
+              github, context, core,
+              releaseId: process.env.RELEASE_ID,
+              version,
+              files: ['RunPad-linux-x64.tar.gz', 'dist/RunPad-x86_64.AppImage', `dist/runpad_${version}_amd64.deb`],
+            });
 
   build-macos:
     name: Build & Test (macos-latest)
-    needs: build-linux
+    # build-linux keeps the sequential order; build-windows supplies the draft release id/version.
+    needs: [build-windows, build-linux]
     runs-on: macos-latest
+    permissions:
+      contents: write # uploads to the draft release on push only
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
@@ -339,25 +360,28 @@ jobs:
         if: github.event_name == 'push'
         run: tar -czf RunPad-osx-arm64.tar.gz -C RunPad-osx-arm64 RunPad.app
 
-      - name: ⬆️ Upload release artifact (osx-x64)
+      - name: ⬆️ Upload to draft release (macOS)
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.build-windows.outputs.release-id }}
+          RELEASE_VERSION: ${{ needs.build-windows.outputs.version }}
         with:
-          name: release-osx-x64
-          path: RunPad-osx-x64.tar.gz
-          compression-level: 0
-          # See release-win-x64's own upload step for why this is trimmed to 1 day.
-          retention-days: 1
+          script: |
+            const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
+            await helper.uploadAssets({
+              github, context, core,
+              releaseId: process.env.RELEASE_ID,
+              version: process.env.RELEASE_VERSION,
+              files: ['RunPad-osx-x64.tar.gz', 'RunPad-osx-arm64.tar.gz'],
+            });
 
-      - name: ⬆️ Upload release artifact (osx-arm64)
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-osx-arm64
-          path: RunPad-osx-arm64.tar.gz
-          compression-level: 0
-          retention-days: 1
-
+  # Runs only when all three platform jobs succeeded (default success() on needs). Verifies the
+  # draft holds exactly the seven archives, fully uploaded, still owned by this commit and run, then
+  # publishes it. Any failure leaves the draft unpublished for a retry ("Re-run failed jobs" keeps
+  # the run id, so retried jobs reuse and fill the same draft). Unlike the previous
+  # ncipollo/release-action setup (allowUpdates/replacesArtifacts), an already published version
+  # is never updated in place — the run fails and asks for a <Version> bump instead.
   release:
     name: Publish GitHub Release
     needs: [build-windows, build-linux, build-macos]
@@ -365,68 +389,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      # Only for deleting this run's intermediate release-* artifacts after publishing.
-      actions: write
     steps:
       - name: 🚚 Checkout
         uses: actions/checkout@v4
-
-      - name: ⬇️ Download release artifacts
-        uses: actions/download-artifact@v4
         with:
-          pattern: release-*
-          path: artifacts
-          merge-multiple: true
+          sparse-checkout: .github/scripts
 
-      # Tag/release are named after RunPad.csproj's <Version> — bump it before merging to main
-      # to cut a new release; otherwise this updates the existing release for that version in
-      # place (replacing its seven archives) rather than failing or piling up duplicates.
-      - name: 🔎 Read version
-        id: version
-        run: |
-          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/main/RunPad/RunPad.csproj)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: 🚀 Publish GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: v${{ steps.version.outputs.version }}
-          name: RunPad v${{ steps.version.outputs.version }}
-          artifacts: artifacts/*
-          allowUpdates: true
-          replacesArtifacts: true
-          artifactErrorsFailBuild: true
-
-      # The release-* artifacts were only a hand-off to this job; the GitHub Release now holds the
-      # permanent copies. Runs only after a successful publish (default success() condition), only
-      # touches this run's release-* artifacts (coverage and older runs are left alone), and a
-      # cleanup failure only warns — the 1-day retention removes leftovers anyway.
-      - name: 🧹 Delete intermediate release artifacts
-        if: success()
-        continue-on-error: true
+      - name: 🚀 Publish draft release
         uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.build-windows.outputs.release-id }}
+          RELEASE_VERSION: ${{ needs.build-windows.outputs.version }}
         with:
           script: |
-            const { owner, repo } = context.repo;
-            // Collect every page first so deleting doesn't shift later pages.
-            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
-              owner,
-              repo,
-              run_id: context.runId,
-              per_page: 100,
+            const helper = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/draft-release.js`);
+            await helper.publishDraft({
+              github, context, core,
+              releaseId: process.env.RELEASE_ID,
+              version: process.env.RELEASE_VERSION,
             });
-            const targets = artifacts.filter((artifact) => artifact.name.startsWith('release-'));
-            core.info(`Deleting ${targets.length} release-* artifact(s) from run ${context.runId}.`);
-            const failed = [];
-            for (const artifact of targets) {
-              try {
-                await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: artifact.id });
-                core.info(`Deleted ${artifact.name} (${artifact.id}).`);
-              } catch (error) {
-                failed.push(artifact.name);
-                core.warning(`Failed to delete ${artifact.name} (${artifact.id}): ${error.message}`);
-              }
-            }
-            if (failed.length > 0) {
-              core.warning(`Could not delete ${failed.length} artifact(s): ${failed.join(', ')}.`);
-            }
