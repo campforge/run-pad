@@ -34,7 +34,7 @@ public class CodeTextEditorOccurrenceHighlightTests
         };
 
         editor.TextArea.Caret.Offset = 1;
-        await Task.Delay(20);
+        await TestWait.WhileAsync(() => editor.HighlightedOccurrences.Count == 0);
 
         Assert.Equal([(0, 1), (2, 1)], editor.HighlightedOccurrences);
     }
@@ -51,13 +51,36 @@ public class CodeTextEditorOccurrenceHighlightTests
         };
 
         editor.TextArea.Caret.Offset = 1;
-        await Task.Delay(20);
+        await TestWait.WhileAsync(() => editor.HighlightedOccurrences.Count == 0);
         Assert.NotEmpty(editor.HighlightedOccurrences);
 
         returnSpans = false;
         editor.TextArea.Caret.Offset = 2;
-        await Task.Delay(20);
+        await TestWait.WhileAsync(() => editor.HighlightedOccurrences.Count > 0);
 
         Assert.Empty(editor.HighlightedOccurrences);
+    }
+
+    // Editor smoothness (2026-10-12): every typed character moves the caret, and each lookup is a full
+    // semantic Roslyn query — typing must not run one per keystroke, only once the caret rests.
+    [AvaloniaFact]
+    public async Task RapidCaretMoves_LikeTyping_Should_QueryTheProviderOnce_ForTheFinalPosition()
+    {
+        var (_, editor) = CreateEditor("abcdefgh");
+        var queried = new List<int>();
+        editor.AsyncOccurrencesProvider = e =>
+        {
+            queried.Add(e.CaretOffset);
+            e.Spans.Add((e.CaretOffset, 1));
+            return Task.CompletedTask;
+        };
+
+        for (var offset = 1; offset <= 6; offset++)
+            editor.TextArea.Caret.Offset = offset;
+        await TestWait.WhileAsync(() => queried.Count == 0);
+        await Task.Delay(editor.OccurrenceHighlightDelay * 2); // nothing else is still pending
+
+        Assert.Equal([6], queried);
+        Assert.Equal([(6, 1)], editor.HighlightedOccurrences);
     }
 }
