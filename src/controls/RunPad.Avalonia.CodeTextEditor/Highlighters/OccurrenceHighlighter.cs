@@ -12,23 +12,29 @@ internal sealed class OccurrenceHighlighter : IBackgroundRenderer
 {
     private static readonly IBrush HighlightBrush = new SolidColorBrush(Color.FromArgb(60, 160, 160, 160));
 
-    private IReadOnlyList<(int Start, int Length)> _spans = [];
+    // Tracked segments: typing shifts them, so the highlights stay on their words until the next
+    // lookup arrives instead of sitting on stale offsets.
+    private readonly TrackedSegments<TextSegment> _spans = new();
 
     public KnownLayer Layer => KnownLayer.Selection;
 
-    /// <summary>Test-only observability — the last spans handed to <see cref="Update"/>.</summary>
-    internal IReadOnlyList<(int Start, int Length)> Spans => _spans;
+    /// <summary>Test-only observability — the spans being highlighted, at their current offsets.</summary>
+    internal IReadOnlyList<(int Start, int Length)> Spans => [.. _spans.All.Select(s => (s.StartOffset, s.Length))];
 
-    /// <summary>Supply the spans to highlight; empty to clear.</summary>
-    public void Update(IReadOnlyList<(int Start, int Length)> spans) => _spans = spans;
+    /// <summary>Supply the spans to highlight, following <paramref name="document"/>'s edits; empty to clear.</summary>
+    public void Update(TextDocument? document, IReadOnlyList<(int Start, int Length)> spans) =>
+        _spans.Replace(document, spans
+            .Where(s => s.Start >= 0 && s.Length > 0)
+            .OrderBy(s => s.Start)
+            .Select(s => new TextSegment { StartOffset = s.Start, Length = s.Length }));
 
-    public void Clear() => _spans = [];
+    public void Clear() => _spans.Clear();
 
     public void Draw(TextView textView, DrawingContext drawingContext)
     {
         if (_spans.Count == 0 || textView.Document is null) return;
 
-        foreach (var (start, length) in _spans)
+        foreach (var (start, length) in Spans)
         {
             if (start < 0 || length <= 0 || start + length > textView.Document.TextLength) continue;
             var builder = new BackgroundGeometryBuilder { AlignToWholePixels = true };

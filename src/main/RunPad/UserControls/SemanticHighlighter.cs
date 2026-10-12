@@ -1,5 +1,6 @@
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
@@ -7,32 +8,49 @@ namespace RunPad.UserControls;
 // ToDo: Move to RunPad.Avalonia.CodeTextEditor
 internal sealed class SemanticHighlighter : DocumentColorizingTransformer
 {
-    private IReadOnlyList<ISemanticToken> _tokens = [];
+    // Tracked, not absolute offsets: typing shifts them, so the colors stay on their words until the
+    // next analysis instead of landing on the neighbouring characters (the flicker after every key).
+    private readonly TrackedSegments<TokenSegment> _tokens = new();
     private bool _isDark = true;
 
-    public void Update(IReadOnlyList<ISemanticToken> tokens) => _tokens = tokens;
+    /// <summary>
+    /// Replaces the tokens and returns the span whose coloring actually changed — the part of the
+    /// document to redraw — or null when nothing did.
+    /// </summary>
+    public (int Start, int End)? Update(TextDocument? document, IReadOnlyList<ISemanticToken> tokens)
+    {
+        var before = _tokens.All;
+        var after = tokens
+            .OrderBy(t => t.StartOffset)
+            .Select(t => new TokenSegment(t.Kind) { StartOffset = t.StartOffset, Length = t.Length })
+            .ToList();
+        _tokens.Replace(document, after);
+        return TrackedSegments<TokenSegment>.ChangedRange(before, _tokens.All, (a, b) => a.Kind == b.Kind);
+    }
+
     public void SetDark(bool isDark) => _isDark = isDark;
+
+    internal IReadOnlyList<TokenSegment> Tokens => _tokens.All;
 
     protected override void ColorizeLine(DocumentLine line)
     {
-        var tokens = _tokens;
-        if (tokens.Count == 0) return;
+        if (_tokens.Count == 0) return;
 
-        var lineStart = line.Offset;
-        var lineEnd = line.EndOffset;
-
-        foreach (var token in tokens)
+        // only the tokens on this line (a range lookup), not every token of the document per line
+        foreach (var token in _tokens.Overlapping(line.Offset, line.Length))
         {
-            var start = token.StartOffset;
-            var end = start + token.Length;
-            if (end <= lineStart || start >= lineEnd) continue;
-
             var brush = SemanticTokenBrushes.GetBrush(token.Kind, _isDark);
             if (brush is null) continue;
 
-            var s = Math.Max(start, lineStart);
-            var e = Math.Min(end, lineEnd);
-            ChangeLinePart(s, e, el => el.TextRunProperties.SetForegroundBrush(brush));
+            var start = Math.Max(token.StartOffset, line.Offset);
+            var end = Math.Min(token.EndOffset, line.EndOffset);
+            if (start >= end) continue;
+            ChangeLinePart(start, end, element => element.TextRunProperties.SetForegroundBrush(brush));
         }
+    }
+
+    internal sealed class TokenSegment(SemanticTokenKind kind) : TextSegment
+    {
+        public SemanticTokenKind Kind { get; } = kind;
     }
 }

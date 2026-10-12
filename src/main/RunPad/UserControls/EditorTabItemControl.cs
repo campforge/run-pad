@@ -699,6 +699,38 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // so it's decompiled instead and shown in a separate, non-modal window (explicit user request:
     // NOT another tab — the script keeps running/editable behind it, mirroring how dnSpy/ILSpy show a
     // decompiled member without disturbing whatever else is open).
+    // ── Coalesced partial redraws for background analysis results ──
+    // Semantic colors and inlay hints used to each force a full TextView.Redraw() (every visible line
+    // rebuilt and re-colorized, twice per analysis). Now each update reports only the span whose
+    // decorations changed; spans arriving before the posted redraw runs are merged, and the redraw
+    // covers just their union — nothing at all when the analysis changed nothing.
+    private (int Start, int End)? _pendingRedraw;
+    private bool _redrawPosted;
+
+    internal int RedrawsRun { get; private set; } // test observability
+    internal SemanticHighlighter? SemanticHighlighterForTests => _semanticHighlighter;
+
+    private void RequestRedraw(CodeTextEditor editor, (int Start, int End)? changed)
+    {
+        if (changed is not { } range) return;
+        _pendingRedraw = _pendingRedraw is { } pending
+            ? (Math.Min(pending.Start, range.Start), Math.Max(pending.End, range.End))
+            : range;
+        if (_redrawPosted) return;
+
+        _redrawPosted = true;
+        Dispatcher.Post(() =>
+        {
+            _redrawPosted = false;
+            if (_disposed || _pendingRedraw is not { } union || editor.Document is not { } document) return;
+            _pendingRedraw = null;
+            var start = Math.Clamp(union.Start, 0, document.TextLength);
+            var end = Math.Clamp(union.End, start, document.TextLength);
+            editor.TextArea.TextView.Redraw(start, Math.Max(end - start, 1)); // a hint is zero-length
+            RedrawsRun++;
+        }, DispatcherPriority.Background);
+    }
+
     private async Task ShowGoToDefinitionAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
     {
         var caretOffset = editor.TextArea.Caret.Offset;
@@ -1247,7 +1279,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                squiggleRenderer.Update(diagnostics);
+                squiggleRenderer.Update(editor.Document, diagnostics);
                 editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
             });
 
@@ -1262,8 +1294,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                semanticHighlighter.Update(tokens);
-                editor.TextArea.TextView.Redraw();
+                RequestRedraw(editor, semanticHighlighter.Update(editor.Document, tokens));
             });
 
         // ── Inlay hints (inferred `var`/`foreach (var ...)` types) ─────────────
@@ -1276,9 +1307,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 if (_disposed) return;
                 if (!ReferenceEquals(editor.Text, code) && editor.Text != code) return;
-                inlayHintRenderer.Update(hints);
-                editor.TextArea.TextView.Redraw();
+                RequestRedraw(editor, inlayHintRenderer.Update(editor.Document, hints));
             });
+
+        // The decorations follow ONE document's edits; a new document (file reloaded) starts bare
+        // until its first analysis instead of borrowing the old document's offsets.
+        editor.DocumentChanged += (_, _) =>
+        {
+            squiggleRenderer.Update(editor.Document, []);
+            semanticHighlighter.Update(editor.Document, []);
+            inlayHintRenderer.Update(editor.Document, []);
+        };
 
         // ── Code fixes (lightbulb: real Roslyn CodeFixProviders + CodeRefactoringProviders) ─────
         // Two independent sources feed the same lightbulb margin (TODO.md #74): diagnostic-driven
@@ -1336,13 +1375,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
             var ct = refactoringCts.Token;
             var offset = editor.TextArea.Caret.Offset;
-            var text = editor.Text;
+            // a snapshot, materialized only if this caret position survives the debounce — every typed
+            // character moves the caret, and editor.Text here copied the whole document per keystroke
+            var snapshot = editor.Document.CreateSnapshot();
 
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(RefactoringDebounceDelay, ct);
+                    var text = snapshot.Text;
                     var refactorings = await intelliSense.GetRefactoringsAsync(text, offset, ct);
                     if (ct.IsCancellationRequested) return;
 
@@ -1360,7 +1402,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             });
         };
 
-        editor.TextChanged += (_, _) => intelliSense.NotifyTextChanged(editor.Text);
+        // An immutable snapshot (cheap: the rope is shared) instead of editor.Text — the string is built
+        // off the UI thread, and only for the keystroke that's still the latest once analysis starts.
+        editor.TextChanged += (_, _) =>
+        {
+            var snapshot = editor.Document.CreateSnapshot();
+            intelliSense.NotifyTextChanged(() => snapshot.Text);
+        };
 
         // ── Quick Info tooltips on hover ──────────────────────────────────────
         ToolTip.SetShowDelay(editor.TextArea.TextView, 0);
