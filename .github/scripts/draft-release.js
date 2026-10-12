@@ -23,8 +23,8 @@ function expectedAssetNames(version)
         'RunPad-linux-x64.tar.gz',
         'RunPad-x86_64.AppImage',
         `runpad_${version}_amd64.deb`,
-        'RunPad-osx-x64.tar.gz',
-        'RunPad-osx-arm64.tar.gz',
+        'RunPad-osx-x64.dmg',
+        'RunPad-osx-arm64.dmg',
     ];
 }
 
