@@ -334,8 +334,11 @@ jobs:
 
       # Release assets — only built on an actual merge to main, not on every PR. Bundled as a real
       # RunPad.app (Contents/MacOS + Info.plist + icon), not just a raw publish folder, so it's
-      # double-clickable/shows up properly in Finder/Dock — unsigned/not notarized (see TODO.md
-      # проход 136), so the README documents the `xattr -cr` step users need before first launch.
+      # double-clickable/shows up properly in Finder/Dock, then shipped as one disk image per
+      # architecture (app + Applications symlink + first-launch ReadMe, native hdiutil). The bundle is
+      # ad-hoc signed and verified by make-macos-app-bundle.sh (docs/handoffs/macos-bundle-signature.md)
+      # but has no Developer ID signature or notarization (docs/handoffs/macos-dmg.md) — the
+      # ReadMe/README point to Gatekeeper's "Open Anyway" instead of any quarantine workaround.
       - name: 📦 Publish (osx-x64)
         if: github.event_name == 'push'
         run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
@@ -352,13 +355,13 @@ jobs:
         if: github.event_name == 'push'
         run: bash scripts/make-macos-app-bundle.sh publish/osx-arm64 RunPad-osx-arm64
 
-      - name: 🗜️ Archive (osx-x64)
+      - name: 💿 Bundle DMG (osx-x64)
         if: github.event_name == 'push'
-        run: tar -czf RunPad-osx-x64.tar.gz -C RunPad-osx-x64 RunPad.app
+        run: bash scripts/make-macos-dmg.sh RunPad-osx-x64/RunPad.app RunPad-osx-x64.dmg
 
-      - name: 🗜️ Archive (osx-arm64)
+      - name: 💿 Bundle DMG (osx-arm64)
         if: github.event_name == 'push'
-        run: tar -czf RunPad-osx-arm64.tar.gz -C RunPad-osx-arm64 RunPad.app
+        run: bash scripts/make-macos-dmg.sh RunPad-osx-arm64/RunPad.app RunPad-osx-arm64.dmg
 
       - name: ⬆️ Upload to draft release (macOS)
         if: github.event_name == 'push'
@@ -373,7 +376,7 @@ jobs:
               github, context, core,
               releaseId: process.env.RELEASE_ID,
               version: process.env.RELEASE_VERSION,
-              files: ['RunPad-osx-x64.tar.gz', 'RunPad-osx-arm64.tar.gz'],
+              files: ['RunPad-osx-x64.dmg', 'RunPad-osx-arm64.dmg'],
             });
 
   # Runs only when all three platform jobs succeeded (default success() on needs). Verifies the

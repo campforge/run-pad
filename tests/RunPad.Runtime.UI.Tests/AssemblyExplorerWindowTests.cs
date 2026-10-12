@@ -350,6 +350,123 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.False(versionBox.IsVisible);
     }
 
+    // A language switch while the first page of an empty tab is still rendering: the page lands in the
+    // new view, labelled with it (Save Code offers .il; switching back re-renders it as C#).
+    [AvaloniaFact]
+    public async Task SwitchingTheView_WhileTheFirstPageRenders_Should_ShowItInTheNewView_AndSaveItAsIl()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-save-code-test").FullName;
+        var path = Path.Combine(folder, "Alpha.il");
+        var service = new Mock<IWindowService>();
+        service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(path);
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        try
+        {
+            window.Show();
+            var alpha = await LoadAndFindAlphaAsync(window);
+
+            var pending = window.SelectNodeAsync(Node(alpha), alpha);
+            await window.SetViewAsync(IlView);
+            await pending;
+
+            Assert.Equal("Alpha", window.Title);
+            Assert.Contains(".class", window.Editor.Text);
+            Assert.False(window.CanGoBack);
+            await window.SaveCodeAsync();
+            service.Verify(s => s.ShowSaveCodeFileDialogAsync("Alpha", "il", It.IsAny<string>()), Times.Once);
+            Assert.Contains(".class", await File.ReadAllTextAsync(path));
+
+            await window.SetViewAsync(DecompilerView.Default);
+            Assert.Contains("class Alpha", window.Editor.Text);
+            Assert.DoesNotContain(".class", window.Editor.Text);
+        }
+        finally
+        {
+            window.Close();
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    // The same after a page that can't be re-rendered (a References row's description).
+    [AvaloniaFact]
+    public async Task SwitchingTheView_WhileANewPageRenders_AfterAPageWithoutTarget_Should_ShowItInTheNewView()
+    {
+        var window = await OpenLoadedWindowAsync();
+        try
+        {
+            var runtime = ReferencesRow(AssemblyRow(window)).Items.OfType<TreeViewItem>().Single(r => Text(r) == "System.Runtime");
+            await window.SelectNodeAsync(Node(runtime), runtime);
+            var alpha = Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
+
+            var pending = window.SelectNodeAsync(Node(alpha), alpha);
+            await window.SetViewAsync(IlView);
+            await pending;
+
+            Assert.Equal("Alpha", window.Title);
+            Assert.Contains(".class", window.Editor.Text);
+            window.GoBack();
+            Assert.StartsWith("// System.Runtime, Version=", window.Editor.Text);
+        }
+        finally { window.Close(); }
+    }
+
+    // After a page that can be re-rendered: the new page still wins — rather than the switch re-rendering
+    // the page it's about to replace and dropping the selection — and the old one is re-rendered on Back.
+    [AvaloniaFact]
+    public async Task SwitchingTheView_WhileANewPageRenders_Should_ShowTheNewPage_NotReRenderTheOldOne()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        try
+        {
+            await window.SelectNodeAsync(Node(run), run);
+
+            var pending = window.SelectNodeAsync(Node(alpha), alpha);
+            await window.SetViewAsync(IlView);
+            await pending;
+
+            Assert.Equal("Alpha", window.Title);
+            Assert.Contains(".class", window.Editor.Text);
+            window.GoBack();
+            await TestWait.WhileAsync(() => !window.Editor.Text.Contains(".method"));
+            Assert.Equal("Run() : void", window.Title);
+        }
+        finally { window.Close(); }
+    }
+
+    // A newer selection or a tab switch still supersedes the page rendering when the view changes.
+    [AvaloniaFact]
+    public async Task SwitchingTheView_WhileAPageRenders_Should_StillLetANewerSelectionOrATabSwitchWin()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        try
+        {
+            var superseded = window.SelectNodeAsync(Node(alpha), alpha);
+            await window.SetViewAsync(IlView);
+            await window.SelectNodeAsync(Node(run), run);
+            await superseded;
+
+            Assert.Equal("Run() : void", window.Title);
+            Assert.Contains(".method", window.Editor.Text);
+            Assert.False(window.CanGoBack); // Alpha never landed
+
+            await window.OpenInNewTabAsync(Node(alpha), alpha);
+            window.ActivateNextTab(-1); // back to Run's tab
+            var left = window.SelectNodeAsync(Node(alpha), alpha);
+            await window.SetViewAsync(DecompilerView.Default);
+            window.ActivateNextTab(+1); // Alpha's tab, re-rendered as C#
+            await left;
+            await TestWait.WhileAsync(() => !window.Editor.Text.Contains("class Alpha"));
+
+            Assert.Equal(["Run() : void", "Alpha"], window.TabTitles); // the left tab's selection didn't land
+            Assert.Equal("Alpha", window.Title);
+            window.ActivateNextTab(-1);
+            await TestWait.WhileAsync(() => !window.Editor.Text.Contains("void Run()"));
+            Assert.False(window.CanGoBack);
+        }
+        finally { window.Close(); }
+    }
+
     // ── Search ──
 
     private async Task<AssemblyExplorerWindow> OpenLoadedWindowAsync()
@@ -1279,6 +1396,73 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
         Assert.Equal(1, window.TabCount);
         Assert.Equal("Alpha", Text((TreeViewItem)window.Tree.SelectedItem!));
+    }
+
+    // F12's page is decompiled as default C#: in an explorer already in IL it's re-rendered as IL once
+    // its target is known, and Save Code writes that IL to an .il file.
+    [AvaloniaFact]
+    public async Task ALaterScriptF12_InIlView_Should_ShowItsPageAsIl_AndSaveItAsIl()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-save-code-test").FullName;
+        var path = Path.Combine(folder, "Gamma.il");
+        var service = new Mock<IWindowService>();
+        service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(path);
+        var run = ScriptDefinition("Foo.Bar.Alpha", "Run");
+        var window = new AssemblyExplorerWindow(
+            CreateThemeService().Object, service.Object, CSharpDecompilerService.Decompile(run), run.AssemblyPath, run);
+        try
+        {
+            window.Show();
+            await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
+            await window.SetViewAsync(IlView);
+            var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
+
+            await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(gamma), gamma.AssemblyPath, gamma);
+
+            Assert.Equal(1, window.ActiveTabIndex);
+            Assert.Equal("Foo.Bar.Gamma", window.Title);
+            Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
+            Assert.Contains(".class", window.Editor.Text);
+            Assert.DoesNotContain("public class Gamma", window.Editor.Text);
+            await window.SaveCodeAsync();
+            service.Verify(s => s.ShowSaveCodeFileDialogAsync(
+                AssemblyExplorerWindow.SuggestedFileName("Foo.Bar.Gamma"), "il", It.IsAny<string>()), Times.Once);
+            var saved = await File.ReadAllTextAsync(path);
+            Assert.Contains(".class", saved);
+            Assert.DoesNotContain("public class Gamma", saved);
+
+            await window.SetViewAsync(DecompilerView.Default); // a real target behind it: back to C#
+            Assert.Contains("public class Gamma", window.Editor.Text);
+        }
+        finally
+        {
+            window.Close();
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    // A view switch while the first F12 page has no target yet can't re-render it — it does once known.
+    [AvaloniaFact]
+    public async Task SwitchingTheView_BeforeTheFirstScriptF12IsRevealed_Should_ReRenderItOnceItsTargetIsKnown()
+    {
+        var window = OpenFromScriptF12("Foo.Bar.Gamma", memberName: null, "Foo.Bar.Gamma");
+        try
+        {
+            Assert.Null(window.Tree.SelectedItem); // not revealed yet
+            await window.SetViewAsync(IlView);
+            Assert.Contains("public class Gamma", window.Editor.Text);
+
+            await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
+            await TestWait.WhileAsync(() => !window.Editor.Text.Contains(".class"));
+
+            Assert.Contains(".class", window.Editor.Text);
+            Assert.DoesNotContain("public class Gamma", window.Editor.Text);
+            Assert.Equal("Foo.Bar.Gamma", window.Title);
+            Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
+            Assert.False(window.CanGoBack); // re-rendered in place, not a new page
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaFact]

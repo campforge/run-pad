@@ -186,8 +186,18 @@ function callNames(state)
 const PLATFORM_FILES = [
     ['RunPad-win-x64.zip', 'RunPad-win-x64.msi'],
     ['RunPad-linux-x64.tar.gz', 'RunPad-x86_64.AppImage', `runpad_${VERSION}_amd64.deb`],
-    ['RunPad-osx-x64.tar.gz', 'RunPad-osx-arm64.tar.gz'],
+    ['RunPad-osx-x64.dmg', 'RunPad-osx-arm64.dmg'],
 ];
+
+const WORKFLOW = path.join(__dirname, '../workflows/dotnet-desktop.yml');
+
+// The `files: [...]` lists the workflow's uploadAssets steps pass, with ${version} substituted.
+function workflowUploadFiles(workflowText, version)
+{
+    return [...workflowText.matchAll(/^\s*files: \[(.*)\],\s*$/gm)].map((match) =>
+        [...match[1].matchAll(/'([^']*)'|`([^`]*)`/g)].map((file) =>
+            (file[1] ?? file[2]).replace('${version}', version)));
+}
 
 test('readVersion parses RunPad.csproj without grep -P', () =>
 {
@@ -195,6 +205,30 @@ test('readVersion parses RunPad.csproj without grep -P', () =>
     assert.equal(helper.readVersionFromFile(path.join(__dirname, '../../src/main/RunPad/RunPad.csproj')).length > 0, true);
     assert.throws(() => helper.readVersion('<Project />'), /No <Version>/);
     assert.throws(() => helper.readVersion('<Version>1.0; rm -rf</Version>'), /Unexpected <Version>/);
+});
+
+test('workflow uploads exactly the expected manifest, with macOS shipped as two DMGs', () =>
+{
+    const workflow = fs.readFileSync(WORKFLOW, 'utf8');
+    const uploads = workflowUploadFiles(workflow, VERSION);
+    assert.deepEqual(uploads.map((files) => files.map((file) => path.basename(file))), PLATFORM_FILES);
+
+    const expected = helper.expectedAssetNames(VERSION);
+    assert.equal(expected.length, 7);
+    assert.deepEqual([...PLATFORM_FILES.flat()].sort(), [...expected].sort());
+    assert.ok(!expected.some((name) => /osx.*\.tar\.gz$/.test(name)), 'macOS tarballs are gone');
+
+    // Each uploaded DMG is the output of its own bundle step, built from that architecture's .app.
+    for (const arch of ['x64', 'arm64'])
+    {
+        assert.ok(
+            workflow.includes(`run: bash scripts/make-macos-dmg.sh RunPad-osx-${arch}/RunPad.app RunPad-osx-${arch}.dmg`),
+            `bundle DMG step for osx-${arch}`);
+        assert.ok(workflow.includes(`run: bash scripts/make-macos-app-bundle.sh publish/osx-${arch} RunPad-osx-${arch}`));
+    }
+    assert.ok(!/tar -czf RunPad-osx/.test(workflow), 'no macOS tar.gz archive step');
+    assert.ok(workflow.indexOf('Bundle .app (osx-arm64)') < workflow.indexOf('Bundle DMG (osx-x64)'));
+    assert.ok(workflow.indexOf('Bundle DMG (osx-arm64)') < workflow.indexOf('Upload to draft release (macOS)'));
 });
 
 test('happy path: draft created, all seven assets uploaded across jobs, then published', async () =>
@@ -283,7 +317,7 @@ test('uploadAssets on retry replaces only same-name assets of the owned draft, a
     const oldTar = mock.addAsset(owned.id, { name: 'RunPad-linux-x64.tar.gz', size: 3 });
     const winZip = mock.addAsset(owned.id, { name: 'RunPad-win-x64.zip' });
     const winMsi = mock.addAsset(owned.id, { name: 'RunPad-win-x64.msi' });
-    const macTar = mock.addAsset(owned.id, { name: 'RunPad-osx-x64.tar.gz' });
+    const macDmg = mock.addAsset(owned.id, { name: 'RunPad-osx-x64.dmg' });
     const oldAppImage = mock.addAsset(owned.id, { name: 'RunPad-x86_64.AppImage', state: 'starter', size: 0 });
     const foreign = mock.addAsset(otherDraft.id, { name: 'RunPad-linux-x64.tar.gz' });
 
@@ -300,7 +334,7 @@ test('uploadAssets on retry replaces only same-name assets of the owned draft, a
     assert.deepEqual(deleted.sort(), [oldTar.id, oldAppImage.id].sort());
 
     const remaining = mock.state.assets.get(owned.id).map((asset) => asset.id);
-    for (const kept of [winZip, winMsi, macTar])
+    for (const kept of [winZip, winMsi, macDmg])
     {
         assert.ok(remaining.includes(kept.id));
     }
