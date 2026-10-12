@@ -138,6 +138,13 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
                 public Animal Self() => this;
             }
             public class Dog : Animal { public override string Sound() => "woof"; }
+            public class Puppy : Dog { public override string Sound() => base.Sound() + "!"; }
+            public static class Listener
+            {
+                public static string Hear(Animal animal) => animal.Sound();   // callvirt Animal::Sound
+                public static string HearDog(Dog dog) => dog.Sound();         // C# emits callvirt Animal::Sound too
+                public static void GreetIt(IGreeter greeter) => greeter.Greet("x");
+            }
             public sealed class Bird : Animal
             {
                 public override string Sound() => "tweet";
@@ -770,6 +777,48 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         Assert.Equal(AssemblyAccess.Private, member.Access); // greyed, with the lock overlay
     }
 
+    private IReadOnlyList<string> UsedBy(int token, bool includeVirtualCalls) =>
+        CSharpDecompilerService.Analyze(
+                AnalysisKind.UsedBy, _fixtures.TreeCodeBinary, token, [_fixtures.TreeCodeBinary],
+                includeVirtualCalls: includeVirtualCalls)
+            .Select(r => $"{r.Location}.{r.Text}").ToList();
+
+    [Fact]
+    public void UsedBy_OfAnOverride_Should_CountVirtualCallsOfItsBase_OnlyWhenAsked()
+    {
+        var dogSound = Member("Tree.Dog", "Sound").MetadataToken;
+
+        // without: only Puppy's `base.Sound()` — a direct `call Dog::Sound`
+        Assert.Equal(["Tree.Puppy.Sound() : string"], UsedBy(dogSound, includeVirtualCalls: false));
+        // with: callvirt Animal::Sound may reach Dog.Sound, whatever the receiver's static type
+        Assert.Equal(
+            ["Tree.Listener.Hear(Animal) : string", "Tree.Listener.HearDog(Dog) : string", "Tree.Puppy.Sound() : string"],
+            UsedBy(dogSound, includeVirtualCalls: true));
+    }
+
+    [Fact]
+    public void UsedBy_WithVirtualCalls_Should_NotCountADirectCallOfTheBase()
+    {
+        // Puppy's base.Sound() is `call Dog::Sound`: it can't reach Bird.Sound
+        var birdSound = Member("Tree.Bird", "Sound").MetadataToken;
+
+        var users = UsedBy(birdSound, includeVirtualCalls: true);
+
+        Assert.Contains("Tree.Listener.Hear(Animal) : string", users);
+        Assert.DoesNotContain("Tree.Puppy.Sound() : string", users);
+    }
+
+    [Fact]
+    public void UsedBy_OfAnInterfaceImplementation_Should_CountCallsThroughTheInterface_WhenAsked()
+    {
+        var implicitGreet = Member("Tree.Greeter", "Greet(").MetadataToken; // not the Greeter() constructor
+        var explicitGreet = Member("Tree.LoudGreeter", "IGreeter.Greet").MetadataToken;
+
+        Assert.Empty(UsedBy(implicitGreet, includeVirtualCalls: false));
+        Assert.Equal(["Tree.Listener.GreetIt(IGreeter) : void"], UsedBy(implicitGreet, includeVirtualCalls: true));
+        Assert.Equal(["Tree.Listener.GreetIt(IGreeter) : void"], UsedBy(explicitGreet, includeVirtualCalls: true));
+    }
+
     [Fact]
     public void OverriddenBy_Should_ListTheOverridingMethods_AndProperties()
     {
@@ -794,7 +843,10 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
     public void ExposedBy_Should_FindTheTypeInsideArraysGenericsAndParameters()
     {
         Assert.Equal(
-            ["Tree.Animal.Self() : Animal", "Tree.Zoo.Animals : Animal[]", "Tree.Zoo.Get(Animal) : List<Animal>"],
+            [
+                "Tree.Animal.Self() : Animal", "Tree.Listener.Hear(Animal) : string",
+                "Tree.Zoo.Animals : Animal[]", "Tree.Zoo.Get(Animal) : List<Animal>",
+            ],
             Analyze(AnalysisKind.ExposedBy, TypeToken("Animal")));
     }
 

@@ -121,6 +121,9 @@
                                 <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10"/>
                             </Button>
                         </Grid>
+                        <CheckBox x:Name="IncludeVirtualCallsBox" IsVisible="False" Margin="0,2,0,0"
+                                  Content="Include virtual calls"
+                                  ToolTip.Tip="Also count virtual calls of the base and interface members this one overrides or implements — calls that may reach it at run time"/>
                         <TextBlock x:Name="AnalysisStatus" Margin="2,2,0,2" FontSize="11"
                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                         <ListBox x:Name="AnalysisResults" MaxHeight="260"

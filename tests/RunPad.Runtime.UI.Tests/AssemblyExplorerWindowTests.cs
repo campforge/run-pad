@@ -95,6 +95,8 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
                 public static int Zero;
                 public abstract void Go();
             }
+            public class Epsilon : Delta { public override void Go() { } }
+            public static class DeltaUser { public static void Use(Delta delta) => delta.Go(); }
         }
         """;
 
@@ -580,6 +582,31 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Equal("Call() : void", hit.Text);
         Assert.Equal("Foo.Bar.Gamma", hit.Location);
         Assert.NotNull(hit.Icon);
+    }
+
+    [AvaloniaFact]
+    public async Task IncludeVirtualCalls_Should_ReRunUsedBy_CountingCallsThroughTheBase()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var epsilon = Namespace(window, "Foo.Baz").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Epsilon");
+        await window.ExpandAsync(epsilon);
+        var go = epsilon.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Go() : void");
+        var box = window.FindControl<CheckBox>("IncludeVirtualCallsBox")!;
+
+        await window.AnalyzeAsync(Node(go), AnalysisKind.UsedBy);
+        Assert.True(box.IsVisible);
+        Assert.Empty(AnalysisHits(window)); // Use(Delta) calls Delta.Go, not Epsilon.Go
+
+        box.IsChecked = true;
+        await TestWait.WhileAsync(() => AnalysisHits(window).Count == 0);
+
+        var hit = Assert.Single(AnalysisHits(window));
+        Assert.Equal("Use(Delta) : void", hit.Text);
+        Assert.Equal("Foo.Baz.DeltaUser", hit.Location);
+
+        // not offered where it means nothing: a type's Used By
+        await window.AnalyzeAsync(Node(epsilon), AnalysisKind.UsedBy);
+        Assert.False(box.IsVisible);
     }
 
     [AvaloniaFact]

@@ -62,6 +62,7 @@ public partial class AssemblyExplorerWindow : Window
     private CancellationTokenSource? _searchCts;
     private string _lastQuery = "";
     private CancellationTokenSource? _analysisCts;
+    private (AssemblyTreeNode Node, AnalysisKind Kind)? _lastAnalysis;
     private string? _lastSaveFolder;
 
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
@@ -254,6 +255,11 @@ public partial class AssemblyExplorerWindow : Window
             e.Handled = true;
         };
         TreeContextMenu.Opening += (_, _) => BuildTreeContextMenu();
+        // toggling "Include virtual calls" re-runs the shown analysis
+        IncludeVirtualCallsBox.IsCheckedChanged += (_, _) =>
+        {
+            if (_lastAnalysis is var (node, kind) && AnalysisPanel.IsVisible) _ = AnalyzeAsync(node, kind);
+        };
         CloseAnalysisButton.Click += (_, _) =>
         {
             _analysisCts?.Cancel();
@@ -737,10 +743,14 @@ public partial class AssemblyExplorerWindow : Window
 
         _analysisCts?.Cancel();
         var cts = _analysisCts = new CancellationTokenSource();
+        _lastAnalysis = (node, kind);
         AnalysisTitle.Text = $"{AnalysisLabel(kind)}: {node.Text}";
         AnalysisStatus.Text = "Analyzing...";
         AnalysisResults.ItemsSource = null;
         AnalysisPanel.IsVisible = true;
+        // only Used By of a member can count virtual calls of what it overrides/implements
+        IncludeVirtualCallsBox.IsVisible = kind == AnalysisKind.UsedBy && node.Member is not null;
+        var includeVirtualCalls = IncludeVirtualCallsBox.IsVisible && IncludeVirtualCallsBox.IsChecked == true;
 
         var assemblies = _assemblies.ToList();
         var paths = assemblies.Select(a => a.Path).ToList();
@@ -748,7 +758,9 @@ public partial class AssemblyExplorerWindow : Window
         try
         {
             hits = await Task.Run(
-                () => CSharpDecompilerService.Analyze(kind, assemblyPath, targetToken, paths, cts.Token), cts.Token);
+                () => CSharpDecompilerService.Analyze(
+                    kind, assemblyPath, targetToken, paths, cts.Token, includeVirtualCalls),
+                cts.Token);
         }
         catch (OperationCanceledException)
         {
