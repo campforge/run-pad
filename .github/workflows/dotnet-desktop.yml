@@ -335,9 +335,10 @@ jobs:
       # Release assets — only built on an actual merge to main, not on every PR. Bundled as a real
       # RunPad.app (Contents/MacOS + Info.plist + icon), not just a raw publish folder, so it's
       # double-clickable/shows up properly in Finder/Dock, then shipped as one disk image per
-      # architecture (app + Applications symlink + first-launch ReadMe, native hdiutil). Unsigned and
-      # not notarized (docs/handoffs/macos-dmg.md) — the ReadMe/README point to Gatekeeper's
-      # "Open Anyway" instead of any quarantine workaround.
+      # architecture (app + Applications symlink + first-launch ReadMe, native hdiutil). The bundle is
+      # ad-hoc signed and verified by make-macos-app-bundle.sh (docs/handoffs/macos-bundle-signature.md)
+      # but has no Developer ID signature or notarization (docs/handoffs/macos-dmg.md) — the
+      # ReadMe/README point to Gatekeeper's "Open Anyway" instead of any quarantine workaround.
       - name: 📦 Publish (osx-x64)
         if: github.event_name == 'push'
         run: dotnet publish src/main/RunPad/RunPad.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
