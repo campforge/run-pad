@@ -37,6 +37,9 @@ public sealed record DecompiledReference(
     public int Offset => 0;
 }
 
+/// <summary>The tokens of a definition's type and member (<see cref="CSharpDecompilerService.ResolveDefinitionTokens"/>).</summary>
+public sealed record DefinitionTokens(int TypeToken, int? MemberToken);
+
 /// <summary>A 1-based text span (end exclusive) in decompiled code: a navigable identifier.</summary>
 public sealed record ReferenceSpan(int StartLine, int StartColumn, int EndLine, int EndColumn);
 
@@ -217,6 +220,31 @@ public static partial class CSharpDecompilerService
     /// assembly path + type name on hand (the assembly explorer's tree, not a Roslyn/decompiler
     /// symbol resolution) — builds the throwaway <see cref="IDefinitionResult"/> itself.
     /// </summary>
+    /// <summary>
+    /// The metadata tokens of what <paramref name="definition"/> points at — its containing type and,
+    /// when there is one, the member (picked by <see cref="FindMember"/>, the same choice
+    /// <see cref="Decompile"/> puts the caret on). Lets the assembly explorer find the tree rows of an
+    /// F12 that started in the user's own script, which carries names but no tokens. Null when the
+    /// definition has no assembly/type or the type isn't in that assembly.
+    /// </summary>
+    public static DefinitionTokens? ResolveDefinitionTokens(IDefinitionResult definition)
+    {
+        if (definition.AssemblyPath is not { } assemblyPath || definition.ContainingTypeFullName is not { } typeName)
+            return null;
+
+        return WithDecompiler(assemblyPath, (decompiler, _) =>
+        {
+            if (decompiler.TypeSystem.FindType(new FullTypeName(typeName)).GetDefinition() is not { } typeDef)
+                return null;
+            var member = definition.MemberName is { } memberName
+                ? FindMember(typeDef, memberName, definition.ParameterTypeNames)
+                : null;
+            return new DefinitionTokens(
+                MetadataTokens.GetToken(typeDef.MetadataToken),
+                member is null ? null : MetadataTokens.GetToken(member.MetadataToken));
+        });
+    }
+
     public static DecompiledMemberResult DecompileType(string assemblyPath, string typeFullName, string? displayName = null)
         => Decompile(new TypeOnlyDefinitionResult(assemblyPath, typeFullName, displayName ?? typeFullName));
 

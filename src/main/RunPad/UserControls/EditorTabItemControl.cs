@@ -745,7 +745,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var owner = TopLevel.GetTopLevel(this) as Window;
         var window =
-            new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath);
+            new Windows.AssemblyExplorerWindow(_themeService, _windowService, decompiled, definition.AssemblyPath, definition);
         if (owner is not null) window.Show(owner);
         else window.Show();
     }

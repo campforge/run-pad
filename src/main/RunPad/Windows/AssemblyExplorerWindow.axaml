@@ -145,14 +145,18 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="local:AssemblyExplorerWindow+TabHeader">
-                            <StackPanel Orientation="Horizontal" Spacing="4" MaxWidth="260">
+                            <!-- Grid, not a StackPanel: the title column is capped by MaxWidth and
+                                 trimmed, so a long title (Func<T1, ..., T16, TResult>) never pushes
+                                 the close button out of the tab. -->
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4" MaxWidth="260"
+                                  ToolTip.Tip="{Binding Title}">
                                 <TextBlock Text="{Binding Title}" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Button Padding="2" Background="Transparent" BorderThickness="0"
+                                <Button Grid.Column="1" Padding="2" Background="Transparent" BorderThickness="0"
                                         ToolTip.Tip="Close tab (Ctrl+W)" AutomationProperties.Name="Close tab">
                                     <PathIcon Data="{StaticResource Icon.Close}" Width="8" Height="8"/>
                                 </Button>
-                            </StackPanel>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
