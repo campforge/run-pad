@@ -14,7 +14,9 @@ namespace RunPad.Runtime.UI.Tests;
 // CSharpIntelliSenseService's own AdhocWorkspace.
 internal static class InProcessFixtureCompiler
 {
-    public static string CompileToTempDll(string code, string assemblyName)
+    /// <param name="resources">Embedded manifest resources (name, data), public — the explorer's Resources node.</param>
+    public static string CompileToTempDll(
+        string code, string assemblyName, IReadOnlyList<(string Name, byte[] Data)>? resources = null)
     {
         var tree = CSharpSyntaxTree.ParseText(code);
         var references = new CSharpReferenceService().GetDefault()
@@ -26,7 +28,8 @@ internal static class InProcessFixtureCompiler
             new CSharpCompilationOptions(OutputKind.ConsoleApplication));
 
         var outputPath = Path.Combine(Path.GetTempPath(), $"{assemblyName}-{Guid.NewGuid()}.dll");
-        var result = compilation.Emit(outputPath);
+        var result = compilation.Emit(outputPath, manifestResources: resources?.Select(r =>
+            new ResourceDescription(r.Name, () => new MemoryStream(r.Data), isPublic: true)));
         if (!result.Success)
         {
             throw new InvalidOperationException(

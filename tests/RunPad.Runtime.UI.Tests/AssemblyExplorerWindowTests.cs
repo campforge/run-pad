@@ -605,7 +605,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         window.TreeMenu.Open(window.Tree);
 
         var headers = window.TreeMenu.Items.OfType<MenuItem>().Select(i => i.Header as string).ToList();
-        Assert.Equal(["Analyze: Used By", "Analyze: Uses", "Remove assembly"], headers);
+        Assert.Equal(["Open in New Tab", "Analyze: Used By", "Analyze: Uses", "Remove assembly"], headers);
         Assert.False(window.TreeMenu.Items.OfType<MenuItem>().Last().IsEnabled); // not an assembly row
         window.TreeMenu.Close();
 
@@ -615,7 +615,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         window.Tree.SelectedItem = count;
         window.TreeMenu.Open(window.Tree);
         Assert.Equal(
-            ["Analyze: Read By", "Analyze: Assigned By", "Remove assembly"],
+            ["Open in New Tab", "Analyze: Read By", "Analyze: Assigned By", "Remove assembly"],
             window.TreeMenu.Items.OfType<MenuItem>().Select(i => i.Header as string));
         window.TreeMenu.Close();
     }
@@ -635,6 +635,173 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
         window.FindControl<Button>("CloseAnalysisButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.False(pane.IsVisible);
+    }
+
+    // ── Tabs ──
+
+    private async Task<(AssemblyExplorerWindow Window, TreeViewItem Alpha, TreeViewItem Run)> OpenAlphaAndRunRowsAsync()
+    {
+        var (window, run) = await OpenWithRunRowAsync();
+        var alpha = (TreeViewItem)run.Parent!;
+        return (window, alpha, run);
+    }
+
+    [AvaloniaFact]
+    public async Task OpenInNewTabAsync_Should_AddATab_AndKeepTheFirstTabsPage()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        Assert.Equal(1, window.TabCount);
+
+        await window.OpenInNewTabAsync(Node(run), run);
+
+        Assert.Equal(2, window.TabCount);
+        Assert.Equal(1, window.ActiveTabIndex);
+        Assert.Equal(["Alpha", "Run() : void"], window.TabTitles);
+        Assert.Equal("Run() : void", window.Title);
+        Assert.Same(run, window.Tree.SelectedItem);
+        Assert.False(window.CanGoBack); // the new tab has its own (empty) history
+
+        window.ActivateNextTab(+1); // wraps around to the first tab
+
+        Assert.Equal(0, window.ActiveTabIndex);
+        Assert.Equal("Alpha", window.Title);
+        Assert.Contains("class Alpha", window.Editor.Text);
+        Assert.Same(alpha, window.Tree.SelectedItem);
+    }
+
+    [AvaloniaFact]
+    public async Task EachTab_Should_HaveItsOwnBackForwardHistory()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        await window.SelectNodeAsync(Node(run), run); // first tab: Alpha → Run
+        Assert.True(window.CanGoBack);
+
+        await window.OpenInNewTabAsync(Node(alpha), alpha);
+        Assert.False(window.CanGoBack);
+
+        window.ActivateNextTab(-1);
+        Assert.Equal("Run() : void", window.Title);
+        window.GoBack();
+        Assert.Equal("Alpha", window.Title);
+        Assert.Equal(2, window.TabCount);
+    }
+
+    [AvaloniaFact]
+    public async Task CtrlW_Should_CloseTheActiveTab_AndClosingTheLastTab_Should_EmptyIt()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        await window.OpenInNewTabAsync(Node(run), run);
+
+        window.KeyPressQwerty(PhysicalKey.W, RawInputModifiers.Control);
+
+        Assert.Equal(1, window.TabCount);
+        Assert.Equal("Alpha", window.Title);
+
+        window.CloseActiveTab(); // the last one: emptied, not removed
+        Assert.Equal(1, window.TabCount);
+        Assert.Equal(["New Tab"], window.TabTitles);
+        Assert.Equal("", window.Editor.Text);
+        Assert.False(window.FindControl<Button>("SaveCodeButton")!.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public async Task TheTabStrip_Should_ShowTheTabs_AndSwitchOnSelection()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        await window.OpenInNewTabAsync(Node(run), run);
+        var strip = window.FindControl<ListBox>("DocumentTabs")!;
+        Assert.Equal(2, strip.ItemCount);
+        Assert.Equal(1, strip.SelectedIndex);
+
+        strip.SelectedIndex = 0;
+
+        Assert.Equal(0, window.ActiveTabIndex);
+        Assert.Equal("Alpha", window.Title);
+    }
+
+    // ── Resources ──
+
+    [AvaloniaFact]
+    public async Task AResourceRow_Should_ShowTheResource_UnderAResourcesNode()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-resources-test").FullName;
+        try
+        {
+            var dll = Path.Combine(folder, "WithResources.dll");
+            var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("WithResources",
+                [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("public class C { }")],
+                [Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+                new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+            using (var pe = File.Create(dll))
+            {
+                var emitted = compilation.Emit(pe, manifestResources:
+                [
+                    new Microsoft.CodeAnalysis.ResourceDescription("readme.txt",
+                        () => new MemoryStream(System.Text.Encoding.UTF8.GetBytes("hello resources")), isPublic: true),
+                ]);
+                Assert.True(emitted.Success);
+            }
+            var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+            window.Show();
+            await window.LoadAssemblyAsync(dll);
+
+            var resourcesRow = AssemblyRow(window).Items.OfType<TreeViewItem>().Single(i => Node(i).Kind == AssemblyNodeKind.Resources);
+            var readme = Assert.Single(resourcesRow.Items.OfType<TreeViewItem>());
+            Assert.Equal("readme.txt", Text(readme));
+            Assert.NotNull(Node(readme).Icon);
+
+            await window.SelectNodeAsync(Node(readme), readme);
+
+            Assert.Equal("readme.txt", window.Title);
+            Assert.Equal("// readme.txt (15 bytes)\n\nhello resources", window.Editor.Text);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    // ── Drag & drop, Ctrl+hover ──
+
+    [AvaloniaFact]
+    public async Task OpenDroppedFilesAsync_Should_AddTheAssemblies_AndIgnoreOtherFiles()
+    {
+        var service = new Mock<IWindowService>();
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        window.Show();
+
+        await window.OpenDroppedFilesAsync([_explorerAssembly.BinaryPath, Path.ChangeExtension(_explorerAssembly.BinaryPath, ".txt")]);
+
+        Assert.Equal([_explorerAssembly.BinaryPath], window.LoadedAssemblyPaths);
+        Assert.Same(AssemblyRow(window), window.Tree.SelectedItem);
+        service.Verify(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [AvaloniaFact]
+    public async Task UpdateReferenceHover_Should_UnderlineOnlyANavigableIdentifier()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var gamma = Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
+        await window.ExpandAsync(gamma);
+        var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
+        await window.SelectNodeAsync(Node(call), call);
+        var lines = window.Editor.Text.Split('\n');
+        var line = Array.FindIndex(lines, l => l.Contains("Run()")) + 1;
+        var column = lines[line - 1].IndexOf("Run", StringComparison.Ordinal) + 1;
+
+        window.UpdateReferenceHover((line, column + 1));
+
+        Assert.Equal(new ReferenceSpan(line, column, line, column + "Run".Length), window.HoveredReference);
+        Assert.NotNull(window.Editor.TextArea.TextView.Cursor);
+
+        window.UpdateReferenceHover((line, 1)); // leading whitespace
+        Assert.Null(window.HoveredReference);
+        Assert.Null(window.Editor.TextArea.TextView.Cursor);
+
+        window.UpdateReferenceHover((line, column + 1));
+        window.UpdateReferenceHover(null); // Ctrl released
+        Assert.Null(window.HoveredReference);
     }
 
     // ── Save Code ──
