@@ -65,6 +65,13 @@
                 <PathIcon Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14"/>
             </Button>
             <Button x:Name="BrowseButton" Content="Browse..." Margin="8,0,0,0"/>
+            <Button x:Name="SaveCodeButton" IsEnabled="False"
+                    ToolTip.Tip="Save the shown code (Ctrl+S)" AutomationProperties.Name="Save Code">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <PathIcon Data="{StaticResource Icon.Save}" Width="14" Height="14"/>
+                    <TextBlock Text="Save Code..." VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <ComboBox x:Name="LanguageBox" Margin="8,0,0,0" MinWidth="70"
                       ToolTip.Tip="Language" AutomationProperties.Name="Language"/>
             <ComboBox x:Name="VersionBox" MinWidth="110"

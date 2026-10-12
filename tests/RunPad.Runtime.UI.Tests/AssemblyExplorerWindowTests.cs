@@ -637,6 +637,126 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.False(pane.IsVisible);
     }
 
+    // ── Save Code ──
+
+    [Theory]
+    [InlineData("Run() : void", "Run")]
+    [InlineData("Echo<T>(T, ref int) : T", "Echo")]
+    [InlineData("Dictionary<TKey, TValue>", "Dictionary")]
+    [InlineData("ExplorerFixture (1.0.0.0)", "ExplorerFixture")]
+    [InlineData("_count : int", "_count")]
+    [InlineData("Callee.Helper", "Callee.Helper")]
+    [InlineData("a/b\\c", "a_b_c")]
+    [InlineData("   ", "Decompiled")]
+    public void SuggestedFileName_Should_KeepTheName_WithoutSignatureOrTypeArguments(string title, string expected)
+    {
+        var name = AssemblyExplorerWindow.SuggestedFileName(title);
+
+        // '\' is only invalid in file names on Windows
+        Assert.Equal(OperatingSystem.IsWindows() ? expected : expected.Replace("b_c", "b\\c"), name);
+    }
+
+    private async Task<(AssemblyExplorerWindow Window, Mock<IWindowService> Service)> OpenRunPageAsync(string? savePath)
+    {
+        var service = new Mock<IWindowService>();
+        service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(savePath);
+        service.Setup(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        window.Show();
+        var alpha = await LoadAndFindAlphaAsync(window);
+        await window.ExpandAsync(alpha);
+        var run = alpha.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Run() : void");
+        await window.SelectNodeAsync(Node(run), run);
+        return (window, service);
+    }
+
+    [AvaloniaFact]
+    public async Task SaveCode_Should_BeDisabled_UntilAPageIsShown()
+    {
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        window.Show();
+        Assert.False(window.FindControl<Button>("SaveCodeButton")!.IsEnabled);
+
+        var alpha = await LoadAndFindAlphaAsync(window);
+        await window.SelectNodeAsync(Node(alpha), alpha);
+
+        Assert.True(window.FindControl<Button>("SaveCodeButton")!.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public async Task SaveCodeAsync_Should_WriteTheShownCSharp_ToACsFile_NamedAfterThePage()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-save-code-test").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "Run.cs");
+            var (window, service) = await OpenRunPageAsync(path);
+
+            await window.SaveCodeAsync();
+
+            service.Verify(s => s.ShowSaveCodeFileDialogAsync("Run", "cs", It.IsAny<string>()), Times.Once);
+            Assert.Equal(window.Editor.Text, await File.ReadAllTextAsync(path));
+            Assert.Contains("void Run()", await File.ReadAllTextAsync(path));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveCodeAsync_InIlView_Should_WriteIl_ToAnIlFile()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-save-code-test").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "Run.il");
+            var (window, service) = await OpenRunPageAsync(path);
+            await window.SetViewAsync(IlView);
+
+            await window.SaveCodeAsync();
+
+            service.Verify(s => s.ShowSaveCodeFileDialogAsync("Run", "il", It.IsAny<string>()), Times.Once);
+            Assert.Contains(".method", await File.ReadAllTextAsync(path));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveCodeAsync_Should_DoNothing_WhenTheDialogIsCancelled()
+    {
+        var (window, service) = await OpenRunPageAsync(savePath: null);
+
+        await window.SaveCodeAsync();
+
+        service.Verify(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [AvaloniaFact]
+    public async Task SaveCodeAsync_Should_ShowAnError_WhenTheFileCantBeWritten()
+    {
+        var folder = Directory.CreateTempSubdirectory("runpad-save-code-test").FullName;
+        try
+        {
+            // a path that is an existing folder can't be written as a file
+            var (window, service) = await OpenRunPageAsync(folder);
+
+            await window.SaveCodeAsync();
+
+            service.Verify(s => s.ShowErrorAsync("Save Code Failed", It.IsAny<string>()), Times.Once);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task CtrlS_Should_SaveTheCode()
+    {
+        var (window, service) = await OpenRunPageAsync(savePath: null);
+
+        window.KeyPressQwerty(PhysicalKey.S, RawInputModifiers.Control);
+
+        await TestWait.WhileAsync(() => service.Invocations.All(i => i.Method.Name != nameof(IWindowService.ShowSaveCodeFileDialogAsync)));
+        service.Verify(s => s.ShowSaveCodeFileDialogAsync("Run", "cs", It.IsAny<string>()), Times.Once);
+    }
+
     [AvaloniaFact]
     public async Task AltLeft_Should_GoBack()
     {
