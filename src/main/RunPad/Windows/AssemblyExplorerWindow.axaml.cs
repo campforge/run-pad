@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using ICSharpCode.Decompiler.CSharp;
 using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Windows.Models;
@@ -83,19 +84,55 @@ public partial class AssemblyExplorerWindow : Window
     /// <summary>Go to Definition (F12) landing outside the user's own script — opens straight to
     /// <paramref name="initialResult"/> decompiled, with <paramref name="assemblyPath"/>'s tree loaded
     /// alongside it (null only for the "type not found" fallback result, which has no real assembly
-    /// path behind it worth browsing).</summary>
+    /// path behind it worth browsing). With <paramref name="definition"/> (what F12 resolved to), the
+    /// tree also reveals and selects that member's row — or its type's, when the tree doesn't list the
+    /// member — and the page becomes re-renderable (C#/IL).</summary>
     public AssemblyExplorerWindow(
         IThemeService themeService,
         IWindowService windowService,
         DecompiledMemberResult initialResult,
-        string? assemblyPath)
+        string? assemblyPath,
+        IDefinitionResult? definition = null)
         : this(themeService, windowService)
     {
         _pendingInitialResult = initialResult;
         if (assemblyPath is null)
             return;
         _startFolder = Path.GetDirectoryName(assemblyPath) ?? "";
-        _ = LoadAssemblyAsync(assemblyPath);
+        _ = LoadAndRevealInitialAsync(assemblyPath, definition);
+    }
+
+    // The initial page's row and target, once known. They may be found before or after the initial
+    // page is shown (the editor shows it when it's attached), so both orders are handled.
+    private TreeViewItem? _initialPageRow;
+    private PageTarget? _initialPageTarget;
+
+    private async Task LoadAndRevealInitialAsync(string assemblyPath, IDefinitionResult? definition)
+    {
+        if (await LoadAssemblyAsync(assemblyPath) is null || definition?.ContainingTypeFullName is not { } typeName) return;
+
+        DefinitionTokens? tokens;
+        try
+        {
+            tokens = await Task.Run(() => CSharpDecompilerService.ResolveDefinitionTokens(definition));
+        }
+        catch (Exception ex) when (ex is BadImageFormatException or IOException or UnauthorizedAccessException)
+        {
+            return; // the code is already shown; only the tree selection is missing
+        }
+        if (tokens is null) return;
+
+        var (typeItem, memberItem) = await RevealAsync(assemblyPath, typeName, tokens.MemberToken);
+        _initialPageRow = memberItem ?? typeItem;
+        _initialPageTarget = new PageTarget(
+            assemblyPath, tokens.TypeToken, definition.DisplayName, tokens.MemberToken ?? 0);
+
+        // already on screen and still the page shown: attach the row and target, select the row
+        if (_activeTab.Current is { } current && ReferenceEquals(current.Result, _pendingInitialResult))
+        {
+            _activeTab.Current = current with { Item = _initialPageRow, Target = _initialPageTarget };
+            SelectSilently(_initialPageRow);
+        }
     }
 
     private AssemblyExplorerWindow(
@@ -297,7 +334,11 @@ public partial class AssemblyExplorerWindow : Window
         {
             editor.AttachedToVisualTree -= onAttached;
             editor.SetLanguage(themeService.CurrentTheme.Editor.TextMateName, ".cs");
-            if (_pendingInitialResult is { } initial) Show(initial, item: null, target: null);
+            if (_pendingInitialResult is { } initial)
+            {
+                Show(initial, _initialPageRow, _initialPageTarget); // the row may already be known
+                if (_initialPageRow is not null) SelectSilently(_initialPageRow);
+            }
         };
         editor.AttachedToVisualTree += onAttached;
         RefreshTabStrip();

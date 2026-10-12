@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Rendering;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -708,6 +709,26 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     }
 
     [AvaloniaFact]
+    public void ALongTabTitle_Should_BeTrimmed_KeepingTheCloseButtonInsideTheTab()
+    {
+        // user report: Func<T1, ..., T16, TResult>'s title pushed the × out of the tab
+        var title = "Func<" + string.Join(", ", Enumerable.Range(1, 16).Select(i => $"T{i}")) + ", TResult>";
+        var window = new AssemblyExplorerWindow(
+            CreateThemeService().Object, new Mock<IWindowService>().Object,
+            new DecompiledMemberResult("// code", 1, title), assemblyPath: null);
+        window.Show();
+        window.UpdateLayout();
+
+        var item = window.FindControl<ListBox>("DocumentTabs")!.ContainerFromIndex(0)!;
+        var close = item.GetVisualDescendants().OfType<Button>().Single();
+        var closeBounds = close.Bounds.Translate(close.TranslatePoint(default, item)!.Value - close.Bounds.Position);
+        Assert.True(close.IsEffectivelyVisible);
+        Assert.True(closeBounds.Width > 0);
+        Assert.True(closeBounds.Right <= item.Bounds.Width, $"× ends at {closeBounds.Right}, the tab at {item.Bounds.Width}");
+        Assert.True(item.Bounds.Width < 320, $"the tab is {item.Bounds.Width} wide"); // capped, title trimmed
+    }
+
+    [AvaloniaFact]
     public async Task TheTabStrip_Should_ShowTheTabs_AndSwitchOnSelection()
     {
         var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
@@ -1133,6 +1154,50 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.Equal("Alpha", window.Title);
         var namespaceNodes = Namespaces(window);
         Assert.Contains(namespaceNodes, n => Text(n) == "Foo.Baz");
+    }
+
+    // F12 from the user's script: the definition carries names only (DecompiledReference stands in for
+    // the IntelliSense result; its tokens aren't used by this entry point).
+    private AssemblyExplorerWindow OpenFromScriptF12(string typeName, string? memberName, string display)
+    {
+        var definition = new DecompiledReference(
+            _explorerAssembly.BinaryPath, typeName, memberName, [], display, MetadataToken: 0, ContainingTypeMetadataToken: 0);
+        var initial = CSharpDecompilerService.Decompile(definition);
+        var window = new AssemblyExplorerWindow(
+            CreateThemeService().Object, new Mock<IWindowService>().Object, initial, _explorerAssembly.BinaryPath, definition);
+        window.Show();
+        return window;
+    }
+
+    [AvaloniaFact]
+    public async Task FromScriptF12_Should_RevealAndSelectTheMembersRow_KeepingTheWholeTypePage()
+    {
+        var window = OpenFromScriptF12("Foo.Bar.Alpha", "Run", "Foo.Bar.Alpha.Run");
+
+        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
+
+        var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
+        Assert.Equal("Run() : void", Text(selected));
+        var alpha = (TreeViewItem)selected.Parent!;
+        Assert.Equal("Alpha", Text(alpha));
+        Assert.True(alpha.IsExpanded);
+        Assert.Equal("Foo.Bar.Alpha.Run", window.Title); // the page F12 opened stays: the whole type
+        Assert.Contains("class Alpha", window.Editor.Text);
+        Assert.Contains("Run", window.Editor.Text.Split('\n')[window.Editor.TextArea.Caret.Line - 1]);
+    }
+
+    [AvaloniaFact]
+    public async Task FromScriptF12_OnAType_Should_SelectTheTypesRow_AndThePage_Should_ReRenderInIl()
+    {
+        var window = OpenFromScriptF12("Foo.Bar.Gamma", memberName: null, "Foo.Bar.Gamma");
+
+        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
+        Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
+
+        await window.SetViewAsync(IlView); // the page now has a target, so it can be rendered again
+
+        Assert.Contains(".class", window.Editor.Text);
+        Assert.Contains("Gamma", window.Editor.Text);
     }
 
     [AvaloniaFact]

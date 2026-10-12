@@ -286,6 +286,23 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
     }
 
     [Fact]
+    public void ResolveDefinitionTokens_Should_GiveTheTypeAndTheChosenOverloadsTokens()
+    {
+        var definition = new FakeDefinitionResult(
+            IsInSource: false, Offset: 0, AssemblyPath: _fixtures.TreeCodeBinary,
+            ContainingTypeFullName: "Tree.Shape", MemberName: "Echo",
+            ParameterTypeNames: ["T", "Int32"], DisplayName: "Tree.Shape.Echo");
+
+        var tokens = CSharpDecompilerService.ResolveDefinitionTokens(definition);
+
+        Assert.Equal(new DefinitionTokens(ShapeToken(), ShapeMember("Echo").MetadataToken), tokens);
+        Assert.Equal(
+            new DefinitionTokens(ShapeToken(), null),
+            CSharpDecompilerService.ResolveDefinitionTokens(definition with { MemberName = null }));
+        Assert.Null(CSharpDecompilerService.ResolveDefinitionTokens(definition with { ContainingTypeFullName = "Tree.Nope" }));
+    }
+
+    [Fact]
     public void ResolveReferenceAtPosition_Should_ReturnNull_WhenNothingIsResolvableThere()
     {
         var callerDefinition = new FakeDefinitionResult(
