@@ -107,6 +107,25 @@ public sealed class WindowService : IWindowService
         return files.Count > 0 ? files[0].TryGetLocalPath() : null;
     }
 
+    public async Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder)
+    {
+        var owner = MainWindow;
+        if (owner is null) return null;
+
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Code",
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = extension,
+            SuggestedStartLocation = startLocation,
+            FileTypeChoices = [extension == "il"
+                ? new FilePickerFileType("IL") { Patterns = ["*.il"] }
+                : new FilePickerFileType("C#") { Patterns = ["*.cs"] }],
+        });
+        return file is null ? null : file.TryGetLocalPath();
+    }
+
     public Task ShowAssemblyExplorerAsync(string startFolder)
     {
         var owner = MainWindow;

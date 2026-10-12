@@ -35,6 +35,14 @@ public interface IWindowService
     Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder);
 
     /// <summary>
+    /// Shows a native Save As dialog for decompiled code (the assembly explorer's "Save Code..."):
+    /// a C# (<c>.cs</c>) or IL (<c>.il</c>) file per <paramref name="extension"/>, defaulting to
+    /// <paramref name="startFolder"/>. Returns the chosen local file path, or null if the dialog was
+    /// cancelled or unavailable.
+    /// </summary>
+    Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder);
+
+    /// <summary>
     /// Opens a new, non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
     /// the script keep running/editable behind it, same rationale as <c>DecompiledViewWindow</c> not
     /// being another tab.

@@ -62,6 +62,7 @@ public partial class AssemblyExplorerWindow : Window
     private CancellationTokenSource? _searchCts;
     private string _lastQuery = "";
     private CancellationTokenSource? _analysisCts;
+    private string? _lastSaveFolder;
 
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
@@ -106,6 +107,7 @@ public partial class AssemblyExplorerWindow : Window
         _windowService = windowService;
 
         BrowseButton.Click += async (_, _) => await BrowseAsync();
+        SaveCodeButton.Click += async (_, _) => await SaveCodeAsync();
         BackButton.Click += (_, _) => GoBack();
         ForwardButton.Click += (_, _) => GoForward();
 
@@ -160,6 +162,7 @@ public partial class AssemblyExplorerWindow : Window
         {
             if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Left) GoBack();
             else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Right) GoForward();
+            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.S) _ = SaveCodeAsync();
             else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.F)
             {
                 SearchBox.Focus();
@@ -1009,6 +1012,48 @@ public partial class AssemblyExplorerWindow : Window
     {
         BackButton.IsEnabled = CanGoBack;
         ForwardButton.IsEnabled = CanGoForward;
+        SaveCodeButton.IsEnabled = _current is not null;
+    }
+
+    // ── Save Code (toolbar / Ctrl+S): the shown page, as .cs or .il ──
+
+    internal bool CanSaveCode => _current is not null;
+
+    // Writes exactly what the code pane shows, as C# or IL per the view it was rendered in. A failed
+    // write shows an error; a cancelled dialog does nothing. The next save starts in the same folder.
+    internal async Task SaveCodeAsync()
+    {
+        if (_current is not { } page) return;
+
+        var extension = page.View.Language == DecompilerLanguage.IL ? "il" : "cs";
+        var path = await _windowService.ShowSaveCodeFileDialogAsync(
+            SuggestedFileName(page.Result.Title), extension, _lastSaveFolder ?? _startFolder);
+        if (path is null) return;
+
+        try
+        {
+            await File.WriteAllTextAsync(path, page.Result.Text);
+            _lastSaveFolder = Path.GetDirectoryName(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _windowService.ShowErrorAsync("Save Code Failed", $"Could not write '{path}':\n{ex.Message}");
+        }
+    }
+
+    // A file name from a page title: "Run() : void" → "Run", "Dictionary<TKey, TValue>" → "Dictionary",
+    // "Foo (1.0.0.0)" → "Foo"; characters a file name can't hold become '_'.
+    internal static string SuggestedFileName(string title)
+    {
+        var name = title.Trim();
+        foreach (var stop in new[] { " : ", "(", "<", " " })
+        {
+            var index = name.IndexOf(stop, StringComparison.Ordinal);
+            if (index > 0) name = name[..index];
+        }
+        var invalid = Path.GetInvalidFileNameChars();
+        name = string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c));
+        return name.Length == 0 ? "Decompiled" : name;
     }
 
     private void ApplyResult(DecompiledMemberResult result, int caretLine)
