@@ -83,8 +83,15 @@ public class CodeTextEditor : TextEditor
     public Func<OverloadRequestedEventArgs, Task>? AsyncOverloadProvider { get; set; }
 
     /// <summary>Async provider for "highlight every occurrence of the symbol under the caret" (TODO.md
-    /// #62) — re-queried on every caret move (see the ctor's own PositionChanged wiring).</summary>
+    /// #62) — re-queried once the caret has rested for <see cref="OccurrenceHighlightDelay"/>.</summary>
     public Func<OccurrencesRequestedEventArgs, Task>? AsyncOccurrencesProvider { get; set; }
+
+    /// <summary>
+    /// How long the caret has to rest before occurrences are looked up. Every typed character moves the
+    /// caret, and each lookup is a full semantic Roslyn query competing with the background analysis —
+    /// without this, typing ran one per keystroke (editor smoothness, 2026-10-12).
+    /// </summary>
+    public TimeSpan OccurrenceHighlightDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 
     /// <summary>Fired on F2 (TODO.md #62 "smart rename") — the host resolves what's
     /// renameable at the current caret position and drives the actual rename UI/edit; this control
@@ -521,11 +528,18 @@ public class CodeTextEditor : TextEditor
 
         var cts = new CancellationTokenSource();
         _occurrencesCts = cts;
-        var args = new OccurrencesRequestedEventArgs(TextArea.Caret.Offset, cts.Token);
 
         try
         {
-            await AsyncOccurrencesProvider(args);
+            // a newer caret move (the next typed character) cancels this before the provider runs
+            if (OccurrenceHighlightDelay > TimeSpan.Zero) await Task.Delay(OccurrenceHighlightDelay, cts.Token);
+            if (Document is null || AsyncOccurrencesProvider is not { } provider) return;
+            var args = new OccurrencesRequestedEventArgs(TextArea.Caret.Offset, cts.Token);
+            await provider(args);
+            if (cts.IsCancellationRequested) return;
+            _occurrenceHighlighter.Update(Document, args.Spans);
+            TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+            return;
         }
         catch (OperationCanceledException)
         {
@@ -542,12 +556,6 @@ public class CodeTextEditor : TextEditor
             return;
 
         }
-
-
-        if (cts.IsCancellationRequested) return;
-
-        _occurrenceHighlighter.Update(args.Spans);
-        TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
     // ch is a closing brace (a value in BracePairs) — returns its opening char. BracePairs only ever
@@ -564,12 +572,11 @@ public class CodeTextEditor : TextEditor
         return false;
     }
 
-    private (int open, int close, bool matched) FindBraceMatch(int caretOffset)
+    internal (int open, int close, bool matched) FindBraceMatch(int caretOffset)
     {
         var doc = Document;
         if (doc is null) return (-1, -1, false);
-        var text = doc.Text;
-        int len = text.Length;
+        int len = doc.TextLength;
 
         // Determine which brace to match against: prefer char at caret, then char before caret.
         char ch;
@@ -579,13 +586,13 @@ public class CodeTextEditor : TextEditor
 
         if (caretOffset < len)
         {
-            ch = text[caretOffset];
+            ch = doc.GetCharAt(caretOffset);
             checkOffset = caretOffset;
             isOpen = BracePairs.TryGetValue(ch, out closeChar);
             isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
             if (!isOpen && !isClose && caretOffset > 0)
             {
-                ch = text[caretOffset - 1];
+                ch = doc.GetCharAt(caretOffset - 1);
                 checkOffset = caretOffset - 1;
                 isOpen = BracePairs.TryGetValue(ch, out closeChar);
                 isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
@@ -593,32 +600,44 @@ public class CodeTextEditor : TextEditor
         }
         else if (caretOffset > 0)
         {
-            ch = text[caretOffset - 1];
+            ch = doc.GetCharAt(caretOffset - 1);
             checkOffset = caretOffset - 1;
             isOpen = BracePairs.TryGetValue(ch, out closeChar);
             isClose = !isOpen && TryGetOpenBrace(ch, out openChar);
         }
         else return (-1, -1, false);
 
+        // Read outward from the brace in chunks instead of copying the whole document into a string
+        // on every caret move (every keystroke) — the match is nearly always within the first chunk.
+        const int chunkSize = 4096;
         if (isOpen) // opening brace — search forward
         {
             int depth = 1;
-            for (int i = checkOffset + 1; i < len; i++)
+            for (int chunkStart = checkOffset + 1; chunkStart < len; chunkStart += chunkSize)
             {
-                if (text[i] == ch) depth++;
-                else if (text[i] == closeChar && --depth == 0)
-                    return (checkOffset, i, true);
+                var chunk = doc.GetText(chunkStart, Math.Min(chunkSize, len - chunkStart));
+                for (int j = 0; j < chunk.Length; j++)
+                {
+                    if (chunk[j] == ch) depth++;
+                    else if (chunk[j] == closeChar && --depth == 0)
+                        return (checkOffset, chunkStart + j, true);
+                }
             }
             return (checkOffset, -1, false); // unmatched open
         }
         else if (isClose) // closing brace — search backward
         {
             int depth = 1;
-            for (int i = checkOffset - 1; i >= 0; i--)
+            for (int chunkEnd = checkOffset; chunkEnd > 0; chunkEnd -= chunkSize)
             {
-                if (text[i] == ch) depth++;
-                else if (text[i] == openChar && --depth == 0)
-                    return (i, checkOffset, true);
+                var chunkStart = Math.Max(0, chunkEnd - chunkSize);
+                var chunk = doc.GetText(chunkStart, chunkEnd - chunkStart);
+                for (int j = chunk.Length - 1; j >= 0; j--)
+                {
+                    if (chunk[j] == ch) depth++;
+                    else if (chunk[j] == openChar && --depth == 0)
+                        return (chunkStart + j, checkOffset, true);
+                }
             }
             return (-1, checkOffset, false); // unmatched close
         }

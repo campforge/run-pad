@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Contracts.IntelliSense;
 
 namespace RunPad.UserControls;
@@ -9,17 +10,27 @@ namespace RunPad.UserControls;
 // ToDo: Move to RunPad.Avalonia.CodeTextEditor
 internal sealed class SquiggleRenderer : IBackgroundRenderer
 {
-    private IReadOnlyList<IDiagnosticInfo> _diagnostics = [];
+    // Tracked segments, not absolute offsets: typing shifts them, so a squiggle (and the hover tooltip
+    // reading Diagnostics) stays under its code until the next analysis.
+    private readonly TrackedSegments<DiagnosticSegment> _diagnostics = new();
 
     public KnownLayer Layer => KnownLayer.Background;
 
-    public IReadOnlyList<IDiagnosticInfo> Diagnostics => _diagnostics;
+    /// <summary>The diagnostics at their current, edit-adjusted offsets.</summary>
+    public IReadOnlyList<IDiagnosticInfo> Diagnostics => _diagnostics.All;
 
-    public void Update(IReadOnlyList<IDiagnosticInfo> diagnostics) => _diagnostics = diagnostics;
+    public void Update(TextDocument? document, IReadOnlyList<IDiagnosticInfo> diagnostics) =>
+        _diagnostics.Replace(document, diagnostics
+            .OrderBy(d => d.StartOffset)
+            .Select(d => new DiagnosticSegment(d.Message, d.Severity)
+            {
+                StartOffset = d.StartOffset,
+                Length = Math.Max(0, d.EndOffset - d.StartOffset),
+            }));
 
     public void Draw(TextView textView, DrawingContext dc)
     {
-        var diags = _diagnostics;
+        var diags = _diagnostics.All;
         if (diags.Count == 0 || !textView.VisualLinesValid) return;
 
         var docLen = textView.Document.TextLength;
@@ -69,5 +80,11 @@ internal sealed class SquiggleRenderer : IBackgroundRenderer
         ctx.EndFigure(false);
 
         dc.DrawGeometry(null, pen, geometry);
+    }
+
+    private sealed class DiagnosticSegment(string message, DiagnosticSeverity severity) : TextSegment, IDiagnosticInfo
+    {
+        public string Message { get; } = message;
+        public DiagnosticSeverity Severity { get; } = severity;
     }
 }
