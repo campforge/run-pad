@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -135,7 +136,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         // own implicit `Program` type in the global namespace (a real, ILSpy-visible type, not
         // compiler-generated noise — see EnumerateTypes' own filtering rationale), which would
         // make this test brittle for a reason unrelated to what it actually checks.
-        var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
+        var namespaceNodes = Namespaces(window);
         var barNode = namespaceNodes.Single(n => Text(n) == "Foo.Bar");
         Assert.Equal(["Alpha", "Gamma"], barNode.Items.OfType<TreeViewItem>().Select(Text));
         Assert.Equal(AssemblyNodeKind.Namespace, Node(barNode).Kind);
@@ -146,10 +147,20 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     private static string? Text(TreeViewItem item) => (item.Header as AssemblyTreeNode)?.Text;
 
+    // The tree's top level is assemblies (ILSpy's assembly list); namespaces sit under the first one.
+    private static TreeViewItem AssemblyRow(AssemblyExplorerWindow window, int index = 0) =>
+        window.Tree.Items.OfType<TreeViewItem>().ElementAt(index);
+
+    private static List<TreeViewItem> Namespaces(AssemblyExplorerWindow window) =>
+        AssemblyRow(window).Items.OfType<TreeViewItem>().Where(i => Node(i).Kind == AssemblyNodeKind.Namespace).ToList();
+
+    private static TreeViewItem Namespace(AssemblyExplorerWindow window, string name) =>
+        Namespaces(window).Single(n => Text(n) == name);
+
     private async Task<TreeViewItem> LoadAndFindAlphaAsync(AssemblyExplorerWindow window)
     {
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var barNode = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Bar");
+        var barNode = Namespace(window, "Foo.Bar");
         return barNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
     }
 
@@ -202,7 +213,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var barNode = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Bar");
+        var barNode = Namespace(window, "Foo.Bar");
         var gamma = barNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
         await window.ExpandAsync(gamma);
         var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
@@ -256,7 +267,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var gamma = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Bar")
+        var gamma = Namespace(window, "Foo.Bar")
             .Items.OfType<TreeViewItem>().Single(n => Text(n) == "Gamma");
         await window.ExpandAsync(gamma);
         var call = gamma.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Call() : void");
@@ -304,7 +315,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     {
         var (window, _) = await OpenCallAndNavigateToRunAsync(); // Call, then Run — both rendered as C#
         await window.SetViewAsync(IlView);
-        var alpha = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Bar")
+        var alpha = Namespace(window, "Foo.Bar")
             .Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
 
         await window.SelectNodeAsync(Node(alpha), alpha);
@@ -424,6 +435,208 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         Assert.True(searchBox.IsFocused);
     }
 
+    // ── Several assemblies, References ──
+
+    private static TreeViewItem ReferencesRow(TreeViewItem assemblyRow) =>
+        assemblyRow.Items.OfType<TreeViewItem>().Single(i => Node(i).Kind == AssemblyNodeKind.References);
+
+    [AvaloniaFact]
+    public async Task AssemblyRow_Should_ComeFirst_WithReferences_ThenNamespaces()
+    {
+        var window = await OpenLoadedWindowAsync();
+
+        var row = AssemblyRow(window);
+        Assert.Equal(AssemblyNodeKind.Assembly, Node(row).Kind);
+        Assert.Matches(@"^\S+ \(\d+\.\d+\.\d+\.\d+\)$", Node(row).Text); // "Name (1.0.0.0)"
+        Assert.NotNull(Node(row).Icon);
+        var children = row.Items.OfType<TreeViewItem>().ToList();
+        Assert.Equal(AssemblyNodeKind.References, Node(children[0]).Kind);
+        Assert.All(children.Skip(1), c => Assert.Equal(AssemblyNodeKind.Namespace, Node(c).Kind));
+        var runtime = ReferencesRow(row).Items.OfType<TreeViewItem>().Single(r => Text(r) == "System.Runtime");
+        Assert.NotNull(Node(runtime).Reference!.ResolvedPath);
+        Assert.Equal(1.0, Node(runtime).Opacity);
+    }
+
+    [AvaloniaFact]
+    public async Task SelectingTheAssemblyRow_Should_ShowItsAttributes_OrItsManifestInIl()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var row = AssemblyRow(window);
+
+        await window.SelectNodeAsync(Node(row), row);
+        Assert.Equal(Node(row).Text, window.Title);
+        Assert.Contains("[assembly:", window.Editor.Text);
+
+        await window.SetViewAsync(IlView);
+        Assert.Contains(".assembly", window.Editor.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task AReferenceRow_Should_DescribeTheReference_AndOpenItsAssemblyAsASecondRow()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var runtime = ReferencesRow(AssemblyRow(window)).Items.OfType<TreeViewItem>().Single(r => Text(r) == "System.Runtime");
+
+        await window.SelectNodeAsync(Node(runtime), runtime);
+        Assert.StartsWith("// System.Runtime, Version=", window.Editor.Text);
+        Assert.Contains(Node(runtime).Reference!.ResolvedPath!, window.Editor.Text);
+
+        await window.OpenReferenceAsync(Node(runtime).Reference!);
+        await TestWait.WhileAsync(() => window.Title?.StartsWith("System.Runtime", StringComparison.Ordinal) != true);
+
+        Assert.Equal(2, window.LoadedAssemblyPaths.Count);
+        var second = AssemblyRow(window, 1);
+        Assert.Same(second, window.Tree.SelectedItem);
+        Assert.StartsWith("System.Runtime (", Text(second));
+
+        // opening it again finds the same row instead of adding another
+        await window.OpenReferenceAsync(Node(runtime).Reference!);
+        Assert.Equal(2, window.Tree.Items.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task LoadAssemblyAsync_Should_NotAddTheSameAssemblyTwice()
+    {
+        var window = await OpenLoadedWindowAsync();
+
+        var again = await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
+
+        Assert.Same(AssemblyRow(window), again);
+        Assert.Single(window.Tree.Items);
+    }
+
+    [AvaloniaFact]
+    public async Task RemoveAssembly_Should_DropItsRow_AndItsSearchHits()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var runtime = ReferencesRow(AssemblyRow(window)).Items.OfType<TreeViewItem>().Single(r => Text(r) == "System.Runtime");
+        await window.OpenReferenceAsync(Node(runtime).Reference!);
+        await window.SearchAsync("Alpha");
+        Assert.NotEmpty(Results(window));
+
+        window.RemoveAssembly(AssemblyRow(window, 0));
+        await TestWait.WhileAsync(() => Results(window).Count > 0);
+
+        Assert.Single(window.Tree.Items);
+        Assert.Single(window.LoadedAssemblyPaths);
+        Assert.Empty(Results(window));
+    }
+
+    [AvaloniaFact]
+    public async Task DeleteKey_OnAnAssemblyRow_Should_RemoveIt()
+    {
+        var window = await OpenLoadedWindowAsync();
+        window.Tree.SelectedItem = AssemblyRow(window);
+        AssemblyRow(window).Focus(); // keyboard focus sits on the row, as after a click
+
+        window.KeyPressQwerty(PhysicalKey.Delete, RawInputModifiers.None);
+
+        Assert.Empty(window.Tree.Items);
+        Assert.Empty(window.LoadedAssemblyPaths);
+    }
+
+    [AvaloniaFact]
+    public async Task SearchHits_Should_NameTheirAssembly_OnceThereAreSeveral()
+    {
+        var window = await OpenLoadedWindowAsync();
+        await window.SearchAsync("Alpha");
+        Assert.Equal("Foo.Bar", Results(window).Single(r => r.Text == "Alpha").Location);
+
+        var runtime = ReferencesRow(AssemblyRow(window)).Items.OfType<TreeViewItem>().Single(r => Text(r) == "System.Runtime");
+        await window.OpenReferenceAsync(Node(runtime).Reference!);
+        await window.SearchAsync("Alpha");
+
+        var assemblyName = Text(AssemblyRow(window))!.Split(' ')[0];
+        Assert.Equal($"Foo.Bar ({assemblyName})", Results(window).Single(r => r.Text == "Alpha").Location);
+    }
+
+    // ── Analyze ──
+
+    private async Task<(AssemblyExplorerWindow Window, TreeViewItem Run)> OpenWithRunRowAsync()
+    {
+        var window = await OpenLoadedWindowAsync();
+        var alpha = Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
+        await window.ExpandAsync(alpha);
+        return (window, alpha.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Run() : void"));
+    }
+
+    private static List<AssemblyTreeNode> AnalysisHits(AssemblyExplorerWindow window) =>
+        window.AnalysisResultList.Items.OfType<AssemblyTreeNode>().ToList();
+
+    [AvaloniaFact]
+    public async Task AnalyzeAsync_UsedBy_Should_ShowTheCallers_InTheAnalysisPane()
+    {
+        var (window, run) = await OpenWithRunRowAsync();
+        var pane = window.FindControl<Border>("AnalysisPanel")!;
+        Assert.False(pane.IsVisible);
+
+        await window.AnalyzeAsync(Node(run), AnalysisKind.UsedBy);
+
+        Assert.True(pane.IsVisible);
+        Assert.Equal("Used By: Run() : void", window.FindControl<TextBlock>("AnalysisTitle")!.Text);
+        Assert.Equal("1 result", window.FindControl<TextBlock>("AnalysisStatus")!.Text);
+        var hit = Assert.Single(AnalysisHits(window));
+        Assert.Equal("Call() : void", hit.Text);
+        Assert.Equal("Foo.Bar.Gamma", hit.Location);
+        Assert.NotNull(hit.Icon);
+    }
+
+    [AvaloniaFact]
+    public async Task PickingAnAnalysisHit_Should_RevealAndOpenIt()
+    {
+        var (window, run) = await OpenWithRunRowAsync();
+        await window.AnalyzeAsync(Node(run), AnalysisKind.UsedBy);
+
+        window.AnalysisResultList.SelectedIndex = 0;
+        await TestWait.WhileAsync(() => window.Title != "Call() : void");
+
+        Assert.Contains("Run();", window.Editor.Text);
+        var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
+        Assert.Equal("Call() : void", Text(selected));
+        Assert.Equal("Gamma", Text((TreeViewItem)selected.Parent!));
+    }
+
+    [AvaloniaFact]
+    public async Task TheTreeContextMenu_Should_OfferTheRowsAnalyses()
+    {
+        var (window, run) = await OpenWithRunRowAsync();
+        window.Tree.SelectedItem = run;
+
+        window.TreeMenu.Open(window.Tree);
+
+        var headers = window.TreeMenu.Items.OfType<MenuItem>().Select(i => i.Header as string).ToList();
+        Assert.Equal(["Analyze: Used By", "Analyze: Uses", "Remove assembly"], headers);
+        Assert.False(window.TreeMenu.Items.OfType<MenuItem>().Last().IsEnabled); // not an assembly row
+        window.TreeMenu.Close();
+
+        // reopened on a field row: the field's analyses replace the method's
+        var count = Namespace(window, "Foo.Bar").Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha")
+            .Items.OfType<TreeViewItem>().Single(n => Text(n) == "_count : int");
+        window.Tree.SelectedItem = count;
+        window.TreeMenu.Open(window.Tree);
+        Assert.Equal(
+            ["Analyze: Read By", "Analyze: Assigned By", "Remove assembly"],
+            window.TreeMenu.Items.OfType<MenuItem>().Select(i => i.Header as string));
+        window.TreeMenu.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task CtrlR_Should_RunTheSelectedRowsFirstAnalysis_AndCloseShouldHideThePane()
+    {
+        var (window, run) = await OpenWithRunRowAsync();
+        window.Tree.SelectedItem = run;
+        var pane = window.FindControl<Border>("AnalysisPanel")!;
+
+        window.KeyPressQwerty(PhysicalKey.R, RawInputModifiers.Control);
+        await TestWait.WhileAsync(() => AnalysisHits(window).Count == 0);
+
+        Assert.Equal("Used By: Run() : void", window.FindControl<TextBlock>("AnalysisTitle")!.Text);
+        Assert.Equal("Call() : void", Assert.Single(AnalysisHits(window)).Text);
+
+        window.FindControl<Button>("CloseAnalysisButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.False(pane.IsVisible);
+    }
+
     [AvaloniaFact]
     public async Task AltLeft_Should_GoBack()
     {
@@ -439,7 +652,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     {
         var (window, _) = await OpenCallAndNavigateToRunAsync();
         window.GoBack();
-        var alpha = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Bar")
+        var alpha = Namespace(window, "Foo.Bar")
             .Items.OfType<TreeViewItem>().Single(n => Text(n) == "Alpha");
 
         await window.SelectNodeAsync(Node(alpha), alpha);
@@ -454,7 +667,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
-        var bazNode = window.Tree.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Foo.Baz");
+        var bazNode = Namespace(window, "Foo.Baz");
         var delta = bazNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Delta");
         var beta = bazNode.Items.OfType<TreeViewItem>().Single(n => Text(n) == "Beta");
 
@@ -631,7 +844,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         await TestWait.WhileAsync(() => window.Tree.Items.Count == 0);
 
         Assert.Equal("Alpha", window.Title);
-        var namespaceNodes = window.Tree.Items.OfType<TreeViewItem>().ToList();
+        var namespaceNodes = Namespaces(window);
         Assert.Contains(namespaceNodes, n => Text(n) == "Foo.Baz");
     }
 
@@ -665,7 +878,9 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         """;
 
     [AvaloniaFact]
-    public async Task NavigateAsync_Should_JumpToTheCalleesDeclaration_WhenCaretIsOnACallSite()
+    // The window was opened with no tree (assemblyPath: null): like ILSpy, F12 adds the target's
+    // assembly to the tree, reveals the callee there and shows it on its own.
+    public async Task NavigateAsync_Should_LoadTheTargetsAssembly_AndOpenTheCallee_WhenCaretIsOnACallSite()
     {
         var outputDir = Directory.CreateTempSubdirectory("runpad-assembly-explorer-test").FullName;
         try
@@ -685,10 +900,17 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
             window.Editor.TextArea.Caret.Line = callLine;
             window.Editor.TextArea.Caret.Column = callColumn;
 
+            Assert.Empty(window.LoadedAssemblyPaths);
+
             await window.NavigateAsync();
 
-            Assert.Contains("Callee", window.Title);
+            Assert.Equal([compilation.OutputBinaryFile!], window.LoadedAssemblyPaths);
+            Assert.Equal("Helper() : void", window.Title);
+            Assert.Contains("// Callee", window.Editor.Text); // declaring-type header
             Assert.Contains("Helper", window.Editor.Text.Split('\n')[window.Editor.TextArea.Caret.Line - 1]);
+            var selected = Assert.IsType<TreeViewItem>(window.Tree.SelectedItem);
+            Assert.Equal("Helper() : void", Text(selected));
+            Assert.Equal("Callee", Text((TreeViewItem)selected.Parent!));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

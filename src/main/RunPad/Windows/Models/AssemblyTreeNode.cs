@@ -12,8 +12,14 @@ public sealed class AssemblyTreeNode(
     AssemblyNodeKind kind, string text, AssemblyAccess access, AssemblyTreeNodeIcons icons,
     bool isStatic = false, bool isAbstract = false,
     string? assemblyPath = null, AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null,
-    string? location = null)
+    string? location = null, AssemblyReferenceEntry? reference = null, bool isUnavailable = false)
 {
+    /// <summary>A References row: the referenced assembly (activating it loads it into the tree).</summary>
+    public AssemblyReferenceEntry? Reference { get; } = reference;
+
+    /// <summary>Greyed like non-public API: a reference whose file can't be found.</summary>
+    public bool IsUnavailable { get; } = isUnavailable;
+
     /// <summary>Search results only: where the hit is declared (namespace or declaring type).</summary>
     public string? Location { get; } = location;
 
@@ -38,7 +44,7 @@ public sealed class AssemblyTreeNode(
     public bool IsPublic => Access is AssemblyAccess.Public or AssemblyAccess.Protected or AssemblyAccess.ProtectedInternal;
 
     /// <summary>ILSpy greys private/internal API.</summary>
-    public double Opacity => IsPublic ? 1.0 : 0.55;
+    public double Opacity => IsPublic && !IsUnavailable ? 1.0 : 0.55;
 
     /// <summary>Abstract types/members are italic, like the abstract members of a class diagram.</summary>
     public FontStyle FontStyle => IsAbstract ? FontStyle.Italic : FontStyle.Normal;

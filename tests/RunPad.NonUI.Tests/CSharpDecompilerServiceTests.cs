@@ -104,6 +104,25 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
                 protected internal static void Make() { }
             }
             public static class Helpers { internal static int Count; }
+            public class Consumer
+            {
+                private int _f;
+                public void Caller()
+                {
+                    var shape = new Shape(1);
+                    shape.Echo(1, ref _f);
+                    _f = 2;
+                    System.Func<int> read = () => _f;
+                    Helper();
+                }
+                public static void Helper() { }
+                public async System.Threading.Tasks.Task Later() { await System.Threading.Tasks.Task.Yield(); Helper(); }
+                public int Read() => _f;
+                public double Size() => new Circle().Area;
+                // int[,] element access compiles to calls of int[,]::Set/Get — synthesized methods
+                // with no metadata (and no documentation ID) behind them
+                public int Grid() { var grid = new int[2, 2]; grid[0, 0] = 1; return grid[1, 1]; }
+            }
         }
         """;
 
@@ -415,6 +434,114 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         Assert.Equal("Echo", hit.Name);
         Assert.Contains(CSharpDecompilerService.Search(index, "Tree.Circle"), h => h is { Name: "Circle", Member: null });
         Assert.Single(CSharpDecompilerService.Search(index, "x", limit: 1));
+    }
+
+    [Fact]
+    public void DescribeAssembly_Should_GiveTheName_AndResolveTheReferences()
+    {
+        var description = CSharpDecompilerService.DescribeAssembly(_fixtures.TreeCodeBinary);
+
+        Assert.Equal("TreeCodeFixture", description.Name);
+        Assert.StartsWith("TreeCodeFixture, Version=", description.FullName);
+        Assert.NotNull(description.Version);
+        var runtime = Assert.Single(description.References, r => r.Name == "System.Runtime");
+        Assert.StartsWith("System.Runtime, Version=", runtime.FullName);
+        Assert.True(File.Exists(runtime.ResolvedPath), runtime.ResolvedPath);
+        Assert.Equal(description.References.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase), description.References);
+    }
+
+    [Fact]
+    public void TheAssemblyToken_Should_ShowTheAttributesInCSharp_AndTheManifestInIl()
+    {
+        var csharp = CSharpDecompilerService.DecompileEntity(_fixtures.TreeCodeBinary, AssemblyDescription.Token, "asm");
+        var il = IlDisassembler.DisassembleEntity(_fixtures.TreeCodeBinary, AssemblyDescription.Token, "asm");
+
+        Assert.StartsWith("// TreeCodeFixture, Version=", csharp.Text);
+        Assert.Contains("[assembly:", csharp.Text);
+        Assert.Contains(".assembly extern System.Runtime", il.Text);
+        Assert.Contains(".assembly TreeCodeFixture", il.Text);
+        Assert.Contains(".module", il.Text);
+    }
+
+    // ── Analyze ──
+
+    private int Token(string typeName, string textPrefix) =>
+        CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, typeName).Members
+            .Single(m => m.Text.StartsWith(textPrefix, StringComparison.Ordinal)).MetadataToken;
+
+    private IReadOnlyList<string> Analyze(AnalysisKind kind, int token) =>
+        CSharpDecompilerService.Analyze(kind, _fixtures.TreeCodeBinary, token, [_fixtures.TreeCodeBinary])
+            .Select(r => $"{r.Location}.{r.Text}").ToList();
+
+    [Fact]
+    public void UsedBy_OfAMethod_Should_ListItsCallers_CountingAStateMachineAsItsAsyncMethod()
+    {
+        Assert.Equal(["Tree.Consumer.Caller() : void"], Analyze(AnalysisKind.UsedBy, Token("Tree.Shape", "Echo")));
+        // Later() is async: the call sits in its compiler-generated state machine's MoveNext
+        Assert.Equal(
+            ["Tree.Consumer.Caller() : void", "Tree.Consumer.Later() : Task"],
+            Analyze(AnalysisKind.UsedBy, Token("Tree.Consumer", "Helper")));
+    }
+
+    [Fact]
+    public void UsedBy_OfAProperty_Should_ListTheCallersOfItsAccessors()
+    {
+        Assert.Equal(["Tree.Consumer.Size() : double"], Analyze(AnalysisKind.UsedBy, Token("Tree.Shape", "Area")));
+    }
+
+    [Fact]
+    public void ReadBy_And_AssignedBy_OfAField_Should_CountALambdaAsItsMethod()
+    {
+        // Caller reads _f through `ref _f` and inside its lambda; Read() reads it directly
+        Assert.Equal(
+            ["Tree.Consumer.Caller() : void", "Tree.Consumer.Read() : int"],
+            Analyze(AnalysisKind.ReadBy, Token("Tree.Consumer", "_f")));
+        Assert.Equal(["Tree.Consumer.Caller() : void"], Analyze(AnalysisKind.AssignedBy, Token("Tree.Consumer", "_f")));
+    }
+
+    [Fact]
+    public void InstantiatedBy_And_UsedBy_OfAType_Should_LeaveOutTheTypesOwnCode()
+    {
+        Assert.Equal(["Tree.Consumer.Caller() : void"], Analyze(AnalysisKind.InstantiatedBy, ShapeToken()));
+        // Circle's constructor calls Shape's (`call`, not `newobj`): a use, not an instantiation;
+        // Size() calls Shape::get_Area through a Circle — a use of Shape's member
+        Assert.Equal(
+            ["Tree.Circle.Circle()", "Tree.Consumer.Caller() : void", "Tree.Consumer.Size() : double"],
+            Analyze(AnalysisKind.UsedBy, ShapeToken()));
+    }
+
+    [Fact]
+    public void Uses_OfAMethod_Should_ListWhatItsBody_AndItsLambdas_ReferTo()
+    {
+        var uses = Analyze(AnalysisKind.Uses, Token("Tree.Consumer", "Caller"));
+
+        Assert.Contains("Tree.Shape.Shape(int)", uses);
+        Assert.Contains("Tree.Shape.Echo<T>(T, ref int) : T", uses);
+        Assert.Contains("Tree.Consumer._f : int", uses);
+        Assert.Contains("Tree.Consumer.Helper() : void", uses);
+        Assert.DoesNotContain("Tree.Consumer.Caller() : void", uses); // not itself (its lambda maps to it)
+
+        // Later()'s own body only builds its state machine; Helper() is called from MoveNext
+        Assert.Contains("Tree.Consumer.Helper() : void", Analyze(AnalysisKind.Uses, Token("Tree.Consumer", "Later")));
+    }
+
+    [Fact]
+    public void Analyze_Should_SkipSynthesizedArrayMethods_InsteadOfFailing()
+    {
+        // every UsedBy scan reads Grid()'s body, whose int[,]::Set/Get calls have no documentation ID
+        Assert.Equal(["Tree.Consumer.Caller() : void"], Analyze(AnalysisKind.UsedBy, Token("Tree.Shape", "Echo")));
+
+        var uses = Analyze(AnalysisKind.Uses, Token("Tree.Consumer", "Grid"));
+        Assert.DoesNotContain(uses, u => u.Contains("Set(") || u.Contains("Get("));
+    }
+
+    [Fact]
+    public void AnalysesFor_Should_OfferIlSpysQueriesPerKind()
+    {
+        Assert.Equal([AnalysisKind.UsedBy, AnalysisKind.Uses], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Method));
+        Assert.Equal([AnalysisKind.ReadBy, AnalysisKind.AssignedBy], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Field));
+        Assert.Equal([AnalysisKind.UsedBy, AnalysisKind.InstantiatedBy], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Class));
+        Assert.Empty(CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Namespace));
     }
 
     [Fact]
