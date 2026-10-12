@@ -37,6 +37,9 @@ public sealed record DecompiledReference(
     public int Offset => 0;
 }
 
+/// <summary>A 1-based text span (end exclusive) in decompiled code: a navigable identifier.</summary>
+public sealed record ReferenceSpan(int StartLine, int StartColumn, int EndLine, int EndColumn);
+
 /// <summary>What an Assembly Explorer node is — drives its icon (ILSpy-style tree).</summary>
 public enum AssemblyNodeKind
 {
@@ -56,6 +59,8 @@ public enum AssemblyNodeKind
     Assembly,
     References,
     Reference,
+    Resources,
+    Resource,
 }
 
 /// <summary>C# accessibility of a tree node — drives ILSpy's access overlay (lock, key, house).</summary>
@@ -93,9 +98,11 @@ public sealed record AssemblyTypeEntry(
 /// <param name="Text">ILSpy-style: <c>name : type</c>, <c>Name(params) : return</c>, <c>TypeName(params)</c>.</param>
 /// <param name="MetadataToken">Feeds <see cref="CSharpDecompilerService.DecompileMember"/>.</param>
 /// <param name="IsAbstract">Abstract in a class (interface members don't count — they all are).</param>
+/// <param name="IsOverridable">Virtual, abstract or a non-sealed override in a class (Analyze: Overridden By).</param>
+/// <param name="IsInterfaceMember">Declared by an interface (Analyze: Implemented By).</param>
 public sealed record AssemblyMemberEntry(
     AssemblyNodeKind Kind, string Text, AssemblyAccess Access, int MetadataToken,
-    bool IsStatic = false, bool IsAbstract = false)
+    bool IsStatic = false, bool IsAbstract = false, bool IsOverridable = false, bool IsInterfaceMember = false)
 {
     /// <summary>Visible outside its assembly (ILSpy greys everything else).</summary>
     public bool IsPublic => CSharpDecompilerService.IsVisible(Access);
@@ -115,6 +122,23 @@ public sealed record AssemblySearchEntry(
     public AssemblyNodeKind Kind => Member?.Kind ?? Type.Kind;
     public string Text => Member?.Text ?? Type.Text;
     internal string QualifiedName => Location.Length > 0 ? Location + "." + Name : Name;
+
+    /// <summary><see cref="QualifiedName"/> without type argument lists: "Tree.Box&lt;T&gt;.Put" → "Tree.Box.Put".</summary>
+    internal string PlainQualifiedName => WithoutTypeArguments(QualifiedName);
+
+    private static string WithoutTypeArguments(string name)
+    {
+        if (!name.Contains('<')) return name;
+        var plain = new System.Text.StringBuilder(name.Length);
+        var depth = 0;
+        foreach (var c in name)
+        {
+            if (c == '<') depth++;
+            else if (c == '>') depth--;
+            else if (depth == 0) plain.Append(c);
+        }
+        return plain.ToString();
+    }
 }
 
 /// <summary>
@@ -123,7 +147,8 @@ public sealed record AssemblySearchEntry(
 /// shows the assembly's attributes for it, <c>IlDisassembler.DisassembleEntity</c> its manifest.
 /// </summary>
 public sealed record AssemblyDescription(
-    string Name, string FullName, Version? Version, IReadOnlyList<AssemblyReferenceEntry> References)
+    string Name, string FullName, Version? Version, IReadOnlyList<AssemblyReferenceEntry> References,
+    IReadOnlyList<AssemblyResourceEntry> Resources)
 {
     public const int Token = 0x20000001;
 }
@@ -332,7 +357,10 @@ public static partial class CSharpDecompilerService
     private static AssemblyMemberEntry ToMemberEntry(ITypeDefinition declaringType, IMember member) => new(
         MemberKind(member), MemberText(member), ToAccess(member.Accessibility),
         MetadataTokens.GetToken(member.MetadataToken), member.IsStatic,
-        member.IsAbstract && declaringType.Kind != TypeKind.Interface);
+        member.IsAbstract && declaringType.Kind != TypeKind.Interface,
+        // a sealed class (or a struct) seals its overrides too, whatever the member itself says
+        IsOverridable: member.IsOverridable && declaringType.Kind != TypeKind.Interface && !declaringType.IsSealed,
+        IsInterfaceMember: declaringType.Kind == TypeKind.Interface);
 
     // Neither the type nor any type it's nested in is compiler-generated (closures, state machines).
     private static bool IsListed(ITypeDefinition type)
@@ -387,7 +415,9 @@ public static partial class CSharpDecompilerService
         var qualified = query.Contains('.');
 
         return index
-            .Select(e => (Entry: e, Rank: Rank(qualified ? e.QualifiedName : e.Name)))
+            // a dotted query matches the qualified name with or without type arguments
+            // ("Box.Put" and "Box<T>.Put" both find Tree.Box<T>.Put)
+            .Select(e => (Entry: e, Rank: qualified ? BestRank(e.QualifiedName, e.PlainQualifiedName) : Rank(e.Name)))
             .Where(r => r.Rank >= 0)
             .OrderBy(r => r.Rank)
             .ThenBy(r => r.Entry.Name, StringComparer.OrdinalIgnoreCase)
@@ -395,6 +425,12 @@ public static partial class CSharpDecompilerService
             .Take(limit)
             .Select(r => r.Entry)
             .ToList();
+
+        int BestRank(string name, string plainName)
+        {
+            var (full, plain) = (Rank(name), Rank(plainName));
+            return full < 0 ? plain : plain < 0 ? full : Math.Min(full, plain);
+        }
 
         int Rank(string name) =>
             name.Equals(query, StringComparison.OrdinalIgnoreCase) ? 0
@@ -552,7 +588,7 @@ public static partial class CSharpDecompilerService
             .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var version = peFile.Metadata.IsAssembly ? peFile.Metadata.GetAssemblyDefinition().Version : null;
-        return new AssemblyDescription(peFile.Name, peFile.FullName, version, references);
+        return new AssemblyDescription(peFile.Name, peFile.FullName, version, references, ResourcesOf(peFile));
     }
 
     /// <summary>
@@ -612,6 +648,21 @@ public static partial class CSharpDecompilerService
         return new DecompiledReference(
             targetAssemblyPath, containingType.FullTypeName.ReflectionName, memberName, parameterTypeNames, displayName,
             metadataToken, MetadataTokens.GetToken(containingType.MetadataToken));
+    }
+
+    /// <summary>
+    /// The identifier at (<paramref name="line"/>, <paramref name="column"/>) when F12 there would go
+    /// somewhere (<see cref="ResolveReferenceAtPosition"/> resolves it) — the span the explorer
+    /// underlines while Ctrl is held over it. Null over whitespace, keywords, locals, or anything that
+    /// isn't a bare identifier (so a whole expression is never underlined).
+    /// </summary>
+    public static ReferenceSpan? FindReferenceSpanAtPosition(SyntaxTree tree, int line, int column)
+    {
+        if (FindInnermostNodeAt(tree, line, column) is not Identifier identifier) return null;
+        if (ResolveReferenceAtPosition(tree, line, column) is null) return null;
+        return new ReferenceSpan(
+            identifier.StartLocation.Line, identifier.StartLocation.Column,
+            identifier.EndLocation.Line, identifier.EndLocation.Column);
     }
 
     // The innermost node containing (line, column) — Descendants is pre-order (parent before its own

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="using:RunPad.Windows.Models"
+        xmlns:local="using:RunPad.Windows"
         x:Class="RunPad.Windows.AssemblyExplorerWindow"
         Icon="/Assets/icon.ico"
         Title="Assembly Explorer"
@@ -24,6 +25,7 @@
         <StreamGeometry x:Key="AsmIcon.BaseTypes">M12,3L4,11H9V21H15V11H20Z</StreamGeometry>
         <StreamGeometry x:Key="AsmIcon.DerivedTypes">M12,21L4,13H9V3H15V13H20Z</StreamGeometry>
         <StreamGeometry x:Key="AsmIcon.Assembly">M12,8A3,3 0 0,0 15,5A3,3 0 0,0 12,2A3,3 0 0,0 9,5A3,3 0 0,0 12,8M12,11.54C9.64,9.35 6.5,8 3,8V19C6.5,19 9.64,20.35 12,22.54C14.36,20.35 17.5,19 21,19V8C17.5,8 14.36,9.35 12,11.54Z</StreamGeometry>
+        <StreamGeometry x:Key="AsmIcon.Resource">M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z</StreamGeometry>
         <StreamGeometry x:Key="AsmIcon.References">M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z</StreamGeometry>
 
         <!-- ILSpy's overlays: access (bottom-right) and static (top-left), drawn in the text colour. -->
@@ -130,7 +132,32 @@
             <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns"
                           Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
 
-            <ContentPresenter x:Name="EditorHost" Grid.Column="2"/>
+            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                <!-- Document tabs: each with its own page and Back/Forward history. -->
+                <ListBox x:Name="DocumentTabs" Grid.Row="0" Margin="0,0,0,4"
+                         AutomationProperties.Name="Document tabs"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:AssemblyExplorerWindow+TabHeader">
+                            <StackPanel Orientation="Horizontal" Spacing="4" MaxWidth="260">
+                                <TextBlock Text="{Binding Title}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <Button Padding="2" Background="Transparent" BorderThickness="0"
+                                        ToolTip.Tip="Close tab (Ctrl+W)" AutomationProperties.Name="Close tab">
+                                    <PathIcon Data="{StaticResource Icon.Close}" Width="8" Height="8"/>
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <ContentPresenter x:Name="EditorHost" Grid.Row="1"/>
+            </Grid>
 
         </Grid>
 

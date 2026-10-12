@@ -123,6 +123,31 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
                 // with no metadata (and no documentation ID) behind them
                 public int Grid() { var grid = new int[2, 2]; grid[0, 0] = 1; return grid[1, 1]; }
             }
+            public class Box<T>
+            {
+                public void Put(T item) { }
+            }
+            public abstract class Animal
+            {
+                public abstract string Sound();
+                public virtual int Legs => 4;
+                public void Walk() { }
+                public Animal Self() => this;
+            }
+            public class Dog : Animal { public override string Sound() => "woof"; }
+            public sealed class Bird : Animal
+            {
+                public override string Sound() => "tweet";
+                public override int Legs => 2;
+            }
+            public interface IGreeter { void Greet(string name); }
+            public class Greeter : IGreeter { public void Greet(string name) { } }
+            public class LoudGreeter : IGreeter { void IGreeter.Greet(string name) { } }
+            public class Zoo
+            {
+                public Animal[] Animals = [];
+                public System.Collections.Generic.List<Animal> Get(Animal first) => [first];
+            }
         }
         """;
 
@@ -140,13 +165,31 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
             CodeBinary = Compile(Code, "CodeFixture");
             RecursiveCodeBinary = Compile(RecursiveCode, "RecursiveCodeFixture");
             ExplorerCodeBinary = Compile(ExplorerCode, "ExplorerCodeFixture");
-            TreeCodeBinary = Compile(TreeCode, "TreeCodeFixture");
+            TreeCodeBinary = Compile(TreeCode, "TreeCodeFixture", TreeResources());
             return ValueTask.CompletedTask;
         }
 
-        private string Compile(string code, string assemblyName)
+        // The Resources node's three kinds of page: text, a .resources table, binary.
+        private static IReadOnlyList<(string Name, byte[] Data)> TreeResources()
         {
-            var binary = InProcessFixtureCompiler.CompileToTempDll(code, assemblyName);
+            using var table = new MemoryStream();
+            using (var writer = new System.Resources.ResourceWriter(table))
+            {
+                writer.AddResource("Greeting", "Hello\nworld");
+                writer.AddResource("Answer", 42);
+                writer.AddResource("Blob", new byte[] { 1, 2, 3 });
+            }
+            return
+            [
+                ("notes.txt", System.Text.Encoding.UTF8.GetBytes("first line\nsecond line")),
+                ("Tree.Strings.resources", table.ToArray()),
+                ("data.bin", Enumerable.Range(0, 40).Select(i => (byte)i).ToArray()),
+            ];
+        }
+
+        private string Compile(string code, string assemblyName, IReadOnlyList<(string Name, byte[] Data)>? resources = null)
+        {
+            var binary = InProcessFixtureCompiler.CompileToTempDll(code, assemblyName, resources);
             _binaries.Add(binary);
             return binary;
         }
@@ -226,6 +269,20 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
 
         var lines = callee.Text.Split('\n');
         Assert.Contains("Helper", lines[callee.Line - 1]);
+    }
+
+    [Fact]
+    public void FindReferenceSpanAtPosition_Should_SpanTheIdentifier_OnlyWhereF12WouldGoSomewhere()
+    {
+        var caller = CSharpDecompilerService.DecompileType(_fixtures.RecursiveCodeBinary, "Caller");
+        var (line, column) = FindPosition(caller.Text, "Helper");
+
+        var span = CSharpDecompilerService.FindReferenceSpanAtPosition(caller.SyntaxTree!, line, column + 2);
+
+        Assert.Equal(new ReferenceSpan(line, column, line, column + "Helper".Length), span);
+        var (keywordLine, keywordColumn) = FindPosition(caller.Text, "public");
+        Assert.Null(CSharpDecompilerService.FindReferenceSpanAtPosition(caller.SyntaxTree!, keywordLine, keywordColumn));
+        Assert.Null(CSharpDecompilerService.FindReferenceSpanAtPosition(caller.SyntaxTree!, 9999, 1));
     }
 
     [Fact]
@@ -436,6 +493,19 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         Assert.Single(CSharpDecompilerService.Search(index, "x", limit: 1));
     }
 
+    [Theory]
+    [InlineData("Box.Put")]
+    [InlineData("Box<T>.Put")]
+    [InlineData("Tree.Box.Put")]
+    public void Search_WithADot_Should_FindMembersOfGenericTypes_WithOrWithoutTypeArguments(string query)
+    {
+        var index = CSharpDecompilerService.BuildSearchIndex(_fixtures.TreeCodeBinary);
+
+        var hit = Assert.Single(CSharpDecompilerService.Search(index, query));
+        Assert.Equal("Put", hit.Name);
+        Assert.Equal("Tree.Box<T>", hit.Location);
+    }
+
     [Fact]
     public void DescribeAssembly_Should_GiveTheName_AndResolveTheReferences()
     {
@@ -448,6 +518,53 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         Assert.StartsWith("System.Runtime, Version=", runtime.FullName);
         Assert.True(File.Exists(runtime.ResolvedPath), runtime.ResolvedPath);
         Assert.Equal(description.References.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase), description.References);
+    }
+
+    // ── Resources ──
+
+    [Fact]
+    public void DescribeAssembly_Should_ListTheEmbeddedResources_SortedByName()
+    {
+        var resources = CSharpDecompilerService.DescribeAssembly(_fixtures.TreeCodeBinary).Resources;
+
+        Assert.Equal(["data.bin", "notes.txt", "Tree.Strings.resources"], resources.Select(r => r.Name));
+        Assert.All(resources, r => Assert.True(r is { IsEmbedded: true, IsPublic: true }));
+        Assert.Equal(40, resources.Single(r => r.Name == "data.bin").Size);
+    }
+
+    [Fact]
+    public void DescribeResource_Should_ShowText_AsText()
+    {
+        var page = CSharpDecompilerService.DescribeResource(_fixtures.TreeCodeBinary, "notes.txt");
+
+        Assert.Equal("// notes.txt (22 bytes)\n\nfirst line\nsecond line", page.Text);
+        Assert.Equal("notes.txt", page.Title);
+    }
+
+    [Fact]
+    public void DescribeResource_Should_ShowAResourcesFile_AsSortedKeyValueLines()
+    {
+        var text = CSharpDecompilerService.DescribeResource(_fixtures.TreeCodeBinary, "Tree.Strings.resources").Text;
+
+        Assert.Contains("// 3 entries\n", text);
+        Assert.Contains("Answer = 42 (Int32)\nBlob = byte[3]\nGreeting = \"Hello\\nworld\"\n", text);
+    }
+
+    [Fact]
+    public void DescribeResource_Should_ShowBinaryData_AsAHexDump()
+    {
+        var lines = CSharpDecompilerService.DescribeResource(_fixtures.TreeCodeBinary, "data.bin").Text.Split('\n');
+
+        Assert.Equal("// data.bin (40 bytes)", lines[0]);
+        Assert.Equal("00000000  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  |................|", lines[2]);
+        Assert.StartsWith("00000020  20 21 22 23 24 25 26 27", lines[4]);
+        Assert.EndsWith("| !\"#$%&'|", lines[4]);
+    }
+
+    [Fact]
+    public void DescribeResource_Should_SayWhenTheResourceIsMissing()
+    {
+        Assert.StartsWith("// Resource 'nope' was not found", CSharpDecompilerService.DescribeResource(_fixtures.TreeCodeBinary, "nope").Text);
     }
 
     [Fact]
@@ -535,13 +652,73 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         Assert.DoesNotContain(uses, u => u.Contains("Set(") || u.Contains("Get("));
     }
 
+    private AssemblyMemberEntry Member(string typeName, string textPrefix) =>
+        CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, typeName).Members
+            .Single(m => m.Text.StartsWith(textPrefix, StringComparison.Ordinal));
+
+    private int TypeToken(string name) =>
+        CSharpDecompilerService.EnumerateTypes(_fixtures.TreeCodeBinary).Single(t => t.Name == name).MetadataToken;
+
     [Fact]
     public void AnalysesFor_Should_OfferIlSpysQueriesPerKind()
     {
         Assert.Equal([AnalysisKind.UsedBy, AnalysisKind.Uses], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Method));
         Assert.Equal([AnalysisKind.ReadBy, AnalysisKind.AssignedBy], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Field));
-        Assert.Equal([AnalysisKind.UsedBy, AnalysisKind.InstantiatedBy], CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Class));
+        Assert.Equal(
+            [AnalysisKind.UsedBy, AnalysisKind.InstantiatedBy, AnalysisKind.ExposedBy],
+            CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Class));
+        Assert.Equal(
+            [AnalysisKind.UsedBy, AnalysisKind.ImplementedBy, AnalysisKind.ExposedBy],
+            CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Interface));
         Assert.Empty(CSharpDecompilerService.AnalysesFor(AssemblyNodeKind.Namespace));
+    }
+
+    [Fact]
+    public void AnalysesFor_Should_OfferOverriddenBy_OnlyForOverridableMembers_AndImplementedBy_ForInterfaceMembers()
+    {
+        var walk = Member("Tree.Animal", "Walk");
+        var sound = Member("Tree.Animal", "Sound");
+        var greet = Member("Tree.IGreeter", "Greet");
+        Assert.False(walk.IsOverridable);
+        Assert.True(sound.IsOverridable);
+        Assert.False(Member("Tree.Bird", "Sound").IsOverridable); // override in a sealed class
+
+        Assert.Equal([AnalysisKind.UsedBy, AnalysisKind.Uses], CSharpDecompilerService.AnalysesFor(walk.Kind, walk));
+        Assert.Equal(
+            [AnalysisKind.UsedBy, AnalysisKind.Uses, AnalysisKind.OverriddenBy],
+            CSharpDecompilerService.AnalysesFor(sound.Kind, sound));
+        Assert.Equal(
+            [AnalysisKind.UsedBy, AnalysisKind.Uses, AnalysisKind.ImplementedBy],
+            CSharpDecompilerService.AnalysesFor(greet.Kind, greet));
+    }
+
+    [Fact]
+    public void OverriddenBy_Should_ListTheOverridingMethods_AndProperties()
+    {
+        Assert.Equal(
+            ["Tree.Bird.Sound() : string", "Tree.Dog.Sound() : string"],
+            Analyze(AnalysisKind.OverriddenBy, Member("Tree.Animal", "Sound").MetadataToken));
+        Assert.Equal(["Tree.Bird.Legs : int"], Analyze(AnalysisKind.OverriddenBy, Member("Tree.Animal", "Legs").MetadataToken));
+    }
+
+    [Fact]
+    public void ImplementedBy_Should_FindImplicitAndExplicitImplementations_AndImplementingTypes()
+    {
+        var implementations = Analyze(AnalysisKind.ImplementedBy, Member("Tree.IGreeter", "Greet").MetadataToken);
+        Assert.Equal(2, implementations.Count);
+        Assert.Contains("Tree.Greeter.Greet(string) : void", implementations);
+        Assert.Contains(implementations, i => i.StartsWith("Tree.LoudGreeter.", StringComparison.Ordinal));
+
+        // Circle implements IShape through its base class Shape
+        Assert.Equal(["Tree.Circle", "Tree.Shape"], Analyze(AnalysisKind.ImplementedBy, TypeToken("IShape")));
+    }
+
+    [Fact]
+    public void ExposedBy_Should_FindTheTypeInsideArraysGenericsAndParameters()
+    {
+        Assert.Equal(
+            ["Tree.Animal.Self() : Animal", "Tree.Zoo.Animals : Animal[]", "Tree.Zoo.Get(Animal) : List<Animal>"],
+            Analyze(AnalysisKind.ExposedBy, TypeToken("Animal")));
     }
 
     [Fact]

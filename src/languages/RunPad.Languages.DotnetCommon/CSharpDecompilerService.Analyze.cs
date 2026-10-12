@@ -24,20 +24,41 @@ public enum AnalysisKind
 
     /// <summary>Type: the code that creates instances of it (<c>newobj</c>).</summary>
     InstantiatedBy,
+
+    /// <summary>Virtual/abstract member: the members that directly override it.</summary>
+    OverriddenBy,
+
+    /// <summary>Interface member: the members that implement it. Interface: the types that implement it.</summary>
+    ImplementedBy,
+
+    /// <summary>Type: the members whose signature (type, return type, parameters) mentions it.</summary>
+    ExposedBy,
 }
 
 public static partial class CSharpDecompilerService
 {
-    /// <summary>The analyses ILSpy offers for a tree row of <paramref name="kind"/>, most useful first.</summary>
-    public static IReadOnlyList<AnalysisKind> AnalysesFor(AssemblyNodeKind kind) => kind switch
+    /// <summary>
+    /// The analyses ILSpy offers for a tree row of <paramref name="kind"/>, most useful first —
+    /// Overridden By only for an overridable <paramref name="member"/>, Implemented By only for an
+    /// interface's member (or an interface).
+    /// </summary>
+    public static IReadOnlyList<AnalysisKind> AnalysesFor(AssemblyNodeKind kind, AssemblyMemberEntry? member = null)
     {
-        AssemblyNodeKind.Method or AssemblyNodeKind.Constructor => [AnalysisKind.UsedBy, AnalysisKind.Uses],
-        AssemblyNodeKind.Property or AssemblyNodeKind.Event => [AnalysisKind.UsedBy],
-        AssemblyNodeKind.Field => [AnalysisKind.ReadBy, AnalysisKind.AssignedBy],
-        AssemblyNodeKind.Class or AssemblyNodeKind.Struct => [AnalysisKind.UsedBy, AnalysisKind.InstantiatedBy],
-        AssemblyNodeKind.Interface or AssemblyNodeKind.Enum or AssemblyNodeKind.Delegate => [AnalysisKind.UsedBy],
-        _ => [],
-    };
+        List<AnalysisKind> analyses = kind switch
+        {
+            AssemblyNodeKind.Method or AssemblyNodeKind.Constructor => [AnalysisKind.UsedBy, AnalysisKind.Uses],
+            AssemblyNodeKind.Property or AssemblyNodeKind.Event => [AnalysisKind.UsedBy],
+            AssemblyNodeKind.Field => [AnalysisKind.ReadBy, AnalysisKind.AssignedBy],
+            AssemblyNodeKind.Class or AssemblyNodeKind.Struct =>
+                [AnalysisKind.UsedBy, AnalysisKind.InstantiatedBy, AnalysisKind.ExposedBy],
+            AssemblyNodeKind.Interface => [AnalysisKind.UsedBy, AnalysisKind.ImplementedBy, AnalysisKind.ExposedBy],
+            AssemblyNodeKind.Enum or AssemblyNodeKind.Delegate => [AnalysisKind.UsedBy, AnalysisKind.ExposedBy],
+            _ => [],
+        };
+        if (member is { IsOverridable: true }) analyses.Add(AnalysisKind.OverriddenBy);
+        if (member is { IsInterfaceMember: true }) analyses.Add(AnalysisKind.ImplementedBy);
+        return analyses;
+    }
 
     /// <summary>
     /// Runs <paramref name="kind"/> for the type or member <paramref name="targetToken"/> of
@@ -73,7 +94,11 @@ public static partial class CSharpDecompilerService
                 cancellationToken.ThrowIfCancellationRequested();
                 WithDecompiler(path, (decompiler, _) =>
                 {
-                    CollectUsers(decompiler.TypeSystem.MainModule, kind, target, path, results, cancellationToken);
+                    var module = decompiler.TypeSystem.MainModule;
+                    if (kind is AnalysisKind.OverriddenBy or AnalysisKind.ImplementedBy or AnalysisKind.ExposedBy)
+                        CollectByStructure(module, kind, target, path, results, cancellationToken);
+                    else
+                        CollectUsers(module, kind, target, path, results, cancellationToken);
                     return 0;
                 });
             }
@@ -103,6 +128,78 @@ public static partial class CSharpDecompilerService
                     && result.TypeFullName == targetType.ReflectionName) continue;
                 results.TryAdd(ResultKey(result), result);
             }
+        }
+    }
+
+    // Overridden By / Implemented By / Exposed By read the type system's structure, not IL: every
+    // listed type of `module` and its declared members.
+    private static void CollectByStructure(
+        MetadataModule module, AnalysisKind kind, AnalysisTarget target, string assemblyPath,
+        Dictionary<string, AssemblySearchEntry> results, CancellationToken cancellationToken)
+    {
+        foreach (var type in module.TypeDefinitions.Where(IsListed))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            IEnumerable<IEntity> hits = kind switch
+            {
+                AnalysisKind.OverriddenBy => type.Members.Where(m =>
+                    m.IsOverride && InheritanceHelper.GetBaseMember(m) is { } overridden && target.MatchesSelf(overridden)),
+                AnalysisKind.ImplementedBy when target.Type is not null =>
+                    type.Kind != TypeKind.Interface
+                    && type.GetAllBaseTypeDefinitions().Any(b => !b.Equals(type) && target.MatchesType(b))
+                        ? [type]
+                        : [],
+                AnalysisKind.ImplementedBy => ImplementationsIn(type, target),
+                AnalysisKind.ExposedBy => ListedMembers(type).Where(m => SignatureTypes(m).Any(target.MatchesTypeInside)),
+                _ => [],
+            };
+            foreach (var hit in hits)
+            {
+                if (ToResult(hit, assemblyPath) is { } result)
+                    results.TryAdd(ResultKey(result), result);
+            }
+        }
+    }
+
+    // The members of `type` that implement the target interface member: explicit implementations,
+    // and the public member with the same name and parameters (after substituting the interface's
+    // type arguments as `type` implements it). Implementations inherited from a base class aren't
+    // looked for here — the base class reports them itself.
+    private static IEnumerable<IMember> ImplementationsIn(ITypeDefinition type, AnalysisTarget target)
+    {
+        if (type.Kind == TypeKind.Interface || target.Member is not IMember) yield break;
+        var implementedInterface = type.GetAllBaseTypes().FirstOrDefault(target.MatchesDeclaringType);
+        if (implementedInterface is null) yield break;
+
+        var specialized = implementedInterface
+            .GetMembers(m => target.MatchesSelf(m.MemberDefinition), GetMemberOptions.IgnoreInheritedMembers)
+            .FirstOrDefault();
+        foreach (var member in type.Members)
+        {
+            if (member.ExplicitlyImplementedInterfaceMembers.Any(i => target.MatchesSelf(i.MemberDefinition)))
+            {
+                yield return member;
+            }
+            else if (specialized is not null && !member.IsExplicitInterfaceImplementation && !member.IsStatic
+                     && member.Accessibility == Accessibility.Public && member.SymbolKind == specialized.SymbolKind
+                     && member.Name == specialized.Name
+                     && (member is not IParameterizedMember candidate || specialized is not IParameterizedMember wanted
+                         || ParameterListComparer.Instance.Equals(candidate.Parameters, wanted.Parameters)))
+            {
+                yield return member;
+            }
+        }
+    }
+
+    // Every type a member's signature mentions at the top level: a field's/property's/event's type,
+    // a method's return type, and every parameter type.
+    private static IEnumerable<IType> SignatureTypes(IMember member)
+    {
+        if (member is not IMethod { IsConstructor: true }) yield return member.ReturnType;
+        if (member is IParameterizedMember parameterized)
+        {
+            foreach (var parameter in parameterized.Parameters)
+                yield return parameter.Type;
         }
     }
 
@@ -281,6 +378,8 @@ public static partial class CSharpDecompilerService
     {
         private readonly HashSet<string> _memberKeys = [];
         private string? _typeKey;
+        private string? _selfKey; // the member itself (a property, not its accessors)
+        private string? _declaringTypeKey;
 
         public IEntity? Member { get; private init; }
         public ITypeDefinition? Type { get; private init; }
@@ -288,27 +387,48 @@ public static partial class CSharpDecompilerService
         public static AnalysisTarget? Create(MetadataModule module, int token)
         {
             var entity = module.ResolveEntity(MetadataTokens.EntityHandle(token));
-            switch (entity)
+            if (entity is ITypeDefinition type)
+                return new AnalysisTarget { Type = type, _typeKey = Key(type) };
+            if (entity is not IMember member) return null;
+
+            var target = new AnalysisTarget
             {
-                case ITypeDefinition type:
-                    var forType = new AnalysisTarget { Type = type, _typeKey = Key(type) };
-                    return forType;
+                Member = member,
+                _selfKey = Key(member),
+                _declaringTypeKey = member.DeclaringTypeDefinition is { } declaring ? Key(declaring) : null,
+            };
+            switch (member)
+            {
                 case IProperty property: // calls of its accessors
-                    var forProperty = new AnalysisTarget { Member = property };
-                    forProperty.AddKeys(property.Getter, property.Setter);
-                    return forProperty;
+                    target.AddKeys(property.Getter, property.Setter);
+                    break;
                 case IEvent @event:
-                    var forEvent = new AnalysisTarget { Member = @event };
-                    forEvent.AddKeys(@event.AddAccessor, @event.RemoveAccessor, @event.InvokeAccessor);
-                    return forEvent;
-                case IMember member:
-                    var forMember = new AnalysisTarget { Member = member };
-                    forMember.AddKeys(member);
-                    return forMember;
+                    target.AddKeys(@event.AddAccessor, @event.RemoveAccessor, @event.InvokeAccessor);
+                    break;
                 default:
-                    return null;
+                    target.AddKeys(member);
+                    break;
             }
+            return target;
         }
+
+        // the target member itself (Overridden By / Implemented By compare members, not accessors)
+        public bool MatchesSelf(IEntity entity) =>
+            _selfKey is not null && entity is IMember member && Key(member.MemberDefinition) == _selfKey;
+
+        // a (possibly constructed) type whose definition declares the target member
+        public bool MatchesDeclaringType(IType type) =>
+            _declaringTypeKey is not null && type.GetDefinition() is { } definition && Key(definition) == _declaringTypeKey;
+
+        // the target type anywhere in a signature type: Animal, Animal[], List<Animal>, ref Animal, ...
+        public bool MatchesTypeInside(IType type) => type switch
+        {
+            ParameterizedType parameterized =>
+                MatchesTypeInside(parameterized.GenericType) || parameterized.TypeArguments.Any(MatchesTypeInside),
+            ICSharpCode.Decompiler.TypeSystem.Implementation.TypeWithElementType withElement =>
+                MatchesTypeInside(withElement.ElementType),
+            _ => MatchesType(type),
+        };
 
         private void AddKeys(params IEntity?[] entities)
         {

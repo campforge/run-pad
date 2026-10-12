@@ -12,8 +12,12 @@ public sealed class AssemblyTreeNode(
     AssemblyNodeKind kind, string text, AssemblyAccess access, AssemblyTreeNodeIcons icons,
     bool isStatic = false, bool isAbstract = false,
     string? assemblyPath = null, AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null,
-    string? location = null, AssemblyReferenceEntry? reference = null, bool isUnavailable = false)
+    string? location = null, AssemblyReferenceEntry? reference = null, bool isUnavailable = false,
+    AssemblyResourceEntry? resource = null)
 {
+    /// <summary>A Resources row: the manifest resource it shows.</summary>
+    public AssemblyResourceEntry? Resource { get; } = resource;
+
     /// <summary>A References row: the referenced assembly (activating it loads it into the tree).</summary>
     public AssemblyReferenceEntry? Reference { get; } = reference;
 

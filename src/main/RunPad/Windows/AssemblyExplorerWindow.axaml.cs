@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using ICSharpCode.Decompiler.CSharp;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Languages.DotnetCommon;
@@ -47,9 +49,6 @@ public partial class AssemblyExplorerWindow : Window
     // The tree's assemblies, in the order they were added (ILSpy's assembly list).
     private readonly List<LoadedAssembly> _assemblies = [];
     private int _assemblySetVersion;
-    private HistoryEntry? _current;
-    private readonly Stack<HistoryEntry> _back = new();
-    private readonly Stack<HistoryEntry> _forward = new();
     private bool _suppressSelection;
     private DecompilerView _view = DecompilerView.Default;
     private bool _syncingViewBoxes;
@@ -105,9 +104,51 @@ public partial class AssemblyExplorerWindow : Window
     {
         InitializeComponent();
         _windowService = windowService;
+        _activeTab = _tabs[0];
 
         BrowseButton.Click += async (_, _) => await BrowseAsync();
+
+        // the tab strip: picking a tab shows it, its × closes it (a Button inside the item template)
+        DocumentTabs.SelectionChanged += (_, _) =>
+        {
+            if (!_syncingTabStrip && DocumentTabs.SelectedItem is TabHeader { Tab: DocumentTab tab } && tab != _activeTab)
+                ActivateTab(tab);
+        };
+        DocumentTabs.AddHandler(Button.ClickEvent, (_, e) =>
+        {
+            if (e.Source is Button { DataContext: TabHeader { Tab: DocumentTab tab } })
+            {
+                CloseTab(tab);
+                e.Handled = true;
+            }
+        });
+
+        // middle-click or Ctrl+click on a tree row opens it in a new tab
+        TypeTree.AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            var point = e.GetCurrentPoint(TypeTree);
+            var newTab = point.Properties.IsMiddleButtonPressed
+                         || (point.Properties.IsLeftButtonPressed && e.KeyModifiers == KeyModifiers.Control);
+            if (!newTab || (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true)
+                    is not { Header: AssemblyTreeNode node } row) return;
+            e.Handled = true;
+            _ = OpenInNewTabAsync(node, row);
+        }, RoutingStrategies.Tunnel);
         SaveCodeButton.Click += async (_, _) => await SaveCodeAsync();
+
+        // Drop .dll/.exe files from the file manager anywhere on the window to add them to the tree.
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        {
+            e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        });
+        AddHandler(DragDrop.DropEvent, (_, e) =>
+        {
+            e.Handled = true;
+            var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToList();
+            if (paths is { Count: > 0 }) _ = OpenDroppedFilesAsync(paths);
+        });
         BackButton.Click += (_, _) => GoBack();
         ForwardButton.Click += (_, _) => GoForward();
 
@@ -163,6 +204,9 @@ public partial class AssemblyExplorerWindow : Window
             if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Left) GoBack();
             else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Right) GoForward();
             else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.S) _ = SaveCodeAsync();
+            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.W) CloseActiveTab();
+            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab) ActivateNextTab(+1);
+            else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Tab) ActivateNextTab(-1);
             else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.F)
             {
                 SearchBox.Focus();
@@ -171,7 +215,7 @@ public partial class AssemblyExplorerWindow : Window
             // ILSpy's Analyze shortcut: the selected row's first analysis
             else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.R
                      && TypeTree.SelectedItem is TreeViewItem { Header: AssemblyTreeNode selected }
-                     && CSharpDecompilerService.AnalysesFor(selected.Kind) is [var first, ..])
+                     && CSharpDecompilerService.AnalysesFor(selected.Kind, selected.Member) is [var first, ..])
             {
                 _ = AnalyzeAsync(selected, first);
             }
@@ -223,6 +267,27 @@ public partial class AssemblyExplorerWindow : Window
             e.Handled = true;
             _ = NavigateAtAsync(position.Line, position.Column);
         }, RoutingStrategies.Tunnel);
+
+        // Ctrl held over a navigable identifier underlines it and shows a hand cursor, like ILSpy/VS.
+        editor.TextArea.TextView.LineTransformers.Add(_referenceUnderline);
+        editor.TextArea.AddHandler(PointerMovedEvent, (_, e) =>
+        {
+            _lastPointerPosition = editor.GetPositionFromPoint(e.GetPosition(editor)) is { } p ? (p.Line, p.Column) : null;
+            UpdateReferenceHover(e.KeyModifiers.HasFlag(KeyModifiers.Control) ? _lastPointerPosition : null);
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
+        editor.TextArea.PointerExited += (_, _) =>
+        {
+            _lastPointerPosition = null;
+            UpdateReferenceHover(null);
+        };
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key is Key.LeftCtrl or Key.RightCtrl) UpdateReferenceHover(_lastPointerPosition);
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyUpEvent, (_, e) =>
+        {
+            if (e.Key is Key.LeftCtrl or Key.RightCtrl) UpdateReferenceHover(null);
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         EditorHost.Content = editor;
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
@@ -235,6 +300,7 @@ public partial class AssemblyExplorerWindow : Window
             if (_pendingInitialResult is { } initial) Show(initial, item: null, target: null);
         };
         editor.AttachedToVisualTree += onAttached;
+        RefreshTabStrip();
     }
 
     // XAML previewer only — mirrors the old DecompiledViewWindow's own empty ctor.
@@ -242,6 +308,7 @@ public partial class AssemblyExplorerWindow : Window
     {
         InitializeComponent();
         _windowService = null!;
+        _activeTab = _tabs[0];
     }
 
     // Browse adds the picked assembly to the tree (like ILSpy's assembly list) and selects it.
@@ -307,6 +374,21 @@ public partial class AssemblyExplorerWindow : Window
         }
         item.Items.Add(references);
 
+        if (description.Resources.Count > 0)
+        {
+            var resources = new TreeViewItem { Header = Node(AssemblyNodeKind.Resources, "Resources") };
+            foreach (var resource in description.Resources)
+            {
+                resources.Items.Add(new TreeViewItem
+                {
+                    Header = Node(AssemblyNodeKind.Resource, resource.Name,
+                        resource.IsPublic ? AssemblyAccess.Public : AssemblyAccess.Private,
+                        assemblyPath: assemblyPath, isUnavailable: !resource.IsEmbedded, resource: resource),
+                });
+            }
+            item.Items.Add(resources);
+        }
+
         foreach (var group in types.GroupBy(t => t.Namespace).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
             var nsItem = new TreeViewItem
@@ -322,6 +404,20 @@ public partial class AssemblyExplorerWindow : Window
     }
 
     internal IReadOnlyList<string> LoadedAssemblyPaths => _assemblies.Select(a => a.Path).ToList();
+
+    private static readonly string[] AssemblyExtensions = [".dll", ".exe", ".winmd"];
+
+    // Files dropped on the window: each assembly is added (or found) in the tree and the last one is
+    // selected, like Browse. Other files are ignored; an unreadable assembly gets Browse's error dialog.
+    internal async Task OpenDroppedFilesAsync(IEnumerable<string> paths)
+    {
+        TreeViewItem? last = null;
+        foreach (var path in paths.Where(p => AssemblyExtensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase)))
+        {
+            if (await LoadAssemblyAsync(path) is { } item) last = item;
+        }
+        if (last is not null) SelectAndOpen(last);
+    }
 
     private LoadedAssembly? FindAssembly(string assemblyPath) =>
         _assemblies.FirstOrDefault(a => SamePath(a.Path, assemblyPath));
@@ -470,6 +566,23 @@ public partial class AssemblyExplorerWindow : Window
             return;
         }
 
+        // a resource page is the same in C# and IL: read off the UI thread, not re-rendered on a view switch
+        if (node is { Resource: { } resource, AssemblyPath: { } resourceAssembly })
+        {
+            var resourceVersion = ++_requestVersion;
+            DecompiledMemberResult page;
+            try
+            {
+                page = await Task.Run(() => CSharpDecompilerService.DescribeResource(resourceAssembly, resource.Name));
+            }
+            catch (Exception ex)
+            {
+                page = new DecompiledMemberResult($"// Failed to read the resource: {ex.Message}\n", 1, node.Text);
+            }
+            if (resourceVersion == _requestVersion) Show(page, item, target: null);
+            return;
+        }
+
         var target = node switch
         {
             { Member: { } member, AssemblyPath: { } path } => new PageTarget(path, member.MetadataToken, node.Text),
@@ -495,6 +608,9 @@ public partial class AssemblyExplorerWindow : Window
         AnalysisKind.ReadBy => "Read By",
         AnalysisKind.AssignedBy => "Assigned By",
         AnalysisKind.InstantiatedBy => "Instantiated By",
+        AnalysisKind.OverriddenBy => "Overridden By",
+        AnalysisKind.ImplementedBy => "Implemented By",
+        AnalysisKind.ExposedBy => "Exposed By",
         _ => kind.ToString(),
     };
 
@@ -504,21 +620,32 @@ public partial class AssemblyExplorerWindow : Window
         var selected = TypeTree.SelectedItem as TreeViewItem;
         RemoveAssemblyMenuItem.IsEnabled = selected?.Header is AssemblyTreeNode { Kind: AssemblyNodeKind.Assembly };
 
-        foreach (var old in TreeContextMenu.Items.OfType<Control>().Where(c => c.Tag is "analysis").ToList())
+        foreach (var old in TreeContextMenu.Items.OfType<Control>().Where(c => c.Tag is "analysis" or "row").ToList())
             TreeContextMenu.Items.Remove(old);
         if (selected?.Header is not AssemblyTreeNode node) return;
 
-        var analyses = CSharpDecompilerService.AnalysesFor(node.Kind);
+        var position = 0;
+        // rows that show a page can open it in a new tab (namespace/group rows show nothing)
+        if (node.Type is not null || node.Member is not null || node.Reference is not null || node.Resource is not null
+            || node.Kind == AssemblyNodeKind.Assembly)
+        {
+            var newTab = new MenuItem { Header = "Open in New Tab", Tag = "row" };
+            newTab.Click += (_, _) => _ = OpenInNewTabAsync(node, selected);
+            TreeContextMenu.Items.Insert(position++, newTab);
+            TreeContextMenu.Items.Insert(position++, new Separator { Tag = "row" });
+        }
+
+        var analyses = CSharpDecompilerService.AnalysesFor(node.Kind, node.Member);
         for (var i = 0; i < analyses.Count; i++)
         {
             var kind = analyses[i];
             var item = new MenuItem { Header = "Analyze: " + AnalysisLabel(kind), Tag = "analysis" };
             if (i == 0) item.InputGesture = new KeyGesture(Key.R, KeyModifiers.Control);
             item.Click += (_, _) => _ = AnalyzeAsync(node, kind);
-            TreeContextMenu.Items.Insert(i, item);
+            TreeContextMenu.Items.Insert(position++, item);
         }
         if (analyses.Count > 0)
-            TreeContextMenu.Items.Insert(analyses.Count, new Separator { Tag = "analysis" });
+            TreeContextMenu.Items.Insert(position, new Separator { Tag = "analysis" });
     }
 
     internal ContextMenu TreeMenu => TreeContextMenu;
@@ -750,13 +877,13 @@ public partial class AssemblyExplorerWindow : Window
 
     private async Task RefreshCurrentAsync()
     {
-        if (_current is not { Target: { } target } current || current.View == _view) return;
+        if (_activeTab.Current is not { Target: { } target } current || current.View == _view) return;
 
         var version = ++_requestVersion;
         var view = _view;
         var result = await RenderAsync(target, view);
         if (version != _requestVersion) return;
-        _current = current with { Result = result, CaretLine = result.Line, View = view };
+        _activeTab.Current = current with { Result = result, CaretLine = result.Line, View = view };
         ApplyResult(result, result.Line);
     }
 
@@ -797,13 +924,15 @@ public partial class AssemblyExplorerWindow : Window
             [AssemblyNodeKind.Assembly] = ("Assembly", Color.FromRgb(0x7F, 0x6B, 0xD8)),
             [AssemblyNodeKind.References] = ("References", Color.FromRgb(0x86, 0x86, 0x86)),
             [AssemblyNodeKind.Reference] = ("Assembly", Color.FromRgb(0x86, 0x86, 0x86)),
+            [AssemblyNodeKind.Resources] = ("References", Color.FromRgb(0x86, 0x86, 0x86)),
+            [AssemblyNodeKind.Resource] = ("Resource", Color.FromRgb(0x86, 0x86, 0x86)),
         };
 
     private AssemblyTreeNode Node(
         AssemblyNodeKind kind, string text, AssemblyAccess access = AssemblyAccess.Public,
         bool isStatic = false, bool isAbstract = false, string? assemblyPath = null,
         AssemblyTypeEntry? type = null, AssemblyMemberEntry? member = null, string? location = null,
-        AssemblyReferenceEntry? reference = null, bool isUnavailable = false)
+        AssemblyReferenceEntry? reference = null, bool isUnavailable = false, AssemblyResourceEntry? resource = null)
     {
         var (iconKey, color) = KindIcons[kind];
         var accessKey = access switch
@@ -819,7 +948,8 @@ public partial class AssemblyExplorerWindow : Window
             accessKey is null ? null : Geometry("AsmOverlay." + accessKey),
             isStatic ? Geometry("AsmOverlay.Static") : null);
         return new AssemblyTreeNode(
-            kind, text, access, icons, isStatic, isAbstract, assemblyPath, type, member, location, reference, isUnavailable);
+            kind, text, access, icons, isStatic, isAbstract, assemblyPath, type, member, location, reference,
+            isUnavailable, resource);
 
         Geometry? Geometry(string key) => this.TryFindResource(key, out var resource) ? resource as Geometry : null;
     }
@@ -827,6 +957,44 @@ public partial class AssemblyExplorerWindow : Window
     // internal (not private): lets tests drive a navigation directly without simulating a real F12
     // keypress + caret placement — same rationale as every other "internal test hook" in this session
     // (headless Avalonia has no reliable way to fake caret-dependent keyboard interaction either).
+    // ── Ctrl+hover: underline the identifier F12/Ctrl+click would follow ──
+
+    private readonly ReferenceUnderline _referenceUnderline = new();
+    private (int Line, int Column)? _lastPointerPosition;
+
+    internal ReferenceSpan? HoveredReference => _referenceUnderline.Span;
+
+    // `position` null = Ctrl released / pointer gone. Only redraws when the underlined span changes.
+    internal void UpdateReferenceHover((int Line, int Column)? position)
+    {
+        var span = position is { } p && _currentTree is { } tree
+            ? CSharpDecompilerService.FindReferenceSpanAtPosition(tree, p.Line, p.Column)
+            : null;
+        if (span == _referenceUnderline.Span) return;
+
+        _referenceUnderline.Span = span;
+        _referenceUnderline.Range = span is null ? null : (
+            Editor.Document.GetOffset(span.StartLine, span.StartColumn),
+            Editor.Document.GetOffset(span.EndLine, span.EndColumn));
+        Editor.TextArea.TextView.Cursor = span is null ? null : new Cursor(StandardCursorType.Hand);
+        Editor.TextArea.TextView.Redraw();
+    }
+
+    private sealed class ReferenceUnderline : AvaloniaEdit.Rendering.DocumentColorizingTransformer
+    {
+        public ReferenceSpan? Span { get; set; }
+        public (int Start, int End)? Range { get; set; }
+
+        protected override void ColorizeLine(AvaloniaEdit.Document.DocumentLine line)
+        {
+            if (Range is not var (start, end)) return;
+            var from = Math.Max(start, line.Offset);
+            var to = Math.Min(end, line.EndOffset);
+            if (from >= to) return;
+            ChangeLinePart(from, to, element => element.TextRunProperties.SetTextDecorations(TextDecorations.Underline));
+        }
+    }
+
     // Ctrl+click: F12 at the clicked position. internal: test hook (no pixel-to-text mapping needed).
     internal Task NavigateAtAsync(int line, int column)
     {
@@ -951,20 +1119,20 @@ public partial class AssemblyExplorerWindow : Window
 
     // ── Back/Forward (Alt+←/→, mouse buttons 4/5, toolbar) ──
 
-    internal bool CanGoBack => _back.Count > 0;
-    internal bool CanGoForward => _forward.Count > 0;
+    internal bool CanGoBack => _activeTab.Back.Count > 0;
+    internal bool CanGoForward => _activeTab.Forward.Count > 0;
 
     internal void GoBack()
     {
-        if (_current is null || !_back.TryPop(out var entry)) return;
-        _forward.Push(Remember(_current));
+        if (_activeTab.Current is null || !_activeTab.Back.TryPop(out var entry)) return;
+        _activeTab.Forward.Push(Remember(_activeTab.Current));
         Restore(entry);
     }
 
     internal void GoForward()
     {
-        if (_current is null || !_forward.TryPop(out var entry)) return;
-        _back.Push(Remember(_current));
+        if (_activeTab.Current is null || !_activeTab.Forward.TryPop(out var entry)) return;
+        _activeTab.Back.Push(Remember(_activeTab.Current));
         Restore(entry);
     }
 
@@ -973,7 +1141,7 @@ public partial class AssemblyExplorerWindow : Window
     private void Restore(HistoryEntry entry)
     {
         ++_requestVersion; // a decompile still running for the page we're leaving must not land
-        _current = entry;
+        _activeTab.Current = entry;
         ApplyResult(entry.Result, entry.CaretLine);
         SelectSilently(entry.Item);
         UpdateHistoryButtons();
@@ -984,21 +1152,25 @@ public partial class AssemblyExplorerWindow : Window
     // `target` null: a page that can't be re-rendered (an F12 result from the user's script, an error).
     private void Show(DecompiledMemberResult result, TreeViewItem? item, PageTarget? target)
     {
-        if (_current is not null)
+        if (_activeTab.Current is not null)
         {
-            _back.Push(Remember(_current));
-            _forward.Clear();
+            _activeTab.Back.Push(Remember(_activeTab.Current));
+            _activeTab.Forward.Clear();
         }
-        _current = new HistoryEntry(result, item, result.Line, target, _view);
+        _activeTab.Current = new HistoryEntry(result, item, result.Line, target, _view);
         ApplyResult(result, result.Line);
         UpdateHistoryButtons();
     }
 
+    // every tab's pages keep their code but stop pointing at tree rows (some may have been removed)
     private void DetachHistoryFromTree()
     {
-        Detach(_back);
-        Detach(_forward);
-        _current = _current is null ? null : _current with { Item = null };
+        foreach (var tab in _tabs)
+        {
+            Detach(tab.Back);
+            Detach(tab.Forward);
+            tab.Current = tab.Current is null ? null : tab.Current with { Item = null };
+        }
 
         static void Detach(Stack<HistoryEntry> stack)
         {
@@ -1012,18 +1184,112 @@ public partial class AssemblyExplorerWindow : Window
     {
         BackButton.IsEnabled = CanGoBack;
         ForwardButton.IsEnabled = CanGoForward;
-        SaveCodeButton.IsEnabled = _current is not null;
+        SaveCodeButton.IsEnabled = _activeTab.Current is not null;
+        RefreshTabStrip();
     }
+
+    // ── Tabs: each its own page and Back/Forward history (ILSpy's document tabs) ──
+
+    private readonly List<DocumentTab> _tabs = [new DocumentTab()];
+    private DocumentTab _activeTab = null!; // _tabs[0], set by every constructor
+    private bool _syncingTabStrip;
+
+    internal int TabCount => _tabs.Count;
+    internal int ActiveTabIndex => _tabs.IndexOf(_activeTab);
+    internal IReadOnlyList<string> TabTitles => _tabs.Select(t => t.Title).ToList();
+
+    // A tree row opened in a new tab (context menu, middle-click or Ctrl+click on the row).
+    internal async Task OpenInNewTabAsync(AssemblyTreeNode node, TreeViewItem? item)
+    {
+        var tab = new DocumentTab();
+        _tabs.Insert(ActiveTabIndex + 1, tab);
+        ActivateTab(tab);
+        SelectSilently(item);
+        await SelectNodeAsync(node, item);
+    }
+
+    internal void ActivateTab(DocumentTab tab)
+    {
+        if (!_tabs.Contains(tab)) return;
+        if (_activeTab.Current is { } leaving && _tabs.Contains(_activeTab))
+            _activeTab.Current = Remember(leaving); // come back to the same line
+        _activeTab = tab;
+        ++_requestVersion; // a decompile still running for the tab we're leaving must not land here
+
+        if (tab.Current is { } page)
+        {
+            ApplyResult(page.Result, page.CaretLine);
+            SelectSilently(page.Item);
+            _ = RefreshCurrentAsync(); // rendered in another language/version than the current one
+        }
+        else
+        {
+            ApplyResult(new DecompiledMemberResult("", 1, "Assembly Explorer"), 1);
+            SelectSilently(null);
+        }
+        UpdateHistoryButtons();
+    }
+
+    // Closing the last tab empties it instead (there's always one).
+    internal void CloseTab(DocumentTab tab)
+    {
+        var index = _tabs.IndexOf(tab);
+        if (index < 0) return;
+        if (_tabs.Count == 1)
+        {
+            tab.Current = null;
+            tab.Back.Clear();
+            tab.Forward.Clear();
+            ActivateTab(tab);
+            return;
+        }
+
+        _tabs.RemoveAt(index);
+        if (tab == _activeTab)
+            ActivateTab(_tabs[Math.Min(index, _tabs.Count - 1)]);
+        else
+            RefreshTabStrip();
+    }
+
+    internal void CloseActiveTab() => CloseTab(_activeTab);
+
+    internal void ActivateNextTab(int step) =>
+        ActivateTab(_tabs[((ActiveTabIndex + step) % _tabs.Count + _tabs.Count) % _tabs.Count]);
+
+    private void RefreshTabStrip()
+    {
+        _syncingTabStrip = true;
+        try
+        {
+            DocumentTabs.ItemsSource = _tabs.Select(t => new TabHeader(t.Title, t)).ToList();
+            DocumentTabs.SelectedIndex = ActiveTabIndex;
+        }
+        finally
+        {
+            _syncingTabStrip = false;
+        }
+    }
+
+    internal sealed class DocumentTab
+    {
+        public HistoryEntry? Current { get; set; }
+        public Stack<HistoryEntry> Back { get; } = new();
+        public Stack<HistoryEntry> Forward { get; } = new();
+        public string Title => Current?.Result.Title ?? "New Tab";
+    }
+
+    /// <summary>A tab strip item: what the tab shows, and the tab its close button closes.</summary>
+    public sealed record TabHeader(string Title, object Tab);
 
     // ── Save Code (toolbar / Ctrl+S): the shown page, as .cs or .il ──
 
-    internal bool CanSaveCode => _current is not null;
+    internal bool CanSaveCode => _activeTab.Current is not null;
 
     // Writes exactly what the code pane shows, as C# or IL per the view it was rendered in. A failed
     // write shows an error; a cancelled dialog does nothing. The next save starts in the same folder.
     internal async Task SaveCodeAsync()
     {
-        if (_current is not { } page) return;
+        if (_activeTab.Current is not { } page) return;
 
         var extension = page.View.Language == DecompilerLanguage.IL ? "il" : "cs";
         var path = await _windowService.ShowSaveCodeFileDialogAsync(
@@ -1059,6 +1325,7 @@ public partial class AssemblyExplorerWindow : Window
     private void ApplyResult(DecompiledMemberResult result, int caretLine)
     {
         Title = result.Title;
+        UpdateReferenceHover(null); // its offsets belong to the text being replaced
         _currentTree = result.SyntaxTree;
 
         Editor.Text = result.Text;
@@ -1067,6 +1334,6 @@ public partial class AssemblyExplorerWindow : Window
         Editor.ScrollToLine(caretLine);
     }
 
-    private sealed record HistoryEntry(
+    internal sealed record HistoryEntry(
         DecompiledMemberResult Result, TreeViewItem? Item, int CaretLine, PageTarget? Target, DecompilerView View);
 }
