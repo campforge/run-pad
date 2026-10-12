@@ -117,7 +117,7 @@ public partial class AssemblyExplorerWindow : Window
             _tabs.Insert(ActiveTabIndex + 1, tab);
             ActivateTab(tab);
         }
-        Show(page, item: null, target: null);
+        Show(page, item: null, target: null, DecompilerView.Default); // F12's page is always default C#
         if (assemblyPath is not null)
             await LoadAndRevealDefinitionAsync(assemblyPath, definition, page);
     }
@@ -129,7 +129,9 @@ public partial class AssemblyExplorerWindow : Window
 
     // Loads the definition's assembly, reveals its member's row (its type's, when the tree doesn't list
     // the member) and attaches row + target to `page` in whichever tab shows it — selecting the row if
-    // that tab is the active one. A page the user has navigated away from keeps its tab's selection.
+    // that tab is the active one, and re-rendering the page if the view isn't the default C# it was
+    // decompiled in (other tabs re-render when activated). A page the user has navigated away from
+    // keeps its tab's selection.
     private async Task LoadAndRevealDefinitionAsync(string assemblyPath, IDefinitionResult? definition, DecompiledMemberResult page)
     {
         if (await LoadAssemblyAsync(assemblyPath) is null || definition?.ContainingTypeFullName is not { } typeName) return;
@@ -161,6 +163,8 @@ public partial class AssemblyExplorerWindow : Window
             tab.Current = current with { Item = row, Target = target };
             if (tab == _activeTab) SelectSilently(row);
         }
+        if (_activeTab.Current is { } shown && ReferenceEquals(shown.Result, page))
+            await RefreshCurrentAsync(); // does nothing while a newer selection renders
     }
 
     private AssemblyExplorerWindow(
@@ -378,8 +382,10 @@ public partial class AssemblyExplorerWindow : Window
             editor.SetLanguage(themeService.CurrentTheme.Editor.TextMateName, ".cs");
             if (_pendingInitialResult is { } initial)
             {
-                Show(initial, _initialPageRow, _initialPageTarget); // the row may already be known
+                // decompiled as default C#; the row and target may already be known
+                Show(initial, _initialPageRow, _initialPageTarget, DecompilerView.Default);
                 if (_initialPageRow is not null) SelectSilently(_initialPageRow);
+                _ = RefreshCurrentAsync(); // with a target, in the current view if that's another one
             }
         };
         editor.AttachedToVisualTree += onAttached;
@@ -676,10 +682,37 @@ public partial class AssemblyExplorerWindow : Window
         };
         if (target is null) return;
 
-        var version = ++_requestVersion;
-        var result = await RenderAsync(target, _view);
-        if (version == _requestVersion)
-            Show(result, item, target);
+        await RenderAndShowAsync(++_requestVersion, target, item);
+    }
+
+    // The request (by its _requestVersion) whose new page is being rendered: a language/version switch
+    // meanwhile re-renders that page rather than the one it's about to replace.
+    private int? _pendingPageVersion;
+
+    // Renders `target` as a new page in the current view and shows it, labelled with the view it was
+    // rendered in — rendered again if the view changes meanwhile — unless a newer request (another
+    // selection, Back/Forward, a tab switch) superseded `version`. `beforeShow` runs right before.
+    private async Task RenderAndShowAsync(int version, PageTarget target, TreeViewItem? item, Action? beforeShow = null)
+    {
+        _pendingPageVersion = version;
+        try
+        {
+            while (true)
+            {
+                var view = _view;
+                var result = await RenderAsync(target, view);
+                if (version != _requestVersion) return;
+                if (view != _view) continue;
+
+                beforeShow?.Invoke();
+                Show(result, item, target, view);
+                return;
+            }
+        }
+        finally
+        {
+            if (_pendingPageVersion == version) _pendingPageVersion = null;
+        }
     }
 
     // ── Analyze (ILSpy's analyzer: context menu / Ctrl+R) ──
@@ -966,6 +999,8 @@ public partial class AssemblyExplorerWindow : Window
 
     private async Task RefreshCurrentAsync()
     {
+        // a new page still rendering replaces the current one and renders itself in the new view
+        if (_pendingPageVersion == _requestVersion) return;
         if (_activeTab.Current is not { Target: { } target } current || current.View == _view) return;
 
         var version = ++_requestVersion;
@@ -1128,15 +1163,14 @@ public partial class AssemblyExplorerWindow : Window
         var page = new PageTarget(
             reference.AssemblyPath, reference.ContainingTypeMetadataToken, reference.DisplayName,
             reference.MemberName is null ? 0 : reference.MetadataToken);
-        var next = await RenderAsync(page, _view);
-
-        // Back on the UI thread already — Avalonia's own SynchronizationContext resumes the
-        // continuation here, same as EditorTabItemControl.ShowGoToDefinitionAsync's identical
+        // Back on the UI thread after the render — Avalonia's own SynchronizationContext resumes the
+        // continuation there, same as EditorTabItemControl.ShowGoToDefinitionAsync's identical
         // await Task.Run(...) pattern (see pass 96 for why an explicit
         // Dispatcher.Post here was a real, caught-by-test bug, not just unnecessary).
-        if (version != _requestVersion) return;
-        if (typeItem is not null) SelectSilently(typeItem);
-        Show(next, typeItem, page);
+        await RenderAndShowAsync(version, page, typeItem, () =>
+        {
+            if (typeItem is not null) SelectSilently(typeItem);
+        });
     }
 
     // The rows of a type of a loaded assembly and, when memberToken is given, of that member (null
@@ -1239,14 +1273,15 @@ public partial class AssemblyExplorerWindow : Window
 
     // A new page: the current one goes onto the Back stack, Forward is dropped (browser semantics).
     // `target` null: a page that can't be re-rendered (an F12 result from the user's script, an error).
-    private void Show(DecompiledMemberResult result, TreeViewItem? item, PageTarget? target)
+    // `view`: the one `result` was rendered in, when it may no longer be the current one.
+    private void Show(DecompiledMemberResult result, TreeViewItem? item, PageTarget? target, DecompilerView? view = null)
     {
         if (_activeTab.Current is not null)
         {
             _activeTab.Back.Push(Remember(_activeTab.Current));
             _activeTab.Forward.Clear();
         }
-        _activeTab.Current = new HistoryEntry(result, item, result.Line, target, _view);
+        _activeTab.Current = new HistoryEntry(result, item, result.Line, target, view ?? _view);
         ApplyResult(result, result.Line);
         UpdateHistoryButtons();
     }
