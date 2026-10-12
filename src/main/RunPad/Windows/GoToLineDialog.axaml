@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RunPad.Windows.GoToLineDialog"
+        Icon="/Assets/icon.ico"
         Title="Go to Line"
         Width="320" Height="150"
         MinWidth="280" MinHeight="140"
