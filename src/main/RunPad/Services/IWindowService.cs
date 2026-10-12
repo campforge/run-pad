@@ -1,4 +1,6 @@
+using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Services;
 
@@ -43,11 +45,18 @@ public interface IWindowService
     Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder);
 
     /// <summary>
-    /// Opens a new, non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
-    /// the script keep running/editable behind it, same rationale as <c>DecompiledViewWindow</c> not
-    /// being another tab.
+    /// Shows the non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
+    /// the script keep running/editable behind it. There's one per app: an open one is brought to
+    /// the front instead of opening another.
     /// </summary>
     Task ShowAssemblyExplorerAsync(string startFolder);
+
+    /// <summary>
+    /// Go to Definition (F12) from the user's script landing outside it: shows
+    /// <paramref name="decompiled"/> in the Assembly Explorer with <paramref name="definition"/>'s row
+    /// selected in its tree — in a new tab of the open explorer, or in a new explorer if none is open.
+    /// </summary>
+    Task ShowDefinitionInAssemblyExplorerAsync(DecompiledMemberResult decompiled, IDefinitionResult definition);
 
     /// <summary>
     /// Asks whether to save a tab's unsaved changes before discarding them (closing an untitled tab

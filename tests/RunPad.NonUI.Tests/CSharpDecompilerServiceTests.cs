@@ -122,6 +122,9 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
                 // int[,] element access compiles to calls of int[,]::Set/Get — synthesized methods
                 // with no metadata (and no documentation ID) behind them
                 public int Grid() { var grid = new int[2, 2]; grid[0, 0] = 1; return grid[1, 1]; }
+                public void Subscribe(Shape shape) { shape.Changed += OnChanged; shape.Changed -= OnChanged; }
+                public int Index(Shape shape) => shape[3];
+                private void OnChanged(object? sender, System.EventArgs e) { }
             }
             public class Box<T>
             {
@@ -300,6 +303,51 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
             new DefinitionTokens(ShapeToken(), null),
             CSharpDecompilerService.ResolveDefinitionTokens(definition with { MemberName = null }));
         Assert.Null(CSharpDecompilerService.ResolveDefinitionTokens(definition with { ContainingTypeFullName = "Tree.Nope" }));
+    }
+
+    // F12 on a property/event/indexer use must land on the property/event itself — the explorer's tree
+    // lists those, not their get_/set_/add_/remove_ accessors.
+    [Theory]
+    [InlineData("Size", "Area", "Area")]
+    [InlineData("Subscribe", "Changed +=", "Changed")]
+    [InlineData("Subscribe", "Changed -=", "Changed")]
+    [InlineData("Index", "shape[", "Item")]
+    public void ResolveReferenceAtPosition_OnAnAccessorUse_Should_ResolveToTheOwningPropertyOrEvent(
+        string method, string needle, string expectedMember)
+    {
+        var page = CSharpDecompilerService.DecompileMember(_fixtures.TreeCodeBinary, Token("Tree.Consumer", method), method);
+        var (line, column) = FindPosition(page.Text, needle);
+        if (needle.EndsWith('[')) column += needle.Length; // inside the brackets of the indexer access
+
+        var reference = CSharpDecompilerService.ResolveReferenceAtPosition(page.SyntaxTree!, line, column + 1);
+
+        Assert.NotNull(reference);
+        Assert.Equal("Tree.Shape", reference!.ContainingTypeFullName);
+        Assert.Equal(expectedMember, reference.MemberName);
+        var owner = CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.Shape").Members
+            .Single(m => m.Text.StartsWith(expectedMember == "Item" ? "this[" : expectedMember, StringComparison.Ordinal));
+        Assert.Equal(owner.MetadataToken, reference.MetadataToken); // a row the tree has
+    }
+
+    // F12 from the script: Roslyn names an indexer "this[]" and may hand over an accessor (get_Area) —
+    // both must land on the indexer/property row and line, not on the type.
+    [Theory]
+    [InlineData("this[]", "this[")]
+    [InlineData("get_Area", "Area :")]
+    [InlineData("add_Changed", "Changed :")]
+    public void ResolveDefinitionTokens_Should_MapRoslynIndexerNames_AndAccessors_ToTheTreesRow(
+        string roslynMemberName, string rowTextPrefix)
+    {
+        var definition = new FakeDefinitionResult(
+            IsInSource: false, Offset: 0, AssemblyPath: _fixtures.TreeCodeBinary,
+            ContainingTypeFullName: "Tree.Shape", MemberName: roslynMemberName,
+            ParameterTypeNames: [], DisplayName: "Tree.Shape." + roslynMemberName);
+
+        var tokens = CSharpDecompilerService.ResolveDefinitionTokens(definition);
+        var page = CSharpDecompilerService.Decompile(definition);
+
+        Assert.Equal(ShapeMember(rowTextPrefix).MetadataToken, tokens!.MemberToken);
+        Assert.DoesNotContain("class Shape", page.Text.Split('\n')[page.Line - 1]); // the caret is on the member
     }
 
     [Fact]
@@ -640,7 +688,10 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         // Circle's constructor calls Shape's (`call`, not `newobj`): a use, not an instantiation;
         // Size() calls Shape::get_Area through a Circle — a use of Shape's member
         Assert.Equal(
-            ["Tree.Circle.Circle()", "Tree.Consumer.Caller() : void", "Tree.Consumer.Size() : double"],
+            [
+                "Tree.Circle.Circle()", "Tree.Consumer.Caller() : void", "Tree.Consumer.Index(Shape) : int",
+                "Tree.Consumer.Size() : double", "Tree.Consumer.Subscribe(Shape) : void",
+            ],
             Analyze(AnalysisKind.UsedBy, ShapeToken()));
     }
 
@@ -710,6 +761,16 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
     }
 
     [Fact]
+    public void AnExplicitInterfaceImplementation_Should_BeNamedLikeIlSpy_InterfaceDotMember()
+    {
+        var member = Assert.Single(CSharpDecompilerService.GetTypeContents(_fixtures.TreeCodeBinary, "Tree.LoudGreeter").Members,
+            m => m.Kind == AssemblyNodeKind.Method);
+
+        Assert.Equal("IGreeter.Greet(string) : void", member.Text);
+        Assert.Equal(AssemblyAccess.Private, member.Access); // greyed, with the lock overlay
+    }
+
+    [Fact]
     public void OverriddenBy_Should_ListTheOverridingMethods_AndProperties()
     {
         Assert.Equal(
@@ -721,10 +782,9 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
     [Fact]
     public void ImplementedBy_Should_FindImplicitAndExplicitImplementations_AndImplementingTypes()
     {
-        var implementations = Analyze(AnalysisKind.ImplementedBy, Member("Tree.IGreeter", "Greet").MetadataToken);
-        Assert.Equal(2, implementations.Count);
-        Assert.Contains("Tree.Greeter.Greet(string) : void", implementations);
-        Assert.Contains(implementations, i => i.StartsWith("Tree.LoudGreeter.", StringComparison.Ordinal));
+        Assert.Equal(
+            ["Tree.Greeter.Greet(string) : void", "Tree.LoudGreeter.IGreeter.Greet(string) : void"],
+            Analyze(AnalysisKind.ImplementedBy, Member("Tree.IGreeter", "Greet").MetadataToken));
 
         // Circle implements IShape through its base class Shape
         Assert.Equal(["Tree.Circle", "Tree.Shape"], Analyze(AnalysisKind.ImplementedBy, TypeToken("IShape")));

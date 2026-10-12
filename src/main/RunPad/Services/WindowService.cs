@@ -2,7 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
+using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Windows;
 
 namespace RunPad.Services;
@@ -126,14 +128,47 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    // One assembly explorer for the app (it has tabs now): the menu and every F12 into decompiled code
+    // reuse it while it's open; closing it lets the next one create a fresh window.
+    private AssemblyExplorerWindow? _assemblyExplorer;
+
+    internal AssemblyExplorerWindow? AssemblyExplorer => _assemblyExplorer;
+
     public Task ShowAssemblyExplorerAsync(string startFolder)
     {
-        var owner = MainWindow;
+        if (_assemblyExplorer is { } open)
+        {
+            open.Activate();
+            return Task.CompletedTask;
+        }
 
-        var window = new AssemblyExplorerWindow(_themeService, this, startFolder);
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, startFolder));
+        return Task.CompletedTask;
+    }
+
+    public async Task ShowDefinitionInAssemblyExplorerAsync(DecompiledMemberResult decompiled, IDefinitionResult definition)
+    {
+        if (_assemblyExplorer is { } open)
+        {
+            open.Activate();
+            await open.OpenDefinitionInNewTabAsync(decompiled, definition.AssemblyPath, definition);
+            return;
+        }
+
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, decompiled, definition.AssemblyPath, definition));
+    }
+
+    private void ShowTracked(AssemblyExplorerWindow window)
+    {
+        _assemblyExplorer = window;
+        window.Closed += (_, _) =>
+        {
+            if (_assemblyExplorer == window) _assemblyExplorer = null;
+        };
+
+        var owner = MainWindow;
         if (owner is not null) window.Show(owner);
         else window.Show();
-        return Task.CompletedTask;
     }
 
     private static Task ShowDialogAsync(Window dialog)

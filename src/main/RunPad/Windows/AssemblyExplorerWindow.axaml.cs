@@ -99,7 +99,26 @@ public partial class AssemblyExplorerWindow : Window
         if (assemblyPath is null)
             return;
         _startFolder = Path.GetDirectoryName(assemblyPath) ?? "";
-        _ = LoadAndRevealInitialAsync(assemblyPath, definition);
+        _ = LoadAndRevealDefinitionAsync(assemblyPath, definition, initialResult);
+    }
+
+    /// <summary>
+    /// A later F12 from the user's script, into this already open explorer (there's one per app, see
+    /// <c>WindowService</c>): the page opens in a new tab — or in the only tab if it's still empty —
+    /// and its target is revealed in the tree like the first one's.
+    /// </summary>
+    internal async Task OpenDefinitionInNewTabAsync(
+        DecompiledMemberResult page, string? assemblyPath, IDefinitionResult? definition)
+    {
+        if (_tabs.Count > 1 || _activeTab.Current is not null)
+        {
+            var tab = new DocumentTab();
+            _tabs.Insert(ActiveTabIndex + 1, tab);
+            ActivateTab(tab);
+        }
+        Show(page, item: null, target: null);
+        if (assemblyPath is not null)
+            await LoadAndRevealDefinitionAsync(assemblyPath, definition, page);
     }
 
     // The initial page's row and target, once known. They may be found before or after the initial
@@ -107,7 +126,10 @@ public partial class AssemblyExplorerWindow : Window
     private TreeViewItem? _initialPageRow;
     private PageTarget? _initialPageTarget;
 
-    private async Task LoadAndRevealInitialAsync(string assemblyPath, IDefinitionResult? definition)
+    // Loads the definition's assembly, reveals its member's row (its type's, when the tree doesn't list
+    // the member) and attaches row + target to `page` in whichever tab shows it — selecting the row if
+    // that tab is the active one. A page the user has navigated away from keeps its tab's selection.
+    private async Task LoadAndRevealDefinitionAsync(string assemblyPath, IDefinitionResult? definition, DecompiledMemberResult page)
     {
         if (await LoadAssemblyAsync(assemblyPath) is null || definition?.ContainingTypeFullName is not { } typeName) return;
 
@@ -123,15 +145,20 @@ public partial class AssemblyExplorerWindow : Window
         if (tokens is null) return;
 
         var (typeItem, memberItem) = await RevealAsync(assemblyPath, typeName, tokens.MemberToken);
-        _initialPageRow = memberItem ?? typeItem;
-        _initialPageTarget = new PageTarget(
-            assemblyPath, tokens.TypeToken, definition.DisplayName, tokens.MemberToken ?? 0);
-
-        // already on screen and still the page shown: attach the row and target, select the row
-        if (_activeTab.Current is { } current && ReferenceEquals(current.Result, _pendingInitialResult))
+        var row = memberItem ?? typeItem;
+        var target = new PageTarget(assemblyPath, tokens.TypeToken, definition.DisplayName, tokens.MemberToken ?? 0);
+        if (ReferenceEquals(page, _pendingInitialResult))
         {
-            _activeTab.Current = current with { Item = _initialPageRow, Target = _initialPageTarget };
-            SelectSilently(_initialPageRow);
+            // the constructor's page may not be on screen yet: the editor shows it once attached
+            _initialPageRow = row;
+            _initialPageTarget = target;
+        }
+
+        foreach (var tab in _tabs)
+        {
+            if (tab.Current is not { } current || !ReferenceEquals(current.Result, page)) continue;
+            tab.Current = current with { Item = row, Target = target };
+            if (tab == _activeTab) SelectSilently(row);
         }
     }
 
@@ -159,6 +186,15 @@ public partial class AssemblyExplorerWindow : Window
                 e.Handled = true;
             }
         });
+        // middle-click closes a tab, like browsers and IDEs (Tunnel: before the ListBox selects it)
+        DocumentTabs.AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            if (!e.GetCurrentPoint(DocumentTabs).Properties.IsMiddleButtonPressed) return;
+            if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)
+                is not { DataContext: TabHeader { Tab: DocumentTab tab } }) return;
+            e.Handled = true;
+            CloseTab(tab);
+        }, RoutingStrategies.Tunnel);
 
         // middle-click or Ctrl+click on a tree row opens it in a new tab
         TypeTree.AddHandler(PointerPressedEvent, (_, e) =>
