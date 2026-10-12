@@ -709,6 +709,23 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     }
 
     [AvaloniaFact]
+    public async Task MiddleClickOnATab_Should_CloseIt()
+    {
+        var (window, alpha, run) = await OpenAlphaAndRunRowsAsync();
+        await window.SelectNodeAsync(Node(alpha), alpha);
+        await window.OpenInNewTabAsync(Node(run), run);
+        window.UpdateLayout();
+        var firstTab = window.FindControl<ListBox>("DocumentTabs")!.ContainerFromIndex(0)!;
+        var center = firstTab.TranslatePoint(new Point(firstTab.Bounds.Width / 2, firstTab.Bounds.Height / 2), window)!.Value;
+
+        window.MouseDown(center, MouseButton.Middle);
+        window.MouseUp(center, MouseButton.Middle);
+
+        Assert.Equal(["Run() : void"], window.TabTitles); // the middle-clicked first tab is gone
+        Assert.Equal("Run() : void", window.Title);
+    }
+
+    [AvaloniaFact]
     public void ALongTabTitle_Should_BeTrimmed_KeepingTheCloseButtonInsideTheTab()
     {
         // user report: Func<T1, ..., T16, TResult>'s title pushed the × out of the tab
@@ -1198,6 +1215,68 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
         Assert.Contains(".class", window.Editor.Text);
         Assert.Contains("Gamma", window.Editor.Text);
+    }
+
+    private DecompiledReference ScriptDefinition(string typeName, string? memberName) => new(
+        _explorerAssembly.BinaryPath, typeName, memberName, [], memberName is null ? typeName : $"{typeName}.{memberName}",
+        MetadataToken: 0, ContainingTypeMetadataToken: 0);
+
+    [AvaloniaFact]
+    public async Task ALaterScriptF12_Should_OpenInANewTab_AndSelectItsRow()
+    {
+        var window = OpenFromScriptF12("Foo.Bar.Alpha", "Run", "Foo.Bar.Alpha.Run");
+        await TestWait.WhileAsync(() => window.Tree.SelectedItem is null);
+        var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
+
+        await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(gamma), gamma.AssemblyPath, gamma);
+
+        Assert.Equal(2, window.TabCount);
+        Assert.Equal(1, window.ActiveTabIndex);
+        Assert.Equal("Foo.Bar.Gamma", window.Title);
+        Assert.Equal("Gamma", Text((TreeViewItem)window.Tree.SelectedItem!));
+        Assert.Single(window.LoadedAssemblyPaths); // the same assembly isn't added twice
+
+        window.ActivateNextTab(-1); // the first tab kept its page and its row
+        Assert.Equal("Foo.Bar.Alpha.Run", window.Title);
+        Assert.Equal("Run() : void", Text((TreeViewItem)window.Tree.SelectedItem!));
+    }
+
+    [AvaloniaFact]
+    public async Task AScriptF12_IntoAnEmptyExplorer_Should_UseItsOnlyTab()
+    {
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        window.Show();
+        var alpha = ScriptDefinition("Foo.Bar.Alpha", memberName: null);
+
+        await window.OpenDefinitionInNewTabAsync(CSharpDecompilerService.Decompile(alpha), alpha.AssemblyPath, alpha);
+
+        Assert.Equal(1, window.TabCount);
+        Assert.Equal("Alpha", Text((TreeViewItem)window.Tree.SelectedItem!));
+    }
+
+    [AvaloniaFact]
+    public async Task WindowService_Should_KeepOneExplorer_ForTheMenuAndEveryScriptF12_UntilItIsClosed()
+    {
+        var service = new WindowService(
+            dependenciesWindowFactory: () => throw new InvalidOperationException("not expected here"),
+            preferencesWindowFactory: () => throw new InvalidOperationException("not expected here"),
+            themeService: CreateThemeService().Object);
+        var alpha = ScriptDefinition("Foo.Bar.Alpha", "Run");
+        var gamma = ScriptDefinition("Foo.Bar.Gamma", memberName: null);
+
+        await service.ShowDefinitionInAssemblyExplorerAsync(CSharpDecompilerService.Decompile(alpha), alpha);
+        var explorer = Assert.IsType<AssemblyExplorerWindow>(service.AssemblyExplorer);
+        await service.ShowDefinitionInAssemblyExplorerAsync(CSharpDecompilerService.Decompile(gamma), gamma);
+        await service.ShowAssemblyExplorerAsync("");
+
+        Assert.Same(explorer, service.AssemblyExplorer);
+        Assert.Equal(2, explorer.TabCount);
+
+        explorer.Close();
+        Assert.Null(service.AssemblyExplorer);
+        await service.ShowAssemblyExplorerAsync("");
+        Assert.NotSame(explorer, service.AssemblyExplorer);
+        service.AssemblyExplorer!.Close();
     }
 
     [AvaloniaFact]

@@ -527,19 +527,27 @@ public static partial class CSharpDecompilerService
                 _ => "",
             }) + TypeText(p.Type is ByReferenceType byRef ? byRef.ElementType : p.Type)));
 
+        // an explicit interface implementation is named "IGreeter.Greet" like ILSpy, not by its metadata
+        // name ("Tree.IGreeter.Greet"): the interface as written (short, with type arguments) + its member
+        var implemented = member.IsExplicitInterfaceImplementation
+            ? member.ExplicitlyImplementedInterfaceMembers.FirstOrDefault()
+            : null;
+        var prefix = implemented is null ? "" : TypeText(implemented.DeclaringType) + ".";
+        var name = implemented?.Name ?? member.Name;
+
         switch (member)
         {
             case IProperty { IsIndexer: true } indexer:
-                return $"this[{Parameters(indexer.Parameters)}] : {TypeText(indexer.ReturnType)}";
+                return $"{prefix}this[{Parameters(indexer.Parameters)}] : {TypeText(indexer.ReturnType)}";
             case IMethod { IsConstructor: true } ctor:
                 return $"{ctor.DeclaringTypeDefinition?.Name ?? ctor.Name}({Parameters(ctor.Parameters)})";
             case IMethod method:
                 var typeParameters = method.TypeParameters.Count > 0
                     ? "<" + string.Join(", ", method.TypeParameters.Select(t => t.Name)) + ">"
                     : "";
-                return $"{method.Name}{typeParameters}({Parameters(method.Parameters)}) : {TypeText(method.ReturnType)}";
+                return $"{prefix}{name}{typeParameters}({Parameters(method.Parameters)}) : {TypeText(method.ReturnType)}";
             default:
-                return $"{member.Name} : {TypeText(member.ReturnType)}";
+                return $"{prefix}{name} : {TypeText(member.ReturnType)}";
         }
     }
 
@@ -730,19 +738,38 @@ public static partial class CSharpDecompilerService
     // enough to disambiguate the common overload case but not a full signature match. Falls back to
     // "first member with this name" (single-Member fields/properties/events, or an unmatched method
     // overload) rather than returning nothing — an imprecise line beats no navigation at all.
+    // Two Roslyn/metadata naming gaps are bridged here, both of which used to land on the type instead:
+    // Roslyn names an indexer "this[]" (metadata: "Item"), and an accessor symbol (get_X/add_X) stands
+    // for its property/event — which is what the explorer's tree lists and the caret should be on.
     private static IMember? FindMember(ITypeDefinition typeDef, string memberName, IReadOnlyList<string> parameterTypeNames)
     {
-        var candidates = typeDef.Members.Where(m => m.Name == memberName).ToList();
-        if (candidates.Count <= 1) return candidates.FirstOrDefault();
-
-        foreach (var candidate in candidates)
+        var candidates = typeDef.Members
+            .Where(m => memberName == "this[]" ? m is IProperty { IsIndexer: true } : m.Name == memberName)
+            .ToList();
+        if (candidates.Count == 0)
         {
-            if (candidate is not IParameterizedMember { Parameters: var parameters }) continue;
-            if (parameters.Count != parameterTypeNames.Count) continue;
-            if (parameters.Select(p => p.Type.Name).SequenceEqual(parameterTypeNames)) return candidate;
+            // an accessor's name: typeDef.Members doesn't list accessors, their property/event does
+            candidates = typeDef.Properties
+                .Where(p => p.Getter?.Name == memberName || p.Setter?.Name == memberName)
+                .Cast<IMember>()
+                .Concat(typeDef.Events.Where(e => e.AddAccessor?.Name == memberName
+                                                  || e.RemoveAccessor?.Name == memberName
+                                                  || e.InvokeAccessor?.Name == memberName))
+                .ToList();
         }
+        var found = candidates.Count <= 1 ? candidates.FirstOrDefault() : MatchParameters() ?? candidates[0];
+        return found is IMethod { AccessorOwner: IMember owner } ? owner : found;
 
-        return candidates[0];
+        IMember? MatchParameters()
+        {
+            foreach (var candidate in candidates)
+            {
+                if (candidate is not IParameterizedMember { Parameters: var parameters }) continue;
+                if (parameters.Count != parameterTypeNames.Count) continue;
+                if (parameters.Select(p => p.Type.Name).SequenceEqual(parameterTypeNames)) return candidate;
+            }
+            return null;
+        }
     }
 
     private sealed record TypeOnlyDefinitionResult(
