@@ -1700,7 +1700,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
     public event Action<string, IReadOnlyList<IInlayHint>>? InlayHintsChanged;
 
-    public void NotifyTextChanged(string code)
+    public void NotifyTextChanged(string code) => NotifyTextChanged(() => code);
+
+    // The code is materialized only here, after the debounce and off the caller's thread — a
+    // notification superseded within BackgroundAnalysisDebounce (the next keystroke) never builds its
+    // string at all.
+    public void NotifyTextChanged(Func<string> getCode)
     {
         // Not disposed here — a superseded background analysis pass (Task.Run below) can still be
         // mid-flight past this point (e.g. inside RoslynCodeFixEngine, which doesn't poll the token
@@ -1719,6 +1724,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             try
             {
                 await Task.Delay(BackgroundAnalysisDebounce, ct);
+                var code = getCode();
                 var document = SyncDocument(code);
                 await Task.WhenAll(
                     ComputeDiagnosticsAndCodeFixesAsync(code, document, ct),
