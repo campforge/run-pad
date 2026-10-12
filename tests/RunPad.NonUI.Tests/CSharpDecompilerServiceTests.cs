@@ -161,12 +161,57 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
+    // Analyzer edge cases: compiler-generated code of overloads (a lambda, an async state machine, a
+    // local function in only one of each pair), methods that look like an interface member's
+    // implementation but aren't, and a type used only as a type argument.
+    private const string AnalysisCode = """
+        _ = 0;
+
+        namespace Edge
+        {
+            using System.Threading.Tasks;
+
+            public class Overloads
+            {
+                public static void Target() { }
+                public static void Other() { }
+                public void Caller(int x) { Other(); }
+                public void Caller(string s) { System.Action a = () => Target(); a(); }
+                public async Task Later(int x) { await Task.Yield(); Other(); }
+                public async Task Later(string s) { await Task.Yield(); Target(); }
+                public void Local(int x) { Inner(); static void Inner() => Other(); }
+                public void Local(string s) { Inner(); static void Inner() => Target(); }
+            }
+
+            public interface IWork { void M(); object Get(); }
+            public class Work : IWork { public void M() { } public void M<T>() { } public object Get() => new(); }
+            // the explicit Get is the implementation; the public one returns another type anyway
+            public class Narrow : IWork { public void M() { } public string Get() => ""; object IWork.Get() => ""; }
+            // re-implements IWork with Work's members: its own Get returns another type
+            public class Reworked : Work, IWork { public new string Get() => ""; }
+            public interface IStore<T> { T Take<U>(U key); }
+            public class Store : IStore<string> { public string Take<U>(U key) => ""; public string Take(int key) => ""; }
+
+            public class Marker { }
+            public class MarkerUsers
+            {
+                public object Make() => new System.Collections.Generic.List<Marker>();
+                public System.Type ListToken() => typeof(System.Collections.Generic.List<Marker>);
+                public System.Type ArrayToken() => typeof(Marker[]);
+                public object Empty() => System.Array.Empty<Marker>();
+                public object Direct() => new Marker[1];
+                public object Unrelated() => new System.Collections.Generic.List<string>();
+            }
+        }
+        """;
+
     public sealed class CompiledFixtures : IAsyncLifetime
     {
         public string CodeBinary { get; private set; } = null!;
         public string RecursiveCodeBinary { get; private set; } = null!;
         public string ExplorerCodeBinary { get; private set; } = null!;
         public string TreeCodeBinary { get; private set; } = null!;
+        public string AnalysisCodeBinary { get; private set; } = null!;
 
         private readonly List<string> _binaries = [];
 
@@ -176,6 +221,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
             RecursiveCodeBinary = Compile(RecursiveCode, "RecursiveCodeFixture");
             ExplorerCodeBinary = Compile(ExplorerCode, "ExplorerCodeFixture");
             TreeCodeBinary = Compile(TreeCode, "TreeCodeFixture", TreeResources());
+            AnalysisCodeBinary = Compile(AnalysisCode, "AnalysisCodeFixture");
             return ValueTask.CompletedTask;
         }
 
@@ -848,6 +894,79 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
                 "Tree.Zoo.Animals : Animal[]", "Tree.Zoo.Get(Animal) : List<Animal>",
             ],
             Analyze(AnalysisKind.ExposedBy, TypeToken("Animal")));
+    }
+
+    private int EdgeToken(string typeName, string text) =>
+        CSharpDecompilerService.GetTypeContents(_fixtures.AnalysisCodeBinary, typeName).Members
+            .Single(m => m.Text == text).MetadataToken;
+
+    private IReadOnlyList<string> AnalyzeEdge(AnalysisKind kind, int token) =>
+        CSharpDecompilerService.Analyze(kind, _fixtures.AnalysisCodeBinary, token, [_fixtures.AnalysisCodeBinary])
+            .Select(r => $"{r.Location}.{r.Text}").ToList();
+
+    [Fact]
+    public void UsedBy_Should_CountALambda_StateMachine_OrLocalFunction_AsTheOverloadItBelongsTo()
+    {
+        // each overload pair has the same name: only the IL references tell them apart
+        Assert.Equal(
+            [
+                "Edge.Overloads.Caller(string) : void", "Edge.Overloads.Later(string) : Task",
+                "Edge.Overloads.Local(string) : void",
+            ],
+            AnalyzeEdge(AnalysisKind.UsedBy, EdgeToken("Edge.Overloads", "Target() : void")));
+        Assert.Equal(
+            [
+                "Edge.Overloads.Caller(int) : void", "Edge.Overloads.Later(int) : Task",
+                "Edge.Overloads.Local(int) : void",
+            ],
+            AnalyzeEdge(AnalysisKind.UsedBy, EdgeToken("Edge.Overloads", "Other() : void")));
+    }
+
+    [Theory]
+    [InlineData("Caller(string) : void", "Caller(int) : void")]
+    [InlineData("Later(string) : Task", "Later(int) : Task")]
+    [InlineData("Local(string) : void", "Local(int) : void")]
+    public void Uses_Should_ReadOnlyTheGeneratedCodeOfThatOverload(string withGeneratedCall, string withoutIt)
+    {
+        var uses = AnalyzeEdge(AnalysisKind.Uses, EdgeToken("Edge.Overloads", withGeneratedCall));
+        Assert.Contains("Edge.Overloads.Target() : void", uses);
+        Assert.DoesNotContain("Edge.Overloads.Other() : void", uses);
+
+        var otherUses = AnalyzeEdge(AnalysisKind.Uses, EdgeToken("Edge.Overloads", withoutIt));
+        Assert.Contains("Edge.Overloads.Other() : void", otherUses);
+        Assert.DoesNotContain("Edge.Overloads.Target() : void", otherUses);
+    }
+
+    [Fact]
+    public void ImplementedBy_Should_LeaveOutMembersWithAnotherArityOrReturnType_OrHiddenByAnExplicitImplementation()
+    {
+        // not Work.M<T>()
+        Assert.Equal(
+            ["Edge.Narrow.M() : void", "Edge.Work.M() : void"],
+            AnalyzeEdge(AnalysisKind.ImplementedBy, EdgeToken("Edge.IWork", "M() : void")));
+        // not Narrow.Get() : string (the explicit one implements it), nor Reworked.Get() : string
+        Assert.Equal(
+            ["Edge.Narrow.IWork.Get() : object", "Edge.Work.Get() : object"],
+            AnalyzeEdge(AnalysisKind.ImplementedBy, EdgeToken("Edge.IWork", "Get() : object")));
+        // IStore<string>.Take<U>(U) : string — substituted, matched by generic arity
+        Assert.Equal(
+            ["Edge.Store.Take<U>(U) : string"],
+            AnalyzeEdge(AnalysisKind.ImplementedBy, EdgeToken("Edge.IStore`1", "Take<U>(U) : T")));
+    }
+
+    [Fact]
+    public void UsedBy_OfAType_Should_FindItAsATypeArgument_OfATypeOrAGenericMethod()
+    {
+        var marker = CSharpDecompilerService.EnumerateTypes(_fixtures.AnalysisCodeBinary)
+            .Single(t => t.Name == "Marker").MetadataToken;
+
+        Assert.Equal(
+            [
+                "Edge.MarkerUsers.ArrayToken() : Type", "Edge.MarkerUsers.Direct() : object",
+                "Edge.MarkerUsers.Empty() : object", "Edge.MarkerUsers.ListToken() : Type",
+                "Edge.MarkerUsers.Make() : object",
+            ],
+            AnalyzeEdge(AnalysisKind.UsedBy, marker));
     }
 
     [Fact]
