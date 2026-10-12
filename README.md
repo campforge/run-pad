@@ -33,8 +33,8 @@ later) or `RunPad-osx-x64.dmg` for Intel (Apple menu → About This Mac shows wh
 `RunPad.app` onto the `Applications` folder shown next to it, eject the disk image, then start RunPad
 from Applications.
 
-The build isn't signed or notarized with an Apple Developer certificate yet, so on first launch
-macOS may refuse to open it because it can't verify the developer. If you downloaded it from the
+The app is only ad-hoc signed — not signed with an Apple Developer ID certificate or notarized yet —
+so on first launch macOS may refuse to open it because it can't verify the developer. If you downloaded it from the
 releases page above, open System Settings → Privacy & Security and click "Open Anyway" next to the
 RunPad message, then confirm. macOS offers that button only for a while after a blocked launch, and
 depending on your macOS version and security settings may not offer it at all. The disk image
