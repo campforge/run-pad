@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RunPad.Windows.RenameSymbolDialog"
+        Icon="/Assets/icon.ico"
         Title="Rename"
         Width="360" Height="150"
         MinWidth="300" MinHeight="140"
