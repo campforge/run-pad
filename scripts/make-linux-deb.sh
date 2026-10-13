@@ -17,13 +17,22 @@ STAGING="$OUTPUT_DIR/deb-staging"
 rm -rf "$STAGING"
 mkdir -p "$STAGING/usr/lib/runpad" "$STAGING/usr/bin" \
     "$STAGING/usr/share/applications" "$STAGING/usr/share/icons/hicolor/256x256/apps" \
-    "$STAGING/DEBIAN"
+    "$STAGING/usr/share/doc/runpad" "$STAGING/DEBIAN"
 
 cp -R "$PUBLISH_DIR"/* "$STAGING/usr/lib/runpad/"
 chmod +x "$STAGING/usr/lib/runpad/RunPad"
 ln -s /usr/lib/runpad/RunPad "$STAGING/usr/bin/runpad"
 cp src/main/RunPad/Assets/runpad.desktop "$STAGING/usr/share/applications/runpad.desktop"
 cp src/main/RunPad/Assets/runpad.png "$STAGING/usr/share/icons/hicolor/256x256/apps/runpad.png"
+
+# Debian keeps a package's license information in /usr/share/doc/<package>/copyright; the GPL-3.0 text
+# itself ships with every Debian system (base-files), so it is referenced rather than copied there.
+# LICENSE.txt and EULA.txt are also in /usr/lib/runpad as part of the publish output (RunPad.csproj).
+{
+    tr -d '\r' < installer/EULA.txt
+    printf '\nOn Debian systems, the complete text of the GNU General Public License version 3\n'
+    printf 'can be found in /usr/share/common-licenses/GPL-3.\n'
+} > "$STAGING/usr/share/doc/runpad/copyright"
 
 INSTALLED_SIZE_KB=$(du -sk "$STAGING/usr" | cut -f1)
 sed -e "s/__VERSION__/$VERSION/" src/main/RunPad/Assets/runpad.control > "$STAGING/DEBIAN/control"
