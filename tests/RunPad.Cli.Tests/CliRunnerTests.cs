@@ -1,6 +1,7 @@
 using RunPad.Cli;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
 using Spectre.Console.Testing;
 using Xunit;
@@ -226,6 +227,42 @@ public class CliRunnerTests
             Assert.Equal(1, exitCode);
             Assert.Contains("Failed to parse", stderr.Output);
             Assert.Contains(expected, stderr.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
+    // ── exit code (review R4) ────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(RunOutcome.Exited, 0, 0)]
+    [InlineData(RunOutcome.Exited, 7, 7)]
+    [InlineData(RunOutcome.Exited, -1, -1)]
+    [InlineData(RunOutcome.CompilationFailed, null, 1)]
+    [InlineData(RunOutcome.StartFailed, null, 1)]
+    public void ExitCodeFor_Should_BeTheScriptsOwnExitCode_Or1WhenItNeverRan(RunOutcome outcome, int? exitCode, int expected)
+    {
+        Assert.Equal(expected, CliRunner.ExitCodeFor(new RunResult(outcome, exitCode)));
+    }
+
+    // Real compile + real script process (needs an installed .NET SDK, like the GUI's own run).
+    [Theory]
+    [Trait("Category", "RealBuild")]
+    [InlineData("Console.WriteLine(\"done\");\nEnvironment.Exit(7);", 7)]
+    [InlineData("Console.Error.WriteLine(\"just a warning\");", 0)]
+    [InlineData("int x = \"not an int\";", 1)]
+    public async Task RunAsync_Should_ReturnTheScriptsExitCode(string code, int expected)
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-exit-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path, $"---\nlanguage: csharp\nkind: Statements\n---\n\n```csharp run\n{code}\n```\n");
+            var stdout = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync([path], stdout, stderr, CancellationToken.None);
+
+            Assert.True(expected == exitCode, $"exit code {exitCode}\nstdout:\n{stdout.Output}\nstderr:\n{stderr.Output}");
         }
         finally { File.Delete(path); }
     }

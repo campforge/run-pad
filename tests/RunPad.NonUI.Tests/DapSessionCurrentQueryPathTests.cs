@@ -69,6 +69,7 @@ public class DapSessionCurrentQueryPathTests
         public bool Start() => true;
         public void Kill() { }
         public Task WaitForExitAsync(CancellationToken ct) => Task.CompletedTask;
+        public int ExitCode => 0;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
