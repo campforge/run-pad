@@ -168,9 +168,15 @@ wrote something to stderr during execution); `130` — interrupted with Ctrl+C.
 
 ## License
 
-Copyright (C) 2026 Campforge and contributors
+Copyright (C) 2026 Vadim ([coddwrench](https://github.com/coddwrench))
 
 Licensed under the GNU General Public License v3.0 — see [`LICENSE`](LICENSE) for the full text.
+
+Exception: the `RunPad.Runtime` library ([`src/runtime/RunPad.Runtime`](src/runtime/RunPad.Runtime)) is
+licensed under the MIT License — see [its `LICENSE`](src/runtime/RunPad.Runtime/LICENSE). It is the only
+RunPad assembly that scripts are compiled against and shipped with, so programs written in RunPad can be
+distributed under any license.
+
 The installers show and install an end-user agreement ([`installer/EULA.txt`](installer/EULA.txt)) that
 summarizes the license, the warranty disclaimer and where to get the source code; it adds no
 restrictions to the GPL-3.0.

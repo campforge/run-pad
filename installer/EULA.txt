@@ -1,6 +1,6 @@
 RunPad - End-User License Agreement
 
-Copyright (C) 2026 Campforge and contributors
+Copyright (C) 2026 Vadim (coddwrench)
 
 Please read this agreement before installing or using RunPad.
 
@@ -16,6 +16,11 @@ This agreement summarizes the terms that apply to you; the GPL-3.0 is the
 license that actually governs RunPad. Nothing in this agreement limits or
 takes away any right the GPL-3.0 gives you. If the two ever disagree, the
 GPL-3.0 prevails.
+
+One part of RunPad is licensed differently: the RunPad.Runtime library
+(RunPad.Runtime.dll), which your scripts are compiled against and which is
+copied next to them, is licensed under the MIT License. Its text is in the
+RunPad.Runtime.LICENSE.txt file installed next to the application.
 
 RunPad includes third-party components that are distributed under their own
 open-source licenses; those licenses apply to the respective components.
@@ -87,5 +92,8 @@ repository, and its source code archive is attached to the release.
 Your own work is yours: documents, scripts and programs that you write with
 RunPad are not covered by RunPad's license merely because you created, edited
 or ran them in RunPad, and you are not required to publish their source code.
-The GPL-3.0 applies to RunPad's own code, including any RunPad components you
-choose to copy into or distribute together with your programs.
+Programs compiled by RunPad only use the MIT-licensed RunPad.Runtime library,
+so you may distribute them under any license, including a closed-source one;
+when you distribute RunPad.Runtime.dll with them, include its copyright and
+MIT license notice. The GPL-3.0 still applies to the rest of RunPad's code if
+you copy it into your own programs.
