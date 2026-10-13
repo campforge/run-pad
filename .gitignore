@@ -18,6 +18,3 @@ bin
 /dist/
 *.msi
 *.wixpdb
-
-# Local `mkdocs build` output for the GitHub Pages user docs (mkdocs.yml, docs/GITHUB-PAGES.md).
-/site/
