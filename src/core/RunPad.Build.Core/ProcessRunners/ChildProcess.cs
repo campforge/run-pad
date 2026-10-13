@@ -54,6 +54,8 @@ public sealed class ChildProcess : IChildProcess
 
     public Task WaitForExitAsync(CancellationToken ct) => _process.WaitForExitAsync(ct);
 
+    public int ExitCode => _process.ExitCode;
+
     public async ValueTask DisposeAsync()
     {
         Kill();

@@ -123,7 +123,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
 
     // ── Run ──────────────────────────────────────────────────────────────────
 
-    public override async Task RunAsync(
+    public override async Task<RunResult> RunAsync(
         string code,
         OutputReceivedHandler? outputHandler = null,
         CancellationToken cancellationToken = default)
@@ -133,7 +133,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
             await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
-        if (!compilationResult.Success || binaryPath is null) return;
+        if (!compilationResult.Success || binaryPath is null) return RunResult.CompilationFailed;
 
         // No `using` here (ANALYSIS.md #99, same pattern as #89's CTS Cancel+Dispose fix) —
         // TerminateAsync can call _runCts.Cancel() from another thread (a "Stop" click racing this
@@ -151,13 +151,25 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 Environment.ProcessId.ToString(),
                 _options.CurrentQueryPath);
 
-            if (!process.Start()) return;
+            if (!process.Start()) return RunResult.StartFailed;
 
             _currentInputStream = process.InputStream;
-            await Task.WhenAll(
+            var drained = Task.WhenAll(
                 DrainReaderAsync(process.StandardOutput, OutputKind.StandardOutput,
                     WrapWithSentinelDetection(outputHandler), cts.Token),
                 DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
+
+            // Review R4: the run ends when the process exits, not when its output closes — a script
+            // that closes stdout/stderr itself is still running, and disposing the process here
+            // would kill it. Both pipes are still drained to EOF (concurrently, BUG-1) so no output
+            // is lost; a failed drain stops waiting at once (the disposal below then kills the script).
+            var exited = process.WaitForExitAsync(cts.Token);
+            if (await Task.WhenAny(drained, exited) == drained && drained.IsFaulted)
+                await drained;
+            await exited;
+            await drained;
+
+            return RunResult.Exited(process.ExitCode);
         }
         finally
         {

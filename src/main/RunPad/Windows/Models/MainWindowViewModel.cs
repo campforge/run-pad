@@ -74,6 +74,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public ReactiveCommand<Unit, Unit> ImportLinqFileCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAssemblyExplorerCommand { get; }
 
+    /// <summary>File → "Open Text File...": any file in its own text editor window.</summary>
+    public ReactiveCommand<Unit, Unit> OpenTextFileCommand { get; }
+
+    private async Task OpenTextFileAsync()
+    {
+        var path = await _windowService.ShowOpenTextFileDialogAsync(_fileSystemService.Folder);
+        if (path is not null) await _windowService.ShowTextEditorAsync(path);
+    }
+
     // TODO.md #80: the F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
     // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
     // no WPF-style InputGestureText string property; InputGesture takes a real KeyGesture and renders
@@ -701,6 +710,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
         OpenAssemblyExplorerCommand = ReactiveCommand.CreateFromTask(
             () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
+        OpenTextFileCommand = ReactiveCommand.CreateFromTask(OpenTextFileAsync);
+        OpenTextFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenTextFileCommand failed"));
         // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
         // vanish with no trace at all.
         OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));

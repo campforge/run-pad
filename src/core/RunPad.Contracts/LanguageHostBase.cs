@@ -26,7 +26,7 @@ public abstract class LanguageHostBase : ILanguageHost
         remove => _compiled -= value;
     }
 
-    public abstract Task RunAsync(
+    public abstract Task<RunResult> RunAsync(
         string code,
         OutputReceivedHandler outputHandler,
         CancellationToken cancellationToken);

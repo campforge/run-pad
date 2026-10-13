@@ -79,11 +79,11 @@ public static class CliRunner
         {
             var options = BuildOptions(document.FrontMatter, platform, outputDirectory, filePath);
 
-            var hadError = false;
+            RunResult result;
             await using var host = registry.Create(languageId, options);
             try
             {
-                await host.RunAsync(document.RunCode, (data, kind) =>
+                result = await host.RunAsync(document.RunCode, (data, kind) =>
                 {
                     switch (kind)
                     {
@@ -91,7 +91,6 @@ public static class CliRunner
                             stdout.WriteLine(data);
                             break;
                         case OutputKind.StandardError:
-                            hadError = true;
                             stderr.WriteLine(data);
                             break;
                         case OutputKind.DumpHtml:
@@ -107,7 +106,9 @@ public static class CliRunner
                 return 130;
             }
 
-            return hadError ? 1 : 0;
+            if (result.Outcome == RunOutcome.StartFailed)
+                stderr.WriteLine("Failed to start the compiled script.");
+            return ExitCodeFor(result);
         }
         finally
         {
@@ -115,6 +116,11 @@ public static class CliRunner
             catch (IOException) { /* best-effort cleanup — a locked file here isn't worth failing the run over */ }
         }
     }
+
+    // Review R4: the script's own exit code is the CLI's, so `Environment.Exit(7)` gives 7 and text on
+    // stderr alone (a warning, a log line) doesn't fail the run. Not compiling or not starting is 1.
+    internal static int ExitCodeFor(RunResult result)
+        => result.Outcome == RunOutcome.Exited ? result.ExitCode ?? 1 : 1;
 
     internal static async Task<int> ConvertLinqAsync(
         string[] args, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
