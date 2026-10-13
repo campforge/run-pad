@@ -13,7 +13,7 @@
       -d RunPadVersion=0.3.0 -d PublishDir=publish/win-x64 -arch x64 -out RunPad-win-x64.msi
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="RunPad" Manufacturer="coddwrench" Version="$(var.RunPadVersion)"
+  <Package Name="RunPad" Manufacturer="hobobyte" Version="$(var.RunPadVersion)"
            UpgradeCode="A15433F7-3B92-4026-8EC8-ADADCD8384F6">
 
     <!-- AllowSameVersionUpgrades="yes" (WiX's default is "no") matters here specifically because

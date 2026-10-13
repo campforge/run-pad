@@ -1,6 +1,6 @@
 RunPad - End-User License Agreement
 
-Copyright (C) 2026 Vadim (coddwrench)
+Copyright (C) 2026 Vadim (hobobyte)
 
 Please read this agreement before installing or using RunPad.
 
