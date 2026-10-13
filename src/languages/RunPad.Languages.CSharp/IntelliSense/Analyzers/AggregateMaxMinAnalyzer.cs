@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девятнадцатый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "hand-rolled fold mimics a dedicated LINQ method" theme as AggregateSumAnalyzer (RPAD0085, проход
 // 164), for Max/Min instead of Sum: `xs.Aggregate((a, b) => Math.Max(a, b))` hand-rolls exactly what
 // `xs.Max()` already does through a generic fold. Deliberately restricted to the `Math.Max(a, b)`/

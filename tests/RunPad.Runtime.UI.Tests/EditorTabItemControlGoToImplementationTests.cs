@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "Go to Implementation" (Ctrl+F12) — EditorsTabItemControl.BuildGoToImplementationMenu,
+// EditorsTabItemControl.BuildGoToImplementationMenu,
 // the picker shown when a symbol has more than one implementation/override in the script (see
 // CSharpIntelliSenseGoToImplementationTests.cs for symbol resolution) — internal specifically so
 // these can inspect/click the built menu directly, same rationale as BuildFindReferencesMenu.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят седьмой проход, batch) — own pick, not a Roslynator port; candidate
+// Own pick, not a Roslynator port; candidate
 // surfaced by a research subagent survey of BCL Parse/indexer families not yet covered by this catalog,
 // then independently confirmed empirically (scratch `dotnet run` script) before implementing, same
 // discipline as every other analyzer here. `System.Numerics.Vector2`/`Vector3`/`Vector4`/`Quaternion`'s

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseAnyMethodInsteadOfCountMethodAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `xs.Count() > 0` (or `!= 0`/`== 0`) walks the ENTIRE sequence just to compare the total against
 // zero — `xs.Any()` stops at the first element. Same LINQ-hygiene theme as the Count/Length-property

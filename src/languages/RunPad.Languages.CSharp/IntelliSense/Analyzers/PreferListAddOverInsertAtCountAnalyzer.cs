@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `list.Insert(list.Count, item)` inserts at the position one past the last element — which is
 // exactly what `list.Add(item)` already does, more directly and without the bounds/shift logic
 // Insert has to run for the general case. Matched structurally (the receiver on both the Insert call

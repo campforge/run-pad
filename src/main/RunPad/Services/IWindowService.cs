@@ -23,14 +23,14 @@ public interface IWindowService
 
     /// <summary>
     /// Shows a native Open dialog filtered to <c>.linq</c> files, defaulting to
-    /// <paramref name="startFolder"/> (TODO.md #63, "File → Import LINQPad Query..."). Returns the
+    /// <paramref name="startFolder"/> ("File → Import LINQPad Query..."). Returns the
     /// chosen local file path, or null if the dialog was cancelled or unavailable.
     /// </summary>
     Task<string?> ShowOpenLinqFileDialogAsync(string startFolder);
 
     /// <summary>
     /// Shows a native Open dialog filtered to <c>.dll</c> files, defaulting to
-    /// <paramref name="startFolder"/> (TODO.md #62, ILSpy-style assembly explorer, user request
+    /// <paramref name="startFolder"/> (ILSpy-style assembly explorer, user request
     /// 2026-07-19). Returns the chosen local file path, or null if the dialog was cancelled or
     /// unavailable.
     /// </summary>
@@ -51,14 +51,14 @@ public interface IWindowService
     Task<string?> ShowSaveTextFileDialogAsync(string suggestedFileName, string startFolder);
 
     /// <summary>
-    /// Opens <paramref name="filePath"/> in its own text editor window (TODO.md "Отдельное окно
-    /// текстового редактора") — or brings the window already editing that file to the front. A file
+    /// Opens <paramref name="filePath"/> in its own text editor window —
+    /// or brings the window already editing that file to the front. A file
     /// that can't be read shows an error instead.
     /// </summary>
     Task ShowTextEditorAsync(string filePath);
 
     /// <summary>
-    /// Shows the non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
+    /// Shows the non-modal Assembly Explorer window (user request 2026-07-19) — lets
     /// the script keep running/editable behind it. There's one per app: an open one is brought to
     /// the front instead of opening another.
     /// </summary>

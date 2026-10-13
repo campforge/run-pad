@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x is A || x is B` re-checks and re-reads `x` twice to ask "is x one of these types" — the pattern
 // combinator `x is A or B` (C# 9+, always available given this project's own
 // MinSupportedSdkMajorVersion=6) says the same thing in one check, without repeating `x`. Matched

@@ -6,7 +6,7 @@ public interface ISignatureHelpResult
     int SelectedItemIndex { get; }
     int ArgumentIndex { get; }
 
-    // TODO.md #65: true when no argument expression has been typed yet at ArgumentIndex — i.e. the
+    // True when no argument expression has been typed yet at ArgumentIndex — i.e. the
     // caret sits right after the call's `(` or a `,`, with nothing (or only whitespace) typed since.
     // EditorTabItemControl uses this to redirect an explicit-invoke completion request (Ctrl+Space)
     // to overloads instead of a plain completion list — a fresh argument slot is what Ctrl+Space is

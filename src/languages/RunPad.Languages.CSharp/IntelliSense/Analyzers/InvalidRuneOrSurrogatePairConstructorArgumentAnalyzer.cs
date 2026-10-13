@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят первый проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidUnicodeCodePointArgumentAnalyzer (RPAD0325, same проход) — same "run the real validator"
 // theme, but on the CHAR-based (not int-codepoint-based) half of Unicode surrogate validity: `new
 // System.Text.Rune(char ch)` throws ArgumentOutOfRangeException when `ch` is a lone surrogate half

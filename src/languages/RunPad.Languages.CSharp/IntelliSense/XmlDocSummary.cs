@@ -5,8 +5,8 @@ using Microsoft.CodeAnalysis;
 
 namespace RunPad.Languages.CSharp.IntelliSense;
 
-// Extracts plain-text <summary>/<param> content from a symbol's XML doc comment (see ANALYSIS.md
-// TODO #50), so completion/signature-help/quick-info tooltips can show it under the highlighted
+// Extracts plain-text <summary>/<param> content from a symbol's XML doc comment,
+// so completion/signature-help/quick-info tooltips can show it under the highlighted
 // signature the way LINQPad and VS Code do. Roslyn only hands back the raw, indented XML — nothing
 // here comes pre-parsed.
 internal static class XmlDocSummary

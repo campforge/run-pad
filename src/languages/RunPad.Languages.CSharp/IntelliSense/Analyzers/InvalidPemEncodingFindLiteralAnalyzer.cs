@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (417-й проход, batch) — candidate #5 from the third research subagent survey (411-й проход,
+// Candidate #5 from the third research subagent survey (411-й проход,
 // full tool access, empirically self-verified), re-verified independently before implementing.
 // `System.Security.Cryptography.PemEncoding.Find(ReadOnlySpan<char> pemData)` — the lower-level PEM
 // structure locator that the various `ImportFromPem`/`ImportFromEncryptedPem` analyzers in this catalog

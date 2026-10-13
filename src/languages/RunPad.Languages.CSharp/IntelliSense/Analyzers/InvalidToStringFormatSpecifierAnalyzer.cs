@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят восьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `value.ToString(format)` throws FormatException for a `format` string that isn't a
 // recognized standard or custom format specifier for the receiver's type — e.g. `42.ToString("Z")`,
 // `TimeSpan.Zero.ToString("Z")`, `DateTime.MinValue.ToString("Z")` — confirmed empirically via scratch

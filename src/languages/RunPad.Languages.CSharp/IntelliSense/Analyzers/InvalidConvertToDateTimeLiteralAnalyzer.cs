@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (443-й проход, batch) — own pick, not a Roslynator port; found by direct brainstorming
+// Own pick, not a Roslynator port; found by direct brainstorming
 // while re-checking InvalidNumericParseFormatAnalyzer's (RPAD0356) Convert.ToXxx coverage list (11 numeric
 // conversions, проход 438) — `Convert.ToDateTime(string)` is NOT among them and has no analyzer of its
 // own. Sibling of InvalidDateOrTimeParseLiteralAnalyzer (RPAD0365), reusing that analyzer's own

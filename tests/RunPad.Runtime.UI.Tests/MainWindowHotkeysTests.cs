@@ -20,7 +20,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #80: F4 (open Dependencies) and Ctrl+W (close active tab) used to be literal Key.F4 /
+// F4 (open Dependencies) and Ctrl+W (close active tab) used to be literal Key.F4 /
 // (Key.W + Control) checks in MainWindow.OnWindowKeyDown — sitting right next to 7 other gestures
 // that already went through KeyboardSettings via Match(e, kb.X). These prove the two converted
 // branches actually read from KeyboardSettings now (not just "F4/Ctrl+W still happen to work") by
@@ -170,7 +170,7 @@ public class MainWindowHotkeysTests
         Assert.Equal(tabCountBefore - 1, vm.Tabs.Count);
     }
 
-    // TODO.md, "tab lifecycle (leftover)": Ctrl+W used to call MainWindowViewModel.
+    // Ctrl+W used to call MainWindowViewModel.
     // CloseActiveTab directly, bypassing whatever EditorTabsControl.RequestCloseTabAsync does —
     // confirms the hotkey path now goes through the same unsaved-changes confirmation as the tab's
     // own [x] button (see EditorTabsControlCloseConfirmationTests for the confirmation flow itself).
@@ -193,7 +193,7 @@ public class MainWindowHotkeysTests
         Assert.Equal(tabCountBefore, vm.Tabs.Count); // Cancel — still open
     }
 
-    // TODO.md #114 — live user request: there was no hotkey for "new file" at all. Same
+    // Live user request: there was no hotkey for "new file" at all. Same
     // rebind-proves-it's-wired shape as the F4/Ctrl+W tests above.
     [AvaloniaFact]
     public void PressingTheDefaultCtrlN_Should_CreateANewTab()

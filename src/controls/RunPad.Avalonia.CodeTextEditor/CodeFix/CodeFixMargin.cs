@@ -7,7 +7,7 @@ using AvaloniaEdit.Rendering;
 
 namespace RunPad.Avalonia.CodeTextEditor;
 
-// TODO.md #116 — live user request: group the lightbulb's dropdown menu by kind (using-directive
+// Live user request: group the lightbulb's dropdown menu by kind (using-directive
 // fixes separately from create/implement variants), and give fixes/refactorings/conversions their
 // own icon instead of one hammer for everything. Neither CodeFixEntry nor the upstream
 // RunPad.Contracts.IntelliSense.ICodeFixInfo it mirrors carries a "kind" at all — only
@@ -35,7 +35,7 @@ internal enum CodeFixCategory
 // type) — a single click applies the only fix directly, or opens a small picker menu when there's
 // more than one.
 //
-// User request 2026-07-21 (TODO.md #74): only the caret's own line ever shows the icon, VS/Rider-
+// User request 2026-07-21: only the caret's own line ever shows the icon, VS/Rider-
 // style, instead of every line in the file that currently has a fix all being lit up simultaneously
 // — the margin used to render one icon per fix-bearing line regardless of where the caret was,
 // which got noisy fast on a script with several unrelated diagnostics open at once.
@@ -50,7 +50,7 @@ public class CodeFixMargin : AbstractMargin
     private IReadOnlyList<CodeFixEntry> _fixes = [];
     private StreamGeometry? _bulbGeo;
 
-    // TODO.md #116: was a single _hammerGeo field — now three possible icons (Categorize/IconKeyForCategory
+    // Was a single _hammerGeo field — now three possible icons (Categorize/IconKeyForCategory
     // below), cached by resource key instead of one field per icon.
     private readonly Dictionary<string, StreamGeometry?> _menuIconCache = new();
 
@@ -59,7 +59,7 @@ public class CodeFixMargin : AbstractMargin
     // the line the icon could be drawn on actually changed, not on every single caret move.
     private int _caretLine;
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — raised when the user
+    // Raised when the user
     // clicks a specific menu entry. This control has no notion of Roslyn/IIntelliSenseService (see
     // CodeFixEntry's own doc comment) — materializing the fix's actual text (and routing any usings
     // it wants to import) is entirely the click-time responsibility of whoever owns that (forwarded
@@ -112,12 +112,12 @@ public class CodeFixMargin : AbstractMargin
     // a test find a specific candidate by title/line without needing a live paint pass.
     internal IReadOnlyList<CodeFixEntry> Fixes => _fixes;
 
-    // TODO.md #75: several fixes can share one line (e.g. multiple "using X;" candidates for the
+    // Several fixes can share one line (e.g. multiple "using X;" candidates for the
     // same unresolved type) at different severities — the icon shows whichever is worse, same
     // priority order BreakPointMargin's own debug-arrow/breakpoint overlap uses (an error is more
     // worth the user's attention than a warning sitting on the same line). Internal (not private) +
     // InternalsVisibleTo (see the csproj), same pattern as CSharpReferenceService.IsManagedAssembly
-    // (TODO.md #44) — so this and SeverityBrushKey can be tested directly without a live TextView.
+    // — so this and SeverityBrushKey can be tested directly without a live TextView.
     internal CodeFixSeverity? WorstSeverityOnLine(int lineNo)
     {
         CodeFixSeverity? worst = null;
@@ -156,7 +156,7 @@ public class CodeFixMargin : AbstractMargin
         e.Handled = true;
     }
 
-    // TODO.md #116: group order the dropdown menu presents categories in — using-directive fixes
+    // Group order the dropdown menu presents categories in — using-directive fixes
     // first (the single most common/expected quick fix), then create/implement, then everything
     // else diagnostic-driven, then conversions, refactorings last (caret-triggered, no diagnostic —
     // the "furthest" from what actually flagged this line).
@@ -169,7 +169,7 @@ public class CodeFixMargin : AbstractMargin
         CodeFixCategory.Refactoring,
     ];
 
-    // TODO.md #116: the grouping half of OnPointerPressed, factored out (same "internal test hook"
+    // The grouping half of OnPointerPressed, factored out (same "internal test hook"
     // pattern as ResolveCandidatesForClick/WorstSeverityOnLine) so it can be asserted directly
     // without driving a real PointerPressed/MenuFlyout interaction. A Separator only ever appears
     // BETWEEN two non-empty groups — a single-category candidate list (the common case: one line,
@@ -193,7 +193,7 @@ public class CodeFixMargin : AbstractMargin
         return items;
     }
 
-    // TODO.md #116 — see this file's own CodeFixCategory doc comment for the full reasoning. Roslyn's
+    // See this file's own CodeFixCategory doc comment for the full reasoning. Roslyn's
     // own AddImport code fix titles are the bare import statement itself (e.g. "using System.Linq;"
     // or "using static System.Math;"), not an "Add ..." sentence — matched by that shape rather than
     // a fixed prefix search.
@@ -224,10 +224,10 @@ public class CodeFixMargin : AbstractMargin
         _ => "Icon.Hammer",
     };
 
-    // TODO.md #79: same "PathIcon per MenuItem" pattern as FileTreeView.axaml's Rename/Delete menu
+    // Same "PathIcon per MenuItem" pattern as FileTreeView.axaml's Rename/Delete menu
     // items — this menu is built in code-behind rather than XAML, so it's the same StreamGeometry
     // resource assigned via a fresh PathIcon instance per item (Avalonia visuals can't be shared
-    // across multiple items) instead of a XAML <MenuItem.Icon>. TODO.md #116: the icon now depends
+    // across multiple items) instead of a XAML <MenuItem.Icon>. The icon now depends
     // on Categorize(fix) instead of always being the hammer. Internal (not private) +
     // InternalsVisibleTo, same pattern as WorstSeverityOnLine, so the icon wiring can be asserted
     // directly without driving a real PointerPressed/MenuFlyout interaction.
@@ -241,7 +241,7 @@ public class CodeFixMargin : AbstractMargin
     // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
     // adjacent quote glyphs stay visually separable regardless of what expression text ends up
     // embedded in a future title. "monospace" (the bare generic keyword, not a specific font name) —
-    // same choice, same reason, as EditorSettings.FontFamily's own default (TODO.md #112): reliably
+    // same choice, same reason, as EditorSettings.FontFamily's own default: reliably
     // resolves to a real non-ligature monospace font on every platform, unlike a named fallback chain.
     private static readonly FontFamily MenuItemFontFamily = new("monospace");
 
@@ -261,7 +261,7 @@ public class CodeFixMargin : AbstractMargin
         return item;
     }
 
-    // A click anywhere across the margin's full (now gutter-width-aligned, TODO.md #75) column
+    // A click anywhere across the margin's full (now gutter-width-aligned) column
     // resolves a line the same way BreakPointMargin's own click handling does — only the Y
     // coordinate actually matters for finding the line; X is irrelevant here (unlike inside the
     // TextView itself, where X picks a column). Internal + InternalsVisibleTo, same pattern as
@@ -289,7 +289,7 @@ public class CodeFixMargin : AbstractMargin
 
     private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
 
-    // TODO.md #75: matches BreakPointMargin's own line-number-column width (via the shared
+    // Matches BreakPointMargin's own line-number-column width (via the shared
     // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two
     // margins sit right next to each other in the gutter, so a mismatched width made the lightbulb
     // and the line-number/debug-arrow icons look like two misaligned columns instead of one gutter.
@@ -305,8 +305,8 @@ public class CodeFixMargin : AbstractMargin
     // reference each other's internals; GutterMetrics is the only intentional coupling point.
     private const double GutterHorizontalPadding = 6.0;
 
-    // TODO.md #82/#84: scale used to be Bounds.Width * 0.72 / 24.0 — fine back when Bounds.Width was
-    // a small fixed constant, but TODO #75 made this margin's width track BreakPointMargin's own
+    // Scale used to be Bounds.Width * 0.72 / 24.0 — fine back when Bounds.Width was
+    // a small fixed constant, but this margin's width was later made to track BreakPointMargin's own
     // line-number-driven column (via GutterMetrics) so the two align. Left as Bounds.Width-scaled,
     // that made the icon itself balloon along with the column on any document needing more
     // line-number digits — the column's WIDTH needs to match its neighbor, but the icon's SIZE never
@@ -315,7 +315,7 @@ public class CodeFixMargin : AbstractMargin
     // width. Centering (cx) still reads Bounds.Width — the icon must center within whatever the
     // column's real width is, only its own size shouldn't depend on that width.
     //
-    // TODO.md #84: #82's first pass (0.6) shrank the glyph back down close to its original,
+    // #82's first pass (0.6) shrank the glyph back down close to its original,
     // pre-#75 size — but that original size was itself always on the small side, and empirically
     // (ResolveLineFromPoint, verified with ProbeClickTests during investigation) a click ANYWHERE
     // across the margin's full row already resolves to the right line regardless of X — the click

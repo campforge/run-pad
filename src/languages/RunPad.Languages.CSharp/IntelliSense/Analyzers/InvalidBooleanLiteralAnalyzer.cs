@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двухсотшестидесятый проход, batch) — own pick, not a Roslynator port. Same "run the real
+// Own pick, not a Roslynator port. Same "run the real
 // validator" theme as InvalidCultureNameLiteralAnalyzer/InvalidIPAddressLiteralAnalyzer/
 // InvalidMailAddressLiteralAnalyzer (RPAD0248-0250, проходы 255-257): `bool.Parse(s)` and
 // `Convert.ToBoolean(s)` (the string overload of which just calls `bool.Parse` internally) both throw

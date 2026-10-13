@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace RunPad.Services.Setup;
 
 // First-run setup wizard's installer — fetches the .NET SDK and netcoredbg from their real, official
-// sources (TODO.md, live report 2026-07-25: verified against the actual dotnet-install.sh/.ps1 scripts
+// sources (live report 2026-07-25: verified against the actual dotnet-install.sh/.ps1 scripts
 // and the real Samsung/netcoredbg GitHub releases API, not guessed) instead of leaving the user to
 // find and install both themselves before RunPad's Run/Debug buttons do anything useful.
 public sealed class SetupInstallerService(ISetupDownloader downloader, ISetupProcessRunner processRunner) : ISetupInstallerService

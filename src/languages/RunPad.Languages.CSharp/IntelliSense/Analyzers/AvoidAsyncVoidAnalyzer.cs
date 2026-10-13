@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 151, batch) — a well-known, widely-documented async pitfall
+// A well-known, widely-documented async pitfall
 // (not a Roslynator port — same "real bug, own pick" bar as SelfReferencingPropertyAnalyzer/
 // RethrowToPreserveStackTraceAnalyzer/CompareNaNCorrectlyAnalyzer): an exception thrown inside an
 // `async void` method can't be awaited or caught by its caller — it escapes straight to

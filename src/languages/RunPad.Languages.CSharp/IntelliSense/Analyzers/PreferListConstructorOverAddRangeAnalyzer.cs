@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `var list = new List<T>(); list.AddRange(source);` builds an empty list and then immediately grows
 // it to hold `source` — the `List<T>(IEnumerable<T>)` constructor does the same thing in one step,
 // without the empty intermediate state. Scoped to the narrowest safe shape: a local declared with the

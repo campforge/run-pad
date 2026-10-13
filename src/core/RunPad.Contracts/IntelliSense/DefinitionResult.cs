@@ -1,6 +1,6 @@
 namespace RunPad.Contracts.IntelliSense;
 
-// TODO.md #62 "Go to Definition" (F12, user request 2026-07-19): what an F12 press at a caret
+// What an F12 press at a caret
 // position resolves to. Scripts are single-file, so an in-source result is just an offset to move
 // the caret to in the SAME document — no cross-file navigation needed. A symbol declared outside the
 // script (framework/NuGet metadata) has no source to jump to; instead this carries enough identifying

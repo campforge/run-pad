@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Task.Run(async () => await Foo())` wraps a call to a method that already returns a Task in an
 // async lambda whose only job is to immediately await that same call — `Task.Run(Foo)` passes the
 // method group directly to the `Func&lt;Task&gt;` overload and does exactly the same thing, without the

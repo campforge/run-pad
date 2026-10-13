@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят третий проход, batch) — same "blocking call inside async code" theme as
+// Same "blocking call inside async code" theme as
 // ThreadSleepInAsyncMethodAnalyzer (RPAD0089, проход 164). `semaphore.Wait(...)` inside an `async`
 // method blocks whatever thread happens to be running the method — usually a pooled thread — until the
 // semaphore is available. `await semaphore.WaitAsync(...)` frees the thread for other work while

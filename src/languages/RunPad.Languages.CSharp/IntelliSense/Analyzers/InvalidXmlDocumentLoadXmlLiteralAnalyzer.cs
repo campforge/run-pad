@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (425-й проход, batch) — candidate #1 from the fourth research subagent survey (424-й
+// Candidate #1 from the fourth research subagent survey (424-й
 // проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `XmlDocument.LoadXml(string)` — an INSTANCE method sibling of the already-covered static
 // `XDocument.Parse`/`XElement.Parse` (RPAD0257, проход 263), whose own doc comment explicitly scopes to

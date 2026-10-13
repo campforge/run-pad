@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят девятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "generic overload avoids the Type/object round trip" theme as PreferGenericMarshalSizeOfAnalyzer
 // (RPAD0176, this same проход). `Activator.CreateInstance(typeof(T))` boxes through `Type` and
 // returns a plain `object?` that then needs casting — `Activator.CreateInstance<T>()` (available since

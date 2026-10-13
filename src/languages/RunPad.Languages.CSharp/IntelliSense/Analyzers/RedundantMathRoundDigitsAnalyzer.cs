@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Math.Round(x, 0)` spells out the digits-of-precision argument that the single-argument
 // `Math.Round(x)` overload already defaults to — genuinely redundant, not just a style nit.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `string.Join(sep, xs.Select(x => x.ToString()))` projects every element to a string just to hand it
 // to Join — but string.Join already calls ToString() on each element internally (that's how the
 // generic `Join<T>(string, IEnumerable<T>)` overload works for non-string T). The Select is a

@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #88 (leftover): RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
+// RunAsync/RunDebugAsync used to always ChildProcess.ForExecution(...)/
 // ForDebugger(...) directly, so exercising them meant either shelling out to a real dotnet/netcoredbg
 // process or not testing them at all — the same gap CompiledDotnetLanguageHostCompilerFactoryTests
 // already closed for the compiler seam. The injected ExecutionChildProcessFactory/
@@ -104,7 +104,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — confirms CompiledDotnetLanguageHostBase.RunAsync
+    // Confirms CompiledDotnetLanguageHostBase.RunAsync
     // actually forwards Options.CurrentQueryPath into the process factory (ChildProcess.ForExecution's
     // own handling of it is tested separately in ChildProcessCurrentQueryPathTests.cs, without needing
     // a whole host/compile pipeline).
@@ -229,7 +229,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         throw new TimeoutException($"""Never saw a written request containing "{containing}".""");
     }
 
-    // TODO.md #111 — live user report ("Util.CurrentQueryPath doesn't work while debugging"): confirms
+    // Live user report ("Util.CurrentQueryPath doesn't work while debugging"): confirms
     // the full RunDebugAsync path, not just DapSession in isolation (DapSessionCurrentQueryPathTests.cs
     // already covers that half) — Options.CurrentQueryPath really does reach the real DapSession this
     // host constructs internally, which really does put it in the actual launch request.
@@ -257,7 +257,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // docs/handoffs/macos-debug-launch.md — the debug launch must use the same configured dotnet host
+    // The debug launch must use the same configured dotnet host
     // as the non-debug run, not netcoredbg's own PATH lookup of "dotnet".
     [Fact]
     public async Task RunDebugAsync_Should_LaunchThroughTheConfiguredRuntimePath()

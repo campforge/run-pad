@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестидесятый проход, batch) — own pick, not a Roslynator port. Same "run the
+// Own pick, not a Roslynator port. Same "run the
 // real validator" theme as InvalidBase64LiteralLengthAnalyzer (RPAD0245): `BigInteger.Parse(string)`
 // throws FormatException for a string that isn't a valid integer literal (empty, whitespace-only,
 // containing a decimal point, or any non-digit character) — confirmed empirically via scratch

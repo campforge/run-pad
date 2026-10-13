@@ -10,7 +10,7 @@ namespace RunPad.UserControls;
 // optional plain-text XML-doc summary as a real Avalonia control. AvaloniaEdit's
 // ICompletionData.Description, IOverloadProvider.CurrentHeader/CurrentContent and ToolTip.Tip are all
 // typed `object` and rendered by a bare ContentControl, so handing them a Control instead of a string
-// is enough to get rich tooltips — no AvaloniaEdit fork needed (see ANALYSIS.md TODO #50).
+// is enough to get rich tooltips — no AvaloniaEdit fork needed.
 internal static class DisplaySegmentRenderer
 {
     public static TextBlock BuildSignature(IReadOnlyList<DisplayTextSegment> signature, bool isDark)
@@ -46,11 +46,11 @@ internal static class DisplaySegmentRenderer
     }
 
     // The completion list row itself (not the Description tooltip) — plain displayText, or displayText
-    // plus a dimmed annotation: "(in Detail)" for a not-yet-imported type (TODO.md item 60 point 6/
+    // plus a dimmed annotation: "(in Detail)" for a not-yet-imported type (
     // ICompletionItem.Detail), or "(+N overloads)" when several overloads were collapsed down to this
-    // one item (TODO.md #59 remainder/ICompletionItem.OverloadCount) — the two never co-occur (Detail
+    // one item (ICompletionItem.OverloadCount) — the two never co-occur (Detail
     // is only ever set for importable types, OverloadCount > 1 only for methods), so at most one of
-    // them applies. isOwnMember (TODO.md item 60 point 7, ICompletionItem.IsOwnMember) is orthogonal
+    // them applies. isOwnMember (ICompletionItem.IsOwnMember) is orthogonal
     // to both — a member declared directly on the type being completed renders bold regardless of
     // whether it also happens to carry one of the other two annotations. Same
     // object-typed-Content-is-a-bare-ContentControl trick as BuildWithSummary/BuildSignature above,

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace RunPad.Languages.VB;
 
 // Ported from the AvaloniaEdit-coupled VbFoldingStrategy that used to live in
-// RunPad.Avalonia.CodeTextEditor — a language-agnostic control project (TODO.md #76) — and
+// RunPad.Avalonia.CodeTextEditor — a language-agnostic control project — and
 // deliberately framework-free: RunPad.Cli references this project directly with no Avalonia
 // dependency at all, so this can't take TextDocument/FoldingManager types without dragging the whole
 // UI stack along. Plain string in, (Start, End) character-offset pairs out — the same shape

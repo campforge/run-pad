@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port. The
+// Own pick, not a Roslynator port. The
 // opposite-direction problem from TaskDelayThenWaitAnalyzer (RPAD0086) next to this one:
 // `Thread.Sleep(ms)` inside an `async` method blocks whatever thread happens to be running the method
 // — usually a pooled thread — for the whole delay, exactly what `async`/`await` exists to avoid.

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят восьмой проход, batch) — own pick, not a Roslynator port; candidate
+// Own pick, not a Roslynator port; candidate
 // surfaced by a research subagent survey (same проход as RPAD0370), which read the actual .NET SDK
 // reference-assembly XML doc comments to confirm every member below documents `FormatException` for
 // malformed input, then independently re-confirmed empirically (scratch `dotnet run` script, 8 of the 19

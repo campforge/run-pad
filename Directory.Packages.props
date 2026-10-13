@@ -19,7 +19,7 @@
     <!-- RunPad.Avalonia.HtmlRenderer.Tests: real Skia rasterization for render-scaling pixel tests
          (Avalonia.Desktop already brings it in transitively for the app itself). -->
     <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
-    <!-- AvaloniaEdit.Tests (local AvaloniaEdit fork, TODO.md #61) uses NUnit — its upstream's own
+    <!-- AvaloniaEdit.Tests (local AvaloniaEdit fork) uses NUnit — its upstream's own
          test framework, kept as-is rather than ported to xunit along with the rest of the solution. -->
     <PackageVersion Include="Avalonia.Headless.NUnit" Version="12.1.4" />
     <PackageVersion Include="NUnit" Version="4.6.1" />
@@ -37,7 +37,7 @@
     <!-- Real Roslyn CodeFixProviders/analyzers (ReSharper/LINQPad-style lightbulb quick fixes) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Features" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="5.9.0" />
-    <!-- VB scripts compile in-process too (no MSBuild) — docs/handoffs/roslyn-script-compiler.md. -->
+    <!-- VB scripts compile in-process too (no MSBuild) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="5.9.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
@@ -66,7 +66,7 @@
          csproj comment. -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="Moq" Version="4.21.0" />
-    <!-- IL disassembly for the "IL" output tab (TODO.md #62) — ILSpy/SharpDevelop team, actively maintained. -->
+    <!-- IL disassembly for the "IL" output tab — ILSpy/SharpDevelop team, actively maintained. -->
     <PackageVersion Include="ICSharpCode.Decompiler" Version="11.1.0.9782" />
   </ItemGroup>
 </Project>

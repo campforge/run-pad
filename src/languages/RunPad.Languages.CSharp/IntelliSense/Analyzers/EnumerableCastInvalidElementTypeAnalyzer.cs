@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок девятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known contents" theme as EnumerableToDictionaryDuplicateKeyAnalyzer (RPAD0317, проход 348):
 // `sourceArray.Cast<T>()` on a freshly created array literal containing an element whose runtime type
 // isn't `T` (and isn't implicitly convertible to it — boxed value types require an EXACT type match for

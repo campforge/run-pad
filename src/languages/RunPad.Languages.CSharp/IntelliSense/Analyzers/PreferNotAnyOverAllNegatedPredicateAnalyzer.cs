@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.All(x => !pred(x))` reads as a double negative — "every element fails pred" — where
 // `!xs.Any(x => pred(x))` ("no element passes pred") says the same thing without stacking two
 // negations the reader has to untangle. A pure readability simplification, not a performance one —

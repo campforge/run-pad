@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Console.Write(x + "\n")` manually appends a newline to spell out what Console.WriteLine(x) already
 // does — and does more robustly, since WriteLine uses Environment.NewLine rather than a hardcoded "\n"
 // (which isn't the newline convention on every platform Console output might end up viewed on).

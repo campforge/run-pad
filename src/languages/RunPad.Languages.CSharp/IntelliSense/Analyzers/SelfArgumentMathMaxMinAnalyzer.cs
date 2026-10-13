@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "combining/comparing a value with itself is almost certainly a mistake" theme as
 // SelfEqualityCheckAnalyzer (RPAD0096, проход 166) and SelfSubtractionOrXorAnalyzer (RPAD0142, проход
 // 176), for a different shape: `Math.Max(x, x)`/`Math.Min(x, x)` always evaluates to x's own value (even

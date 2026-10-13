@@ -2,7 +2,7 @@ using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.VB;
 
-// VB's DotnetLanguageProjectProfile (ANALYSIS.md #86). VbScriptCompiler turns these DefaultImportNamespaces
+// VB's DotnetLanguageProjectProfile. VbScriptCompiler turns these DefaultImportNamespaces
 // plus the SDK's own default VB imports into project-level imports (vbc /imports:).
 internal static class VbProjectProfile
 {

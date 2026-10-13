@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок первый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231)/
 // NegativeCountArgumentAnalyzer (RPAD0232)/NegativeTimeoutArgumentAnalyzer (RPAD0233, all проходы
 // 239-240): `random.Next(minValue, maxValue)` is documented to throw `ArgumentOutOfRangeException` when

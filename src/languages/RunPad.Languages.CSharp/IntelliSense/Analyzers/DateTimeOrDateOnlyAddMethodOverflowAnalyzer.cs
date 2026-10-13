@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок шестой проход, batch) — own pick, not a Roslynator port. Same "run the real
+// Own pick, not a Roslynator port. Same "run the real
 // validator" theme as InvalidDateTimeConstructorArgumentAnalyzer (RPAD0264) — applied here to the
 // `AddYears`/`AddMonths`/`AddDays`/`AddHours`/`AddMinutes`/`AddSeconds`/`AddMilliseconds`/
 // `AddMicroseconds`/`AddTicks` instance methods on `DateTime` (and `AddYears`/`AddMonths`/`AddDays` on

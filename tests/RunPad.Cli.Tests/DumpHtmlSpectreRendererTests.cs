@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Cli.Tests;
 
-// TODO.md #40 follow-up (user: "I want the html output to look nice ... Spectre.Console"): these dump
+// These dump
 // real DumpRenderer-shaped HTML fragments through DumpHtmlSpectreRenderer into a TestConsole and
 // assert on the captured plain output — the exact box-drawing/ANSI bytes aren't pinned (fragile,
 // Spectre-version-dependent), just that the right text made it through in the right shape.
@@ -96,7 +96,7 @@ public class DumpHtmlSpectreRendererTests
         Assert.Contains("[red]not actually red[/]", output);
     }
 
-    // Util.ProgressBar (TODO.md #111): its own fixed <div class="dp-progressbar" data-dp-percent="N">
+    // Util.ProgressBar: its own fixed <div class="dp-progressbar" data-dp-percent="N">
     // wrapping an (always textless) <div class="dp-progressbar-fill">, plus an optional
     // <div class="dp-progressbar-caption">text</div> sibling — see Util.cs's ProgressBar.Emit().
     [Fact]

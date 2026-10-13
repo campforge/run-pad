@@ -46,7 +46,7 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.Contains(result!.Items, i => i.DisplayText == "Dump");
     }
 
-    // TODO.md #65: EditorTabItemControl uses IsArgumentSlotEmpty to redirect an explicit Ctrl+Space
+    // EditorTabItemControl uses IsArgumentSlotEmpty to redirect an explicit Ctrl+Space
     // request to overloads instead of a completion list, right after "(" — this is the underlying
     // signal that decision is based on.
     [Fact]
@@ -93,7 +93,7 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.True(result!.IsArgumentSlotEmpty);
     }
 
-    // TODO.md #53 remainder: the highlighted overload used to be picked by argument COUNT alone —
+    // The highlighted overload used to be picked by argument COUNT alone —
     // Foo(1, "x") would highlight Foo(int, int) over Foo(int, string) whenever the former happened to
     // sort first, even though only the latter actually type-checks.
     [Fact]
@@ -131,7 +131,7 @@ public class CSharpIntelliSenseSignatureHelpTests
         Assert.Contains("int b", string.Concat(selected.Signature.Select(s => s.Text)));
     }
 
-    // TODO.md #60.9: a call already typed correctly and unambiguously used to collapse the overload
+    // A call already typed correctly and unambiguously used to collapse the overload
     // list down to just the one Roslyn resolved to (SymbolInfo.CandidateSymbols is only populated
     // for ambiguous/unresolved calls) — leaving the insight window's up/down cycling with nothing to
     // cycle through for the single most common case: reviewing/editing an already-valid call.

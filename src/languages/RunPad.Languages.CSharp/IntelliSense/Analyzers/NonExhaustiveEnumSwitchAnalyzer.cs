@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 153, batch) — a real maintenance hazard (own pick, not a
+// A real maintenance hazard (own pick, not a
 // Roslynator port): a `switch` over an enum with no `default:` and case labels that don't cover
 // every declared member silently does nothing for the missing ones today, and silently does nothing
 // for any NEW member added to the enum later — the classic "forgot to update the switch" bug.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят восьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "ordering thrown away by what comes next" theme as PointlessOrderByToListSortAnalyzer (RPAD0113,
 // проход 169), for a different sink: `xs.OrderBy(...).ToDictionary(...)` sorts the sequence only to
 // dump it into a Dictionary<TKey, TValue> — a type with no ordering guarantee at all (its enumeration

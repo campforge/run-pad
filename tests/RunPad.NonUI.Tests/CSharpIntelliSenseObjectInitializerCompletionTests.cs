@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #115 — live user report: `var c = new Tests() { P1 = "1", ... };` never offered Tests' own
+// Live user report: `var c = new Tests() { P1 = "1", ... };` never offered Tests' own
 // remaining settable members inside the `{ }` — every completion branch checked for a dot/member
 // access or fell through to whatever's visible in the enclosing scope, nothing ever special-cased an
 // object-initializer position.

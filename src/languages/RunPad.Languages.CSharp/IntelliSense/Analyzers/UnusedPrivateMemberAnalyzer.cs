@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 146) — idea ported (not copied — own implementation, see
+// Idea ported (not copied — own implementation, see
 // EmptyCatchClauseAnalyzer's own doc comment for the same rationale) from Roslynator's
 // RemoveUnusedMemberDeclarationAnalyzer (RCS1213, Apache License 2.0,
 // https://github.com/dotnet/roslynator), narrowed to private fields and methods only (the two shapes
@@ -15,12 +15,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // neither the compiler's own CS0169 ("field is never used") nor any built-in analyzer currently
 // surfaces this for RunPad's AdhocWorkspace-based live analysis — a genuine gap, not a duplicate of
 // existing coverage (unlike, say, "introduce local variable", which turned out to already be covered
-// by a built-in CodeRefactoringProvider — see TODO.md's own note on pass 142).
+// by a built-in CodeRefactoringProvider).
 //
 // Deliberately does NOT flag: anything with an attribute (could be reached via reflection/
 // serialization/DI — conservative), constructors/destructors/operators/indexers (different syntax
 // node shapes entirely, naturally excluded by only matching FieldDeclarationSyntax/
-// MethodDeclarationSyntax), properties/events (left for a later, more careful pass — see TODO.md).
+// MethodDeclarationSyntax), properties/events (left for a later, more careful pass).
 // A member used ONLY by itself (pure self-recursion with no other call site) is a known, accepted
 // false negative — usage is detected by a plain "does any identifier in the containing type resolve
 // to this symbol" search, which a self-reference inside the member's own body satisfies. Preferring a

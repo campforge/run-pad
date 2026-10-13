@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста первый проход, batch) — own pick, not a Roslynator port; fifth candidate from the
+// Own pick, not a Roslynator port; fifth candidate from the
 // second research subagent survey (проход 397, read-only tools, doc-based hunches only), re-verified
 // empirically before implementing. `X509Certificate2.CreateFromPem(string)` — sibling of RPAD0392's
 // `RSA.ImportFromPem`, same `ReadOnlySpan<char>`-not-`string` parameter shape (confirmed via reflection

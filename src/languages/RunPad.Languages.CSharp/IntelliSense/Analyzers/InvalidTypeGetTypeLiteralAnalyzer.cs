@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (428-й проход, batch) — candidate #4, the LAST candidate from the fourth research subagent
+// Candidate #4, the LAST candidate from the fourth research subagent
 // survey (424-й проход, full tool access, empirically self-verified), re-verified independently before
 // implementing. `Type.GetType(string typeName, bool throwOnError)` — confirmed empirically, matching the
 // agent's report on the exception types (`TypeLoadException` for an empty string; `ArgumentException` for

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок третий проход, batch) — own pick, not a Roslynator port. Same "min > max
+// Own pick, not a Roslynator port. Same "min > max
 // always throws" theme as InvalidRandomRangeArgumentAnalyzer (RPAD0234, Random.Next(minValue,
 // maxValue)): `SortedSet<T>.GetViewBetween(T lowerValue, T upperValue)` throws ArgumentException
 // (confirmed empirically, not assumed — NOT ArgumentOutOfRangeException, a different exception type than

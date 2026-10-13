@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (469-й проход, batch) — candidate #2 from the thirty-first research subagent survey,
+// Candidate #2 from the thirty-first research subagent survey,
 // re-verified independently before implementing. `System.Runtime.InteropServices.GCHandle.Alloc(object?,
 // GCHandleType)` — first touch of `GCHandle`. Confirmed empirically: throws `ArgumentOutOfRangeException`
 // ("Enum value was out of legal range.", param `type`) whenever `type` is outside the defined

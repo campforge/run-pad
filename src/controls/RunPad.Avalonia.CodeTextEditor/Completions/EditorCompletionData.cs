@@ -9,14 +9,14 @@ namespace RunPad.Avalonia.CodeTextEditor;
 // once an item is highlighted in the list) — not for every item up front. Building the rich
 // Description control (DisplaySegmentRenderer.BuildWithSummary — real Avalonia TextBlock/Run
 // construction) eagerly for, say, ~584 completion items on every keystroke was the main perceived-
-// latency contributor in the 24/7 auto-invoke path (ANALYSIS.md TODO #56); only one item's
+// latency contributor in the 24/7 auto-invoke path; only one item's
 // Description is ever visible at a time.
 // onCommit/tags let a language-aware caller attach a side effect to acceptance without this class
 // (or CodeTextEditor) knowing what the tags mean — e.g. EditorTabItemControl uses them to auto-add a
 // `using` when the accepted item is a type from an added-but-not-yet-imported NuGet package
-// (TODO.md #28 remainder). Empty/null tags are the common case and cost nothing extra.
+//. Empty/null tags are the common case and cost nothing extra.
 // content lets a caller show something richer than the bare displayText in the completion list row
-// itself (e.g. a dimmed "(in Namespace)" annotation — TODO.md item 60 point 6) without changing what
+// itself (e.g. a dimmed "(in Namespace)" annotation) without changing what
 // gets matched/inserted: Text (used for filtering) and what Complete() inserts are always
 // displayText, completely independent of what's shown in the row.
 public sealed class EditorCompletionData(

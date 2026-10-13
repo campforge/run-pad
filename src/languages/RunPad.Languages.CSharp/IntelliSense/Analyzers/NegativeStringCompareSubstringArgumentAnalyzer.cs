@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок пятый проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeListIndexOrCountArgumentAnalyzer (RPAD0287): the
 // static `string.Compare(string strA, int indexA, string strB, int indexB, int length[, ...])`
 // substring-comparison overloads throw ArgumentOutOfRangeException when `indexA`, `indexB`, or `length`

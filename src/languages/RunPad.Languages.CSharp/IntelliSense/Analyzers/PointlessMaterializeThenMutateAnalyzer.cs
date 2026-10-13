@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят второй проход, batch) — own pick, not a Roslynator port. Same "dead code
+// Own pick, not a Roslynator port. Same "dead code
 // via a discarded materialization" theme as PointlessOrderByToListSortAnalyzer (RPAD0113, проход 169),
 // generalized: `xs.ToList().Sort();`/`xs.ToList().Reverse();` as a bare statement builds a list,
 // mutates it in place, and then throws the whole thing away — the entire statement has no observable

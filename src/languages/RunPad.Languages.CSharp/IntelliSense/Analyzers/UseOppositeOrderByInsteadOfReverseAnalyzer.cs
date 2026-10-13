@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 158, batch) — same LINQ-hygiene theme as
+// Same LINQ-hygiene theme as
 // OrderByFollowedByOrderByAnalyzer (RPAD0056, pass 155). `xs.OrderBy(key).Reverse()` sorts
 // ascending and then reverses the whole sequence in a second pass — `xs.OrderByDescending(key)` gets
 // the same result (assuming a stable sort, which OrderBy/OrderByDescending both are) in one pass and

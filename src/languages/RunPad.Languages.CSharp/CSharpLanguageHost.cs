@@ -12,7 +12,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     // Single source of truth for what this host actually supports — CSharpLanguageHostFactory.
     // Capabilities reads this instead of declaring its own copy, so the registry's
     // GetCapabilities("csharp") (checkable before a host is even created) can't silently drift from
-    // what the created host itself reports, the way it used to (missing IntelliSense — ANALYSIS.md
+    // what the created host itself reports, the way it used to (missing IntelliSense
     // #96).
     public const LanguageHostCapabilities SupportedCapabilities =
         LanguageHostCapabilities.Run |
@@ -58,7 +58,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     //
     // The kind-transform component must match ApplyKindTransform exactly so DapSession can map a
     // breakpoint set on the user-visible line to the right line in the actually-compiled
-    // (transformed) source. Program's prefix (see RpadKindTransform.ProgramPrefixFor, TODO.md #107)
+    // (transformed) source. Program's prefix (see RpadKindTransform.ProgramPrefixFor)
     // always inserts exactly 2 new lines before the user's own first line — the call statement itself
     // has no trailing newline (glued onto the same physical line as the wrapper class's own header),
     // but the class header and its opening brace each occupy their own line, regardless of which call

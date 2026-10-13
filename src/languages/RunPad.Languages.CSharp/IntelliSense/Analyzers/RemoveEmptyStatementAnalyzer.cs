@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator (Apache License 2.0,
+// Idea ported from Roslynator (Apache License 2.0,
 // https://github.com/dotnet/roslynator). A lone `;` as a full statement (not the empty body of a
 // `for`/`while`, which uses the same syntax node but is a deliberate idiom — excluded below) is almost
 // always an accidental leftover semicolon from editing.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `if (cond) return true; else return false;` (and the assignment form, `if (cond) { x = true; } else
 // { x = false; }`) only ever produces the condition's own value (or its negation) — `return cond;`/
 // `x = cond;` (negated if the branches are flipped) says the same thing directly, without the if/else.

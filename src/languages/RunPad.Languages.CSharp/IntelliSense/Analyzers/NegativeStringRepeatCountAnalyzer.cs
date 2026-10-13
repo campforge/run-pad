@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок второй проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeElementAtIndexAnalyzer (RPAD0236, same batch): `new
 // string(c, count)` is documented to throw `ArgumentOutOfRangeException` when `count` is negative.
 // Scoped to a LITERAL negative integer, same reasoning as the rest of this family.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `DateTime.Compare(a, b) == 0` (and the other comparison outcomes) says the same thing the relational
 // operators already say directly — DateTime overloads `==`/`!=`/`<`/`>`/`<=`/`>=`, so there's no need
 // to go through the three-way Compare and then test its sign.

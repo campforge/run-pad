@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Cli.Tests;
 
-// TODO.md #63: focused tests for the macro-expansion logic itself, separate from
+// Focused tests for the macro-expansion logic itself, separate from
 // CliRunnerTests.cs's own coverage of BuildOptions actually calling into it.
 public class ReferencePathMacrosTests
 {

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Regex.Match(input, pattern).Success` (or the instance form, `regex.Match(input).Success`) builds a
 // full Match object — capture groups, indices, the works — just to read one bool off it.
 // `Regex.IsMatch(input, pattern)`/`regex.IsMatch(input)` answers the same question without allocating

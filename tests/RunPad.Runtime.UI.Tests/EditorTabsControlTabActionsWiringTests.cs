@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #102: DuplicateCommand/OpenContainingFolderCommand now call straight into
+// DuplicateCommand/OpenContainingFolderCommand now call straight into
 // MainWindowViewModel (via IEditorTabActions), reading the View-layer write callback off
 // tab.WriteToFile — set once by EditorsTabItemControl's own constructor (see EditorTabItemViewModel.
 // WriteToFile's comment). EditorTabsControlCloseConfirmationTests already covers CloseCommand/

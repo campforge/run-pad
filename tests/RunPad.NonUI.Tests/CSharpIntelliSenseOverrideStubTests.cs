@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO.md item 60 point 8: typing "override " (like VS/Rider) lists the base type's
+// Typing "override " (like VS/Rider) lists the base type's
 // overridable members and, on accept, inserts a ready-to-edit stub — not just the bare method name.
 public class CSharpIntelliSenseOverrideStubTests
 {

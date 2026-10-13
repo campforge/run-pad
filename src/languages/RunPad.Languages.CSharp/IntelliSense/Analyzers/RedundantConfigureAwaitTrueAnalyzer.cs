@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `task.ConfigureAwait(true)` explicitly requests exactly the behavior an unadorned `await task`
 // already has — capturing and resuming on the current synchronization context. The call is a
 // genuine no-op, not just a style nit.

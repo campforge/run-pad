@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят первый проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidCountdownEventOrBarrierConstructorArgumentAnalyzer (RPAD0323, проход 350) — same two types,
 // but their INSTANCE methods instead of their constructors: `CountdownEvent.Signal(int
 // signalCount)`/`AddCount(int signalCount)` and `Barrier.AddParticipants(int

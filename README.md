@@ -49,8 +49,7 @@ contains a `Read Me First.txt` with the same steps.
 
 ## Project goals — what works and what doesn't yet
 
-A summary checklist drawn from `TODO.md`/git history (details for any item are in
-`docs/archive/TODO-2026-07.md`).
+A summary checklist of what works today and what is planned.
 
 ### Done
 
@@ -99,31 +98,30 @@ A summary checklist drawn from `TODO.md`/git history (details for any item are i
 - [x] **Tests**: 5 test projects, ~395 tests, including headless UI tests covering the editor's
   full keyboard pipeline; CI (format + build + test) on ubuntu/windows/macos.
 
-### Not done yet / planned (numbers refer to `TODO.md` items)
+### Not done yet / planned
 
-- [ ] Auto-format on type (#17) and format-on-selection.
-- [ ] Soft selection, MRU and per-item commit characters in autocomplete (#60), target-type
-  preselection; full fuzzy filtering (#18) — blocked on the editor fork (#61).
-- [ ] Set Next Statement in the debugger (#22).
-- [ ] Choosing a kind when creating a new file (#35).
-- [ ] First-run setup wizard — auto-detect/download SDK and netcoredbg (#71).
-- [ ] Enabled/disabled state for breakpoints (#83.3).
-- [ ] Refactorings and custom analyzers on top of the lightbulb (#74).
+- [ ] Auto-format on type and format-on-selection.
+- [ ] Soft selection, MRU and per-item commit characters in autocomplete, target-type
+  preselection; full fuzzy filtering.
+- [ ] Set Next Statement in the debugger.
+- [ ] Choosing a kind when creating a new file.
+- [ ] First-run setup wizard — auto-detect/download SDK and netcoredbg.
+- [ ] Enabled/disabled state for breakpoints.
+- [ ] Refactorings and custom analyzers on top of the lightbulb.
 - [ ] Exporting results (Excel/HTML), database connections, an IL/syntax-tree viewer, rename
-  symbol, find references, CodeLens (#62).
+  symbol, find references, CodeLens.
 - [ ] Interactive input from the output panel (an stdin channel to the script process), path
-  macros in references, a `.linq` → `.rpad` converter (#63).
+  macros in references, a `.linq` → `.rpad` converter.
 - [ ] Languages as real plugins (assemblies loaded at runtime, no RunPad rebuild needed) — a goal;
-  groundwork so far: #87.
+  some groundwork is in place.
 - [ ] New languages on the roadmap: F#, SQL (MVP — in-memory SQLite), Go, PowerShell, Python, C,
-  C++, Rust — architectural scouting only so far, nothing started (see TODO.md → "New languages on
-  the roadmap" for details on each).
+  C++, Rust — architectural scouting only so far, nothing started.
 - [ ] Preferences reorganization: group settings by runtime family (e.g., a single ".NET" group
   with SDK/debugger paths shared by C#/VB/a future F#) plus per-language syntax highlighting —
-  architectural scouting done, not started (see TODO.md).
-- [ ] Restoring the previous session's tabs, workspaces (#62).
-- [ ] Tech debt from the 2026-07-16 audit: collapsing C#/VB backend duplication (#86), build-cache
-  thread safety (#85), testability of process paths (#88), and others — see `TODO.md`.
+  architectural scouting done, not started.
+- [ ] Restoring the previous session's tabs, workspaces.
+- [ ] Tech debt from the 2026-07-16 audit: collapsing C#/VB backend duplication, build-cache
+  thread safety, testability of process paths, and others.
 
 ## File format
 
@@ -183,10 +181,9 @@ restrictions to the GPL-3.0.
 
 ## Known issues
 
-The current list of bugs and tech debt lives in `TODO.md` (items 85+ are results of the 2026-07-16
-code audit, details in `ANALYSIS.md`). The IntelliSense reference-resolution bug on Windows
+Please report problems as GitHub issues. The IntelliSense reference-resolution bug on Windows
 previously described here (`error CS0009` about `*.Native.dll`) has been fixed — it now checks the
-PE header instead of matching on file name, see archived TODO #44.
+PE header instead of matching on file name.
 
 ## Quick TODO
 - Could try implementing https://github.com/IronLanguages/ironpython3, basic functionality only.

@@ -96,7 +96,7 @@ internal sealed class ControlAdapter : RControl
         }
     }
 
-    // TODO.md #108: routes through HtmlControl.InvalidateContent() (rather than a bare
+    // Routes through HtmlControl.InvalidateContent() (rather than a bare
     // InvalidateVisual()) whenever the underlying control actually is one — SelectionHandler calls
     // this on every mid-drag selection change, and HtmlControl.Render blits an offscreen cache unless
     // told the content is actually stale (LazyRenderCache/InvalidateContent's own doc comment). A

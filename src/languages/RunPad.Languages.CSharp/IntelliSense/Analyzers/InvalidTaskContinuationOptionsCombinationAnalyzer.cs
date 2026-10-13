@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (452-й проход, batch) — candidate #3 from the fourteenth research subagent survey,
+// Candidate #3 from the fourteenth research subagent survey,
 // re-verified independently before implementing. `Task.ContinueWith(..., TaskContinuationOptions)` — a
 // self-conflicting `TaskContinuationOptions` combination throws `ArgumentOutOfRangeException`, the first
 // "enum FLAGS combination" analyzer in this catalog targeting `TaskContinuationOptions` specifically (a

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #69 follow-up: user reported live that Delete and Rename both silently failed for
+// User reported live that Delete and Rename both silently failed for
 // a folder in the file tree. Root cause — DeleteFile/RenameFile always called File.Delete/File.Move,
 // which throw for a directory path (File.Move explicitly, File.Delete via the OS); the delete's
 // catch swallowed the exception entirely (so the tree acted like the folder was gone while it was

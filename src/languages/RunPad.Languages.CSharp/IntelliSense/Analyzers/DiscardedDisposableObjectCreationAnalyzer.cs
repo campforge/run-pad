@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят седьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `new SomeDisposableType(...);` as a bare statement — the whole statement is just the object
 // creation, nothing chained off it and nothing capturing the result — constructs the object and then
 // immediately discards the only reference to it, so `Dispose()`/`DisposeAsync()` can never be called on

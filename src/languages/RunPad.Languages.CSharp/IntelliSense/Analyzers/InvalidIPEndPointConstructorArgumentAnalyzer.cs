@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестидесятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231): `new
 // IPEndPoint(IPAddress address, int port)` (and the `long address` overload) throws
 // ArgumentOutOfRangeException when `port` falls outside the valid `[0, 65535]` range — confirmed

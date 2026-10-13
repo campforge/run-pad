@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (461-й проход, batch) — candidate A from the twenty-fourth research subagent survey,
+// Candidate A from the twenty-fourth research subagent survey,
 // re-verified independently before implementing. `System.Numerics.Matrix4x4`'s six
 // `CreatePerspective*` static methods (`CreatePerspective`/`CreatePerspectiveLeftHanded`/
 // `CreatePerspectiveOffCenter`/`CreatePerspectiveOffCenterLeftHanded`/`CreatePerspectiveFieldOfView`/

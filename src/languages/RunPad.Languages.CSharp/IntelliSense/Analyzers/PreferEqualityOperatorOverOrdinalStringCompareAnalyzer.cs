@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяностый проход, batch) — own pick, not a Roslynator port. A different method
+// Own pick, not a Roslynator port. A different method
 // than PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer (RPAD0138, проход 179), which covers
 // `string.Equals(a, b, StringComparison.Ordinal)`: this is `string.Compare(a, b,
 // StringComparison.Ordinal) == 0` (and the other comparison outcomes) — the `==`/`!=` operators on

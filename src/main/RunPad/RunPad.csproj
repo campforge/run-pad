@@ -49,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Local fork (TODO.md #61) — was Avalonia.AvaloniaEdit/AvaloniaEdit.TextMate NuGet packages;
+    <!-- Local fork — was Avalonia.AvaloniaEdit/AvaloniaEdit.TextMate NuGet packages;
          RunPad's own code (EditorTabItemControl/SquiggleRenderer/SemanticHighlighter) uses AvaloniaEdit
          types directly, not just through RunPad.Avalonia.CodeTextEditor, hence the direct reference. -->
     <ProjectReference Include="..\..\controls\AvaloniaEdit\AvaloniaEdit.csproj"/>

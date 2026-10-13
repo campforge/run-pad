@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `List<T>` ships its own predicate-based search methods that predate LINQ and do the exact same job
 // without an `IEnumerable<T>` iterator/delegate-wrapper in between: `Exists(match)` for `Any(predicate)`,
 // `TrueForAll(match)` for `All(predicate)`, and `Find(match)` for the single-argument

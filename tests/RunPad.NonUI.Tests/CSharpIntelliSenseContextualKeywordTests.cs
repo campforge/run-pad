@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #59 remainder: contextual keywords like "orderby"/"equals"/"get"/"value" were
+// Contextual keywords like "orderby"/"equals"/"get"/"value" were
 // offered in completion EVERYWHERE, not just where they're syntactically legal — e.g. "orderby"
 // suggested inside an ordinary method body, nowhere near a LINQ query. Fixed via two syntax-position
 // checks (IsInsideQueryExpression/IsInsideAccessorContext), same double-boundary-check pattern as

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (450-й проход, batch) — candidates #2/#3 from the twelfth research subagent survey,
+// Candidates #2/#3 from the twelfth research subagent survey,
 // re-verified independently before implementing. `DateTimeFormatInfo.FirstDayOfWeek` (valid range
 // `DayOfWeek.Sunday`(0)-`Saturday`(6)) and `DateTimeFormatInfo.CalendarWeekRule` (valid range
 // `CalendarWeekRule.FirstDay`(0)-`FirstFourDayWeek`(2)) both throw `ArgumentOutOfRangeException` for a

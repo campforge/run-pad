@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят первый проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidSemaphoreSlimConstructorArgumentAnalyzer (RPAD0319):
 // `aes.KeySize = N`/`des.KeySize = N`/`tdes.KeySize = N`/`rsa.KeySize = N` (and `aes.BlockSize = N`/
 // `des.BlockSize = N`/`tdes.BlockSize = N`) throw CryptographicException when `N` isn't one of the

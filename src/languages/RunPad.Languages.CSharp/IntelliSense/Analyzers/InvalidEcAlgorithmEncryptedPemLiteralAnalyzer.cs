@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (414-й проход, batch) — EC sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403,
+// EC sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403,
 // проход 412) / InvalidDsaEncryptedPemLiteralAnalyzer (RPAD0404, проход 413); same candidate #2 from the
 // third research subagent survey (411-й проход). Confirmed via reflection (проход 412) that, exactly like
 // the plain ImportFromPem family (RPAD0400), `ECDsa`/`ECDiffieHellman` share `ImportFromEncryptedPem`

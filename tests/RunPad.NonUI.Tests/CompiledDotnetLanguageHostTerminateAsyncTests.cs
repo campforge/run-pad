@@ -10,12 +10,12 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #99: RunAsync/RunDebugAsync used to `using var cts = ...` their linked CTS — disposed
+// RunAsync/RunDebugAsync used to `using var cts = ...` their linked CTS — disposed
 // at method exit, right after their own `finally { _runCts = null; }`. TerminateAsync's
 // `_runCts?.Cancel()` runs on a different thread (a "Stop" click), so a read of the (still non-null)
 // field followed by a context switch could land its `.Cancel()` call on a CTS the run's own method
 // had, in the meantime, already disposed — ObjectDisposedException. Fixed by never disposing that
-// CTS at all (same "Cancel() now, don't Dispose()" pattern already used for TODO #89's three other
+// CTS at all (same "Cancel() now, don't Dispose()" pattern already used for three other
 // CTS Cancel+Dispose races) — these tests exercise TerminateAsync racing a genuinely in-flight run,
 // which had zero coverage before this fix.
 public class CompiledDotnetLanguageHostTerminateAsyncTests

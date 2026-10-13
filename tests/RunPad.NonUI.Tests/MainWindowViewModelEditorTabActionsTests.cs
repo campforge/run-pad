@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #102: MainWindowViewModel implements IEditorTabActions — the real behavior behind
+// MainWindowViewModel implements IEditorTabActions — the real behavior behind
 // EditorTabItemViewModel's Close/SaveAs/Duplicate/OpenContainingFolder commands. SaveAsAsync/
 // Duplicate read the write callback off tab.WriteToFile (set by EditorsTabItemControl's constructor)
 // instead of taking it as a parameter, since a command invocation has no other way to supply one.

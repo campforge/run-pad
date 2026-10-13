@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать шестой проход, batch) — own pick, not a Roslynator port. A different,
+// Own pick, not a Roslynator port. A different,
 // more severe cousin of AvoidLockOnThisAnalyzer's (RPAD0014) family: that one flags lock targets other
 // code could ALSO lock on (a deadlock risk); this one flags `lock (new object())` — a lock target
 // NOTHING else can ever lock on, because a brand-new object is allocated every time the statement runs.

@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #42 — WindowDecorations.Full (the Linux fallback, since a CSD request comes back with no
+// WindowDecorations.Full (the Linux fallback, since a CSD request comes back with no
 // border/shadow/corner-radius on a real KDE/KWin/Wayland session) puts the OS's own native titlebar
 // above our custom title row, which still drew its own copy of the app icon — a visible duplicate
 // ("extra icon" from the original TODO note) since the native titlebar already shows Window.Icon.
@@ -78,7 +78,7 @@ public class MainWindowChromeTests
         Assert.False(appIcon!.IsVisible);
     }
 
-    // docs/handoffs/macos-native-header.md — stock macOS titlebar, menu moved to the system menu bar.
+    // Stock macOS titlebar, menu moved to the system menu bar.
     [AvaloniaFact]
     public void ApplyPlatformChrome_Should_UseNativeTitlebarWithoutCustomHeaderRow_OnMacOS()
     {
@@ -93,7 +93,7 @@ public class MainWindowChromeTests
         Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
     }
 
-    // docs/handoffs/menu-platform-parity.md — the same application menu paths on every OS. Runs on
+    // The same application menu paths on every OS. Runs on
     // any OS: both projections are built from MainWindow.MainMenuEntries regardless of platform.
     private static readonly string[] ExpectedMenuTree =
     [

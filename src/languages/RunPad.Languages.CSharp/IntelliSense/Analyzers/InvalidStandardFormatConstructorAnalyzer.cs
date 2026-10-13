@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (464-й проход, batch) — candidate #1 from the twenty-seventh research subagent survey,
+// Candidate #1 from the twenty-seventh research subagent survey,
 // re-verified independently before implementing. `System.Buffers.StandardFormat(char symbol, byte
 // precision = StandardFormat.NoPrecision)` — first touch of `System.Buffers.StandardFormat`.
 // Confirmed empirically: throws `ArgumentOutOfRangeException` ("Precision cannot be larger than 99")

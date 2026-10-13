@@ -14,7 +14,7 @@ namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Builds the <see cref="IDotnetProcessCompiler"/> a <see cref="CompiledDotnetLanguageHostBase"/> uses
-/// to compile a given run — injectable seam (ANALYSIS.md #88) so tests can substitute a fake compiler
+/// to compile a given run — injectable seam so tests can substitute a fake compiler
 /// for the language's own in-process Roslyn compiler (<see cref="CreateCompiler"/>).
 /// </summary>
 public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
@@ -22,7 +22,7 @@ public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
 
 /// <summary>
 /// Builds the <see cref="IChildProcess"/> a <see cref="CompiledDotnetLanguageHostBase"/> runs a compiled
-/// assembly in — injectable seam (ANALYSIS.md #88 remainder), mirroring <see cref="DotnetProcessCompilerFactory"/>,
+/// assembly in — injectable seam, mirroring <see cref="DotnetProcessCompilerFactory"/>,
 /// so tests can substitute a fake process instead of always shelling out to <c>dotnet</c>.
 /// </summary>
 public delegate IChildProcess ExecutionChildProcessFactory(
@@ -37,7 +37,7 @@ public delegate IChildProcess DebuggerChildProcessFactory(ExecutionOptions optio
 /// <summary>
 /// Shared compile/run/debug orchestration for every .NET language compiled the same way (in-process
 /// Roslyn, <see cref="RoslynScriptCompiler"/>, with debugging over DAP against netcoredbg) — was duplicated near-verbatim between CSharpLanguageHost and VbLanguageHost before
-/// this base class existed (ANALYSIS.md #86). A concrete language host only needs to supply
+/// this base class existed. A concrete language host only needs to supply
 /// <see cref="Language"/>/<see cref="ILanguageHost.Capabilities"/> (from <see cref="LanguageHostBase"/>),
 /// <see cref="ProjectProfile"/>, <see cref="CreateCompiler"/>, <see cref="ApplyKindTransform"/> and <see cref="CalcKindOffset"/> —
 /// see CSharpLanguageHost/VbLanguageHost for how small that makes each one.
@@ -135,7 +135,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return RunResult.CompilationFailed;
 
-        // No `using` here (ANALYSIS.md #99, same pattern as #89's CTS Cancel+Dispose fix) —
+        // No `using` here (same pattern as #89's CTS Cancel+Dispose fix) —
         // TerminateAsync can call _runCts.Cancel() from another thread (a "Stop" click racing this
         // method's own natural completion); disposing here would let that call land on an
         // already-disposed CTS and throw ObjectDisposedException. A CTS with no timer holds no

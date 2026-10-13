@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 — the "IL" output tab (mirrors LINQPad's IL view). Real-Roslyn integration test (no
+// The "IL" output tab (mirrors LINQPad's IL view). Real-Roslyn integration test (no
 // mocking of the compiler): the thing under test is whether ICSharpCode.Decompiler can actually read
 // a REAL compiled binary, which pure-logic unit testing can't stand in for. Compiled via
 // InProcessFixtureCompiler (in-process Roslyn CSharpCompilation.Emit, see its own doc comment) rather

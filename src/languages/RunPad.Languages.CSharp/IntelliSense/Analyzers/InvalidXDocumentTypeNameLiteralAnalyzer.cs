@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (416-й проход, batch) — candidate #4 from the third research subagent survey (411-й проход,
+// Candidate #4 from the third research subagent survey (411-й проход,
 // full tool access, empirically self-verified), re-verified independently before implementing.
 // `new XDocumentType(string name, string? publicId, string? systemId, string? internalSubset)` — scoped
 // to ONLY the `name` argument, per the agent's recommendation, matching what's empirically confirmed:

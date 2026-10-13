@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Thread.CurrentThread.ManagedThreadId` fetches the whole current-thread object just to read one int
 // off it — `Environment.CurrentManagedThreadId` (.NET Core, well within this project's .NET 6 SDK
 // floor) returns the same value directly, without the intermediate Thread lookup.

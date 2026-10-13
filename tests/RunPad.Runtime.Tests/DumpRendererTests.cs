@@ -289,7 +289,7 @@ public class DumpRendererTests
         Assert.Contains("ok", result); // Safe property still renders
     }
 
-    // ── Include/Exclude (TODO.md #111) ───────────────────────────────────────
+    // ── Include/Exclude ───────────────────────────────────────
 
     [Fact]
     public void Render_PocoObject_WithExclude_HidesTheExcludedProperty()

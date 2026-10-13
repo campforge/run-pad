@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidGuidLiteralFormatAnalyzer/InvalidIPAddressLiteralAnalyzer
 // (RPAD0246, RPAD0249), but on a CONSTRUCTOR instead of a Parse method: `new DateTime(year, month,
 // day[, hour, minute, second[, millisecond]])` throws ArgumentOutOfRangeException for a

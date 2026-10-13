@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят шестой проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // TimeSpanAddOrSubtractOperatorOverflowAnalyzer (RPAD0315) and DateTimeOrDateOnlyAddMethodOverflowAnalyzer
 // (RPAD0313) — this covers the OPERATOR form neither of those does: `DateTime + TimeSpan` and `DateTime
 // - TimeSpan` throw ArgumentOutOfRangeException (a DIFFERENT exception type from TimeSpan's own

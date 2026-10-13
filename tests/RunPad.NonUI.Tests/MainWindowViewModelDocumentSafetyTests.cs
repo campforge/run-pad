@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review 2026-10-05, R1/R2 (docs/reviews/codebase-2026-10-05.md):
+// Review 2026-10-05, R1/R2:
 // R1 — closing/renaming/moving/deleting used to remove the tab first and only then try to save it
 // (EditorTabsControl's CollectionChanged handler), so a failed write lost the edits along with the
 // tab. Unsaved content is now resolved BEFORE removal, and a failed write keeps the very same tab.

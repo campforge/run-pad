@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят третий проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as InvalidBase64LiteralLengthAnalyzer (RPAD0245, проход 252):
 // `Guid.Parse(s)` throws `FormatException` unless `s` (after trimming leading/trailing whitespace,
 // which Guid.Parse itself ignores) matches one of the handful of formats Guid recognizes — 32 hex

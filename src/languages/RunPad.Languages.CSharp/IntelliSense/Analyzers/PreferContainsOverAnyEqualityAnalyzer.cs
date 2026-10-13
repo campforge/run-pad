@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Any(x => x == value)` spells out an equality-membership test the same way `xs.Contains(value)`
 // already does, more directly — and Contains can dispatch to a specialized, often faster
 // implementation for the concrete collection type (e.g. a hash-based lookup) instead of a linear

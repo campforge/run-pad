@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (435-й проход, batch) — candidate #1 from the sixth research subagent survey (full tool
+// Candidate #1 from the sixth research subagent survey (full tool
 // access, empirically self-verified), re-verified independently before implementing. The eleven numeric
 // `XmlConvert.ToXxx(string)` wrappers (`ToInt16`/`ToInt32`/`ToInt64`/`ToUInt16`/`ToUInt32`/`ToUInt64`/
 // `ToByte`/`ToSByte`/`ToSingle`/`ToDouble`/`ToDecimal`) — the rest of the `XmlConvert.ToXxx` family, whose

@@ -227,7 +227,7 @@ public class EditorTabsControlTests
         }
     }
 
-    // ANALYSIS.md TODO #66: EditorTabItemControl now pushes the tab's front-matter `kind:` into its
+    // EditorTabItemControl now pushes the tab's front-matter `kind:` into its
     // IntelliSense instance (mirroring the existing RefreshIntelliSensePackages/RefreshIntelliSenseUsings
     // pattern) so CSharpIntelliSenseService's live-analysis document can mirror the same kind-specific
     // transform the compiler applies (e.g. Program's implicit `Main();` call) — without this wiring,
@@ -288,7 +288,7 @@ public class EditorTabsControlTests
         }
     }
 
-    // TODO.md, "tab lifecycle": CreateControlAsync used to always RpadFilePeek.PeekLanguage
+    // CreateControlAsync used to always RpadFilePeek.PeekLanguage
     // (vm.FilePath) to decide whether to build a C# IntelliSense instance — harmless while every new
     // file was written to disk (with correct front matter) before its tab ever opened, since
     // PeekLanguage would then read the real language back off disk. Now that file creation is

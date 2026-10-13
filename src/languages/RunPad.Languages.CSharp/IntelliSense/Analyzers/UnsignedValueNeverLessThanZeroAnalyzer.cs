@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UnsignedValueNeverLessThanZeroAnalyzer-style rules (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `x < 0` (or `0 > x`) is always false when x's static type is
 // an unsigned integer — never a genuine runtime check, always a logic error.

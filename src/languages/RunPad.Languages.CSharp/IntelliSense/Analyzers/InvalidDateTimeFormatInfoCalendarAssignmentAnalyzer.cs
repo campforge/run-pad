@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (450-й проход, batch) — candidate #1 from the twelfth research subagent survey, re-verified
+// Candidate #1 from the twelfth research subagent survey, re-verified
 // independently before implementing. `DateTimeFormatInfo.Calendar` setter — assigning an incompatible
 // `Calendar` subtype throws `ArgumentOutOfRangeException` ("Not a valid calendar for the given culture.").
 // Confirmed empirically: 13 of the 14 public concrete `Calendar` subtypes in the BCL always throw

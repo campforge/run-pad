@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "blocking call inside async code" theme as ThreadSleepInAsyncMethodAnalyzer (RPAD0089, проход 164)
 // and SemaphoreWaitInAsyncMethodAnalyzer (RPAD0129, проход 173), for the most common sync-over-async
 // antipattern: `task.Result`/`task.GetAwaiter().GetResult()` inside an `async` method blocks the

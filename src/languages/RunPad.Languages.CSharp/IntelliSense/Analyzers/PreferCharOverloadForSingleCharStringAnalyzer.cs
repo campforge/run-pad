@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s.LastIndexOf("x")`/`s.Contains("x")`/`s.Replace("x", "y")` with a single-character string literal
 // argument go through the general substring-search machinery for something a char comparison answers
 // directly and faster. Deliberately excludes StartsWith/EndsWith/IndexOf — those single-string-argument

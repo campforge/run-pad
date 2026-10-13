@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (449-й проход, batch) — candidate #3 from the eleventh research subagent survey (deferred
+// Candidate #3 from the eleventh research subagent survey (deferred
 // at проход 448 for its different, array-literal argument shape), implemented here after independent
 // re-verification. `NumberFormatInfo.NumberGroupSizes`/`CurrencyGroupSizes`/`PercentGroupSizes` (all
 // `int[]`) — sibling of RPAD0439's scalar `int` pattern properties on the same type. Confirmed empirically,

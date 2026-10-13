@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new Regex(pattern).IsMatch(input)` (same for Match/Matches/Replace/Split) constructs a throwaway
 // Regex instance just to make one call and discard it. The static `Regex.IsMatch(input, pattern)`
 // family does the same match — and, unlike the throwaway instance, benefits from Regex's own internal

@@ -16,7 +16,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
     public string Language => "csharp";
     public string DisplayName => "C#";
 
-    // See CSharpLanguageHost.SupportedCapabilities — single source of truth (ANALYSIS.md #96).
+    // See CSharpLanguageHost.SupportedCapabilities — single source of truth.
     public LanguageHostCapabilities Capabilities => CSharpLanguageHost.SupportedCapabilities;
 
     public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>
@@ -46,7 +46,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         IdentifierChars = new HashSet<char> { '_' },
         ContextualTriggers = new HashSet<char> { '<' }, // generic type arguments, e.g. "List<"
         // "new " — constructible-type completion; "override " — overridable-member completion with
-        // stub generation (TODO.md item 60 point 8).
+        // stub generation.
         WordTriggers = new HashSet<string> { "new", "override" },
         StatementTerminators = new HashSet<char> { ';' },
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']', ['{'] = '}' },
@@ -55,7 +55,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         // parameter list, and an auto-inserted ')' sitting there fights that instead of helping.
         AutoCloseBraces = new HashSet<char> { '[', '{' },
         IndentationStrategy = IndentationStrategyKind.CStyle,
-        // TODO.md #81: file tree's per-language icon (TODO.md #70) — pictogrammers.com/library/mdi/icon/language-csharp.
+        // File tree's per-language icon — pictogrammers.com/library/mdi/icon/language-csharp.
         IconResourceKey = "Icon.LanguageCSharp",
     };
 

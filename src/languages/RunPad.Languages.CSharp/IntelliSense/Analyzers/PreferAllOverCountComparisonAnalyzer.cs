@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Count(pred) == xs.Count()` means "every element matches pred" — the number of matches equals the
 // total count only when nothing was excluded — but says it by fully enumerating xs TWICE (once per
 // Count call) and comparing totals. `xs.All(pred)` says the same thing directly, in one pass, with

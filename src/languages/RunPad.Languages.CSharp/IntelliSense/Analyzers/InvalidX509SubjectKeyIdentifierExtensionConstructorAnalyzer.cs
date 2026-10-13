@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (460-й проход, batch) — candidate #5 from the twenty-third research subagent survey
+// Candidate #5 from the twenty-third research subagent survey
 // (a fourth revisit of `System.Security.Cryptography.X509Certificates`, which has now produced a new
 // find on every visit — X500DistinguishedNameBuilder/RPAD0472, SubjectAlternativeNameBuilder/RPAD0473,
 // CertificateRevocationListBuilder/RPAD0477, and now this), re-verified independently before

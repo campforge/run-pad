@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s.TrimStart().TrimEnd()` (or `s.TrimEnd().TrimStart()`) trims one end, allocates a new string, then
 // trims the other end of that new string — `s.Trim()` already trims both ends in one call, without the
 // intermediate allocation.

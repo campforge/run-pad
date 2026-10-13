@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// docs/handoffs/macos-debug-launch.md — live report: Run works on macOS, Debug doesn't. The session
+// Live report: Run works on macOS, Debug doesn't. The session
 // log showed netcoredbg rejecting setExceptionBreakpoints(["unhandled"]) with 0x80070057 (it only
 // declares "user-unhandled"/"all") and then configurationDone failing with 0x80070002 — netcoredbg
 // turns a bare ".dll" program into a PATH lookup of "dotnet", which a macOS GUI app's launchd PATH

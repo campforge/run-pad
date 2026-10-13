@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 160, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Enum.GetValues(typeof(T)).Cast<T>()` is the pre-.NET-5 idiom for getting a strongly-typed sequence
 // of an enum's values — the non-generic Enum.GetValues(Type) overload returns a boxed Array, so Cast<T>
 // unboxes every element afterward. `Enum.GetValues<T>()` (generic, since .NET 5 — always available

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new Random().Next(...)` constructs a Random instance just to call one method on it and immediately
 // discard it — a distinct idea from RandomInstantiatedInLoopAnalyzer (RPAD0133, проход 169), which only
 // fires when the construction sits inside a loop. This one fires regardless of loop context: even a

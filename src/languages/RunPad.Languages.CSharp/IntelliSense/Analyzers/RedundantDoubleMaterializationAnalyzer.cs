@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.ToList().ToArray()` (or the reverse, `xs.ToArray().ToList()`) materializes the sequence TWICE —
 // once into a List, then copies every element again into an Array (or vice versa) — when calling the
 // outer method directly on the original sequence produces the same result in one materialization.

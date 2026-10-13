@@ -3,7 +3,7 @@ using AvaloniaEdit.Folding;
 
 namespace RunPad.Avalonia.CodeTextEditor;
 
-// TODO.md #76: replaces the VB-specific VbFoldingStrategy that used to live here — a
+// Replaces the VB-specific VbFoldingStrategy that used to live here — a
 // language-agnostic control project directly hosting one particular language's folding regexes.
 // This control stays language-agnostic by wrapping WHATEVER offset-pair-producing function a
 // language plugin supplies (EditorLanguageProfile.FoldingRegionsProvider) instead of knowing about

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `for (int i = 0; i < xs.Count(); i++)` re-evaluates the LINQ `Count()` extension method on every
 // iteration — for a plain IEnumerable<T> (no O(1) Count property to fall back on), that's an O(n) walk
 // of the whole sequence PER iteration, turning an intended O(n) loop into O(n^2). Hoisting the count

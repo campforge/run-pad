@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девяносто четвёртый проход, batch) — own pick, not a Roslynator port. New theme,
+// Own pick, not a Roslynator port. New theme,
 // still "run the real validator", but on a `TimeSpan` argument rather than a numeric/flags one:
 // `new Regex(pattern, options, matchTimeout)` throws ArgumentOutOfRangeException when `matchTimeout` is
 // zero, negative (except the special sentinel `Regex.InfiniteMatchTimeout`, itself a negative TimeSpan),

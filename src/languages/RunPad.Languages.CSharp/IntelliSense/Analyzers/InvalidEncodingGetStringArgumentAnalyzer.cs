@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят первый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal array with a bad index/count combination always throws" theme as
 // InvalidStringCharArrayConstructorArgumentAnalyzer (RPAD0269, проход 280): `Encoding.GetString(byte[]
 // bytes, int index, int count)` throws ArgumentOutOfRangeException when index or count is negative, or

@@ -2,12 +2,12 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes/Try.
+// LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes/Try.
 // Not [Collection(ConsoleTestCollection.Name)] like UtilTests — none of this touches Console.Out/In,
 // so there's no reason to serialize it against those tests. SaveString/SaveBytes write into the
 // REAL %AppData%/RunPad/UserData folder (no injectable path seam exists for a static-class API like
-// this — same tradeoff BuildCacheService's own tests accepted before it grew one, see
-// ANALYSIS.md #85's testability follow-up) — every test below uses its own Guid-named file so
+// this — same tradeoff BuildCacheService's own tests accepted before it grew one)
+// — every test below uses its own Guid-named file so
 // concurrent test runs can't collide, and cleans up after itself.
 public class UtilFileAndTryTests
 {

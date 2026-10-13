@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window, IDisposable
         Closing += OnClosing;
     }
 
-    // TODO.md, "tab lifecycle (leftover)": quitting the app used to skip the per-tab
+    // Quitting the app used to skip the per-tab
     // unsaved-changes confirmation entirely, discarding every unsaved untitled tab's content at
     // once. Window.Closing can't itself await a dialog — it has to cancel synchronously first, then
     // (if the user actually wants to proceed) call Close() again for real once the async
@@ -169,7 +169,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    // ── Per-platform window chrome (ANALYSIS.md feature #15) ──────────────────
+    // ── Per-platform window chrome ──────────────────
     //
     // The XAML defaults (WindowDecorations="BorderOnly" + ExtendClientAreaToDecorationsHint) are a
     // client-side-decoration request: the app draws its own titlebar row (icon, menu, custom
@@ -184,16 +184,16 @@ public sealed partial class MainWindow : Window, IDisposable
     // icon/menu but becomes a plain menu bar sitting under the native titlebar, and the redundant
     // wc-btn cluster is hidden.
     //
-    // On macOS (docs/handoffs/macos-native-header.md) the window gets the stock titlebar — traffic
+    // On macOS the window gets the stock titlebar — traffic
     // lights, "RunPad" title, system drag/resize/fullscreen — and the menu moves to the system menu
     // bar via NativeMenu, projected from the same MainMenuEntries as the in-window Menu
-    // (docs/handoffs/menu-platform-parity.md). The whole custom title row would then only duplicate
+    //. The whole custom title row would then only duplicate
     // the icon/menu/window buttons, so it's hidden and its 32px row collapsed.
     private void ApplyPlatformChrome()
     {
         var windowControlButtons = this.FindControl<StackPanel>("WindowControlButtons");
 
-        // TODO.md #42 — with WindowDecorations.Full, the OS now draws its own native titlebar
+        // With WindowDecorations.Full, the OS now draws its own native titlebar
         // (icon + title + min/max/close) above our custom title row. A CSD request
         // (WindowDecorations.BorderOnly, the "pretty menu" branch) was tried first and confirmed —
         // on a real KDE/KWin/Wayland session — to come back as a bare rectangle with no
@@ -223,7 +223,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    // docs/handoffs/menu-platform-parity.md — the one menu tree behind both the in-window Menu and
+    // The one menu tree behind both the in-window Menu and
     // the macOS system menu bar (MainMenuDefinition projects it into either). Built in code rather
     // than XAML because NativeMenu items aren't Controls: they don't inherit this window's
     // DataContext, so XAML {Binding} commands on them would silently resolve to nothing.

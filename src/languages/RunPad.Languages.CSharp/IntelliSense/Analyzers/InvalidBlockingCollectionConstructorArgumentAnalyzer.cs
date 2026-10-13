@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят второй проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidBarrierConstructorArgumentAnalyzer family (RPAD0323,
 // проход 350): `new BlockingCollection<T>(int boundedCapacity)` throws ArgumentOutOfRangeException when
 // `boundedCapacity` isn't strictly positive — confirmed empirically via scratch `dotnet run` script

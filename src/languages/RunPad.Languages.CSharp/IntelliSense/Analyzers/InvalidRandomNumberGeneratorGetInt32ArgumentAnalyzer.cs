@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок второй проход, batch) — own pick, not a Roslynator port. Same shape as
+// Own pick, not a Roslynator port. Same shape as
 // InvalidRandomRangeArgumentAnalyzer (RPAD0234, Random.Next/NextInt64's 1-/2-argument range validation),
 // applied to `System.Security.Cryptography.RandomNumberGenerator.GetInt32` instead — deliberately a
 // SEPARATE analyzer rather than an extension of RPAD0234 (or RPAD0304, this project's own

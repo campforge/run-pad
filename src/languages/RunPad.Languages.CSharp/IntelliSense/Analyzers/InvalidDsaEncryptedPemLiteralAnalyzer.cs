@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (413-й проход, batch) — DSA sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403,
+// DSA sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403,
 // проход 412); same candidate #2 from the third research subagent survey (411-й проход). Confirmed via
 // reflection (проход 412) that `DSA`, like `RSA`, independently declares its own `ImportFromEncryptedPem`
 // rather than sharing it through a common base — same shape as the plain-PEM RSA/DSA split (RPAD0392/

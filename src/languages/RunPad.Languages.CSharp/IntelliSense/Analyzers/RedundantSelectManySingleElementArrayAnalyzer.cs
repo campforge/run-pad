@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.SelectMany(x => new[] { x })` wraps each element in a fresh one-element array only to flatten it
 // right back out — the result is exactly `xs` again, element for element, just with an array allocated
 // and discarded per element along the way.

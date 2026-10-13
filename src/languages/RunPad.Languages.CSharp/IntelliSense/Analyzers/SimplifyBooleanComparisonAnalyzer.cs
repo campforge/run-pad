@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // SimplifyBooleanComparisonAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `flag == true`/`flag != false` (and their negations) say nothing `flag`/`!flag` doesn't already
 // say — pure clutter, and a common source of the classic "comparing == true instead of just using the

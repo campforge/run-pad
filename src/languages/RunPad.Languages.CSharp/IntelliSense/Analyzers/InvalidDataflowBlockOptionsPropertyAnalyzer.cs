@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (454-й проход, batch) — candidates #1/#2 from the sixteenth research subagent survey,
+// Candidates #1/#2 from the sixteenth research subagent survey,
 // re-verified independently before implementing. `System.Threading.Tasks.Dataflow.DataflowBlockOptions.
 // BoundedCapacity` (declared on the base type, inherited by `ExecutionDataflowBlockOptions`/
 // `GroupingDataflowBlockOptions`) and `ExecutionDataflowBlockOptions.MaxDegreeOfParallelism` (declared

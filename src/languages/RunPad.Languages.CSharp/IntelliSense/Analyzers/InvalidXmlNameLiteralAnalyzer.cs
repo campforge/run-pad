@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто второй проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0383 — grep-confirmed no prior coverage. Confirmed via
 // reflection that `XmlConvert.VerifyName(string)`'s parameter carries no `[StringSyntax]` attribute (unlike
 // `JsonDocument.Parse`'s, whose IDE-built-in coverage caused RPAD0257's sibling `InvalidJsonLiteralAnalyzer`

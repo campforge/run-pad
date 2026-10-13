@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "spelling out exactly what the default parameter already provides" theme as
 // RedundantDefaultComparerArgumentAnalyzer (RPAD0099, проход 167), for a different, very common
 // parameter shape: passing `CancellationToken.None` explicitly to an optional `CancellationToken`

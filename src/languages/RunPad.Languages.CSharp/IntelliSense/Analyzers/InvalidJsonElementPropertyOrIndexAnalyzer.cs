@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят восьмой проход, batch) — own pick, not a Roslynator port. First analyzer
+// Own pick, not a Roslynator port. First analyzer
 // in this catalog to touch `System.Text.Json` — an entirely fresh area (a prior candidate,
 // InvalidJsonLiteralAnalyzer, was dropped in проход 360 because the SDK's own `[StringSyntax("Json")]`
 // analyzer already validates JSON string SYNTAX; this is a different, later question — given a

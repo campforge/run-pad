@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 152, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseCoalesceExpressionAnalyzer-adjacent "prefer helper method" family (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `x < 0 ? -x : x`/`x < y ? x : y`/`x > y ? x : y` spell out,
 // by hand, exactly what Math.Abs(x)/Math.Min(x, y)/Math.Max(x, y) already do — shorter, and immune to

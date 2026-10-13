@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 155, batch) — same LINQ-hygiene theme as
+// Same LINQ-hygiene theme as
 // UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer/CallAnyInsteadOfCountAnalyzer/
 // RemoveRedundantMaterializationBeforeCountAnalyzer (RPAD0015/RPAD0017/RPAD0042). `xs.OrderBy(key).
 // First()` sorts the ENTIRE sequence — O(n log n) — just to read the smallest element off the front;

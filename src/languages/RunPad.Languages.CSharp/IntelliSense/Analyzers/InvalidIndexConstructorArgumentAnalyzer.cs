@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят первый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidCountdownEventOrBarrierConstructorArgumentAnalyzer
 // (RPAD0323, проход 350): `new System.Index(int value[, bool fromEnd])` throws
 // ArgumentOutOfRangeException for a negative `value` — confirmed empirically via scratch `dotnet run`

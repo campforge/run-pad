@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести одиннадцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `int.Parse(s, NumberStyles.Integer)` spells out exactly the style the parameterless `int.Parse(s)`
 // overload already uses by default — NumberStyles.Integer is documented as the default style for every
 // signed/unsigned integer type's Parse(string) overload. Scoped to the integer types specifically

@@ -7,7 +7,7 @@ public sealed class OverloadRequestedEventArgs(char trigger, int caretOffset, Ca
     public int CaretOffset { get; } = caretOffset;
 
     /// <summary>Cancelled if a newer overload request supersedes this one before it resolves — see
-    /// CompletionRequestedEventArgs.CancellationToken/ANALYSIS.md #57.</summary>
+    /// CompletionRequestedEventArgs.CancellationToken.</summary>
     public CancellationToken CancellationToken { get; } = cancellationToken;
 
     public List<(object Header, object? Content)> Overloads { get; } = [];

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восьмидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x.Trim().Trim()` (same for TrimStart/TrimEnd) calls the same idempotent, argument-less trim method
 // twice in a row — the first call already removes all the leading/trailing whitespace the second call
 // would look for, so the second call always has nothing left to do. Scoped to the parameterless

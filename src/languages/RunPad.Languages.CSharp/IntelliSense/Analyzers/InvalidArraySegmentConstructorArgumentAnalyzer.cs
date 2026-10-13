@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятидесятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer (RPAD0271, проход
 // 283): `new ArraySegment<T>(array, offset, count)` throws ArgumentOutOfRangeException for a negative
 // `offset` or `count`, but a DIFFERENT exception type, ArgumentException, when `offset + count`

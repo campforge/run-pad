@@ -1,4 +1,4 @@
-// Direct draft-release transfer for the CI workflow (docs/handoffs/draft-release-transfer.md).
+// Direct draft-release transfer for the CI workflow.
 //
 // Each platform job uploads its archives straight to one draft GitHub Release instead of handing
 // them to the final job through Actions artifacts (the artifact storage quota is exhausted). The

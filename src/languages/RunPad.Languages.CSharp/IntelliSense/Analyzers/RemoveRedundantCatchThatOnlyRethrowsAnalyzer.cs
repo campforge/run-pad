@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 150, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // RemoveRedundantCatchClauseAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator). A
 // catch clause whose ENTIRE body is a bare `throw;` — no logging, no cleanup, nothing else — catches
 // the exception only to immediately let it continue propagating unchanged. Behaviorally identical to

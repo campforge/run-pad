@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #106 — audit finding: the 8 theme files (src/controls/RunPad.Avalonia.Themes/Themes/*.axaml)
+// Audit finding: the 8 theme files (src/controls/RunPad.Avalonia.Themes/Themes/*.axaml)
 // duplicate the same set of x:Key="RunPad.*" SolidColorBrush entries, differing only in Color values.
 // That key list isn't recorded anywhere as an actual "schema" — a key added to one theme and
 // forgotten in another doesn't fail to compile, it just leaves that theme's element unstyled at

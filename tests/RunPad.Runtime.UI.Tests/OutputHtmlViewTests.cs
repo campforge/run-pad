@@ -7,12 +7,12 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #72: the <html><head><style>...</style></head><body>...</body></html> assembly used to
+// The <html><head><style>...</style></head><body>...</body></html> assembly used to
 // live in EditorTabItemControl.UpdateOutputUi, directly against a bare HtmlPanel x:Name="OutputHtml"
 // declared in its own .axaml — moved into this dedicated control, which now binds to an
 // OutputHtmlViewModel (DataContext) rather than being pushed content through an imperative
-// SetContent(css, content) call — see ANALYSIS.md's "Follow-up" on pass 35 for
-// why: Css changes once at startup/theme switch, Content on every output line, and a single method
+// SetContent(css, content) call.
+// Why: Css changes once at startup/theme switch, Content on every output line, and a single method
 // taking both meant every write site had to pass the (almost always unchanged) Css back in.
 public class OutputHtmlViewTests
 {
@@ -91,7 +91,7 @@ public class OutputHtmlViewTests
         Assert.Contains("while-detached", view.RenderedHtml);
     }
 
-    // Live bug report (TODO.md #108): no auto-scroll during streaming output — worse than just "not
+    // Live bug report: no auto-scroll during streaming output — worse than just "not
     // following", HtmlPanel's own TextProperty change handler resets scroll to (0,0) on every single
     // apply, so a long script's output actually snapped back to the TOP each time a new line arrived.
     // A small, fixed-size host is required so the content (deliberately made taller than the

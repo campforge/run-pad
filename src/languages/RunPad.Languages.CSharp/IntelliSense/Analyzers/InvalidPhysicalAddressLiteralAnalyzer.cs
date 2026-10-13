@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "run the
+// Own pick, not a Roslynator port. Same "run the
 // real validator" theme as InvalidIPAddressLiteralAnalyzer/InvalidIPNetworkLiteralAnalyzer/
 // InvalidIPEndPointLiteralAnalyzer (RPAD0249/RPAD0366/RPAD0367) — `System.Net.NetworkInformation.
 // PhysicalAddress.Parse(string)` (a MAC address, e.g. "00-14-22-01-23-45") throws `FormatException` for

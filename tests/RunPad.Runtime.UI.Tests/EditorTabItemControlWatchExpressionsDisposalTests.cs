@@ -16,7 +16,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #105 — audit finding: the constructor subscribed to _vm.DebugPanel.WatchExpressions.
+// Audit finding: the constructor subscribed to _vm.DebugPanel.WatchExpressions.
 // CollectionChanged with an anonymous lambda, so Dispose() (which carefully unsubscribes
 // _prefs.Changed/_selectedKindSub) had no handler reference to unsubscribe it with. Not an active
 // leak today (control and VM are always created/destroyed as a pair — EditorTabsControl.cs), but a

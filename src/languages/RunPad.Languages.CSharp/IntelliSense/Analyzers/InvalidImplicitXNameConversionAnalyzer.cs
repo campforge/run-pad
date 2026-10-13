@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (475-й проход, batch) — candidate #2 from the thirty-eighth research subagent survey,
+// Candidate #2 from the thirty-eighth research subagent survey,
 // re-verified independently before implementing. A string literal argument that implicitly converts to
 // `System.Xml.Linq.XName` (via `XName`'s own implicit conversion operator, itself just `XName.Get`
 // under the hood) at an INVOCATION-ARGUMENT call site — genuinely different syntax shape from both

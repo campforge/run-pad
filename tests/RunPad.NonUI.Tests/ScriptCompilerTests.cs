@@ -18,7 +18,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// docs/handoffs/roslyn-script-compiler.md — scripts compile in-process with Roslyn (CSharpScriptCompiler,
+// Scripts compile in-process with Roslyn (CSharpScriptCompiler,
 // VbScriptCompiler); RunPad no longer uses MSBuild. Real compilations and real script processes. The
 // expectations reproduce what the old `dotnet build` path gave (several of these were MSBuild-era
 // regression tests, ported here).
@@ -143,7 +143,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
         Assert.Contains((DebugSourcePath.Canonicalize(sourcePath), true), PdbDocuments(pdbPath));
     }
 
-    // docs/handoffs/macos-roslyn-breakpoints.md — the PDB recorded OutputDirectory as given while
+    // The PDB recorded OutputDirectory as given while
     // DapSession canonicalizes the breakpoint source, so on macOS (/var → /private/var) netcoredbg left
     // every breakpoint pending. A directory symlink reproduces that on any Unix CI without netcoredbg.
     [Theory]
@@ -300,7 +300,7 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
     }
 
     // Updating RunPad rebuilds RunPad.Runtime.dll in place (same path): the script must be rebuilt
-    // against it rather than keep running against the old copy in bin/ (TODO.md #111).
+    // against it rather than keep running against the old copy in bin/.
     [Fact]
     public async Task ARebuiltRuntimeLibrary_Should_ForceARebuild_EvenIfTheScriptDidntChange()
     {

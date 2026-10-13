@@ -9,7 +9,7 @@ public record FileSystemItem(string Name, bool IsDirectory, string FilePath, IRe
 public interface IFileSystemService : IDisposable
 {
     /// <summary>
-    /// Recursively walks the workspace folder off the UI thread (ANALYSIS.md #104 — the old
+    /// Recursively walks the workspace folder off the UI thread (the old
     /// synchronous <c>GetFilesTree</c> ran directly on the UI thread, both at startup and on every
     /// settled <see cref="WatcherEvent"/>, freezing input/rendering for the duration of the walk on
     /// large/network/cloud-synced folders).
@@ -66,8 +66,7 @@ public sealed class FileSystemService : IFileSystemService
 
     // internal (not private) + InternalsVisibleTo so tests can exercise this directly against a real
     // temp directory, instead of going through the public GetFilesTree()/the class's constructor —
-    // which resolves the real Environment.SpecialFolder.MyDocuments as a side effect (see
-    // ANALYSIS.md TODO #69 follow-up).
+    // which resolves the real Environment.SpecialFolder.MyDocuments as a side effect.
     internal static IReadOnlyList<FileSystemItem> GetFilesTreeInternal(
         string folder, ILogger? logger = null, CancellationToken ct = default)
     {
@@ -78,7 +77,7 @@ public sealed class FileSystemService : IFileSystemService
         var result = new List<FileSystemItem>();
 
         // Walk folders first. Don't skip folders with no .rpad files inside (used to have "if
-        // (children.Count > 0)" here) — otherwise a folder just created via TODO #69, while still
+        // (children.Count > 0)" here) — otherwise a folder just created via "New Folder", while still
         // empty, would immediately disappear from the tree on the very next RefreshNodes(), which is
         // exactly what happened: the "New Folder" command really did create the directory on disk, but
         // GetFilesTreeInternal immediately filtered it out as "empty", so it never made it into
@@ -139,7 +138,7 @@ public sealed class FileSystemService : IFileSystemService
         }, ct);
 
 
-    // TODO.md #109: file tree's "New File" — same "probe for a free name" pattern as CreateNewFolder,
+    // File tree's "New File" — same "probe for a free name" pattern as CreateNewFolder,
     // but for a .rpad file, written into the caller-resolved target directory instead of always the
     // workspace root (the caller — MainWindowViewModel.CreateFileAsync — resolves that the same way
     // CreateFolderAsync does). Content comes from RpadWriter.NewFile (the same generator an untitled,
@@ -159,7 +158,7 @@ public sealed class FileSystemService : IFileSystemService
         return path;
     }
 
-    // TODO.md #69: same "probe for a free name" pattern as CreateNewFile, but for a directory —
+    // Same "probe for a free name" pattern as CreateNewFile, but for a directory —
     // "New Folder", "New Folder 2", "New Folder 3", ... under the given parent (the caller — see
     // MainWindowViewModel.CreateFolder — resolves whether that's the selected folder itself, the
     // selected file's containing folder, or the tree's root).
@@ -236,7 +235,7 @@ public sealed class FileSystemService : IFileSystemService
 
         // Windows/macOS can select the file itself within its file manager; Linux has no
         // cross-desktop-environment equivalent to "select this file", so xdg-open just opens the
-        // containing folder instead (see ANALYSIS.md #26). The Windows branch keeps its original,
+        // containing folder instead. The Windows branch keeps its original,
         // already-working `/select,"path"` form (single Arguments string, not ArgumentList — that
         // exact comma-then-quoted-path syntax is what explorer.exe expects) unverified changes to
         // it aren't worth the risk since Windows isn't available to test in this environment.

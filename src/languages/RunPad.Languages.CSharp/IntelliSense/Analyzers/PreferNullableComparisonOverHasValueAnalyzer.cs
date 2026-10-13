@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x.HasValue && x.Value == y` manually spells out exactly what the lifted `==` operator already does
 // for `Nullable&lt;T&gt;`: `x == y` checks HasValue first and only then compares the underlying value,
 // returning false (not throwing) when x is null. The manual form is longer and repeats `x` for no

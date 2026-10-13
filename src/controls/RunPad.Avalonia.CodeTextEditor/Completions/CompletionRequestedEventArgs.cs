@@ -14,7 +14,7 @@ public sealed class CompletionRequestedEventArgs(
     public bool IsExplicitInvoke { get; } = isExplicitInvoke;
 
     /// <summary>Cancelled if a newer completion request supersedes this one before it resolves (fast
-    /// typing past the first request — see CodeTextEditor.ShowCompletion, ANALYSIS.md #57). A
+    /// typing past the first request — see CodeTextEditor.ShowCompletion). A
     /// provider that threads this through to its own async work (e.g. Roslyn's SemanticModel calls)
     /// gets real cancellation instead of just having its result discarded.</summary>
     public CancellationToken CancellationToken { get; } = cancellationToken;
@@ -30,7 +30,7 @@ public sealed class CompletionRequestedEventArgs(
 
     /// <summary>Set by the provider to tell <see cref="CodeTextEditor.ShowCompletion"/> to show
     /// overloads instead of a completion list — e.g. because the caret sits in a fresh, not-yet-
-    /// typed call argument (TODO.md #65), where an explicit Ctrl+Space is really asking for
+    /// typed call argument, where an explicit Ctrl+Space is really asking for
     /// parameter info rather than a completion list. Only meaningful when <see
     /// cref="IsExplicitInvoke"/> is true; ShowCompletion ignores <see cref="Items"/> entirely when
     /// this is set.</summary>

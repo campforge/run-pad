@@ -19,7 +19,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 {
     // Default usings the synthetic script document is built with, so completion/diagnostics work
     // without the user typing them — must match the compiler's own implicit usings exactly (see
-    // ImplicitUsings.Default / ANALYSIS.md #27), otherwise IntelliSense shows no error for something
+    // ImplicitUsings.Default), otherwise IntelliSense shows no error for something
     // that won't actually compile. Extended at runtime with the .rpad front matter's own
     // `namespaces:` list (see UpdateGlobalUsings) so IntelliSense agrees with what the compiler
     // will actually add as `global using` too — see docs/ImplementationPlanRPad.md and RoslynCodeFixEngine.
@@ -79,7 +79,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             "nameof", "value", "unmanaged", "notnull",
         }
         // Rank 9 — see ScopeRank: keywords sort after every real symbol, so a local/parameter/member
-        // that happens to fuzzy-match the same letters (see ANALYSIS.md TODO #51 follow-up) doesn't
+        // that happens to fuzzy-match the same letters doesn't
         // lose a tie-break to a keyword the user isn't actually reaching for. Priority matches —
         // lowest of all kinds, see ScopeRankPriority.
         .Select(kw => (ICompletionItem)new SimpleCompletionItem(
@@ -87,7 +87,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             Summary: null, SortText: $"9{kw}", Priority: 0.1, UsingsToAdd: []))
         .ToArray();
 
-    // TODO.md #59 remainder — contextual keywords with no legal meaning outside a specific syntax
+    // Contextual keywords with no legal meaning outside a specific syntax
     // position were being offered everywhere (e.g. "orderby"/"equals" inside an ordinary method body).
     // `where` is deliberately NOT included here — it's also the generic type-constraint clause keyword
     // (`where T : class`), which is legal in an ordinary member-declaration position, so filtering it
@@ -105,7 +105,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         "get", "set", "add", "remove",
     };
 
-    // TODO.md #78: the only keywords that are ever legal as a generic type argument are the predefined
+    // The only keywords that are ever legal as a generic type argument are the predefined
     // type keywords (`List<int>`, `List<string>`, ...) plus `dynamic`/`nint`/`nuint` — every other
     // keyword in _keywords (control-flow, modifiers, LINQ, ...) is a syntax error there. `var`/`void`
     // are deliberately excluded: neither is a legal type argument (`List<var>`/`List<void>` don't
@@ -135,7 +135,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         return true;
     }
 
-    // TODO.md #78: true anywhere inside a generic type argument list (`List<`, `List<Str`,
+    // True anywhere inside a generic type argument list (`List<`, `List<Str`,
     // `Dictionary<string, `, ...) — the only place where completion should be restricted to type-ish
     // symbols instead of every in-scope symbol. Reuses the same HasAncestorMatching position-1
     // fallback as every other "what syntax is the caret inside" check in this file (see
@@ -152,7 +152,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
-    // still feel live (ANALYSIS.md #94). Settable only by tests (InternalsVisibleTo): a test that calls
+    // still feel live. Settable only by tests (InternalsVisibleTo): a test that calls
     // NotifyTextChanged exactly once has nothing to debounce, and 500ms x ~500 such tests was most of
     // CSharpIntelliSenseAnalyzersTests' run time.
     internal TimeSpan BackgroundAnalysisDebounce { get; set; } = TimeSpan.FromMilliseconds(500);
@@ -182,7 +182,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private RpadKind _kind = RpadKind.Statements;
     private string _lastCode = "";
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104): the full synced document
+    // The full synced document
     // text (preamble + KindPrefix + code + TrailingPad) and the live SourceText it produced, kept
     // alongside _lastCode so SyncDocument can hand Roslyn a minimal TextChange (ComputeMinimalChange)
     // against _lastSourceText instead of rebuilding the whole document from a fresh string on every
@@ -212,7 +212,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Guards _lastCode and the AdhocWorkspace's CurrentSolution against concurrent SyncDocument
     // calls — completion/signature-help/quick-info/background-analysis each run on their own
     // Task.Run, so without this a completion request for the text at keystroke N could race a
-    // still-in-flight background-analysis pass for keystroke N-2 (ANALYSIS.md TODO #56).
+    // still-in-flight background-analysis pass for keystroke N-2.
     private readonly object _syncLock = new();
     private CancellationTokenSource? _diagnosticsCts;
 
@@ -223,12 +223,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
     // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
     // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
-    // for the same ~167 default BCL reference assemblies from scratch (ANALYSIS.md TODO #56).
+    // for the same ~167 default BCL reference assemblies from scratch.
     internal static readonly ConcurrentDictionary<string, MetadataReference> ReferenceCache =
         new(StringComparer.OrdinalIgnoreCase);
 
     // See ReferenceDocumentation — without this, GetDocumentationCommentXml() comes back empty for
-    // every metadata symbol (BCL, NuGet), so TODO.md #50's Summary was silently null for every
+    // every metadata symbol (BCL, NuGet), so the doc-comment Summary was silently null for every
     // completion/signature-help/quick-info item except symbols the script itself defines.
     private static MetadataReference CreateReference(string path) =>
         ReferenceCache.GetOrAdd(path,
@@ -335,11 +335,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
     // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
     // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
-    // own Main is static and/or Task-returning (TODO.md #63, #107) — every call site already has
+    // own Main is static and/or Task-returning — every call site already has
     // `code` in scope (it's what's being analyzed), so this just threads it through.
     private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code) : "";
 
-    // Closes the wrapper class KindPrefix opens for RpadKind.Program (TODO.md #107) — mirrored for the
+    // Closes the wrapper class KindPrefix opens for RpadKind.Program — mirrored for the
     // same reason as the prefix: without it, the live-analysis document would contain a permanently
     // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
     // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
@@ -350,7 +350,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
-    // TODO.md #77: with nothing after the user's own code, a query position sitting at the very end
+    // With nothing after the user's own code, a query position sitting at the very end
     // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
     // the exact reported repro: `var a = ...;` then `a` on its own line, nothing typed after it yet)
     // coincides with the true end of the whole synced document. Roslyn's SemanticModel.LookupSymbols
@@ -378,7 +378,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             {
                 var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
 
-                // TODO.md #74 "IntelliSenseService optimization" (pass 104): hand Roslyn a
+                // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
                 // one from a full string — see _lastFullText/_lastSourceText's own doc comment for why
                 // (incremental lexing/parsing reuse) and the measured impact. Only the very first sync,
@@ -455,7 +455,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var pos = position + HeaderLength(code);
 
-            // TODO.md item 60 point 8 — checked before the position guards below: "override" is a
+            // Checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right
             // before the caret, this is unambiguously an override-stub request regardless of what the
             // (necessarily incomplete, not-yet-typed-past-it) surrounding syntax looks like to
@@ -491,7 +491,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 // MemberBindingExpression hanging off a ConditionalAccessExpression instead (the
                 // qualifier lives one level up, off the ConditionalAccessExpression itself, not the
                 // MemberBindingExpression — which has no Expression of its own). Without this second
-                // case, "s?." resolved to nothing at all (ANALYSIS.md #52).
+                // case, "s?." resolved to nothing at all.
                 var memberAccess = token.Parent?.AncestorsAndSelf()
                     .OfType<MemberAccessExpressionSyntax>()
                     .FirstOrDefault();
@@ -508,7 +508,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     // "System." — the qualifier itself names a namespace, not an expression with a
                     // value/type. GetTypeInfo has nothing for this (a namespace isn't a type), so
                     // without this branch it fell through to "nothing sensible to complete" and
-                    // returned null (ANALYSIS.md #52) — LookupNamespacesAndTypes is the correct API
+                    // returned null — LookupNamespacesAndTypes is the correct API
                     // for offering the namespace's nested namespaces/types instead.
                     if (qualifierSymbol is INamespaceSymbol containingNamespace)
                     {
@@ -527,7 +527,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     // tells them apart (only the former resolves the qualifier to the INamedTypeSymbol
                     // itself), GetTypeInfo does not (a type used as a qualifier has no "type of its
                     // own" from GetTypeInfo's point of view, which is why the static case used to fall
-                    // through to "nothing to complete" — ANALYSIS.md #52 static/instance mixing).
+                    // through to "nothing to complete" — static/instance mixing).
                     var isStaticQualifier = qualifierSymbol is INamedTypeSymbol;
                     ITypeSymbol? type;
                     if (isStaticQualifier)
@@ -544,7 +544,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                     {
                         // LookupSymbols(container: type) returns every member visible in that type's
                         // scope regardless of static-ness — "DateTime." used to also offer AddDays
-                        // (instance) and "d." used to also offer Parse (static), see ANALYSIS.md #52.
+                        // (instance) and "d." used to also offer Parse (static).
                         // Extension methods only make sense in the instance case (the static-qualifier
                         // "DateTime.SomeExtension()" call form isn't what LookupSymbols' reduced form
                         // represents), so they're only requested there too.
@@ -567,7 +567,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 if (isDotInsertion) return null;
             }
 
-            // TODO.md #115 — live user request: `new Tests() { P1 = "1", | }` offered whatever's
+            // Live user request: `new Tests() { P1 = "1", | }` offered whatever's
             // visible in the enclosing scope (locals, fields of the CONTAINING type, ...) instead of
             // Tests' own remaining settable members, because nothing here ever checked for an
             // object-initializer position at all — it just fell through to the general LookupSymbols
@@ -585,7 +585,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var isTypeArgumentPosition = IsInsideTypeArgumentList(root, pos);
 
-            // TODO.md #78 repro: `var a = new List<` unconditionally called LookupSymbols and offered
+            // Repro: `var a = new List<` unconditionally called LookupSymbols and offered
             // every visible symbol (locals, parameters, methods, ...) mixed in with actual types — this
             // narrows that to only what can legally appear as a generic type argument. Namespaces stay
             // in (not just named types/type parameters) so `List<Sys` can still offer "System" and let
@@ -601,7 +601,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Cast<ICompletionItem>()
                 .Concat(_keywords.Where(k => IsKeywordApplicable(k, root, pos, isTypeArgumentPosition))));
 
-            // Auto-import (TODO.md #28 remainder): types from an added NuGet package that aren't in
+            // Auto-import: types from an added NuGet package that aren't in
             // scope yet don't just fail silently — they're offered too, prefixed-matched against
             // whatever's typed so far, and accepting one adds its "using" automatically (see
             // EditorCompletionData.UsingsToAdd / EditorTabItemControl.AddGlobalUsings). Scoped to NuGet
@@ -621,7 +621,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             return items.Count > 0 ? new SimpleCompletionList(items) : null;
         }
-        // A superseded request (see CodeTextEditor.ShowCompletion/ANALYSIS.md #57) cancels its token —
+        // A superseded request (see CodeTextEditor.ShowCompletion) cancels its token —
         // that's an expected outcome, not a failure, so it must propagate instead of being swallowed by
         // the general catch below (which would otherwise log it as a spurious warning on every fast
         // keystroke that supersedes an in-flight request).
@@ -631,10 +631,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Collapses same-named candidates down to one item per DisplayText (the same instance already
     // won by ScopeRank/Kind ordering everywhere this was called before), stamping the survivor with
-    // OverloadCount when more than one Method-kind candidate shares the name (TODO.md #59 remainder —
+    // OverloadCount when more than one Method-kind candidate shares the name (
     // without this, accepting a name with several overloads gave no hint there was anything else
     // under it at all) and with IsOwnMember if ANY grouped candidate is declared directly on the
-    // current/receiver type (TODO.md item 60 point 7) — e.g. Derived.Foo(int) shadowing
+    // current/receiver type — e.g. Derived.Foo(int) shadowing
     // Base.Foo(string) should still render bold even though ScopeRank/Kind ordering might pick the
     // base one as the group's representative.
     private static IReadOnlyList<ICompletionItem> GroupByDisplayText(IEnumerable<ICompletionItem> items) =>
@@ -656,7 +656,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             .ToList();
 
     // The INamedTypeSymbol containing the given position — used for the general (non-dot) completion
-    // branch's "is this an own member" check (TODO.md item 60 point 7). Walks up from
+    // branch's "is this an own member" check. Walks up from
     // GetEnclosingSymbol rather than assuming a fixed nesting depth, since top-level statements (this
     // project's primary script shape) land inside a compiler-synthesized Program class one level
     // deeper than an ordinary explicit class body would.
@@ -671,7 +671,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private static bool IsOwnMember(ISymbol symbol, ITypeSymbol? currentType) =>
         currentType is not null && SymbolEqualityComparer.Default.Equals(symbol.ContainingType, currentType);
 
-    // ── Override-member stubs (TODO.md item 60 point 8) ────────────────────────
+    // ── Override-member stubs ────────────────────────
 
     // True when the word immediately before position — skipping back over the trigger space itself —
     // is the whole word "override" (not e.g. "myoverride"). Deliberately a raw string scan, not a
@@ -785,7 +785,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             SortText: method.Name, Priority: 1.0, UsingsToAdd: [], InsertTemplate: template);
     }
 
-    // TODO.md #115 — the nearest ObjectInitializerExpression ancestor of the token right before the
+    // The nearest ObjectInitializerExpression ancestor of the token right before the
     // caret, same "walk up from the token before pos" idiom the dot/member-access branch above uses
     // for MemberAccessExpressionSyntax. Right after '{' or ',' (the common case — nothing typed yet
     // for the next member), that token's own Parent already IS the InitializerExpressionSyntax (open
@@ -845,7 +845,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // LocalFunction alongside Ordinary/ReducedExtension — top-level statements (this project's
         // main script shape) use local functions as their primary way to structure code, so leaving
         // them out meant the single most common non-trivial identifier in a script never completed
-        // (ANALYSIS.md #52).
+        //.
         IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.ReducedExtension or MethodKind.LocalFunction
             => BuildItem(m, m.Name, CompletionItemKind.Method, IsOwnMember(m, currentType)),
         IPropertySymbol p
@@ -870,14 +870,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 _ => CompletionItemKind.Class,
             }),
         // Type parameters (the `T` in `void Foo<T>(T value)`) were dropped entirely — inside a
-        // generic method/type's own body, `T` is a real, commonly-referenced symbol (ANALYSIS.md
-        // TODO #59), not just declaration-site syntax.
+        // generic method/type's own body, `T` is a real, commonly-referenced symbol,
+        // not just declaration-site syntax.
         ITypeParameterSymbol tp
             => BuildItem(tp, tp.Name, CompletionItemKind.TypeParameter),
         // Namespaces were silently dropped here despite ScopeRank already carrying a rank for them
         // (3 — below types) — LookupSymbols(pos) does return INamespaceSymbol candidates (e.g. typing
         // "Sys" offers "System" in real VS/Rider), they just never became a completion item
-        // (ANALYSIS.md #52). CompletionItemKind has no dedicated "Namespace" entry — Module is the
+        //. CompletionItemKind has no dedicated "Namespace" entry — Module is the
         // closest LSP-style stand-in (VS Code/LSP itself uses Module for both).
         INamespaceSymbol ns
             => BuildItem(ns, ns.Name, CompletionItemKind.Module),
@@ -894,7 +894,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             IsOwnMember: isOwnMember);
     }
 
-    // TODO.md #28 remainder / item 60 point 6 — a type from an added NuGet package that isn't in
+    // A type from an added NuGet package that isn't in
     // scope yet. Own tier (ScopeRank 3, between ordinary types and namespaces) rather than sharing
     // rank 2 with already-visible types, and carries Detail (the containing namespace) so the
     // completion list itself shows the ReSharper-style "(in Namespace)" annotation — see
@@ -1023,10 +1023,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Locals/parameters (the innermost scope) sort before members of the containing type, which sort
     // before other (in-scope) types, which sort before not-yet-imported types (rank 3, see
-    // BuildImportableTypeItem — TODO.md item 60 point 6: "visible types → importable types"), which
+    // BuildImportableTypeItem), which
     // sort before namespaces — so typing a few letters shows what's actually nearby before it shows
     // something merely imported/visible, and before something that isn't even imported yet
-    // (TODO.md #51 follow-up: "the in-scope thing first, then a level up").
+    // ("the in-scope thing first, then a level up").
     private static int ScopeRank(ISymbol symbol) => symbol switch
     {
         ILocalSymbol or IParameterSymbol => 0,
@@ -1037,8 +1037,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     };
 
     // Whether a member found via LookupSymbols(container: type) actually belongs on the side of the
-    // dot it was requested for — "DateTime." (static qualifier) vs "d." (instance qualifier),
-    // ANALYSIS.md #52. Nested types are only ever reachable through the type itself (there's no such
+    // dot it was requested for — "DateTime." (static qualifier) vs "d." (instance qualifier).
+    // Nested types are only ever reachable through the type itself (there's no such
     // thing as `instance.NestedType`), regardless of the nested type's own staticness, hence the
     // special case rather than just comparing symbol.IsStatic for everything.
     private static bool MatchesQualifierStaticness(ISymbol symbol, bool isStaticQualifier) => symbol switch
@@ -1050,7 +1050,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ICompletionItem.Priority — the editor's tie-break among items of otherwise-equal match quality
     // (see AvaloniaEdit.CodeCompletion.CompletionList.SelectItem: quality decides first, Priority only
     // breaks ties). Derived from the same ScopeRank used for SortText, rather than the UI layer's
-    // former Kind == Method ? 1.0 : 0.9 hardcode (ANALYSIS.md #55) — so a local sitting right next to
+    // former Kind == Method ? 1.0 : 0.9 hardcode — so a local sitting right next to
     // an equally-good-matching method actually wins the tie-break its ScopeRank already implies.
     private static double ScopeRankPriority(int rank) => rank switch
     {
@@ -1084,7 +1084,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
 
             // "new Foo(" behaves the same as a method call for signature-help purposes — it just
-            // wasn't recognized at all before (ANALYSIS.md #53), so opening a constructor's argument
+            // wasn't recognized at all before, so opening a constructor's argument
             // list never showed its parameters. BaseObjectCreationExpressionSyntax is the shared base
             // of both `new Foo(...)` and the target-typed `new(...)`.
             var callLike = node.AncestorsAndSelf()
@@ -1106,7 +1106,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Concat(symInfo.CandidateSymbols.OfType<IMethodSymbol>())
                 .ToList();
 
-            // TODO.md #60.9 ("all overloads"): Roslyn only populates CandidateSymbols when
+            // Roslyn only populates CandidateSymbols when
             // resolution is ambiguous — a call already typed correctly and unambiguously resolves
             // straight to one Symbol, which used to collapse "all overloads" down to just that one
             // even when the method has siblings (the insight window's up/down cycling had nothing
@@ -1151,7 +1151,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Signature help failed"); return null; }
     }
 
-    // TODO.md #53 remainder: picking the highlighted overload by argument COUNT alone means e.g.
+    // Picking the highlighted overload by argument COUNT alone means e.g.
     // Foo(1, "x") highlights Foo(int, int) over Foo(int, string) whenever the int-int overload sorts
     // first — the arg count matches either way, but only one of them actually type-checks. This is a
     // lightweight approximation of real overload resolution, not a reimplementation of it: it prefers
@@ -1202,7 +1202,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // A position inside the text of a string/char literal has nothing to complete either — unlike
     // comments this isn't trivia, it's an ordinary token (StringLiteralToken etc.), so it needs its
-    // own check rather than falling out of IsInsideComment (ANALYSIS.md #52). Interpolation holes
+    // own check rather than falling out of IsInsideComment. Interpolation holes
     // (the `{expr}` parts of `$"..."`) are deliberately NOT covered — their contents are ordinary
     // expression tokens (identifiers, dots, ...), not one of the kinds checked here, so completion
     // still works inside them, same as VS/Rider.
@@ -1225,7 +1225,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             || token.IsKind(SyntaxKind.Utf8SingleLineRawStringLiteralToken)
             || token.IsKind(SyntaxKind.Utf8MultiLineRawStringLiteralToken);
 
-    // ANALYSIS.md TODO #68: the caret sitting inside the NAME of a fresh declaration (a method/class/
+    // The caret sitting inside the NAME of a fresh declaration (a method/class/
     // property/variable/parameter the user is currently naming, e.g. "void Mai|" or "private |") isn't
     // an expression position — LookupSymbols/GetSymbolInfo don't distinguish "referencing an existing
     // symbol" from "declaring a brand-new one", so without this guard the editor would happily offer
@@ -1293,7 +1293,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         return count;
     }
 
-    // TODO.md #65: no argument has been parsed at argIndex at all (right after `(`, or right after a
+    // No argument has been parsed at argIndex at all (right after `(`, or right after a
     // trailing `,` with nothing typed since — Roslyn's error recovery doesn't produce an Arguments
     // entry for either), or one has but position sits at or before its own start (caret placed back
     // at the very start of an already-typed argument, e.g. via Home/click) — either way, nothing has
@@ -1339,7 +1339,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Document Highlights ──────────────────────────────────────────────────────
 
-    // TODO.md #62 "occurrence highlighting": Roslyn ships a ready-made IDocumentHighlightsService for
+    // Roslyn ships a ready-made IDocumentHighlightsService for
     // exactly this, but it (and its result types DocumentHighlights/HighlightSpan) are internal to
     // Microsoft.CodeAnalysis.Features — not reachable from here even though that assembly is already
     // loaded into RunPadRoslynHost's MEF composition (confirmed directly: referencing the type by
@@ -1612,7 +1612,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "Format failed"); return null; }
     }
 
-    // ── Refactorings (CodeRefactoringProvider hosting in the lightbulb, TODO.md #74) ─────────────
+    // ── Refactorings (CodeRefactoringProvider hosting in the lightbulb) ─────────────
 
     public Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
         string code, int position, CancellationToken ct = default)
@@ -1638,7 +1638,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
     }
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the deferred half of
+    // The deferred half of
     // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings, see IIntelliSenseService.
     // MaterializeFixAsync's own doc comment. No SyncDocument call here — the cached CodeAction
     // RoslynCodeFixEngine looks key up already carries its own document snapshot internally (captured
@@ -1711,7 +1711,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // mid-flight past this point (e.g. inside RoslynCodeFixEngine, which doesn't poll the token
         // between individual CodeFixProviders — see Dispose's own comment), and registering/reading
         // against an already-disposed CancellationTokenSource throws ObjectDisposedException
-        // (ANALYSIS.md #89). A CancellationTokenSource whose WaitHandle is never touched holds no
+        //. A CancellationTokenSource whose WaitHandle is never touched holds no
         // unmanaged resources, so leaving the superseded one for the GC is safe; Dispose() below
         // (this instance's own teardown, after _backgroundAnalysisTask is awaited/timed out) still
         // disposes the final one.
@@ -1760,7 +1760,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         SemanticTokensChanged?.Invoke(code, result);
     }
 
-    // TODO.md #62 "inlay hints" — inferred `var x` / `foreach (var x in ...)` type annotations only
+    // Inferred `var x` / `foreach (var x in ...)` type annotations only
     // (Roslyn's own CSharpInlineTypeHintsService also covers lambda parameters, implicit `new()`, and
     // collection expressions — internal API, decompiled to confirm exact placement/format below, not
     // ported wholesale; those three are lower-value, left for a follow-up if wanted). Single-variable
@@ -1824,7 +1824,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // model.GetDiagnostics(...), which forces Roslyn to re-run the full diagnostic/analyzer engine
     // over the document; GetSemanticModelAsync itself is cached per document version, but
     // GetDiagnostics is not, so calling it twice on the same model did the same binding work twice
-    // on every 500ms background tick (ANALYSIS.md TODO #56).
+    // on every 500ms background tick.
     private async Task ComputeDiagnosticsAndCodeFixesAsync(string code, Document document, CancellationToken ct)
     {
         var model = await document.GetSemanticModelAsync(ct);
@@ -1835,7 +1835,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             return;
         }
 
-        // TODO.md #74 "analyzer pipeline" — Roslyn's own IDE-style analyzers ("use var", "make
+        // Roslyn's own IDE-style analyzers ("use var", "make
         // readonly", ...) alongside the compiler's own diagnostics. GetCompilationAsync is the same
         // cached compilation model.GetDiagnostics() already reads from (Roslyn caches per Project
         // version), not a second build.
@@ -1864,7 +1864,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             // Clamp to code.Length before the start>=end skip below, same pattern as
             // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
-            // TODO.md #107: RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
+            // RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
             // now follows the user's own code in the synced document, so a diagnostic anchored there
             // (or straddling into it) needs to not leak an out-of-range span to the editor.
             var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);

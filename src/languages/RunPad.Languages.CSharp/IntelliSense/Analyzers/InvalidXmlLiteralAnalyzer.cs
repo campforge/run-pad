@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят третий проход, batch) — own pick, not a Roslynator port. Same "run the
+// Own pick, not a Roslynator port. Same "run the
 // real validator" theme as InvalidGuidLiteralFormatAnalyzer/InvalidIPAddressLiteralAnalyzer (RPAD0246,
 // RPAD0249): `XDocument.Parse(s)` and `XElement.Parse(s)` throw `XmlException` for a string that isn't
 // well-formed XML — rather than hand-writing an XML well-formedness check, this analyzer calls the REAL

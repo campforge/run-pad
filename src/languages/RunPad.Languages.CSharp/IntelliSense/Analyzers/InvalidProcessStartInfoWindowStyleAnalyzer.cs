@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (452-й проход, batch) — candidate #1 from the fourteenth research subagent survey,
+// Candidate #1 from the fourteenth research subagent survey,
 // re-verified independently before implementing. `ProcessStartInfo.WindowStyle` — assigning a
 // `ProcessWindowStyle` value outside its 0-3 defined range (`Normal`/`Hidden`/`Minimized`/`Maximized`)
 // throws `System.ComponentModel.InvalidEnumArgumentException` (a genuinely different exception TYPE from

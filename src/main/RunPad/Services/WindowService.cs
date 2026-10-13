@@ -11,7 +11,7 @@ using RunPad.Windows.Models;
 
 namespace RunPad.Services;
 
-// TODO.md #100: used to take the whole IServiceProvider and resolve dependencies inside each method
+// Used to take the whole IServiceProvider and resolve dependencies inside each method
 // (Service Locator — DIP violation, constructor didn't document real dependencies, hard to test in
 // isolation). Explicit Func<TWindow> factories instead — same technique already used for
 // Func<IIntelliSenseService> in App.axaml.cs's ConfigureServices, registered there the same way.
@@ -38,7 +38,7 @@ public sealed class WindowService : IWindowService
         _preferences = preferences;
     }
 
-    // TODO.md #101: the same lookup, repeated verbatim 6 times below.
+    // The same lookup, repeated verbatim 6 times below.
     private static Window? MainWindow =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 

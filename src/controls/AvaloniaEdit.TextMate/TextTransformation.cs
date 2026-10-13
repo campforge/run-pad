@@ -55,7 +55,7 @@ public class ForegroundTextTransformation : TextTransformation
         }
     }
 
-    // TODO.md #112: bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set, including the
+    // Bundled TextMateSharp themes (ThemeService.cs's ThemeName.* set, including the
     // default Dark+) mark the comment scope's tokenColors fontStyle as "italic" — the same convention
     // VS Code's own built-in themes use. Live user report: RunPad doesn't need to mirror that here —
     // a comment is already distinguished by color; italicizing it on top is unwanted noise, not a

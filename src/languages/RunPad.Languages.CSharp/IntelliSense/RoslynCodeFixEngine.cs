@@ -22,7 +22,6 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // RoslynPad/OmniSharp use — rather than the full VS CodeFixService, which needs several workspace
 // services (diagnostic analyzer service, solution crawler, ...) this host never sets up.
 //
-// TODO.md #74 "IntelliSenseService optimization" (pass 104, live user report of the UI lagging) —
 // ComputeFixesAsync/ComputeRefactoringsAsync used to materialize
 // EVERY candidate (CodeAction.GetOperationsAsync + diffing — the expensive part, see
 // TryMaterializeAsync's own comment) from EVERY applicable provider, on EVERY keystroke/caret-move,
@@ -70,8 +69,8 @@ internal sealed class RoslynCodeFixEngine
 
     // Refactoring providers that only make sense for a multi-file project on disk. MoveType offers
     // "Move type to C.cs", "Rename file to C.cs" and — keyed to CSharpIntelliSenseService's synthetic
-    // document name — "Rename type to Script" on every type declaration (confirmed via a live probe,
-    // TODO.md pass 102 note). A .rpad script is one self-contained file the user never sees as
+    // document name — "Rename type to Script" on every type declaration (confirmed via a live probe).
+    // A .rpad script is one self-contained file the user never sees as
     // Script.cs, so all three are meaningless there. Matched by the provider's own type name
     // (MoveTypeCodeRefactoringProvider is internal to Microsoft.CodeAnalysis.Features, no public type
     // to compare against) rather than by titles — covers every variant the provider can produce.
@@ -119,7 +118,7 @@ internal sealed class RoslynCodeFixEngine
             var providers = _providers.Where(p => p.FixableDiagnosticIds.Contains(group.Key)).ToList();
             if (providers.Count == 0) continue;
 
-            // User report 2026-07-21 (TODO.md #74): analyzers like UseCollectionInitializer
+            // User report 2026-07-21: analyzers like UseCollectionInitializer
             // (IDE0028) report a whole CLUSTER of same-ID diagnostics for one logical suggestion —
             // one "primary" diagnostic on the object-creation expression, plus one WellKnownDiagnostic
             // Tags.Unnecessary-tagged "companion" diagnostic on each subsequent statement that will be
@@ -222,7 +221,7 @@ internal sealed class RoslynCodeFixEngine
         return resolved.ToList();
     }
 
-    // TODO.md #74 "CodeRefactoringProvider hosting" — the position-based counterpart to
+    // The position-based counterpart to
     // ComputeFixesAsync above: no diagnostic to key off, no FixableDiagnosticIds to pre-filter by, so
     // every registered provider gets a chance at the given span every call (same "a couple hundred
     // providers, once per tab, already realized in the constructor" cost model as code fixes —
@@ -280,7 +279,7 @@ internal sealed class RoslynCodeFixEngine
         return result;
     }
 
-    // TODO.md #74 "IntelliSenseService optimization" — the deferred half: does the actual expensive
+    // The deferred half: does the actual expensive
     // work (TryMaterializeAsync — GetOperationsAsync + diffing) for the ONE candidate key identifies,
     // looked up from whichever cache (fix or refactoring) still has it. Null if key isn't in EITHER
     // cache — either it never existed, or a newer ComputeFixesAsync/ComputeRefactoringsAsync call
@@ -442,7 +441,7 @@ internal sealed class RoslynCodeFixEngine
     // "usings to add" (lifted out of the preamble) and "the rest" (shifted back onto the user's
     // code). See the class doc comment for why this can't be a plain substring cut.
     //
-    // TODO.md #77: the "rest" used to be reconstructed as everything from preambleLength to
+    // The "rest" used to be reconstructed as everything from preambleLength to
     // originalFullText.Length — correct only as long as nothing follows the user's own code in the
     // synced document. CSharpIntelliSenseService now appends a one-character TrailingPad after it
     // (so a query position sitting at the very end of the user's code no longer coincides with the
@@ -455,7 +454,7 @@ internal sealed class RoslynCodeFixEngine
     // trivia the same as any other trailing whitespace. Each change's span is clamped to
     // preambleLength + userCodeLength for exactly this reason: the clamped-off tail is guaranteed to
     // be nothing but synthetic wrapper text — TrailingPad, and for RpadKind.Program also the
-    // class-closing suffix mirrored by CSharpIntelliSenseService.KindSuffix (TODO.md #107) — never
+    // class-closing suffix mirrored by CSharpIntelliSenseService.KindSuffix — never
     // meaningful user content, so silently dropping it from what gets deleted/replaced is safe —
     // NewText itself is untouched, only how much of the (synthetic-only) tail end of the input span
     // gets consumed is shortened.
@@ -567,7 +566,7 @@ internal sealed class RoslynCodeFixEngine
         return lines;
     }
 
-    // TODO.md #74 / pass 103 gap: "Remove unnecessary usings" is registered by Roslyn not on IDE0005
+    // "Remove unnecessary usings" is registered by Roslyn not on IDE0005
     // itself but on a companion "RemoveUnnecessaryImportsFixable" diagnostic whose span covers the
     // WHOLE using region of the synthetic document — starting at 0, inside the hidden preamble — so the
     // plain "start before user code, skip" rule always discarded it. Its lightbulb instead goes on the

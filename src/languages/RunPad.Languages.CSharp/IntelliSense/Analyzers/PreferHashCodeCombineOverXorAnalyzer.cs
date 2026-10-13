@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `a.GetHashCode() ^ b.GetHashCode()` is the old hand-rolled way to combine two hash codes into one —
 // but XOR is commutative and self-cancelling, so it distributes poorly: swapping two equal-typed
 // fields (or two equal values) produces the same combined hash, and combining a value with itself

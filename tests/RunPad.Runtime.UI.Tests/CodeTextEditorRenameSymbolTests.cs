@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "smart rename" — CodeTextEditor's own half of F2 rename is just "recognize
+// CodeTextEditor's own half of F2 rename is just "recognize
 // the keypress and raise RenameSymbolRequested"; the host (EditorTabItemControl) resolves what's
 // renameable and drives the actual dialog/edit (see EditorTabItemControlRenameEditsTests.cs for
 // that part, and CSharpIntelliSenseRenameTests.cs for symbol resolution) — this only needs to prove
@@ -50,7 +50,7 @@ public class CodeTextEditorRenameSymbolTests
         Assert.Equal(0, raised);
     }
 
-    // TODO.md #62 "find references" — same hand-off shape as F2 rename, mirrored here rather than
+    // Same hand-off shape as F2 rename, mirrored here rather than
     // in its own file since it's the same control/pattern (Shift+F12, not F2).
     [AvaloniaFact]
     public void PressingShiftF12_Should_RaiseFindReferencesRequested()
@@ -76,7 +76,7 @@ public class CodeTextEditorRenameSymbolTests
         Assert.Equal(0, raised);
     }
 
-    // TODO.md #62 "Go to Definition" (user request 2026-07-19) — same hand-off shape again, plain F12
+    // Same hand-off shape again, plain F12
     // this time (Shift+F12 stays "Find All References", see above).
     [AvaloniaFact]
     public void PressingPlainF12_Should_RaiseGoToDefinitionRequested()
@@ -102,7 +102,7 @@ public class CodeTextEditorRenameSymbolTests
         Assert.Equal(0, raised);
     }
 
-    // TODO.md #62 — Ctrl+F12 was briefly bound to a separate "Go to Implementation" request, then
+    // Ctrl+F12 was briefly bound to a separate "Go to Implementation" request, then
     // dropped (user feedback 2026-07-19: modifier+F-key combos collide with desktop-environment
     // global shortcuts often enough on Linux, e.g. KDE Plasma, that it isn't a safe default). Plain
     // F12 (EditorTabItemControl.ShowGoToDefinitionAsync) now covers both by checking implementations

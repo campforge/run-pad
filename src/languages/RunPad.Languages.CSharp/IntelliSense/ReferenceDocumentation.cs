@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 namespace RunPad.Languages.CSharp.IntelliSense;
 
 // Locates the XML documentation for a referenced assembly, so Roslyn's GetDocumentationCommentXml()
-// actually returns something for BCL/NuGet symbols (see ANALYSIS.md TODO #50) — without a
+// actually returns something for BCL/NuGet symbols — without a
 // DocumentationProvider it comes back empty for every metadata symbol, no matter how well-documented
 // the assembly is, so completion/signature-help/quick-info Summary was silently null for anything
 // except symbols the user's own script defines (Roslyn reads those straight off the syntax tree).

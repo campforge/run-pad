@@ -4,7 +4,7 @@ namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
 /// Expands LINQPad-style path macros in a single .rpad front-matter <c>references:</c> entry
-/// (TODO.md #63) — applied identically by both EditorTabItemControl.BuildRunOptions (GUI) and
+/// — applied identically by both EditorTabItemControl.BuildRunOptions (GUI) and
 /// CliRunner.BuildOptions (CLI), which independently build the same
 /// CompiledDotnetLanguageHostOptions.AssemblyReferences/ProjectReferences from that same field.
 /// </summary>

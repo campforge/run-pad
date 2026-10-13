@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (437-й проход, batch) — candidate #3 from the sixth research subagent survey (Tier 2, "needs
+// Candidate #3 from the sixth research subagent survey (Tier 2, "needs
 // a culture-safety guard before shipping"), re-verified independently before implementing.
 // `DateTime/DateTimeOffset/TimeSpan/DateOnly/TimeOnly.ParseExact(string, string, IFormatProvider)` — the
 // `ParseExact` sibling of the already-covered plain `Parse` (RPAD0365, проход 372), whose own doc comment

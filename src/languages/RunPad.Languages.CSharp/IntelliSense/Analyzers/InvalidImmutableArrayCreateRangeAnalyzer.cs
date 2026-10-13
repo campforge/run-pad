@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (456-й проход, batch) — candidate #5 from the eighteenth research subagent survey,
+// Candidate #5 from the eighteenth research subagent survey,
 // re-verified independently before implementing. `System.Collections.Immutable.ImmutableArray.
 // Create<T>(T[] items, int start, int length)` (and its `ImmutableArray<T>` source overload, same
 // shape) — a two-joint-literal analyzer: correctness depends on `start`/`length` TOGETHER against the

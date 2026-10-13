@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяностый проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0381 — grep-confirmed no prior coverage before
 // implementing (RPAD0371's HttpHeaderValue family and RPAD0373's ContentType are unrelated namespaces).
 // Same "run the real validator" theme, applied to `new X500DistinguishedName(string)` — one of six

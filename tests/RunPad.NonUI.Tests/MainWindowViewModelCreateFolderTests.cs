@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #69: file tree had no "create new folder" command at all. CreateFolderAsync resolves WHERE
+// File tree had no "create new folder" command at all. CreateFolderAsync resolves WHERE
 // the new folder actually goes (the interesting/risky part — see the three cases below) and delegates
 // the actual directory creation + unique-name probing to IFileSystemService.CreateNewFolder.
 public class MainWindowViewModelCreateFolderTests

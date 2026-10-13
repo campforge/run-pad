@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 160, batch) — the char counterpart to
+// The char counterpart to
 // CultureSensitiveCaseConversionAnalyzer (RPAD0039, pass 151), which only covers string's INSTANCE
 // ToUpper()/ToLower() — System.Char's equivalents are STATIC (`char.ToUpper(c)`/`char.ToLower(c)`), a
 // different call shape entirely, so RPAD0039's `ContainingType.SpecialType == System_String` guard

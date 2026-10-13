@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Cli.Tests;
 
-// TODO.md #40: BuildOptions is the one piece of CliRunner.RunAsync that's pure logic (no process
+// BuildOptions is the one piece of CliRunner.RunAsync that's pure logic (no process
 // spawning, no real SDK needed) — mirrors EditorTabItemControl.BuildRunOptions for the GUI's own
 // non-debug run path, so these pin down that the two stay equivalent.
 public class CliRunnerTests
@@ -24,7 +24,7 @@ public class CliRunnerTests
         References = ["Some.Native.dll", "Some.Project.csproj", "Some.Vb.vbproj"],
     };
 
-    // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — CSharp/VB used to
+    // One options type for every compiled .NET language — CSharp/VB used to
     // each get their own byte-for-byte identical options class, so these two tests used to assert
     // different Assert.IsType<> targets for otherwise-identical content; now there's only one type
     // to build regardless of language.
@@ -67,7 +67,7 @@ public class CliRunnerTests
         Assert.Empty(csharpOptions.ProjectReferences);
     }
 
-    // TODO.md #63: $(CurrentQueryPath) resolves against the currentQueryPath parameter threaded in
+    // $(CurrentQueryPath) resolves against the currentQueryPath parameter threaded in
     // from RunAsync's own filePath — mirrors EditorTabItemControl.BuildRunOptions's use of
     // _vm.FilePath for the same macro (see ReferencePathMacros.Expand).
     [Fact]
@@ -101,7 +101,7 @@ public class CliRunnerTests
         Assert.Equal(["$(CurrentQueryPath)/Lib.dll"], csharpOptions.AssemblyReferences);
     }
 
-    // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — distinct from the $(CurrentQueryPath)
+    // Distinct from the $(CurrentQueryPath)
     // reference-macro tests above: this is the options OBJECT's own CurrentQueryPath property (what
     // actually reaches the compiled script's process as an environment variable), not just a string
     // substitution in References.
@@ -267,7 +267,7 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
-    // ── convert (TODO.md #63) ────────────────────────────────────────────────────
+    // ── convert ────────────────────────────────────────────────────
 
     private const string ValidLinq = """
         <Query Kind="Statements">

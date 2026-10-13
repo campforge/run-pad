@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (455-й проход, batch) — candidate #1 from the seventeenth research subagent survey,
+// Candidate #1 from the seventeenth research subagent survey,
 // re-verified independently before implementing. `System.Diagnostics.Tracing.EventSourceOptions.Level`
 // (property type `EventLevel`, name differs from type name) and `.Opcode` (property type `EventOpcode`,
 // also differs) — both `int`-backed enums (confirmed via `Enum.GetUnderlyingType`, not assumed, per this

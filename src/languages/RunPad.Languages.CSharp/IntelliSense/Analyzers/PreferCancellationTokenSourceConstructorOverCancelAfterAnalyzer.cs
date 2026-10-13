@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `var cts = new CancellationTokenSource(); cts.CancelAfter(delay);` constructs a CancellationTokenSource
 // that never times out and then immediately arms a timeout on it — `new CancellationTokenSource(delay)`
 // does both in one call, which is exactly what that constructor overload exists for. Scoped to the

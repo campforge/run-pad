@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто третий проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0384. Same "run the real validator" theme, applied to
 // `new System.Reflection.AssemblyName(string)` — one of only two constructors (parameterless and this one,
 // confirmed via reflection). Confirmed empirically this is genuinely a TWO-exception-type situation, same

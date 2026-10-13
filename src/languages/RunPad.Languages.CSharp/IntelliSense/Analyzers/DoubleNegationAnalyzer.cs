@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `!!x`/`!(!x)` negates a boolean expression twice, which is the same as not negating it at all —
 // almost always a copy-paste or refactoring leftover rather than an intentional double negation.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

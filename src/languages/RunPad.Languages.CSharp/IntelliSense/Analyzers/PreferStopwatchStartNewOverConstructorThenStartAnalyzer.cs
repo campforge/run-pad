@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `var sw = new Stopwatch(); sw.Start();` constructs a stopped Stopwatch and then immediately starts
 // it — `Stopwatch.StartNew()` does both in one call, and is the API the type was designed to offer for
 // exactly this. Scoped to the narrowest safe shape (matching PreferListConstructorOverAddRangeAnalyzer,

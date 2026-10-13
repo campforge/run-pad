@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят седьмой проход, batch) — own pick, not a Roslynator port. Calling a
+// Own pick, not a Roslynator port. Calling a
 // Task/ValueTask-returning method and discarding the result as a bare statement — neither awaited nor
 // assigned — silently swallows whatever exception the call might throw and lets the method that called
 // it move on before the work is done. The compiler's own CS4014 already warns about exactly this, but

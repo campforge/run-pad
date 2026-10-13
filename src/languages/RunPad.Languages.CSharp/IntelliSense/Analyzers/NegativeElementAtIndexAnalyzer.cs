@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок второй проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as InvalidRandomRangeArgumentAnalyzer (RPAD0234)/
 // SubstringOutOfRangeAnalyzer (RPAD0235, проход 241): `xs.ElementAt(index)` is documented to throw
 // `ArgumentOutOfRangeException` when `index` is negative — a mistake the compiler can't catch on its

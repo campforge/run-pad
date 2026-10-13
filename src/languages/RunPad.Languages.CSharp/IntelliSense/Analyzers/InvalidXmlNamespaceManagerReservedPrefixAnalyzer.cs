@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (459-й проход, batch) — candidate #3 from the twenty-first research subagent survey,
+// Candidate #3 from the twenty-first research subagent survey,
 // re-verified independently before implementing. `System.Xml.XmlNamespaceManager.AddNamespace(string
 // prefix, string uri)` — a method (not a type) within the heavily-covered `System.Xml` vein that prior
 // rounds evidently never probed. Confirmed empirically, both case-sensitive (uppercase "XMLNS"/"XML" do

@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (460-й проход, batch) — candidate #3 from the twenty-third research subagent survey,
+// Candidate #3 from the twenty-third research subagent survey,
 // re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
 // InstructionEncoder` — another sibling under the already-covered `BlobBuilder`'s namespace (RPAD0474).
 // Six instance methods, bundled under one diagnostic (several call shapes — one diagnostic, precedent

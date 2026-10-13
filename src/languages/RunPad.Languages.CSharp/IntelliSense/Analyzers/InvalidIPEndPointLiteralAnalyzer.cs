@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Third sibling
+// Own pick, not a Roslynator port. Third sibling
 // in the `System.Net` "run the real validator" Parse family this session, alongside
 // InvalidIPAddressLiteralAnalyzer (RPAD0249) and InvalidIPNetworkLiteralAnalyzer (RPAD0366, same проход
 // prior): `IPEndPoint.Parse(string)` (address plus port, e.g. "192.168.1.1:80" or "[::1]:80" for IPv6)

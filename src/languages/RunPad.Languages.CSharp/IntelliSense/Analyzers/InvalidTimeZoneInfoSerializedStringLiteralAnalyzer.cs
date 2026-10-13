@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (427-й проход, batch) — candidate #3 from the fourth research subagent survey (424-й
+// Candidate #3 from the fourth research subagent survey (424-й
 // проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `TimeZoneInfo.FromSerializedString(string)` — NOT covered by `InvalidTimeZoneIdLiteralAnalyzer`
 // (RPAD0380, проход 388), which only targets the DIFFERENT method `FindSystemTimeZoneById` (a single-

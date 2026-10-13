@@ -9,7 +9,7 @@ public interface ILanguageHostOptions { }
 // pre-RunPad name, kept only as an internal build-artifact name (never shown to the user), not
 // worth renaming and touching every persisted build-cache directory's on-disk file names. Was
 // previously the same string literal duplicated independently across both language options classes
-// and EditorTabItemControl's own sourceFilePath computation (ANALYSIS.md #94).
+// and EditorTabItemControl's own sourceFilePath computation.
 public static class LanguageHostOptionsDefaults
 {
     public const string OutputName = "RunPadQuery";
@@ -20,7 +20,7 @@ public interface ILanguageHostFactory
     string Language { get; }
 
     // Human-readable name for UI surfaces that list languages (e.g. the Preferences window's
-    // Languages settings tree, TODO.md #49 item 4) — Language itself is the internal registry key
+    // Languages settings tree) — Language itself is the internal registry key
     // ("csharp"/"vb"), not something to show a user directly.
     string DisplayName { get; }
 
@@ -32,7 +32,7 @@ public interface ILanguageHostFactory
     IReadOnlyDictionary<string, string> Snippets { get; }
 
     // Lexical/syntactic conventions for CodeTextEditor's triggers, brace pairs, and indentation —
-    // see EditorLanguageProfile. Same reasoning as Snippets above (TODO.md #58).
+    // see EditorLanguageProfile. Same reasoning as Snippets above.
     EditorLanguageProfile EditorProfile { get; }
 
     ILanguageHost Create(ILanguageHostOptions? options = null);

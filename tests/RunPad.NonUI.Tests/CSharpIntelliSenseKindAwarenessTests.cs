@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #66: SyncDocument built its live-analysis document as just "preamble + code",
+// SyncDocument built its live-analysis document as just "preamble + code",
 // with no awareness of RpadKind at all — so for RpadKind.Program, where the *real* compiled program
 // gets an implicit `Main();` call prepended (CSharpLanguageHost.ApplyKindTransform), the analysis
 // model never saw that call. From Roslyn's point of view the user's own `void Main() { ... }` was a
@@ -84,7 +84,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.Contains(result!.Items, i => i.DisplayText == "WriteLine");
     }
 
-    // TODO.md #63 (async Task Main): ApplyKindTransform now mirrors "await Main();" instead of
+    // ApplyKindTransform now mirrors "await Main();" instead of
     // "Main();" when the user's Main is Task-returning — SyncDocument has to mirror that same,
     // longer, code-dependent prefix or this async-Main script would hit the exact same false-positive
     // CS8321 the two tests above were written to prevent for the plain void Main() case.
@@ -158,7 +158,7 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
 
-    // TODO.md #107: the exact live-reported repro, in the EDITOR (not just at compile time — see
+    // The exact live-reported repro, in the EDITOR (not just at compile time — see
     // CSharpLanguageHostProgramKindCompileTests for the real dotnet-build side of this same fix). Under
     // the old raw-top-level-statements mirroring, this script's live-analysis document would have shown
     // real CS0165/CS0106-equivalent errors as squiggles, not just at Run time. KindPrefix/KindSuffix now
@@ -181,8 +181,8 @@ public class CSharpIntelliSenseKindAwarenessTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         // Every reported span (warnings/info, if any) must land within the user's own code — see
-        // CSharpIntelliSenseService.ComputeDiagnosticsAndCodeFixesAsync's upper-bound clamp (TODO.md
-        // #107): without it, a diagnostic anchored in the mirrored KindSuffix (the synthetic
+        // CSharpIntelliSenseService.ComputeDiagnosticsAndCodeFixesAsync's upper-bound clamp:
+        // without it, a diagnostic anchored in the mirrored KindSuffix (the synthetic
         // trampoline/closing brace) could leak an out-of-range span to the editor.
         Assert.All(diagnostics, d =>
         {

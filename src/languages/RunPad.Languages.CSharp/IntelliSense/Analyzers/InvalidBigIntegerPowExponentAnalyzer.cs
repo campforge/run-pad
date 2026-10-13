@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят первый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as NegativeCountArgumentAnalyzer (RPAD0232):
 // `BigInteger.Pow(BigInteger value, int exponent)` and `BigInteger.ModPow(BigInteger value, BigInteger
 // exponent, BigInteger modulus)` both throw ArgumentOutOfRangeException for a negative `exponent` —
@@ -21,8 +21,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // type gate needed relaxing to accept EITHER `Int32` (for `Pow`) or `System.Numerics.BigInteger` (for
 // `ModPow`) at position 1, rather than requiring `Int32` unconditionally.
 //
-// EXTENDED проход 439 (TODO #74, candidate #5 from the sixth research subagent survey, Tier 3 — "gap in
-// an existing analyzer, extend rather than new file") to also check `ModPow`'s THIRD argument
+// Extended to also check `ModPow`'s THIRD argument
 // (`modulus`) for the literal value `0`: confirmed empirically that `BigInteger.ModPow(value, exponent,
 // 0)` throws `DivideByZeroException` — a completely different failure mode from the negative-exponent
 // check above (different argument position, different exception type). Confirmed a negative modulus

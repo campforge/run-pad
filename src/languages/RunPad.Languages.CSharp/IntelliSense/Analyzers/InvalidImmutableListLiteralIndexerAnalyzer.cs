@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят пятый проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidImmutableArrayLiteralIndexerAnalyzer (RPAD0357, same проход) — same theme, applied to
 // `System.Collections.Immutable.ImmutableList<T>` instead: `ImmutableList.Create(1, 2, 3)[10]`/
 // `.RemoveAt(10)`/`.Insert(10, x)` all throw when the index is out of range — confirmed empirically via

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семьдесят первый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as NegativeCapacityArgumentAnalyzer/
 // NegativeCountArgumentAnalyzer (RPAD0231/RPAD0232): `Array.Resize(ref array, newSize)` throws
 // ArgumentOutOfRangeException for a negative `newSize`, and `Array.Clear(array, index, length)` throws

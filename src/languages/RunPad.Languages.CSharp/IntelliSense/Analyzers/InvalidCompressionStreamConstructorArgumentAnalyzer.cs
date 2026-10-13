@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят второй проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231): `new
 // GZipStream(Stream, CompressionLevel)`/`DeflateStream(...)`/`ZLibStream(...)`/`BrotliStream(...)`
 // throw when the `CompressionLevel` argument (typically an explicit numeric cast, e.g.

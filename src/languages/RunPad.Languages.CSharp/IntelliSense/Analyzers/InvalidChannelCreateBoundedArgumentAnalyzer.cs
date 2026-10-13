@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят первый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
 // (RPAD0333, проход 352): `Channel.CreateBounded<T>(int capacity)` throws ArgumentOutOfRangeException
 // for a negative `capacity` — confirmed empirically via scratch `dotnet run` script. Unlike

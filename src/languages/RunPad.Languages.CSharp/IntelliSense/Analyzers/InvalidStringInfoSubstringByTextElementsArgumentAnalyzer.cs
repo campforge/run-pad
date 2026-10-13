@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (479-й проход, batch) — candidate #2 from the forty-first research subagent survey,
+// Candidate #2 from the forty-first research subagent survey,
 // re-verified independently before implementing. `StringInfo.SubstringByTextElements(int
 // startingTextElement)` / `(int startingTextElement, int lengthInTextElements)`. Confirmed empirically:
 // a NEGATIVE `startingTextElement` or `lengthInTextElements` always throws `ArgumentOutOfRangeException`

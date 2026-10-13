@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (453-й проход, batch) — candidate #2 from the fifteenth research subagent survey,
+// Candidate #2 from the fifteenth research subagent survey,
 // re-verified independently before implementing. `System.IO.Pipelines.PipeOptions`'s
 // `pauseWriterThreshold`/`resumeWriterThreshold` constructor parameters — the first genuinely
 // TWO-JOINT-LITERAL analyzer in this catalog whose validity depends on BOTH literal arguments together,

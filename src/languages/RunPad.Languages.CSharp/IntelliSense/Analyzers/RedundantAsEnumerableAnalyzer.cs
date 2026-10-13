@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Enumerable.AsEnumerable()` exists to upcast a more specific sequence type (List<T>, an array, a
 // query provider's IQueryable<T>...) to plain IEnumerable<T> — usually to pick LINQ-to-Objects over a
 // more specific type's own same-named members, or to hide extension methods that would otherwise bind

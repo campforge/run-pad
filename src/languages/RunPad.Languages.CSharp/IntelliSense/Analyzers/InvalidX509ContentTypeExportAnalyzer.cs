@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (473-й проход, batch) — candidates #2/#3 from the thirty-sixth research subagent survey,
+// Candidates #2/#3 from the thirty-sixth research subagent survey,
 // re-verified independently before implementing. `X509Certificate.Export(X509ContentType[, string?])`
 // (inherited unchanged by `X509Certificate2`) and `X509Certificate2Collection.Export(X509ContentType[,
 // string?])` — bundled under one diagnostic (precedent RPAD0426), each with its OWN valid-value set,

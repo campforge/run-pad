@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new Regex(pattern, RegexOptions.None)`/`Regex.IsMatch(input, pattern, RegexOptions.None)` (and the
 // other static Regex helpers) spell out the exact options value already used when no options are
 // given — genuinely redundant. Covers both the constructor and the static helper methods, since both

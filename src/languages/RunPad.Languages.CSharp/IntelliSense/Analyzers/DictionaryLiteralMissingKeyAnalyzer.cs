@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known contents" theme as ArrayLiteralIndexerOutOfRangeAnalyzer/ListLiteralIndexerOutOfRangeAnalyzer
 // (RPAD0283/RPAD0303), applied to `Dictionary<TKey,TValue>` instead of an array/list: indexing a freshly
 // created `new Dictionary<K, V> { { k1, v1 }, { k2, v2 } }` with a literal key that matches NONE of the

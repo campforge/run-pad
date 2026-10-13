@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (436-й проход, batch) — candidate #2 from the sixth research subagent survey (full tool
+// Candidate #2 from the sixth research subagent survey (full tool
 // access, empirically self-verified), re-verified independently before implementing. A `new
 // HashAlgorithmName(string)` literal passed as the algorithm-name argument to
 // `CryptographicOperations.HashData`/`HmacData` or `IncrementalHash.CreateHash`/`CreateHMAC` — distinct

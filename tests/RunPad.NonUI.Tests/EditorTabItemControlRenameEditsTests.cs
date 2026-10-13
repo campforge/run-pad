@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "smart rename" — EditorsTabItemControl.ApplyRenameEdits is the actual
+// EditorsTabItemControl.ApplyRenameEdits is the actual
 // edit-application logic behind F2 rename, split out specifically so it's testable against a plain
 // TextDocument without a real modal RenameSymbolDialog in the loop (there's no existing seam to
 // stub ShowDialog in this codebase — see ShowGoToLine/GoToLineDialog, which has no test coverage

@@ -13,12 +13,12 @@ public sealed class EditorSettings
     public int ColumnRulerPosition { get; set; } = 80;
     public bool WordWrap { get; set; }
 
-    // TODO.md #113: live user report ("font and spacing are too big", LINQPad 4 shown as a
+    // Live user report ("font and spacing are too big", LINQPad 4 shown as a
     // denser reference) — 14 was the one outlier default nobody had touched; 12 is what testing it
     // live actually settled on.
     public double FontSize { get; set; } = 12;
 
-    // TODO.md #112: the code editor never set FontFamily at all before this — it inherited whatever
+    // The code editor never set FontFamily at all before this — it inherited whatever
     // FluentTheme's own default font resolved to for the current OS, entirely outside RunPad's
     // control. Live user report: on at least one such default, ligature-capable glyphs (e.g. "=>"
     // rendering as a single arrow) got substituted in — not something RunPad ever asked for, and with
@@ -38,16 +38,16 @@ public sealed class EditorSettings
     // reported bug without needing to name (and keep working, per-platform) specific font families.
     public string FontFamily { get; set; } = "monospace";
 
-    // TODO.md #60.4: global switch for "typing punctuation also commits the open completion
+    // Global switch for "typing punctuation also commits the open completion
     // window" — some users find that unpredictable and want completions accepted only via
     // Enter/Tab/click.
     public bool CommitCharactersEnabled { get; set; } = true;
 
-    // TODO.md #114: File → New RPad File always showed NewFileKindDialog to pick a RpadKind, even for
+    // File → New RPad File always showed NewFileKindDialog to pick a RpadKind, even for
     // a user who creates the same language+kind combination every time — these are the defaults that
     // Ctrl+N (MainWindow.OnWindowKeyDown) and the new "New File" menu item use to skip that dialog
     // entirely. The explicit File → New RPad File → C#/Visual Basic submenu and the file tree's own
-    // "New File" context menu (TODO.md #109) are unaffected — both still ask explicitly.
+    // "New File" context menu are unaffected — both still ask explicitly.
     public RpadLanguage NewFileLanguage { get; set; } = RpadLanguage.CSharp;
     public RpadKind NewFileKind { get; set; } = RpadKind.Statements;
 }

@@ -15,7 +15,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #48: EditorTabItemControl.SaveIfNeeded() used to swallow every write failure (disk full,
+// EditorTabItemControl.SaveIfNeeded() used to swallow every write failure (disk full,
 // permissions, file deleted/locked externally) with a bare `catch { }` — the user had no way to
 // find out their edits weren't persisted. Fixed by surfacing IOException/UnauthorizedAccessException
 // through the same ExecStatusText/Color the run status uses.

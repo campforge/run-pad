@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #56: ComputeDiagnosticsAsync/ComputeCodeFixesAsync used to be two independent
+// ComputeDiagnosticsAsync/ComputeCodeFixesAsync used to be two independent
 // methods, each calling model.GetDiagnostics(...) itself — merged into one
 // (ComputeDiagnosticsAndCodeFixesAsync) that computes diagnostics once and reuses them for both.
 // These tests exercise the real background-analysis path (NotifyTextChanged) end-to-end to make
@@ -96,7 +96,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
 
         var codeFixes = await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
 
-        // TODO.md #74 "IntelliSenseService optimization" (pass 104): CodeFixesChanged's
+        // CodeFixesChanged's
         // own entries no longer carry UsingsToAdd (that's materialized on demand now, see
         // ICodeFixInfo's own doc comment) — materialize each candidate to find the one that actually
         // adds the expected using, same as a real click would.
@@ -105,7 +105,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         Assert.Contains(materialized, m => m?.UsingsToAdd.Contains("System.Text.RegularExpressions") == true);
     }
 
-    // TODO.md #75: ICodeFixInfo.Severity used to not exist at all — RoslynCodeFixEngine discarded
+    // ICodeFixInfo.Severity used to not exist at all — RoslynCodeFixEngine discarded
     // Diagnostic.Severity when building each fix, so the lightbulb margin had no way to color an
     // error-fixing action differently from a warning-fixing one. CS0103 (undefined "Regex") is a
     // real compiler ERROR, so the "add using" fix for it must carry Error through.
@@ -269,7 +269,7 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         Assert.False(codeFixesFiredAfterDispose);
     }
 
-    // ANALYSIS.md TODO #56: SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
+    // SyncDocument's check-then-act on _lastCode/the AdhocWorkspace's
     // CurrentSolution was unsynchronized, even though completion/signature-help/quick-info/
     // background-analysis each call it from their own concurrent Task.Run. A genuine race is timing-
     // dependent and hard to force deterministically, so this is a smoke test, not a precise
@@ -295,11 +295,11 @@ public class CSharpIntelliSenseBackgroundAnalysisTests
         await Task.WhenAll(tasks);
     }
 
-    // ANALYSIS.md TODO #56: MetadataReference.CreateFromFile (PE-header + XML-doc parsing) used to
+    // MetadataReference.CreateFromFile (PE-header + XML-doc parsing) used to
     // run again for every one of the ~167 default BCL reference assemblies on every new tab, even
     // though references are immutable and safe to share across unrelated workspaces. ReferenceCache
-    // is internal (InternalsVisibleTo, same pattern as CSharpReferenceService.IsManagedAssembly —
-    // TODO.md #44) so this can verify the cache directly rather than only inferring it indirectly.
+    // is internal (InternalsVisibleTo, same pattern as CSharpReferenceService.IsManagedAssembly)
+    // so this can verify the cache directly rather than only inferring it indirectly.
     [Fact]
     public void CreateReference_Should_ReturnTheSameCachedInstance_AcrossSeparateServiceInstances()
     {

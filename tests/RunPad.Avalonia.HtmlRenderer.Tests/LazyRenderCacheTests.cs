@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Avalonia.HtmlRenderer.Tests;
 
-// TODO.md #72: HtmlControl.Render used to call _htmlContainer.PerformPaint unconditionally on
+// HtmlControl.Render used to call _htmlContainer.PerformPaint unconditionally on
 // every Render call, even innocent invalidations that don't change what's on screen (window resize
 // of unrelated controls, sibling repaints). LazyRenderCache holds the policy for when a real
 // repaint is actually needed vs. when Render can just blit the cached bitmap — tested directly here;

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (457-й проход, batch) — candidate #8 from the nineteenth research subagent survey,
+// Candidate #8 from the nineteenth research subagent survey,
 // re-verified independently before implementing. `new TarWriter(Stream, TarEntryFormat)` — throws
 // `ArgumentOutOfRangeException` (param `format`) for `TarEntryFormat.Unknown` (value `0` — notably the
 // type's OWN DEFAULT value, confirmed empirically rather than assumed) or any other undefined value;

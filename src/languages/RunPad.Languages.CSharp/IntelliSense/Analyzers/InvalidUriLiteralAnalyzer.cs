@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят первый проход, batch) — own pick, not a Roslynator port. Same "run the
+// Own pick, not a Roslynator port. Same "run the
 // real validator" theme as InvalidIPAddressLiteralAnalyzer/InvalidMailAddressLiteralAnalyzer (RPAD0249,
 // RPAD0250, проходы 256-257): `new Uri(s)`/`new Uri(s, kind)` throws UriFormatException for a string
 // that doesn't parse as a URI of the requested UriKind — rather than hand-writing URI-syntax validation,

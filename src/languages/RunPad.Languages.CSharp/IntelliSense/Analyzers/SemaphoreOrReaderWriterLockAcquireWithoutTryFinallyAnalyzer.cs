@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать восьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "acquire without a guaranteed release" theme as MonitorEnterWithoutTryFinallyAnalyzer (RPAD0228,
 // проход 237), for two more synchronization primitives that don't have a `lock`-style keyword of their
 // own: `SemaphoreSlim.Wait()`/`WaitAsync()` and `ReaderWriterLockSlim.EnterReadLock()`/

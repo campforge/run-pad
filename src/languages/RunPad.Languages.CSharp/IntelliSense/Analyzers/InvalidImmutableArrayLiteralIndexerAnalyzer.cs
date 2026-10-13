@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283)/
 // ListLiteralIndexerOutOfRangeAnalyzer (RPAD0303), applied to `System.Collections.Immutable.
 // ImmutableArray<T>`: `ImmutableArray.Create(1, 2, 3)[10]`/`.RemoveAt(10)`/`.Insert(10, x)` all throw

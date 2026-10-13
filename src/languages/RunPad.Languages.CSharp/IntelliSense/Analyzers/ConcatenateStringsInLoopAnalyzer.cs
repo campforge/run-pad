@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 149, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseStringBuilderInsteadOfConcatenationInLoopAnalyzer-style rules (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `s += x;` inside a loop reallocates and copies the ENTIRE
 // accumulated string on every iteration (strings are immutable) — O(n²) total work for what looks

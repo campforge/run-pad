@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (443-й проход, batch) — candidate #2 from the eighth research subagent survey, re-verified
+// Candidate #2 from the eighth research subagent survey, re-verified
 // independently before implementing. `System.Reflection.Metadata.TypeName.Parse(ReadOnlySpan<char>,
 // TypeNameParseOptions options = default)` (.NET 9+, new to this catalog) — parses reflection type-name
 // syntax (`AssemblyQualifiedName`-shaped strings) WITHOUT ever resolving/loading an actual `Type`, so unlike

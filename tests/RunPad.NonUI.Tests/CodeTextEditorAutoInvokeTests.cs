@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #51: completion used to only show up after '.' or an explicit Ctrl+Space, never while just
+// Completion used to only show up after '.' or an explicit Ctrl+Space, never while just
 // typing an identifier (LINQPad/VS Code's "24/7 IntelliSense"). CodeTextEditor.IsStartOfNewIdentifier
 // decides whether a just-typed letter should auto-invoke completion — it must fire exactly once per
 // identifier (the first letter), not once per keystroke, since re-invoking the language service on
@@ -142,7 +142,7 @@ public class CodeTextEditorAutoInvokeTests
         Assert.Equal(2, CodeTextEditor.GetWordStart("x.", 2, CSharpIdentifierChars));
     }
 
-    // TODO.md #60.5: a Tab-triggered commit consumes any pre-existing remainder of the word the
+    // A Tab-triggered commit consumes any pre-existing remainder of the word the
     // caret is inside — GetWordEnd finds where that remainder stops, mirroring GetWordStart above.
     [Theory]
     [InlineData("Console", 4, 7)] // "Cons|ole" — caret mid-word, "ole" is the remainder to consume
@@ -161,7 +161,7 @@ public class CodeTextEditorAutoInvokeTests
         Assert.Equal(4, CodeTextEditor.GetWordEnd("Cons.Wri", 4, CSharpIdentifierChars));
     }
 
-    // ANALYSIS.md #54: typing '_' mid-identifier used to commit the completion window's selected item
+    // Typing '_' mid-identifier used to commit the completion window's selected item
     // (only char.IsLetterOrDigit was excluded, not the language's own IdentifierChars), and space
     // committed unconditionally — swapping a still-being-typed word for an unrelated prefix match
     // (e.g. "var ret " -> "var return "). '=' has the same problem for lambda parameters (user-

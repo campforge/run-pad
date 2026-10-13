@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `dict.ToDictionary(kv => kv.Key, kv => kv.Value)`, when `dict` is already a dictionary, round-trips
 // every entry through two LINQ selectors just to rebuild the exact same key/value pairs — the
 // `Dictionary<TKey, TValue>(IDictionary<TKey, TValue>)` copy constructor already does exactly that

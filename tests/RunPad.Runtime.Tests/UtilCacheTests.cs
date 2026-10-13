@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cache/CacheAsync. Same tradeoffs as
+// LINQPad-inspired Util.Cache/CacheAsync. Same tradeoffs as
 // UtilFileAndTryTests: writes into the REAL %AppData%/RunPad/UserData/Cache folder (no injectable
 // path seam for a static-class API like this), every test uses its own Guid-named key so concurrent
 // test runs can't collide, and cleans up after itself.

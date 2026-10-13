@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста седьмой проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming after the second research subagent's list (проход 397) was fully exhausted. The agent's
 // own report had flagged `XComment`/`XProcessingInstruction` as "uncertain — LINQ-to-XML is known to defer
 // some validation to serialization time, not construction — could be a dead end like new Oid(string)".

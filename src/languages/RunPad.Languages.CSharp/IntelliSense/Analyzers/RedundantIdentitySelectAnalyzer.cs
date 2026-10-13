@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 159, batch) — own pick, not a Roslynator port. `xs.Select(x =>
+// Own pick, not a Roslynator port. `xs.Select(x =>
 // x)` (or `xs.Select((x) => x)`) projects every element onto itself — a no-op wrapped in an extra
 // iterator. Deliberately narrow: only the single-parameter, expression-bodied "return the parameter
 // unchanged" shape is flagged; anything else (casts, member access, block bodies) is left alone rather

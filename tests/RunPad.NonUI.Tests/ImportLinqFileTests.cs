@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #63 ".linq → .rpad converter" — MainWindowViewModel.ImportLinqFileAsync, the "File →
+// MainWindowViewModel.ImportLinqFileAsync, the "File →
 // Import LINQPad Query..." entry point around LinqConverter (see LinqConverterTests.cs in
 // RunPad.Format.RPad.Tests for the conversion logic itself, not re-tested here).
 public class ImportLinqFileTests

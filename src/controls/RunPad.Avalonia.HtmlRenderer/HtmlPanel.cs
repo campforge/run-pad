@@ -73,7 +73,7 @@ public class HtmlPanel : HtmlControl
     }
 
     /// <summary>
-    /// Scroll all the way to the bottom of the content (TODO.md #108) — the caller is responsible for
+    /// Scroll all the way to the bottom of the content — the caller is responsible for
     /// calling this after a layout pass has actually run against the new content (e.g. from
     /// <see cref="Control.LayoutUpdated"/>), since <see cref="_verticalScrollBar"/>'s Maximum is only
     /// ever updated in <see cref="ArrangeOverride"/>; calling this synchronously right after a Text

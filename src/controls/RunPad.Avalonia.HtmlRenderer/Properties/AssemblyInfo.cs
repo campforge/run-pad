@@ -3,7 +3,7 @@ using Avalonia.Metadata;
 
 [assembly: XmlnsDefinition("https://github.com/avaloniaui", "TheArtOfDev.HtmlRenderer.Avalonia")]
 [assembly: InternalsVisibleTo("RunPad.Avalonia.HtmlRenderer.Tests")]
-// TODO.md #108: HtmlControlInvalidationTests needs internal ControlAdapter/AvaloniaAdapter/
+// HtmlControlInvalidationTests needs internal ControlAdapter/AvaloniaAdapter/
 // HtmlControl.RenderCacheForTests — constructing an HtmlControl needs a live Avalonia platform
 // (FontManager.Current), which RunPad.Avalonia.HtmlRenderer.Tests doesn't set up (its own tests are
 // deliberately plain-xunit, no Avalonia.Headless dependency); RunPad.Runtime.UI.Tests already has

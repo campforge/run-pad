@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят второй проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322,
 // проход 350): `new ConcurrentDictionary<TKey, TValue>(int concurrencyLevel, int capacity)` throws
 // ArgumentOutOfRangeException when `capacity` is negative, or when `concurrencyLevel` is neither

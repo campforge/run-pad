@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `catch (Exception ex) when (ex is FooException)` catches broadly and then narrows with a type test
 // in the filter — `catch (FooException ex)` says the same thing directly, at the language level,
 // without needing a filter at all. Deliberately conservative: the filter's condition must be EXACTLY a

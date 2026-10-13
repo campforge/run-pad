@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `dict.Select(kv => kv.Key)`/`dict.Select(kv => kv.Value)` projects each entry down to one half of
 // it through a LINQ pass — `dict.Keys`/`dict.Values` already expose exactly that as a live view,
 // without an enumerator-driven projection over every entry.

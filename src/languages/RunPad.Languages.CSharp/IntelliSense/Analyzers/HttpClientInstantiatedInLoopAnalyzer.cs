@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят третий проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "allocated fresh every iteration instead of reused" theme as RandomInstantiatedInLoopAnalyzer
 // (RPAD0133, проход 174), for a much more consequential type: `new HttpClient()` inside a loop is one
 // of the most well-documented .NET anti-patterns — each instance owns its own socket handler, and even

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста двадцать пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // array with a bad startIndex/count combination always throws" theme as
 // InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer/InvalidConvertToBase64StringArgumentAnalyzer
 // (RPAD0271/RPAD0272), applied to a syntactic shape neither of those cover: the 4-argument overload

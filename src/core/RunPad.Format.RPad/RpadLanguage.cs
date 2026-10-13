@@ -12,7 +12,7 @@ public enum RpadLanguage
 
 public static class RpadLanguageExtensions
 {
-    // TODO.md #81: three call sites (EditorTabItemControl.ResolveLanguageId, RunPad.Cli.CliRunner,
+    // Three call sites (EditorTabItemControl.ResolveLanguageId, RunPad.Cli.CliRunner,
     // and FileTreeViewModel's language-icon lookup) each hand-rolled this same
     // `.ToString().ToLowerInvariant()` conversion independently — centralized here since it's really a
     // fact about RpadLanguage's own naming convention (see the enum's doc comment above), not

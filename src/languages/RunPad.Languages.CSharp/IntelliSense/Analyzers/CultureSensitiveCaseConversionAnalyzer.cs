@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 151, batch) — same theme as CultureSensitiveStringCompareAnalyzer
+// Same theme as CultureSensitiveStringCompareAnalyzer
 // (RPAD0005)/CultureSensitiveStringMethodAnalyzer (RPAD0031), extended to the no-argument
 // `ToUpper()`/`ToLower()` overloads — culture-sensitive by default, and literally THE textbook example
 // of the "Turkish I" bug (in the Turkish locale, "i".ToUpper() gives "İ", not "I"). ToUpperInvariant()/

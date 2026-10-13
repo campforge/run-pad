@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// docs/handoffs/macos-debug-launch.md — end-to-end regression for "breakpoints never hit on macOS":
+// End-to-end regression for "breakpoints never hit on macOS":
 // real script compiler (through CSharpLanguageHost) → real DapSession → real netcoredbg, with
 // the output directory reached through a symlinked ancestor (like /var → /private/var for the
 // default temp directory), a Program-kind script (non-zero line offset) and Stop while paused.

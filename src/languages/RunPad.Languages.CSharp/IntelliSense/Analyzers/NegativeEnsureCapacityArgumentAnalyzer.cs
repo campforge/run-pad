@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста тридцать шестой проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231, the constructor
 // form), on the instance METHOD `EnsureCapacity(int capacity)` that `List<T>`/
 // `Dictionary<TKey,TValue>`/`HashSet<T>`/`Queue<T>`/`Stack<T>` all expose (.NET Core 2.4+/3.0+, within

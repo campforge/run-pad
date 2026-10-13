@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семидесятый проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: implementing `IEquatable<T>.Equals(T)` on a class or struct WITHOUT also overriding
 // `object.Equals(object)` leaves the type with two different, disagreeing notions of equality — generic
 // code (`EqualityComparer<T>.Default`, `List<T>.Contains`, `==` on `IEquatable<T>` constraints, etc.)

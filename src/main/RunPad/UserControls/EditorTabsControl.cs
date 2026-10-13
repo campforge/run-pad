@@ -77,7 +77,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
 
-        // TODO.md, "tab lifecycle (leftover)": restores the previous session's open tabs
+        // Restores the previous session's open tabs
         // (in order) + active tab instead of always starting from one blank tab.
         vm.RestoreSession();
     }
@@ -253,14 +253,14 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // Ctrl+W's entry point — replaces the old direct vm.CloseActiveTab() call (MainWindow.axaml.cs)
     // now that closing needs to go through the same confirmation as the tab's own [x] button below.
     // Routed through the tab's own CloseCommand (real body: MainWindowViewModel.IEditorTabActions.
-    // CloseAsync, ANALYSIS.md #102) rather than a second, parallel way to trigger the same close flow.
+    // CloseAsync) rather than a second, parallel way to trigger the same close flow.
     public void CloseActiveTab()
     {
         if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
         vm.CloseCommand.Execute().Subscribe();
     }
 
-    // TODO.md, "tab lifecycle (leftover)": the per-tab confirmation above only fires when a
+    // The per-tab confirmation above only fires when a
     // SPECIFIC tab is closed — quitting the whole app skipped it entirely. MainWindow's Closing
     // handler checks this first (cheap, synchronous) before deciding whether it even needs to cancel
     // the close and await ConfirmCloseAllUnsavedTabsAsync below. Review R1: dirty named tabs count
@@ -309,7 +309,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // internal (not private): lets tests inspect the built menu's items/headers/click-wiring
     // directly, rather than only through the ContextMenu popup interaction itself, which headless
-    // Avalonia has no reliable way to drive. TODO.md, "tab strip": built fresh on every click
+    // Avalonia has no reliable way to drive. Built fresh on every click
     // (not a persistent binding — this control doesn't set its own DataContext to the ViewModel, it
     // talks to it through _vm directly everywhere else too) rather than keeping one around that
     // would go stale the moment a tab opens/closes.

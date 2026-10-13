@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 154, batch) — a `static readonly` field whose initializer
+// A `static readonly` field whose initializer
 // is already a genuine compile-time constant (verified via SemanticModel.GetConstantValue — not a
 // guess) could just be `const` instead: no per-type static-constructor initialization needed, and the
 // value gets inlined at every call site. Only offered for the types C# actually allows as const

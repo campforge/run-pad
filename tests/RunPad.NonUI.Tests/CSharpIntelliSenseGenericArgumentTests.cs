@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #78: completion right after `List<` (or anywhere inside a generic type argument list) used
+// Completion right after `List<` (or anywhere inside a generic type argument list) used
 // to call LookupSymbols unconditionally and mix in every visible symbol — locals, parameters, methods,
 // fields — alongside actual types, exactly like the general "expression position" fallback. Only
 // type-ish symbols (named types, type parameters, namespaces — so a namespace can still be typed
@@ -75,7 +75,7 @@ public class CSharpIntelliSenseGenericArgumentTests
     // Regression guard proving the assertions above actually exercise the fix rather than passing
     // vacuously: the exact same "myLocal" symbol, requested from an ordinary (non-generic-argument)
     // expression position two lines down, must still be offered — this is the general fallback path
-    // TODO #78 must NOT have narrowed everywhere, only inside a type argument list.
+    // the generic-argument narrowing must NOT apply everywhere, only inside a type argument list.
     [Fact]
     public async Task GetCompletionsAsync_Should_StillOffer_LocalVariable_OutsideGenericTypeArgument()
     {

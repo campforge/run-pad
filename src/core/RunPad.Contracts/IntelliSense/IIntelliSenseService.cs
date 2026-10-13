@@ -21,7 +21,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "occurrence highlighting": every occurrence of the symbol at position, elsewhere in
+    // Every occurrence of the symbol at position, elsewhere in
     // the same document (for highlighting them all while the caret sits on one) — null when
     // position isn't on an identifier that resolves to any symbol.
     Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
@@ -29,7 +29,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "smart rename": resolves what an F2 rename at position should do — null
+    // Resolves what an F2 rename at position should do — null
     // when there's nothing renameable there (not on an identifier, or the symbol isn't declared in
     // the user's own script — see IRenameInfo).
     Task<IRenameInfo?> GetRenameInfoAsync(
@@ -37,7 +37,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "Go to Definition" (F12): resolves what F12 at position should do — null when
+    // Resolves what F12 at position should do — null when
     // position isn't on an identifier that resolves to any symbol. See IDefinitionResult for the
     // in-source-vs-external split.
     Task<IDefinitionResult?> GetDefinitionAsync(
@@ -45,7 +45,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #62 "Go to Implementation" (Ctrl+F12): every implementation (interface member) or
+    // Every implementation (interface member) or
     // override (abstract/virtual member) of the symbol at position, declared in the script itself —
     // null when position isn't on an identifier, the symbol isn't implementable/overridable, or no
     // implementations exist in this script. See IImplementationLocation.
@@ -59,7 +59,7 @@ public interface IIntelliSenseService : IDisposable
     // the original text in that case.
     Task<string?> FormatDocumentAsync(string code, CancellationToken cancellationToken = default);
 
-    // TODO.md #74 "CodeRefactoringProvider hosting in the lightbulb" — real Roslyn refactorings (Use
+    // Real Roslyn refactorings (Use
     // Expression Body, Introduce Local, Reverse For Statement, Invert If, ...) available AT position,
     // not tied to any diagnostic the way CodeFixesChanged's fixes are — reuses the same ICodeFixInfo
     // shape rather than a parallel contract type (a CodeAction is a CodeAction either way — see
@@ -73,7 +73,7 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the deferred half of
+    // The deferred half of
     // both CodeFixesChanged's fixes and GetRefactoringsAsync's refactorings (see ICodeFixInfo's own
     // doc comment for the full rationale): does the actual, expensive work of running the fix/
     // refactoring provider's document transform and diffing it, for the ONE candidate identified by
@@ -106,7 +106,7 @@ public interface IIntelliSenseService : IDisposable
     // Fires from a background thread. First arg = the code the fixes were computed against.
     event Action<string, IReadOnlyList<ICodeFixInfo>>? CodeFixesChanged;
 
-    // TODO.md #62 "inlay hints" — every inferred `var`/`foreach (var ...)` type annotation to render
+    // Every inferred `var`/`foreach (var ...)` type annotation to render
     // inline (Rider/VS Code style). Fires from a background thread. First arg = the code the hints
     // were computed against — same push/debounce pattern as SemanticTokensChanged, not a pull-based
     // method, since the editor wants this recomputed on every text change the same way.
@@ -133,6 +133,6 @@ public interface IIntelliSenseService : IDisposable
     // Call when the tab's .rpad front-matter `kind:` changes (including once at initial load) so live
     // analysis mirrors the same kind-specific transform the compiler applies before running/debugging
     // (e.g. RpadKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
-    // flagged as unused (ANALYSIS.md TODO #66).
+    // flagged as unused.
     void UpdateKind(RpadKind kind);
 }

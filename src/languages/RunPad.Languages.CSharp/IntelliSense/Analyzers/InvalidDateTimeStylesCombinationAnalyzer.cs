@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят восьмой проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidRegexOptionsCombinationAnalyzer/InvalidNumberStylesCombinationAnalyzer
 // (RPAD0274/RPAD0275, проходы 286-287), applied to a third flags enum: `DateTime.Parse(s, provider,
 // DateTimeStyles styles)` throws ArgumentException when `styles` combines

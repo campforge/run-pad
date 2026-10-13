@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (421-й проход, batch) — candidate #9, the LAST candidate from the third research subagent
+// Candidate #9, the LAST candidate from the third research subagent
 // survey (411-й проход, full tool access, empirically self-verified), re-verified independently before
 // implementing. `System.Data.SqlTypes.SqlGuid(string)` constructor and `SqlGuid.Parse(string)` — the
 // agent itself flagged this as its lowest-novelty/weakest candidate, since SqlGuid's accepted format set

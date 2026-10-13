@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (478-й проход, batch) — candidate #2 from the fortieth research subagent survey,
+// Candidate #2 from the fortieth research subagent survey,
 // re-verified independently before implementing. `System.Text.CompositeFormat.Parse(string format)` — a
 // static factory (.NET 8+) that pre-parses composite-format-string grammar (`{index[,alignment][:formatString]}`)
 // so it doesn't need to be re-parsed on every `.Format(...)` call. Confirmed empirically: this is a pure

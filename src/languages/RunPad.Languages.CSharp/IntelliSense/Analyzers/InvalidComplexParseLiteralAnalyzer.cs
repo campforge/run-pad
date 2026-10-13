@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят шестой проход, batch) — own pick, not a Roslynator port; last of the four
+// Own pick, not a Roslynator port; last of the four
 // "needs verification" candidates from the research subagent's ranked list (проход 377), confirmed
 // empirically before implementing — the one that needed the deepest extra verification pass, done in this
 // проход before writing any code. Same "run the real validator" theme, applied to

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок первый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as InvalidRandomRangeArgumentAnalyzer (same batch): `"literal".
 // Substring(startIndex, length)` throws `ArgumentOutOfRangeException` when `startIndex + length` exceeds
 // the string's own length (or either argument is negative) — provable here specifically because the

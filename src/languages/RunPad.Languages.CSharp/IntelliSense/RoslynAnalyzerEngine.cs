@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace RunPad.Languages.CSharp.IntelliSense;
 
-// TODO.md #74 "analyzer pipeline" (pass 103) — the second of the two infrastructure
+// The second of the two infrastructure
 // blocks RoslynCodeFixEngine's own recursive-refactoring doc comment flagged as needed regardless.
 // Runs Roslyn's own IDE-style DiagnosticAnalyzers (Microsoft.CodeAnalysis.CSharp.Features' IDE0xxx
 // analyzers — "use var", "make field readonly", "remove unnecessary using", ...) alongside the
@@ -16,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // their triggering diagnostic never got computed when only the compiler's own diagnostics fed the
 // lightbulb.
 //
-// TODO.md #74 (pass 142) — also reflects over THIS assembly (RunPad.Languages.CSharp),
+// Also reflects over THIS assembly (RunPad.Languages.CSharp),
 // alongside Microsoft's own Features assembly, so a hand-written analyzer here (IntelliSense/
 // Analyzers/) is discovered the same way, no separate registration list to keep in sync. First tenants:
 // EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer — ported ideas from Roslynator (RCS1075/RCS1234,

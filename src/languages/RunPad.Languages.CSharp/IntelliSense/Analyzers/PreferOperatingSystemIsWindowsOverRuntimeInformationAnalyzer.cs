@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `RuntimeInformation.IsOSPlatform(OSPlatform.Windows)` (and the Linux/OSX/FreeBSD equivalents) asks
 // via a general-purpose platform-comparison API for something the dedicated `OperatingSystem.IsWindows()`
 // family (.NET 5+, well within this project's .NET 6 SDK floor) already answers directly, without

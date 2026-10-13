@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `IntPtr.Size == 8` is the old pointer-size trick for detecting a 64-bit process — `Environment.
 // Is64BitProcess` says the same thing directly, by name, without relying on the reader knowing that a
 // native pointer happens to be 8 bytes wide on 64-bit platforms.

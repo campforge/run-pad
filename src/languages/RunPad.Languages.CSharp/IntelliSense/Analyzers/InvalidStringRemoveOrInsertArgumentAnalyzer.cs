@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девяносто восьмой проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as SubstringOutOfRangeAnalyzer (RPAD0235, проход 241), applied to the two
 // other string methods with the same shape — `"literal".Remove(startIndex, count)` and
 // `"literal".Insert(startIndex, value)` — both throw ArgumentOutOfRangeException when the arguments put

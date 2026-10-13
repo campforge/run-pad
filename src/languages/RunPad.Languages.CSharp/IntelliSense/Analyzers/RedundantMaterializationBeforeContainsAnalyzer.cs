@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — same LINQ-hygiene theme as
+// Same LINQ-hygiene theme as
 // RemoveRedundantMaterializationBeforeCountAnalyzer (RPAD0042, проход 151), for Contains instead of
 // Count: `xs.ToList().Contains(item)`/`xs.ToArray().Contains(item)`/`xs.ToHashSet().Contains(item)`
 // materialize the ENTIRE sequence into a new collection just to check membership once — Contains(item)

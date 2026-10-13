@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 (pass 142) — direct, real-Roslyn-compilation tests against the two new
+// Direct, real-Roslyn-compilation tests against the two new
 // hand-written analyzers (EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer) in isolation, one level
 // below CSharpIntelliSenseAnalyzersTests.cs's full-service integration test — faster to write many
 // shape variations against, since it skips AdhocWorkspace/preamble-offset machinery entirely.
@@ -3108,7 +3108,7 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfo(\"en-US\"); }", false)]
     [InlineData("using System.Globalization; class C { public CultureInfo M() => new CultureInfo(\"!!!invalid!!!\"); }", true)]
     [InlineData("using System.Globalization; class C { public CultureInfo M(string s) => CultureInfo.GetCultureInfo(s); }", false)]
-    // Extended проход 440 (TODO #74, candidate #6 from the sixth research subagent survey) — GetCultureInfoByIetfLanguageTag.
+    // Extended: GetCultureInfoByIetfLanguageTag.
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"###\"); }", true)]
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"\"); }", false)]
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfoByIetfLanguageTag(\"not-a-real-tag-zzz\"); }", false)]
@@ -4850,7 +4850,7 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, -1, 5); }", true)]
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, 5); }", false)]
     [InlineData("using System.Numerics; class C { public BigInteger M(int e) => BigInteger.Pow(2, e); }", false)]
-    // Extended проход 439 (TODO #74, candidate #5 from the sixth research subagent survey) — ModPow zero modulus.
+    // Extended: ModPow zero modulus.
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, 0); }", true)]
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.ModPow(2, 3, -5); }", false)]
     [InlineData("using System.Numerics; class C { public BigInteger M(BigInteger m) => BigInteger.ModPow(2, 3, m); }", false)]
@@ -7718,7 +7718,7 @@ public class RunPadAnalyzersTests
     [InlineData("using System; class C { public UInt128 M() => UInt128.Parse(\"abc\"); }", true)]
     [InlineData("class C { public int M(string s) => int.Parse(s); }", false)]
     [InlineData("class C { public int M() => int.Parse(\"300\"); }", false)]
-    // Extended проход 438 (TODO #74, candidate #4 from the sixth research subagent survey) — Convert.ToXxx.
+    // Extended: Convert.ToXxx.
     [InlineData("class C { public int M() => System.Convert.ToInt32(\"abc\"); }", true)]
     [InlineData("class C { public double M() => System.Convert.ToDouble(\"abc\"); }", true)]
     [InlineData("class C { public decimal M() => System.Convert.ToDecimal(\"abc\"); }", true)]

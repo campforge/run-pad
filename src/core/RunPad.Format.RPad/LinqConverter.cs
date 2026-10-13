@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace RunPad.Format.RPad;
 
 /// <summary>
-/// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> (TODO.md #63) — a <c>.linq</c>
+/// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> — a <c>.linq</c>
 /// file is an XML <c>&lt;Query&gt;</c> header (<c>Kind</c> attribute, <c>&lt;NuGetReference&gt;</c>/
 /// <c>&lt;Namespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
 /// wrapping on the code itself, so the header is parsed as an isolated fragment rather than the whole

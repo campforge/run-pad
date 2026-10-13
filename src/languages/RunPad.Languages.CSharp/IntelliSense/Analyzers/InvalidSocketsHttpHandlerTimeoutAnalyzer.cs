@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (451-й проход, batch) — candidate #4 from the thirteenth research subagent survey,
+// Candidate #4 from the thirteenth research subagent survey,
 // re-verified independently before implementing. `SocketsHttpHandler`'s seven `TimeSpan`-typed
 // properties — `ConnectTimeout`, `PooledConnectionLifetime`, `PooledConnectionIdleTimeout`,
 // `Expect100ContinueTimeout`, `KeepAlivePingTimeout`, `KeepAlivePingDelay`, `ResponseDrainTimeout` — each

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (430-й проход, batch) — candidate #1 from the fifth research subagent survey (full tool
+// Candidate #1 from the fifth research subagent survey (full tool
 // access, empirically self-verified), re-verified independently before implementing.
 // `ActivityContext.Parse(string traceParent, string? traceState)` — a richer composite-format superset of
 // the already-covered `ActivityTraceId.CreateFromString`/`ActivitySpanId.CreateFromString` (RPAD0416,

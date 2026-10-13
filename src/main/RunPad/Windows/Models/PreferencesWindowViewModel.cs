@@ -34,7 +34,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     private readonly IPreferencesService _prefs;
 
     // Built once from the registry in the constructor, not a static — unlike the language-agnostic
-    // nodes above, this genuinely depends on which languages are registered (TODO.md #49 item 4: used
+    // nodes above, this genuinely depends on which languages are registered (used
     // to be two hardcoded SettingsNodes, "languages.csharp"/"languages.vb", so a third registered
     // language would never show up in this tree without editing this file directly).
     private readonly SettingsNode _languagesNode;
@@ -56,13 +56,13 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _themeService = themeService;
         _prefs = prefs;
 
-        // Every registered language today is .NET-based (C#, VB — see TODO.md's "Preferences
-        // reorganization" note), so they all nest under one ".NET" runtime-family group carrying the
+        // Every registered language today is .NET-based (C#, VB),
+        // so they all nest under one ".NET" runtime-family group carrying the
         // shared SDK/debugger path fields (still backed by the same DebuggerSettings/AppSettings.
         // Debugger — this is a pure tree-shape change, no settings.json migration). A future non-
         // .NET language would need a real RuntimeFamily concept on ILanguageHostFactory to pick its
         // own group instead of hardcoding ".NET" here — deliberately not built until there's a
-        // second runtime family to actually distinguish (same reasoning as TODO #87's deferral).
+        // second runtime family to actually distinguish.
         var languageNodes = languageRegistry.SupportedLanguages
             .Select(lang => new SettingsNode(LanguageNodeIdPrefix + lang, languageRegistry.GetDisplayName(lang)))
             .ToList();
@@ -125,13 +125,13 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     // True for one of Languages' own child nodes (e.g. "languages.csharp") — not the "Languages"
     // parent node itself, which has its own separate placeholder (IsLanguagesSelected). Replaces the
-    // old IsLanguagesCSharpSelected/IsLanguagesVisualBasicSelected pair (TODO.md #49 item 4) — a third
+    // old IsLanguagesCSharpSelected/IsLanguagesVisualBasicSelected pair — a third
     // registered language needs no new property and no new XAML panel, just an entry in the registry.
     public bool IsLanguageNodeSelected =>
         _selectedNode is not null && _selectedNode.Id != "languages"
             && _selectedNode.Id.StartsWith(LanguageNodeIdPrefix, StringComparison.Ordinal);
 
-    // C#'s own node (TODO.md #62 "inlay hints", user request 2026-07-20) — the first language to
+    // C#'s own node (user request 2026-07-20) — the first language to
     // actually need a real settings panel instead of the shared placeholder below. A bespoke property
     // alongside the generic IsLanguageNodeSelected check, same dual-track shape IsDotnetSelected
     // already uses (a hardcoded special case sitting next to the generic system, not a reversion of
@@ -328,7 +328,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.FontSize, value, v => _prefs.Editor.FontSize = v);
     }
 
-    // TODO.md #112 — live user report: with no explicit FontFamily, the editor fell back to
+    // Live user report: with no explicit FontFamily, the editor fell back to
     // whatever the OS/theme default happened to resolve to, ligatures (e.g. "=>" → an arrow glyph)
     // included. Exposed here so anyone who actually wants a ligature font (or anything else) isn't
     // stuck with the new non-ligature default either.
@@ -338,7 +338,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.FontFamily, value, v => _prefs.Editor.FontFamily = v);
     }
 
-    // TODO.md #114 — live user request: File > New RPad File always asked for a language+kind via
+    // Live user request: File > New RPad File always asked for a language+kind via
     // NewFileKindDialog, even for someone who creates the same combination every time. These are the
     // defaults Ctrl+N/File > New File use to skip that dialog (MainWindowViewModel.
     // NewRpadFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog
@@ -358,7 +358,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.NewFileKind, value, v => _prefs.Editor.NewFileKind = v);
     }
 
-    // ── C# (TODO.md #62 "inlay hints", user request 2026-07-20) ────────────────
+    // ── C# (user request 2026-07-20) ────────────────
 
     public bool InlayHintsEnabled
     {
@@ -366,7 +366,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.CSharp.InlayHintsEnabled, value, v => _prefs.CSharp.InlayHintsEnabled = v);
     }
 
-    // TODO.md #74 (user request 2026-07-21) — master switch for the lightbulb's code fixes/
+    // Master switch for the lightbulb's code fixes/
     // refactorings, same rationale/shape as InlayHintsEnabled above.
     public bool CodeFixesEnabled
     {
@@ -448,7 +448,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Keyboard.GoToLine, value, v => _prefs.Keyboard.GoToLine = v);
     }
 
-    // TODO.md #80: these 4 used to be literal Key.XXX checks in MainWindow.axaml.cs/FileTreeView.cs,
+    // These 4 used to be literal Key.XXX checks in MainWindow.axaml.cs/FileTreeView.cs,
     // not editable here at all — same pattern as the 7 above, just newly wired up.
     public string HotkeyOpenDependencies
     {

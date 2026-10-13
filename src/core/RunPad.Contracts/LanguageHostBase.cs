@@ -52,7 +52,7 @@ public abstract class LanguageHostBase : ILanguageHost
         // A host that declares the Debug capability but doesn't override this is a genuine
         // implementation bug in that host, not a caller mistake (EnsureCapability above already
         // guards the latter) — silently "succeeding" with a completed task that ran nothing would
-        // hide it instead of failing loudly (ANALYSIS.md #94).
+        // hide it instead of failing loudly.
         throw new NotImplementedException(
             $"Language host '{Language}' declares Debug capability but does not implement {nameof(RunDebugAsync)}.");
     }
@@ -108,7 +108,7 @@ public abstract class LanguageHostBase : ILanguageHost
     public virtual Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken)
     {
         EnsureCapability(LanguageHostCapabilities.MemoryDump);
-        // See RunDebugAsync's identical reasoning (ANALYSIS.md #94) — returning null! here would
+        // See RunDebugAsync's identical reasoning — returning null! here would
         // just relocate the failure to whatever the caller does with the result instead of failing
         // at the actual bug site.
         throw new NotImplementedException(

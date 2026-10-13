@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #28 remainder: completion now offers types from an added-but-not-yet-imported NuGet
+// Completion now offers types from an added-but-not-yet-imported NuGet
 // package too (ReSharper-style), tagged with the namespace EditorTabItemControl should add as a
 // `using` if the item is accepted (see EditorCompletionDataTests for the generic accept-side
 // plumbing). Scoped to NuGet references only — see CSharpIntelliSenseService.FindImportableTypes.

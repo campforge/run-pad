@@ -20,7 +20,7 @@ public static class RpadWriter
     }
 
     /// <summary>Generates the content for a brand-new .rpad file.</summary>
-    // TODO.md #49 item 2 — language param added so "new file" can produce a .vb script too; the
+    // Language param added so "new file" can produce a .vb script too; the
     // enum member's own lowercased name is both the YAML `language:` value and the code-fence tag
     // (see RpadLanguage.cs), so it doubles as languageId here.
     public static string NewFile(
@@ -63,7 +63,7 @@ public static class RpadWriter
         // Explicit '\n' throughout, not StringBuilder.AppendLine (which appends the *running
         // machine's* Environment.NewLine) — otherwise the very same document produced identical
         // byte-for-byte on Linux/macOS came out with CRLF front matter on Windows, needlessly
-        // diverging from Write()'s own literal "\n" fences around it (ANALYSIS.md #93).
+        // diverging from Write()'s own literal "\n" fences around it.
         var sb = new StringBuilder();
         sb.Append("version: ").Append(fm.Version).Append('\n');
         sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
@@ -83,7 +83,7 @@ public static class RpadWriter
             foreach (var r in fm.References)
                 // Unescaped, a reference path containing ": " or starting with a YAML-special
                 // character (e.g. one that happens to start with '#') broke the round trip
-                // (ANALYSIS.md #93) — same escaping already applied to packages: above.
+                // — same escaping already applied to packages: above.
                 sb.Append('\n').Append("  - ").Append(YamlEscape(r));
         }
 

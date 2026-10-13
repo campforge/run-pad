@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тринадцатый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "StringSplitOptions already does this in the Split call itself" theme as
 // PreferRemoveEmptyEntriesOverWhereLengthAnalyzer (RPAD0198, проход 212), for the trimming sibling:
 // `s.Split(sep).Select(x => x.Trim())` trims every entry in a second LINQ pass — exactly what

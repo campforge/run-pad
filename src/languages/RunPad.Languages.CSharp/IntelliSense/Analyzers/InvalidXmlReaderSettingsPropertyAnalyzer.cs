@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (450-й проход, batch) — candidate #6 from the twelfth research subagent survey, re-verified
+// Candidate #6 from the twelfth research subagent survey, re-verified
 // independently before implementing. `System.Xml.XmlReaderSettings` — 2 enum property setters
 // (`DtdProcessing`, `ValidationType`) and 2 `long` property setters (`MaxCharactersInDocument`,
 // `MaxCharactersFromEntities`), all on a throwaway `new XmlReaderSettings()`. Confirmed empirically: the

@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #75: the lightbulb margin used to paint every fix with the same neutral color and measure
+// The lightbulb margin used to paint every fix with the same neutral color and measure
 // its own column independently of BreakPointMargin's line-number/debug-arrow column right next to
 // it. These exercise the two fixes directly: severity picks the right themed brush key, and the
 // margin's measured width now comes from the same GutterMetrics formula BreakPointMargin uses.
@@ -49,7 +49,7 @@ public class CodeFixMarginTests
         Assert.Null(margin.WorstSeverityOnLine(2));
     }
 
-    // User request 2026-07-21 (TODO.md #74): the lightbulb should only ever be clickable/visible on
+    // User request 2026-07-21: the lightbulb should only ever be clickable/visible on
     // the caret's OWN line, VS/Rider-style, not on every line in the file that happens to have a fix
     // — ResolveCandidatesForClick is OnPointerPressed's own decision logic, factored out so it can be
     // driven directly with a Point (see its own doc comment for why raising a real
@@ -125,7 +125,7 @@ public class CodeFixMarginTests
         Assert.Equal(expected, margin.DesiredSize.Width, precision: 3);
     }
 
-    // TODO.md #82: DrawCentered's scale used to be Bounds.Width * 0.72 / 24.0 — once TODO #75 made
+    // DrawCentered's scale used to be Bounds.Width * 0.72 / 24.0 — once a later change made
     // Bounds.Width track the (line-number-digit-driven) gutter width, a document needing more digits
     // inflated the icon itself right along with the column. A narrow (few lines) and a wide (150
     // lines) document give two CodeFixMargin instances with deliberately different Bounds.Width —
@@ -152,7 +152,7 @@ public class CodeFixMarginTests
         Assert.NotEqual(narrowTransform.X, wideTransform.X);
     }
 
-    // TODO.md #84 ("hard to hit the icon with the pointer"): confirms the click target was never
+    // Confirms the click target was never
     // actually limited to the glyph's own pixels — a click anywhere across the margin's full row
     // width, at the same Y, already resolves to the same line. Proves the complaint was a visual
     // affordance problem (the glyph looked too small to aim at), not a hit-testing bug, which is why
@@ -178,7 +178,7 @@ public class CodeFixMarginTests
         Assert.Equal(2, atRightEdge);
     }
 
-    // TODO.md #84: locks in the size correction itself — #82 had shrunk the glyph to 0.6x line
+    // Locks in the size correction itself — #82 had shrunk the glyph to 0.6x line
     // height (close to its original pre-#75 size), which read as too small to comfortably aim at
     // even though the click area was already generous (see the test above). This just bounds the
     // chosen coefficient to a sane "clearly visible, not the old column-width-scaled balloon"
@@ -211,7 +211,7 @@ public class CodeFixMarginTests
         Assert.Equal(new FontFamily("monospace"), item.FontFamily);
     }
 
-    // TODO.md #79: the quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon
+    // The quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon
     // at all. TestAppBuilder deliberately doesn't merge RunPad's own Icons.axaml (real UI tests
     // construct their own view models instead of depending on the full app composition root), so this
     // merges it in directly — the same avares:// URI App.axaml itself uses — just for this one
@@ -388,7 +388,7 @@ public class CodeFixMarginTests
         Assert.Equal("using System;", Assert.IsType<MenuItem>(items[1]).Header);
     }
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104): Apply used to set
+    // Apply used to set
     // _editor.Document.Text directly from CodeFixEntry.NewCode — now it just raises FixApplyRequested
     // with the clicked entry, leaving materializing/applying entirely to whoever owns
     // IIntelliSenseService (EditorTabItemControl). Locks in that the menu item built for a candidate
@@ -408,7 +408,7 @@ public class CodeFixMarginTests
         Assert.Equal(entry, raised);
     }
 
-    // TODO.md #116 — sanity check on the three converted-from-SVG geometries themselves (Icon.Hammer
+    // Sanity check on the three converted-from-SVG geometries themselves (Icon.Hammer
     // was replaced, Icon.Broom/Icon.Wrench are new): each should parse to a non-degenerate shape
     // roughly matching its source SVG's own viewBox, not e.g. a single stray point from a typo'd
     // coordinate. Doesn't (can't, headless) confirm the glyph LOOKS like a hammer/broom/wrench —

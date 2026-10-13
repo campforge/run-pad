@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятидесятый проход, batch) — own pick, not a Roslynator port. A performance
+// Own pick, not a Roslynator port. A performance
 // finding, not a correctness one: `new List<T>(capacity) { e1, e2, ..., en }` (same for HashSet<T>/
 // Dictionary<TKey,TValue>) passes an explicit capacity specifically to avoid the internal array being
 // resized as elements are added — but if that literal capacity is smaller than the number of elements

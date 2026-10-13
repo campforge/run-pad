@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемнадцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `TimeSpan.FromSeconds(0)` (or FromDays/FromHours/FromMinutes/FromMilliseconds/FromTicks with a zero
 // argument) constructs a zero-length TimeSpan the long way — `TimeSpan.Zero` already is that value,
 // with no unit ambiguity for the reader to resolve. Deliberately doesn't touch `new TimeSpan(0)` — that

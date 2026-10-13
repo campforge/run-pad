@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #44: CSharpReferenceService.GetDefault()'s "System.*.dll" glob used to match native
+// CSharpReferenceService.GetDefault()'s "System.*.dll" glob used to match native
 // companion libraries too (e.g. Windows' System.IO.Compression.Native.dll), which aren't valid
 // managed assemblies and blow up MetadataReference.CreateFromFile with CS0009. Fixed by checking
 // the PE header instead of trusting the filename — these tests exercise that check directly,

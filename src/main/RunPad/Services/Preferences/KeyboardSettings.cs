@@ -22,7 +22,7 @@ public sealed class KeyboardSettings
     // untitled tab). See EditorTabsControl.SaveAsActive.
     public string SaveAs { get; set; } = "Ctrl+Shift+S";
 
-    // TODO.md #80: these 4 used to be literal Key.XXX checks — MainWindow.axaml.cs (F4/Ctrl+W) and
+    // These 4 used to be literal Key.XXX checks — MainWindow.axaml.cs (F4/Ctrl+W) and
     // FileTreeView.cs (F2/Delete) — sitting right next to the gestures above but not going through
     // this settings object at all, so they weren't shown as a tooltip/menu hint, weren't editable in
     // Preferences, and a third registered command would again mean editing the dispatcher directly.
@@ -31,7 +31,7 @@ public sealed class KeyboardSettings
     public string RenameFile { get; set; } = "F2";
     public string DeleteFile { get; set; } = "Delete";
 
-    // TODO.md #114: there was no hotkey for "new file" at all — creating one meant reaching for the
+    // There was no hotkey for "new file" at all — creating one meant reaching for the
     // File menu every time. Skips NewFileKindDialog entirely, using EditorSettings.NewFileLanguage/
     // NewFileKind instead (see MainWindow.OnWindowKeyDown).
     public string NewFile { get; set; } = "Ctrl+N";

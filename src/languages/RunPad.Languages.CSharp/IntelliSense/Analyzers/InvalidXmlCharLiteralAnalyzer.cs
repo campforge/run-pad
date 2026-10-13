@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (434-й проход, batch) — candidate #5, the LAST candidate from the fifth research subagent
+// Candidate #5, the LAST candidate from the fifth research subagent
 // survey, re-verified independently before implementing. `System.Xml.XmlConvert.ToChar(string)` — joins
 // the rest of the `XmlConvert.ToXxx` family already in this catalog (RPAD0389/0390/0391/0413/0414).
 // Confirmed empirically, matching the agent's report exactly: single exception type, `FormatException`

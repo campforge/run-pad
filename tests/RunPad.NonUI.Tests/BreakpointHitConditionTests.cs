@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #45: Condition (DAP SourceBreakpoint.condition) worked end-to-end, but HitCondition
+// Condition (DAP SourceBreakpoint.condition) worked end-to-end, but HitCondition
 // (SourceBreakpoint.hitCondition — a hit-count expression like "= 5"/">= 3"/"% 2") wasn't threaded
 // through anywhere despite the DAP protocol type already having the field. These are narrow unit
 // tests on the plumbing itself (the gutter-side Breakpoint POCO and the DAP wire type) — an actual

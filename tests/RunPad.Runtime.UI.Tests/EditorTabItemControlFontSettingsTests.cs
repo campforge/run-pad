@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #112 — live user report: the editor's font family is whatever the OS/theme default
+// Live user report: the editor's font family is whatever the OS/theme default
 // resolves to, ligature-capable fonts included (e.g. "=>" rendering as a single arrow glyph) — no
 // setting to change it, because RunPad never asked for a specific font in the first place.
 public class EditorTabItemControlFontSettingsTests
@@ -25,7 +25,7 @@ public class EditorTabItemControlFontSettingsTests
         Assert.Equal("monospace", new EditorSettings().FontFamily);
     }
 
-    // TODO.md #113 — live user report ("font size and padding too large", LINQPad 4 as a denser
+    // Live user report ("font size and padding too large", LINQPad 4 as a denser
     // reference): 14 was an unexplained outlier default; 12 is what testing it live settled on.
     [Fact]
     public void EditorSettings_Should_DefaultFontSize_To12_NotTheRoomier14()

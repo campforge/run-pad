@@ -6,7 +6,7 @@ namespace RunPad.UserControls;
 // TODO: This all has something to do with the theming system and styles, should be moved into Themes
 // The single source of truth for SemanticTokenKind → color, shared by SemanticHighlighter (live
 // editor text) and by anything rendering a DisplayTextSegment signature outside the main text view
-// (completion/signature-help/quick-info tooltips — see ANALYSIS.md TODO #50). Keeping one palette
+// (completion/signature-help/quick-info tooltips). Keeping one palette
 // means a tooltip's syntax colors always match the editor's, without a second color table to drift.
 internal static class SemanticTokenBrushes
 {

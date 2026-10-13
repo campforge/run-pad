@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят восьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: arrays don't override Equals/GetHashCode (they use the default reference-identity
 // implementation from object), so a record with an array-typed member has its compiler-generated
 // equality compare that member BY REFERENCE, not by value — two records with equal array CONTENTS are

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as the NegativeCapacityArgumentAnalyzer (RPAD0231) family, for a
 // different threshold: `xs.Chunk(size)` is documented to throw `ArgumentOutOfRangeException` when
 // `size` is below 1 — unlike the other analyzers in this family, ZERO also throws here (a chunk size of

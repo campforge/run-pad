@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто четвёртый проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0385 — grep-confirmed no prior coverage, reflection-
 // confirmed the parameter carries no `[StringSyntax]` attribute (no built-in-analyzer collision risk, same
 // check already applied before RPAD0384). Same "run the real validator" theme, applied to the static

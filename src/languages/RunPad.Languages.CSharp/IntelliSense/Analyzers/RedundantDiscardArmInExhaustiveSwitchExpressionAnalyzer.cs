@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 157, batch) — the switch-EXPRESSION counterpart to
+// The switch-EXPRESSION counterpart to
 // NonExhaustiveEnumSwitchAnalyzer (RPAD0048, pass 153), which covers switch STATEMENTS (the
 // compiler already flags a genuinely non-exhaustive switch EXPRESSION with no discard via CS8509, so
 // that half doesn't need its own analyzer) — this one is the opposite direction: a `_ => ...` discard

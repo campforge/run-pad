@@ -83,7 +83,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (path is not null) await _windowService.ShowTextEditorAsync(path);
     }
 
-    // TODO.md #80: the F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
+    // The F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
     // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
     // no WPF-style InputGestureText string property; InputGesture takes a real KeyGesture and renders
     // its own formatted text, same as CodeTextEditor.CreateEditMenuItem's Copy/Cut/Paste items — TODO
@@ -122,7 +122,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
     }
 
-    // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture (TODO.md #114) — same rationale
+    // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture — same rationale
     // as OpenDependenciesGesture above.
     public KeyGesture? NewFileGesture
     {
@@ -147,7 +147,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // ── Sidebar layout (collapsible file tree) ────────────────────────────────
 
-    // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
+    // Was its own copy of the collapse/expand-plus-throttled-persist scheme,
     // duplicated near-verbatim in EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel —
     // extracted into CollapsiblePanelState (src/main/RunPad/Shared), constructed below.
     public CollapsiblePanelState Sidebar { get; }
@@ -170,7 +170,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // Remembers which files are open (and in what order) plus which one is active, so the next
     // launch can restore them — see RestoreSession. Untitled tabs are skipped: they were never on
-    // disk, so there's no path to remember them by (TODO.md, "tab lifecycle (leftover)").
+    // disk, so there's no path to remember them by ("tab lifecycle (leftover)").
     // Called after every tab open/close/switch — a plain local JSON write on a low-frequency user
     // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
@@ -212,7 +212,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             ActiveTab = activeVm;
     }
 
-    // Deliberately doesn't touch disk (TODO.md, "tab lifecycle") — a new script starts
+    // Deliberately doesn't touch disk ("tab lifecycle") — a new script starts
     // empty and in-memory-only; it only becomes a real file the first time the user does Save or
     // Save As (SaveTabAsAsync below). language/kind are carried on the tab itself
     // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet
@@ -224,10 +224,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         AddTab(vm);
     }
 
-    // TODO.md #114: Ctrl+N / the new File > New File menu item — same as NewRpadFile above, but reads
+    // Ctrl+N / the new File > New File menu item — same as NewRpadFile above, but reads
     // the language+kind to use from EditorSettings instead of requiring an explicit choice, so it
     // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
-    // the dialog) and the file tree's own "New File" (TODO.md #109, writes to disk immediately) are
+    // the dialog) and the file tree's own "New File" (writes to disk immediately) are
     // both untouched — this only adds a third, dialog-free entry point.
     public void NewRpadFileWithDefaults() => NewRpadFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
 
@@ -326,7 +326,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     // ── IEditorTabActions — real bodies for EditorTabItemViewModel's tab-toolbar/context-menu
-    // commands (ANALYSIS.md #102: these used to be empty-bodied and subscribed from outside, by
+    // commands (these used to be empty-bodied and subscribed from outside, by
     // EditorTabsControl, a class that's neither the tab's View nor its ViewModel). SaveAsAsync/
     // Duplicate wrap the existing SaveTabAsAsync/DuplicateTab above (unchanged, still directly
     // callable/testable with an explicit writeToPath) — they just source that delegate from
@@ -349,7 +349,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (vm.FilePath is { } path) OpenContainingFolder(path);
     }
 
-    // Moved here from EditorTabsControl.RequestCloseTabAsync (ANALYSIS.md #102) — the confirmation
+    // Moved here from EditorTabsControl.RequestCloseTabAsync — the confirmation
     // dialog/save-then-close flow needed EditorsTabItemControl.WriteFile, which now reaches this
     // class via vm.WriteToFile instead of being passed down from the View on every call. Explicit
     // (like the rest of IEditorTabActions) — external callers go through vm.CloseCommand, the same
@@ -430,7 +430,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return true;
     }
 
-    // "File → Import LINQPad Query..." (TODO.md #63) — converts a .linq file (picked via a native
+    // "File → Import LINQPad Query..." — converts a .linq file (picked via a native
     // Open dialog, so it can live anywhere on disk, not just inside the current workspace folder) to
     // a sibling .rpad next to it, then opens that as a real tab. Not written into the CURRENT
     // workspace folder even if the .linq happens to live elsewhere — mirrors DuplicateTab's own
@@ -520,7 +520,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
         // throws (silently swallowed below, before this fix), so a folder never actually left disk
-        // even though the tree acted like it had (ANALYSIS.md TODO #69 follow-up).
+        // even though the tree acted like it had.
         var isDirectory = Directory.Exists(filePath);
 
         // Affected tabs — the file itself, or (for a folder) every tab nested inside it. Review R1:
@@ -541,7 +541,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         {
             // Report instead of the previous silent catch-and-ignore — a failed delete used to leave
             // the tree acting like the folder/file was gone while it was still on disk, with no way
-            // to tell why (ANALYSIS.md TODO #69 follow-up).
+            // to tell why.
             _ = _windowService.ShowErrorAsync(
                 "Delete Failed", $"Could not delete '{Path.GetFileName(filePath)}':\n{ex.Message}");
             return;
@@ -555,7 +555,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public void RenameFile(string filePath, string newName)
     {
         // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
-        // so renaming a folder always failed before this fix (ANALYSIS.md TODO #69 follow-up).
+        // so renaming a folder always failed before this fix.
         // A folder's own name has no extension to preserve (unlike a .rpad file's).
         var isDirectory = Directory.Exists(filePath);
         var ext = isDirectory ? "" : Path.GetExtension(filePath);
@@ -566,7 +566,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
     }
 
-    // TODO.md #110: file tree drag-and-drop — moves a node into a different folder (or the tree's
+    // File tree drag-and-drop — moves a node into a different folder (or the tree's
     // root, contextPath null), reusing the exact same target-directory resolution CreateFolderAsync/
     // CreateFileAsync already use (ResolveParentDir) — dropping onto a folder node moves INSIDE it,
     // onto a file node moves alongside it (same parent), onto empty tree space moves to the root. A
@@ -631,7 +631,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return tabs;
     }
 
-    // TODO.md #69: creates a new folder next to whatever's selected in the file tree — INSIDE the
+    // Creates a new folder next to whatever's selected in the file tree — INSIDE the
     // selected node if it's itself a folder (matching VS Code/Rider), alongside it (same parent
     // directory) if it's a file, or at the tree's root if nothing's selected. Returns the new path so
     // the caller (MainWindow.FileTree_CreateFolder) can immediately enter rename mode on it, like
@@ -644,7 +644,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return path;
     }
 
-    // TODO.md #109: file tree's "New File" — same target-directory resolution as CreateFolderAsync
+    // File tree's "New File" — same target-directory resolution as CreateFolderAsync
     // (reused via ResolveParentDir below), but unlike "New Folder" the new file is also immediately
     // useful to open, so it's opened as a tab right away (same OpenTab used for double-click) rather
     // than left for the user to click on themselves.
@@ -692,14 +692,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // existing tests constructing this type directly don't all need updating just to supply a
         // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
-        // provider regardless of the parameter having a default (ANALYSIS.md #94).
+        // provider regardless of the parameter having a default.
         ILogger<MainWindowViewModel>? logger = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
         _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
-        // TODO.md #80/#81: FileTreeViewModel now needs IPreferencesService (RenameGesture/
+        // FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
         // constructor body.
@@ -712,7 +712,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
         OpenTextFileCommand = ReactiveCommand.CreateFromTask(OpenTextFileAsync);
         OpenTextFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenTextFileCommand failed"));
-        // Was silently swallowed (ANALYSIS.md #94) — a failure opening one of these dialogs used to
+        // Was silently swallowed — a failure opening one of these dialogs used to
         // vanish with no trace at all.
         OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
         OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
@@ -750,7 +750,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         });
     }
 
-    // ANALYSIS.md #104: fire-and-forget wrapper for every call site that doesn't need to know when
+    // Fire-and-forget wrapper for every call site that doesn't need to know when
     // the refresh actually lands (the constructor, the watcher above, every disk-mutating command
     // except CreateFolderAsync) — GetFilesTreeAsync's own Task.Run means the disk walk never blocks
     // whichever thread called this, only FileTree.Refresh's (already cheap, diff-based) merge runs

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `string.Join("", charArray)` binds to the generic `string.Join<T>(string, IEnumerable<T>)` overload
 // (there is no `Join(string, char[])` overload), which enumerates the array and calls `ToString()` on
 // every `char` through a StringBuilder-like accumulator — the `string(char[])` constructor copies the

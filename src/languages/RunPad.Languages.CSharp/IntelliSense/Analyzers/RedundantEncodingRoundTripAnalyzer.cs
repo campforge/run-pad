@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(s))` encodes `s` to bytes only to immediately decode
 // those same bytes back with the SAME encoding — the round trip returns exactly `s` (modulo characters
 // that encoding can't represent, which round-trip to a replacement character either way), so it's pure

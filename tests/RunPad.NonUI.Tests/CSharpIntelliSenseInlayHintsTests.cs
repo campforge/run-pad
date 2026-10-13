@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "inlay hints" — CSharpIntelliSenseService.ComputeInlayHintsAsync, wired to
+// CSharpIntelliSenseService.ComputeInlayHintsAsync, wired to
 // NotifyTextChanged the same way SemanticTokensChanged/DiagnosticsChanged are (see
 // CSharpIntelliSenseBackgroundAnalysisTests.cs, same real-background-pass end-to-end approach).
 public class CSharpIntelliSenseInlayHintsTests

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят пятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor/factory argument validation" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
 // (RPAD0333, проход 352): `ArrayPool<T>.Create(int maxArrayLength, int maxArraysPerBucket)` throws
 // ArgumentOutOfRangeException when either argument isn't strictly positive — confirmed empirically via

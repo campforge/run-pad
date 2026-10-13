@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста четвёртый проход, batch) — own pick, not a Roslynator port; sibling of RPAD0395's
+// Own pick, not a Roslynator port; sibling of RPAD0395's
 // SqlMoney.Parse, same "analogy only, zero doc evidence" flag from the second research subagent survey
 // (проход 397), re-derived empirically before implementing. `SqlDecimal.Parse(string)` — single overload
 // (confirmed via reflection), grep-confirmed no prior coverage. Confirmed empirically this is a

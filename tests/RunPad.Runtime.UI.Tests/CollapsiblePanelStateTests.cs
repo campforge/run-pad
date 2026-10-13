@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #103 — extracted from MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
+// Extracted from MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
 // EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel, which duplicated this exact
 // collapse/expand-plus-throttled-persist scheme near-verbatim. Neither original call site had a
 // direct test for the throttled-persist half (MainWindowViewModelTests only ever checked the

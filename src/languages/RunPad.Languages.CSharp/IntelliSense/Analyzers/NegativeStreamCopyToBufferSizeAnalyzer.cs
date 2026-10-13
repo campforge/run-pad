@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят третий проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor/method argument validation" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
 // (RPAD0333, проход 352): `memoryStream.CopyTo(Stream destination, int bufferSize)` throws
 // ArgumentOutOfRangeException when `bufferSize` isn't strictly positive — confirmed empirically via

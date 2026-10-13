@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (455-й проход, batch) — candidate #3 from the seventeenth research subagent survey,
+// Candidate #3 from the seventeenth research subagent survey,
 // re-verified independently before implementing. `System.Threading.Tasks.Dataflow.DataflowLinkOptions.
 // MaxMessages` (plain `int`, declared directly on `DataflowLinkOptions`, a type distinct from the
 // already-covered `DataflowBlockOptions`/`ExecutionDataflowBlockOptions`, RPAD0457) — throws

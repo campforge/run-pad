@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (461-й проход, batch) — candidate C from the twenty-fourth research subagent survey,
+// Candidate C from the twenty-fourth research subagent survey,
 // re-verified independently before implementing. `System.Reflection.PortableExecutable.
 // PEHeaderBuilder(...)` — a sibling under the same assembly/namespace tree as the already-covered
 // `MetadataBuilder`/`InstructionEncoder` (RPAD0479-0481). Both `fileAlignment` and `sectionAlignment`

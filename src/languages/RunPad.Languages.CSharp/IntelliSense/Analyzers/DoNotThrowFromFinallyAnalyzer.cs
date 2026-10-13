@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // AvoidThrowingExceptionFromFinallyBlockAnalyzer (Apache License 2.0,
 // https://github.com/dotnet/roslynator). A `throw` directly inside a `finally` block silently
 // replaces (masks) whatever exception was already propagating through the try/catch it belongs to —

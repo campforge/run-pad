@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать второй проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "explicit .Default comparer is redundant" theme as RedundantDefaultComparerArgumentAnalyzer
 // (RPAD0099, проход 167), but for List&lt;T&gt;.Sort/BinarySearch and Array.Sort/BinarySearch instead
 // of the LINQ extension methods RPAD0099 covers — those are instance/static methods on List&lt;T&gt;

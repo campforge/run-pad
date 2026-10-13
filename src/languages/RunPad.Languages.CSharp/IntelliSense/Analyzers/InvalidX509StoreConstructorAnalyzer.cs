@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (469-й проход, batch) — candidate #1 from the thirty-second research subagent survey,
+// Candidate #1 from the thirty-second research subagent survey,
 // re-verified independently before implementing. A twelfth productive revisit of `X509Certificates`
 // (after RPAD0472/0473/0477/0483/0485/0488/0496/0500/0507). `X509Store`'s `StoreName`/`StoreLocation`
 // enum-taking constructors — confirmed empirically both enums are `int`-backed

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (415-й проход, batch) — candidate #3 from the third research subagent survey (411-й проход,
+// Candidate #3 from the third research subagent survey (411-й проход,
 // full tool access, empirically self-verified), re-verified independently before implementing.
 // `System.Buffers.Text.Base64Url.DecodeFromChars(ReadOnlySpan<char>)` (.NET 9+, new to this catalog —
 // first analyzer touching the `System.Buffers.Text` namespace). Confirmed empirically: the single-argument

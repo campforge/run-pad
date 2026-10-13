@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (469-й проход, batch) — candidate #2 from the thirty-second research subagent survey,
+// Candidate #2 from the thirty-second research subagent survey,
 // re-verified independently before implementing. First touch of `System.Security.Cryptography.
 // X509Certificates.Pkcs12LoaderLimits`. Five `int?` properties (`MacIterationLimit`,
 // `IndividualKdfIterationLimit`, `TotalKdfIterationLimit`, `MaxKeys`, `MaxCertificates`), bundled under

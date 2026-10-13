@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок восьмой проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known contents" theme as EmptyArrayLiteralFirstOrSingleOrLastAnalyzer (RPAD0290), but for a
 // non-empty case: `Enumerable.Sum()` on a freshly created `int[]`/`long[]` array literal whose own
 // literal elements add up to more than the target type's range always throws `OverflowException` at

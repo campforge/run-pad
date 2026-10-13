@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #59 remainder: BuildListRow now shows a dimmed "(+N overloads)" annotation next to
+// BuildListRow now shows a dimmed "(+N overloads)" annotation next to
 // a method name that collapses several overloads (ICompletionItem.OverloadCount), alongside the
 // pre-existing "(in Namespace)" annotation for not-yet-imported types (item 60 point 6) — the two
 // never co-occur, but both are exercised here since neither had direct test coverage before. Item 60

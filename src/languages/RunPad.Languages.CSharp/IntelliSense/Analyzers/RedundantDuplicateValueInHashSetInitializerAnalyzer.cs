@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок восьмой проход, batch) — own pick, not a Roslynator port. A redundancy
+// Own pick, not a Roslynator port. A redundancy
 // sibling to DuplicateKeyInDictionaryInitializerAnalyzer (RPAD0241, проход 247), but for a different
 // outcome: `new HashSet<T> { a, a }` desugars to two `Add` calls — unlike Dictionary.Add, HashSet<T>.Add
 // does NOT throw for a value already present, it just returns false and does nothing — so the repeated

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцатый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "concatenating with an empty operand is a no-op" theme as RedundantStringConcatWithEmptyAnalyzer
 // (RPAD0169), for LINQ's Concat instead of the `+` operator: `xs.Concat(Enumerable.Empty<T>())` (or the
 // mirror, `Enumerable.Empty<T>().Concat(xs)`) wraps xs in an iterator that yields nothing extra — xs

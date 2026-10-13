@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #110: file tree had no drag-and-drop at all. MoveFileOrFolder resolves the target directory
+// File tree had no drag-and-drop at all. MoveFileOrFolder resolves the target directory
 // the same way CreateFolderAsync/CreateFileAsync already do (ResolveParentDir — dropping onto a folder
 // moves INSIDE it, onto a file moves alongside it, onto empty tree space moves to the root), then
 // shares its actual File.Move/Directory.Move + open-tab bookkeeping with RenameFile via the new

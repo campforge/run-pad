@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #68: the user found that completion (and, worse, the commit-on-"(" behavior from
+// The user found that completion (and, worse, the commit-on-"(" behavior from
 // #54) treated the NAME being typed for a fresh declaration as a reference to complete/replace — e.g.
 // typing "void Main" and then "(" replaced "Main" with an unrelated in-scope symbol that happened to
 // share a prefix. LookupSymbols/GetSymbolInfo have no notion of "this identifier is being declared,
@@ -22,7 +22,7 @@ public class CSharpIntelliSenseDeclarationNameTests
     }
 
     // The user's own reported reproduction: "void Main" — caret right after "Main" while still typing
-    // the method's own name (Program-kind scripts declare exactly this method, see TODO #66).
+    // the method's own name (Program-kind scripts declare exactly this method).
     [Theory]
     [InlineData("void Main")]
     [InlineData("public void Main")]

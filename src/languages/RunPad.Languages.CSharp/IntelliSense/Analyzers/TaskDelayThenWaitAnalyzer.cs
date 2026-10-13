@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Task.Delay(ms).Wait()` synchronously blocks the calling thread for a delay — which is exactly what
 // `Thread.Sleep(ms)` does directly, without allocating a Task and its machinery (timer registration,
 // continuation scheduling) just to immediately block on it. If the delay were meant to be awaited

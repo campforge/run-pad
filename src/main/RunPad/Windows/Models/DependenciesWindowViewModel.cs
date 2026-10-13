@@ -144,7 +144,7 @@ public sealed class DependencyEntryViewModel
 public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 {
     // Debounce before firing a NuGet search after the user stops typing — avoids a request (and a
-    // list rebuild) per keystroke (ANALYSIS.md #94). 500ms: short pauses mid-word don't count as
+    // list rebuild) per keystroke. 500ms: short pauses mid-word don't count as
     // "finished typing"; Enter still searches immediately (SearchNow).
     private static readonly TimeSpan DefaultSearchDebounce = TimeSpan.FromMilliseconds(500);
 
@@ -1243,7 +1243,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         }
 
         // Scripts compile in-process with Roslyn (no MSBuild), which can't build another project;
-        // project references are to be redesigned (docs/handoffs/roslyn-script-compiler.md).
+        // project references are to be redesigned.
         if (ProjectFileExtensions.Contains(Path.GetExtension(reference)))
         {
             ReferenceError = "Project references aren't supported. Reference the project's built .dll instead.";

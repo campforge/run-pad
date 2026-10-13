@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (460-й проход, batch) — candidate #4 from the twenty-third research subagent survey,
+// Candidate #4 from the twenty-third research subagent survey,
 // re-verified independently before implementing. `System.Buffers.MemoryPool<T>.Shared.Rent(int
 // minimumBufferSize)` — an instance method on the static `Shared` singleton (confirmed via reflection:
 // the `Shared` property getter is static, `Rent` itself is an instance method). Unusual, precisely

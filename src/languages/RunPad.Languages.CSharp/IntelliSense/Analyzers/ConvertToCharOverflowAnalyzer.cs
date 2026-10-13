@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста третий проход, batch) — own pick, not a Roslynator port. Same "run the real
+// Own pick, not a Roslynator port. Same "run the real
 // validator" theme as the integral-overflow family (IntegralParseOverflowAnalyzer, RPAD0258), applied to
 // `Convert.ToChar(int)`/`Convert.ToChar(long)` instead of string parsing: throws `OverflowException` when
 // the value is outside `char`'s valid range (0-65535) — confirmed empirically via scratch `dotnet run`

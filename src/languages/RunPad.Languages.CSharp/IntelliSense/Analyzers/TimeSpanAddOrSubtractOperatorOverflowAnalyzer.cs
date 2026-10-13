@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок седьмой проход, batch) — own pick, not a Roslynator port. Same "run the real
+// Own pick, not a Roslynator port. Same "run the real
 // validator" theme as TimeSpanConstructorOverflowAnalyzer (RPAD0314, this same batch): `TimeSpan1 +
 // TimeSpan2` and `TimeSpan1 - TimeSpan2` throw OverflowException when the result overflows TimeSpan's
 // representable range — confirmed empirically via scratch `dotnet run` script, not assumed (e.g.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new[] { x }.Contains(y)` builds a throwaway one-element array just to ask whether `y` equals its
 // only element — `x == y` (or `x.Equals(y)` for non-primitive types where `==` isn't overloaded) asks
 // the exact same question directly, without allocating an array or calling into LINQ's Contains.

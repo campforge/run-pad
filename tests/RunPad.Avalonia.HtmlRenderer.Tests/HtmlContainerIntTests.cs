@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Avalonia.HtmlRenderer.Tests;
 
-// TODO.md #46: clicking a link in .Dump() HTML output used to call Process.Start(UseShellExecute:
+// Clicking a link in .Dump() HTML output used to call Process.Start(UseShellExecute:
 // true) on whatever HrefLink the content contained, with no check on the URI scheme. Fixed with an
 // http(s)-only allowlist — these tests exercise that check directly, since HandleLinkClicked itself
 // needs a full CssBox/RControl DOM to call and would actually launch a process if it ran unfiltered.

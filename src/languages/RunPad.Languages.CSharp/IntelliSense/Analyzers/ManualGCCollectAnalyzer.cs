@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. GC.Collect()
+// Own pick, not a Roslynator port. GC.Collect()
 // forces a full garbage collection outside the generational collector's own scheduling — almost always
 // the wrong fix for a real problem (a leak, oversized allocations, GC pressure from short-lived
 // objects) and actively hurts throughput by collecting generations that didn't need it yet. The one

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #107 — live user report: a Program-kind script with more than a bare Main (the LINQPad-style
+// Live user report: a Program-kind script with more than a bare Main (the LINQPad-style
 // norm for this kind — a field plus Main plus a helper method) failed to compile at all. This is a real
 // dotnet-build integration test (no mocking of the compiler, same rationale/pattern as
 // DotnetProcessCompilerTests) — the bug was entirely about what MSBuild/Roslyn actually accept, which
@@ -79,7 +79,7 @@ public class CSharpLanguageHostProgramKindCompileTests
     }
 
     // A static Main is legal LINQPad-style C# too (no instance state needed) — must be called by type
-    // name, not through `new {Wrapper}()` (CS0176), which is exactly the other half of TODO.md #107's
+    // name, not through `new {Wrapper}()` (CS0176), which is exactly the other half of the
     // fix (ProgramEntryPointDetector.DetectMain.IsStatic).
     [Fact]
     public async Task CompileAsync_Should_Succeed_ForAStaticMain_WithAPrivateHelperMethod()

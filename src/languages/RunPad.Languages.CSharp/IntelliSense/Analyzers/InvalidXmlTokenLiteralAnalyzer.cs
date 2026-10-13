@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста второй проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidXmlNameLiteralAnalyzer (RPAD0384, проход 392), which deliberately deferred `VerifyTOKEN`/
 // `VerifyNMTOKEN` rather than guessing their exception profile matched `VerifyName`/`VerifyNCName`'s.
 // Confirmed empirically it does NOT: `VerifyTOKEN`/`VerifyNMTOKEN` throw ONLY `XmlException`, never

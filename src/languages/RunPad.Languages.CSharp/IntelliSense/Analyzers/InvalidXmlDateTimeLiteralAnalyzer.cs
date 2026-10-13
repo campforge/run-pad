@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (423-й проход, batch) — own pick, not a Roslynator port; continued direct brainstorming over
+// Own pick, not a Roslynator port; continued direct brainstorming over
 // the `XmlConvert.ToXxx` family after `ToGuid` (RPAD0413, проход 422). `ToDateTime` is the plain (non-
 // offset) sibling of `ToDateTimeOffset` (RPAD0391, проход 399) — confirmed via reflection FOUR overloads
 // exist: a bare `ToDateTime(string)`, `(string, string)` and `(string, string[])` format-specifier

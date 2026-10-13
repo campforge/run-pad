@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 149, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UnnecessaryInterpolatedStringAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `$"{s}"` where `s`'s static type is already `string`, and there's no surrounding text or
 // format/alignment clause, is exactly `s` — the interpolation machinery does nothing here.

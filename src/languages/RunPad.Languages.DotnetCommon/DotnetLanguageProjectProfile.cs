@@ -4,7 +4,7 @@ namespace RunPad.Languages.DotnetCommon;
 /// The lexical conventions that differ between .NET languages compiled the same way (in-process
 /// Roslyn, <see cref="Compiler.RoslynScriptCompiler"/>) — what <see cref="CompiledDotnetLanguageHostBase"/>
 /// and the language's compiler need to know about a specific language without duplicating the
-/// process/DAP orchestration that's identical across languages (ANALYSIS.md #86).
+/// process/DAP orchestration that's identical across languages.
 /// </summary>
 /// <param name="SourceFileExtension">e.g. <c>.cs</c>, <c>.vb</c> — used for the compiled source file and passed to DapSession for breakpoint path matching.</param>
 /// <param name="DefaultImportNamespaces">

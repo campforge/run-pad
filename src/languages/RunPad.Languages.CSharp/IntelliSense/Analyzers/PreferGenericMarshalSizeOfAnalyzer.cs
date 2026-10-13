@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят девятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "generic overload avoids the Type/object round trip" theme as PreferGenericEnumStaticMethodAnalyzer
 // (RPAD0090, this project, for Enum.Parse/IsDefined/GetName). `Marshal.SizeOf(typeof(T))` boxes through
 // `Type` just to look up a size the generic `Marshal.SizeOf<T>()` (available since this project's SDK

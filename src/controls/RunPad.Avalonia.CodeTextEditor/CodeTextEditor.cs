@@ -39,7 +39,7 @@ public class CodeTextEditor : TextEditor
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
     private readonly OccurrenceHighlighter _occurrenceHighlighter = new();
     // Debounce before recomputing folding regions after a text change — long enough that fast
-    // typing doesn't re-run the folding strategy on every keystroke (ANALYSIS.md #94).
+    // typing doesn't re-run the folding strategy on every keystroke.
     private static readonly TimeSpan FoldingDebounce = TimeSpan.FromMilliseconds(400);
 
     private readonly DispatcherTimer _foldingTimer;
@@ -56,7 +56,7 @@ public class CodeTextEditor : TextEditor
     private CancellationTokenSource? _occurrencesCts;
     // The caret offset right after the "(" that opened the currently-showing insight window — set
     // once, on the transition from closed to open, not touched by the caret-move/comma re-requests
-    // that keep refreshing the SAME session (TODO.md #53 remainder — see OnTextEntering's nesting
+    // that keep refreshing the SAME session (see OnTextEntering's nesting
     // check below, the reason this is tracked at all).
     private int? _insightAnchorOffset;
 
@@ -82,8 +82,8 @@ public class CodeTextEditor : TextEditor
     /// <summary>Async overload provider — called instead of <see cref="OverloadRequested"/> when set.</summary>
     public Func<OverloadRequestedEventArgs, Task>? AsyncOverloadProvider { get; set; }
 
-    /// <summary>Async provider for "highlight every occurrence of the symbol under the caret" (TODO.md
-    /// #62) — re-queried once the caret has rested for <see cref="OccurrenceHighlightDelay"/>.</summary>
+    /// <summary>Async provider for "highlight every occurrence of the symbol under the caret" —
+    /// re-queried once the caret has rested for <see cref="OccurrenceHighlightDelay"/>.</summary>
     public Func<OccurrencesRequestedEventArgs, Task>? AsyncOccurrencesProvider { get; set; }
 
     /// <summary>
@@ -93,19 +93,19 @@ public class CodeTextEditor : TextEditor
     /// </summary>
     public TimeSpan OccurrenceHighlightDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 
-    /// <summary>Fired on F2 (TODO.md #62 "smart rename") — the host resolves what's
+    /// <summary>Fired on F2 — the host resolves what's
     /// renameable at the current caret position and drives the actual rename UI/edit; this control
     /// only recognizes the keypress and hands off, the same shape as
     /// <see cref="BreakpointRightClicked"/>.</summary>
     public event EventHandler? RenameSymbolRequested;
 
-    /// <summary>Fired on Shift+F12 ("Find All References", TODO.md #62) — same hand-off shape as
+    /// <summary>Fired on Shift+F12 ("Find All References") — same hand-off shape as
     /// <see cref="RenameSymbolRequested"/>: this control only recognizes the keypress, the host
     /// resolves and shows the actual reference list.</summary>
     public event EventHandler? FindReferencesRequested;
 
-    /// <summary>Fired on plain F12 ("Go to Definition"/"Go to Implementation", TODO.md #62, user
-    /// request 2026-07-19) — same hand-off shape as <see cref="RenameSymbolRequested"/>: this control
+    /// <summary>Fired on plain F12 ("Go to Definition"/"Go to Implementation")
+    /// — same hand-off shape as <see cref="RenameSymbolRequested"/>: this control
     /// only recognizes the keypress, the host decides where to go (prefers implementations when the
     /// symbol has any, falls back to the symbol's own definition otherwise). Deliberately a single
     /// binding, not a separate Ctrl+F12 for implementations — modifier+F-key combos collide with
@@ -131,7 +131,7 @@ public class CodeTextEditor : TextEditor
 
     /// <summary>Fired when the user clicks a specific lightbulb menu entry — see CodeFixEntry's own
     /// doc comment for why materializing/applying it is left entirely to whoever owns
-    /// IIntelliSenseService (TODO.md #74, pass 104).</summary>
+    /// IIntelliSenseService.</summary>
     public event Action<CodeFixEntry>? FixApplyRequested;
 
     /// <summary>
@@ -158,7 +158,7 @@ public class CodeTextEditor : TextEditor
     /// <summary>Whether the overload/parameter-info insight popup is currently showing.</summary>
     public bool IsInsightWindowOpen => _insightWindow is not null;
 
-    /// <summary>Test-only observability for TODO.md #62's "highlight every occurrence" feature.</summary>
+    /// <summary>Test-only observability for the "highlight every occurrence" feature.</summary>
     internal IReadOnlyList<(int Start, int Length)> HighlightedOccurrences => _occurrenceHighlighter.Spans;
 
     /// <summary>Characters that open the completion dropdown.</summary>
@@ -168,7 +168,7 @@ public class CodeTextEditor : TextEditor
     /// Whether typing a commit character (see <see cref="IsCommitCharacter(char, IReadOnlySet{char})"/>)
     /// accepts the completion window's current selection, on top of always inserting the character
     /// itself. Defaults to <see langword="true"/> (today's only behavior); a user who finds
-    /// punctuation unpredictably accepting a completion can turn this off (TODO.md #60.4's global
+    /// punctuation unpredictably accepting a completion can turn this off (a global
     /// switch) — Enter/Tab/click still commit either way, this only gates the "typing punctuation
     /// also commits" convenience path.
     /// </summary>
@@ -213,7 +213,7 @@ public class CodeTextEditor : TextEditor
     /// recognized in <see cref="BracePairs"/> (for matching/navigation) but excluded here: opening a
     /// call's parameter list is exactly when signature help is about to show the real parameter list
     /// from any overloads, and an auto-inserted <c>)</c> sitting there fights that instead of helping
-    /// (see ANALYSIS.md TODO #51).</summary>
+    ///.</summary>
     public HashSet<char> AutoCloseBraces { get; } = [];
 
     /// <summary>Characters that end a statement, closing the signature-help insight window if it's
@@ -222,8 +222,8 @@ public class CodeTextEditor : TextEditor
     public HashSet<char> StatementTerminators { get; } = [];
 
     /// <summary>Which code-folding algorithm to run — not every language delimits blocks with braces
-    /// (e.g. VB's Sub/End Sub, If/End If), so the app layer configures this per language (TODO.md #49
-    /// item 3). Defaults to brace-based, matching this control's previous hardcoded behavior.</summary>
+    /// (e.g. VB's Sub/End Sub, If/End If), so the app layer configures this per language.
+    /// Defaults to brace-based, matching this control's previous hardcoded behavior.</summary>
     public IFoldingStrategy FoldingStrategy { get; set; } = new BraceFoldingStrategy();
 
     /// <summary>Tab-expandable snippets: keyword → template with <c>${0}</c> cursor marker.</summary>
@@ -301,7 +301,7 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.BackgroundRenderers.Add(_occurrenceHighlighter);
         TextArea.Caret.PositionChanged += (_, _) => UpdateBraceMatch();
         TextArea.Caret.PositionChanged += (_, _) => UpdateOccurrenceHighlights();
-        // TODO.md #53 remainder: the active (bold) parameter used to update only when a "," was
+        // The active (bold) parameter used to update only when a "," was
         // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
         // the window opened. ShowOverloads is a stateless "recompute from the current caret position"
         // request (TryGetSignatureHelpAsync derives argIndex purely from position), so simply
@@ -361,7 +361,7 @@ public class CodeTextEditor : TextEditor
         // (rename FILE, KeyboardSettings.RenameFile): that handler is likewise scoped to the file
         // tree's own TreeView, so ordinary Avalonia routing (starting from whichever control
         // actually has keyboard focus) keeps the two from ever double-firing on the same keypress —
-        // no explicit focus check needed on either side (TODO.md #62 "smart rename").
+        // no explicit focus check needed on either side.
         TextArea.AddHandler(
             KeyDownEvent,
             (object? _, KeyEventArgs e) =>
@@ -410,7 +410,7 @@ public class CodeTextEditor : TextEditor
     // (for arrow-key navigation), which lives in a disconnected popup visual tree — so binding
     // MenuItem.Command directly to the RoutedCommand can never find the CommandBindings registered
     // on TextArea and silently does nothing. Executing against TextArea explicitly on Click sidesteps
-    // that broken focus-based resolution. See ANALYSIS.md #34 for the full diagnosis.
+    // that broken focus-based resolution.
     private void SetupEditContextMenu()
     {
         var copy = CreateEditMenuItem("Copy", ApplicationCommands.Copy);
@@ -511,8 +511,8 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 
-    // TODO.md #62 "occurrence highlighting" — same cancel-a-superseded-request shape as ShowCompletion/
-    // ShowOverloads (ANALYSIS.md #57/#89): fast caret movement can fire several of these before the
+    // Same cancel-a-superseded-request shape as ShowCompletion/
+    // ShowOverloads: fast caret movement can fire several of these before the
     // first one's provider call resolves, so the previous one is cancelled rather than raced, and
     // its CTS deliberately never disposed (only ever Cancel()'d — a CTS with no timer holds no
     // resources, same reasoning as those two).
@@ -677,7 +677,7 @@ public class CodeTextEditor : TextEditor
     // SnippetCompletionData (completion-list entry) — re-indenting it to match the current line and
     // placing the caret at the ${0} cursor marker (or the end of the expansion if there isn't one).
     // Public (not just used internally) so a language-aware caller building its own SnippetCompletionData
-    // — e.g. EditorTabItemControl's override-member stubs, TODO.md item 60 point 8 — reuses this same
+    // — e.g. EditorTabItemControl's override-member stubs — reuses this same
     // reindent/cursor-placement logic instead of duplicating it; nothing about the method itself is
     // C#-specific (the controls stay language-agnostic).
     public void ExpandSnippet(int offset, int length, string template)
@@ -791,7 +791,7 @@ public class CodeTextEditor : TextEditor
     // (in addition to being inserted itself) rather than continuing to filter the open list.
     // Anything that can be part of an identifier — letters/digits, plus identifierChars like '_' —
     // must never commit: mid-identifier characters are just more of the word being typed, not a
-    // request to accept a match (ANALYSIS.md #54: '_' was falling through the old `!IsLetterOrDigit`
+    // request to accept a match ('_' was falling through the old `!IsLetterOrDigit`
     // check). Space is excluded unconditionally too: unlike Visual Studio's default, this matches
     // Rider — committing on space was swapping still-being-typed words for an unrelated prefix match
     // (e.g. "var ret " -> "var return ", the same class of bug as the earlier var/args report). '='
@@ -818,7 +818,7 @@ public class CodeTextEditor : TextEditor
         var ch = e.Text[0];
 
         // Only close the insight window when exiting the argument list — not when closing a bracket
-        // NESTED inside one of its already-typed arguments (TODO.md #53 remainder: "Foo(new[] { 1, 2 }"
+        // NESTED inside one of its already-typed arguments ("Foo(new[] { 1, 2 }"
         // used to hide the window for Foo's still-open call on the array literal's own "}"). A
         // statement terminator has no such nesting concept — it always ends the whole statement.
         if (StatementTerminators.Contains(ch))
@@ -839,7 +839,7 @@ public class CodeTextEditor : TextEditor
     }
 
     // True when the about-to-be-typed closing bracket closes something opened AFTER the insight
-    // window's call started (TODO.md #53 remainder) — i.e. a nested bracket inside an argument, not
+    // window's call started — i.e. a nested bracket inside an argument, not
     // the call's own closing bracket. A plain running depth count from the anchor to the caret, not a
     // real matched-pair scan: this only has to decide "hide or don't", and over/under-counting on
     // genuinely malformed in-progress code is an acceptable approximation for that, same spirit as the
@@ -870,17 +870,17 @@ public class CodeTextEditor : TextEditor
             ShowCompletion(ch);
         else if (OverloadTriggers.Contains(ch))
             ShowOverloads(ch);
-        // 24/7 auto-invoke (TODO.md #51) — fires once, on the first letter of a fresh identifier, not
+        // 24/7 auto-invoke — fires once, on the first letter of a fresh identifier, not
         // on every keystroke: AvaloniaEdit's own CompletionWindow re-filters what's already fetched as
         // more letters are typed (including camelCase — see CompletionList.GetMatchQuality), the same
         // way it already does after a '.' trigger, so this adds no extra per-keystroke language-service
         // calls beyond today's dot-completion.
         else if (_completionWindow is null && (char.IsLetter(ch) || IdentifierChars.Contains(ch)) && IsStartOfNewIdentifier())
             ShowCompletion(ch, explicitInvoke: true);
-        // Generics (TODO.md #51) — e.g. '<' right after "List" opens completion for the type argument.
+        // Generics — e.g. '<' right after "List" opens completion for the type argument.
         else if (_completionWindow is null && ContextualTriggers.Contains(ch) && IsContextualTriggerContext())
             ShowCompletion(ch, explicitInvoke: true);
-        // "new " (TODO.md #51) — opens completion right where a constructible type goes.
+        // "new " — opens completion right where a constructible type goes.
         else if (_completionWindow is null && ch == ' ' && IsWordTriggerContext())
             ShowCompletion(ch, explicitInvoke: true);
 
@@ -895,8 +895,8 @@ public class CodeTextEditor : TextEditor
         // 'C' triggers the 24/7 auto-invoke, then '.' triggers again before that first request comes
         // back) — cancelling the previous request's token here means a provider that threads it
         // through to its own async work (Roslyn's SemanticModel calls) actually stops that work
-        // instead of it running to completion and racing this one (ANALYSIS.md #57).
-        // Deliberately NOT disposed here (ANALYSIS.md #89): the superseded request's provider call
+        // instead of it running to completion and racing this one.
+        // Deliberately NOT disposed here: the superseded request's provider call
         // may still be mid-flight past this point (e.g. suspended on an await inside
         // AsyncCompletionProvider), and any later attempt to register a callback against — or read
         // certain members of — an already-disposed CancellationTokenSource throws
@@ -925,7 +925,7 @@ public class CodeTextEditor : TextEditor
         // synchronous CompletionRequested event) can still return normally after being superseded.
         if (cts.IsCancellationRequested) return;
 
-        // TODO.md #65: the provider found the caret in a fresh, not-yet-typed call argument — the
+        // The provider found the caret in a fresh, not-yet-typed call argument — the
         // user's Ctrl+Space is really asking for parameter info there, not a completion list.
         if (args.RedirectToOverloads)
         {
@@ -949,7 +949,7 @@ public class CodeTextEditor : TextEditor
         // A newer ShowCompletion call can open (and even close) its own window before this one's
         // Closed event fires — only clear the field if it's still pointing at *this* window, so an
         // old window's closure can't null out a newer window's reference out from under it
-        // (ANALYSIS.md #57).
+        //.
         window.Closed += (_, _) => { if (ReferenceEquals(_completionWindow, window)) _completionWindow = null; };
 
         // The window itself is a bare Popup with no Font/Background/Foreground of its own — the
@@ -972,7 +972,7 @@ public class CodeTextEditor : TextEditor
         // -> "WriWriteLine"). Walking back over the already-typed identifier fixes the replace range.
         window.StartOffset = GetWordStart(TextArea.Caret.Offset);
 
-        // TODO.md #60.5: Tab should replace any pre-existing remainder of the word the caret is
+        // Tab should replace any pre-existing remainder of the word the caret is
         // inside (e.g. "Cons|ole" -> accepting "Console" via Tab should produce "Console", not
         // "Consoleole"), while Enter leaves it alone — see CompletionWindow.WordEndOffsetProvider.
         window.WordEndOffsetProvider = GetWordEnd;
@@ -983,8 +983,8 @@ public class CodeTextEditor : TextEditor
         // (see CompletionWindow's source) — which fires on the *next* keystroke, not for text already
         // typed before the window opened. The 24/7 auto-invoke opens right after the first letter of
         // the identifier is already in the document (see StartOffset above), so without this the
-        // window would show the full, unfiltered, nothing-selected list for that first letter (see
-        // ANALYSIS.md #55) — camelCase/fuzzy matching and pre-selection only kicking in from the
+        // window would show the full, unfiltered, nothing-selected list for that first letter
+        // — camelCase/fuzzy matching and pre-selection only kicking in from the
         // second letter onward.
         var alreadyTyped = Document.GetText(window.StartOffset, TextArea.Caret.Offset - window.StartOffset);
         if (alreadyTyped.Length > 0)
@@ -1032,12 +1032,12 @@ public class CodeTextEditor : TextEditor
     private async void ShowOverloads(char trigger)
     {
         // Same reasoning as ShowCompletion above — cancel a superseded request instead of racing it.
-        // Not disposed here either — see ShowCompletion's comment (ANALYSIS.md #89).
+        // Not disposed here either — see ShowCompletion's comment.
         _insightCts?.Cancel();
         var cts = new CancellationTokenSource();
         _insightCts = cts;
 
-        // Captured synchronously, before the await below — not after it (TODO.md #53 remainder). Two
+        // Captured synchronously, before the await below — not after it. Two
         // ShowOverloads calls can be in flight back to back (e.g. a caret-move re-request superseded
         // by another one right after — see ShowCompletion's own note on this), and checking
         // "_insightWindow is null" only after each one's own await left a window for the later call to
@@ -1062,8 +1062,8 @@ public class CodeTextEditor : TextEditor
 
         if (cts.IsCancellationRequested) return;
 
-        // The caret can now be re-requesting from a position outside any call at all (TODO.md #53
-        // remainder — this runs on every caret move while the window is open, not just on a typed
+        // The caret can now be re-requesting from a position outside any call at all (this
+        // runs on every caret move while the window is open, not just on a typed
         // ","), in which case the provider correctly comes back empty — close the now-stale window
         // instead of leaving it open and showing parameters for wherever it last was.
         if (args.Overloads.Count == 0)

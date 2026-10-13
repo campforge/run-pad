@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста двадцать третий проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231, constructor form),
 // but on a genuinely different SYNTACTIC shape: `list.Capacity = -1` (a property ASSIGNMENT, not a
 // constructor or method call) also throws ArgumentOutOfRangeException — confirmed empirically via scratch

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Zip(ys, (a, b) => (a, b))` spells out a result selector that does nothing but re-pack its two
 // parameters into a tuple — exactly what the parameterless `Zip(IEnumerable<TSecond>)` overload
 // (added in .NET Core 3.0, well within this project's .NET 6 SDK floor) already returns directly.

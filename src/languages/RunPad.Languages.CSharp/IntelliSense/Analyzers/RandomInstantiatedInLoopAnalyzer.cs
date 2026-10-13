@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. `new
+// Own pick, not a Roslynator port. `new
 // Random()` inside a loop body allocates a fresh generator (and discards its internal state) on every
 // iteration instead of reusing one generator across the whole loop — pure waste, and historically also
 // a correctness trap: Random's parameterless constructor seeds from the system clock, so two instances

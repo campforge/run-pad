@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста шестой проход, batch) — own pick, not a Roslynator port; final candidate from the
+// Own pick, not a Roslynator port; final candidate from the
 // second research subagent survey (проход 397) — the sixth `XmlConvert.VerifyXxx` sibling covered in this
 // catalog, closing out that list entirely. `VerifyXmlChars(string)` — grep-confirmed the only prior mention
 // is InvalidXmlNameLiteralAnalyzer's (RPAD0384) doc comment deferring it, not real coverage. Confirmed

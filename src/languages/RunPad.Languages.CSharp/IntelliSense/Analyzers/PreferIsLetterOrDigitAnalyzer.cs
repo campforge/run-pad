@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `char.IsLetter(c) || char.IsDigit(c)` re-checks and re-reads `c` twice to ask "is c alphanumeric" —
 // `char.IsLetterOrDigit(c)` already exists and says exactly that in one call.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231), applied to `new
 // CultureInfo(int culture)` (the LCID-based constructor, distinct from `InvalidCultureNameLiteralAnalyzer`
 // /RPAD0247, which validates the STRING-name constructor): throws ArgumentOutOfRangeException for a

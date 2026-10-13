@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// docs/handoffs/roslyn-script-compiler.md — the hard requirement of the switch to in-process Roslyn:
+// The hard requirement of the switch to in-process Roslyn:
 // netcoredbg must debug Roslyn-built scripts. Expectations match what the same scenarios gave with the
 // old MSBuild builds (verified side by side before MSBuild was removed). Real DapSession + real
 // netcoredbg; opt-in via RUNPAD_TEST_NETCOREDBG like RealNetcoredbgDebugTests.

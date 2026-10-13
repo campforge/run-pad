@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 149, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseMethodInsteadOfReferenceEqualsForValueTypeAnalyzer-style rules (Apache License 2.0,
 // https://github.com/dotnet/roslynator). object.ReferenceEquals boxes a value-type argument before
 // comparing — each boxing produces a distinct object, so this is almost always false even for two

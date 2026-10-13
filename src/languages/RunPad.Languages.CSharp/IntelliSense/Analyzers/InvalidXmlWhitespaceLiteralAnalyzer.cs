@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (419-й проход, batch) — candidate #7 from the third research subagent survey (411-й проход,
+// Candidate #7 from the third research subagent survey (411-й проход,
 // full tool access, empirically self-verified), re-verified independently before implementing. One of the
 // five `XmlConvert.VerifyXxx` siblings that `InvalidXmlNameLiteralAnalyzer` (RPAD0384, проход 392)
 // deliberately left unaddressed — that analyzer's own doc comment flagged `VerifyWhitespace` as

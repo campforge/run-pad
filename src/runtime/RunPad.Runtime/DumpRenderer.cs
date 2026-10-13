@@ -94,7 +94,7 @@ internal static class DumpRenderer
 
     // void, not string — every call site invokes this as a statement, and materializing outer's
     // entire accumulated buffer via ToString() on every nesting level (as the old signature required)
-    // meant O(n^2) allocations for a deep/wide dump (ANALYSIS.md #94).
+    // meant O(n^2) allocations for a deep/wide dump.
     private static void RenderCollapsible(StringBuilder outer, int depth, DumpOptions options, Action<StringBuilder> renderInner)
     {
         var inner = new StringBuilder();
@@ -196,7 +196,7 @@ internal static class DumpRenderer
         }
     }
 
-    // ── Custom member provider (ANALYSIS.md feature #20) ───────────────────────
+    // ── Custom member provider ───────────────────────
 
     private static void RenderCustomMemberProvider(StringBuilder sb, ICustomMemberProvider provider, int depth, DumpOptions options)
     {
@@ -465,7 +465,7 @@ internal static class DumpRenderer
         catch { return "<" + (v?.GetType().Name ?? "?") + ">"; }
     }
 
-    // internal, not private: Util.ProgressBar (TODO.md #111) needs the same HTML-escaping for its
+    // internal, not private: Util.ProgressBar needs the same HTML-escaping for its
     // caption text — it renders its own fixed markup directly rather than going through Render(),
     // since a plain string handed to Render() escapes AND quotes it as a dumped string value.
     internal static string Encode(string? s)

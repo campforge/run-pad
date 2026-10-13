@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок первый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283, проход 300), applied
 // to a freshly created `List<T>` collection-initializer instead of an array literal: `new List<int> { 1,
 // 2, 3 }[10]`/`.RemoveAt(10)`/`.Insert(10, x)` all throw when the index is out of range for the

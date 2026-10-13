@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (462-й проход, batch) — candidate #3 from the twenty-fifth research subagent survey,
+// Candidate #3 from the twenty-fifth research subagent survey,
 // re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
 // MethodBodyStreamEncoder.AddMethodBody(int codeSize, int maxStack, int exceptionRegionCount, ...)` —
 // another sibling under the already-covered Ecma335 tree (RPAD0474/0479-0481/0487). Targets only the

@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO.md item 60 point 7 (ReSharper 1.1): a member declared directly on the type being
+// A member declared directly on the type being
 // completed should render bold in the list; an inherited member (from a base class) should render
 // normal weight — ICompletionItem.IsOwnMember carries that distinction from the language service down
 // to DisplaySegmentRenderer.BuildListRow.

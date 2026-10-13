@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (475-й проход, batch) — candidate #1 from the thirty-eighth research subagent survey,
+// Candidate #1 from the thirty-eighth research subagent survey,
 // re-verified independently before implementing. `System.Xml.Linq.XName.Get(string localName, string
 // namespaceName)` — the 2-arg overload, structurally outside the already-covered 1-arg `XName.Get(string
 // expandedName)` (RPAD0386, which pattern-matches a single-`string`-parameter signature only). Confirmed

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто пятый проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0386. `new Oid(string)` was also considered and
 // DROPPED — confirmed empirically it never throws for any string; it's a lenient data holder that accepts
 // literally any value into its `Value` field without validating it as a real dotted-decimal OID, unlike

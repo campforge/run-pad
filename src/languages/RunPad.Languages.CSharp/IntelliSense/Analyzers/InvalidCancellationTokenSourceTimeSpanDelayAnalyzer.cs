@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девяносто шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `CancellationTokenSource(int millisecondsDelay)` is already covered by NegativeTimeoutArgumentAnalyzer
 // (RPAD0233, проход 240), but that analyzer only recognizes an `int` literal via unary-minus pattern
 // matching — it does not (and by its own mechanism cannot) see the sibling `CancellationTokenSource

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать седьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "lock-acquisition mistake" theme as MonitorEnterWithoutTryFinallyAnalyzer (RPAD0228, same batch), for
 // a different mistake: `Monitor.TryEnter(x)` returns false when the lock was NOT acquired (someone else
 // already holds it) — calling it as a bare statement discards that result, so code proceeds into what

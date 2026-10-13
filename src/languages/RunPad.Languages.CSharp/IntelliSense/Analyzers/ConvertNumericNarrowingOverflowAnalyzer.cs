@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятый проход, batch) — own pick, not a Roslynator port. Distinct from
+// Own pick, not a Roslynator port. Distinct from
 // IntegralParseOverflowAnalyzer (RPAD0258), which only handles a STRING argument being PARSED into a
 // narrower integral type (`byte.Parse("300")`) — this covers the numeric-source overloads instead:
 // `Convert.ToByte(int)`/`Convert.ToSByte(int)`/`Convert.ToInt16(int)`/`Convert.ToUInt16(int)` perform a

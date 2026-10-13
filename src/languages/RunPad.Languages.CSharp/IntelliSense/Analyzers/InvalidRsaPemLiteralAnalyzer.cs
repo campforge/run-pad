@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четырёхсотый проход, batch) — own pick, not a Roslynator port; fourth candidate from the
+// Own pick, not a Roslynator port; fourth candidate from the
 // second research subagent survey (проход 397, read-only tools, doc-based hunches only), re-verified
 // empirically before implementing. `RSA.ImportFromPem(string)` — a REAL surprise reflection caught before
 // any code was written: this method (and its X509Certificate2.CreateFromPem sibling, RPAD0393) does NOT
