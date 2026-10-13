@@ -1,9 +1,0 @@
-/* Screenshots: keep them inside the content column and set them off from the page. */
-.md-typeset figure img {
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 6px;
-}
-
-.md-typeset figcaption {
-  max-width: none;
-}

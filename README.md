@@ -5,7 +5,7 @@ LINQPad, RoslynPad and NetPad. It edits and runs `.rpad` files: self-documenting
 with a YAML front matter header and one executable code block.
 
 - Architecture, build/test commands, code style — `docs/ARCHITECTURE.md`.
-- User guide — [documentation source](docs/site/index.md); [GitHub Pages setup](docs/GITHUB-PAGES.md).
+- User guide — <https://campforge.github.io/run-pad-docs/>.
 - Full `.rpad` format specification — `docs/SpecificationRPad.md`.
 
 Why Avalonia UI and not another UI framework? I was looking for an open, community-maintained UI
