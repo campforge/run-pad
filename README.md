@@ -6,8 +6,6 @@ with a YAML front matter header and one executable code block.
 
 - Architecture, build/test commands, code style — `docs/ARCHITECTURE.md`.
 - User guide — [documentation source](docs/site/index.md); [GitHub Pages setup](docs/GITHUB-PAGES.md).
-- Current tasks — `TODO.md`; root-cause analysis and code-audit results — `ANALYSIS.md`.
-  Full history of closed items from 2026-07 (passes 1-58, items 1-84) — `docs/archive/`.
 - Full `.rpad` format specification — `docs/SpecificationRPad.md`.
 
 Why Avalonia UI and not another UI framework? I was looking for an open, community-maintained UI
