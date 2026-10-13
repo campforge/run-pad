@@ -166,7 +166,7 @@ wrote something to stderr during execution); `130` — interrupted with Ctrl+C.
 
 ## License
 
-Copyright (C) 2026 Vadim ([coddwrench](https://github.com/coddwrench))
+Copyright (C) 2026 Vadim ([hobobyte](https://github.com/hobobyte))
 
 Licensed under the GNU General Public License v3.0 — see [`LICENSE`](LICENSE) for the full text.
 
