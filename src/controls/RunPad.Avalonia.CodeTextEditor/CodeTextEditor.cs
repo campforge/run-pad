@@ -679,7 +679,7 @@ public class CodeTextEditor : TextEditor
     // Public (not just used internally) so a language-aware caller building its own SnippetCompletionData
     // — e.g. EditorTabItemControl's override-member stubs — reuses this same
     // reindent/cursor-placement logic instead of duplicating it; nothing about the method itself is
-    // C#-specific (the controls stay language-agnostic).
+    // C#-specific (see docs/ARCHITECTURE.md: the controls stay language-agnostic).
     public void ExpandSnippet(int offset, int length, string template)
     {
         var caretLine = Document.GetLineByOffset(offset);
