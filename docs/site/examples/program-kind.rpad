@@ -1,0 +1,39 @@
+---
+version: "1.0"
+language: csharp
+targetSdk: net10.0
+kind: Program
+---
+
+# Program kind
+
+With `kind: Program` you write a `Main` method plus any fields, helper methods and
+types it needs. RunPad supplies the surrounding class and calls `Main` for you.
+
+```csharp run
+void Main()
+{
+    var inventory = new Inventory();
+    inventory.Add("Keyboard", 3);
+    inventory.Add("Mouse", 5);
+    inventory.Add("Keyboard", 2);
+
+    inventory.Lines().Dump("Inventory");
+    Console.WriteLine($"Total items: {Total(inventory)}");
+}
+
+static int Total(Inventory inventory) => inventory.Lines().Sum(line => line.Quantity);
+
+class Inventory
+{
+    private readonly Dictionary<string, int> _counts = new();
+
+    public void Add(string name, int quantity) =>
+        _counts[name] = _counts.GetValueOrDefault(name) + quantity;
+
+    public IEnumerable<StockLine> Lines() =>
+        _counts.OrderBy(pair => pair.Key).Select(pair => new StockLine(pair.Key, pair.Value));
+}
+
+record StockLine(string Name, int Quantity);
+```
