@@ -19,12 +19,12 @@ public sealed class CSharpLanguageSettings
     // Exact, case-insensitive Roslyn
     // diagnostic ID exclusion list ("CS0184", "IDE0007", "IDE0055", ...) — lets a user silence
     // specific opinionated suggestions without turning code fixes off entirely. A diagnostic ID
-    // instead of a Title substring (pass 105's original design): stable and documented,
+    // instead of a Title substring (the original design): stable and documented,
     // where a title is free-form prose the provider can phrase however it likes. Only applies to
     // diagnostic-driven fixes — a CodeRefactoringProvider's suggestion has no underlying diagnostic
     // to key off (ICodeFixInfo.DiagnosticId's own doc comment), so it can't be excluded this way.
     //
-    // IDE0055 ("Fix formatting") ships excluded by default (user request 2026-07-21): RunPad already
+    // IDE0055 ("Fix formatting") ships excluded by default: RunPad already
     // has its own `dotnet format`-based CI gate and editor formatting (Ctrl+Format), so a live
     // "reformat this" suggestion firing on every whitespace deviation while typing was judged more
     // noise than help for most users — same rationale as InlayHintsEnabled/CodeFixesEnabled being

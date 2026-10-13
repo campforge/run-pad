@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `sb.Length = 0` truncates a StringBuilder back to empty by reaching into its Length property
 // directly — `sb.Clear()` says the same intent directly and is what the type's own API was designed
 // for, without relying on the reader knowing that setting Length to zero is how you empty one.
-// Extended (двести пятьдесят девятый проход, batch) to also cover `sb.Remove(0, sb.Length)` — removing
+// Extended to also cover `sb.Remove(0, sb.Length)` — removing
 // every character from the start through the current length is the same truncate-to-empty operation,
 // just spelled through Remove's start/count pair instead of the Length property.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// argument that always throws" theme as InvalidGuidLiteralFormatAnalyzer (RPAD0246, проход 253), but for
+// argument that always throws" theme as InvalidGuidLiteralFormatAnalyzer (RPAD0246), but for
 // `Enum.Parse<TEnum>(s)`/`Enum.Parse(typeof(TEnum), s)`: it throws ArgumentException when `s` (split on
 // commas, each part trimmed) contains a part that is neither a defined member name of TEnum nor a
 // numeric literal — Enum.Parse accepts arbitrary numeric strings even for undefined underlying values

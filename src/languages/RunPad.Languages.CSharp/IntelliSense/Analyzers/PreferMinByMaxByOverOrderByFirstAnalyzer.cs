@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // First()` sorts the ENTIRE sequence — O(n log n) — just to read the smallest element off the front;
 // `xs.MinBy(key)` (.NET 6+, always available given this project's own MinSupportedSdkMajorVersion=6)
 // finds it in a single O(n) pass without ever sorting. Same idea for OrderByDescending → MaxBy.
-// Extended (сто шестьдесят четвёртый проход, batch) to also cover FirstOrDefault/Last/LastOrDefault —
+// Extended to also cover FirstOrDefault/Last/LastOrDefault —
 // originally only First() was handled. OrderBy(key).Last()/LastOrDefault() reads the sort's LARGEST
 // element (the opposite end from First), so it maps to MaxBy, not MinBy — same swap for
 // OrderByDescending's Last()/LastOrDefault() → MinBy.

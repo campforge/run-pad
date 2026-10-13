@@ -7,8 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5 from the third research subagent survey (411-й проход,
-// full tool access, empirically self-verified), re-verified independently before implementing.
 // `System.Security.Cryptography.PemEncoding.Find(ReadOnlySpan<char> pemData)` — the lower-level PEM
 // structure locator that the various `ImportFromPem`/`ImportFromEncryptedPem` analyzers in this catalog
 // (RPAD0392/0393/0400/0401/0403/0404/0405) ultimately rely on internally, but exposed as public API in

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #2/#6 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `AsnWriter.WriteCharacterString(UniversalTagNumber,
+// `AsnWriter.WriteCharacterString(UniversalTagNumber,
 // string)` and `AsnWriter.WriteObjectIdentifier(string)` — bundled into one analyzer since both are
 // instance-method call shapes on the same receiver type, same "several call shapes, one diagnostic"
 // precedent already established by `InvalidHashAlgorithmNameLiteralAnalyzer` (RPAD0426).

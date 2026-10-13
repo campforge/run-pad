@@ -21,7 +21,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // "MVP first" scoping precedent as elsewhere in this catalog, and the same forward-vs-backward formula
 // split already established by InvalidArrayFillArgumentAnalyzer/InvalidArrayLastIndexOfArgumentAnalyzer
 // (RPAD0294/RPAD0298).
-// Extended in the триста тридцать третий проход to also cover the `string`-value overloads —
+// Extended to also cover the `string`-value overloads —
 // `IndexOf(string, int)`, `IndexOf(string, int, int)`, `IndexOf(string, int, StringComparison)`, and
 // `IndexOf(string, int, int, StringComparison)` — confirmed empirically to follow the IDENTICAL boundary
 // formula as the `char`-value overloads (a trailing `StringComparison` parameter doesn't change the

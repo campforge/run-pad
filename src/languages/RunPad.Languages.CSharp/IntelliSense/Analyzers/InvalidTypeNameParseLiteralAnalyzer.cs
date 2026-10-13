@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the eighth research subagent survey, re-verified
-// independently before implementing. `System.Reflection.Metadata.TypeName.Parse(ReadOnlySpan<char>,
+// `System.Reflection.Metadata.TypeName.Parse(ReadOnlySpan<char>,
 // TypeNameParseOptions options = default)` (.NET 9+, new to this catalog) — parses reflection type-name
 // syntax (`AssemblyQualifiedName`-shaped strings) WITHOUT ever resolving/loading an actual `Type`, so unlike
 // `Type.GetType` this has no calling-assembly-context dependency. A string literal binds to the first

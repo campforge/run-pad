@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322,
-// this same проход): `new CountdownEvent(int initialCount)` and `new Barrier(int
+// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322): `new
+// CountdownEvent(int initialCount)` and `new Barrier(int
 // participantCount[, Action<Barrier>? postPhaseAction])` both throw ArgumentOutOfRangeException for a
 // negative count/participant argument — confirmed empirically via scratch `dotnet run` script (both
 // error messages even use the identical "must be a non-negative value" wording), a genuine EXACT

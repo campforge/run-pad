@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0387 — grep-confirmed no prior coverage.
 // Thematically adjacent to, but genuinely NOT overlapping with, InvalidDateOrTimeParseLiteralAnalyzer
-// (RPAD0365, проход 372): that analyzer covers DateTime/DateTimeOffset/TimeSpan/DateOnly/TimeOnly.Parse,
+// (RPAD0365): that analyzer covers DateTime/DateTimeOffset/TimeSpan/DateOnly/TimeOnly.Parse,
 // none of which is `System.Data.SqlTypes.SqlDateTime` — a distinct type with its OWN, narrower valid date
 // range (year 1753-9999, matching SQL Server's historical `datetime` column type), same class of
 // legitimate coexistence already established for ContentType/MediaTypeHeaderValue in this catalog.

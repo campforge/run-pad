@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the twenty-second research subagent survey,
-// re-verified independently before implementing. `System.Text.Unicode.UnicodeRange(int
+// `System.Text.Unicode.UnicodeRange(int
 // firstCodePoint, int length)` — used by `HtmlEncoder.Create`/`JavaScriptEncoder.Create`/
 // `UrlEncoder.Create`'s `CreateRange` overloads; the validation lives entirely in the struct
 // constructor itself (confirmed the encoder factory methods add no extra validation of their own —

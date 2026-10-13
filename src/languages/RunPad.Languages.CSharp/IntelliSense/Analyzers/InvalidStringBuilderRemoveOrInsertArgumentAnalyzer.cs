@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as InvalidStringRemoveOrInsertArgumentAnalyzer (RPAD0281, проход 298),
+// receiver, known length" theme as InvalidStringRemoveOrInsertArgumentAnalyzer (RPAD0281),
 // applied to `StringBuilder` instead of `string`: `new StringBuilder("literal").Remove(startIndex,
 // length)`/`.Insert(index, value)` throw ArgumentOutOfRangeException when the arguments put them outside
 // the literal's own known length — provable because the receiver is a FRESHLY CREATED StringBuilder

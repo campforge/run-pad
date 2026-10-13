@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the fourteenth research subagent survey,
-// re-verified independently before implementing. `System.Net.Cache.HttpRequestCachePolicy(
+// `System.Net.Cache.HttpRequestCachePolicy(
 // HttpRequestCacheLevel)`/`RequestCachePolicy(RequestCacheLevel)` constructors — an out-of-range enum
 // value throws `ArgumentOutOfRangeException`. Confirmed empirically both types are pure managed
 // value-holders with ZERO side effects at construction time — no actual HTTP/disk cache is touched until

@@ -6,9 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; found by direct
-// brainstorming after the research subagent's list (проход 377) was fully exhausted, same brainstorming
-// pass that also found RPAD0379/Cookie. Same "run the real validator" theme, applied to
+// Own pick, not a Roslynator port. Same "run the real validator" theme, applied to
 // `TimeZoneInfo.FindSystemTimeZoneById(string)` (a single overload — confirmed via reflection). Same
 // documented machine/environment-dependency caveat this catalog already accepts for
 // InvalidCultureNameLiteralAnalyzer/InvalidRegionInfoLiteralAnalyzer (RPAD0248/RPAD0372): which IDs resolve

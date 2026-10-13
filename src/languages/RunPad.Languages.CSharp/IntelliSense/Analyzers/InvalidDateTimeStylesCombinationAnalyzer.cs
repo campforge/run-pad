@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidRegexOptionsCombinationAnalyzer/InvalidNumberStylesCombinationAnalyzer
-// (RPAD0274/RPAD0275, проходы 286-287), applied to a third flags enum: `DateTime.Parse(s, provider,
+// (RPAD0274/RPAD0275), applied to a third flags enum: `DateTime.Parse(s, provider,
 // DateTimeStyles styles)` throws ArgumentException when `styles` combines
 // `DateTimeStyles.AssumeLocal`/`AssumeUniversal`/`RoundtripKind` with each other (any two of the three
 // together — confirmed empirically before writing this). This is a PURE styles-combination check,
@@ -20,7 +20,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // project has deliberately not tried to validate further. Calls the REAL `DateTime.TryParse` (not
 // `Parse`, same EmptyCatchClauseAnalyzer/RPAD0001 self-trigger avoidance as RPAD0275) on a fixed,
 // always-valid ISO 8601 placeholder string with `CultureInfo.InvariantCulture`, reporting only if that
-// call itself throws ArgumentException. Extended in the двести девяносто третий проход to also cover
+// call itself throws ArgumentException. Extended to also cover
 // `DateTimeOffset.Parse(s, provider, DateTimeStyles)` — confirmed empirically to throw identically for
 // the same styles combination. `DateTimeOffset` isn't a Roslyn `SpecialType` (unlike `DateTime`), so it's
 // matched by name/namespace and dispatched to the real `DateTimeOffset.TryParse`, same per-type dispatch

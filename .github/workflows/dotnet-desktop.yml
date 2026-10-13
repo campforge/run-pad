@@ -85,8 +85,8 @@ jobs:
       # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
       # RunPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
       # AvaloniaTestFramework disabling collection parallelism assembly-wide) and RealBuildTestCollection
-      # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured
-      # directly, see проход "минимизация CI-времени"). Everything else — the actual cross-platform
+      # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured directly).
+      # Everything else — the actual cross-platform
       # risk surface (process/file-path handling, real dotnet-build behavior on THIS os specifically)
       # still runs here; only the parts whose outcome doesn't meaningfully vary by OS are skipped.
       # (Windows-only failures later brought parts of both back as the separate steps below.)

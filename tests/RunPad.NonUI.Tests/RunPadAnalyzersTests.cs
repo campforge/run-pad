@@ -405,7 +405,7 @@ public class RunPadAnalyzersTests
         Assert.Contains(unused, d => d.GetMessage().Contains("_b"));
     }
 
-    // ── Batch (pass 147) — 1-2 tests per analyzer, per explicit user direction to
+    // ── Batch — 1-2 tests per analyzer, per explicit user direction to
     // trade individual test depth for throughput once the backlog of ~671 candidates was raised.
 
     [Theory]
@@ -519,7 +519,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotCallOverridableMemberInConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Second batch (pass 148) — same "1-2 tests per analyzer" pace as pass 147.
+    // ── Second batch.
 
     [Theory]
     [InlineData("class C<T> { public bool M(T t) => t == null; }", true)]
@@ -611,7 +611,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DoNotThrowFromFinallyAnalyzer.DiagnosticId));
     }
 
-    // ── Third batch (pass 149) — same pace as passes 147/148.
+    // ── Third batch.
 
     [Theory]
     [InlineData("using System; class C { public void On() { } public void M() { Action a = new Action(On); } }", true)]
@@ -658,7 +658,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConcatenateStringsInLoopAnalyzer.DiagnosticId));
     }
 
-    // ── Fourth batch (pass 150) — same pace as passes 147/148/149.
+    // ── Fourth batch.
 
     [Theory]
     [InlineData("class C { public void M() { var x = new int[0]; } }", true)]
@@ -705,7 +705,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantCatchThatOnlyRethrowsAnalyzer.DiagnosticId));
     }
 
-    // ── Fifth batch (pass 151) — same pace as passes 147-150.
+    // ── Fifth batch.
 
     [Theory]
     [InlineData("class C { public void M(string s) { s.ToUpper(); } }", true)]
@@ -743,7 +743,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseStringIsNullOrEmptyAnalyzer.DiagnosticId));
     }
 
-    // ── Sixth batch (pass 152) — same pace as passes 147-151.
+    // ── Sixth batch.
 
     [Theory]
     [InlineData("class C { public void M(int x) { var y = x < 0 ? -x : x; } }", true)] // Math.Abs
@@ -781,7 +781,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTryGetValueAnalyzer.DiagnosticId));
     }
 
-    // ── Seventh batch (pass 153) — same pace as passes 147-152.
+    // ── Seventh batch.
 
     [Theory]
     [InlineData("class C { public void M(int a, int b) { double result = a / b; } }", true)]
@@ -820,7 +820,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveRedundantOverridingPropertyAnalyzer.DiagnosticId));
     }
 
-    // ── Eighth batch (pass 154) — same pace as passes 147-153.
+    // ── Eighth batch.
 
     [Theory]
     [InlineData("class C { public void M(int a) { var s = \"x: \" + a.ToString(); } }", true)]
@@ -851,7 +851,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferConstOverStaticReadonlyAnalyzer.DiagnosticId));
     }
 
-    // ── Ninth batch (pass 155) — same pace as passes 147-154.
+    // ── Ninth batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var m = xs.OrderBy(x => x).First(); } }", true)]
@@ -871,7 +871,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeWhereWithTerminalLinqMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Tenth batch (pass 156) — same pace as passes 147-155.
+    // ── Tenth batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Where(x => x > 0).Where(x => x < 10); } }", true)]
@@ -891,7 +891,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == OrderByFollowedByOrderByAnalyzer.DiagnosticId));
     }
 
-    // ── Eleventh batch (pass 157) — same pace as passes 147-156.
+    // ── Eleventh batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Concat(new[] { item }); } }", true)]
@@ -920,7 +920,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDiscardArmInExhaustiveSwitchExpressionAnalyzer.DiagnosticId));
     }
 
-    // ── Twelfth batch (pass 158) — same pace as passes 147-157.
+    // ── Twelfth batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var s = xs.Select(x => x * 2).Sum(); } }", true)]
@@ -941,8 +941,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == UseOppositeOrderByInsteadOfReverseAnalyzer.DiagnosticId));
     }
 
-    // ── Thirteenth batch (pass 159) — 3 new analyzers + 3 extensions to earlier
-    // ones, same pace as passes 147-158.
+    // ── Thirteenth batch — 3 new analyzers + 3 extensions to earlier
+    // ones.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Select(x => x); } }", true)]
@@ -989,7 +989,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MergeWhereWithTerminalLinqMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Fourteenth batch (pass 160) — same pace as passes 147-159.
+    // ── Fourteenth batch.
 
     [Theory]
     [InlineData("class C { public void M(int n) { var x = System.Convert.ToInt32(n); } }", true)]
@@ -1027,7 +1027,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CultureSensitiveCharCaseConversionAnalyzer.DiagnosticId));
     }
 
-    // ── Fifteenth batch (сто шестьдесят первый проход) — same pace as проходы 147-160.
+    // ── Fifteenth batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.Skip(0); } }", true)]
@@ -1065,7 +1065,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferSpecificCatchTypeOverIsPatternAnalyzer.DiagnosticId));
     }
 
-    // ── Sixteenth batch (сто шестьдесят второй проход) — same pace as проходы 147-161.
+    // ── Sixteenth batch.
 
     [Theory]
     [InlineData("class C { public void M() { var s = string.Format(\"no placeholders\"); } }", true)]
@@ -1103,8 +1103,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RemoveEmptyLockStatementAnalyzer.DiagnosticId));
     }
 
-    // ── Seventeenth batch (сто шестьдесят третий проход) — bigger batch per explicit user request
-    // ("бери побольше анализаторов за раз"): 7 new analyzers + 1 extension in one проход.
+    // ── Seventeenth batch — bigger batch per explicit user request: 7 new analyzers + 1 extension.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(IEnumerable<int> xs) { var y = xs.Reverse().Reverse(); } }", true)]
@@ -1178,8 +1177,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CallAnyInsteadOfCountAnalyzer.DiagnosticId));
     }
 
-    // ── Eighteenth batch (сто шестьдесят четвёртый проход) — another bigger batch (6 new + 1
-    // extension) per the standing "побольше за раз" preference from проход 163.
+    // ── Eighteenth batch — another bigger batch (6 new + 1
+    // extension).
 
     [Theory]
     [InlineData("class C { public void M(string s) { var y = s.Trim().Length == 0; } }", true)]
@@ -1245,8 +1244,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferMinByMaxByOverOrderByFirstAnalyzer.DiagnosticId));
     }
 
-    // ── Nineteenth batch (сто шестьдесят пятый проход) — same "побольше за раз" pace as проходы
-    // 163-164.
+    // ── Nineteenth batch.
 
     [Theory]
     [InlineData("enum Color { Red, Green } class C { public void M(string s) { var y = System.Enum.Parse(typeof(Color), s); } }", true)]
@@ -1293,8 +1291,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGeneralFormatStringAnalyzer.DiagnosticId));
     }
 
-    // ── Twentieth batch (сто шестьдесят шестой проход) — same "побольше за раз" pace as проходы
-    // 163-165.
+    // ── Twentieth batch.
 
     [Theory]
     [InlineData("class C { public void M() { var y = new System.Random(System.Environment.TickCount); } }", true)]
@@ -1345,8 +1342,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateSumAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-first batch (сто шестьдесят седьмой проход) — same "побольше за раз" pace as проходы
-    // 163-166.
+    // ── Twenty-first batch.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.Contains(item, EqualityComparer<int>.Default); } }", true)]
@@ -1362,7 +1358,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultComparerArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-first batch (двести семнадцатый проход) — one new analyzer, three forms.
+    // ── Seventy-first batch — one new analyzer, three forms.
 
     [Theory]
     [InlineData("using System.Linq; class C { public int M(int[] xs) => xs.DefaultIfEmpty().First(); }", true)]
@@ -1375,7 +1371,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOrDefaultOverDefaultIfEmptyAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-second batch (двести восемнадцатый проход) — one new analyzer.
+    // ── Seventy-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromSeconds(0); }", true)]
@@ -1388,7 +1384,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTimeSpanZeroOverFromXWithZeroAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-third batch (двести девятнадцатый проход) — one new analyzer, two forms.
+    // ── Seventy-third batch — one new analyzer, two forms.
 
     [Theory]
     [InlineData("using System; using System.Linq; class C { public int M(int[] xs) => xs.Aggregate((a, b) => Math.Max(a, b)); }", true)]
@@ -1400,7 +1396,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AggregateMaxMinAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-fourth batch (двести двадцатый проход) — one new analyzer.
+    // ── Seventy-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public bool M(int x, int y) => x.CompareTo(y) == 0; }", true)]
@@ -1415,7 +1411,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverNumericCompareToAnalyzer.DiagnosticId));
     }
 
-    // ── Eightieth batch (двести двадцать шестой проход) — one new analyzer.
+    // ── Eightieth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public int M(object a, object b) => a.GetHashCode() ^ b.GetHashCode(); }", true)]
@@ -1426,7 +1422,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferHashCodeCombineOverXorAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-first batch (двести двадцать седьмой проход) — two new analyzer changes: one new
+    // ── Eighty-first batch — two new analyzer changes: one new
     // analyzer, plus a new form on an already-shipped one.
 
     [Theory]
@@ -1449,8 +1445,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDescendingComparerOverSortThenReverseAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-second batch (двести двадцать восьмой проход) — larger batch at the user's request
-    // ("продолжай, бери сразу 10"): five new analyzers plus new forms on two already-shipped ones.
+    // ── Eighty-second batch — larger batch at the user's request:
+    // five new analyzers plus new forms on two already-shipped ones.
 
     [Theory]
     [InlineData("[System.Flags] enum Perm { None = 0, Read = 1, Write = 2 } class C { public bool M(Perm flags) => flags.HasFlag(Perm.Read) && flags.HasFlag(Perm.Write); }", true)]
@@ -1519,7 +1515,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStringConcatOverAggregateAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-sixth batch (двести двадцать второй проход) — one new analyzer, two forms.
+    // ── Seventy-sixth batch — one new analyzer, two forms.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(Comparer<int>.Default); }", true)]
@@ -1532,7 +1528,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultComparerArgumentForSortAndBinarySearchAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-seventh batch (двести двадцать третий проход) — one new analyzer.
+    // ── Seventy-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Diagnostics; class C { public void M() { var sw = new Stopwatch(); sw.Start(); } }", true)]
@@ -1544,7 +1540,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStopwatchStartNewOverConstructorThenStartAnalyzer.DiagnosticId));
     }
 
-    // ── Seventy-eighth batch (двести двадцать четвёртый проход) — one new analyzer.
+    // ── Seventy-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.IO; class C { public string M(string a, string b, string c) => Path.Combine(Path.Combine(a, b), c); }", true)]
@@ -1582,8 +1578,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericEnumStaticMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-second batch (сто шестьдесят восьмой проход) — минимум 10 анализаторов за проход по
-    // явному запросу пользователя.
+    // ── Twenty-second batch — at least 10 analyzers, per explicit user request.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs, int item) { var y = xs.ToList().Contains(item); } }", true)]
@@ -1675,7 +1670,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantStringConcatWithEmptyAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-third batch (сто шестьдесят девятый проход) — four new analyzers + two extensions.
+    // ── Twenty-third batch — four new analyzers + two extensions.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { var y = xs.OrderBy(x => x.ToString()).ThenBy(x => x.ToString()); } }", true)]
@@ -1731,7 +1726,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantAsyncTaskRunWrapperAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-fourth batch (сто семидесятый проход) — three new analyzers + two extensions.
+    // ── Twenty-fourth batch — three new analyzers + two extensions.
 
     [Theory]
     [InlineData("class C { public void M(object x) { var y = x is int || x is long; } }", true)]
@@ -1778,7 +1773,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOrWhiteSpaceAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-fifth batch (сто семьдесят первый проход) — five new analyzers.
+    // ── Twenty-fifth batch — five new analyzers.
 
     [Theory]
     [InlineData("class C { public void M(int? x, int y) { var z = x.HasValue && x.Value == y; } }", true)]
@@ -1825,7 +1820,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferLastOverReverseFirstAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-sixth batch (сто семьдесят второй проход) — four new analyzers.
+    // ── Twenty-sixth batch — four new analyzers.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public void M(List<int> xs) { xs.ToList().Sort(); } }", true)]
@@ -1863,7 +1858,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsLetterOrDigitAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-seventh batch (сто семьдесят третий проход) — four new analyzers.
+    // ── Twenty-seventh batch — four new analyzers.
 
     [Theory]
     [InlineData("class C { public void M(object x) { var y = string.Format(\"{0}\", x); } }", true)]
@@ -1901,7 +1896,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConfigureAwaitTrueAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-eighth batch (сто семьдесят четвёртый проход) — five new analyzers.
+    // ── Twenty-eighth batch — five new analyzers.
 
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { public async Task<int> M(Task<int> t) { return t.Result; } }", true)]
@@ -1948,7 +1943,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIsNullOverStaticObjectEqualsAnalyzer.DiagnosticId));
     }
 
-    // ── Twenty-ninth batch (сто семьдесят пятый проход) — four new analyzers.
+    // ── Twenty-ninth batch — four new analyzers.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs, int x) { if (xs.Contains(x)) xs.Remove(x); } }", true)]
@@ -1986,7 +1981,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOrdinalIgnoreCaseOverInvariantCaseComparisonAnalyzer.DiagnosticId));
     }
 
-    // ── Thirtieth batch (сто семьдесят шестой проход) — three new analyzers + one extension.
+    // ── Thirtieth batch — three new analyzers + one extension.
 
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { public int M() => Task.FromResult(1).Result; } ", true)]
@@ -2015,7 +2010,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfSubtractionOrXorAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-first batch (сто семьдесят седьмой проход) — four new analyzers.
+    // ── Thirty-first batch — four new analyzers.
 
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { Task M() => Task.CompletedTask; void N() { M(); } }", true)]
@@ -2053,7 +2048,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNullConditionalOverIfNullCheckAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-second batch (сто семьдесят восьмой проход) — four new analyzers.
+    // ── Thirty-second batch — four new analyzers.
 
     [Theory]
     [InlineData("using System.Threading.Tasks; class C { async Task M(Task t) { t.Wait(); await Task.Delay(1); } }", true)]
@@ -2091,7 +2086,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantMathAbsInZeroComparisonAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-third batch (сто семьдесят девятый проход) — five new analyzers.
+    // ── Thirty-third batch — five new analyzers.
 
     [Theory]
     [InlineData("using System.Text; class C { public string M(string s) => new StringBuilder(s).ToString(); }", true)]
@@ -2140,7 +2135,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOverSingleElementArrayContainsAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-fourth batch (сто восьмидесятый проход) — three new analyzers.
+    // ── Thirty-fourth batch — three new analyzers.
 
     [Theory]
     [InlineData("class C { public bool M(string x) => x.Split(',').Length == 1; }", true)]
@@ -2169,7 +2164,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantConsecutiveTrimCallAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-fifth batch (сто восемьдесят первый проход) — two new analyzers, each covering two shapes.
+    // ── Thirty-fifth batch — two new analyzers, each covering two shapes.
 
     [Theory]
     [InlineData("class C { public bool M(bool x) { if (x) return true; else return false; } }", true)]
@@ -2191,7 +2186,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantExplicitFullRangeSortAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-sixth batch (сто восемьдесят второй проход) — three new analyzers.
+    // ── Thirty-sixth batch — three new analyzers.
 
     [Theory]
     [InlineData("using System.Text.RegularExpressions; class C { public bool M(string input, string pattern) => new Regex(pattern).IsMatch(input); }", true)]
@@ -2220,7 +2215,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppContextBaseDirectoryAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-seventh batch (сто восемьдесят третий проход) — two new analyzers + one extension.
+    // ── Thirty-seventh batch — two new analyzers + one extension.
 
     [Theory]
     [InlineData("using System.Net.Http; class C { public void M() { for (int i = 0; i < 10; i++) { var c = new HttpClient(); c.Dispose(); } } }", true)]
@@ -2240,7 +2235,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantEncodingRoundTripAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-eighth batch (сто восемьдесят четвёртый проход) — three new analyzers.
+    // ── Thirty-eighth batch — three new analyzers.
 
     [Theory]
     [InlineData("using System; class C { public byte[] M(byte[] bytes) => Convert.FromBase64String(Convert.ToBase64String(bytes)); }", true)]
@@ -2269,7 +2264,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantGuidParseToStringRoundTripAnalyzer.DiagnosticId));
     }
 
-    // ── Thirty-ninth batch (сто восемьдесят пятый проход) — two new analyzers.
+    // ── Thirty-ninth batch — two new analyzers.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(IEnumerable<int> xs) => xs.GroupBy(x => x % 2).Select(g => g.First()); }", true)]
@@ -2289,7 +2284,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantSelectManySingleElementArrayAnalyzer.DiagnosticId));
     }
 
-    // ── Fortieth batch (сто восемьдесят шестой проход) — one new analyzer.
+    // ── Fortieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public int M(List<int> xs) => xs.Count == 0 ? default : xs[0]; }", true)]
@@ -2300,7 +2295,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferFirstOrDefaultOverCountCheckTernaryAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-first batch (сто восемьдесят седьмой проход) — two new analyzers.
+    // ── Forty-first batch — two new analyzers.
 
     [Theory]
     [InlineData("using System; class C { public DateTime M() => DateTime.Now.Date; }", true)]
@@ -2320,7 +2315,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverDateTimeCompareAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-second batch (сто восемьдесят восьмой проход) — two new analyzers.
+    // ── Forty-second batch — two new analyzers.
 
     [Theory]
     [InlineData("using System.Runtime.InteropServices; class C { public bool M() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows); }", true)]
@@ -2340,7 +2335,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferIs64BitProcessOverIntPtrSizeAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-third batch (сто восемьдесят девятый проход) — two new analyzers.
+    // ── Forty-third batch — two new analyzers.
 
     [Theory]
     [InlineData("using System.Runtime.InteropServices; struct S { public int X; } class C { public int M() => Marshal.SizeOf(typeof(S)); }", true)]
@@ -2360,7 +2355,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferGenericActivatorCreateInstanceAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-fourth batch (сто девяностый проход) — one new analyzer.
+    // ── Forty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public bool M(string x, string y) => string.Compare(x, y, StringComparison.Ordinal) == 0; }", true)]
@@ -2371,7 +2366,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferEqualityOperatorOverOrdinalStringCompareAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-fifth batch (сто девяносто первый проход) — one new analyzer, covering two shapes.
+    // ── Forty-fifth batch — one new analyzer, covering two shapes.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(IEnumerable<int> xs) => xs.ToDictionary(x => x, x => x); }", true)]
@@ -2383,7 +2378,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantIdentityValueSelectorAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-sixth batch (сто девяносто второй проход) — one new analyzer, covering two shapes.
+    // ── Forty-sixth batch — one new analyzer, covering two shapes.
 
     [Theory]
     [InlineData("using System.Text; class C { public void M(StringBuilder sb, string x) { sb.Append(x).AppendLine(); } }", true)]
@@ -2395,7 +2390,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppendLineOverAppendThenAppendLineAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-seventh batch (сто девяносто третий проход) — one new analyzer, covering two shapes.
+    // ── Forty-seventh batch — one new analyzer, covering two shapes.
 
     [Theory]
     [InlineData("using System; class C { public void M(int[] arr) { Array.Clear(arr, 0, arr.Length); } }", true)]
@@ -2411,7 +2406,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantExplicitFullRangeArrayOperationAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-second batch (двести восьмой проход) — one new analyzer.
+    // ── Sixty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public bool M(string s) => bool.Parse(s.ToUpperInvariant()); }", true)]
@@ -2424,7 +2419,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantCaseConversionBeforeBoolParseAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-eighth batch (сто девяносто четвёртый проход) — one new analyzer.
+    // ── Forty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Threading; class C { void M(int x, CancellationToken ct = default) { } public void N() => M(5, CancellationToken.None); }", true)]
@@ -2435,7 +2430,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantCancellationTokenNoneArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Forty-ninth batch (сто девяносто пятый проход) — one new analyzer.
+    // ── Forty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public string M(IEnumerable<string> xs) => xs.Aggregate((a, b) => a + b); }", true)]
@@ -2446,7 +2441,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferStringConcatOverAggregateAnalyzer.DiagnosticId));
     }
 
-    // ── Fiftieth batch (сто девяносто шестой проход) — one new analyzer, covering two shapes.
+    // ── Fiftieth batch — one new analyzer, covering two shapes.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public IEnumerable<int> M(Dictionary<int, int> dict) => dict.Select(kv => kv.Key); }", true)]
@@ -2458,7 +2453,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferKeysOrValuesOverSelectAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-first batch (сто девяносто седьмой проход) — one new analyzer.
+    // ── Fifty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public Dictionary<int, int> M(Dictionary<int, int> dict) => dict.ToDictionary(kv => kv.Key, kv => kv.Value); }", true)]
@@ -2469,7 +2464,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDictionaryConstructorOverToDictionaryAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-second batch (сто девяносто восьмой проход) — one new analyzer.
+    // ── Fifty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M(char[] chars) => string.Join(\"\", chars); }", true)]
@@ -2480,7 +2475,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferNewStringOverJoinOnCharArrayAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-third batch (сто девяносто девятый проход) — one new analyzer.
+    // ── Fifty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M(string dir, string file) => dir + \"\\\\\" + file; }", true)]
@@ -2492,7 +2487,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferPathCombineOverConcatenationAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-fourth batch (двухсотый проход) — one new analyzer.
+    // ── Fifty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public ReadOnlySpan<char> M(string s, int i, int len) => s.Substring(i, len).AsSpan(); }", true)]
@@ -2504,7 +2499,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectAsSpanOverSubstringThenAsSpanAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-fifth batch (двести первый проход) — one new analyzer, three forms.
+    // ── Fifty-fifth batch — one new analyzer, three forms.
 
     [Theory]
     [InlineData("using System.Linq; using System.Collections.Generic; class C { public bool M(List<int> xs) => xs.Any(x => x > 0); }", true)]
@@ -2517,7 +2512,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferListSearchMethodOverLinqEquivalentAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-sixth batch (двести второй проход) — one new analyzer.
+    // ── Fifty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M(uint x) => x.ToString().PadLeft(4, '0'); }", true)]
@@ -2529,7 +2524,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDFormatSpecifierOverToStringPadLeftAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-seventh batch (двести третий проход) — one new analyzer.
+    // ── Fifty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text; class C { public void M(StringBuilder sb) { sb.Length = 0; } }", true)]
@@ -2542,7 +2537,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferClearOverStringBuilderLengthZeroAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-eighth batch (двести четвёртый проход) — one new analyzer, three forms.
+    // ── Fifty-eighth batch — one new analyzer, three forms.
 
     [Theory]
     [InlineData("using System.Linq; class C { public bool M(int[] xs) => xs.Any(x => x > 0); }", true)]
@@ -2555,7 +2550,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferArraySearchMethodOverLinqEquivalentAnalyzer.DiagnosticId));
     }
 
-    // ── Fifty-ninth batch (двести пятый проход) — one new analyzer.
+    // ── Fifty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public int M() => new Random().Next(); }", true)]
@@ -2567,7 +2562,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferRandomSharedOverThrowawayRandomInstanceAnalyzer.DiagnosticId));
     }
 
-    // ── Sixtieth batch (двести шестой проход) — one new analyzer, two forms.
+    // ── Sixtieth batch — one new analyzer, two forms.
 
     [Theory]
     [InlineData("class C { public int M(int x, int min, int max) => System.Math.Min(System.Math.Max(x, min), max); }", true)]
@@ -2579,7 +2574,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferMathClampOverNestedMinMaxAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-third batch (двести девятый проход) — one new analyzer.
+    // ── Sixty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) { xs.Sort(); xs.Reverse(); } }", true)]
@@ -2591,7 +2586,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDescendingComparerOverSortThenReverseAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-fifth batch (двести одиннадцатый проход) — one new analyzer.
+    // ── Sixty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public int M(string s) => int.Parse(s, NumberStyles.Integer); }", true)]
@@ -2604,7 +2599,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDefaultNumberStylesArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-sixth batch (двести двенадцатый проход) — one new analyzer, two forms.
+    // ── Sixty-sixth batch — one new analyzer, two forms.
 
     [Theory]
     [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<string> M(string s) => s.Split(',').Where(x => x.Length > 0); }", true)]
@@ -2616,7 +2611,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferRemoveEmptyEntriesOverWhereLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-seventh batch (двести тринадцатый проход) — one new analyzer.
+    // ── Sixty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<string> M(string s) => s.Split(',').Select(x => x.Trim()); }", true)]
@@ -2627,7 +2622,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferTrimEntriesOverSelectTrimAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-eighth batch (двести четырнадцатый проход) — one new analyzer.
+    // ── Sixty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("enum Color { Red, Green, Blue } class C { public bool M(Color a, Color b) => a.ToString() == b.ToString(); }", true)]
@@ -2639,7 +2634,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferDirectEnumComparisonOverToStringToStringAnalyzer.DiagnosticId));
     }
 
-    // ── Sixty-ninth batch (двести пятнадцатый проход) — one new analyzer.
+    // ── Sixty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M(int n) => Enumerable.Range(0, n).Select(i => 0); }", true)]
@@ -2651,7 +2646,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferRepeatOverRangeSelectConstantAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-third batch (двести двадцать девятый проход) — two new analyzers: a Join-with-empty-
+    // ── Eighty-third batch — two new analyzers: a Join-with-empty-
     // separator sibling to the existing char[]-array form, and a DateTime/DateTimeOffset/TimeSpan
     // Add/Subtract-to-operator analyzer.
 
@@ -2677,7 +2672,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferOperatorOverAddSubtractMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-fourth batch (двести тридцатый проход) — three new analyzers, survivors of a round-1
+    // ── Eighty-fourth batch — three new analyzers, survivors of a round-1
     // PROBE where four other candidates (Substring→range operator, arr[]/list[]→index-from-end operator)
     // were dropped for colliding with the built-in IDE0056/IDE0057 "Indexing/Substring can be simplified"
     // rules on the exact same span.
@@ -2713,7 +2708,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferInstanceToStringOverConvertToStringForNumericAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-fifth batch (двести тридцать первый проход) — one new analyzer, survivor of a round-1
+    // ── Eighty-fifth batch — one new analyzer, survivor of a round-1
     // PROBE where the IndexOf(x) == 0 → StartsWith(x) idea and the double/decimal.Parse(Trim()) forms
     // were dropped: both already co-occur with existing RPAD culture-sensitivity analyzers
     // (CultureSensitiveStringMethodAnalyzer/RPAD0031, CultureSensitiveNumericParseAnalyzer/RPAD0098) on
@@ -2732,7 +2727,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantTrimBeforeIntegralOrBoolParseAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-sixth batch (двести тридцать второй проход) — one new analyzer plus a new opposite-
+    // ── Eighty-sixth batch — one new analyzer plus a new opposite-
     // polarity form on an already-shipped one.
 
     [Theory]
@@ -2757,7 +2752,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferFirstOrDefaultOverCountCheckTernaryAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-seventh batch (двести тридцать третий проход) — two new analyzers.
+    // ── Eighty-seventh batch — two new analyzers.
 
     [Theory]
     [InlineData("using System; class C { public void M(string x) { if (x == null) throw new ArgumentNullException(nameof(x)); } }", true)]
@@ -2781,7 +2776,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == HasFlagWithZeroValueAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-eighth batch (двести тридцать четвёртый проход) — one new analyzer plus new forms on
+    // ── Eighty-eighth batch — one new analyzer plus new forms on
     // two already-shipped ones, all in the "self-comparison / always-true-or-false" reliability family.
 
     [Theory]
@@ -2794,7 +2789,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfArgumentMathMaxMinAnalyzer.DiagnosticId));
     }
 
-    // ── Eighty-ninth batch (двести тридцать пятый проход) — one new analyzer.
+    // ── Eighty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public bool M(bool x) => x && x; }", true)]
@@ -2808,7 +2803,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SelfLogicalOrBitwiseOperatorAnalyzer.DiagnosticId));
     }
 
-    // ── Ninetieth batch (двести тридцать шестой проход) — one new analyzer plus new forms on an
+    // ── Ninetieth batch — one new analyzer plus new forms on an
     // already-shipped one, both in the "locking on the wrong target" reliability family.
 
     [Theory]
@@ -2821,7 +2816,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == LockOnNewObjectAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-first batch (двести тридцать седьмой проход) — two new analyzers, both in the
+    // ── Ninety-first batch — two new analyzers, both in the
     // "Monitor lock-acquisition mistake" reliability family.
 
     [Theory]
@@ -2843,7 +2838,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DiscardedMonitorTryEnterResultAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-second batch (двести тридцать восьмой проход) — one new analyzer.
+    // ── Ninety-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Threading; class C { SemaphoreSlim s = new(1); void M() { s.Wait(); DoWork(); s.Release(); } void DoWork() { } }", true)]
@@ -2856,7 +2851,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SemaphoreOrReaderWriterLockAcquireWithoutTryFinallyAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-third batch (двести тридцать девятый проход) — one new analyzer.
+    // ── Ninety-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int>(-1); }", true)]
@@ -2877,7 +2872,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeCapacityArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-fourth batch (двести сороковой проход) — two new analyzers, both "literal argument that
+    // ── Ninety-fourth batch — two new analyzers, both "literal argument that
     // always throws" reliability findings.
 
     [Theory]
@@ -2902,7 +2897,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeTimeoutArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-fifth batch (двести сорок первый проход) — two new analyzers, both "literal argument
+    // ── Ninety-fifth batch — two new analyzers, both "literal argument
     // that always throws" reliability findings.
 
     [Theory]
@@ -2932,7 +2927,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == SubstringOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-sixth batch (двести сорок второй проход) — three new analyzers, all "literal argument
+    // ── Ninety-sixth batch — three new analyzers, all "literal argument
     // that always throws" reliability findings.
 
     [Theory]
@@ -2968,7 +2963,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToIntegralBaseAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-seventh batch (двести сорок третий проход) — one new analyzer.
+    // ── Ninety-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.IO; class C { public string M(string a) => Path.Combine(a, \"/etc/passwd\"); }", true)]
@@ -2981,7 +2976,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == AbsolutePathArgumentInPathCombineAnalyzer.DiagnosticId));
     }
 
-    // ── Ninety-ninth batch (двести сорок пятый проход) — one new analyzer plus a new PriorityQueue
+    // ── Ninety-ninth batch — one new analyzer plus a new PriorityQueue
     // form on an already-shipped one.
 
     [Theory]
@@ -2994,7 +2989,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NonPositiveChunkSizeAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and first batch (двести сорок седьмой проход) — one new analyzer.
+    // ── Hundred and first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public Dictionary<string, int> M() => new Dictionary<string, int> { { \"a\", 1 }, { \"a\", 2 } }; }", true)]
@@ -3009,7 +3004,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DuplicateKeyInDictionaryInitializerAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and second batch (двести сорок восьмой проход) — one new analyzer.
+    // ── Hundred and second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public HashSet<int> M() => new HashSet<int> { 1, 1 }; }", true)]
@@ -3020,7 +3015,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RedundantDuplicateValueInHashSetInitializerAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fourth batch (двести пятидесятый проход) — one new analyzer.
+    // ── Hundred and fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public List<int> M() => new List<int>(2) { 1, 2, 3 }; }", true)]
@@ -3033,7 +3028,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InsufficientCollectionCapacityAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifth batch (двести пятьдесят первый проход) — one new analyzer.
+    // ── Hundred and fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; [Flags] enum Perm { None = 0, Read = 1, Write = 2 } class C { public bool M(Perm p) => Enum.IsDefined(typeof(Perm), p); }", true)]
@@ -3045,7 +3040,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == IsDefinedOnFlagsEnumAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and sixth batch (двести пятьдесят второй проход) — one new analyzer.
+    // ── Hundred and sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public byte[] M() => Convert.FromBase64String(\"abc\"); }", true)]
@@ -3059,7 +3054,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBase64LiteralLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and sixteenth batch (двести шестьдесят второй проход) — one new analyzer, plus
+    // ── Hundred and sixteenth batch — one new analyzer, plus
     // InvalidBase64LiteralLengthAnalyzer above rewritten to the "run the real validator" technique.
 
     [Theory]
@@ -3073,7 +3068,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHexStringLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventh batch (двести пятьдесят третий проход) — one new analyzer.
+    // ── Hundred and seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Guid M() => Guid.Parse(\"not-a-guid\"); }", true)]
@@ -3086,7 +3081,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidLiteralFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighth batch (двести пятьдесят четвёртый проход) — one new analyzer.
+    // ── Hundred and eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Version M() => Version.Parse(\"abc\"); }", true)]
@@ -3101,7 +3096,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVersionLiteralFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and ninth batch (двести пятьдесят пятый проход) — one new analyzer.
+    // ── Hundred and ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public CultureInfo M() => CultureInfo.GetCultureInfo(\"!!!invalid!!!\"); }", true)]
@@ -3121,7 +3116,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCultureNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and tenth batch (двести пятьдесят шестой проход) — one new analyzer.
+    // ── Hundred and tenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net; class C { public IPAddress M() => IPAddress.Parse(\"not-an-ip\"); }", true)]
@@ -3135,7 +3130,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPAddressLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eleventh batch (двести пятьдесят седьмой проход) — one new analyzer.
+    // ── Hundred and eleventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.Mail; class C { public MailAddress M() => new MailAddress(\"not-an-email\"); }", true)]
@@ -3147,7 +3142,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMailAddressLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twelfth batch (двести пятьдесят восьмой проход) — one new analyzer.
+    // ── Hundred and twelfth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public int M() => Math.Abs(int.MinValue); }", true)]
@@ -3162,7 +3157,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == MathAbsOfMinValueAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirteenth batch (двести пятьдесят девятый проход) — one new analyzer plus a new
+    // ── Hundred and thirteenth batch — one new analyzer plus a new
     // form on an already-shipped one.
 
     [Theory]
@@ -3174,7 +3169,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == PreferAppendOverStringBuilderInsertAtLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fourteenth batch (двухсотшестидесятый проход) — two new analyzers.
+    // ── Hundred and fourteenth batch — two new analyzers.
 
     [Theory]
     [InlineData("class C { public bool M() => bool.Parse(\"yes\"); }", true)]
@@ -3218,7 +3213,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidUriLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventeenth batch (двести шестьдесят третий проход) — one new analyzer.
+    // ── Hundred and seventeenth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.Xml.Linq.XDocument M() => System.Xml.Linq.XDocument.Parse(\"not xml\"); }", true)]
@@ -3232,7 +3227,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighteenth batch (двести шестьдесят четвёртый проход) — one new analyzer.
+    // ── Hundred and eighteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public byte M() => byte.Parse(\"300\"); }", true)]
@@ -3253,7 +3248,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == IntegralParseOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and nineteenth batch (двести шестьдесят пятый проход) — one new analyzer.
+    // ── Hundred and nineteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public TimeSpan M() => TimeSpan.FromDays(double.NaN); }", true)]
@@ -3271,7 +3266,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimeSpanFromDoubleArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-first batch (двести шестьдесят седьмой проход) — one new analyzer.
+    // ── Hundred and twenty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M() { new System.IO.MemoryStream(); } }", true)]
@@ -3286,7 +3281,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DiscardedDisposableObjectCreationAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-second batch (двести шестьдесят восьмой проход) — one new analyzer.
+    // ── Hundred and twenty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("record Foo(int[] Data);", true)]
@@ -3300,7 +3295,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RecordWithArrayMemberAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-third batch (двести шестьдесят девятый проход) — extension of an already-
+    // ── Hundred and twenty-third batch — extension of an already-
     // shipped analyzer, no new analyzer.
 
     [Theory]
@@ -3316,7 +3311,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RecordWithArrayMemberAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-fourth batch (двести семидесятый проход) — one new analyzer.
+    // ── Hundred and twenty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("#nullable disable\nclass Foo : System.IEquatable<Foo> { public int X; public bool Equals(Foo other) => other != null && X == other.X; public override int GetHashCode() => X; }", true)]
@@ -3330,7 +3325,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == IEquatableWithoutObjectEqualsOverrideAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-fifth batch (двести семьдесят первый проход) — one new analyzer.
+    // ── Hundred and twenty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M(int[] arr) => System.Array.Resize(ref arr, -1); }", true)]
@@ -3363,7 +3358,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeArrayResizeOrClearArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and twenty-eighth batch (двести семьдесят четвёртый проход) — one new analyzer.
+    // ── Hundred and twenty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public DateTime M() => new DateTime(2023, 13, 1); }", true)]
@@ -3387,7 +3382,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateTimeConstructorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirtieth batch (двести семьдесят шестой проход) — one new analyzer.
+    // ── Hundred and thirtieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Version M() => new Version(-1, 0); }", true)]
@@ -3401,7 +3396,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeVersionComponentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-first batch (двести семьдесят седьмой проход) — one new analyzer.
+    // ── Hundred and thirty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Guid M() => new Guid(new byte[] { 1, 2, 3 }); }", true)]
@@ -3415,7 +3410,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidByteArrayLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-second batch (двести семьдесят восьмой проход) — one new analyzer.
+    // ── Hundred and thirty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net; class C { public IPAddress M() => new IPAddress(new byte[] { 1, 2, 3 }); }", true)]
@@ -3428,7 +3423,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPAddressByteArrayLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-third batch (двести семьдесят девятый проход) — one new analyzer.
+    // ── Hundred and thirty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public int M() => BitConverter.ToInt32(new byte[4], -1); }", true)]
@@ -3447,7 +3442,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBitConverterArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-fourth batch (двухсотвосьмидесятый проход) — one new analyzer.
+    // ── Hundred and thirty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M() => new string(new char[3], 0, 5); }", true)]
@@ -3462,7 +3457,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringCharArrayConstructorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-fifth batch (двести восемьдесят первый проход) — one new analyzer.
+    // ── Hundred and thirty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M() => System.Text.Encoding.UTF8.GetString(new byte[3], 0, 5); }", true)]
@@ -3476,7 +3471,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEncodingGetStringArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-seventh batch (двести восемьдесят третий проход) — one new analyzer.
+    // ── Hundred and thirty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Span<byte> M() => new byte[3].AsSpan(1, 5); }", true)]
@@ -3492,7 +3487,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-eighth batch (двести восемьдесят четвёртый проход) — one new analyzer.
+    // ── Hundred and thirty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public string M() => Convert.ToBase64String(new byte[3], 0, 5); }", true)]
@@ -3512,7 +3507,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToBase64StringArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and thirty-ninth batch (двести восемьдесят пятый проход) — one new analyzer.
+    // ── Hundred and thirty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(5, 3); }", true)]
@@ -3526,7 +3521,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringBuilderMaxCapacityArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fortieth batch (двести восемьдесят шестой проход) — one new analyzer.
+    // ── Hundred and fortieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.ECMAScript | RegexOptions.RightToLeft); }", true)]
@@ -3540,7 +3535,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRegexOptionsCombinationAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and forty-first batch (двести восемьдесят седьмой проход) — one new analyzer.
+    // ── Hundred and forty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public int M() => int.Parse(\"1\", NumberStyles.AllowHexSpecifier | NumberStyles.AllowDecimalPoint); }", true)]
@@ -3556,7 +3551,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumberStylesCombinationAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and forty-second batch (двести восемьдесят восьмой проход) — one new analyzer.
+    // ── Hundred and forty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; using System.Globalization; class C { public DateTime M(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AssumeUniversal); }", true)]
@@ -3573,7 +3568,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateTimeStylesCombinationAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and forty-third batch (двести восемьдесят девятый проход) — one new analyzer.
+    // ── Hundred and forty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public int M(string a, string b) => CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.Ordinal | CompareOptions.IgnoreCase); }", true)]
@@ -3595,7 +3590,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == PreferInstanceToStringOverConvertToStringForNumericAnalyzer.DiagnosticId);
     }
 
-    // ── Hundred and forty-fifth batch (двести девяносто первый проход) — one new analyzer, plus a
+    // ── Hundred and forty-fifth batch — one new analyzer, plus a
     // false-positive fix to PreferInstanceToStringOverConvertToStringForNumericAnalyzer/RPAD0220 found
     // while brainstorming it (see the [Fact] above).
 
@@ -3610,7 +3605,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToStringBaseAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and forty-eighth batch (двести девяносто четвёртый проход) — one new analyzer.
+    // ── Hundred and forty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; using System.Text.RegularExpressions; class C { public Regex M() => new Regex(\"a\", RegexOptions.None, TimeSpan.Zero); }", true)]
@@ -3629,7 +3624,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRegexMatchTimeoutAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fiftieth batch (двести девяносто шестой проход) — one new analyzer.
+    // ── Hundred and fiftieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; using System.Threading; class C { public CancellationTokenSource M() => new CancellationTokenSource(TimeSpan.FromSeconds(-5)); }", true)]
@@ -3647,7 +3642,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCancellationTokenSourceTimeSpanDelayAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-second batch (двести девяносто восьмой проход) — one new analyzer.
+    // ── Hundred and fifty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M() => \"hello\".Remove(1, 10); }", true)]
@@ -3663,7 +3658,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringRemoveOrInsertArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-third batch (двести девяносто девятый проход) — one new analyzer.
+    // ── Hundred and fifty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public char M() => \"hello\"[10]; }", true)]
@@ -3681,7 +3676,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == StringLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-fourth batch (трёхсотый проход) — one new analyzer.
+    // ── Hundred and fifty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public int M() => new[] { 1, 2, 3 }[10]; }", true)]
@@ -3698,7 +3693,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ArrayLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-fifth batch (триста первый проход) — one new analyzer.
+    // ── Hundred and fifty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; class C { public System.Collections.Generic.IEnumerable<int> M() => Enumerable.Range(int.MaxValue, 2); }", true)]
@@ -3712,7 +3707,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EnumerableRangeOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-seventh batch (триста третий проход) — one new analyzer.
+    // ── Hundred and fifty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public char M() => Convert.ToChar(-1); }", true)]
@@ -3736,7 +3731,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConvertToCharOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and fifty-ninth batch (триста пятый проход) — one new analyzer.
+    // ── Hundred and fifty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public byte M() => Convert.ToByte(300); }", true)]
@@ -3765,7 +3760,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConvertNumericNarrowingOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and sixty-third batch (триста девятый проход) — one new analyzer.
+    // ── Hundred and sixty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Sort(-1, 2, null); }", true)]
@@ -3797,7 +3792,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeListIndexOrCountArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and sixty-fifth batch (триста одиннадцатый проход) — one new analyzer.
+    // ── Hundred and sixty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text; class C { public StringBuilder M() => new StringBuilder(\"hello\").Remove(10, 1); }", true)]
@@ -3813,7 +3808,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringBuilderRemoveOrInsertArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and sixty-sixth batch (триста двенадцатый проход) — one new analyzer.
+    // ── Hundred and sixty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public Guid M(string s) => Guid.ParseExact(s, \"Q\"); }", true)]
@@ -3827,7 +3822,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidParseExactFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventy-first batch (триста семнадцатый проход) — one new analyzer.
+    // ── Hundred and seventy-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Linq; class C { public int M() => new int[0].First(); }", true)]
@@ -3866,7 +3861,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyArrayLiteralFirstOrSingleOrLastAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventy-third batch (триста девятнадцатый проход) — one new analyzer.
+    // ── Hundred and seventy-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public int M() => new Queue<int>().Dequeue(); }", true)]
@@ -3886,7 +3881,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == EmptyQueueOrStackDequeueOrPopAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventy-fifth batch (триста двадцать первый проход) — one new analyzer.
+    // ── Hundred and seventy-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M(string s) => s.PadLeft(-1); }", true)]
@@ -3900,7 +3895,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativePadWidthArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventy-seventh batch (триста двадцать третий проход) — one new analyzer.
+    // ── Hundred and seventy-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.Capacity = -1; }", true)]
@@ -3923,7 +3918,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeListCapacityAssignmentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and seventy-ninth batch (триста двадцать пятый проход) — one new analyzer.
+    // ── Hundred and seventy-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M() => System.Array.Fill(new int[3], 0, -1, 1); }", true)]
@@ -3954,7 +3949,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayFillArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighty-fourth batch (триста тридцатый проход) — one new analyzer.
+    // ── Hundred and eighty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M() => System.Array.LastIndexOf(new int[3], 0, -1, 1); }", true)]
@@ -3973,7 +3968,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayLastIndexOfArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eightieth batch (триста двадцать шестой проход) — one new analyzer.
+    // ── Hundred and eightieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Buffers; class C { public void M() => ArrayPool<int>.Shared.Rent(-1); }", true)]
@@ -3987,7 +3982,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeArrayPoolRentLengthAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighty-first batch (триста двадцать седьмой проход) — one new analyzer.
+    // ── Hundred and eighty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M() => System.Console.SetCursorPosition(-1, 0); }", true)]
@@ -4001,7 +3996,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeConsoleCursorPositionArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighty-sixth batch (триста тридцать второй проход) — one new analyzer.
+    // ── Hundred and eighty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public int M() => \"abc\".IndexOf('a', -1); }", true)]
@@ -4028,7 +4023,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringIndexOfCharArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighty-eighth batch (триста тридцать четвёртый проход) — one new analyzer.
+    // ── Hundred and eighty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public int M() => \"abc\".LastIndexOf('a', -1); }", true)]
@@ -4046,7 +4041,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringLastIndexOfArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and eighty-ninth batch (триста тридцать пятый проход) — one new analyzer.
+    // ── Hundred and eighty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M() => string.Join(\",\", new string[3], -1, 1); }", true)]
@@ -4062,7 +4057,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringJoinArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and ninetieth batch (триста тридцать шестой проход) — one new analyzer.
+    // ── Hundred and ninetieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public void M(List<int> xs) => xs.EnsureCapacity(-1); }", true)]
@@ -4089,7 +4084,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeEnsureCapacityArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and ninety-fifth batch (триста сорок первый проход) — two new analyzers.
+    // ── Hundred and ninety-fifth batch — two new analyzers.
 
     [Theory]
     [InlineData("using System.Collections.Generic; class C { public int M() => new List<int> { 1, 2, 3 }[5]; }", true)]
@@ -4130,7 +4125,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeRandomNumberGeneratorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and ninety-seventh batch (триста сорок второй проход) — one new analyzer.
+    // ── Hundred and ninety-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public int M() => RandomNumberGenerator.GetInt32(-1); }", true)]
@@ -4147,7 +4142,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRandomNumberGeneratorGetInt32ArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Hundred and ninety-eighth batch (триста сорок третий проход) — three new analyzers.
+    // ── Hundred and ninety-eighth batch — three new analyzers.
 
     [Theory]
     [InlineData("class C { public string[] M() => \"a,b\".Split(',', -1); }", true)]
@@ -4183,7 +4178,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSortedSetGetViewBetweenArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and third batch (триста сорок четвёртый проход) — one new analyzer.
+    // ── Two hundred and third batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public char M() => System.Convert.ToChar(\"ab\"); }", true)]
@@ -4196,7 +4191,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToCharArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fourth and two hundred and fifth batches (триста сорок пятый проход) — two new analyzers.
+    // ── Two hundred and fourth and two hundred and fifth batches — two new analyzers.
 
     [Theory]
     [InlineData("class C { public int M() => string.Compare(\"abc\", -1, \"def\", 0, 1); }", true)]
@@ -4227,7 +4222,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DictionaryLiteralMissingKeyAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and sixth batch (триста сорок шестой проход) — one new analyzer.
+    // ── Two hundred and sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public DateTime M() => new DateTime(9999, 12, 31).AddDays(1); }", true)]
@@ -4247,7 +4242,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == DateTimeOrDateOnlyAddMethodOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and seventh and two hundred and eighth batches (триста сорок седьмой проход) — two new analyzers.
+    // ── Two hundred and seventh and two hundred and eighth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System; class C { public TimeSpan M() => new TimeSpan(int.MaxValue, 0, 0); }", true)]
@@ -4272,7 +4267,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == TimeSpanAddOrSubtractOperatorOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fifty-first through two hundred and fifty-third batches (триста пятьдесят шестой проход) — one new analyzer + two extensions.
+    // ── Two hundred and fifty-first through two hundred and fifty-third batches — one new analyzer + two extensions.
 
     [Theory]
     [InlineData("using System; class C { public TimeSpan M() => TimeSpan.MaxValue * 2; }", true)]
@@ -4312,7 +4307,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ConvertNumericNarrowingOverflowAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and eleventh through two hundred and fourteenth batches (триста сорок восьмой проход) — four new analyzers.
+    // ── Two hundred and eleventh through two hundred and fourteenth batches — four new analyzers.
 
     [Theory]
     [InlineData("using System.Linq; class C { public int M() => new[] { int.MaxValue, 1 }.Sum(); }", true)]
@@ -4362,7 +4357,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSemaphoreSlimConstructorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and seventeenth and two hundred and eighteenth batches (триста сорок девятый проход) — two new analyzers.
+    // ── Two hundred and seventeenth and two hundred and eighteenth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Linq; class C { public System.Collections.Generic.List<int> M() => new object[] { \"x\" }.Cast<int>().ToList(); }", true)]
@@ -4387,7 +4382,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == BitArrayLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and twentieth through two hundred and twenty-fourth batches (триста пятидесятый проход) — three new analyzers + two extensions.
+    // ── Two hundred and twentieth through two hundred and twenty-fourth batches — three new analyzers + two
+    // extensions.
 
     [Theory]
     [InlineData("using System.Threading; class C { public Semaphore M() => new Semaphore(-1, 5); }", true)]
@@ -4456,7 +4452,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == CopyToDestinationTooSmallAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and twenty-fifth through two hundred and twenty-ninth batches (триста пятьдесят первый проход) — five new analyzers.
+    // ── Two hundred and twenty-fifth through two hundred and twenty-ninth batches — five new analyzers.
 
     [Theory]
     [InlineData("class C { public string M() => char.ConvertFromUtf32(-1); }", true)]
@@ -4541,7 +4537,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimerConstructorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and thirtieth through two hundred and thirty-fourth batches (триста пятьдесят второй проход) — five new analyzers.
+    // ── Two hundred and thirtieth through two hundred and thirty-fourth batches — five new analyzers.
 
     [Theory]
     [InlineData("using System.Threading; class C { public void M(Thread t) => t.Join(-2); }", true)]
@@ -4608,7 +4604,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSemaphoreSlimReleaseArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and thirty-fifth through two hundred and thirty-ninth batches (триста пятьдесят третий проход) — five new analyzers.
+    // ── Two hundred and thirty-fifth through two hundred and thirty-ninth batches — five new analyzers.
 
     [Theory]
     [InlineData("using System.IO; class C { public MemoryStream M() => new MemoryStream(new byte[3], -1, 1); }", true)]
@@ -4668,7 +4664,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == NegativeStringCreateLengthArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fortieth through two hundred and forty-fourth batches (триста пятьдесят четвёртый проход) — one new analyzer + four extension features.
+    // ── Two hundred and fortieth through two hundred and forty-fourth batches — one new analyzer + four extension features.
 
     [Theory]
     [InlineData("class C { public decimal M() => new decimal(new int[] { 1, 2, 3 }); }", true)]
@@ -4719,7 +4715,8 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ListLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and forty-fifth through two hundred and forty-ninth batches (триста пятьдесят пятый проход) — three new analyzers + two extension features.
+    // ── Two hundred and forty-fifth through two hundred and forty-ninth batches — three new analyzers + two
+    // extension features.
 
     [Theory]
     [InlineData("using System.Buffers; class C { public ArrayPool<int> M() => ArrayPool<int>.Create(-1, 10); }", true)]
@@ -4769,7 +4766,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == ListLiteralIndexerOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fifty-fourth batch (триста пятьдесят седьмой проход) — one new analyzer.
+    // ── Two hundred and fifty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public byte[] M() => Convert.FromHexString(\"abc\"); }", true)]
@@ -4782,7 +4779,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHexStringLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fifty-fifth batch (триста пятьдесят восьмой проход) — one new analyzer.
+    // ── Two hundred and fifty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M(int n) => n.ToString(\"Z\"); }", true)]
@@ -4816,7 +4813,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidToStringFormatSpecifierAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fifty-seventh and two hundred and fifty-eighth batches (триста шестидесятый проход) — two new analyzers.
+    // ── Two hundred and fifty-seventh and two hundred and fifty-eighth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Parse(\"abc\"); }", true)]
@@ -4842,7 +4839,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPEndPointConstructorArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and fifty-ninth through two hundred and sixty-third batches (триста шестьдесят первый проход) — four new analyzers + one extension.
+    // ── Two hundred and fifty-ninth through two hundred and sixty-third batches — four new analyzers + one extension.
 
     [Theory]
     [InlineData("using System.Numerics; class C { public BigInteger M() => BigInteger.Pow(2, -1); }", true)]
@@ -4882,14 +4879,14 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.KeySize = 100; }", true)]
     [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.KeySize = 2048; }", false)]
     [InlineData("using System.Security.Cryptography; class C { public void M(Aes aes, int n) => aes.KeySize = n; }", false)]
-    // RSA.Create(int) static factory, added триста восемьдесят первый проход.
+    // RSA.Create(int) static factory, added later.
     [InlineData("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(1); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(1023); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(2048); }", false)]
     [InlineData("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(); }", false)]
     [InlineData("using System.Security.Cryptography; class C { public RSA M() => RSA.Create(\"RSA\"); }", false)]
     [InlineData("using System.Security.Cryptography; class C { public RSA M(int n) => RSA.Create(n); }", false)]
-    // DSA.Create(int) static factory, added 470-й проход.
+    // DSA.Create(int) static factory, added later.
     [InlineData("using System.Security.Cryptography; class C { public DSA M() => DSA.Create(-1); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public DSA M() => DSA.Create(0); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public DSA M() => DSA.Create(1024); }", false)]
@@ -4900,7 +4897,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCryptoAlgorithmKeySizeAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixth batch (триста восемьдесят второй проход) — one new analyzer.
+    // ── Three hundred and sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Runtime.Versioning; class C { public FrameworkName M() => new FrameworkName(\"\"); }", true)]
@@ -4918,7 +4915,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidFrameworkNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and seventh batch (триста восемьдесят третий проход) — one new analyzer.
+    // ── Three hundred and seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.Mime; class C { public ContentDisposition M() => new ContentDisposition(\"\"); }", true)]
@@ -4935,7 +4932,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidContentDispositionLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and eighth batch (триста восемьдесят четвёртый проход) — one new analyzer.
+    // ── Three hundred and eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public string M() { var idn = new IdnMapping(); return idn.GetAscii(\"\"); } }", true)]
@@ -4956,7 +4953,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIdnMappingLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and ninth batch (триста восемьдесят пятый проход) — one new analyzer.
+    // ── Three hundred and ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml.XPath; class C { public XPathExpression M() => XPathExpression.Compile(\"\"); }", true)]
@@ -4973,7 +4970,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXPathExpressionLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and tenth batch (триста восемьдесят шестой проход) — one new analyzer.
+    // ── Three hundred and tenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Numerics; using System.Globalization; class C { public Complex M() => Complex.Parse(\"\", CultureInfo.InvariantCulture); }", true)]
@@ -4993,7 +4990,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidComplexParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and eleventh batch (триста восемьдесят седьмой проход) — one new analyzer.
+    // ── Three hundred and eleventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net; class C { public Cookie M() => new Cookie(\"\", \"value\"); }", true)]
@@ -5013,7 +5010,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCookieNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twelfth batch (триста восемьдесят восьмой проход) — one new analyzer.
+    // ── Three hundred and twelfth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FindSystemTimeZoneById(\"\"); }", true)]
@@ -5028,7 +5025,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimeZoneIdLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirteenth batch (триста восемьдесят девятый проход) — one new analyzer.
+    // ── Three hundred and thirteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.Net.Http.HttpMethod M() => new System.Net.Http.HttpMethod(\"\"); }", true)]
@@ -5045,7 +5042,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHttpMethodLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fourteenth batch (триста девяностый проход) — one new analyzer.
+    // ── Three hundred and fourteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X500DistinguishedName M() => new X500DistinguishedName(\"garbage no equals\"); }", true)]
@@ -5066,7 +5063,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX500DistinguishedNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifteenth batch (триста девяносто первый проход) — one new analyzer.
+    // ── Three hundred and fifteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.Common; class C { public void M(DbConnectionStringBuilder b) => b.ConnectionString = \"=noKey\"; }", true)]
@@ -5084,7 +5081,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDbConnectionStringLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixteenth batch (триста девяносто второй проход) — one new analyzer.
+    // ── Three hundred and sixteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyName(\"\"); }", true)]
@@ -5103,7 +5100,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and seventeenth batch (триста девяносто третий проход) — one new analyzer.
+    // ── Three hundred and seventeenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Reflection; class C { public AssemblyName M() => new AssemblyName(\"\"); }", true)]
@@ -5125,7 +5122,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidAssemblyNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and eighteenth batch (триста девяносто четвёртый проход) — one new analyzer.
+    // ── Three hundred and eighteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml.Linq; class C { public XName M() => XName.Get(\"\"); }", true)]
@@ -5143,7 +5140,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and nineteenth batch (триста девяносто пятый проход) — one new analyzer.
+    // ── Three hundred and nineteenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => Oid.FromFriendlyName(\"\", OidGroup.All); }", true)]
@@ -5152,7 +5149,7 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => Oid.FromFriendlyName(\"sha256\", OidGroup.HashAlgorithm); }", false)]
     [InlineData("using System.Security.Cryptography; class C { public Oid M(string x) => Oid.FromFriendlyName(x, OidGroup.All); }", false)]
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => new Oid(\"not-a-real-friendly-name\"); }", false)]
-    // FromOidValue, extended 474-й проход.
+    // FromOidValue (extension).
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => Oid.FromOidValue(\"1.2.3\", OidGroup.All); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => Oid.FromOidValue(\"\", OidGroup.All); }", true)]
     [InlineData("using System.Security.Cryptography; class C { public Oid M() => Oid.FromOidValue(\"2.5.4.3\", OidGroup.All); }", false)]
@@ -5164,7 +5161,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidOidFriendlyNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twentieth batch (триста девяносто шестой проход) — one new analyzer.
+    // ── Three hundred and twentieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlDateTime M() => SqlDateTime.Parse(\"\"); }", true)]
@@ -5182,7 +5179,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlDateTimeParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-first batch (триста девяносто седьмой проход) — one new analyzer.
+    // ── Three hundred and twenty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public bool M() => XmlConvert.ToBoolean(\"\"); }", true)]
@@ -5201,7 +5198,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlBooleanLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-second batch (триста девяносто восьмой проход) — one new analyzer.
+    // ── Three hundred and twenty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public System.TimeSpan M() => XmlConvert.ToTimeSpan(\"\"); }", true)]
@@ -5220,7 +5217,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlTimeSpanLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-third batch (триста девяносто девятый проход) — one new analyzer.
+    // ── Three hundred and twenty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public System.DateTimeOffset M() => XmlConvert.ToDateTimeOffset(\"\"); }", true)]
@@ -5241,7 +5238,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlDateTimeOffsetLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-fourth batch (четырёхсотый проход) — one new analyzer.
+    // ── Three hundred and twenty-fourth batch — one new analyzer.
 
     private const string ValidRsaPublicKeyPem =
         "-----BEGIN PUBLIC KEY-----\n" +
@@ -5274,7 +5271,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidRsaPemLiteralAnalyzer.DiagnosticId);
     }
 
-    // проход 408 extension: a structurally-recognized PEM (generic "PUBLIC KEY" label) whose key data is
+    // Extension: a structurally-recognized PEM (generic "PUBLIC KEY" label) whose key data is
     // for a DIFFERENT algorithm (a real EC public key here) throws CryptographicException, not
     // ArgumentException — discovered while verifying ECDsa's sibling analyzer (RPAD0400).
     private const string ValidEcPublicKeyPem =
@@ -5296,7 +5293,7 @@ public class RunPadAnalyzersTests
         Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
     }
 
-    // ── Three hundred and twenty-fifth batch (четыреста первый проход) — one new analyzer.
+    // ── Three hundred and twenty-fifth batch — one new analyzer.
 
     private const string ValidCertificatePem =
         "-----BEGIN CERTIFICATE-----\n" +
@@ -5322,7 +5319,7 @@ public class RunPadAnalyzersTests
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"not a pem\"); }", true)]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"-----BEGIN PUBLIC KEY-----\\nABCD\\n-----END PUBLIC KEY-----\"); }", true)]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M(string x) => X509Certificate2.CreateFromPem(x); }", false)]
-    // 2-arg overload, extended 473-й проход — "" as certPem always throws regardless of keyPem (cert
+    // 2-arg overload (extension) — "" as certPem always throws regardless of keyPem (cert
     // parsing happens first), so this is now flagged, unlike before this overload was covered at all.
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M() => X509Certificate2.CreateFromPem(\"\", \"\"); }", true)]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public X509Certificate2 M(string k) => X509Certificate2.CreateFromPem(\"\", k); }", true)]
@@ -5343,7 +5340,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidCertificatePemLiteralAnalyzer.DiagnosticId);
     }
 
-    // ── Three hundred and twenty-sixth batch (четыреста второй проход) — one new analyzer.
+    // ── Three hundred and twenty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyTOKEN(\" leading\"); }", true)]
@@ -5363,7 +5360,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlTokenLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-seventh batch (четыреста третий проход) — one new analyzer.
+    // ── Three hundred and twenty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlMoney M() => SqlMoney.Parse(\"\"); }", true)]
@@ -5381,7 +5378,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlMoneyParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-eighth batch (четыреста четвёртый проход) — one new analyzer.
+    // ── Three hundred and twenty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlDecimal M() => SqlDecimal.Parse(\"\"); }", true)]
@@ -5399,7 +5396,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlDecimalParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and twenty-ninth batch (четыреста пятый проход) — one new analyzer.
+    // ── Three hundred and twenty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.Mail; class C { public void M(MailAddressCollection c) => c.Add(\"\"); }", true)]
@@ -5416,7 +5413,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMailAddressCollectionLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirtieth batch (четыреста шестой проход) — one new analyzer.
+    // ── Three hundred and thirtieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyXmlChars(\"bad\\u0000char\"); }", true)]
@@ -5435,7 +5432,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlCharsLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirty-first batch (четыреста седьмой проход) — one new analyzer.
+    // ── Three hundred and thirty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml.Linq; class C { public XProcessingInstruction M() => new XProcessingInstruction(\"xml\", \"data\"); }", true)]
@@ -5450,7 +5447,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXProcessingInstructionLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirty-second batch (четыреста девятый проход) — one new analyzer.
+    // ── Three hundred and thirty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromPem(\"\"); }", true)]
@@ -5491,7 +5488,7 @@ public class RunPadAnalyzersTests
         Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
     }
 
-    // ── Three hundred and thirty-third batch (четыреста десятый проход) — one new analyzer.
+    // ── Three hundred and thirty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromPem(\"\"); }", true)]
@@ -5545,7 +5542,7 @@ public class RunPadAnalyzersTests
         Assert.Contains("always throws CryptographicException at runtime", match!.GetMessage(), StringComparison.Ordinal);
     }
 
-    // ── Three hundred and thirty-fourth batch (411-й проход) — one new analyzer.
+    // ── Three hundred and thirty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public void M() => new System.Guid(\"\"); }", true)]
@@ -5567,7 +5564,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidGuidConstructorLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirty-fifth batch (412-й проход) — one new analyzer.
+    // ── Three hundred and thirty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(RSA rsa) => rsa.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
@@ -5594,7 +5591,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidRsaEncryptedPemLiteralAnalyzer.DiagnosticId);
     }
 
-    // ── Three hundred and thirty-sixth batch (413-й проход) — one new analyzer.
+    // ── Three hundred and thirty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(DSA dsa) => dsa.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
@@ -5644,7 +5641,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == "AD0001");
     }
 
-    // ── Three hundred and thirty-seventh batch (414-й проход) — one new analyzer.
+    // ── Three hundred and thirty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(ECDsa ec) => ec.ImportFromEncryptedPem(\"\", \"pw\"); }", true)]
@@ -5685,7 +5682,7 @@ public class RunPadAnalyzersTests
         Assert.DoesNotContain(diagnostics, d => d.Id == InvalidEcAlgorithmEncryptedPemLiteralAnalyzer.DiagnosticId);
     }
 
-    // ── Three hundred and thirty-eighth batch (415-й проход) — one new analyzer.
+    // ── Three hundred and thirty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Buffers.Text; class C { public byte[] M() => Base64Url.DecodeFromChars(\"\"); }", false)]
@@ -5705,7 +5702,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBase64UrlLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and thirty-ninth batch (416-й проход) — one new analyzer.
+    // ── Three hundred and thirty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml.Linq; class C { public XDocumentType M() => new XDocumentType(\"\", null, null, null); }", true)]
@@ -5724,7 +5721,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXDocumentTypeNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fortieth batch (417-й проход) — one new analyzer.
+    // ── Three hundred and fortieth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M() => PemEncoding.Find(\"\"); }", true)]
@@ -5740,7 +5737,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPemEncodingFindLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-first batch (418-й проход) — one new analyzer.
+    // ── Three hundred and forty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlBoolean M() => SqlBoolean.Parse(\"\"); }", true)]
@@ -5759,7 +5756,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlBooleanParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-second batch (419-й проход) — one new analyzer.
+    // ── Three hundred and forty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyWhitespace(\"\"); }", false)]
@@ -5776,7 +5773,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlWhitespaceLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-third batch (420-й проход) — one new analyzer.
+    // ── Three hundred and forty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public string M() => XmlConvert.VerifyPublicId(\"\"); }", false)]
@@ -5794,7 +5791,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlPublicIdLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-fourth batch (421-й проход) — one new analyzer.
+    // ── Three hundred and forty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlGuid M() => new SqlGuid(\"\"); }", true)]
@@ -5816,7 +5813,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSqlGuidLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-fifth batch (422-й проход) — one new analyzer.
+    // ── Three hundred and forty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public System.Guid M() => XmlConvert.ToGuid(\"\"); }", true)]
@@ -5833,7 +5830,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlGuidLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-sixth batch (423-й проход) — one new analyzer.
+    // ── Three hundred and forty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public System.DateTime M() => XmlConvert.ToDateTime(\"\", XmlDateTimeSerializationMode.RoundtripKind); }", true)]
@@ -5851,7 +5848,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlDateTimeLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-seventh batch (425-й проход) — one new analyzer.
+    // ── Three hundred and forty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public void M() => new XmlDocument().LoadXml(\"\"); }", true)]
@@ -5870,7 +5867,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlDocumentLoadXmlLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-eighth batch (426-й проход) — one new analyzer.
+    // ── Three hundred and forty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Diagnostics; class C { public ActivityTraceId M() => ActivityTraceId.CreateFromString(\"abc\"); }", true)]
@@ -5888,7 +5885,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidActivityIdLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and forty-ninth batch (427-й проход) — one new analyzer.
+    // ── Three hundred and forty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.TimeZoneInfo M() => System.TimeZoneInfo.FromSerializedString(\"\"); }", true)]
@@ -5904,7 +5901,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTimeZoneInfoSerializedStringLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fiftieth batch (428-й проход) — one new analyzer.
+    // ── Three hundred and fiftieth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.Type M() => System.Type.GetType(\"\", true); }", true)]
@@ -5922,7 +5919,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTypeGetTypeLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-first batch (429-й проход) — one new analyzer.
+    // ── Three hundred and fifty-first batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.Version M() => new System.Version(\"\"); }", true)]
@@ -5942,7 +5939,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVersionConstructorLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-second batch (430-й проход) — one new analyzer.
+    // ── Three hundred and fifty-second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Diagnostics; class C { public ActivityContext M() => ActivityContext.Parse(\"\", null); }", true)]
@@ -5960,7 +5957,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidActivityContextTraceParentLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-third batch (431-й проход) — one new analyzer.
+    // ── Three hundred and fifty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.UriBuilder M() => new System.UriBuilder(\"\"); }", true)]
@@ -5980,7 +5977,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidUriBuilderLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-fourth batch (432-й проход) — one new analyzer.
+    // ── Three hundred and fifty-fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public string M() => \"abc\\uD800def\".Normalize(); }", true)]
@@ -5998,7 +5995,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidStringNormalizeLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-fifth batch (433-й проход) — one new analyzer.
+    // ── Three hundred and fifty-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.IO; class C { public string M() => Path.GetFullPath(\"abc\\0def\"); }", true)]
@@ -6017,7 +6014,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPathEmbeddedNulLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-sixth batch (434-й проход) — one new analyzer.
+    // ── Three hundred and fifty-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public char M() => XmlConvert.ToChar(\"\"); }", true)]
@@ -6032,7 +6029,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlCharLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-seventh batch (435-й проход) — one new analyzer.
+    // ── Three hundred and fifty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml; class C { public int M() => XmlConvert.ToInt32(\"abc\"); }", true)]
@@ -6053,7 +6050,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlNumericLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-eighth batch (436-й проход) — one new analyzer.
+    // ── Three hundred and fifty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public byte[] M(byte[] d) => CryptographicOperations.HashData(new HashAlgorithmName(\"bogus\"), d); }", true)]
@@ -6071,7 +6068,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHashAlgorithmNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fifty-ninth batch (437-й проход) — one new analyzer.
+    // ── Three hundred and fifty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System; using System.Globalization; class C { public DateTime M() => DateTime.ParseExact(\"not-a-date\", \"yyyy-MM-dd\", CultureInfo.InvariantCulture); }", true)]
@@ -6094,7 +6091,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateOrTimeParseExactLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixty-third batch (441-й проход) — one new analyzer.
+    // ── Three hundred and sixty-third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Xml.Linq; class C { public XElement M() => new XElement(\"\"); }", true)]
@@ -6116,7 +6113,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXElementOrXAttributeNameLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixty-fourth batch (442-й проход) — two new analyzers.
+    // ── Three hundred and sixty-fourth batch — two new analyzers.
 
     [Theory]
     [InlineData("using System.Data; class C { public void M() { var t = new DataTable(); var col = t.Columns.Add(\"E\"); col.Expression = \"1+\"; } }", true)]
@@ -6156,7 +6153,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPathGetRelativePathLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixty-sixth and sixty-seventh batches (443-й проход) — two new analyzers.
+    // ── Three hundred and sixty-sixth and sixty-seventh batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Reflection.Metadata; class C { public AssemblyNameInfo M() => AssemblyNameInfo.Parse(\"\"); }", true)]
@@ -6200,7 +6197,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTypeNameParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixty-eighth batch (443-й проход, own pick) — one new analyzer.
+    // ── Three hundred and sixty-eighth batch (own pick) — one new analyzer.
 
     [Theory]
     [InlineData("using System; class C { public DateTime M() => Convert.ToDateTime(\"January\"); }", true)]
@@ -6220,7 +6217,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidConvertToDateTimeLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and sixty-ninth and seventieth batches (445-й проход) — two new analyzers.
+    // ── Three hundred and sixty-ninth and seventieth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Data.SqlTypes; class C { public SqlByte M() => SqlByte.Parse(\"abc\"); }", true)]
@@ -6257,7 +6254,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidWebProxyLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and seventy-second batch (446-й проход) — one new analyzer (plus RPAD0346 extension above).
+    // ── Three hundred and seventy-second batch — one new analyzer (plus RPAD0346 extension above).
 
     [Theory]
     [InlineData("using System; using System.Xml; class C { public string M(DateTime d) => XmlConvert.ToString(d, \"Z\"); }", true)]
@@ -6273,7 +6270,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlConvertToStringFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and seventy-third and seventy-fourth batches (448-й проход) — two new analyzers.
+    // ── Three hundred and seventy-third and seventy-fourth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System; class C { public TimeZoneInfo M() => TimeZoneInfo.CreateCustomTimeZone(\"id\", TimeSpan.FromHours(14), \"d\", \"s\"); }", false)]
@@ -6310,7 +6307,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumberFormatInfoPatternAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and seventy-fifth batch (449-й проход) — one new analyzer.
+    // ── Three hundred and seventy-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public void M() { new NumberFormatInfo().NumberGroupSizes = new[] { 3, 0, 2 }; } }", true)]
@@ -6333,7 +6330,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumberFormatInfoGroupSizesAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred seventy-sixth through eighty-first batches (450-й проход) — five new analyzers
+    // ── Three hundred seventy-sixth through eighty-first batches — five new analyzers
     // (plus the NegativeListCapacityAssignmentAnalyzer/RPAD0293 extension added above).
 
     [Theory]
@@ -6421,7 +6418,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlReaderSettingsPropertyAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred eighty-second through eighty-fifth batches (451-й проход) — four new analyzers.
+    // ── Three hundred eighty-second through eighty-fifth batches — four new analyzers.
 
     [Theory]
     [InlineData("using System; using System.Net.Http; class C { public void M() { new HttpClient().Timeout = TimeSpan.Zero; } }", true)]
@@ -6478,7 +6475,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSocketsHttpHandlerStreamWindowSizeAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred eighty-sixth through eighty-eighth batches (452-й проход) — three new analyzers.
+    // ── Three hundred eighty-sixth through eighty-eighth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Diagnostics; class C { public void M() { new ProcessStartInfo().WindowStyle = (ProcessWindowStyle)999; } }", true)]
@@ -6519,7 +6516,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTaskContinuationOptionsCombinationAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred eighty-ninth through ninety-third batches (453-й проход) — four new analyzers
+    // ── Three hundred eighty-ninth through ninety-third batches — four new analyzers
     // (plus the InvalidXmlReaderSettingsPropertyAnalyzer/RPAD0445 ValidationFlags extension above).
 
     [Theory]
@@ -6581,7 +6578,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBoundedChannelOptionsAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred ninety-fourth through ninety-seventh batches (454-й проход) — three new analyzers
+    // ── Three hundred ninety-fourth through ninety-seventh batches — three new analyzers
     // (plus the InvalidJsonSerializerOptionsPropertyAnalyzer/RPAD0443 extension above).
 
     [Theory]
@@ -6629,7 +6626,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCompressionOptionsPropertyAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred ninety-eighth through four hundredth batches (455-й проход) — three new analyzers.
+    // ── Three hundred ninety-eighth through four hundredth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Diagnostics.Tracing; class C { public void M() { var o = new EventSourceOptions(); o.Level = (EventLevel)256; } }", true)]
@@ -6671,7 +6668,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDataflowLinkOptionsMaxMessagesAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred first through third batches (456-й проход) — three new analyzers.
+    // ── Four hundred first through third batches — three new analyzers.
 
     // The AEAD analyzers deliberately stay silent when the cipher's IsSupported is false on the current
     // platform (e.g. AesCcm on macOS), so `expectFlagged` is the verdict on platforms that support `cipher`;
@@ -6748,7 +6745,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidImmutableArrayCreateRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fourth through ninth batches (457-й проход) — six new analyzers.
+    // ── Four hundred fourth through ninth batches — six new analyzers.
 
     [Theory]
     [InlineData("using System.Formats.Tar; class C { public void M() { var e = new PaxTarEntry(TarEntryType.ContiguousFile, \"n\"); } }", true)]
@@ -6826,7 +6823,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidTarWriterFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred tenth batch (458-й проход) — one new analyzer.
+    // ── Four hundred tenth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X500DistinguishedNameBuilder().Add(\"not-an-oid\", \"v\"); } }", true)]
@@ -6850,7 +6847,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX500DistinguishedNameBuilderMethodAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred eleventh/twelfth/thirteenth batches (459-й проход) — three new analyzers.
+    // ── Four hundred eleventh/twelfth/thirteenth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new SubjectAlternativeNameBuilder().AddDnsName(\"\"); } }", true)]
@@ -6902,7 +6899,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidXmlNamespaceManagerReservedPrefixAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fourteenth/fifteenth/sixteenth/seventeenth batches (459-й проход continued) —
+    // ── Four hundred fourteenth/fifteenth/sixteenth/seventeenth batches —
     // NewLine extension to RPAD0443 (Theory above) plus three new analyzers.
 
     [Theory]
@@ -6953,8 +6950,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidUnicodeRangeConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred eighteenth/nineteenth/twentieth/twenty-first/twenty-second batches
-    // (460-й проход continued) — five new analyzers.
+    // ── Four hundred eighteenth/nineteenth/twentieth/twenty-first/twenty-second batches — five new analyzers.
 
     [Theory]
     [InlineData("using System.Reflection.Metadata.Ecma335; class C { public void M() { var b = new MetadataBuilder(-1, 0, 0, 0); } }", true)]
@@ -7027,7 +7023,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509SubjectKeyIdentifierExtensionConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred twenty-third/fourth/fifth/sixth batches (461-й проход continued) — four new analyzers.
+    // ── Four hundred twenty-third/fourth/fifth/sixth batches — four new analyzers.
 
     [Theory]
     [InlineData("using System.Numerics; class C { public void M() { var m = Matrix4x4.CreatePerspective(1, 1, 0, 10); } }", true)]
@@ -7088,7 +7084,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidSignatureTypeEncoderArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred twenty-seventh batch (462-й проход continued) — one new analyzer.
+    // ── Four hundred twenty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Reflection.Metadata; using System.Reflection.Metadata.Ecma335; class C { public void M() { var e = new MethodBodyStreamEncoder(new BlobBuilder()); e.AddMethodBody(-1); } }", true)]
@@ -7107,7 +7103,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidMethodBodyStreamEncoderAddMethodBodyAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred twenty-eighth/ninth/thirtieth batches (463-й проход continued) — three new analyzers.
+    // ── Four hundred twenty-eighth/ninth/thirtieth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Diagnostics; class C { public void M() { var s = new StackTrace(-1); } }", true)]
@@ -7146,7 +7142,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRuntimeHelpersAllocateTypeAssociatedMemoryAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred thirty-first/second/third/fourth batches (464-й проход continued) — four new analyzers.
+    // ── Four hundred thirty-first/second/third/fourth batches — four new analyzers.
 
     [Theory]
     [InlineData("using System.Buffers; class C { public void M() { var f = new StandardFormat('X', 100); } }", true)]
@@ -7202,7 +7198,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidReplacementFallbackConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred thirty-fifth/sixth/seventh batches (465-й проход continued) — three new analyzers.
+    // ── Four hundred thirty-fifth/sixth/seventh batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { new X509ChainPolicy().RevocationMode = (X509RevocationMode)(-1); } }", true)]
@@ -7245,7 +7241,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVectorEncoderCountAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred thirty-eighth/ninth/fortieth batches (466-й проход continued) — three new analyzers.
+    // ── Four hundred thirty-eighth/ninth/fortieth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Buffers; class C { public void M(SequenceReader<byte> r) { r.Advance(-1); } }", true)]
@@ -7282,7 +7278,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBinaryReaderReadBytesArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred forty-first/second/third/fourth batches (467-й проход continued) — four new analyzers.
+    // ── Four hundred forty-first/second/third/fourth batches — four new analyzers.
 
     [Theory]
     [InlineData("using System.Collections.Specialized; class C { public void M() { var m = BitVector32.CreateMask(int.MinValue); } }", true)]
@@ -7335,7 +7331,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidBufferedStreamConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred forty-sixth/seventh batches (469-й проход continued) — two new analyzers.
+    // ── Four hundred forty-sixth/seventh batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Runtime.InteropServices; class C { public void M() { var h = GCHandle.Alloc(new object(), (GCHandleType)4); } }", true)]
@@ -7358,7 +7354,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509ExtensionConstructorAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred forty-ninth/fiftieth batches (469-й проход continued) — two new analyzers.
+    // ── Four hundred forty-ninth/fiftieth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M() { var s = new X509Store((StoreName)0); } }", true)]
@@ -7392,7 +7388,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPkcs12LoaderLimitsPropertyAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fifty-first/second batches (470-й проход continued) — one new analyzer.
+    // ── Four hundred fifty-first/second batches — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(byte[] d) { var c = X509CertificateLoader.LoadPkcs12(d, null, (X509KeyStorageFlags)48); } }", true)]
@@ -7408,7 +7404,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509CertificateLoaderKeyStorageFlagsAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fifty-third/fourth/fifth batches (472-й проход continued) — three new analyzers.
+    // ── Four hundred fifty-third/fourth/fifth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Runtime.InteropServices; using System.Collections.Generic; class C { public void M(List<int> l) { CollectionsMarshal.SetCount(l, -1); } }", true)]
@@ -7451,7 +7447,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVectorOfTArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fifty-seventh batch (473-й проход continued) — one new analyzer.
+    // ── Four hundred fifty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography.X509Certificates; class C { public void M(X509Certificate2 c) { var b = c.Export(X509ContentType.Unknown); } }", true)]
@@ -7474,7 +7470,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidX509ContentTypeExportAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred fifty-ninth batch (474-й проход continued) — one new analyzer.
+    // ── Four hundred fifty-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M() { var s = RandomNumberGenerator.GetString(\"abc\", -1); } }", true)]
@@ -7491,7 +7487,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRandomNumberGeneratorGetStringArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred sixtieth/first batches (475-й проход continued) — two new analyzers.
+    // ── Four hundred sixtieth/first batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Xml.Linq; class C { public void M() { var n = XName.Get(\"\", \"ns\"); } }", true)]
@@ -7523,7 +7519,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidImplicitXNameConversionAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred sixty-second/third batches (477-й проход) — two new analyzers.
+    // ── Four hundred sixty-second/third batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public void M() { var c = new GregorianCalendar(); c.TwoDigitYearMax = 1; } }", true)]
@@ -7558,7 +7554,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHijriCalendarAdjustmentAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred sixty-fourth/fifth batches (478-й проход) — two new analyzers.
+    // ── Four hundred sixty-fourth/fifth batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.Security.Cryptography; class C { public void M(AesGcm g, byte[] pt, byte[] ct, byte[] tag) { g.Encrypt(new byte[8], pt, ct, tag); } }", true, "AesGcm")]
@@ -7597,7 +7593,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCompositeFormatLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Four hundred sixty-sixth/seventh/eighth batches (479-й проход) — three new analyzers.
+    // ── Four hundred sixty-sixth/seventh/eighth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Net; class C { public void M() { var c = new Cookie(\"n\",\"v\"); c.Port = \"80\"; } }", true)]
@@ -7673,7 +7669,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidCountdownEventOrBarrierParticipantCountAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and sixty-fourth through two hundred and sixty-seventh batches (триста шестьдесят второй проход) — two new analyzers.
+    // ── Two hundred and sixty-fourth through two hundred and sixty-seventh batches — two new analyzers.
 
     [Theory]
     [InlineData("using System.IO; using System.IO.Compression; class C { public GZipStream M(Stream s) => new GZipStream(s, (CompressionLevel)99); }", true)]
@@ -7703,7 +7699,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidEncodingGetEncodingArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and sixty-eighth batch (триста шестьдесят третий проход) — one new analyzer.
+    // ── Two hundred and sixty-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public int M() => int.Parse(\"abc\"); }", true)]
@@ -7734,7 +7730,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidNumericParseFormatAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and seventieth through two hundred and seventy-fourth batches (триста шестьдесят пятый проход) — three new analyzers.
+    // ── Two hundred and seventieth through two hundred and seventy-fourth batches — three new analyzers.
 
     [Theory]
     [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableArray.Create(1, 2, 3)[10]; }", true)]
@@ -7777,7 +7773,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidArrayBinarySearchRangeArgumentAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and seventy-sixth batch (триста шестьдесят шестой проход) — one new analyzer.
+    // ── Two hundred and seventy-sixth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Collections.Immutable; class C { public int M() => ImmutableStack<int>.Empty.Peek(); }", true)]
@@ -7852,7 +7848,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == RangeSliceOutOfRangeAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and eighty-seventh batch (триста шестьдесят восьмой проход) — one new analyzer.
+    // ── Two hundred and eighty-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text.Json; class C { public JsonElement M() => JsonDocument.Parse(\"{\\\"a\\\":1}\").RootElement.GetProperty(\"b\"); }", true)]
@@ -7887,7 +7883,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidJsonElementPropertyOrIndexAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and ninety-fifth batch (триста семьдесят второй проход) — one new analyzer.
+    // ── Two hundred and ninety-fifth batch — one new analyzer.
 
     [Theory]
     [InlineData("class C { public System.DateTime M() => System.DateTime.Parse(\"hello\"); }", true)]
@@ -7909,7 +7905,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidDateOrTimeParseLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and ninety-seventh batch (триста семьдесят третий проход) — one new analyzer.
+    // ── Two hundred and ninety-seventh batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net; class C { public IPNetwork M() => IPNetwork.Parse(\"hello\"); }", true)]
@@ -7925,7 +7921,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPNetworkLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and ninety-eighth batch (триста семьдесят четвёртый проход) — one new analyzer.
+    // ── Two hundred and ninety-eighth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net; class C { public IPEndPoint M() => IPEndPoint.Parse(\"hello\"); }", true)]
@@ -7942,7 +7938,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidIPEndPointLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Two hundred and ninety-ninth batch (триста семьдесят пятый проход) — one new analyzer.
+    // ── Two hundred and ninety-ninth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.NetworkInformation; class C { public PhysicalAddress M() => PhysicalAddress.Parse(\"hello\"); }", true)]
@@ -7960,7 +7956,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidPhysicalAddressLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundredth batch (триста семьдесят шестой проход) — one new analyzer.
+    // ── Three hundredth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Text.Json.Nodes; class C { public JsonNode? M() => JsonNode.Parse(\"[1,2,3]\")[10]; }", true)]
@@ -7977,7 +7973,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidJsonArrayNodeIndexerAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and first batch (триста семьдесят седьмой проход) — one new analyzer.
+    // ── Three hundred and first batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Numerics; class C { public float M() => new Vector2(1, 2)[2]; }", true)]
@@ -8000,7 +7996,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidVectorOrMatrixIndexerAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and second batch (триста семьдесят восьмой проход) — one new analyzer.
+    // ── Three hundred and second batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.Http.Headers; class C { public AuthenticationHeaderValue M() => AuthenticationHeaderValue.Parse(\"\"); }", true)]
@@ -8049,7 +8045,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidHttpHeaderValueLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and third batch (триста семьдесят девятый проход) — one new analyzer.
+    // ── Three hundred and third batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Globalization; class C { public RegionInfo M() => new RegionInfo(\"Narnia\"); }", true)]
@@ -8065,7 +8061,7 @@ public class RunPadAnalyzersTests
         Assert.Equal(expectFlagged, diagnostics.Any(d => d.Id == InvalidRegionInfoLiteralAnalyzer.DiagnosticId));
     }
 
-    // ── Three hundred and fourth batch (триста восьмидесятый проход) — one new analyzer.
+    // ── Three hundred and fourth batch — one new analyzer.
 
     [Theory]
     [InlineData("using System.Net.Mime; class C { public ContentType M() => new ContentType(\"no-slash-here\"); }", true)]

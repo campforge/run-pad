@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the thirtieth research subagent survey,
-// re-verified independently before implementing. `StreamReader`/`StreamWriter` constructors taking a
+// `StreamReader`/`StreamWriter` constructors taking a
 // `bufferSize` parameter, bundled under one diagnostic (precedent RPAD0426). Confirmed a genuine
 // SENTINEL asymmetry between the two constructor families sharing the same parameter name: the
 // `Stream`-typed overloads (`StreamReader(Stream, Encoding, bool, int bufferSize[, bool])`/

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the thirty-eighth research subagent survey,
-// re-verified independently before implementing. A string literal argument that implicitly converts to
+// A string literal argument that implicitly converts to
 // `System.Xml.Linq.XName` (via `XName`'s own implicit conversion operator, itself just `XName.Get`
 // under the hood) at an INVOCATION-ARGUMENT call site — genuinely different syntax shape from both
 // already-covered cases: `InvalidXNameLiteralAnalyzer` (RPAD0386) only matches explicit `XName.Get(...)`
@@ -26,7 +25,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // enumerating every method name), so this analyzer automatically covers any current or future BCL
 // method taking an `XName` parameter — same symbol-based-matching precedent as RPAD0428, generalized to
 // not require listing every containing type/method. Deliberately scoped to invocation ARGUMENTS only
-// this проход — the sibling property-setter (`element.Name = "..."`) and `==`/`!=`-operator shapes were
+// this change — the sibling property-setter (`element.Name = "..."`) and `==`/`!=`-operator shapes were
 // confirmed to behave identically but are left for a possible follow-up rather than expanding this
 // analyzer's syntax-kind surface further in one pass. No `[SupportedOSPlatform]` gating, no side effects
 // — pure XML-Name-grammar string validation.

@@ -7,10 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the fourth research subagent survey (424-й
-// проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `XmlDocument.LoadXml(string)` — an INSTANCE method sibling of the already-covered static
-// `XDocument.Parse`/`XElement.Parse` (RPAD0257, проход 263), whose own doc comment explicitly scopes to
+// `XDocument.Parse`/`XElement.Parse` (RPAD0257), whose own doc comment explicitly scopes to
 // those two types' 1-arg overloads only, never mentioning `XmlDocument`. Same well-formedness grammar,
 // same exception. Confirmed empirically, matching the agent's report exactly: single exception type,
 // `XmlException`, for empty text ("Root element is missing"), garbage text, mismatched start/end tags,

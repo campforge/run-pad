@@ -141,7 +141,7 @@ public static class RpadParser
 
     // "```{languageId} run" exactly, as words: "```csharp runner", "```csharprun" and
     // "```csharp run extra" are not run blocks (the fence must be unambiguous — see
-    // docs/SpecificationRPad.md, "Атрибут run").
+    // docs/SpecificationRPad.md, "The run attribute").
     private static bool IsRunFence(ReadOnlySpan<char> line, string languageId)
     {
         if (!line.StartsWith("```")) return false;

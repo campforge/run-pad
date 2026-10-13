@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // empirically before writing this: not just positional-parameter array members but ALSO plain
 // auto-implemented properties declared directly in the record body participate in the compiler-generated
 // equality the same way, so both shapes are covered.
-// Extended (двести шестьдесят девятый проход, batch) to also cover List<T>/Dictionary<TKey,TValue>/
+// Extended to also cover List<T>/Dictionary<TKey,TValue>/
 // HashSet<T>/Queue<T>/Stack<T> — the identical underlying gotcha, none of them override Equals either.
 // Deliberately scoped to these specific CONCRETE BCL types only, matched by generic-type-definition, not
 // to interface-typed members (IList<T>/IReadOnlyList<T>/IEnumerable<T>/etc.) — an interface-typed member

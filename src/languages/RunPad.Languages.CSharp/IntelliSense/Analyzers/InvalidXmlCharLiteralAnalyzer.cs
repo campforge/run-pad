@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5, the LAST candidate from the fifth research subagent
-// survey, re-verified independently before implementing. `System.Xml.XmlConvert.ToChar(string)` — joins
+// Candidate #5, `System.Xml.XmlConvert.ToChar(string)` — joins
 // the rest of the `XmlConvert.ToXxx` family already in this catalog (RPAD0389/0390/0391/0413/0414).
 // Confirmed empirically, matching the agent's report exactly: single exception type, `FormatException`
 // ("String must be exactly one character long."), thrown whenever the argument's length isn't exactly 1

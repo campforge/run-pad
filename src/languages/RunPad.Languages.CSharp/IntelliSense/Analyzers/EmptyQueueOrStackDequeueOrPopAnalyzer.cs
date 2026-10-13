@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "provably
-// empty receiver" theme as EmptyArrayLiteralFirstOrSingleOrLastAnalyzer (RPAD0290, проходы 317-318),
+// empty receiver" theme as EmptyArrayLiteralFirstOrSingleOrLastAnalyzer (RPAD0290),
 // applied to `Queue<T>.Dequeue()`/`Peek()` and `Stack<T>.Pop()`/`Peek()` instead of array literals:
 // calling any of them directly on a FRESHLY CONSTRUCTED `Queue<T>`/`Stack<T>` (any constructor — the
 // empty default one, or `Queue<T>(int capacity)`/`Stack<T>(int capacity)`, both of which only reserve
@@ -17,7 +17,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // (`new Queue<T>().Dequeue()`), not a variable that might have had elements added to it since
 // construction — proving THAT would need real data-flow analysis, same scoping discipline as the rest of
 // this catalog.
-// Extended in the триста двадцатый проход to also cover `PriorityQueue<TElement, TPriority>.Dequeue()`/
+// Extended to also cover `PriorityQueue<TElement, TPriority>.Dequeue()`/
 // `Peek()` and `LinkedList<T>.RemoveFirst()`/`RemoveLast()` — confirmed empirically to throw identically
 // for a freshly constructed, empty receiver. Dispatch is now keyed by the containing type's simple name
 // (`Queue`/`Stack`/`PriorityQueue`/`LinkedList`) rather than its full generic display string, which

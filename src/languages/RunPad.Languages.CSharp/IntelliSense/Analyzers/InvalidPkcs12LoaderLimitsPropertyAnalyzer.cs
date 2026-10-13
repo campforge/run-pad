@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the thirty-second research subagent survey,
-// re-verified independently before implementing. First touch of `System.Security.Cryptography.
+// First touch of `System.Security.Cryptography.
 // X509Certificates.Pkcs12LoaderLimits`. Five `int?` properties (`MacIterationLimit`,
 // `IndividualKdfIterationLimit`, `TotalKdfIterationLimit`, `MaxKeys`, `MaxCertificates`), bundled under
 // one diagnostic (precedent RPAD0426). Confirmed empirically: a negative `int` literal assigned to any

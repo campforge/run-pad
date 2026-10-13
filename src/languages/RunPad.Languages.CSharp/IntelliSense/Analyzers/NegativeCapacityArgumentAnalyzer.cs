@@ -16,17 +16,17 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // analyzer; a literal is unambiguous. `new T[-1]` (a negative ARRAY size) was considered alongside this
 // during PROBE and dropped — the compiler's own diagnostics already reject a constant-folded negative
 // array size, so there was nothing left for this analyzer to add there.
-// Extended (двести сорок пятый проход, batch) to also cover `PriorityQueue<TElement,TPriority>` — same
+// Extended to also cover `PriorityQueue<TElement,TPriority>` — same
 // negative-capacity constructor throw, just a newer collection type (.NET 6+, within this project's own
 // SDK floor). Its constructor parameter is named `initialCapacity` rather than `capacity`, so the
 // parameter-name check now accepts either spelling.
-// Extended again (триста двадцать второй проход, batch) to also cover `SortedList<TKey, TValue>(int
+// Extended again to also cover `SortedList<TKey, TValue>(int
 // capacity)` — confirmed empirically (both the throw and, via reflection, the exact constructor parameter
 // name `"capacity"`, matching the existing check unchanged) — simply added to `TargetTypes`.
-// Extended again (триста сорок третий проход, batch) to also cover `System.IO.MemoryStream(int
+// Extended again to also cover `System.IO.MemoryStream(int
 // capacity)` — confirmed via reflection (not assumed) that its constructor parameter is also literally
 // named `"capacity"`, and confirmed empirically it throws identically — simply added to `TargetTypes`.
-// Extended again (469-й проход, batch, candidate #1 from the thirty-first research subagent survey) to
+// Extended again to
 // also cover `System.Collections.Specialized.NameValueCollection(int capacity)` — confirmed via
 // reflection its constructor parameter is also literally named `"capacity"`, and confirmed empirically
 // it throws identically — simply added to `TargetTypes`. `HybridDictionary(int)` was checked alongside

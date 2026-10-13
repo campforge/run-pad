@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // array with a bad startIndex/count combination always throws" theme as
-// InvalidArrayFillArgumentAnalyzer (RPAD0294, проходы 325/328/329), on a genuinely different receiver
+// InvalidArrayFillArgumentAnalyzer (RPAD0294), on a genuinely different receiver
 // shape: `string.Join(string separator, string[] value, int startIndex, int count)` is a STATIC method
 // where the array sits at argument position 1 (not 0 — `separator` is argument 0), followed by
 // `startIndex`/`count` at positions 2/3. Confirmed empirically (scratch `dotnet run` script, since

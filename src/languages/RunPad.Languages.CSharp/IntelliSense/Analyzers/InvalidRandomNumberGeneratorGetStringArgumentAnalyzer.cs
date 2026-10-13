@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the thirty-seventh research subagent survey,
-// re-verified independently before implementing. `System.Security.Cryptography.
+// `System.Security.Cryptography.
 // RandomNumberGenerator.GetString(ReadOnlySpan<char> choices, int length)` — first touch of this
 // specific overload; distinct from the already-covered `GetBytes(int)`/`GetHexString(int, bool)`
 // (RPAD0304) and `GetInt32` analyzers (grepped, confirmed neither doc comment mentions `GetString`).

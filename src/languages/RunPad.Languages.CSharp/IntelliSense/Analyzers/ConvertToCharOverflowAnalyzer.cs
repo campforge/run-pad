@@ -14,15 +14,15 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `GetConstantValue`, so `int.MaxValue`-style constants resolve too, not just numeric-literal tokens);
 // `Convert.ToChar` also has `float`/`double`/`decimal`/`string`/`object`/`bool`/`DateTime` overloads not
 // handled here — a future extension candidate, not attempted in this batch.
-// Extended in the триста четвёртый проход to also cover `SByte`/`UInt32`/`UInt64` (confirmed empirically
+// Extended to also cover `SByte`/`UInt32`/`UInt64` (confirmed empirically
 // that all three can overflow char's range, unlike `Byte`/`UInt16`, whose own value ranges (0-255,
 // 0-65535) can never exceed char's, so those two are deliberately left out — there is nothing for this
 // analyzer to ever catch there).
-// Extended again in the триста сорок восьмой проход to also cover `float`/`double`/`decimal` — the
-// case explicitly deferred back in проход 303. Confirmed empirically to throw identically for all
+// Extended again to also cover `float`/`double`/`decimal` — the
+// case explicitly deferred earlier. Confirmed empirically to throw identically for all
 // three. Kept as an extension of THIS analyzer rather than added to
-// ConvertNumericNarrowingOverflowAnalyzer (RPAD0286, which gained the same three source types in this
-// same проход for its own different target methods) — PROBE caught that RPAD0286 adding `ToChar` would
+// ConvertNumericNarrowingOverflowAnalyzer (RPAD0286, which gained the same three source types in the same change for
+// its own different target methods) — PROBE caught that RPAD0286 adding `ToChar` would
 // double-message with this analyzer's existing `int`/`long` coverage for the exact same defect, so
 // `ToChar`'s non-integral-source coverage belongs here instead, its more specific, dedicated home.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

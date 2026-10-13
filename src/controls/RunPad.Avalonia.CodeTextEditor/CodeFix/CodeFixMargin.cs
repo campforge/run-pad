@@ -315,8 +315,8 @@ public class CodeFixMargin : AbstractMargin
     // width. Centering (cx) still reads Bounds.Width — the icon must center within whatever the
     // column's real width is, only its own size shouldn't depend on that width.
     //
-    // #82's first pass (0.6) shrank the glyph back down close to its original,
-    // pre-#75 size — but that original size was itself always on the small side, and empirically
+    // The first size fix (0.6) shrank the glyph back down close to its original,
+    // pre-alignment size — but that original size was itself always on the small side, and empirically
     // (ResolveLineFromPoint, verified with ProbeClickTests during investigation) a click ANYWHERE
     // across the margin's full row already resolves to the right line regardless of X — the click
     // target was never actually limited to the glyph's own pixels. So the "hard to hit with the
@@ -324,7 +324,7 @@ public class CodeFixMargin : AbstractMargin
     // doesn't visually read as "aim here", even though the real clickable area is generous. Bumped
     // back up to a size close to the line height itself (comfortably visible/aimable, matching how
     // large VS/Rider's own indicator-margin glyphs read) without returning to the unbounded,
-    // column-width-scaled size #75 accidentally produced.
+    // column-width-scaled size the gutter alignment accidentally produced.
     private const double IconScaleFactor = 0.85;
 
     internal (double Scale, double X, double Y) ComputeIconTransform(double lineH, double yTop)

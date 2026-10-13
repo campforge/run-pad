@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
-// (RPAD0333, проход 352): `Channel.CreateBounded<T>(int capacity)` throws ArgumentOutOfRangeException
+// (RPAD0333): `Channel.CreateBounded<T>(int capacity)` throws ArgumentOutOfRangeException
 // for a negative `capacity` — confirmed empirically via scratch `dotnet run` script. Unlike
 // `BlockingCollection`'s `boundedCapacity` (which must be strictly positive), `Channel.CreateBounded`'s
 // `capacity` of exactly `0` is itself VALID (a zero-capacity bounded channel, meaning every write must

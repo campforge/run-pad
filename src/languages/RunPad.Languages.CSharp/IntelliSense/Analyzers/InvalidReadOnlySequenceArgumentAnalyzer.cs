@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-eighth research subagent survey,
-// re-verified independently before implementing. `System.Buffers.ReadOnlySequence<T>`'s constructor
+// `System.Buffers.ReadOnlySequence<T>`'s constructor
 // and `.Slice(int, int)` method — bundled under one diagnostic (precedent RPAD0426). Confirmed
 // empirically: `new ReadOnlySequence<T>(T[] array, int start, int length)` throws
 // `ArgumentOutOfRangeException` for a negative `start` or negative `length`, independent of the

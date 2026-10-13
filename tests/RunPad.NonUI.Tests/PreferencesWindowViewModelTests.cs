@@ -295,7 +295,7 @@ public class PreferencesWindowViewModelTests
         Assert.Equal("CS0184\nIDE0007", vm.ExcludedDiagnosticIdsText);
     }
 
-    // User request 2026-07-21 (pass 106): "fix formatting" (IDE0055) should be excluded
+    // User request 2026-07-21: "fix formatting" (IDE0055) should be excluded
     // out of the box — RunPad already has its own dotnet-format-based formatting story, so a live
     // "reformat this" suggestion on every whitespace deviation was judged more noise than help by
     // default. A fresh CSharpLanguageSettings (e.g. a first-ever launch, before settings.json exists)

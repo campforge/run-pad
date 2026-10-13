@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the fifth research subagent survey, re-verified
-// independently before implementing. `string.Normalize()`/`.Normalize(NormalizationForm)`/
+// `string.Normalize()`/`.Normalize(NormalizationForm)`/
 // `.IsNormalized()`/`.IsNormalized(NormalizationForm)` — the first analyzer in this catalog where the
 // LITERAL itself is the RECEIVER of the call (`"literal".Normalize()`), not an argument passed to some
 // other method — every other analyzer here matches a literal in an argument position. Confirmed

@@ -7,19 +7,14 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; third candidate
-// from the second research subagent survey (проход 397, read-only tools, doc-based hunches only). The
-// agent's doc-reading guess for this one — that out-of-range date/time components (e.g. month 13, hour 25)
-// throw a SEPARATE `ArgumentOutOfRangeException` alongside `FormatException` for pure grammar errors — was
-// CONFIRMED WRONG by empirical re-verification: every malformed literal tried, including out-of-range
-// month/day/hour values, throws plain `FormatException`. This is exactly why this session always
-// re-verifies doc-based hunches empirically rather than trusting them, and this candidate is the concrete
-// example of that discipline catching a wrong guess before it shipped. Scoped to the single-string overload
+// Own pick, not a Roslynator port. Out-of-range date/time components (e.g. month 13, hour 25) do NOT throw a separate
+// `ArgumentOutOfRangeException`: every malformed literal tried, including out-of-range month/day/hour values, throws
+// plain `FormatException`. Scoped to the single-string overload
 // only (confirmed via reflection: `XmlConvert` has three `ToDateTimeOffset` overloads — this one, plus
 // `(string, string)` and `(string, string[])` format-specifier variants, deliberately out of scope, same
 // restraint as this catalog's other single-arg-overload analyzers). Thematically adjacent to, but genuinely
-// NOT overlapping with, `DateTimeOffset.Parse` coverage in InvalidDateOrTimeParseLiteralAnalyzer (RPAD0365,
-// проход 372) — confirmed empirically `XmlConvert.ToDateTimeOffset` requires strict ISO 8601/XSD dateTime
+// NOT overlapping with, `DateTimeOffset.Parse` coverage in InvalidDateOrTimeParseLiteralAnalyzer (RPAD0365) —
+// confirmed empirically `XmlConvert.ToDateTimeOffset` requires strict ISO 8601/XSD dateTime
 // grammar with no culture-based fallback whatsoever (rejects "1/1/2024" and "January 1, 2024" outright,
 // both of which regular `DateTimeOffset.Parse` accepts), same class of legitimate coexistence already
 // established for ContentType/MediaTypeHeaderValue, DateTime.Parse/SqlDateTime.Parse (RPAD0388), and

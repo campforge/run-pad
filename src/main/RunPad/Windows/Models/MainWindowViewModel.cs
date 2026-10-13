@@ -86,8 +86,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // The F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
     // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
     // no WPF-style InputGestureText string property; InputGesture takes a real KeyGesture and renders
-    // its own formatted text, same as CodeTextEditor.CreateEditMenuItem's Copy/Cut/Paste items — TODO
-    // #34). Not re-evaluated live on a Preferences edit (unlike EditorTabItemViewModel's tooltip
+    // its own formatted text, same as CodeTextEditor.CreateEditMenuItem's Copy/Cut/Paste items). Not re-evaluated
+    // live on a Preferences edit (unlike EditorTabItemViewModel's tooltip
     // labels, which do resubscribe to _prefs.Changed) — a known, minor gap: the menu hint can go
     // stale until restart if the user rebinds this gesture, while the actual keyboard dispatch always
     // reads the current value fresh on every keypress regardless.

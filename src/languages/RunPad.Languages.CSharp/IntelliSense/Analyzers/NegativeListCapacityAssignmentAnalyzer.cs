@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // are all READ-ONLY (get-only), so this assignment shape simply doesn't exist for them; `List<T>` is the
 // only one of this family with a settable `Capacity`. Scoped to a LITERAL negative integer only, same
 // reasoning as the rest of this family.
-// Extended in the триста двадцать четвёртый проход to also cover `StringBuilder.Length = -1` and
+// Extended to also cover `StringBuilder.Length = -1` and
 // `System.IO.MemoryStream.Position = -1` — same mechanism (negative literal assigned to a settable
 // property, ArgumentOutOfRangeException), confirmed empirically to throw identically, generalized from a
 // single hardcoded (type, property) check into a small lookup table. `MemoryStream.Position` is
@@ -24,7 +24,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // so the existing literal-extraction helper works unchanged. Class name/`DiagnosticId` kept as-is despite
 // the scope growing beyond `List<T>.Capacity`, same precedent as other same-mechanism extensions in this
 // catalog.
-// Extended again in the триста сорок девятый проход to also cover `list.Capacity = N` where the
+// Extended again to also cover `list.Capacity = N` where the
 // receiver is itself a literal `new List<T> { ... }` collection initializer and `N` (non-negative) is
 // still LESS than the initializer's own known element count — confirmed empirically that this throws
 // the identical `ArgumentOutOfRangeException` (capacity can never be shrunk below the current element
@@ -32,7 +32,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // either of those to a smaller-but-non-negative value simply truncates/seeks rather than throwing, so
 // this new check is scoped to `List<T>.Capacity` specifically. The message format is now parameterized
 // with a reason string to describe either condition.
-// Extended again (450-й проход, candidate #7 from the twelfth research subagent survey) to also cover
+// Extended again to also cover
 // `System.IO.MemoryStream.Capacity = -1` — confirmed empirically as a genuine gap in the lookup table
 // below (`MemoryStream` was only mapped to `Position`, never `Capacity`), same negative-literal-throws
 // mechanism, identical for both an expandable (`new MemoryStream()`) and a fixed-external-buffer

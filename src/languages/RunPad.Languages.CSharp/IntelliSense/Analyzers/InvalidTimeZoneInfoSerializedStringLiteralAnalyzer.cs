@@ -7,10 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the fourth research subagent survey (424-й
-// проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `TimeZoneInfo.FromSerializedString(string)` — NOT covered by `InvalidTimeZoneIdLiteralAnalyzer`
-// (RPAD0380, проход 388), which only targets the DIFFERENT method `FindSystemTimeZoneById` (a single-
+// (RPAD0380), which only targets the DIFFERENT method `FindSystemTimeZoneById` (a single-
 // overload/single-method-name match, confirmed by re-reading that file). Confirmed empirically, matching
 // the agent's report exactly: TWO exception types depending on input SHAPE — an empty string throws
 // `ArgumentException`, while any other non-empty-but-corrupt text (garbage, truncated real serialized
@@ -20,7 +18,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // meant to be round-tripped via `ToSerializedString()`, not hand-authored as a literal — but it's still a
 // genuinely distinct, verified, non-duplicate always-throws pattern, consistent with this catalog's
 // existing precedent of still implementing lower-novelty-but-clean candidates (SqlGuid/XmlGuid, RPAD0412/
-// RPAD0413, проходы 421-422).
+// RPAD0413).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidTimeZoneInfoSerializedStringLiteralAnalyzer : DiagnosticAnalyzer
 {

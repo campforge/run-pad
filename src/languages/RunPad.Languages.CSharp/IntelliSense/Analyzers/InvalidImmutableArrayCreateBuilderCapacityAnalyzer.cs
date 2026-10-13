@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the eighteenth research subagent survey,
-// re-verified independently before implementing. `System.Collections.Immutable.ImmutableArray.
+// `System.Collections.Immutable.ImmutableArray.
 // CreateBuilder<T>(int initialCapacity)` — a static factory method, confirmed empirically to throw
 // `ArgumentOutOfRangeException` for a negative `initialCapacity`; `0` and positive values are valid. A
 // genuinely fresh gap: `NegativeCapacityArgumentAnalyzer` (RPAD0231) only registers on

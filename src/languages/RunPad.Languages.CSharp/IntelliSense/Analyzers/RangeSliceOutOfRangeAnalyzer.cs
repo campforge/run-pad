@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
 // ArrayLiteralIndexerOutOfRangeAnalyzer/StringLiteralIndexerOutOfRangeAnalyzer (RPAD0283/RPAD0282,
-// extended this same проход for the `^N` Index form) — this one handles the OTHER indexer sugar form,
+// extended in the same change for the `^N` Index form) — this one handles the OTHER indexer sugar form,
 // `Range` slicing (`arr[2..10]`, `"abc"[2..10]`): both throw `ArgumentOutOfRangeException` when the
 // resolved slice doesn't fit the receiver's own known length — confirmed empirically via scratch
 // `dotnet run` script, including the two distinct ways it can fail (the end bound exceeding the
@@ -22,7 +22,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // exception-type/mechanism (e.g. RPAD0357 vs RPAD0358). Also originally restricted to a plain
 // non-negative integer literal (or absent, defaulting to 0/the receiver's own length) on EACH side of
 // the `..`, deferring both List<T> and any `^N` operand inside a Range as further, more involved cases.
-// Extended in the триста шестьдесят седьмой проход to close both of those deferred cases:
+// Extended to close both of those deferred cases:
 // 1. `^N` operand INSIDE a Range (`arr[^2..]`, `arr[..^5]`) — confirmed empirically to resolve to the
 //    exact same `ArgumentOutOfRangeException` this analyzer already reports for array/string, so
 //    `TryGetBound` simply grew a branch resolving `^N` to `totalLength - N` first, reusing the existing
@@ -37,7 +37,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 //    `ArgumentException` when both are non-negative yet `index + count` exceeds the receiver's own known
 //    length. The exception-type text is now a message-format PARAMETER rather than baked into the format
 //    string (same technique already used by RPAD0303's `messageFormat`), chosen so the array/string
-//    branch's RENDERED text is byte-for-byte unchanged from before this проход — no existing test needed
+//    branch's RENDERED text is byte-for-byte unchanged before this change — no existing test needed
 //    updating for that branch.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RangeSliceOutOfRangeAnalyzer : DiagnosticAnalyzer

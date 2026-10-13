@@ -7,9 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; third of the four
-// "needs verification" candidates from the research subagent's ranked list (проход 377), confirmed
-// empirically before implementing. Same "run the real validator" theme, applied to the static factory
+// Own pick, not a Roslynator port. Same "run the real validator" theme, applied to the static factory
 // `System.Xml.XPath.XPathExpression.Compile(string)` (deliberately NOT the `(string,
 // IXmlNamespaceResolver)` overload — same single-string-overload restraint as RPAD0374's FrameworkName and
 // RPAD0352's RSA.Create(int)). Before implementing, verified a real concern: does `Compile()` require the

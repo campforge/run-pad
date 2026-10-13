@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // InvalidRandomRangeArgumentAnalyzer (RPAD0234, Random.Next/NextInt64's 1-/2-argument range validation),
 // applied to `System.Security.Cryptography.RandomNumberGenerator.GetInt32` instead — deliberately a
 // SEPARATE analyzer rather than an extension of RPAD0234 (or RPAD0304, this project's own
-// RandomNumberGenerator.GetBytes/GetHexString negative-count analyzer from this same проход), because
+// RandomNumberGenerator.GetBytes/GetHexString negative-count analyzer from in the same change), because
 // both the boundary AND the exception type differ from each: the 1-argument `GetInt32(int toExclusive)`
 // requires `toExclusive` to be STRICTLY POSITIVE (`0` itself throws, unlike `Random.Next(0)`, which is
 // valid and simply returns `0`) — confirmed empirically via scratch `dotnet run` script, not assumed.

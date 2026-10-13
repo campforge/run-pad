@@ -7,14 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; direct brainstorming resumed after
-// the sixth research subagent's full candidate list (проходы 435-440) was exhausted. Found while
-// double-checking a stale claim from this session's own memory ("XName.Get(string) never throws" — a
-// third-party research agent's UNVERIFIED guess from проход 411, never independently re-confirmed until
-// now): direct empirical testing showed `XName.Get(string)` genuinely DOES throw for malformed input —
-// the claim was simply wrong, but harmless, since `InvalidXNameLiteralAnalyzer` (RPAD0386, проход 394)
-// had already implemented correct coverage for it well before that stale claim was ever recorded. While
-// re-verifying that, discovered RPAD0386 registers ONLY on `SyntaxKind.InvocationExpression` matching
+// Own pick, not a Roslynator port. Discovered RPAD0386 registers ONLY on `SyntaxKind.InvocationExpression` matching
 // `XName.Get(...)` — it does NOT match `new XElement(string, ...)`/`new XAttribute(string, ...)`, where
 // the string argument implicitly converts to `XName` via `XName`'s own implicit conversion operator (a
 // genuinely different syntax shape, `ObjectCreationExpression`, not an invocation of `Get`). Confirmed

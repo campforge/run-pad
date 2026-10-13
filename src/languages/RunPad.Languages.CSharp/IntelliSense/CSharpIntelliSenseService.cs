@@ -27,7 +27,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // "RunPad.Runtime" appended separately from ImplicitUsings.Default itself (not folded into that
     // list) — ImplicitUsings.Default's own job is specifically mirroring the .NET SDK's fixed
     // <ImplicitUsings>enable</ImplicitUsings> set; RunPad.Runtime (DumpContainer/ICustomMemberProvider/
-    // DumpOptions — live user request 2026-07-28, LINQPad Runtime API compatibility) is RunPad's own
+    // DumpOptions — for LINQPad Runtime API compatibility) is RunPad's own
     // addition, emitted into the real compiled project via CSharpProjectProfile.DefaultImportNamespaces
     // instead, which this needs to mirror for the same "IntelliSense must agree with what actually
     // compiles" reason as everything else on this list.
@@ -607,7 +607,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // EditorCompletionData.UsingsToAdd / EditorTabItemControl.AddGlobalUsings). Scoped to NuGet
             // references specifically, not the full BCL reference-assembly pack (~167 facades) —
             // walking every namespace of every default reference on every fresh identifier would
-            // reintroduce the exact latency problem #56 just fixed, and BCL types the user actually
+            // reintroduce the exact latency problem this avoids, and BCL types the user actually
             // reaches for are already reachable through the default implicit usings anyway.
             var prefix = GetIdentifierPrefix(code, position);
             var alreadyVisible = new HashSet<string>(visible.Select(i => i.DisplayText), StringComparer.Ordinal);
@@ -1240,7 +1240,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // Every syntax kind below carries its own declared name as a plain Identifier token (not a
     // qualified/dotted NameSyntax, unlike e.g. namespace declarations — deliberately not covered here,
-    // out of scope for #68's reported symptom) — checking `== token` (not just "is this kind of node")
+    // out of scope for the reported symptom) — checking `== token` (not just "is this kind of node")
     // rules out completion inside some OTHER part of the same declaration (a method's return type, a
     // parameter's type, an attribute, ...), where the caret is legitimately in expression/type position.
     private static bool IsDeclarationIdentifierToken(SyntaxToken token) => token.Parent switch

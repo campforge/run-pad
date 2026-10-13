@@ -7,13 +7,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the sixth research subagent survey (full tool
-// access, empirically self-verified), re-verified independently before implementing. The eleven numeric
+// The eleven numeric
 // `XmlConvert.ToXxx(string)` wrappers (`ToInt16`/`ToInt32`/`ToInt64`/`ToUInt16`/`ToUInt32`/`ToUInt64`/
 // `ToByte`/`ToSByte`/`ToSingle`/`ToDouble`/`ToDecimal`) — the rest of the `XmlConvert.ToXxx` family, whose
 // non-numeric siblings (`ToChar`/`ToBoolean`/`ToDateTime*`/`ToTimeSpan`/`ToGuid`) are already covered
 // (RPAD0389/0390/0391/0413/0414/0424). Confirmed via grep these eleven were never picked up — the doc
-// comment on `InvalidXmlGuidLiteralAnalyzer` (RPAD0413, проход 422) explicitly noted them as deliberately
+// comment on `InvalidXmlGuidLiteralAnalyzer` (RPAD0413) explicitly noted them as deliberately
 // skipped for being "likely low novelty" versus this catalog's plain numeric Parse coverage, but that
 // assumption was never independently verified until now. Confirmed empirically, matching the agent's
 // report exactly: TWO exception types — `FormatException` for non-numeric text, `OverflowException` for a

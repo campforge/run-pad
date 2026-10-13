@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the eleventh research subagent survey, re-verified
-// independently before implementing. `System.Globalization.NumberFormatInfo`'s integer digit/pattern
+// `System.Globalization.NumberFormatInfo`'s integer digit/pattern
 // properties — an `int` literal assigned to `NumberDecimalDigits`/`CurrencyDecimalDigits`/
 // `PercentDecimalDigits` (valid range 0-99), `CurrencyPositivePattern`/`PercentPositivePattern` (0-3),
 // `CurrencyNegativePattern` (0-16 — confirmed empirically; NOT 15, which a naive reading of the exception

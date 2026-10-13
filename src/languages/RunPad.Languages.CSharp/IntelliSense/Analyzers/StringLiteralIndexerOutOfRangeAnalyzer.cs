@@ -8,21 +8,21 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as SubstringOutOfRangeAnalyzer (RPAD0235)/
-// InvalidStringRemoveOrInsertArgumentAnalyzer (RPAD0281, проходы 241/298), applied to the plain indexer
+// InvalidStringRemoveOrInsertArgumentAnalyzer (RPAD0281), applied to the plain indexer
 // this time: `"literal"[index]` throws IndexOutOfRangeException when `index` is negative or >= the
 // literal's own length — confirmed empirically (not assumed) that the C# compiler does NOT constant-fold
 // or bounds-check this itself, unlike an array initializer's fixed-size indexer, so it's a genuine
 // runtime-only failure the compiler can't catch on its own. Restricted to a plain literal (or
 // unary-minus-literal) `int` index — the `Index`/`Range` indexer overloads (`s[^1]`, `s[1..3]`) are a
 // different, more involved shape and are NOT handled here.
-// Extended in the триста шестьдесят шестой проход to also handle the `^N` Index-form (`"abc"[^5]`),
+// Extended to also handle the `^N` Index-form (`"abc"[^5]`),
 // resolved to a plain offset (`receiverValue.Length - N`) and fed through the same bounds check/
 // exception type — confirmed empirically to still throw `IndexOutOfRangeException`, same as the plain-int
 // form (unlike `List<T>`'s indexer/RPAD0303, which throws `ArgumentOutOfRangeException` for both forms —
 // `string`'s indexer, like `Array`'s, is the CLR-special-cased kind). The `Range` form (`s[1..3]`)
 // remains out of scope here — genuinely different exception type/mechanism (throws when the SLICE
 // doesn't fit, not when a single position is out of bounds), covered instead by the new sibling
-// RangeSliceOutOfRangeAnalyzer (RPAD0363, same проход).
+// RangeSliceOutOfRangeAnalyzer (RPAD0363).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class StringLiteralIndexerOutOfRangeAnalyzer : DiagnosticAnalyzer
 {

@@ -6,9 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4, the LAST candidate from the fourth research subagent
-// survey (424-й проход, full tool access, empirically self-verified), re-verified independently before
-// implementing. `Type.GetType(string typeName, bool throwOnError)` — confirmed empirically, matching the
+// Candidate #4, `Type.GetType(string typeName, bool throwOnError)` — confirmed empirically, matching the
 // agent's report on the exception types (`TypeLoadException` for an empty string; `ArgumentException` for
 // malformed generic-arity syntax like `"System.String[[["`), but ONLY when `throwOnError` is `true` —
 // confirmed `throwOnError: false` never throws (returns `null` instead), so this analyzer only fires when

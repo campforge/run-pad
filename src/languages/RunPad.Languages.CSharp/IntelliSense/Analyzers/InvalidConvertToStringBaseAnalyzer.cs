@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Mirror image of
-// InvalidConvertToIntegralBaseAnalyzer (RPAD0238, проход 242 + extended проход 290): that one covers
+// InvalidConvertToIntegralBaseAnalyzer (RPAD0238): that one covers
 // `Convert.ToIntXX(string, int fromBase)` parsing FROM a based string; this one covers the opposite
 // direction, `Convert.ToString(numericValue, int toBase)` formatting a number INTO a based string —
 // `Convert.ToString(Byte/Int16/Int32/Int64, int toBase)` are documented to throw `ArgumentException`

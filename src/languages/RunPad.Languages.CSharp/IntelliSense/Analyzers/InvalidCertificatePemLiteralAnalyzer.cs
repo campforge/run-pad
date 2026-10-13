@@ -9,9 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; fifth candidate from the
-// second research subagent survey (проход 397, read-only tools, doc-based hunches only), re-verified
-// empirically before implementing. `X509Certificate2.CreateFromPem(string)` — sibling of RPAD0392's
+// Own pick, not a Roslynator port. `X509Certificate2.CreateFromPem(string)` — sibling of RPAD0392's
 // `RSA.ImportFromPem`, same `ReadOnlySpan<char>`-not-`string` parameter shape (confirmed via reflection
 // before writing any matching code this time, having just learned that lesson on RPAD0392). Static method
 // with two overloads — this analyzer scopes to the 1-arg `(ReadOnlySpan<char> certPem)` overload only,
@@ -25,7 +23,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Message uses a fixed "X509Certificate2.CreateFromPem(...)" phrase rather than embedding the argument
 // text — same UX lesson already applied in RPAD0392: embedding a realistic multi-line PEM block directly
 // in a diagnostic message would be unreadable.
-// Extended (473-й проход, batch, candidate #1 from the thirty-sixth research subagent survey) to also
+// Extended to also
 // cover the previously-excluded 2-arg `CreateFromPem(ReadOnlySpan<char> certPem, ReadOnlySpan<char>
 // keyPem)` overload. Confirmed empirically with a real freshly-generated self-signed cert+key (RSA.Create
 // → CertificateRequest.CreateSelfSigned → ExportCertificatePem/ExportRSAPrivateKeyPem, discarded

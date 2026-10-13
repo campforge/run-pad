@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "dead code
-// via a discarded materialization" theme as PointlessOrderByToListSortAnalyzer (RPAD0113, проход 169),
+// via a discarded materialization" theme as PointlessOrderByToListSortAnalyzer (RPAD0113),
 // generalized: `xs.ToList().Sort();`/`xs.ToList().Reverse();` as a bare statement builds a list,
 // mutates it in place, and then throws the whole thing away — the entire statement has no observable
 // effect. Deliberately defers to RPAD0113 for the specific `OrderBy(...).ToList().Sort()` shape (that

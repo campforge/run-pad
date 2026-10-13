@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "hand-rolled fold instead of the dedicated method" theme as
-// AggregateSumAnalyzer (RPAD0085, проход 164), for string concatenation specifically —
+// AggregateSumAnalyzer (RPAD0085), for string concatenation specifically —
 // AggregateSumAnalyzer is scoped to the numeric SpecialTypes Enumerable.Sum() has overloads for, which
 // excludes string entirely, leaving this pattern uncovered. `xs.Aggregate((a, b) => a + b)` over a
 // string sequence hand-rolls exactly what `string.Concat(xs)` already does — and does it worse: each
@@ -16,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // loop-shaped version of this mistake. `xs.Aggregate("", (acc, x) => acc + x)` is the same mistake with
 // the seed spelled out explicitly instead of implicitly using the first element — only fires when the
 // seed is a compile-time-constant empty string (checked via GetConstantValue), matching
-// AggregateSumAnalyzer's own seeded-zero extension (проход 166).
+// AggregateSumAnalyzer's own seeded-zero extension.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferStringConcatOverAggregateAnalyzer : DiagnosticAnalyzer
 {

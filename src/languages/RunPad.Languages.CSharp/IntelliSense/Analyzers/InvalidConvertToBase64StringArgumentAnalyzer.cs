@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port. Same
 // "literal array with a bad offset/length combination always throws" theme as
 // InvalidEncodingGetStringArgumentAnalyzer/InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer (RPAD0270/
-// RPAD0271, проходы 281/283): `Convert.ToBase64String(byte[] inArray, int offset, int length)` throws
+// RPAD0271): `Convert.ToBase64String(byte[] inArray, int offset, int length)` throws
 // ArgumentOutOfRangeException when offset or length is negative, or when `offset + length` exceeds the
 // array's length (confirmed empirically before writing this — same boundary formula as the rest of this
 // family). A separate analyzer rather than an extension of InvalidBase64LiteralLengthAnalyzer
@@ -18,13 +18,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // padding validity), matching this project's precedent of separating same-type-different-mechanism
 // analyzers. Scoped to a LITERAL array whose length is known at the call site, same helper as
 // RPAD0266-0271.
-// Extended in the триста тринадцатый проход to also cover `Convert.ToHexString(byte[], int offset, int
+// Extended to also cover `Convert.ToHexString(byte[], int offset, int
 // length)` — confirmed empirically to follow the EXACT same boundary formula as `ToBase64String`
 // (offset/length negative, or offset + length > array length), so it reuses the same branch rather than
 // duplicating it. Class name/`DiagnosticId` kept as-is, same precedent as other same-mechanism
 // extensions in this catalog (e.g. `IntegralParseOverflowAnalyzer`/RPAD0258 keeping its name after being
 // extended to `decimal`).
-// Extended again in the триста четырнадцатый проход to also cover `Convert.ToHexStringLower(byte[], int
+// Extended again to also cover `Convert.ToHexStringLower(byte[], int
 // offset, int length)` — confirmed empirically to follow the identical boundary formula as `ToHexString`/
 // `ToBase64String` (it differs only in producing lowercase hex digits, not in argument validation).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

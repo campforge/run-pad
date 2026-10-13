@@ -30,8 +30,8 @@ public interface IWindowService
 
     /// <summary>
     /// Shows a native Open dialog filtered to <c>.dll</c> files, defaulting to
-    /// <paramref name="startFolder"/> (ILSpy-style assembly explorer, user request
-    /// 2026-07-19). Returns the chosen local file path, or null if the dialog was cancelled or
+    /// <paramref name="startFolder"/> (ILSpy-style assembly explorer). Returns the chosen local file path, or null if
+    /// the dialog was cancelled or
     /// unavailable.
     /// </summary>
     Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder);
@@ -58,7 +58,7 @@ public interface IWindowService
     Task ShowTextEditorAsync(string filePath);
 
     /// <summary>
-    /// Shows the non-modal Assembly Explorer window (user request 2026-07-19) — lets
+    /// Shows the non-modal Assembly Explorer window — lets
     /// the script keep running/editable behind it. There's one per app: an open one is brought to
     /// the front instead of opening another.
     /// </summary>

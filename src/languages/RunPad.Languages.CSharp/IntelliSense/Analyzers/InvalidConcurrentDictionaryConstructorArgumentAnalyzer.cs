@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322,
-// проход 350): `new ConcurrentDictionary<TKey, TValue>(int concurrencyLevel, int capacity)` throws
+// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322): `new
+// ConcurrentDictionary<TKey, TValue>(int concurrencyLevel, int capacity)` throws
 // ArgumentOutOfRangeException when `capacity` is negative, or when `concurrencyLevel` is neither
 // positive NOR exactly -1 — confirmed empirically via scratch `dotnet run` script, including the
 // genuinely surprising part: `concurrencyLevel == -1` is itself a documented sentinel meaning "use the

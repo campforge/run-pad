@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as InvalidArraySegmentConstructorArgumentAnalyzer (RPAD0324, проход
-// 350): `new MemoryStream(byte[] buffer, int index, int count[, bool writable])` on a literal array
+// receiver, known length" theme as InvalidArraySegmentConstructorArgumentAnalyzer (RPAD0324): `new
+// MemoryStream(byte[] buffer, int index, int count[, bool writable])` on a literal array
 // throws ArgumentOutOfRangeException for a negative `index`, but a DIFFERENT exception type,
 // ArgumentException, when `index + count` exceeds the array's length — confirmed empirically via
 // scratch `dotnet run` script (the exact same exception-type split as `ArraySegment<T>`'s constructor).

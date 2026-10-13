@@ -13,7 +13,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // IndexOf's O(n) scan) can be meaningfully faster too. Matched against string.IndexOf/List<T>.IndexOf
 // and any other type with a real instance IndexOf(T) plus a matching Contains(T) — verified
 // semantically, not by receiver type name, so custom collections with the same shape are covered too.
-// Extended (сто шестьдесят девятый проход, batch) to also cover the STATIC `Array.IndexOf(array,
+// Extended to also cover the STATIC `Array.IndexOf(array,
 // value)` form — arrays don't have a callable public instance IndexOf, so that idiom uses the static
 // method instead, but the same "compared to -1/0 just to check membership" shape applies.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

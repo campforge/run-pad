@@ -7,12 +7,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #7 from the third research subagent survey (411-й проход,
-// full tool access, empirically self-verified), re-verified independently before implementing. One of the
-// five `XmlConvert.VerifyXxx` siblings that `InvalidXmlNameLiteralAnalyzer` (RPAD0384, проход 392)
+// One of the
+// five `XmlConvert.VerifyXxx` siblings that `InvalidXmlNameLiteralAnalyzer` (RPAD0384)
 // deliberately left unaddressed — that analyzer's own doc comment flagged `VerifyWhitespace` as
 // "confirmed empirically... accept an EMPTY string without throwing... left as a separate, not-yet-
-// attempted candidate" back in проход 392, now finally picked up. Confirmed empirically, matching the
+// attempted candidate" earlier, now finally picked up. Confirmed empirically, matching the
 // agent's report exactly: single exception type, `XmlException`, thrown only when the text contains a
 // character that ISN'T XML whitespace (space, tab, CR, LF) — an empty string is lenient (accepted without
 // throwing), unlike `VerifyName`/`VerifyNCName` (RPAD0384) which both reject empty strings.

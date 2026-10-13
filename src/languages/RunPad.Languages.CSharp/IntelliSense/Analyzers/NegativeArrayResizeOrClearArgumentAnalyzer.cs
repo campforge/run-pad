@@ -13,7 +13,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // IndexOutOfRangeException (a DIFFERENT exception type — confirmed empirically before writing this
 // rather than assumed) for a negative `index` or `length`. Scoped to a LITERAL negative integer only,
 // same reasoning as the rest of this family.
-// Extended (двести семьдесят второй проход, batch) to also cover the 5-arg
+// Extended to also cover the 5-arg
 // `Array.Copy(source, sourceIndex, destination, destinationIndex, length)` overload — throws
 // ArgumentOutOfRangeException (confirmed empirically, same as Resize) for a negative `sourceIndex`,
 // `destinationIndex`, or `length`. A PROBE snippet with a literal-0 sourceIndex/destinationIndex and a
@@ -22,14 +22,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // different, unrelated concern (that analyzer only checks whether the two start indices are literal 0,
 // never looks at the length argument), so both diagnostics coexisting there is expected and fine, same
 // precedent as elsewhere in this project.
-// Extended again (двести семьдесят третий проход, batch) to also cover the 4-/5-arg
+// Extended again to also cover the 4-/5-arg
 // `Array.BinarySearch(array, index, length, value[, comparer])` overloads — also throws
 // ArgumentOutOfRangeException (confirmed empirically) for a negative `index` or `length`.
-// Extended again (двести восемьдесят второй проход, batch) to also cover
+// Extended again to also cover
 // `Array.ConstrainedCopy(source, sourceIndex, destination, destinationIndex, length)` — an EXACT
 // argument-shape match for the already-covered 5-arg `Array.Copy` (same parameter positions, same
 // ArgumentOutOfRangeException), so it reuses that same branch's logic rather than duplicating it.
-// Extended again (триста восьмой проход, batch) to also cover `Array.Reverse(array, index, length)`/
+// Extended again to also cover `Array.Reverse(array, index, length)`/
 // `Array.Sort(array, index, length[, comparer])` — the same (index, length) argument shape as `Clear`
 // (array, index, length), but confirmed empirically to throw `ArgumentOutOfRangeException` for a negative
 // index/length (unlike `Clear`'s `IndexOutOfRangeException`), so they share `BinarySearch`'s branch logic

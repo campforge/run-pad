@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the twenty-sixth research subagent survey,
-// re-verified independently before implementing. `System.Runtime.CompilerServices.RuntimeHelpers.
+// `System.Runtime.CompilerServices.RuntimeHelpers.
 // AllocateTypeAssociatedMemory(Type type, int size)` — first analyzer in the catalog to touch
 // `RuntimeHelpers`. Confirmed empirically: negative `size` always throws
 // `ArgumentOutOfRangeException` (param `size`); `0` is valid and performs a real (harmless) allocation.

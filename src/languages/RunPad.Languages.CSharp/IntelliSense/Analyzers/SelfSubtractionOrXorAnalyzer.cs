@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "comparing/combining a value with itself is almost certainly a mistake" theme as
-// SelfEqualityCheckAnalyzer (RPAD0096, проход 166), for two more operators: `x - x` and `x ^ x` are
+// SelfEqualityCheckAnalyzer (RPAD0096), for two more operators: `x - x` and `x ^ x` are
 // both always zero for ANY value of `x` — unlike `x / x`/`x % x` (which throw for `x == 0`), neither
 // can throw, so both are unconditionally dead code, not just usually pointless. The compiler's CS1718
 // only covers comparison operators (`==`/`!=`/`<`/etc.), not arithmetic/bitwise ones, leaving this gap

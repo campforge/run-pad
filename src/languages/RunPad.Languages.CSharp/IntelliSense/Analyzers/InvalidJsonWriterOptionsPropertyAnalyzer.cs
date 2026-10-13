@@ -7,11 +7,10 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-second research subagent survey,
-// re-verified independently before implementing. `System.Text.Json.JsonWriterOptions.IndentSize`/
+// `System.Text.Json.JsonWriterOptions.IndentSize`/
 // `.IndentCharacter`/`.NewLine` — a sibling gap of the already-covered `JsonSerializerOptions.
-// IndentSize`/`.IndentCharacter`/`.NewLine` (RPAD0443, this same trio, extended for `NewLine` in this
-// same проход) and `InvalidJsonOptionsPropertyAnalyzer` (RPAD0453, which covers `JsonWriterOptions.
+// IndentSize`/`.IndentCharacter`/`.NewLine` (RPAD0443, this same trio, extended for `NewLine` in the same change) and
+// `InvalidJsonOptionsPropertyAnalyzer` (RPAD0453, which covers `JsonWriterOptions.
 // MaxDepth` but not these three). Confirmed empirically on a freshly-constructed, never-used
 // `JsonWriterOptions`: `IndentSize` valid range `[0, 127]` (throws `ArgumentOutOfRangeException`
 // outside it); `IndentCharacter` valid only for space/horizontal tab (throws for any other char);

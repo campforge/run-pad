@@ -19,7 +19,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `BitConverter.ToInt32(new byte[4], 3)` (valid index, only 1 byte left of 4 needed) throws
 // ArgumentException. Scoped to a LITERAL array (known length, same helper as
 // InvalidGuidByteArrayLengthAnalyzer/RPAD0266) and a literal (constant) `startIndex`.
-// Extended in the триста седьмой проход to also cover the 3-argument `BitConverter.ToString(byte[]
+// Extended to also cover the 3-argument `BitConverter.ToString(byte[]
 // value, int startIndex, int length)` — a genuinely different method (not in the ToXxx family above,
 // takes an explicit `length` instead of an implied fixed byte count) with a SUBTLER boundary than the
 // two-argument family: confirmed empirically (scratch `dotnet run` script) that `startIndex ==

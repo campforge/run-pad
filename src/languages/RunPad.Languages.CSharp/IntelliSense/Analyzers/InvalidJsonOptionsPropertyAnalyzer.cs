@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #1/#5 from the fifteenth research subagent survey,
-// re-verified independently before implementing. `JsonReaderOptions`/`JsonWriterOptions`/
+// `JsonReaderOptions`/`JsonWriterOptions`/
 // `JsonDocumentOptions` — siblings of the already-covered `JsonSerializerOptions` (RPAD0443), sharing the
 // same `MaxDepth` property (negative throws `ArgumentOutOfRangeException`, 0 is valid) plus a
 // `CommentHandling` property on the two reader-facing types. The standout finding: `JsonCommentHandling.

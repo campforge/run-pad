@@ -5,8 +5,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The user found that completion (and, worse, the commit-on-"(" behavior from
-// #54) treated the NAME being typed for a fresh declaration as a reference to complete/replace — e.g.
+// The user found that completion (and, worse, the commit-on-"(" behavior) treated the NAME being typed for a fresh
+// declaration as a reference to complete/replace — e.g.
 // typing "void Main" and then "(" replaced "Main" with an unrelated in-scope symbol that happened to
 // share a prefix. LookupSymbols/GetSymbolInfo have no notion of "this identifier is being declared,
 // not referenced", so the fix is a dedicated syntax check (IsDeclarationNamePosition) that returns

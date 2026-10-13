@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `ImmutableArray<T>.Builder.RemoveRange(int index, int
+// `ImmutableArray<T>.Builder.RemoveRange(int index, int
 // length)`/`.Insert(int index, T item)`/`.CopyTo(T[] array, int index)`/`.CopyTo(int sourceIndex, T[]
 // array, int destinationIndex, int length)` — confirmed empirically all throw
 // `ArgumentOutOfRangeException` for a negative `index`/`length`/`sourceIndex`/`destinationIndex`.

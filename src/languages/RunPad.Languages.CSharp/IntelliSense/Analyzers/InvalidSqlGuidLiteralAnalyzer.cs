@@ -7,17 +7,14 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #9, the LAST candidate from the third research subagent
-// survey (411-й проход, full tool access, empirically self-verified), re-verified independently before
-// implementing. `System.Data.SqlTypes.SqlGuid(string)` constructor and `SqlGuid.Parse(string)` — the
+// Candidate #9, `System.Data.SqlTypes.SqlGuid(string)` constructor and `SqlGuid.Parse(string)` — the
 // agent itself flagged this as its lowest-novelty/weakest candidate, since SqlGuid's accepted format set
 // looks functionally identical to `System.Guid`'s own formats (unlike the genuinely-different-value-domain
 // SqlMoney/SqlDecimal/SqlDateTime/SqlBoolean siblings already in this catalog, RPAD0388/0395/0396/0409).
 // Confirmed empirically: BOTH entry points share a single exception type, `FormatException`, with the
 // identical message text ("Unrecognized Guid format.") as `Guid`'s own constructor/`Parse` — strongly
 // suggesting SqlGuid delegates to `Guid` internally. Confirmed the same five accepted formats (D/N/B/P/X)
-// as `InvalidGuidConstructorLiteralAnalyzer` (RPAD0402, проход 411 of the OVERALL session — note this
-// analyzer's own проход number, 421, is unrelated to that numeric coincidence). Still implemented despite
+// as `InvalidGuidConstructorLiteralAnalyzer` (RPAD0402). Still implemented despite
 // the low novelty — it's a genuinely distinct, unguarded call shape (a different type than `Guid`), and
 // completes the third agent's full candidate list.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

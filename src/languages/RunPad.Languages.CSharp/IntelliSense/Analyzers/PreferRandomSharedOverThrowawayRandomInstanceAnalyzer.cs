@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port.
 // `new Random().Next(...)` constructs a Random instance just to call one method on it and immediately
-// discard it — a distinct idea from RandomInstantiatedInLoopAnalyzer (RPAD0133, проход 169), which only
+// discard it — a distinct idea from RandomInstantiatedInLoopAnalyzer (RPAD0133), which only
 // fires when the construction sits inside a loop. This one fires regardless of loop context: even a
 // single throwaway Random() is wasteful (thread-static seeding overhead for an object used once) and,
 // since .NET 6, Random.Shared is a ready-made thread-safe singleton built for exactly this call shape.

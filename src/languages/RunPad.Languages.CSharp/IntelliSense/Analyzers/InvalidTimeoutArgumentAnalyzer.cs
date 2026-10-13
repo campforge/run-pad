@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `dotnet run` script that all four share the IDENTICAL boundary formula, just as an INSTANCE method
 // with the timeout as the first explicit argument (unlike the STATIC `Monitor.TryEnter`/
 // `SpinWait.SpinUntil`, which take the timeout as a later argument — see the sibling
-// InvalidMonitorOrSpinWaitTimeoutArgumentAnalyzer, RPAD0331, same проход, kept separate for that
+// InvalidMonitorOrSpinWaitTimeoutArgumentAnalyzer, RPAD0331, same change, kept separate for that
 // shape difference). `WaitHandle.WaitOne`/`Task.Wait`/`ManualResetEventSlim.Wait` are resolved via the
 // BASE type that actually declares the method (`WaitHandle`/`Task`/`ManualResetEventSlim` itself) since
 // Roslyn resolves an inherited call to the declaring symbol regardless of the concrete receiver type

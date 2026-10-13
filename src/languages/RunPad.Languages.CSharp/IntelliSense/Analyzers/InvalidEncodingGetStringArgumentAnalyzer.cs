@@ -8,13 +8,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "literal array with a bad index/count combination always throws" theme as
-// InvalidStringCharArrayConstructorArgumentAnalyzer (RPAD0269, проход 280): `Encoding.GetString(byte[]
+// InvalidStringCharArrayConstructorArgumentAnalyzer (RPAD0269): `Encoding.GetString(byte[]
 // bytes, int index, int count)` throws ArgumentOutOfRangeException when index or count is negative, or
 // when `index + count` exceeds the array's length (confirmed empirically before writing this — a
 // single exception type across every invalid case, like RPAD0269, not two different ones like
 // InvalidBitConverterArgumentAnalyzer/RPAD0268). Scoped to a LITERAL array whose length is known at the
 // call site, same helper as RPAD0266-0269.
-// Extended (триста пятьдесят пятый проход, batch) to also cover `Encoding.GetByteCount(char[], int,
+// Extended to also cover `Encoding.GetByteCount(char[], int,
 // int)`, `GetCharCount(byte[], int, int)`, and `GetChars(byte[], int, int)` — confirmed empirically to
 // share the EXACT same boundary formula and exception type as `GetString`. Also extended to check the
 // SOURCE-array bounds (only) of the 5-arg `GetBytes(char[] chars, int charIndex, int charCount, byte[]

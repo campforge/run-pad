@@ -6,7 +6,7 @@ namespace RunPad.Languages.VB;
 // plus the SDK's own default VB imports into project-level imports (vbc /imports:).
 internal static class VbProjectProfile
 {
-    // RunPad.Runtime (live user request 2026-07-28, LINQPad Runtime API compatibility) added
+    // RunPad.Runtime (LINQPad Runtime API compatibility) added
     // alongside the BCL set for the exact same reason C#'s own DefaultImportNamespaces now carries
     // it — see CSharpProjectProfile's own comment.
     private static readonly string[] _defaultImports =

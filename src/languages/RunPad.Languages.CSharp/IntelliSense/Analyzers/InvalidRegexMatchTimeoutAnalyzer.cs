@@ -20,7 +20,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // skipped, same "MVP first, extend later" scoping as other analyzers in this catalog. Only the `Regex`
 // CONSTRUCTOR overload is covered here — the static `Regex.IsMatch`/`Match`/`Matches`/`Replace`/`Split`
 // overloads that also accept a `matchTimeout` are candidates for a follow-up extension.
-// Extended in the двести девяносто пятый проход to also cover those static methods — confirmed
+// Extended to also cover those static methods — confirmed
 // empirically that all of them (`IsMatch`/`Match`/`Matches`/`Replace` (both the string and
 // `MatchEvaluator` overloads)/`Split`) throw identically to the constructor for the same `matchTimeout`
 // value, so the same proxy validator (constructing a throwaway `Regex` instance) is reused rather than

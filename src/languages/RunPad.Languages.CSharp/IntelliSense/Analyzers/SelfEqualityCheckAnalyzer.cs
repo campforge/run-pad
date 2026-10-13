@@ -14,9 +14,9 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // on both sides (not general expressions) — comparing the results of two separate method CALLS that
 // happen to look identical isn't necessarily comparing the same value if the call has side effects, so
 // only the unambiguous "exact same local/parameter/field" case is flagged.
-// Extended (сто семьдесят шестой проход, batch) to also cover `x.CompareTo(x)` — an IComparable
+// Extended to also cover `x.CompareTo(x)` — an IComparable
 // self-compare always returns 0, same underlying mistake, one more method in the same family.
-// Extended (двести тридцать четвёртый проход, batch) to also cover `x.HasFlag(x)` — checking that
+// Extended to also cover `x.HasFlag(x)` — checking that
 // every bit of x is set in x itself is always true, same underlying self-comparison mistake.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SelfEqualityCheckAnalyzer : DiagnosticAnalyzer

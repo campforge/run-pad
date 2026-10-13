@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// LINQPad Runtime API compatibility (live user request 2026-07-28) — DumpContainer's real shape
+// LINQPad Runtime API compatibility — DumpContainer's real shape
 // (UpdateContent/AppendContent/ClearContent, Style, DumpDepth, the Rx-style When*Changed observables)
 // verified against the real LINQPad.Runtime.dll. Deliberately no Dump() method of its own — see the
 // class's own doc comment for why an instance method would shadow every ObjectExtensions.Dump

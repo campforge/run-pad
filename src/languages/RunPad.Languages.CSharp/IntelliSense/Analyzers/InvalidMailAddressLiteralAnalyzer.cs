@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidCultureNameLiteralAnalyzer (RPAD0248)/InvalidIPAddressLiteralAnalyzer
-// (RPAD0249, both проход 255-256): `new MailAddress(s)` throws `FormatException` for a string that
+// (RPAD0249): `new MailAddress(s)` throws `FormatException` for a string that
 // isn't a syntactically valid email address — email address syntax is notoriously easy to get subtly
 // wrong with a hand-written regex (quoted local parts, comments, IP-literal domains), so rather than
 // approximate it, this analyzer constructs the REAL `System.Net.Mail.MailAddress` in-process on the

@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Fourth
 // analyzer in the "run the real validator" flags-enum theme (RegexOptions/NumberStyles/DateTimeStyles —
-// RPAD0274/RPAD0275/RPAD0276, проходы 286-288), applied to `CompareOptions`:
+// RPAD0274/RPAD0275/RPAD0276), applied to `CompareOptions`:
 // `CompareInfo.Compare(a, b, CompareOptions)`/`string.Compare(a, b, CultureInfo, CompareOptions)` throw
 // ArgumentException when `options` combines `CompareOptions.Ordinal` or `CompareOptions.OrdinalIgnoreCase`
 // with ANY other flag (including each other) — both must always be used alone. Confirmed empirically

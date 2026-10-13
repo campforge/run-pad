@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #1/#2 from the sixteenth research subagent survey,
-// re-verified independently before implementing. `System.Threading.Tasks.Dataflow.DataflowBlockOptions.
+// `System.Threading.Tasks.Dataflow.DataflowBlockOptions.
 // BoundedCapacity` (declared on the base type, inherited by `ExecutionDataflowBlockOptions`/
 // `GroupingDataflowBlockOptions`) and `ExecutionDataflowBlockOptions.MaxDegreeOfParallelism` (declared
 // only on that derived type, not the base) — first analyzer in this catalog touching

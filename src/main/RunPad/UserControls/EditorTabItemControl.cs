@@ -568,7 +568,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.TextArea.Caret.Column = column;
     }
 
-    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — ApplyCodeFixAsync's
+    // ReSharper-style "resolve all missing usings" — ApplyCodeFixAsync's
     // batch-of-one counterpart: resolves every unambiguous unresolved-type diagnostic in the document
     // at once instead of requiring the lightbulb's "using X;" fix to be accepted one at a time. Same
     // application path a single fix's UsingsToAdd already goes through (front matter `namespaces:`
@@ -1130,7 +1130,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Pass 106 (2026-07-21) switched exclusion from a Title substring match to an exact,
     // case-insensitive match against DiagnosticId ("CS0184", "IDE0007", ...) — a stable, documented
     // Roslyn identifier instead of prose a provider could phrase however it likes, per user request.
-    // Accepted narrowing versus pass 105's title-based filter: a refactoring's DiagnosticId
+    // Accepted narrowing versus the earlier title-based filter: a refactoring's DiagnosticId
     // is always null (CodeFixEntry's own doc comment — a CodeRefactoringProvider has no underlying
     // diagnostic to key off), so it can no longer be excluded at all, unlike before when its title
     // could still match a substring. Not worked around (e.g. by keeping a secondary title-based path

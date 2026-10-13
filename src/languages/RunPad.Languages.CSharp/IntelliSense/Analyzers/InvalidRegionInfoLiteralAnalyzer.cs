@@ -7,9 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; candidate
-// surfaced by the same research subagent survey as RPAD0370/RPAD0371 (проход 377), confirmed empirically
-// before implementing. Sibling of InvalidCultureNameLiteralAnalyzer (RPAD0248, проход 255) — same "run
+// Own pick, not a Roslynator port. Sibling of InvalidCultureNameLiteralAnalyzer (RPAD0248) — same "run
 // the real validator" theme and same try/catch-around-the-real-constructor technique (there's no
 // `RegionInfo.TryCreate`/similar), applied to `new RegionInfo(string)` instead of `CultureInfo`:
 // `RegionInfo`'s own doc comment already flagged this as a genuine gap — `InvalidCultureNameLiteralAnalyzer`

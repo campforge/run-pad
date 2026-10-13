@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the thirty-third research subagent survey,
-// re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
+// `System.Security.Cryptography.X509Certificates.
 // X509CertificateLoader.LoadPkcs12(byte[], string?, X509KeyStorageFlags, Pkcs12LoaderLimits?)` and its
 // sibling `LoadPkcs12Collection` — the modern, non-obsolete replacement for the `[Obsolete]`/SYSLIB0057
 // `X509Certificate2` constructors. Confirmed empirically: `X509KeyStorageFlags` is `int`-backed

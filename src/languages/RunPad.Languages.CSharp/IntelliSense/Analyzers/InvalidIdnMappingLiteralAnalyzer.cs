@@ -7,9 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; second of the
-// four "needs verification" candidates from the research subagent's ranked list (проход 377), confirmed
-// empirically before implementing. Same "run the real validator" theme as this catalog's other analyzers,
+// Own pick, not a Roslynator port. Same "run the real validator" theme as this catalog's other analyzers,
 // applied to the instance methods `IdnMapping.GetAscii(string)`/`GetUnicode(string)` instead of a
 // constructor. Genuine correctness subtlety, caught BEFORE implementing (not after, unlike the
 // InvalidCryptoAlgorithmKeySizeAnalyzer/RPAD0352 self-correction): `IdnMapping.AllowUnassigned`/

@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `var cts = new CancellationTokenSource(); cts.CancelAfter(delay);` constructs a CancellationTokenSource
 // that never times out and then immediately arms a timeout on it — `new CancellationTokenSource(delay)`
 // does both in one call, which is exactly what that constructor overload exists for. Scoped to the
-// narrowest safe shape (matching PreferStopwatchStartNewOverConstructorThenStartAnalyzer, проход 223):
+// narrowest safe shape (matching PreferStopwatchStartNewOverConstructorThenStartAnalyzer):
 // a parameterless constructor local declaration whose VERY NEXT sibling statement is a single-argument
 // `.CancelAfter(...)` call on that exact local, and nothing else in between.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

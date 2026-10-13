@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. A sibling shape to
-// PreferEqualityOperatorOverDateTimeCompareAnalyzer (RPAD0173, проход 187 — that one is the STATIC
+// PreferEqualityOperatorOverDateTimeCompareAnalyzer (RPAD0173 — that one is the STATIC
 // `DateTime.Compare(a, b) == 0` form). This is the INSTANCE `x.CompareTo(y) == 0` form: `x.CompareTo(y)`
 // computes a full three-way ordering (negative/zero/positive) just to throw away everything except
 // whether it was zero — `x == y` says the same thing directly. Restricted to the built-in numeric

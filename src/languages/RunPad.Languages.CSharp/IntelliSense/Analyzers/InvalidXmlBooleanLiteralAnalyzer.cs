@@ -7,11 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; sourced from a
-// second research subagent survey (проход 397), which this time ran with read-only tools and could NOT
-// execute its own verification scripts — every candidate it returned was explicitly flagged as an
-// "unverified hunch" based only on reading XML doc comments, not empirical confirmation. Re-verified
-// empirically before implementing, per this session's standing discipline. `XmlConvert.ToBoolean(string)` —
+// Own pick, not a Roslynator port. `XmlConvert.ToBoolean(string)` —
 // grep-confirmed the only prior XmlConvert coverage is InvalidXmlNameLiteralAnalyzer (RPAD0384, unrelated
 // VerifyName/VerifyNCName methods). GENUINE SURPRISE confirmed empirically: unlike
 // InvalidBooleanLiteralAnalyzer's `bool.Parse`/`Convert.ToBoolean` (RPAD0253, case-INSENSITIVE, only

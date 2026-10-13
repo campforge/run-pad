@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the seventeenth research subagent survey,
-// re-verified independently before implementing. `System.Threading.Tasks.Dataflow.DataflowLinkOptions.
+// `System.Threading.Tasks.Dataflow.DataflowLinkOptions.
 // MaxMessages` (plain `int`, declared directly on `DataflowLinkOptions`, a type distinct from the
 // already-covered `DataflowBlockOptions`/`ExecutionDataflowBlockOptions`, RPAD0457) — throws
 // `ArgumentOutOfRangeException` for `0` or any value < -1; `-1` (unlimited) and positive values are

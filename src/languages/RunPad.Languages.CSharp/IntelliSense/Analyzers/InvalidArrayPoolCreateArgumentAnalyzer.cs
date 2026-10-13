@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "constructor/factory argument validation" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
-// (RPAD0333, проход 352): `ArrayPool<T>.Create(int maxArrayLength, int maxArraysPerBucket)` throws
+// (RPAD0333): `ArrayPool<T>.Create(int maxArrayLength, int maxArraysPerBucket)` throws
 // ArgumentOutOfRangeException when either argument isn't strictly positive — confirmed empirically via
 // scratch `dotnet run` script. A static factory method rather than a constructor, but the same "literal
 // argument that always throws" shape as the rest of this catalog.

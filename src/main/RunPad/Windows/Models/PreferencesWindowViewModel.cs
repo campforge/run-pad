@@ -131,7 +131,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _selectedNode is not null && _selectedNode.Id != "languages"
             && _selectedNode.Id.StartsWith(LanguageNodeIdPrefix, StringComparison.Ordinal);
 
-    // C#'s own node (user request 2026-07-20) — the first language to
+    // C#'s own node — the first language to
     // actually need a real settings panel instead of the shared placeholder below. A bespoke property
     // alongside the generic IsLanguageNodeSelected check, same dual-track shape IsDotnetSelected
     // already uses (a hardcoded special case sitting next to the generic system, not a reversion of
@@ -358,7 +358,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.NewFileKind, value, v => _prefs.Editor.NewFileKind = v);
     }
 
-    // ── C# (user request 2026-07-20) ────────────────
+    // ── C# ────────────────
 
     public bool InlayHintsEnabled
     {

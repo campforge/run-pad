@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #6 from the fifteenth research subagent survey,
-// re-verified independently before implementing. `System.Threading.Channels.BoundedChannelOptions(int
+// `System.Threading.Channels.BoundedChannelOptions(int
 // capacity)` constructor and its `FullMode` property setter. Confirmed empirically: the constructor
 // throws `ArgumentOutOfRangeException` for a negative `capacity` (note: `0` is itself VALID — a
 // zero-capacity rendezvous channel — confirmed rather than assumed, since a naive guess might expect 0 to

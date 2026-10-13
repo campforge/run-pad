@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-third research subagent survey,
-// re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.MetadataBuilder`
+// `System.Reflection.Metadata.Ecma335.MetadataBuilder`
 // instance methods, bundled under one diagnostic (several call shapes — one diagnostic, precedent
 // RPAD0426): `SetCapacity(TableIndex table, int rowCount)` — negative `rowCount` or `table` outside the
 // defined 0-53 range throws `ArgumentOutOfRangeException` (confirmed `TableIndex` is BYTE-backed via

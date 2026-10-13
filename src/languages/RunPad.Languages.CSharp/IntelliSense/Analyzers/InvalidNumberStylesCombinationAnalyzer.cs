@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run
-// the real validator" theme as InvalidRegexOptionsCombinationAnalyzer (RPAD0274, проход 286), applied to
+// the real validator" theme as InvalidRegexOptionsCombinationAnalyzer (RPAD0274), applied to
 // a different flags enum: `Xxx.Parse(s, NumberStyles style[, IFormatProvider])` throws ArgumentException
 // when `style` combines `NumberStyles.AllowHexSpecifier` with most other flags (confirmed empirically
 // before writing this — e.g. `AllowHexSpecifier | AllowDecimalPoint` throws for every numeric type
@@ -22,7 +22,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // too), reporting only if that call itself throws — the placeholder string means the user's own string
 // argument doesn't need to be a literal at all. `TryParse` (not `Parse`) is used to avoid the analyzer's
 // own bare-throwing-catch shape triggering EmptyCatchClauseAnalyzer/RPAD0001 on itself.
-// Extended in the двести девяносто второй проход to also cover `System.Numerics.BigInteger.Parse` —
+// Extended to also cover `System.Numerics.BigInteger.Parse` —
 // confirmed empirically (scratch `dotnet run` script) to follow the same int/long-shaped compatible
 // subset (AllowHexSpecifier alone or with only the whitespace flags). `BigInteger` isn't a Roslyn
 // `SpecialType`, so it's matched by name/namespace instead of the `SpecialType` switch used for the

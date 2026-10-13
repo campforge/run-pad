@@ -11,7 +11,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `Thread.Sleep(ms)` does directly, without allocating a Task and its machinery (timer registration,
 // continuation scheduling) just to immediately block on it. If the delay were meant to be awaited
 // asynchronously, `Wait()` wouldn't be there — this is specifically the synchronous-blocking case.
-// Extended (сто восемьдесят третий проход, batch) to also cover `Task.Delay(ms).GetAwaiter().GetResult()`
+// Extended to also cover `Task.Delay(ms).GetAwaiter().GetResult()`
 // — the same synchronous-blocking delay, just spelled with the lower-level awaiter API instead of Wait().
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TaskDelayThenWaitAnalyzer : DiagnosticAnalyzer

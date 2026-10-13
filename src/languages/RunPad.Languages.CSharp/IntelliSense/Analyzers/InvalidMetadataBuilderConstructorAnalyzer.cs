@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the twenty-third research subagent survey,
-// re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
+// `System.Reflection.Metadata.Ecma335.
 // MetadataBuilder(int userStringHeapStartOffset, int stringHeapStartOffset, int blobHeapStartOffset,
 // int guidHeapStartOffset)` — first sibling found under the already-covered `BlobBuilder`'s namespace
 // (RPAD0474). Confirmed empirically: any of the first three offsets negative throws

@@ -9,14 +9,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port. Same
 // "literal array with a bad start/length combination always throws" theme as
 // InvalidStringCharArrayConstructorArgumentAnalyzer/InvalidEncodingGetStringArgumentAnalyzer
-// (RPAD0269/RPAD0270, проходы 280-281): `array.AsSpan(start[, length])` and `array.AsMemory(start[,
+// (RPAD0269/RPAD0270): `array.AsSpan(start[, length])` and `array.AsMemory(start[,
 // length])` throw ArgumentOutOfRangeException when `start` is negative or beyond the array's length, or
 // when a supplied `length` is negative or `start + length` exceeds the array's length (confirmed
 // empirically before writing this, including the 1-arg overload where `length` defaults to
 // `array.Length - start`, and the boundary case `AsSpan(array.Length, 0)` which is itself invalid since
 // the start position alone already exceeds the array). Scoped to a LITERAL array whose length is known
 // at the call site, same helper as RPAD0266-0270.
-// Extended (триста пятидесятый проход, batch) to also cover the `new Span<T>(array, start, length)`/
+// Extended to also cover the `new Span<T>(array, start, length)`/
 // `new Memory<T>(array, start, length)`/`new ReadOnlySpan<T>(array, start, length)`/
 // `new ReadOnlyMemory<T>(array, start, length)` constructors — confirmed empirically to follow the
 // EXACT same boundary formula and exception type (ArgumentOutOfRangeException) as the `AsSpan`/

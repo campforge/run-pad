@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // (a LINQ Enumerable method that could be a plain indexer access on a type that already has one).
 // `list.First()`/`list.ElementAt(n)` walk an IEnumerator to reach the answer; `list[0]`/`list[n]` is
 // direct and just as clear when the receiver is already indexable.
-// Extended (сто шестьдесят седьмой проход, batch) to also cover `Last()` → `[^1]`, using the C# 8+
+// Extended to also cover `Last()` → `[^1]`, using the C# 8+
 // index-from-end operator — requires the receiver to also have a Count/Length property (that's what
 // makes `^1` resolvable at all; a bare int indexer alone isn't enough), unlike First()/ElementAt(n)
 // which only ever need the indexer itself.

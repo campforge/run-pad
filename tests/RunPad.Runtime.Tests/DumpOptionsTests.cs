@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// LINQPad Runtime API compatibility (live user request 2026-07-28) — DumpOptionsCore/DumpOptions
+// LINQPad Runtime API compatibility — DumpOptionsCore/DumpOptions
 // shape verified against the real LINQPad.Runtime.dll. CombineWith's tested here as a pure function
 // on freshly-constructed instances only — never against the actual process-wide DumpOptions.Default/
 // Util.DumpDefaults singleton, which every Render() call reads (DumpRenderer.Render), making it

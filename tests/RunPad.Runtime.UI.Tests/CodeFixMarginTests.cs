@@ -108,7 +108,7 @@ public class CodeFixMarginTests
         Assert.Equal(expectedKey, CodeFixMargin.SeverityBrushKey(severity));
     }
 
-    // Regression guard for the alignment half of #75: before the fix, MeasureOverride returned
+    // Regression guard for the alignment half of the gutter fix: before the fix, MeasureOverride returned
     // TextView.DefaultLineHeight * 0.8 regardless of the shared gutter formula — a value that
     // diverges from GutterMetrics as soon as the document needs more than the 2-digit minimum (e.g.
     // 100+ lines), and is narrower even at the minimum. Comparing directly against GutterMetrics
@@ -178,8 +178,8 @@ public class CodeFixMarginTests
         Assert.Equal(2, atRightEdge);
     }
 
-    // Locks in the size correction itself — #82 had shrunk the glyph to 0.6x line
-    // height (close to its original pre-#75 size), which read as too small to comfortably aim at
+    // Locks in the size correction itself — the first size fix had shrunk the glyph to 0.6x line
+    // height (close to its original pre-alignment size), which read as too small to comfortably aim at
     // even though the click area was already generous (see the test above). This just bounds the
     // chosen coefficient to a sane "clearly visible, not the old column-width-scaled balloon"
     // range, so a future tweak can't silently regress back to either extreme.

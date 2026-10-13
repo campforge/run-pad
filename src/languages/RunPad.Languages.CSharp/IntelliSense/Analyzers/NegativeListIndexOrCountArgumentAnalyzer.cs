@@ -16,11 +16,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // 0 and 1, not 1 and 2. Scoped to a LITERAL negative integer only, same reasoning as the rest of this
 // family — `Sort`'s 0-/1-argument overloads (no index/count) and `Reverse()`'s 0-argument overload are
 // naturally excluded by the argument-count check.
-// Extended in the триста десятый проход to also cover `list.BinarySearch(index, count, item, comparer)`
+// Extended to also cover `list.BinarySearch(index, count, item, comparer)`
 // (same shape as `Sort`) and `list.CopyTo(index, array, arrayIndex, count)` — confirmed empirically that
 // all three of `CopyTo`'s numeric arguments (`index`, `arrayIndex`, AND `count`) independently throw
 // ArgumentOutOfRangeException when negative, unlike the others' two-argument shape.
-// Extended again in the триста тридцать первый проход to also cover `list.IndexOf(item, index[, count])`
+// Extended again to also cover `list.IndexOf(item, index[, count])`
 // and `list.LastIndexOf(item, index[, count])` — confirmed empirically to throw for a negative `index`
 // OR `count` exactly like the rest of this family (this analyzer, unlike its Array-family cousins
 // InvalidArrayFillArgumentAnalyzer/InvalidArrayLastIndexOfArgumentAnalyzer, RPAD0294/RPAD0298, never

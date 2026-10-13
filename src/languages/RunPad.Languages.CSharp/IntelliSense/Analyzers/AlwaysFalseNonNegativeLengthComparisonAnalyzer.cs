@@ -7,13 +7,13 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Same "always false" family as
-// UnsignedValueNeverLessThanZeroAnalyzer (RPAD0007, pass 147), for a different reason: `.Length`/
+// UnsignedValueNeverLessThanZeroAnalyzer (RPAD0007), for a different reason: `.Length`/
 // `.Count` on string/array/the standard collection interfaces is documented to never be negative, so
 // `x.Length < 0` is always false regardless of the type being a plain (signed) int. Deliberately
 // restricted to a short, known-safe list of properties (string.Length, array Length, ICollection(<T>)/
 // IReadOnlyCollection<T>.Count) rather than any int property literally named Length/Count, to avoid
 // guessing at a type's own invariants.
-// Extended (двести тридцать четвёртый проход, batch) to also cover the "always true" mirror —
+// Extended to also cover the "always true" mirror —
 // `x.Length >= 0`/`0 <= x.Length` — same non-negative invariant, opposite comparison. Deliberately does
 // NOT add `x.Length <= 0`/`0 >= x.Length` — those are equivalent to the meaningful `x.Length == 0`, not
 // a redundant comparison at all.

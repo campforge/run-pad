@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #1/#2/#3 from the eighteenth research subagent survey,
-// re-verified independently before implementing. `AesGcm(byte[] key, int tagSizeInBytes = 16)`,
+// `AesGcm(byte[] key, int tagSizeInBytes = 16)`,
 // `AesCcm(byte[] key)`, `ChaCha20Poly1305(byte[] key)` — the AEAD cipher family, a previously-untouched
 // vein within `System.Security.Cryptography` (this catalog already covers PEM import and
 // HashAlgorithmName-consuming statics, but not these constructors). Confirmed empirically: a

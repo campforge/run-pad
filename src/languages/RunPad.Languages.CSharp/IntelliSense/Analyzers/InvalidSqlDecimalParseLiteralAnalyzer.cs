@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port; sibling of RPAD0395's
-// SqlMoney.Parse, same "analogy only, zero doc evidence" flag from the second research subagent survey
-// (проход 397), re-derived empirically before implementing. `SqlDecimal.Parse(string)` — single overload
+// SqlMoney.Parse. `SqlDecimal.Parse(string)` — single overload
 // (confirmed via reflection), grep-confirmed no prior coverage. Confirmed empirically this is a
 // TWO-exception-type situation, but with a genuinely subtler boundary than SqlMoney's: `SqlDecimal` allows
 // up to exactly 38 total significant digits (integer + fractional digits combined, sign doesn't count) —

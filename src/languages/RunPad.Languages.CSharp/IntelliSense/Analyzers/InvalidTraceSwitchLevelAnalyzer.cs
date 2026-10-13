@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the seventeenth research subagent survey,
-// re-verified independently before implementing. `System.Diagnostics.TraceSwitch.Level` — property type
+// `System.Diagnostics.TraceSwitch.Level` — property type
 // `TraceLevel` (name differs from type name), `int`-backed (confirmed via `Enum.GetUnderlyingType`).
 // Confirmed empirically: throws `ArgumentException` ("The Level must be set to a value in the
 // enumeration TraceLevel.") for any value outside 0-4 (`Off`/`Error`/`Warning`/`Info`/`Verbose`);

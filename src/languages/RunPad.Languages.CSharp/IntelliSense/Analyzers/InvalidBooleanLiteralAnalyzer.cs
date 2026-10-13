@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run the real
 // validator" theme as InvalidCultureNameLiteralAnalyzer/InvalidIPAddressLiteralAnalyzer/
-// InvalidMailAddressLiteralAnalyzer (RPAD0248-0250, проходы 255-257): `bool.Parse(s)` and
+// InvalidMailAddressLiteralAnalyzer (RPAD0248-0250): `bool.Parse(s)` and
 // `Convert.ToBoolean(s)` (the string overload of which just calls `bool.Parse` internally) both throw
 // FormatException for any string other than "True"/"False", case-insensitively, with optional
 // surrounding whitespace — rather than hand-writing that comparison, this analyzer calls the REAL

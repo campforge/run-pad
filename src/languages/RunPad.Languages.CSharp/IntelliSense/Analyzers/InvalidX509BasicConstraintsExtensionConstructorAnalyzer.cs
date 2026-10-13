@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate B from the twenty-fourth research subagent survey,
-// re-verified independently before implementing. A fifth productive revisit of
+// A fifth productive revisit of
 // `System.Security.Cryptography.X509Certificates` (after X500DistinguishedNameBuilder/RPAD0472,
 // SubjectAlternativeNameBuilder/RPAD0473, CertificateRevocationListBuilder/RPAD0477,
 // X509SubjectKeyIdentifierExtension/RPAD0483). `X509BasicConstraintsExtension(bool

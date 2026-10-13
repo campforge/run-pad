@@ -7,14 +7,14 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
-// InvalidTimeoutArgumentAnalyzer (RPAD0330, same проход) — same "millisecondsTimeout must be -1 or
+// InvalidTimeoutArgumentAnalyzer (RPAD0330) — same "millisecondsTimeout must be -1 or
 // non-negative" formula, but on the two STATIC methods that take the timeout as their SECOND argument
 // rather than as an instance-method receiver's first argument: `Monitor.TryEnter(object obj, int
 // millisecondsTimeout[, ref bool lockTaken])` and `SpinWait.SpinUntil(Func<bool> condition, int
 // millisecondsTimeout)` — confirmed empirically to throw ArgumentOutOfRangeException for the identical
 // `< -1` boundary. Kept as a separate analyzer from RPAD0330 purely because of this shape difference
 // (which argument position holds the timeout), not because the validation logic differs.
-// Extended (триста шестьдесят первый проход, batch) to also cover the STATIC `Task.WaitAll(Task[]
+// Extended to also cover the STATIC `Task.WaitAll(Task[]
 // tasks, int millisecondsTimeout)`/`Task.WaitAny(Task[] tasks, int millisecondsTimeout)` and
 // `WaitHandle.WaitAll(WaitHandle[] waitHandles, int millisecondsTimeout)`/`WaitHandle.WaitAny(...)` —
 // confirmed empirically to share the identical `< -1` boundary formula and the same "array first,

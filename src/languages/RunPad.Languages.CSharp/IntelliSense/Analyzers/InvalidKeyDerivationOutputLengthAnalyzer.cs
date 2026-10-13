@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #3/#4 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `Rfc2898DeriveBytes.Pbkdf2(..., int iterations,
+// `Rfc2898DeriveBytes.Pbkdf2(..., int iterations,
 // HashAlgorithmName, int outputLength)` (the modern non-obsolete static method — deliberately NOT the
 // `Rfc2898DeriveBytes` constructors, which are `[Obsolete]`/SYSLIB0060) and `HKDF.Expand`/`HKDF.DeriveKey`
 // (`outputLength` parameter). Bundled into one analyzer since both are sibling key-derivation APIs

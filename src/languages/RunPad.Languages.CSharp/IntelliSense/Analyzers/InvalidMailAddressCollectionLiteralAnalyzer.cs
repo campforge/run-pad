@@ -7,11 +7,9 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; last candidate from the
-// second research subagent survey (проход 397) — flagged by the agent as "low-medium confidence" with the
-// explicit caveat that its rules "may turn out identical" to the already-shipped `new MailAddress(string)`
-// coverage (InvalidMailAddressLiteralAnalyzer, RPAD0250, проход 256), so checked for genuine non-duplication
-// before implementing (learning from проход 370's near-miss). Confirmed empirically it is NOT a duplicate:
+// Own pick, not a Roslynator port; checked for genuine non-duplication against the already-shipped `new
+// MailAddress(string)` coverage (InvalidMailAddressLiteralAnalyzer, RPAD0250). Confirmed empirically it is NOT a
+// duplicate:
 // `MailAddressCollection.Add(string)` accepts a COMMA-SEPARATED list of addresses — a call shape `new
 // MailAddress(string)` cannot represent at all (confirmed empirically that `new MailAddress("a@b.com,
 // c@d.com")` does NOT throw, unlike `collection.Add("a@b.com, c@d.com")` which succeeds for a different

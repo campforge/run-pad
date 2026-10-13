@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the tenth research subagent survey, re-verified
-// independently before implementing. `System.Xml.XmlConvert.ToString(DateTime value, string format)` /
+// `System.Xml.XmlConvert.ToString(DateTime value, string format)` /
 // `XmlConvert.ToString(DateTimeOffset value, string format)` — grep-confirmed no prior coverage. Same
 // "second-parameter-string, format validity is independent of the value" theme already established by
 // `InvalidToStringFormatSpecifierAnalyzer` (RPAD0346) for `value.ToString(format)`: the `format` literal's

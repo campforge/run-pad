@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. The backward-searching
-// counterpart to InvalidArrayFillArgumentAnalyzer's (RPAD0294, проходы 325/328/329) forward-searching
+// counterpart to InvalidArrayFillArgumentAnalyzer's (RPAD0294) forward-searching
 // `Fill`/`IndexOf`/`FindIndex` family, deliberately kept as a SEPARATE analyzer rather than folded into
 // that one — the boundary formula is genuinely different, not just a different argument shape: for
 // `Array.LastIndexOf<T>(T[] array, T value, int startIndex, int count)` and `Array.FindLastIndex<T>(T[]

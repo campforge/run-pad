@@ -7,10 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the sixth research subagent survey (Tier 2, "needs
-// a culture-safety guard before shipping"), re-verified independently before implementing.
 // `DateTime/DateTimeOffset/TimeSpan/DateOnly/TimeOnly.ParseExact(string, string, IFormatProvider)` — the
-// `ParseExact` sibling of the already-covered plain `Parse` (RPAD0365, проход 372), whose own doc comment
+// `ParseExact` sibling of the already-covered plain `Parse` (RPAD0365), whose own doc comment
 // explicitly notes it only matches the 1-arg `Parse` overload, never `ParseExact`. Confirmed via grep no
 // existing analyzer even mentions `ParseExact` for these five types (only `Guid.ParseExact`, RPAD0252-ish,
 // is covered, a culture-free format entirely).

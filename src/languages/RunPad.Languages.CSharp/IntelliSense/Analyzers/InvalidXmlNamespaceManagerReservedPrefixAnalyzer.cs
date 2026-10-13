@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the twenty-first research subagent survey,
-// re-verified independently before implementing. `System.Xml.XmlNamespaceManager.AddNamespace(string
+// `System.Xml.XmlNamespaceManager.AddNamespace(string
 // prefix, string uri)` — a method (not a type) within the heavily-covered `System.Xml` vein that prior
 // rounds evidently never probed. Confirmed empirically, both case-sensitive (uppercase "XMLNS"/"XML" do
 // NOT trigger this): prefix == "xmlns" (exact case) always throws ArgumentException regardless of the

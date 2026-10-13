@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // static method vs. a struct constructor) rather than hand-deriving the boundary arithmetic. Both are
 // pure, side-effect-free managed calls (unlike RPAD0322's `Semaphore`, which wraps a live OS handle),
 // so probing them live inside a try/catch during analysis is safe. A sibling analyzer,
-// InvalidRuneOrSurrogatePairConstructorArgumentAnalyzer (RPAD0326, same проход), covers the related but
+// InvalidRuneOrSurrogatePairConstructorArgumentAnalyzer (RPAD0326), covers the related but
 // mechanically different CHAR-based surrogate validity checks (`new Rune(char)`/`char.ConvertToUtf32
 // (char, char)`) rather than this int-codepoint-based one.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

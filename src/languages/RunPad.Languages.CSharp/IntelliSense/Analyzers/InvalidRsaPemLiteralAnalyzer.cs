@@ -7,9 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; fourth candidate from the
-// second research subagent survey (проход 397, read-only tools, doc-based hunches only), re-verified
-// empirically before implementing. `RSA.ImportFromPem(string)` — a REAL surprise reflection caught before
+// Own pick, not a Roslynator port. `RSA.ImportFromPem(string)` — a REAL surprise reflection caught before
 // any code was written: this method (and its X509Certificate2.CreateFromPem sibling, RPAD0393) does NOT
 // actually take a `string` parameter at all — its true signature is `ImportFromPem(ReadOnlySpan<char>)`; a
 // string literal argument only compiles via C#'s implicit string-to-span conversion. This is the first
@@ -22,8 +20,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // correctly targets exactly `RSA` for a receiver whose static type is `RSA`, no receiver-expression
 // workaround needed here. Scoped to `RSA` only, not `ECDsa`/`DSA`/other asymmetric algorithms — each
 // expects different PEM labels, a separate validation surface not probed here (see RPAD0400, ECDsa's
-// sibling). Originally shipped (проход 400) believing this was single-exception-type
-// (`ArgumentException` for empty/garbage/wrong-label text); EXTENDED in проход 408 after empirically
+// sibling). Originally shipped believing this was single-exception-type
+// (`ArgumentException` for empty/garbage/wrong-label text); EXTENDED earlier after empirically
 // discovering a missed case while verifying ECDsa's sibling analyzer: a PEM block that IS structurally
 // recognized (a generic "PUBLIC KEY" label, correctly base64-decodable) but whose key DATA is for a
 // DIFFERENT algorithm (e.g. an EC public key under the generic label) throws `System.Security.

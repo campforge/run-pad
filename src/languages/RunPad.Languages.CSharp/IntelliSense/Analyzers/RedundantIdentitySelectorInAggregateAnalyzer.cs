@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // The aggregate-selector counterpart to
-// RedundantIdentitySelectAnalyzer (RPAD0062, проход 159). `xs.Sum(x => x)` (or Average/Min/Max) passes
+// RedundantIdentitySelectAnalyzer (RPAD0062). `xs.Sum(x => x)` (or Average/Min/Max) passes
 // a selector that returns its parameter unchanged — the exact same thing the parameterless overload
 // already does, minus the extra delegate invocation per element.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

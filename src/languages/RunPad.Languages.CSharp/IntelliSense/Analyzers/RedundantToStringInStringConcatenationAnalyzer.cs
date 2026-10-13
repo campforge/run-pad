@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // A natural sibling of
-// RemoveRedundantToStringCallAnalyzer (RPAD0012, pass 147): that one catches `.ToString()` on an
+// RemoveRedundantToStringCallAnalyzer (RPAD0012): that one catches `.ToString()` on an
 // expression whose static type is already string; this one catches `.ToString()` on ANY type when
 // it's a direct operand of a string `+` concatenation — the '+' operator already stringifies the
 // other operand implicitly, so the explicit call adds nothing there either.

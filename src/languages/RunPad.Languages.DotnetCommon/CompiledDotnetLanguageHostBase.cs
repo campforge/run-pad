@@ -135,7 +135,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         EmitDiagnostics(compilationResult.Diagnostics, outputHandler);
         if (!compilationResult.Success || binaryPath is null) return RunResult.CompilationFailed;
 
-        // No `using` here (same pattern as #89's CTS Cancel+Dispose fix) —
+        // No `using` here (same pattern as the other CTS Cancel+Dispose fixes) —
         // TerminateAsync can call _runCts.Cancel() from another thread (a "Stop" click racing this
         // method's own natural completion); disposing here would let that call land on an
         // already-disposed CTS and throw ObjectDisposedException. A CTS with no timer holds no

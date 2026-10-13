@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the thirtieth research subagent survey,
-// re-verified independently before implementing. `System.Reflection.ParameterModifier(int
+// `System.Reflection.ParameterModifier(int
 // parameterCount)` — first touch of `ParameterModifier`. Confirmed empirically: throws
 // `ArgumentException` ("Must specify one or more parameters.") for `parameterCount <= 0` (both 0 and
 // negative throw); `1` and higher are valid. No `[SupportedOSPlatform]` gating, no side effects — a

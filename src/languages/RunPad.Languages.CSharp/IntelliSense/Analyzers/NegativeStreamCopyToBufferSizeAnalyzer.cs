@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "constructor/method argument validation" theme as InvalidBlockingCollectionConstructorArgumentAnalyzer
-// (RPAD0333, проход 352): `memoryStream.CopyTo(Stream destination, int bufferSize)` throws
+// (RPAD0333): `memoryStream.CopyTo(Stream destination, int bufferSize)` throws
 // ArgumentOutOfRangeException when `bufferSize` isn't strictly positive — confirmed empirically via
 // scratch `dotnet run` script. Scoped to `ContainingType == "System.IO.MemoryStream"` — confirmed via a
 // throwaway Roslyn symbol-resolution check (not assumed, same caution as the sibling

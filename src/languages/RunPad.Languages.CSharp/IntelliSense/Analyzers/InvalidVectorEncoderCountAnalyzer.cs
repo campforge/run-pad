@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the twenty-eighth research subagent survey,
-// re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
+// `System.Reflection.Metadata.Ecma335.
 // VectorEncoder.Count(int count)` — another sibling under the already-covered Ecma335 tree
 // (RPAD0474/0479-0481/0487/0488). Confirmed empirically: negative `count` always throws
 // `ArgumentOutOfRangeException`; `0` is valid (represents an empty fixed-size array signature).

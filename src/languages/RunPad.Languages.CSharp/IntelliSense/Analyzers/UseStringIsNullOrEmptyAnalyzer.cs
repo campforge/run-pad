@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // already says, more directly and without evaluating `x` twice. Matched purely syntactically (both
 // sides must reference the literal same identifier) — deliberately not semantic, since the whole
 // point is textual duplication, not type-checking.
-// Extended (сто семидесятый проход, batch) to also cover the negated AND-form —
+// Extended to also cover the negated AND-form —
 // `x != null && x.Length > 0` (or `!= ""`/`.Length != 0`) says exactly what `!string.IsNullOrEmpty(x)`
 // already says — same idea, mirrored operators.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

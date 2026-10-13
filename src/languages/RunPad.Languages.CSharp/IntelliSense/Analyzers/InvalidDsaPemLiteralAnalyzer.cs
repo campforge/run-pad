@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port; third and final asymmetric
-// algorithm covered in this PEM-import family, completing RSA (RPAD0392, проход 400, extended проход 408)
-// and ECDsa/ECDiffieHellman (RPAD0400, проход 409). Confirmed via reflection that `DSA` — unlike the EC
+// algorithm covered in this PEM-import family, completing RSA (RPAD0392)
+// and ECDsa/ECDiffieHellman (RPAD0400). Confirmed via reflection that `DSA` — unlike the EC
 // family, which shares `ImportFromPem` via the common `ECAlgorithm` base — independently declares its own
 // `ImportFromPem`, the same shape as RSA (`DSA`'s base type is plain `AsymmetricAlgorithm`, and `DSA` hides
 // the base implementation with its own). Scoped to `DSA` accordingly, matching RPAD0392's approach rather

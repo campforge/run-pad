@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Same "blocking call inside async code" theme as
-// ThreadSleepInAsyncMethodAnalyzer (RPAD0089, проход 164). `semaphore.Wait(...)` inside an `async`
+// ThreadSleepInAsyncMethodAnalyzer (RPAD0089). `semaphore.Wait(...)` inside an `async`
 // method blocks whatever thread happens to be running the method — usually a pooled thread — until the
 // semaphore is available. `await semaphore.WaitAsync(...)` frees the thread for other work while
 // waiting instead of parking it, and SemaphoreSlim has a WaitAsync overload matching every Wait one.

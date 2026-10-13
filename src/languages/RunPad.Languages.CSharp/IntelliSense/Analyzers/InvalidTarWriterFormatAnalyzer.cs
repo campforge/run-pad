@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #8 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `new TarWriter(Stream, TarEntryFormat)` — throws
+// `new TarWriter(Stream, TarEntryFormat)` — throws
 // `ArgumentOutOfRangeException` (param `format`) for `TarEntryFormat.Unknown` (value `0` — notably the
 // type's OWN DEFAULT value, confirmed empirically rather than assumed) or any other undefined value;
 // `V7`/`Ustar`/`Pax`/`Gnu` (1-4) all construct fine. `TarEntryFormat`'s underlying type is `int`

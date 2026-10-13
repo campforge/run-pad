@@ -7,13 +7,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; second candidate
-// from the second research subagent survey (проход 397, read-only tools, doc-based hunches only),
-// re-verified empirically before implementing per standing discipline. `XmlConvert.ToTimeSpan(string)` —
+// Own pick, not a Roslynator port. `XmlConvert.ToTimeSpan(string)` —
 // grep-confirmed no prior coverage. Thematically adjacent to, but genuinely NOT overlapping with,
-// InvalidDateOrTimeParseLiteralAnalyzer's `TimeSpan.Parse` coverage (RPAD0365, проход 372) — same class of
+// InvalidDateOrTimeParseLiteralAnalyzer's `TimeSpan.Parse` coverage (RPAD0365) — same class of
 // legitimate coexistence already established for ContentType/MediaTypeHeaderValue and
-// DateTime.Parse/SqlDateTime.Parse (RPAD0388, проход 396) in this catalog. Confirmed empirically the two
+// DateTime.Parse/SqlDateTime.Parse (RPAD0388) in this catalog. Confirmed empirically the two
 // TimeSpan-parsing APIs use ENTIRELY DIFFERENT grammars: `XmlConvert.ToTimeSpan` requires the W3C XSD
 // *duration* format ("P1DT2H3M4S", "-P1D"), while even the CANONICAL .NET TimeSpan format
 // ("1.02:03:04", the exact string `TimeSpan.ToString()` itself produces) is REJECTED by

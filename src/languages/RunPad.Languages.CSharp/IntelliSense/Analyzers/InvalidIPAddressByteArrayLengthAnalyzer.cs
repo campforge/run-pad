@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "literal array length that always throws" theme as InvalidGuidByteArrayLengthAnalyzer (RPAD0266,
-// проход 277), for a different type: `new IPAddress(byte[])` requires the array to be EXACTLY 4 bytes
+// "literal array length that always throws" theme as InvalidGuidByteArrayLengthAnalyzer (RPAD0266), for a different
+// type: `new IPAddress(byte[])` requires the array to be EXACTLY 4 bytes
 // (IPv4) or EXACTLY 16 bytes (IPv6), throwing ArgumentException for any other length (confirmed
 // empirically before writing this). A separate analyzer rather than an extension of
 // InvalidIPAddressLiteralAnalyzer (RPAD0249, `IPAddress.Parse` string-format validation) — same TYPE,

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the forty-first research subagent survey,
-// re-verified independently before implementing. `System.Net.Cookie.Port` setter (string) — a separate
+// `System.Net.Cookie.Port` setter (string) — a separate
 // property from the already-covered `Cookie` constructor `name` argument (`InvalidCookieNameLiteralAnalyzer`,
 // RPAD0379, which never touches `Port`). Confirmed empirically: the RFC2965 port-list value MUST be
 // wrapped in double quotes (e.g. `"80"` or `"80,443"`, i.e. the literal C# string needs to CONTAIN quote

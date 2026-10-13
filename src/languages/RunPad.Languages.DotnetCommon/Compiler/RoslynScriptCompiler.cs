@@ -176,7 +176,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             peStream, pdbStream,
             embeddedTexts: EmbeddedTexts(compilation),
             // pdbFilePath goes into the PE's CodeView entry: without it netcoredbg reports
-            // "Symbols not found" (feature #16 of the old fast path).
+            // "Symbols not found" (as the old fast path already did).
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: _pdbPath),
             cancellationToken: ct);
         diagnostics.AddRange(emit.Diagnostics);

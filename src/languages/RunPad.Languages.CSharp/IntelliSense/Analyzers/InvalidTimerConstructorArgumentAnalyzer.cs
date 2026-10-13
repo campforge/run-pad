@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "constructor argument validation" theme as InvalidIndexConstructorArgumentAnalyzer (RPAD0327, same
-// проход): `new System.Threading.Timer(callback, state, int dueTime, int period)` throws
+// "constructor argument validation" theme as InvalidIndexConstructorArgumentAnalyzer (RPAD0327): `new
+// System.Threading.Timer(callback, state, int dueTime, int period)` throws
 // ArgumentOutOfRangeException when `dueTime` or `period` is less than -1 — confirmed empirically via
 // scratch `dotnet run` script (`-1` is the documented `Timeout.Infinite` sentinel and is itself valid;
 // only values strictly less than -1 throw). Deliberately hand-codes this check instead of using the
@@ -20,13 +20,13 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // throwaway-construction probes risk. Scoped to the plain `(TimerCallback, object?, int, int)` overload
 // only — the `TimeSpan`/`uint`/`long` overloads have different parameter types and aren't matched by
 // this analyzer's all-`int`-in-last-two-positions check.
-// Extended (триста шестьдесят четвёртый проход, batch) to also cover the INSTANCE method
+// Extended to also cover the INSTANCE method
 // `timer.Change(int dueTime, int period)` — confirmed empirically to share the identical `< -1`
 // boundary formula and exception type as the constructor. Purely a static syntactic check on the
 // literal arguments (same as the constructor branch), so it carries none of the "might invoke the
 // callback" risk that ruled out the "run the real validator" technique above — no `Timer` object is
 // ever actually constructed or rescheduled by this analyzer.
-// Extended again (469-й проход, batch, candidate #4 from the thirty-first research subagent survey) to
+// Extended again to
 // also cover the `(TimerCallback, object?, long dueTime, long period)` constructor overload and the
 // matching `timer.Change(long, long)` — explicitly OUT of scope for the original check (its own doc
 // comment above says so) since it hard-requires `Int32` parameters. Confirmed empirically the `long`

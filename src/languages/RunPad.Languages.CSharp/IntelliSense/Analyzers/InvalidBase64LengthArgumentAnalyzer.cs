@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-seventh research subagent survey,
-// re-verified independently before implementing. `System.Buffers.Text.Base64.
+// `System.Buffers.Text.Base64.
 // GetMaxDecodedFromUtf8Length(int)`/`.GetMaxEncodedToUtf8Length(int)` — bundled under one diagnostic
 // (precedent RPAD0426). Same exact boundary shape as the already-covered `Base64Url.
 // GetMaxDecodedLength`/`.GetEncodedLength` (RPAD0490), but a genuinely distinct sibling type with

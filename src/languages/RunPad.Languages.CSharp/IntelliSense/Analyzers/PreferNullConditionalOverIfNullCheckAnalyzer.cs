@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port. Probed
 // empirically against the built-in "Null check can be simplified" analyzer first — that one already
 // covers the ternary/conditional-EXPRESSION shape (`x == null ? fallback : x.Member`, blocked an idea
-// in this same проход), but does NOT extend to this IF-STATEMENT shape: `if (x != null) { x.Foo(); }`
+// in the same change), but does NOT extend to this IF-STATEMENT shape: `if (x != null) { x.Foo(); }`
 // with a single-statement body and no else calls `x.Foo()` only when `x` isn't null — exactly what
 // `x?.Foo();` already says directly, without the surrounding block.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -7,12 +7,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; direct brainstorming resumed after
-// the third research subagent's full candidate list (проходы 411-421) was exhausted. Found by reflecting
+// Own pick, not a Roslynator port. Found by reflecting
 // over `XmlConvert`'s `ToXxx(string)` static methods (the same family whose `ToBoolean`/`ToTimeSpan`/
 // `ToDateTimeOffset` members are already covered — RPAD0389/0390/0391) and noticing `ToGuid(string)` had
 // no coverage. Same low-novelty-but-still-worth-having situation as `InvalidSqlGuidLiteralAnalyzer`
-// (RPAD0412, проход 421) — confirmed empirically that `ToGuid` throws the identical single exception type
+// (RPAD0412) — confirmed empirically that `ToGuid` throws the identical single exception type
 // (`FormatException`, identical message text "Unrecognized Guid format.") and accepts the identical five
 // formats (D/N/B/P/X) as `Guid`'s own constructor/`Parse`, strongly suggesting `XmlConvert.ToGuid` also
 // delegates to `Guid` internally — but it's still a genuinely distinct, unguarded call shape. The other

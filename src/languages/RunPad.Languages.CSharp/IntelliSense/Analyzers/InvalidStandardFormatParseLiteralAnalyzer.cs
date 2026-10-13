@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the forty-first research subagent survey,
-// re-verified independently before implementing. `System.Buffers.StandardFormat.Parse(string format)` —
+// `System.Buffers.StandardFormat.Parse(string format)` —
 // a static factory, structurally distinct from the already-covered constructor
 // (`InvalidStandardFormatConstructorAnalyzer`, RPAD0492, which only checks `new StandardFormat(char,
 // byte)`'s `precision` argument). Confirmed empirically: a format symbol followed by more than 2 digits

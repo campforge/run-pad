@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the thirty-fifth research subagent survey,
-// re-verified independently before implementing. `System.Numerics.Vector<T>` — the hardware-SIMD-width
+// `System.Numerics.Vector<T>` — the hardware-SIMD-width
 // generic type, distinct from the already-covered `Vector2`/`Vector3`/`Vector4`/`Quaternion`/
 // `Matrix3x2`/`Matrix4x4` (RPAD0370, fixed per-type bounds) and from `Vector128/256/512` (confirmed
 // dead end in earlier rounds). Two call shapes, bundled under one diagnostic (precedent RPAD0426):

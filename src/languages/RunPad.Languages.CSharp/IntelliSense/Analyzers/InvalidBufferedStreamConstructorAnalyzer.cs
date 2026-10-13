@@ -7,12 +7,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the thirtieth research subagent survey,
-// re-verified independently before implementing. `System.IO.BufferedStream(Stream stream, int
+// `System.IO.BufferedStream(Stream stream, int
 // bufferSize)` — first touch of `BufferedStream`. Confirmed empirically: `bufferSize <= 0` always
 // throws `ArgumentOutOfRangeException` ("'bufferSize' must be greater than zero.") — confirmed BOTH `0`
 // and `-1` throw (no `-1` sentinel exemption here, unlike the sibling `StreamReader`/`StreamWriter`
-// `Stream`-based constructors covered by RPAD0504 in this same проход — confirmed empirically rather
+// `Stream`-based constructors covered by RPAD0504 in the same change — confirmed empirically rather
 // than assumed by analogy). No `[SupportedOSPlatform]` gating, no side effects — probed via a
 // throwaway `MemoryStream`, never touching real files/OS handles. Culture-irrelevant.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -11,10 +11,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `xs.Count() > 0` (or `!= 0`/`== 0`) walks the ENTIRE sequence just to compare the total against
 // zero — `xs.Any()` stops at the first element. Same LINQ-hygiene theme as the Count/Length-property
 // analyzer next to this one, just for the case where there's no O(1) property to fall back on.
-// Extended (pass 159, batch) to also cover the predicate-accepting overload —
+// Extended to also cover the predicate-accepting overload —
 // `xs.Count(pred) > 0` walks the whole sequence counting matches just to compare against zero;
 // `xs.Any(pred)` stops at the first match.
-// Extended again (сто шестьдесят третий проход, batch) to also cover the "compare to one" idiom —
+// Extended again to also cover the "compare to one" idiom —
 // `xs.Count() >= 1`/`xs.Count() < 1` mean exactly the same thing as `xs.Count() > 0`/`== 0`, just
 // spelled with a different threshold. Deliberately narrow: only the most common written forms
 // (Count() on the left) — the mirrored `1 <= Count()`/`1 > Count()` forms are rare enough in practice

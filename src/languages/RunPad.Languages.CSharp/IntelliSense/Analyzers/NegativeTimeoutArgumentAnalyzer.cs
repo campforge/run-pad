@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231)/
-// NegativeCountArgumentAnalyzer (RPAD0232, both this or the previous проход), for millisecond-timeout
+// NegativeCountArgumentAnalyzer (RPAD0232), for millisecond-timeout
 // parameters instead of a capacity/count: `Task.Delay(ms)`/`Thread.Sleep(ms)`/`new
 // CancellationTokenSource(ms)` all treat `-1` as the special "Timeout.Infinite" sentinel, but throw
 // `ArgumentOutOfRangeException` for any OTHER negative value — a different threshold than
