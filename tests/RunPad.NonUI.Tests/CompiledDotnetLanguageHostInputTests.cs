@@ -85,6 +85,7 @@ public class CompiledDotnetLanguageHostInputTests
         }
 
         public Task WaitForExitAsync(CancellationToken ct) => Task.CompletedTask;
+        public int ExitCode => 0;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

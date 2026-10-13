@@ -336,6 +336,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.RunCts = new CancellationTokenSource();
 
         var cancelled = false;
+        RunResult? runResult = null; // stays null for a debug run — DAP doesn't report an exit code here yet
         try
         {
             var workDir = EnsureWorkDirectory();
@@ -383,7 +384,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 }
                 else
                 {
-                    await host.RunAsync(
+                    runResult = await host.RunAsync(
                         script,
                         (data, kind) => Dispatcher.Post(() => AppendOutput(data, kind)),
                         s.RunCts.Token);
@@ -412,6 +413,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (cancelled)
             {
                 SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+            }
+            else if (runResult is { Succeeded: false } failed)
+            {
+                ReportRunFailure(failed);
             }
             else if (!s.HadRunError)
             {
@@ -885,6 +890,27 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private static string InvalidDocumentMessage(string parseError)
         => $"Cannot run: this file is not a valid .rpad document. {parseError} " +
            "Fix it in the editor, save, and reopen the file to run it.";
+
+    // Review R4: the run's status follows the script's real exit code (and a failed compile/start),
+    // not "Success" whenever no exception reached the UI. The message is posted like the script's own
+    // output, so it lands after the last lines the script wrote.
+    private void ReportRunFailure(RunResult result)
+    {
+        State.HadRunError = true;
+        var (message, status) = result.Outcome switch
+        {
+            RunOutcome.CompilationFailed => (null, "Compilation failed"),
+            RunOutcome.StartFailed => ("Failed to start the compiled script.", "Error"),
+            _ => ($"Process exited with code {result.ExitCode}.", $"Exit code {result.ExitCode}"),
+        };
+        SetStatus(status, "RunPad.Status.ErrorBrush");
+        Dispatcher.Post(() =>
+        {
+            if (message is not null)
+                State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(message)}</div>");
+            UpdateOutputUi();
+        });
+    }
 
     private void AppendError(Exception ex)
     {
