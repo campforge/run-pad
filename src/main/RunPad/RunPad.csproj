@@ -8,7 +8,7 @@
     <Version>0.4.0</Version>
     <Authors>coddwrench</Authors>
     <Company>coddwrench</Company>
-    <Copyright>© 2026 Campforge and contributors</Copyright>
+    <Copyright>© 2026 Vadim (coddwrench)</Copyright>
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
@@ -19,9 +19,11 @@
 
   <ItemGroup>
     <!-- Shipped next to the executable by every installer (they all package the publish folder):
-         the GPL-3.0 text and the end-user agreement shown by the MSI (installer/windows/License.rtf). -->
+         the GPL-3.0 text, the end-user agreement shown by the MSI (installer/windows/License.rtf) and
+         the MIT license of RunPad.Runtime.dll, which is also shipped here. -->
     <None Include="..\..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
     <None Include="..\..\..\installer\EULA.txt" Link="EULA.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <None Include="..\..\runtime\RunPad.Runtime\LICENSE" Link="RunPad.Runtime.LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>
