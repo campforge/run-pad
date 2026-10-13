@@ -20,7 +20,7 @@ const PAGE_SIZE = 2;
 
 function makeContext(overrides = {})
 {
-    return { repo: { owner: 'coddwrench', repo: 'dot-pad' }, sha: SHA, runId: RUN_ID, ...overrides };
+    return { repo: { owner: 'Campforge', repo: 'run-pad' }, sha: SHA, runId: RUN_ID, ...overrides };
 }
 
 function makeCore()
