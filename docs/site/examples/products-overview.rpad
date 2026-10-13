@@ -1,0 +1,48 @@
+---
+version: "1.0"
+language: csharp
+targetSdk: net10.0
+kind: Statements
+---
+
+# Products overview
+
+Builds an in-memory product list and explores it with LINQ. Each `.Dump()` call adds one
+block to the **Results** tab: a table for a collection, nested tables for nested
+collections, and a single value for a scalar.
+
+No files, network access or NuGet packages are used.
+
+```csharp run
+var products = new List<Product>
+{
+    new("Keyboard", "Peripherals", 49.90m, 12),
+    new("Mouse", "Peripherals", 19.50m, 40),
+    new("Monitor", "Displays", 189.00m, 5),
+    new("Laptop stand", "Accessories", 34.00m, 0),
+    new("USB-C hub", "Accessories", 27.75m, 18),
+};
+
+products.Dump("All products");
+
+products
+    .Where(p => p.InStock == 0)
+    .Select(p => p.Name)
+    .Dump("Out of stock");
+
+products
+    .GroupBy(p => p.Category)
+    .OrderBy(g => g.Key)
+    .Select(g => new
+    {
+        Category = g.Key,
+        Count = g.Count(),
+        StockValue = g.Sum(p => p.Price * p.InStock),
+        Items = g.Select(p => new { p.Name, p.Price }),
+    })
+    .Dump("By category");
+
+products.Sum(p => p.Price * p.InStock).Dump("Total stock value");
+
+record Product(string Name, string Category, decimal Price, int InStock);
+```
