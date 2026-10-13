@@ -8,13 +8,20 @@
     <Version>0.4.0</Version>
     <Authors>coddwrench</Authors>
     <Company>coddwrench</Company>
-    <Copyright>© coddwrench</Copyright>
+    <Copyright>© 2026 Campforge and contributors</Copyright>
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shipped next to the executable by every installer (they all package the publish folder):
+         the GPL-3.0 text and the end-user agreement shown by the MSI (installer/windows/License.rtf). -->
+    <None Include="..\..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <None Include="..\..\..\installer\EULA.txt" Link="EULA.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>

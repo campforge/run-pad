@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Packs an existing RunPad.app bundle (scripts/make-macos-app-bundle.sh) into a compressed, read-only
-# disk image: the app, an Applications symlink to drag it onto, and a short first-launch ReadMe.
+# disk image: the app, an Applications symlink to drag it onto, a short first-launch ReadMe, and the
+# license agreement and GPL-3.0 text (copied from the bundle's Resources).
 # Native hdiutil only, no Finder/GUI automation. The app must already carry a valid (ad-hoc) bundle
 # signature from make-macos-app-bundle.sh — checked before anything is written, and again on the staged
 # copy. Neither the app nor the image is Developer ID signed or notarized — the ReadMe says so and
@@ -35,6 +36,10 @@ fail()
 [[ -f "$APP/Contents/Info.plist" ]] || fail "'$APP' has no Contents/Info.plist"
 plutil -lint -s "$APP/Contents/Info.plist" || fail "'$APP/Contents/Info.plist' is not a valid property list"
 [[ -s "$APP/Contents/Resources/RunPad.icns" ]] || fail "'$APP' has no Contents/Resources/RunPad.icns"
+# Part of the publish output (RunPad.csproj); make-macos-app-bundle.sh moves them to Resources.
+for DOC in EULA.txt LICENSE.txt; do
+    [[ -s "$APP/Contents/Resources/$DOC" ]] || fail "'$APP' has no Contents/Resources/$DOC"
+done
 command -v codesign > /dev/null || fail "codesign not found — cannot validate the bundle signature"
 codesign --verify --deep --strict --verbose=2 "$APP" \
     || fail "'$APP' has no valid bundle signature (build it with scripts/make-macos-app-bundle.sh)"
@@ -57,17 +62,23 @@ mkdir "$STAGE"
 ditto "$APP" "$STAGE/RunPad.app"
 codesign --verify --deep --strict "$STAGE/RunPad.app" || fail "staged copy of '$APP' fails signature verification"
 ln -s /Applications "$STAGE/Applications"
+cp "$APP/Contents/Resources/EULA.txt" "$STAGE/License Agreement.txt"
+cp "$APP/Contents/Resources/LICENSE.txt" "$STAGE/GPL-3.0.txt"
 
 cat > "$STAGE/Read Me First.txt" <<'README'
 RunPad — installing from this disk image
 ========================================
 
-1. Pick the right download. RunPad-osx-arm64.dmg is for Apple Silicon Macs (M1 and later),
+1. Read "License Agreement.txt" in this window. RunPad is free software under the GNU GPL v3
+   ("GPL-3.0.txt") and is provided as is, without warranty; by installing or using it you
+   accept that agreement.
+
+2. Pick the right download. RunPad-osx-arm64.dmg is for Apple Silicon Macs (M1 and later),
    RunPad-osx-x64.dmg is for Intel Macs. Apple menu > About This Mac shows which one you have.
 
-2. Drag RunPad.app onto the Applications folder in this window.
+3. Drag RunPad.app onto the Applications folder in this window.
 
-3. Eject the "RunPad" disk image (Finder sidebar, or drag it to the Trash), then start RunPad
+4. Eject the "RunPad" disk image (Finder sidebar, or drag it to the Trash), then start RunPad
    from your Applications folder — not from the disk image.
 
 First launch: this build is not notarized
@@ -83,7 +94,7 @@ downloaded it from:
     your macOS version and security settings it may not be offered at all.
 
 Only do this for a copy downloaded from the official releases page:
-https://github.com/coddwrench/run-pad/releases
+https://github.com/Campforge/run-pad/releases
 README
 
 TMP_DMG="$WORK/output.dmg"

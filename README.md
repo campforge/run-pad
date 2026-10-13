@@ -168,9 +168,12 @@ wrote something to stderr during execution); `130` — interrupted with Ctrl+C.
 
 ## License
 
-Copyright (C) 2026 Vadim ([coddwrench](https://github.com/coddwrench))
+Copyright (C) 2026 Campforge and contributors
 
 Licensed under the GNU General Public License v3.0 — see [`LICENSE`](LICENSE) for the full text.
+The installers show and install an end-user agreement ([`installer/EULA.txt`](installer/EULA.txt)) that
+summarizes the license, the warranty disclaimer and where to get the source code; it adds no
+restrictions to the GPL-3.0.
 
 ## Known issues
 
