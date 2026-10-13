@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `sb.Length = 0` truncates a StringBuilder back to empty by reaching into its Length property
 // directly — `sb.Clear()` says the same intent directly and is what the type's own API was designed
 // for, without relying on the reader knowing that setting Length to zero is how you empty one.

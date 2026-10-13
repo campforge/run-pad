@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Take(xs.Count())` takes exactly as many elements as the sequence has — a no-op — but pays for it
 // with an EXTRA full enumeration of xs (once for Count(), once again for the actual Take/iteration).
 // Matched structurally (the receiver of Take and the receiver of Count() must be the literal same

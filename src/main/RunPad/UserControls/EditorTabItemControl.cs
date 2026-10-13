@@ -61,10 +61,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Debounce before firing a Quick Info request after the pointer stops moving — long enough
     // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
-    // (ANALYSIS.md #94).
+    //.
     private static readonly TimeSpan QuickInfoHoverDelay = TimeSpan.FromMilliseconds(400);
 
-    // Same rationale as QuickInfoHoverDelay, for refactorings (TODO.md #74) — caret moves far more
+    // Same rationale as QuickInfoHoverDelay, for refactorings — caret moves far more
     // often than the pointer stops over a symbol (every arrow key press, every click), so this needs
     // the same debounce discipline diagnostics/inlay hints already get from NotifyTextChanged's own
     // 500ms — refactorings just can't share that pass (see GetRefactoringsAsync's own doc comment on
@@ -132,7 +132,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // first call and highlighting appears immediately, without NullReferenceException.
         SetDocumentContent(editor, _vm.FilePath);
 
-        // Dirty indicator (TODO.md, "tab lifecycle") — attached only AFTER the initial
+        // Dirty indicator ("tab lifecycle") — attached only AFTER the initial
         // SetDocumentContent call above, not before: setting editor.Document there fires TextChanged
         // synchronously (see the comment inside SetDocumentContent on RefreshIntelliSenseKind's
         // ordering for the same fact), which would otherwise flag a just-opened, untouched tab as
@@ -173,7 +173,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugPanel.WatchExpressions.CollectionChanged += OnWatchExpressionsCollectionChanged;
     }
 
-    // TODO.md #105: named (not an anonymous lambda) so Dispose can unsubscribe it — this control and
+    // Named (not an anonymous lambda) so Dispose can unsubscribe it — this control and
     // its ViewModel are always created/destroyed as a pair today (EditorTabsControl.cs), so it isn't
     // an active leak yet, but leaving it unpaired with the rest of Dispose's own subscriptions
     // (_prefs.Changed/_selectedKindSub) would turn into a real one the moment that assumption changes.
@@ -243,7 +243,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
     }
 
-    // Deliberately a no-op for a tab with no FilePath yet (TODO.md, "tab lifecycle") — an
+    // Deliberately a no-op for a tab with no FilePath yet ("tab lifecycle") — an
     // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
     // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
     internal void SaveIfNeeded()
@@ -349,7 +349,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             s.SourceFilePath = sourceFilePath;
             var breakpoints = s.Editor.Breakpoints
                 .Where(bp =>
-                    bp.IsEnabled) // TODO.md #83.3 — disabled breakpoints stay in the gutter but never reach the debugger
+                    bp.IsEnabled) // Disabled breakpoints stay in the gutter but never reach the debugger
                 .Select(bp =>
                     (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
@@ -478,8 +478,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            // async void — an uncaught exception here would crash the whole process (ANALYSIS.md
-            // #90). Surface it the same way a failed Run does, instead of losing it entirely.
+            // async void — an uncaught exception here would crash the whole process.
+            // Surface it the same way a failed Run does, instead of losing it entirely.
             AppendError(ex);
         }
     }
@@ -504,8 +504,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            // async void — an uncaught exception here would crash the whole process (ANALYSIS.md
-            // #90). Surface it the same way a failed Run does, instead of losing it entirely.
+            // async void — an uncaught exception here would crash the whole process.
+            // Surface it the same way a failed Run does, instead of losing it entirely.
             AppendError(ex);
         }
     }
@@ -613,7 +613,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.Focus();
     }
 
-    // TODO.md #62 "smart rename" — F2 (CodeTextEditor.RenameSymbolRequested).
+    // F2 (CodeTextEditor.RenameSymbolRequested).
     private async Task ShowRenameSymbolAsync(CodeTextEditor editor, IIntelliSenseService intelliSense)
     {
         var owner = TopLevel.GetTopLevel(this) as Window;
@@ -648,7 +648,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    // TODO.md #62 "find references" — Shift+F12 (CodeTextEditor.FindReferencesRequested). Reuses
+    // Shift+F12 (CodeTextEditor.FindReferencesRequested). Reuses
     // GetDocumentHighlightsAsync (same "every occurrence of the symbol under the caret" data the
     // highlight-occurrences feature already computes) rather than a separate service call — a
     // single-file scratchpad's "references" list and "highlights" list are the same set, they just
@@ -693,7 +693,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return menu;
     }
 
-    // TODO.md #62 "Go to Definition"/"Go to Implementation" (F12, user request 2026-07-19) —
+    // "Go to Definition"/"Go to Implementation" (F12) —
     // CodeTextEditor.GoToDefinitionRequested. A single F12 binding covers both: implementations take
     // priority when the symbol has any (same as pressing "Go to Implementation" in VS/Rider, minus a
     // separate Ctrl+F12 — dropped after user feedback 2026-07-19 that modifier+F-key combos collide
@@ -862,7 +862,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var html = Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
             var wrapped = $"\n<div class=\"dp-dump\">{html}</div>";
 
-            // DumpContainer (ANALYSIS.md feature #19) re-emits the same data-dp-id on every
+            // DumpContainer re-emits the same data-dp-id on every
             // update — replace its existing block in place instead of appending a new one.
             var idMatch = DumpContainerIdRegex.Match(html);
             if (idMatch.Success)
@@ -954,7 +954,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Dispatcher.Post(() => IlOutput.Text = il);
     }
 
-    // TODO.md #63 "interactive typed input" — ILanguageHost.InputRequested (Util.ReadLine/
+    // ILanguageHost.InputRequested (Util.ReadLine/
     // GetPassword). Always called on the UI thread (see the Dispatcher.Post at the
     // subscription site in RunAsync). internal (not private): lets tests drive the prompt directly,
     // the same rationale as BuildFindReferencesMenu (headless Avalonia has no reliable way to fake a
@@ -1120,7 +1120,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             SetZoomPercent(percent);
     }
 
-    // TODO.md #74 (user request 2026-07-21) — filters the merged diagnostic-fix + refactoring lists
+    // Filters the merged diagnostic-fix + refactoring lists
     // against Preferences → C# → "code fixes enabled"/excluded-diagnostic-id settings at RENDER time,
     // not when each source list is produced: CodeFixesChanged/GetRefactoringsAsync only fire on their
     // own triggers (text change / caret move), so filtering there would leave a stale, unfiltered
@@ -1166,7 +1166,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
-    // in the solution — lets a test confirm settings (notably FontFamily, TODO.md #112) actually reach
+    // in the solution — lets a test confirm settings (notably FontFamily) actually reach
     // the real CodeTextEditor without needing to construct a whole EditorTabItemControl.
     internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
     {
@@ -1198,7 +1198,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.AsyncCompletionProvider = async e =>
         {
-            // TODO.md #65: a genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
+            // A genuine Ctrl+Space press (as opposed to the 24/7 auto-invoke/generics/
             // "new "-word triggers, which also set IsExplicitInvoke but pass the real typed character
             // as Trigger, never '\0' — see CodeTextEditor.ShowCompletion's call sites) right in a
             // fresh, not-yet-typed call argument is really asking for parameter info, not a
@@ -1232,7 +1232,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var isDark = _themeService.CurrentTheme.Editor.IsDark;
             foreach (var item in list.Items)
             {
-                // TODO.md item 60 point 8 — an override-member stub carries a multi-line snippet
+                // An override-member stub carries a multi-line snippet
                 // template instead of a plain name to insert; reuse the exact same
                 // SnippetCompletionData/ExpandSnippet machinery the hand-authored Snippets dictionary
                 // already uses (reindent-to-current-line + ${0} cursor placement), rather than
@@ -1250,12 +1250,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     () => DisplaySegmentRenderer.BuildWithSummary(item.Signature, item.Summary, isDark),
                     item.Priority,
                     CompletionIcons.GetIcon(item.Kind),
-                    // Auto-import (TODO.md #28 remainder): non-empty only for a type from an added
+                    // Auto-import: non-empty only for a type from an added
                     // NuGet package that isn't imported yet — accepting it adds the using the same
                     // way the lightbulb already does (AddGlobalUsings), just without that extra step.
                     tags: item.UsingsToAdd,
                     onCommit: AddGlobalUsings,
-                    // Item 60 points 6/7 / TODO #59 remainder: the list row itself gets a dimmed
+                    // The list row itself gets a dimmed
                     // "(in Namespace)"/"(+N overloads)" annotation for a not-yet-imported type or a
                     // name collapsing several overloads, and renders bold when the member is declared
                     // directly on the type being completed rather than inherited; all default to
@@ -1346,7 +1346,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         };
 
         // ── Code fixes (lightbulb: real Roslyn CodeFixProviders + CodeRefactoringProviders) ─────
-        // Two independent sources feed the same lightbulb margin (TODO.md #74): diagnostic-driven
+        // Two independent sources feed the same lightbulb margin: diagnostic-driven
         // fixes (CodeFixesChanged, pushed from NotifyTextChanged's background pass whenever the text
         // changes) and caret-position-driven refactorings (GetRefactoringsAsync, pulled below on
         // caret move — a refactoring isn't tied to any diagnostic, so it has no reason to recompute
@@ -1357,7 +1357,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // preference, not only on the next keystroke/caret-move) and remerges on every update from
         // either one.
 
-        // TODO.md #74 "IntelliSenseService optimization" (pass 104) — just Line/Title/
+        // Just Line/Title/
         // Severity/Key now, no NewCode/UsingsToAdd to fold in here: materializing those got deferred
         // to ApplyCodeFixAsync below, run only for the one entry actually clicked, not eagerly for
         // every candidate on every keystroke/caret-move (see ICodeFixInfo's own doc comment for why
@@ -1387,7 +1387,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             refactoringCts.Cancel();
             refactoringCts = new CancellationTokenSource();
 
-            // User request 2026-07-21 (TODO.md #74) — the master "show code fixes" switch skips even
+            // User request 2026-07-21 — the master "show code fixes" switch skips even
             // asking for refactorings, not just hiding them once listed: a caret move fires on every
             // arrow key/click, and Roslyn's own CodeRefactoringProviders do real syntax/semantic work
             // just to decide "am I applicable here", independent of whether the result ever gets
@@ -1444,7 +1444,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             // Not disposed here — a superseded hover's background Task.Run may still be mid-flight
             // past this point, and registering/reading against an already-disposed
-            // CancellationTokenSource throws ObjectDisposedException (ANALYSIS.md #89). A
+            // CancellationTokenSource throws ObjectDisposedException. A
             // CancellationTokenSource whose WaitHandle is never touched holds no unmanaged
             // resources, so leaving the old one for the GC is safe.
             quickInfoCts.Cancel();
@@ -1500,7 +1500,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // Applies a language's lexical/syntactic conventions (ILanguageHostFactory.EditorProfile) to the
     // language-agnostic CodeTextEditor — triggers/identifier chars/brace pairs/indentation used to be
-    // a single hardcoded C#-shaped profile applied to every language including VB (TODO.md #58); this
+    // a single hardcoded C#-shaped profile applied to every language including VB; this
     // is the same pattern already used for Snippets, just for the rest of the editor's language-aware
     // configuration.
     private static void ApplyEditorLanguageProfile(CodeTextEditor editor, EditorLanguageProfile profile)
@@ -1524,7 +1524,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             _ => new AvaloniaEdit.Indentation.DefaultIndentationStrategy(),
         };
 
-        // TODO.md #76: no more switch on a FoldingStrategyKind enum naming a specific concrete type
+        // No more switch on a FoldingStrategyKind enum naming a specific concrete type
         // (e.g. VbFoldingStrategy) — the language plugin hands over its own algorithm as a plain
         // delegate (or nothing, for the brace-based default), so this main-project file no longer
         // needs to know which languages exist or what their folding rules look like.
@@ -1552,7 +1552,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         if (filePath is null)
         {
-            // Deferred creation (TODO.md, "tab lifecycle") — a brand-new tab is genuinely
+            // Deferred creation ("tab lifecycle") — a brand-new tab is genuinely
             // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
             // Save/Save As. It still gets a real (in-memory) RpadDocument built from the language/kind
             // chosen in NewFileKindDialog (_vm.NewFileLanguage/NewFileKind) rather than staying null —
@@ -1611,10 +1611,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         editor.Document = new TextDocument(content);
 
-        // Shows which kind/target framework the script actually runs as (archived ANALYSIS.md #29) —
+        // Shows which kind/target framework the script actually runs as —
         // helps tell the two compile paths apart and diagnose compile/run discrepancies without
         // having to open the front matter by hand. Was left commented out with the XAML control
-        // itself missing (ANALYSIS.md #95) — both restored.
+        // itself missing — both restored.
         UpdateProjectInfoBlock();
     }
 
@@ -1671,7 +1671,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Pushes this tab's front-matter `kind:` into its own IntelliSense instance, unconditionally
     // (unlike Packages/Namespaces above, Kind always has a meaningful value — there's no "empty" case
     // to skip) — so live analysis mirrors the same kind-specific transform the compiler applies
-    // (ANALYSIS.md TODO #66).
+    //.
     private void RefreshIntelliSenseKind()
         => _intelliSense?.UpdateKind(State.RpadDocument?.FrontMatter.Kind ?? RpadKind.Statements);
 
@@ -1703,7 +1703,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // FrontMatter.Kind is the source of truth (like usings/packages/references above) — SelectedKind
     // is just the combobox's mirror of it. Guards against writing on the initial sync in
     // SetDocumentContent (which sets SelectedKind from the same value already on FrontMatter.Kind)
-    // and only reacts to genuine user-driven changes. See ANALYSIS.md #35.
+    // and only reacts to genuine user-driven changes.
     private void OnSelectedKindChanged(string? kind)
     {
         var rpad = State.RpadDocument;
@@ -1717,14 +1717,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         CommitMetadataChange();
     }
 
-    // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad (ANALYSIS.md #95) —
+    // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad —
     // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
     private void UpdateProjectInfoBlock()
         => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
             ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
             : "";
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — the click-time half of
+    // The click-time half of
     // the lightbulb (both diagnostic fixes and refactorings feed the same CodeFixEntry.Key/
     // FixApplyRequested path — see EditorsTabItemControl's own SetupEditor comment on the merged
     // list). MaterializeFixAsync only now does the expensive work (GetOperationsAsync + diffing) that
@@ -1766,7 +1766,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private static string PrependUsings(IReadOnlyList<string> usings, string code) =>
         usings.Count == 0 ? code : string.Concat(usings.Select(u => $"using {u};\n")) + code;
 
-    // TODO.md #75: RunPad.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
+    // RunPad.Avalonia.CodeTextEditor.CodeFixSeverity duplicates
     // RunPad.Contracts.IntelliSense.DiagnosticSeverity rather than referencing it (the control stays
     // dependency-free from RunPad.Contracts — see CodeFixEntry's doc comment), so this is the one
     // place the two enums need mapping between them.
@@ -1834,7 +1834,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
         var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
         var usings = rpad?.FrontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros (TODO.md #63) — expanded
+        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — expanded
         // here so both the debug and non-debug run paths get them, since they share this method.
         var assemblyReferences = rpad?.FrontMatter.References?
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
@@ -1848,7 +1848,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
             .ToList() ?? [];
 
-        // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — used to be a
+        // One options type for every compiled .NET language — used to be a
         // per-language if/else building two byte-for-byte identical option objects under different
         // type names.
         return new CompiledDotnetLanguageHostOptions

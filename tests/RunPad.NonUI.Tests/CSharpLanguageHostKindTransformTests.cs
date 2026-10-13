@@ -8,12 +8,12 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #66: CalcKindOffset() returned 2 for RpadKind.Program, but ApplyKindTransform's
+// CalcKindOffset() returned 2 for RpadKind.Program, but ApplyKindTransform's
 // Program branch ("Main();{code}", no newline) glued onto the same physical line as the user's first
 // line — structurally zero new lines, same as Statements' passthrough — which misaligned every
 // breakpoint/stack frame in Program-kind scripts by exactly the erroneous offset.
 //
-// TODO.md #107 (this pass): the "Main();{code}" shape itself turned out to be its own bug — it left
+// The "Main();{code}" shape itself turned out to be its own bug — it left
 // the user's whole script as raw top-level statements, which broke as soon as a Program-kind script had
 // more than just Main (fields declared below Main became CS0165 "unassigned", methods with an access
 // modifier became CS0106 "not valid for this item" — LINQPad-style scripts, the norm for this kind, hit
@@ -95,7 +95,7 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // The exact reported repro (TODO.md #107): a field declared below Main, and a helper method with
+    // The exact reported repro: a field declared below Main, and a helper method with
     // an access modifier — both CS0165 and CS0106 under the old raw-top-level-statements transform.
     // Not a compile check (that's CSharpLanguageHostProgramKindCompileTests, a real dotnet-build
     // integration test) — just confirms the transform actually produces the class-wrapped shape that
@@ -181,7 +181,7 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // TODO.md #63 (async Task Main): the Program-kind call statement used to always be "Main();" — a
+    // The Program-kind call statement used to always be "Main();" — a
     // fire-and-forget call that discards a Task-returning Main's result, silently losing any exception
     // thrown inside it. ApplyKindTransform now picks between a plain and an awaited call to the
     // trampoline based on Main's own declared return type (the trampoline itself decides how to reach
@@ -202,7 +202,7 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // TODO.md #107: a static Main can't be called through an instance reference (CS0176) — the
+    // A static Main can't be called through an instance reference (CS0176) — the
     // synthetic trampoline needs a type-qualified call instead of `new {Wrapper}()` for it.
     [Theory]
     [InlineData("static void Main() { }", false)]

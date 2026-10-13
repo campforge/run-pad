@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девятый проход, batch) — own pick, not a Roslynator port. Same "negative index/
+// Own pick, not a Roslynator port. Same "negative index/
 // length always throws" theme as NegativeArrayResizeOrClearArgumentAnalyzer (RPAD0263), applied to
 // `List<T>`'s own (index, count)-taking instance methods instead of `Array`'s static ones:
 // `list.Sort(index, count, comparer)`/`list.Reverse(index, count)`/`list.GetRange(index, count)`/

@@ -3,12 +3,12 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #83: breakpoints used to render as the exact same filled disc for every state, just
+// Breakpoints used to render as the exact same filled disc for every state, just
 // recolored (Verified/Unverified/Pending all one shape, three colors; Condition/HitCondition not
 // reflected at all). BreakPointMargin.ComputeBreakpointIconPlan is the pulled-out decision — pure
 // function of IBreakpoint, no live DrawingContext/TextView needed — so this exercises the actual new
 // branching without a rendering harness (same "extract the decision from the drawing" precedent as
-// CodeFixMarginTests/ComputeIconTransform, TODO #75/#82).
+// CodeFixMarginTests/ComputeIconTransform).
 public class BreakPointMarginTests
 {
     private static Breakpoint MakeBreakpoint(
@@ -80,7 +80,7 @@ public class BreakPointMarginTests
         Assert.True(plan.DrawConditionBadge);
     }
 
-    // TODO.md #83.3: a disabled breakpoint gets the same contour-only treatment as an unverified
+    // A disabled breakpoint gets the same contour-only treatment as an unverified
     // one, even when otherwise fully verified — disabled is a reason to hollow the icon on its own.
     [Fact]
     public void ComputeBreakpointIconPlan_Should_DrawOutline_ForADisabledBreakpoint_EvenIfVerified()

@@ -5,7 +5,7 @@ namespace RunPad.Languages.CSharp;
 internal static class NuGetPaths
 {
     // Shared by LocalPackageCacheService/CSharpIntelliSenseService — both used to duplicate this
-    // exact try/catch (see TODO.md #47).
+    // exact try/catch.
     public static string GetGlobalPackagesFolder()
     {
         try

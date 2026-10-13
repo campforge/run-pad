@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 151, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseStringIsNullOrEmptyMethodAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator).
 // `x == null || x == ""` / `x == null || x.Length == 0` say exactly what `string.IsNullOrEmpty(x)`
 // already says, more directly and without evaluating `x` twice. Matched purely syntactically (both

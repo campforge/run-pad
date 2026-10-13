@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as the other Parse-family analyzers, but narrower and
 // deliberately NOT the "run the real validator" technique used elsewhere for format validity:
 // `byte.Parse(s)`/`sbyte.Parse(s)`/`short.Parse(s)`/.../`Convert.ToByte(s)`/etc. throw

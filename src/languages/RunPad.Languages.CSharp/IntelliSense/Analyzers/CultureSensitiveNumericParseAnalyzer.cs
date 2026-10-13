@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят шестой проход, batch) — same culture-sensitivity theme as
+// Same culture-sensitivity theme as
 // CultureSensitiveStringCompareAnalyzer/CultureSensitiveStringMethodAnalyzer/
 // CultureSensitiveCaseConversionAnalyzer/CultureSensitiveCharCaseConversionAnalyzer
 // (RPAD0005/RPAD0031/RPAD0039/RPAD0068), applied to numeric parsing instead of string comparison.

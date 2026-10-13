@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `n.ToString("G")` spells out the format specifier that the parameterless `n.ToString()` already uses
 // by default for numeric types — genuinely redundant, not just a style nit. Deliberately scoped to the
 // built-in numeric types only, where "G" being the implicit default is documented .NET behavior — NOT

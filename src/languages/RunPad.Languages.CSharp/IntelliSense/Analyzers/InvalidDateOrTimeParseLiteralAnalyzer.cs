@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят второй проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidNumericParseFormatAnalyzer (RPAD0356) — same "run the real validator, but only after a
 // conservative structural guard" theme, applied to `DateTime`/`DateTimeOffset`/`TimeSpan`/`DateOnly`/
 // `TimeOnly`.Parse(string) instead: a literal that can't possibly be a date/time in ANY format/culture

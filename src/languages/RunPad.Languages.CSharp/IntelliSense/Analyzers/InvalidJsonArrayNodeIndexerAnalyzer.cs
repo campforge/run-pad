@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста семьдесят шестой проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidJsonElementPropertyOrIndexAnalyzer (RPAD0364/проходы 368-369) — same "parse the literal JSON at
 // analysis time, then check the access against the REAL result" theme, applied to the OTHER JSON API
 // surface, `System.Text.Json.Nodes.JsonNode`/`JsonArray` (the mutable DOM), instead of `JsonDocument`/

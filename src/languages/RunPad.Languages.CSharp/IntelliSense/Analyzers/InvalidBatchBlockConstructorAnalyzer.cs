@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (454-й проход, batch) — candidate #3 from the sixteenth research subagent survey,
+// Candidate #3 from the sixteenth research subagent survey,
 // re-verified independently before implementing. `BatchBlock<T>(int batchSize)` and
 // `BatchedJoinBlock<T1,T2>(int batchSize)`/`BatchedJoinBlock<T1,T2,T3>(int batchSize)` constructors —
 // confirmed empirically all throw `ArgumentOutOfRangeException` ("Number must be positive") for `0` or a

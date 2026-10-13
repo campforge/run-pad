@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семьдесят восьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal array length that always throws" theme as InvalidGuidByteArrayLengthAnalyzer (RPAD0266,
 // проход 277), for a different type: `new IPAddress(byte[])` requires the array to be EXACTLY 4 bytes
 // (IPv4) or EXACTLY 16 bytes (IPv6), throwing ArgumentException for any other length (confirmed

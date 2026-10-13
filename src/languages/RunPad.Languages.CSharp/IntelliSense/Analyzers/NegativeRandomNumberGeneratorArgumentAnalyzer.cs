@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок первый проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231): the static
 // `System.Security.Cryptography.RandomNumberGenerator.GetBytes(int count)` and
 // `GetHexString(int count[, bool lowercase])` both throw ArgumentOutOfRangeException for a negative

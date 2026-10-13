@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто первый проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379-RPAD0382. `System.Runtime.InteropServices.OSPlatform.
 // Create(string)` was also considered and DROPPED — confirmed empirically it only rejects the exact empty
 // string (even a whitespace-only string is accepted), too narrow/trivial a check to be worth a dedicated

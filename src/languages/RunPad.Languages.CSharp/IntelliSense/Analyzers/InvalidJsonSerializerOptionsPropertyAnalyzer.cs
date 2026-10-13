@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (450-й проход, batch) — candidate #4 from the twelfth research subagent survey, re-verified
+// Candidate #4 from the twelfth research subagent survey, re-verified
 // independently before implementing. `System.Text.Json.JsonSerializerOptions` — 4 scalar property
 // setters, all confirmed on a freshly-constructed `new JsonSerializerOptions()` (no prior serialization
 // use, so no "already locked/read-only" state entanglement to worry about): `MaxDepth` (negative throws

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (466-й проход, batch) — candidate #1 from the twenty-ninth research subagent survey,
+// Candidate #1 from the twenty-ninth research subagent survey,
 // re-verified independently before implementing. `System.Buffers.SequenceReader<T>.Advance(long
 // count)`/`.Rewind(long count)` — an OPEN item left by the previous (28th) round's
 // `InvalidReadOnlySequenceArgumentAnalyzer` (RPAD0497), which explicitly declined `SequenceReader<T>`

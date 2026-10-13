@@ -78,7 +78,7 @@ public enum AssemblyAccess
 }
 
 /// <summary>
-/// A type in the assembly explorer (TODO.md #62, <c>AssemblyExplorerWindow</c>): a top-level or nested
+/// A type in the assembly explorer (<c>AssemblyExplorerWindow</c>): a top-level or nested
 /// type, or a base/derived type entry. <see cref="FullTypeName"/> (reflection name) feeds
 /// <see cref="CSharpDecompilerService.DecompileType"/>; <see cref="AssemblyPath"/> is the assembly that
 /// defines it when that differs from the browsed one (a base type from the BCL) — null means the browsed
@@ -167,16 +167,16 @@ public sealed record AssemblyTypeContents(
     IReadOnlyList<AssemblyMemberEntry> Members);
 
 /// <summary>
-/// Decompiles the type an <see cref="IDefinitionResult"/> points at (TODO.md #62, "Go to Definition"/
+/// Decompiles the type an <see cref="IDefinitionResult"/> points at ("Go to Definition"/
 /// ILSpy integration, user request 2026-07-19) and locates the specific member's declaration line
 /// within the decompiled text, so the caller can open a read-only tab already scrolled to the right
 /// place — mirrors dnSpy/ILSpy's own F12 behavior. <see cref="ResolveReferenceAtPosition"/> is the
-/// other half that makes this recursive (TODO.md #62, user request 2026-07-19 follow-up): given a
+/// other half that makes this recursive (user request 2026-07-19 follow-up): given a
 /// caret position inside an ALREADY-decompiled tree, resolve what's referenced there into another
 /// <see cref="IDefinitionResult"/> that can be fed straight back into <see cref="Decompile"/> — same
 /// contract either way, whether the original request came from Roslyn (a symbol in the user's own
 /// script) or from clicking around inside decompiled code that isn't Roslyn-backed at all.
-/// <see cref="EnumerateTypes"/>/<see cref="DecompileType"/> are the third leg (TODO.md #62, user
+/// <see cref="EnumerateTypes"/>/<see cref="DecompileType"/> are the third leg (user
 /// request 2026-07-19 follow-up) — browsing an arbitrary DLL the user picked, not one reached by
 /// following a reference from their own script.
 /// </summary>

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восьмидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Console.Out.WriteLine(...)`/`Console.Out.Write(...)` goes through the `Out` TextWriter property
 // explicitly — `Console.WriteLine(...)`/`Console.Write(...)` already forward to exactly that writer
 // internally, so the `.Out` step says nothing the shorter call doesn't already say.

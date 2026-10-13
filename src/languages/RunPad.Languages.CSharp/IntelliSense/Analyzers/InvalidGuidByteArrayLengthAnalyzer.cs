@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семьдесят седьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `new Guid(byte[])` requires an array of EXACTLY 16 bytes, and `new Guid(int, short, short,
 // byte[])` requires the trailing byte array to be EXACTLY 8 bytes — both throw `ArgumentException` for
 // any other length (confirmed empirically before writing this). Scoped to a LITERAL array whose length

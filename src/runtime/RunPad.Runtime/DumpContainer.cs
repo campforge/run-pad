@@ -2,7 +2,7 @@ namespace RunPad.Runtime;
 
 /// <summary>
 /// LINQPad-compatible live-updating dump target (signature verified against the real
-/// <c>LINQPad.Runtime.dll</c>; ANALYSIS.md feature #19 / LINQPAD-5): <c>Dump()</c> it once, then call
+/// <c>LINQPad.Runtime.dll</c>): <c>Dump()</c> it once, then call
 /// <see cref="UpdateContent{T}(T, bool)"/>/<see cref="AppendContent{T}(T, bool)"/>/<see cref="ClearContent"/>
 /// (or just set <see cref="Content"/>) as many times as needed and the SAME block in the output pane
 /// updates in place instead of appending a new one each time. Identified by a stable id embedded in

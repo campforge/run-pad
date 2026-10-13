@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят восьмой проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming after the research subagent's list (проход 377) was fully exhausted, same brainstorming
 // pass that also found RPAD0379/Cookie. Same "run the real validator" theme, applied to
 // `TimeZoneInfo.FindSystemTimeZoneById(string)` (a single overload — confirmed via reflection). Same

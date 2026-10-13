@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #94: EditorTabItemControl.AppendOutput used to do `Output.Content += line` once per
+// EditorTabItemControl.AppendOutput used to do `Output.Content += line` once per
 // output line — each `+=` copies the ENTIRE accumulated string so far, making total cost O(n²) for
 // n lines. Content is now read-only, backed by a StringBuilder mutated through Append/Replace/Clear.
 public class OutputHtmlViewModelTests

@@ -12,7 +12,7 @@ using Spectre.Console;
 
 namespace RunPad.Cli;
 
-// TODO.md #40: compiles and runs a .rpad file's code the same "fast path" the GUI's non-debug Run
+// Compiles and runs a .rpad file's code the same "fast path" the GUI's non-debug Run
 // button uses (ILanguageHost.RunAsync, see EditorTabItemControl.RunAsync/BuildRunOptions) — no
 // Avalonia, no DAP/netcoredbg. Structured as a static class (rather than top-level statements in
 // Program.cs) so the orchestration itself is unit-testable via its IAnsiConsole/CancellationToken
@@ -31,7 +31,7 @@ public static class CliRunner
             return 1;
         }
 
-        // TODO.md #63 — the GUI's "File → Import LINQPad Query..." (pass 93) equivalent
+        // The GUI's "File → Import LINQPad Query..." (pass 93) equivalent
         // for scripting/batch use. Unlike the GUI, overwrites the destination outright rather than
         // picking a free "Foo 2.rpad" — a CLI tool re-run with the same arguments should be idempotent,
         // not silently rename around a leftover file from a previous run.
@@ -160,7 +160,7 @@ public static class CliRunner
     }
 
     // languageId is no longer needed here — every compiled .NET language now shares the same
-    // options type (ANALYSIS.md #86/#87); the caller still resolves it separately to pick the
+    // options type; the caller still resolves it separately to pick the
     // ILanguageHostFactory itself (see registry.Create above).
     internal static ILanguageHostOptions BuildOptions(
         RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string? currentQueryPath = null)
@@ -177,7 +177,7 @@ public static class CliRunner
 
         var packages = frontMatter.Packages.ToDictionary(p => p.Key, p => p.Value.Version);
         var usings = frontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros (TODO.md #63) — must stay
+        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — must stay
         // equivalent to EditorTabItemControl.BuildRunOptions's own expansion (see CliRunnerTests.cs).
         var assemblyReferences = frontMatter.References?
             .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
@@ -190,7 +190,7 @@ public static class CliRunner
             .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
             .ToList() ?? [];
 
-        // One options type for every compiled .NET language (ANALYSIS.md #86/#87) — languageId no
+        // One options type for every compiled .NET language — languageId no
         // longer needs to select between two identical option-object shapes here.
         return new CompiledDotnetLanguageHostOptions
         {

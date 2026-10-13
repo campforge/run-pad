@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто девятый проход, batch) — own pick, not a Roslynator port; third candidate
+// Own pick, not a Roslynator port; third candidate
 // from the second research subagent survey (проход 397, read-only tools, doc-based hunches only). The
 // agent's doc-reading guess for this one — that out-of-range date/time components (e.g. month 13, hour 25)
 // throw a SEPARATE `ArgumentOutOfRangeException` alongside `FormatException` for pure grammar errors — was

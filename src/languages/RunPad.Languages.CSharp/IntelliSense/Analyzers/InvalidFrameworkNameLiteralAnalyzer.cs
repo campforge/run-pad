@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят второй проход, batch) — own pick, not a Roslynator port; last remaining
+// Own pick, not a Roslynator port; last remaining
 // high-confidence candidate from the research subagent's ranked list (проход 377), confirmed empirically
 // before implementing. Same "run the real validator via try/catch around the real constructor" theme as
 // InvalidCultureNameLiteralAnalyzer/InvalidRegionInfoLiteralAnalyzer (RPAD0248/RPAD0372), applied to the

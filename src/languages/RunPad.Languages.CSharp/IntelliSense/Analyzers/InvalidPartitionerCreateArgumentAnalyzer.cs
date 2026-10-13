@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (472-й проход, batch) — candidate #2 from the thirty-fifth research subagent survey,
+// Candidate #2 from the thirty-fifth research subagent survey,
 // re-verified independently before implementing. `System.Collections.Concurrent.Partitioner.Create`
 // range-based overloads (`int`/`long`, 2-arg and 3-arg each), bundled under one diagnostic (precedent
 // RPAD0426). Confirmed empirically, all four overloads individually (not extrapolated): throws

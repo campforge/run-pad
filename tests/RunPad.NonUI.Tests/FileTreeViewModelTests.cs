@@ -11,15 +11,15 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #69: FindByPath is used right after creating a new folder to locate its freshly-merged
+// FindByPath is used right after creating a new folder to locate its freshly-merged
 // node and enter rename mode on it immediately (VS/Rider/Explorer-style) — see
 // FileTreeView.StartRenameForPath / MainWindow.FileTree_CreateFolder.
 public class FileTreeViewModelTests
 {
-    // TODO.md #80: FileTreeViewModel now reads RenameFile/DeleteFile gestures from IPreferencesService
+    // FileTreeViewModel now reads RenameFile/DeleteFile gestures from IPreferencesService
     // (routed through here since FileTreeView itself has no DI) — a plain KeyboardSettings default is
     // enough for these tests, none of which touch RenameGesture/DeleteGesture directly.
-    // TODO.md #81: also needs ILanguageHostRegistry (per-language file icon) — a real registry with
+    // Also needs ILanguageHostRegistry (per-language file icon) — a real registry with
     // both real factories registered (not mocked), same precedent as
     // PreferencesWindowViewModelTests.CreateRealRegistry, so LanguageIconKey resolution below is
     // exercised end to end rather than assuming what a mock would return.
@@ -70,7 +70,7 @@ public class FileTreeViewModelTests
         Assert.Null(vm.FindByPath("/root/missing.rpad"));
     }
 
-    // TODO.md #70: MapToNode peeks each file's language from its real front matter (not just from the
+    // MapToNode peeks each file's language from its real front matter (not just from the
     // FileSystemItem record) — these need actual files on disk, unlike the path-only tests above.
     [Fact]
     public void Refresh_Should_SetIsFolder_ForADirectoryNode_AndNotForAFileNode()
@@ -140,7 +140,7 @@ public class FileTreeViewModelTests
         Assert.True(node.ShowGenericFileIcon);
     }
 
-    // TODO.md #81: MapFileNode's actual fallback — a language whose id isn't registered in
+    // MapFileNode's actual fallback — a language whose id isn't registered in
     // ILanguageHostRegistry at all (any future RpadLanguage with no ILanguageHostFactory yet) — falls
     // back to the generic file icon instead of throwing (GetEditorProfile throws for an unregistered
     // id, hence the IsRegistered guard in FileTreeViewModel.MapFileNode). Registers only C# here to

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #102: CloseCommand/SaveAsCommand/DuplicateCommand/OpenContainingFolderCommand used to
+// CloseCommand/SaveAsCommand/DuplicateCommand/OpenContainingFolderCommand used to
 // be constructed with empty bodies (ReactiveCommand.Create(() => { })) and had their real behavior
 // subscribed onto them from EditorTabsControl — a class that's neither this tab's View nor its
 // ViewModel. Now each command's body directly calls the injected IEditorTabActions, so invoking the

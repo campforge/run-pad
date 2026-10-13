@@ -1,4 +1,4 @@
-# Icons audit (TODO.md #81)
+# Icons audit
 
 Full audit of every resource key in `src/main/RunPad/Resources/Icons.axaml`, done by grepping all of
 `src/` for `StaticResource <key>`, `DynamicResource <key>`, and code-behind lookups
@@ -27,7 +27,7 @@ key string is looked up at runtime via `TryGetResource`/`LoadResource<T>` rather
 | `Icon.BreakpointCondition` | `BreakPointMargin.cs:75` (code-behind) |
 | `Icon.DebugArrow` | `BreakPointMargin.cs:73` (code-behind) |
 | `Icon.Lightbulb` | `CodeFixMargin.cs:48` (code-behind) |
-| `Icon.Hammer` | `CodeFixMargin.cs:121` (code-behind) — quick-fix menu item icon, TODO #79 |
+| `Icon.Hammer` | `CodeFixMargin.cs:121` (code-behind) — quick-fix menu item icon |
 | `Icon.SidebarLeft` | `MainWindow.axaml:86` |
 | `Icon.PanelBottom` | `EditorTabItemControl.axaml:115` |
 | `Icon.Rename` | `FileTreeView.axaml:33` |
@@ -53,10 +53,10 @@ rather than trimmed key-by-key.
 
 `FileTreeViewNode.LanguageIconKey` used to be a `switch` on `RpadLanguage` hardcoded in the main UI
 project (`src/main/RunPad`), the same class of problem already fixed for snippets/`DisplayName`
-(TODO #41/#49/#58) and CodeFolding (TODO #76). It's now `EditorLanguageProfile.IconResourceKey` —
+and CodeFolding. It's now `EditorLanguageProfile.IconResourceKey` —
 each `ILanguageHostFactory` (`CSharpLanguageHostFactory`/`VbLanguageHostFactory`) supplies its own
 icon key, and `FileTreeViewModel` resolves it through `ILanguageHostRegistry` when building a node, the
-same seam TODO #76 used for `FoldingRegionsProvider`.
+same seam already used for `FoldingRegionsProvider`.
 
 ## Re-running this audit
 

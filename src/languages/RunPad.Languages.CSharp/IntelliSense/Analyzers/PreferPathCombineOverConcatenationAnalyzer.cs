@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `dir + "\\" + file` (or `dir + "/" + file`) hardcodes one platform's path separator into the
 // concatenation — a literal "\\" is not the directory separator on Linux/macOS (it becomes a literal
 // backslash character IN the file name instead of joining a path), and a literal "/" is not the

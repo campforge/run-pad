@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.ToDictionary(key, x => x)`/`xs.ToLookup(key, x => x)` spells out an identity value selector —
 // but the single-selector overloads of both methods already use the element itself as the value when
 // no value selector is given. Matched structurally (the value-selector lambda's body must be exactly

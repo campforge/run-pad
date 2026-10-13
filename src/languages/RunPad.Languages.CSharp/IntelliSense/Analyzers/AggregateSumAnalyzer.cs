@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Aggregate((a, b) => a + b)` hand-rolls exactly what `xs.Sum()` already does, through a generic,
 // unoptimized fold — Sum() has a dedicated, type-specific implementation per numeric type. Scoped to
 // the numeric types Enumerable.Sum() actually has an overload for (int/long/float/double/decimal) —

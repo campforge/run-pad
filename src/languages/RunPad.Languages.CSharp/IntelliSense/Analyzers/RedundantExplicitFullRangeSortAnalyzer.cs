@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Array.Sort(array, 0, array.Length)` and `list.Sort(0, list.Count, comparer)` both spell out a
 // start/count range that covers the ENTIRE array/list — exactly what the shorter overload without an
 // explicit range already sorts. Checked structurally (the length/count argument must read the same

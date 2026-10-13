@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `bool.Parse(s.ToUpperInvariant())`/`bool.TryParse(s.ToLowerInvariant(), out _)` normalize casing
 // before parsing, but bool.Parse/TryParse already accept "True"/"true"/"TRUE" (and the False forms)
 // interchangeably — confirmed empirically before writing this analyzer, not assumed. Restricted to the

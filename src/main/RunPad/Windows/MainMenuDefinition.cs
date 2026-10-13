@@ -4,7 +4,7 @@ using Avalonia.Input;
 
 namespace RunPad.Windows;
 
-// docs/handoffs/menu-platform-parity.md — the single description of MainWindow's menu. The
+// The single description of MainWindow's menu. The
 // in-window Menu (Windows/Linux) and the macOS system menu bar (NativeMenu) are both projected from
 // the same tree, so the two can't drift apart again. Headers keep the in-window access-key
 // underscores; the NativeMenu projection strips them.

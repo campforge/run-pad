@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок восьмой проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as InvalidArrayFillArgumentAnalyzer (RPAD0294), applied to `.CopyTo`
 // instead of a startIndex/count pair: `list.CopyTo(destinationArray)` (`List<T>`/`HashSet<T>`, the
 // no-index overload) and `array.CopyTo(destinationArray, index)` (the 2-arg `Array`/`List<T>` overload)

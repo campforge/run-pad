@@ -8,7 +8,7 @@ using RunPad.Runtime;
 // ReSharper disable once CheckNamespace
 
 /// <summary>
-/// Interactive input from the output panel (TODO.md #63) — LINQPad-compatible <c>Util.ReadLine</c>/
+/// Interactive input from the output panel — LINQPad-compatible <c>Util.ReadLine</c>/
 /// <c>Util.GetPassword</c>. Blocks the calling script until the user answers, right where <c>.Dump()</c>
 /// output appears. Uses the same sentinel-prefixed stdout protocol as <c>ObjectExtensions.Dump</c>
 /// (see <see cref="InputRequestPrefixChar"/>, a different prefix so the two don't collide) to ask for
@@ -20,7 +20,7 @@ public static class Util
 {
     internal const char InputRequestPrefixChar = '\x1f'; // ASCII Unit Separator — distinct from ObjectExtensions.DumpLinePrefixChar
 
-    // TODO.md #111 (bucket 1) — mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core), a
+    // Mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core), a
     // separate assembly this one (netstandard2.0, referenced by the compiled SCRIPT's own project,
     // not by RunPad itself) has no reference to — duplicated literal, not shared, same precedent as
     // InputRequestPrefixChar/RsPrefix mirroring across the same process boundary.
@@ -43,7 +43,7 @@ public static class Util
     /// </summary>
     public static DumpOptionsCore DumpDefaults => DumpOptions.GlobalDefaults;
 
-    // TODO.md #111 (bucket 1) — LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes save
+    // LINQPad-compatible Util.SaveString/LoadString/SaveBytes/LoadBytes save
     // to a dedicated per-user data folder, not an arbitrary path the caller has to come up with —
     // mirrors the OS-special-folder + "RunPad" subfolder convention RunPad's own
     // PreferencesService/BuildCacheService already use for their own data (a further "UserData"
@@ -72,7 +72,7 @@ public static class Util
     /// <summary>Reads back a file previously written by <see cref="SaveBytes"/> — throws the usual <see cref="IOException"/> family if it doesn't exist.</summary>
     public static byte[] LoadBytes(string fileName) => File.ReadAllBytes(ResolveUserDataPath(fileName));
 
-    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cache/CacheAsync: a persistent cache keyed by an
+    // LINQPad-inspired Util.Cache/CacheAsync: a persistent cache keyed by an
     // explicit string, not auto-derived from the call site (no decompiled reference for LINQPad's own
     // default-key behavior was available to check against — see this bucket's own "by construction"
     // framing — so a required, explicit key avoids guessing at magic behavior). Entries live under the
@@ -149,7 +149,7 @@ public static class Util
         return Path.Combine("Cache", sanitized + ".json");
     }
 
-    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cmd/CmdCore: run an external process and stream
+    // LINQPad-inspired Util.Cmd/CmdCore: run an external process and stream
     // its output. RunPad.Build.Core (RunPad's own ChildProcess) already has this exact
     // concurrent-stdout/stderr-draining infrastructure for the compiled SCRIPT's own process, but this
     // assembly (netstandard2.0, referenced by the compiled script's own project) has no reference to
@@ -220,7 +220,7 @@ public static class Util
             onLine(line);
     }
 
-    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.KeepRunning. LINQPad has its own explicit
+    // LINQPad-inspired Util.KeepRunning. LINQPad has its own explicit
     // "QueryCompletionCountdown" concept to hold a query open; RunPad has no such concept (a compiled
     // script is just a normal .NET console app — it exits once its own code returns, like any other),
     // so instead of building a parallel lifetime system, this leans on the CLR's own actual behavior:
@@ -282,7 +282,7 @@ public static class Util
         }
     }
 
-    // TODO.md #111 (bucket 1) — LINQPad-inspired Util.ProgressBar. Reuses DumpContainer's own
+    // LINQPad-inspired Util.ProgressBar. Reuses DumpContainer's own
     // live-update mechanism (a stable data-dp-id the UI matches on to replace the block in place —
     // see DumpContainer.cs) but does NOT reuse DumpContainer itself: DumpContainer.Content goes
     // through DumpRenderer.Render(), which renders a plain string as an escaped, quoted STRING VALUE
@@ -357,7 +357,7 @@ public static class Util
     /// Runs <paramref name="action"/>, returning any exception it throws instead of letting it
     /// propagate (<see langword="null"/> if it completed without throwing) — LINQPad-inspired
     /// <c>Util.Try</c>. No decompiled reference for this one's exact original signature was available
-    /// to check against (see TODO.md #111's own note on this bucket being "by construction", not a
+    /// to check against (written by construction, not a
     /// byte-for-byte port); this is a straightforward, self-contained try/catch wrapper only.
     /// </summary>
     public static Exception? Try(Action action)

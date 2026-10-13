@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (464-й проход, batch) — candidate #4 from the twenty-seventh research subagent survey,
+// Candidate #4 from the twenty-seventh research subagent survey,
 // re-verified independently before implementing. `System.Text.EncoderReplacementFallback(string)`/
 // `System.Text.DecoderReplacementFallback(string)` — first touch of the fallback-replacement classes.
 // Confirmed empirically: both throw `ArgumentException` ("String contains invalid Unicode code

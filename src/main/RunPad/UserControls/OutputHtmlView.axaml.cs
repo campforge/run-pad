@@ -7,7 +7,7 @@ using RunPad.UserControls.Models;
 
 namespace RunPad.UserControls;
 
-// Hosts the script's Results output (TODO.md #72) — binds to an OutputHtmlViewModel set as its
+// Hosts the script's Results output — binds to an OutputHtmlViewModel set as its
 // DataContext (see EditorsTabItemControl's constructor: ResultsOutput.DataContext = State.Output)
 // rather than being pushed content imperatively. Assembling Css/Content into the actual HTML
 // document (<html><head><style>...</style></head><body>...</body></html>) and registering the
@@ -25,7 +25,7 @@ public partial class OutputHtmlView : UserControl
         OutputHtml.Container.AddFontFamily(
             new FontFamily(new Uri("avares://runpad/Assets/fonts/CustomFont.ttf"), "1 Smoothy DNA"));
 
-        // TODO.md #108: no auto-scroll during streaming output — HtmlPanel's own TextProperty change
+        // No auto-scroll during streaming output — HtmlPanel's own TextProperty change
         // handler resets the scroll offset to (0,0) on every apply (see its OnPropertyChanged), so a
         // long-running script's output actually snapped back to the TOP on every appended line rather
         // than just "not scrolling". LayoutUpdated fires once the new (taller) content has actually
@@ -61,7 +61,7 @@ public partial class OutputHtmlView : UserControl
         vm.PropertyChanged += OnModelPropertyChanged;
 
         // Plain PropertyChanged subscriptions don't replay on subscribe (unlike WhenAnyValue, used
-        // here before ANALYSIS.md #94's fix) — schedule explicitly so binding to a freshly-created
+        // here before) — schedule explicitly so binding to a freshly-created
         // OutputHtmlViewModel still shows its current state without a separate "push the starting
         // state" call.
         ScheduleApply();
@@ -76,7 +76,7 @@ public partial class OutputHtmlView : UserControl
     // Deliberately not evaluating e.PropertyName — Css and Content are the only two properties on
     // OutputHtmlViewModel, and both should trigger the same reapply. Crucially, this never touches
     // vm.Content itself (that would call OutputHtmlViewModel's ToString() on every single Append,
-    // right back to the O(n²) cost ANALYSIS.md #94 removed) — only ApplyPendingContent reads it,
+    // right back to the O(n²) cost this avoids) — only ApplyPendingContent reads it,
     // and only once per coalesced burst.
     private void OnModelPropertyChanged(object? sender, PropertyChangedEventArgs e) => ScheduleApply();
 
@@ -116,7 +116,7 @@ public partial class OutputHtmlView : UserControl
     // HtmlPanel, as opposed to how many times the bound model's Css/Content actually changed.
     internal int ApplyCount { get; private set; }
 
-    // Test-only observability (InternalsVisibleTo) for the auto-scroll fix (TODO.md #108) — negative
+    // Test-only observability (InternalsVisibleTo) for the auto-scroll fix — negative
     // Y means scrolled down from the top (HtmlContainer.ScrollOffset's own convention, mirrored by
     // HtmlPanel.ScrollToPoint: ScrollOffset = (-horizontalValue, -verticalValue)).
     internal Point ScrollOffsetForTests => OutputHtml.Container.ScrollOffset;

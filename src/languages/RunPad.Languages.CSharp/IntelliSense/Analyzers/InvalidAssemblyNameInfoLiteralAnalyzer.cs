@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (443-й проход, batch) — candidate #1 from the eighth research subagent survey, re-verified
+// Candidate #1 from the eighth research subagent survey, re-verified
 // independently before implementing. `System.Reflection.Metadata.AssemblyNameInfo.Parse(ReadOnlySpan<char>)`
 // (.NET 9+, new to this catalog — a distinct type from the already-covered `System.Reflection.AssemblyName`
 // constructor, RPAD0385) — a string literal binds via the implicit `string`→`ReadOnlySpan<char>` conversion,

@@ -6,7 +6,7 @@ using RunPad.Services.Setup;
 
 namespace RunPad.Windows.Models;
 
-// First-run setup wizard (TODO.md, live report 2026-07-25) — shown instead of/before MainWindow when
+// First-run setup wizard (live report 2026-07-25) — shown instead of/before MainWindow when
 // IPrerequisiteService finds a missing .NET SDK or debugger, so the user gets an actionable "install
 // this for me" instead of a confusing crash (no SDK) or silently-broken debugging (empty DebuggerPath).
 public sealed class SetupWizardViewModel : ReactiveObject

@@ -28,7 +28,7 @@ namespace RunPad;
 public class App : Application
 {
     // How long a script's build-cache directory can sit unused before PruneStale reclaims it
-    // (ANALYSIS.md #94).
+    //.
     private static readonly TimeSpan BuildCacheMaxAge = TimeSpan.FromDays(14);
 
     private ServiceProvider? _serviceProvider;
@@ -37,7 +37,7 @@ public class App : Application
     {
         AvaloniaXamlLoader.Load(this);
 
-        // docs/handoffs/menu-platform-parity.md — Avalonia.Native creates its application-menu
+        // Avalonia.Native creates its application-menu
         // exporter in an AppBuilder.AfterSetup callback, i.e. right after this method returns and
         // before OnFrameworkInitializationCompleted. If Application has no NativeMenu by then, the
         // exporter installs its own default app menu (the "About Avalonia" item) and doesn't pick up
@@ -91,7 +91,7 @@ public class App : Application
             }
             else
             {
-                // First-run setup wizard (TODO.md, live report 2026-07-25) — shown instead of
+                // First-run setup wizard (live report 2026-07-25) — shown instead of
                 // MainWindow when the .NET SDK or netcoredbg debugger is missing/unconfigured, so a
                 // fresh install gets an actionable "install this for me" instead of Run/Debug just
                 // silently failing. Reassigning desktop.MainWindow to the real MainWindow BEFORE
@@ -168,7 +168,7 @@ public class App : Application
         services.AddTransient<SetupWizardWindow>();
         services.AddSingleton<EditorTabsControl>();
 
-        // TODO.md #100 — WindowService's own Func<TWindow> factories (a fresh Transient instance
+        // WindowService's own Func<TWindow> factories (a fresh Transient instance
         // each time a dialog is shown, same reasoning as Func<IIntelliSenseService> above).
         services.AddSingleton<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
         services.AddSingleton<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());

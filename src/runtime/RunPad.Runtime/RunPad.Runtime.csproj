@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <!-- So CSharpIntelliSenseService's .Dump() completion/signature-help tooltips can show the real
-         <summary> docs (see ANALYSIS.md TODO #50) — MSBuild copies this .xml next to the .dll for
+         <summary> docs — MSBuild copies this .xml next to the .dll for
          every consumer, which is exactly where ReferenceDocumentation looks for it. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- MIT, unlike the rest of RunPad (GPL-3.0): this library is compiled into and shipped with users'

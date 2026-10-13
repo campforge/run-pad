@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #109: file tree had no "create new file" command — only the deferred, disk-untouching
+// File tree had no "create new file" command — only the deferred, disk-untouching
 // File → New RPad File menu (see MainWindowViewModelNewFileTests.cs). CreateFileAsync resolves the
 // target directory the same way CreateFolderAsync does (see MainWindowViewModelCreateFolderTests.cs
 // for the three directory-resolution cases, not re-tested here to avoid duplication), delegates the

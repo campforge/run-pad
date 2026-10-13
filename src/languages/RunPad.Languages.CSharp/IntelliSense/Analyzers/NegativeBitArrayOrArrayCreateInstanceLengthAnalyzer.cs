@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок третий проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231), grouping two
 // genuinely unrelated APIs that happen to share the exact mechanism (single negative `int length`
 // literal, `ArgumentOutOfRangeException`) confirmed empirically via scratch `dotnet run` script: the

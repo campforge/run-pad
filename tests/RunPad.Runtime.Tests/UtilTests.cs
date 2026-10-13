@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #63 "interactive typed input" — Util.ReadLine/GetPassword/ReadLine<T>. Same
+// Util.ReadLine/GetPassword/ReadLine<T>. Same
 // Console.SetOut/SetIn redirection technique as ObjectExtensionsTests, since this is the runtime-side
 // half of the same sentinel-prefixed stdout protocol Dump uses (a different prefix char, see
 // Util.InputRequestPrefixChar) paired with a plain-text stdin reply. [Collection(...)] — see
@@ -135,7 +135,7 @@ public class UtilTests
         }
     }
 
-    // TODO.md #111 (bucket 1) — RunPad.Build.Core's ChildProcess.ForExecution sets this same
+    // RunPad.Build.Core's ChildProcess.ForExecution sets this same
     // environment variable (name duplicated, not shared — see Util.CurrentQueryPathEnvVar's own
     // comment) on the real compiled script's child process; here it's just read back. Environment
     // variables are process-wide state, same category of concern as Console.Out/In above — this

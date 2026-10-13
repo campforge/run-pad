@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восьмидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x.Split(sep).Length == 1` allocates a whole array of substrings just to check whether `sep` occurs
 // at all — a Length of 1 means the separator was never found (Split with no match returns the original
 // string as the only element). `!x.Contains(sep)` asks the same question directly, without building

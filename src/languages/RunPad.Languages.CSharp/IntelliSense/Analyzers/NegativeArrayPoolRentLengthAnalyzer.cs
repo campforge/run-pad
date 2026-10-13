@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста двадцать шестой проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer/NegativeCountArgumentAnalyzer
 // (RPAD0231/RPAD0232): `System.Buffers.ArrayPool<T>.Shared.Rent(int minimumLength)` throws
 // ArgumentOutOfRangeException when `minimumLength` is negative — confirmed empirically via scratch

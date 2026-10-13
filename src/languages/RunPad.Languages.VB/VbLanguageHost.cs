@@ -8,7 +8,7 @@ namespace RunPad.Languages.VB;
 
 public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
 {
-    // Single source of truth — see CSharpLanguageHost.SupportedCapabilities (ANALYSIS.md #96).
+    // Single source of truth — see CSharpLanguageHost.SupportedCapabilities.
     // No IntelliSense flag yet — VB tabs compile/run/debug but have no autocomplete/diagnostics/
     // quick-fixes (would need a VisualBasicIntelliSenseService against Microsoft.CodeAnalysis.VisualBasic).
     public const LanguageHostCapabilities SupportedCapabilities =

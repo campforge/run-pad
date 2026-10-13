@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто восьмой проход, batch) — own pick, not a Roslynator port; second candidate
+// Own pick, not a Roslynator port; second candidate
 // from the second research subagent survey (проход 397, read-only tools, doc-based hunches only),
 // re-verified empirically before implementing per standing discipline. `XmlConvert.ToTimeSpan(string)` —
 // grep-confirmed no prior coverage. Thematically adjacent to, but genuinely NOT overlapping with,

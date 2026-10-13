@@ -3,7 +3,7 @@ namespace RunPad.Languages.CSharp;
 // The .NET SDK's own <ImplicitUsings>enable</ImplicitUsings> set (verified against a real `dotnet
 // build` output — obj/<config>/<tfm>/<assembly>.GlobalUsings.g.cs — for a plain Exe project; no
 // System.Text). CodeAnalysisProcessCompiler and CSharpIntelliSenseService both need this exact list
-// so a script with no packages compiles the same way it's shown in the editor — see ANALYSIS.md #27
+// so a script with no packages compiles the same way it's shown in the editor
 // for what happens when they disagree.
 internal static class ImplicitUsings
 {

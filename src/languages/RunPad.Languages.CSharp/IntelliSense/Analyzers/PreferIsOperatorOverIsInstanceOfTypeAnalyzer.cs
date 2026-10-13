@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `typeof(Y).IsInstanceOfType(x)` asks, via reflection, whether `x` is an instance of `Y` or a type
 // derived from it — exactly what the `is` operator already checks, directly and without a Type object
 // lookup. Deliberately restricted to a `typeof(...)` receiver (not `x.GetType().IsInstanceOfType(y)` —

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят первый проход, batch) — own pick, not a Roslynator port. `xs.Take(0)`
+// Own pick, not a Roslynator port. `xs.Take(0)`
 // always produces an empty sequence regardless of what xs contains — unlike Skip(0) (RPAD0069, a
 // harmless no-op), a literal Take(0) almost always signals a bug: a paging/limit computation that was
 // supposed to produce a positive count but got left at (or reset to) zero. Warning, not Info, for that

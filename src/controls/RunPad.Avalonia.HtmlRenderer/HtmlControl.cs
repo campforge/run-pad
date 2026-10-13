@@ -74,7 +74,6 @@ public class HtmlControl : Control
     /// </summary>
     protected Point _lastScrollOffset;
 
-    // TODO.md #108 (was "#72" — orphaned by a later archival/renumbering pass, see #108's own note):
     // offscreen cache of the last real paint — Render blits this instead of calling
     // _htmlContainer.PerformPaint again on every single invalidation (window resize of unrelated
     // controls, sibling repaints, ...). See LazyRenderCache/InvalidateContent.
@@ -82,7 +81,7 @@ public class HtmlControl : Control
     private RenderTargetBitmap? _cachedBitmap;
 
     // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
-    // in the solution — lets a test confirm ControlAdapter.Invalidate() (TODO.md #108) actually marks
+    // in the solution — lets a test confirm ControlAdapter.Invalidate() actually marks
     // the cache stale rather than just requesting a repaint that Render would then blit the same
     // stale bitmap for.
     internal LazyRenderCache RenderCacheForTests => _renderCache;
@@ -139,7 +138,7 @@ public class HtmlControl : Control
     /// </summary>
     public HtmlControl()
     {
-        // TODO.md #108: without this, Focus() (HtmlPanel.OnPointerReleased) is a no-op — the control
+        // Without this, Focus() (HtmlPanel.OnPointerReleased) is a no-op — the control
         // can never actually receive keyboard focus, so the KeyDown handler wired up below (which
         // already forwards Ctrl+A/Ctrl+C to _htmlContainer.HandleKeyDown -> SelectionHandler) never
         // fires. Not "not implemented", just unreachable.
@@ -384,7 +383,7 @@ public class HtmlControl : Control
     /// Perform paint of the html in the control — reuses the cached offscreen bitmap unless
     /// content was explicitly invalidated (<see cref="InvalidateContent"/>), the control was
     /// resized or the render scaling changed, in which case it repaints via
-    /// <see cref="PaintCore"/> first (TODO.md #72).
+    /// <see cref="PaintCore"/> first.
     /// </summary>
     public override void Render(DrawingContext context)
     {
@@ -422,7 +421,7 @@ public class HtmlControl : Control
     /// should just reuse the cache.
     /// </summary>
     /// <remarks>
-    /// TODO.md #108: internal (not just protected) so <see cref="Adapters.ControlAdapter"/>, in the
+    /// Internal (not just protected) so <see cref="Adapters.ControlAdapter"/>, in the
     /// same assembly, can call it too — <c>ControlAdapter.Invalidate()</c> is what
     /// <c>SelectionHandler</c> calls mid-drag on every selection change, and without routing that
     /// through here the render cache never learns the selection actually changed: it keeps blitting
@@ -438,7 +437,7 @@ public class HtmlControl : Control
     /// <summary>
     /// Repaints the control into an offscreen bitmap sized to the current device pixel density, so
     /// Render's common case is just blitting it back rather than re-running the html layout
-    /// engine's PerformPaint (TODO.md #72).
+    /// engine's PerformPaint.
     /// </summary>
     /// <remarks>
     /// The bitmap is created at 96 DPI with the DIP-to-pixel scaling applied as an explicit

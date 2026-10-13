@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.ElementAtOrDefault(0)` reaches for the general "get the element at this index, or default"
 // method just to ask for the first one — `xs.FirstOrDefault()` says that directly and is the more
 // common, more readable spelling for the same operation.

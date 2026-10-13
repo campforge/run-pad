@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 150, batch) — a classic, extremely well-known floating-point
+// A classic, extremely well-known floating-point
 // gotcha (not a Roslynator port — same "real bug, zero false-positive risk" bar as
 // SelfReferencingPropertyAnalyzer/RethrowToPreserveStackTraceAnalyzer): per IEEE 754, NaN is never
 // equal to anything, including itself — `x == double.NaN` is ALWAYS false and `x != double.NaN` is

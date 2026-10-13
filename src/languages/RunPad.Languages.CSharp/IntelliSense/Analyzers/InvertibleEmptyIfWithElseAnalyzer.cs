@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семидесятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `if (cond) { } else { doStuff(); }` — an empty if-branch next to a real else-branch — says the same
 // thing as `if (!cond) { doStuff(); }`, just with an extra empty block and an inverted-feeling
 // condition to read past. Scoped to the case where the else branch is NOT itself empty (an empty

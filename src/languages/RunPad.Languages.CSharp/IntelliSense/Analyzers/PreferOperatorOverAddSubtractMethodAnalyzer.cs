@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // DateTime/DateTimeOffset/TimeSpan all expose an instance `Add(TimeSpan)`/`Subtract(TimeSpan)` (and,
 // for DateTime/DateTimeOffset, `Subtract(DateTime)`/`Subtract(DateTimeOffset)` returning a TimeSpan) —
 // every one of these has a matching operator overload (`+`/`-`) that does exactly the same arithmetic

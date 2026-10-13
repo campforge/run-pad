@@ -2,7 +2,7 @@ namespace RunPad.Avalonia.CodeTextEditor;
 
 // Mirrors RunPad.Contracts.IntelliSense.DiagnosticSeverity — duplicated rather than referenced so
 // this control stays dependency-free from RunPad.Contracts (see CodeFixEntry's own doc comment
-// below); TODO.md #75: lets CodeFixMargin color the lightbulb by how serious the underlying
+// below). Lets CodeFixMargin color the lightbulb by how serious the underlying
 // diagnostic is instead of one neutral color for every fix.
 public enum CodeFixSeverity
 {
@@ -11,7 +11,7 @@ public enum CodeFixSeverity
     Error,
 }
 
-// TODO.md #74 "IntelliSenseService optimization" (pass 104) — one available quick fix/
+// One available quick fix/
 // refactoring for a given 1-based line. Deliberately carries no applied text: materializing that
 // (running the fix provider's own document transform, then diffing it) turned out to be the
 // dominant cost in the whole IntelliSense pipeline when done eagerly for every candidate on every

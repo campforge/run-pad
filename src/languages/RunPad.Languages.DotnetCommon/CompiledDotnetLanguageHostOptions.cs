@@ -8,7 +8,7 @@ namespace RunPad.Languages.DotnetCommon;
 /// <summary>
 /// Options shared by every <see cref="CompiledDotnetLanguageHostBase"/> subclass — was two
 /// byte-for-byte identical classes (CSharpLanguageHostOptions/VbLanguageHostOptions) before
-/// unification (ANALYSIS.md #86). What differs between languages (kind-transform, project-file
+/// unification. What differs between languages (kind-transform, project-file
 /// shape) lives on the host/profile instead, not on the options a caller builds from .rpad front
 /// matter.
 /// </summary>
@@ -41,7 +41,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
 
     public RpadKind Kind { get; init; }
 
-    // TODO.md #111 (bucket 1, Util.CurrentQueryPath) — the .rpad file's own path, null for a
+    // The .rpad file's own path, null for a
     // never-saved (untitled) tab, same as LINQPad's own Util.CurrentQueryPath for an unsaved query.
     // Threaded down to the compiled script's child process as an environment variable
     // (ChildProcess.ForExecution) for a plain run, and via DapSessionOptions/the DAP launch request's

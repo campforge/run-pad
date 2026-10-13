@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят восьмой проход, batch) — own pick, not a Roslynator port. Same "blocking
+// Own pick, not a Roslynator port. Same "blocking
 // call inside async code" theme as ThreadSleepInAsyncMethodAnalyzer (RPAD0089, проход 164) and
 // SemaphoreWaitInAsyncMethodAnalyzer (RPAD0129, проход 173), for the plain `Task.Wait()`/`Task.Wait(...)`
 // case that neither of those two nor TaskDelayThenWaitAnalyzer (RPAD0086, specific to

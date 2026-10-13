@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят первый проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `Enum.IsDefined` only checks for an EXACT match against one of the enum's named members — for
 // a `[Flags]` enum, a value that's a legitimate COMBINATION of flags (e.g. `Read | Write`, where only
 // `Read` and `Write` are individually named, not the combination) is not itself a named member, so

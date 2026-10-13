@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста десятый проход, batch) — own pick, not a Roslynator port; third and final asymmetric
+// Own pick, not a Roslynator port; third and final asymmetric
 // algorithm covered in this PEM-import family, completing RSA (RPAD0392, проход 400, extended проход 408)
 // and ECDsa/ECDiffieHellman (RPAD0400, проход 409). Confirmed via reflection that `DSA` — unlike the EC
 // family, which shares `ImportFromPem` via the common `ECAlgorithm` base — independently declares its own

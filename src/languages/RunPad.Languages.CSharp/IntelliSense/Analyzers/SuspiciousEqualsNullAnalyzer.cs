@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят второй проход, batch) — own pick, not a Roslynator port. `x.Equals(null)`
+// Own pick, not a Roslynator port. `x.Equals(null)`
 // looks like a safe way to check for null, but it's an INSTANCE method call — if x itself is actually
 // null, the call throws NullReferenceException instead of returning a sensible bool. `x is null`/
 // `x == null` check for null without ever dereferencing x. Scoped to reference types only — a struct

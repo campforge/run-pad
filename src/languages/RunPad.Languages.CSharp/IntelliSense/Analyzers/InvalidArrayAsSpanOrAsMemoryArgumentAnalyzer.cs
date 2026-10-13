@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят третий проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal array with a bad start/length combination always throws" theme as
 // InvalidStringCharArrayConstructorArgumentAnalyzer/InvalidEncodingGetStringArgumentAnalyzer
 // (RPAD0269/RPAD0270, проходы 280-281): `array.AsSpan(start[, length])` and `array.AsMemory(start[,

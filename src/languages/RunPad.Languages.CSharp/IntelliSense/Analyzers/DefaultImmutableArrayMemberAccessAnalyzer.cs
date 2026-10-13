@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят шестой проход, batch) — own pick, not a Roslynator port. `ImmutableArray
+// Own pick, not a Roslynator port. `ImmutableArray
 // <T>` is a STRUCT wrapping an internal array field — `default(ImmutableArray<T>)` is therefore a
 // non-null struct VALUE whose internal array field is null (`IsDefault == true`), and touching almost any
 // member that reads through that field throws `NullReferenceException` — a genuinely surprising failure

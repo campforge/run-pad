@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #50: completion/signature-help/quick-info descriptions used to be a single plain-text
+// Completion/signature-help/quick-info descriptions used to be a single plain-text
 // signature string with no XML-doc summary and no syntax highlighting. Fixed by carrying a
 // classified DisplayTextSegment signature plus a separately-parsed <summary>/<param> string — these
 // tests exercise that through the real CSharpIntelliSenseService/Roslyn pipeline, not just the

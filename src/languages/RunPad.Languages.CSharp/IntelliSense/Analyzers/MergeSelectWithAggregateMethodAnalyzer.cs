@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 158, batch) — same LINQ-hygiene theme as
+// Same LINQ-hygiene theme as
 // MergeWhereWithTerminalLinqMethodAnalyzer (RPAD0054, pass 151), for aggregates instead of
 // filters/finders. `xs.Select(f).Sum()` (or Average/Min/Max) builds a whole projected intermediate
 // sequence just to fold it immediately — each of these aggregate methods has its own selector-

@@ -5,7 +5,7 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 
 // Converts Roslyn's classified SymbolDisplayPart stream into DisplayTextSegment, the RunPad-Contracts
 // type completion/signature-help/quick-info use to render syntax-highlighted signatures in tooltips
-// (see ANALYSIS.md TODO #50) — SemanticTokenKind is already the editor's own classification enum, so
+// — SemanticTokenKind is already the editor's own classification enum, so
 // tooltips end up using the exact same palette as the live editor (see SemanticTokenBrushes).
 internal static class SignatureFormatting
 {

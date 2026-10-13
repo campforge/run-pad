@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.GroupBy(key).Select(g => g.Key)` only ever reads the group KEYS — it builds full groups
 // (materializing every element into its bucket) just to immediately throw the buckets away.
 // `xs.Select(key).Distinct()` gets the same distinct-keys result without ever building a group.

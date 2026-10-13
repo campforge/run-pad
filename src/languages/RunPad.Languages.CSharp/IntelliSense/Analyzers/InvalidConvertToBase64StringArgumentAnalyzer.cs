@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal array with a bad offset/length combination always throws" theme as
 // InvalidEncodingGetStringArgumentAnalyzer/InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer (RPAD0270/
 // RPAD0271, проходы 281/283): `Convert.ToBase64String(byte[] inArray, int offset, int length)` throws

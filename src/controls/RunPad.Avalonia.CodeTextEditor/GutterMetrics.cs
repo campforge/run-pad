@@ -4,7 +4,7 @@ using AvaloniaEdit.Rendering;
 
 namespace RunPad.Avalonia.CodeTextEditor;
 
-// TODO.md #75: CodeFixMargin used a fixed width (TextView.DefaultLineHeight * 0.8) independent of
+// CodeFixMargin used a fixed width (TextView.DefaultLineHeight * 0.8) independent of
 // BreakPointMargin's own line-number-driven width, so the lightbulb column sat narrower than the
 // line-number/debug-arrow column right next to it and the two never lined up. Both margins now
 // measure through this one shared formula instead of each keeping its own copy, so a future change

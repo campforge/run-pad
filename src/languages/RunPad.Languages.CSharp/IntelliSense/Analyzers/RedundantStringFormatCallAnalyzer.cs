@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `string.Format("no placeholders here")` calls into the whole format-parsing machinery just to
 // return the literal unchanged — there's nothing to substitute. Deliberately narrow: only the
 // single-argument overload with a literal string containing no '{' at all (so no risk of

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Local fork (TODO.md #61), see AvaloniaEdit.csproj's own comment (Nullable disabled for the
+    <!-- Local fork, see AvaloniaEdit.csproj's own comment (Nullable disabled for the
          same reason). -->
     <Nullable>disable</Nullable>
     <PackageDescription>TextMate integration for AvaloniaEdit.</PackageDescription>

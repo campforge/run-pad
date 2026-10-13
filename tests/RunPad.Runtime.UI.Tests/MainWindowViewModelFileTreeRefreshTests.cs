@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #104: IFileSystemService.GetFilesTree() used to be synchronous, and
+// IFileSystemService.GetFilesTree() used to be synchronous, and
 // MainWindowViewModel called it directly from its own constructor (before the window is ever shown)
 // and on every settled FileSystemWatcher event — both ran the (potentially large/network/cloud-synced)
 // recursive disk walk ON the UI thread, freezing input/rendering for its whole duration. Now
@@ -88,7 +88,7 @@ public class MainWindowViewModelFileTreeRefreshTests
         vm.Dispose();
     }
 
-    // Release 0.3.0 (docs/handoffs/release-test-isolation.md): Avalonia.Headless resets the static
+    // Release 0.3.0: Avalonia.Headless resets the static
     // Dispatcher.UIThread between isolated tests, and the next read creates it on the reading thread.
     // The watcher debounce's late thread-pool callback used to read it there, making a pool thread
     // "the UI thread" so the next test's setup failed VerifyAccess. Simulates that reset (Avalonia's

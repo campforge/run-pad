@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двухсотвосьмидесятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // array with a bad start/length combination always throws" theme as InvalidBitConverterArgumentAnalyzer
 // (RPAD0268, проход 279): `new string(char[] value, int startIndex, int length)` throws
 // ArgumentOutOfRangeException when startIndex or length is negative, or when `startIndex + length`

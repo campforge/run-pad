@@ -2,7 +2,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #111 (bucket 1) — LINQPad-inspired Util.Cmd/CmdCore. Uses "dotnet" itself as the external
+// LINQPad-inspired Util.Cmd/CmdCore. Uses "dotnet" itself as the external
 // process under test (guaranteed present on every CI runner this solution builds on — it's what's
 // running the test suite) rather than an OS-specific executable, except for the one test that needs
 // to tell stdout and stderr apart, which needs an actual shell (cmd.exe on Windows, /bin/sh elsewhere

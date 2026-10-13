@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `for (int i = 0; i <= xs.Count; i++) { ... xs[i] ... }` is the classic off-by-one: on the loop's
 // final iteration, i equals xs.Count — one past the last valid index — and indexing xs[i] there throws
 // (or, for some collection APIs, silently reads out-of-bounds memory). Deliberately requires BOTH the

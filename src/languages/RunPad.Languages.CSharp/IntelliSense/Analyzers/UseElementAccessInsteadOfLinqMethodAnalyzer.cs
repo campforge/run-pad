@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseElementAccessInsteadOfFirst/ElementAt analyzers (Apache License 2.0,
 // https://github.com/dotnet/roslynator), merged into one class since both flag the identical shape
 // (a LINQ Enumerable method that could be a plain indexer access on a type that already has one).

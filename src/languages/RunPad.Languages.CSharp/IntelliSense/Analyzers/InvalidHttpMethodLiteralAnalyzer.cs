@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят девятый проход, batch) — own pick, not a Roslynator port; found by direct
+// Own pick, not a Roslynator port; found by direct
 // brainstorming, same pass that found RPAD0379/RPAD0380 — grep-confirmed no prior coverage of
 // System.Net.Http.HttpMethod before implementing (RPAD0371's HttpHeaderValue family covers 19 different
 // XxxHeaderValue.Parse types, none of them HttpMethod). Same "run the real validator via try/catch around

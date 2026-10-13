@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят второй проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // InvalidTimeoutArgumentAnalyzer (RPAD0330, same проход) — same "millisecondsTimeout must be -1 or
 // non-negative" formula, but on the two STATIC methods that take the timeout as their SECOND argument
 // rather than as an instance-method receiver's first argument: `Monitor.TryEnter(object obj, int

@@ -1,7 +1,7 @@
 namespace RunPad.Contracts.IntelliSense;
 
-// TODO.md #62 "Go to Implementation" (Ctrl+F12, natural follow-up to Go to Definition/F12 from the
-// eighty-seventh pass): unlike IDefinitionResult, this never carries external/metadata info — a
+// Go to Implementation (Ctrl+F12, the counterpart of Go to Definition/F12):
+// unlike IDefinitionResult, this never carries external/metadata info — a
 // single-file script's own AdhocWorkspace only ever contains the script itself, so
 // SymbolFinder.FindImplementationsAsync/FindOverridesAsync can only ever find OTHER declarations
 // inside that same document. Every result is therefore an in-document offset.

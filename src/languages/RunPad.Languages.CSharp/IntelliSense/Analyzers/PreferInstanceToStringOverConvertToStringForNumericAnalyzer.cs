@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Convert.ToString(numericValue)` / `Convert.ToString(numericValue, provider)` are documented to do
 // nothing more than call `numericValue.ToString()` / `numericValue.ToString(provider)` internally — the
 // Convert wrapper adds an extra static call for no behavioral difference. Deliberately scoped to

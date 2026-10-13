@@ -1,7 +1,6 @@
 namespace RunPad.Contracts.IntelliSense;
 
-// TODO.md #74 "IntelliSenseService optimization" (pass 104, live user report of the UI lagging) —
-// a single candidate quick fix/refactoring for the lightbulb margin.
+// A single candidate quick fix/refactoring for the lightbulb margin.
 // Deliberately carries NEITHER the applied text NOR the usings to import: materializing those
 // (RoslynCodeFixEngine.TryMaterializeAsync — runs the fix provider's own document transform, then
 // diffs it) turned out to be the dominant cost in the whole IntelliSense pipeline, paid for EVERY
@@ -21,13 +20,13 @@ public interface ICodeFixInfo
     string Title { get; }
     string Key { get; }
 
-    // TODO.md #75: the lightbulb margin used to paint every fix with the same neutral color
+    // The lightbulb margin used to paint every fix with the same neutral color
     // regardless of whether it fixes a compiler error or a mere warning — this is the diagnostic's
     // own severity (Diagnostics.cs' DiagnosticSeverity, reused rather than a second enum), carried
     // through so the margin can color the icon accordingly.
     DiagnosticSeverity Severity { get; }
 
-    // TODO.md #74 (pass 106, user request 2026-07-21) — the Roslyn diagnostic ID this fix
+    // The Roslyn diagnostic ID this fix
     // is keyed to (e.g. "CS0184", "IDE0007"), for exact-match exclusion filtering by ID instead of a
     // fuzzy Title substring (a diagnostic ID is stable/documented; a title can be phrased however the
     // provider likes and isn't a contract). Null for a candidate with no underlying diagnostic — a

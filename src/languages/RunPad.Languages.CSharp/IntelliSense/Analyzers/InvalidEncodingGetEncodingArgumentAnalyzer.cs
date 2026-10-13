@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят второй проход, batch) — own pick, not a Roslynator port. Two related
+// Own pick, not a Roslynator port. Two related
 // overloads of `Encoding.GetEncoding`, each with its own failure mode: `GetEncoding(int codepage)`
 // throws ArgumentOutOfRangeException for a literal outside the documented `[0, 65535]` range —
 // confirmed empirically via scratch `dotnet run` script (a simple, literal-derivable boundary, no need

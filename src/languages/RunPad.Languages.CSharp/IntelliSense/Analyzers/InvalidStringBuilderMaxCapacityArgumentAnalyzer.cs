@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят пятый проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding on `new StringBuilder(int capacity, int maxCapacity)`: confirmed empirically before writing
 // this that it throws ArgumentOutOfRangeException not just for a negative `capacity` (already covered
 // by NegativeCapacityArgumentAnalyzer, RPAD0231) but ALSO for a non-negative `capacity` when

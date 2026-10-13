@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "CodeRefactoringProvider hosting in the lightbulb" — GetRefactoringsAsync, the
+// GetRefactoringsAsync, the
 // position-based counterpart to CodeFixesChanged's diagnostic-driven fixes. Real dotnet-build-free
 // integration tests against actual Microsoft.CodeAnalysis.CSharp.Features CodeRefactoringProviders
 // (discovered via the same MEF composition RoslynCodeFixEngine already uses for CodeFixProviders),
@@ -62,7 +62,7 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.NotNull(refactorings);
         var useExpressionBody = Assert.Single(refactorings, r => r.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase));
 
-        // TODO.md #74 "IntelliSenseService optimization" (pass 104): NewCode is no longer
+        // NewCode is no longer
         // on the listed candidate itself — materializing it (running the refactoring provider's own
         // document transform + diffing) is deferred to MaterializeFixAsync, called only for the one
         // candidate actually clicked.
@@ -100,7 +100,7 @@ public class CSharpIntelliSenseRefactoringsTests
     // Live report (2026-07-21): under Roslyn 4.13, CSharpIntroduceVariableService's "Introduce local
     // for all occurrences" threw InvalidCastException deep inside Microsoft.CodeAnalysis.CSharp.Features
     // when one matched occurrence was NESTED inside another ("p.Name" inside "p.Name.Length"). Listing
-    // candidates never materializes anything (TODO.md #74 pass 104), so the broken item was listed and
+    // candidates never materializes anything, so the broken item was listed and
     // RoslynCodeFixEngine.TryMaterializeAsync's try/catch made clicking it a safe no-op.
     //
     // Roslyn 5.9 fixed the upstream bug: the same refactoring (offered on the "." of "p.Name") now
@@ -128,7 +128,7 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.NotNull(materialized);
     }
 
-    // TODO.md #74 "IntelliSenseService optimization" (pass 104) — RoslynCodeFixEngine's
+    // RoslynCodeFixEngine's
     // candidate cache is wholesale-replaced on every new ComputeFixesAsync/ComputeRefactoringsAsync
     // call (its own class doc comment), not merged/appended — a key from an OLDER listing pass simply
     // isn't in the CURRENT cache once a newer one has run. Same "gracefully do nothing" contract as a
@@ -151,7 +151,7 @@ public class CSharpIntelliSenseRefactoringsTests
         Assert.Null(materialized);
     }
 
-    // TODO.md pass 102 note: Roslyn's MoveTypeCodeRefactoringProvider offered "Move type to C.cs",
+    // Roslyn's MoveTypeCodeRefactoringProvider offered "Move type to C.cs",
     // "Rename file to C.cs" and — keyed to the synthetic document's name — "Rename type to Script" on
     // every type declaration. A .rpad script is one file the user never sees as Script.cs.
     [Theory]

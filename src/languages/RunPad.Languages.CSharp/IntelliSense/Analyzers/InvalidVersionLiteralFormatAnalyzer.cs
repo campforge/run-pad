@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "literal argument that always throws" theme as InvalidGuidLiteralFormatAnalyzer (RPAD0246, проход
 // 253): `Version.Parse(s)` requires `s` to be 2 to 4 dot-separated non-negative integer components
 // ("major.minor[.build[.revision]]") — fewer than 2 components, more than 4, or any non-numeric

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Math.Pow(x, 2)` and `Math.Pow(x, 0.5)` both go through the general floating-point exponentiation
 // algorithm for cases that have a much cheaper, exact equivalent: squaring is just one multiplication
 // (`x * x`), and a square root already has its own dedicated, more precise function (`Math.Sqrt(x)`).

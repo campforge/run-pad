@@ -19,8 +19,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 (user request 2026-07-21, refined in pass 106 the same day to match against
-// DiagnosticId instead of Title) — Preferences → C# → "code fixes enabled" master switch and the
+// Matches by DiagnosticId, not Title:
+// Preferences → C# → "code fixes enabled" master switch and the
 // excluded-diagnostic-id list, both filtering the lightbulb margin's merged diagnostic-fix +
 // refactoring list. Driven through a REAL EditorsTabItemControl against a MOCKED
 // IIntelliSenseService (same idiom as EditorTabItemControlRefactoringsTests), reading

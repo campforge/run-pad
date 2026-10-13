@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s + ""` (or `"" + s`) is a no-op when `s` is already a string — concatenating an empty string onto
 // a string returns the string unchanged. Deliberately requires the OTHER side's static type to already
 // be string — `n + ""` where n is a number is the common (and legitimate) "convert to string" idiom,

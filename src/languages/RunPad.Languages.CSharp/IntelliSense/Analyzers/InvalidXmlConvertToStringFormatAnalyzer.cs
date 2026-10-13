@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (446-й проход, batch) — candidate #2 from the tenth research subagent survey, re-verified
+// Candidate #2 from the tenth research subagent survey, re-verified
 // independently before implementing. `System.Xml.XmlConvert.ToString(DateTime value, string format)` /
 // `XmlConvert.ToString(DateTimeOffset value, string format)` — grep-confirmed no prior coverage. Same
 // "second-parameter-string, format validity is independent of the value" theme already established by

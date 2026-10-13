@@ -27,7 +27,7 @@ public interface ILanguageHost : IAsyncDisposable
     /// <summary>
     /// Raised after every successful compile (from <see cref="CompileAsync"/>, <see cref="RunAsync"/>,
     /// or <see cref="RunDebugAsync"/>) with the path to the compiled assembly on disk — lets UI surface
-    /// e.g. an IL disassembly view (TODO.md #62). Always available.
+    /// e.g. an IL disassembly view. Always available.
     /// </summary>
     event CompiledHandler? Compiled;
 
@@ -44,8 +44,8 @@ public interface ILanguageHost : IAsyncDisposable
     Task TerminateAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Raised when the running script calls <c>Util.ReadLine</c>/<c>Util.GetPassword</c> (TODO.md
-    /// #63) — the UI should prompt the user and reply via <see cref="SendInputAsync"/>. Only fires
+    /// Raised when the running script calls <c>Util.ReadLine</c>/<c>Util.GetPassword</c> —
+    /// the UI should prompt the user and reply via <see cref="SendInputAsync"/>. Only fires
     /// under <see cref="RunAsync"/> (not <see cref="RunDebugAsync"/> — a debug session's stdin isn't
     /// currently piped through). Always available.
     /// </summary>

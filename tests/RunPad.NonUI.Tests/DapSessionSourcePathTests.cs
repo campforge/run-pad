@@ -10,7 +10,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// docs/handoffs/macos-debug-launch.md — live regression: every breakpoint stayed pending on macOS
+// Live regression: every breakpoint stayed pending on macOS
 // because setBreakpoints named /var/folders/.../RunPadQuery.cs while the PDB (built with the
 // symlink-resolved working directory) recorded /private/var/folders/... . The breakpoints here live
 // under a symlinked ANCESTOR directory; the session must send the canonical path for the initial

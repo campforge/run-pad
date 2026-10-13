@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #111 — live user report ("Util.CurrentQueryPath doesn't work while debugging, but all
+// Live user report ("Util.CurrentQueryPath doesn't work while debugging, but all
 // features should work while debugging"): a debug session launches the debuggee through netcoredbg (a
 // separate process RunPad doesn't control the environment of), not directly like a plain run, so
 // forwarding CurrentQueryPath needed its own path — the DAP launch request's own `env` field, which

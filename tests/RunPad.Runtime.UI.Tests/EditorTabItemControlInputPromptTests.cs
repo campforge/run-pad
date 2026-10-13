@@ -15,7 +15,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #63 "interactive typed input" — EditorsTabItemControl.ShowInputPrompt/
+// EditorsTabItemControl.ShowInputPrompt/
 // HideInputPrompt/SubmitInputPromptAsync, the UI half of ILanguageHost.InputRequested/SendInputAsync
 // (see CompiledDotnetLanguageHostInputTests.cs for the host-side half). internal (not private) on the
 // control itself, same rationale as BuildFindReferencesMenu — headless Avalonia has no reliable way to

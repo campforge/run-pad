@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (457-й проход, batch) — candidates #3/#4 from the nineteenth research subagent survey,
+// Candidates #3/#4 from the nineteenth research subagent survey,
 // re-verified independently before implementing. `Rfc2898DeriveBytes.Pbkdf2(..., int iterations,
 // HashAlgorithmName, int outputLength)` (the modern non-obsolete static method — deliberately NOT the
 // `Rfc2898DeriveBytes` constructors, which are `[Obsolete]`/SYSLIB0060) and `HKDF.Expand`/`HKDF.DeriveKey`

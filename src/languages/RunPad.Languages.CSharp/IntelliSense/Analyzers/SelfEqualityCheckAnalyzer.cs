@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x.Equals(x)`/`object.ReferenceEquals(x, x)` always return true — almost certainly a copy-paste
 // mistake where one side was meant to be something else. The compiler's own CS1718 already catches
 // the operator form (`x == x`/`x != x`), but that check is specific to binary operators and doesn't

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.OrderBy(key).ThenBy(key)` sorts by the exact same key twice — after the primary sort, every
 // group of elements that compares equal by that key is already as sorted by it as it'll ever be, so a
 // secondary sort by the SAME key (ascending or descending, doesn't matter) can never move anything.

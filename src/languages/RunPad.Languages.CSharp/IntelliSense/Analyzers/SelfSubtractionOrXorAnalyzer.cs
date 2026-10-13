@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят шестой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "comparing/combining a value with itself is almost certainly a mistake" theme as
 // SelfEqualityCheckAnalyzer (RPAD0096, проход 166), for two more operators: `x - x` and `x ^ x` are
 // both always zero for ANY value of `x` — unlike `x / x`/`x % x` (which throw for `x == 0`), neither

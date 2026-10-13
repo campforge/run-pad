@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Reverse().Reverse()` reverses the sequence twice, which puts every element back in its original
 // order — the whole pair is a no-op wrapped around two extra iterators.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

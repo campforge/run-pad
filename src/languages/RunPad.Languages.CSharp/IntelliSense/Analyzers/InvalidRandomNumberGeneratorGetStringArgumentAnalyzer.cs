@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (474-й проход, batch) — candidate #1 from the thirty-seventh research subagent survey,
+// Candidate #1 from the thirty-seventh research subagent survey,
 // re-verified independently before implementing. `System.Security.Cryptography.
 // RandomNumberGenerator.GetString(ReadOnlySpan<char> choices, int length)` — first touch of this
 // specific overload; distinct from the already-covered `GetBytes(int)`/`GetHexString(int, bool)`

@@ -8,8 +8,8 @@ using RunPad.Windows.Models;
 namespace RunPad.Windows;
 
 /// <summary>
-/// A plain text editor for configs and text documents (TODO.md "Отдельное окно текстового
-/// редактора", user request 2026-10-13) — one whole file per window, opened from File → "Open Text
+/// A plain text editor for configs and text documents —
+/// one whole file per window, opened from File → "Open Text
 /// File..." (<see cref="IWindowService.ShowTextEditorAsync"/>). TextMate highlighting when the
 /// extension has a grammar, plain text otherwise. Closing with unsaved changes asks Save / Don't Save /
 /// Cancel; a failed save keeps the window (and its text) open.

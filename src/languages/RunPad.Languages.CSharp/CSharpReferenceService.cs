@@ -20,7 +20,7 @@ public sealed class CSharpReferenceService
             // Prefer the SDK's own reference-assembly pack: metadata-only facades (System.Runtime.dll,
             // System.Console.dll, ...) that — unlike the runtime DLLs in the fallback branch below —
             // ship with a matching .xml doc file each, which is what lets ReferenceDocumentation
-            // populate completion/signature-help Summary for BCL symbols (see ANALYSIS.md TODO #50).
+            // populate completion/signature-help Summary for BCL symbols.
             // Mixing these with the runtime's own implementation DLLs would fail with CS0433
             // ("type exists in both...") since both define System.Object et al., so this replaces the
             // runtime-dir scan below entirely rather than adding to it.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 148, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // RemoveRedundantCastAnalyzer (Apache License 2.0, https://github.com/dotnet/roslynator). `(T)expr`
 // where expr's static type already converts to T via an IDENTITY conversion (Roslyn's own
 // SemanticModel.ClassifyConversion — the precise, compiler-grade notion of "no representation change

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.ElementAt(xs.Count() - 1)` spells out "the last element" as an index computed from the total
 // count, then walks the sequence to that index — `xs.Last()` says exactly the same thing directly, in
 // one pass, without computing an index at all. Matched structurally (the receiver of ElementAt and the

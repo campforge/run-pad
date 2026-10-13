@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 152, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // RemoveRedundantCast-adjacent family, applied to LINQ's Cast<T>() (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `xs.Cast<int>()` where `xs` is already
 // `IEnumerable<int>` does a no-op runtime type check on every element for nothing — same

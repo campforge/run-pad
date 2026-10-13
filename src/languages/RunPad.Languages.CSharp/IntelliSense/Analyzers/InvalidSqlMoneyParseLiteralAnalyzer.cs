@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста третий проход, batch) — own pick, not a Roslynator port; sixth candidate from the
+// Own pick, not a Roslynator port; sixth candidate from the
 // second research subagent survey (проход 397, read-only tools) — the agent flagged this one explicitly as
 // an unverified "analogy only, zero doc evidence" guess (mirroring the already-shipped SqlDateTime.Parse,
 // RPAD0388), so it was re-derived from scratch empirically rather than trusted at all. `SqlMoney.Parse

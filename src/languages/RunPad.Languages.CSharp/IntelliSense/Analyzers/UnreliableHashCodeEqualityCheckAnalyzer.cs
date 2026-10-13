@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `a.GetHashCode() == b.GetHashCode()` looks like a cheap equality check, but GetHashCode makes no
 // promise of uniqueness — two unequal objects are allowed to (and eventually will) share a hash code.
 // Using it as a stand-in for Equals() is a genuine, if-rare-to-trigger, correctness bug: `a.Equals(b)`

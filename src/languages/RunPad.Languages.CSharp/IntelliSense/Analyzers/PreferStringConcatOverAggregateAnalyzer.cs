@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто пятый проход, batch; seeded form added двести двадцать восьмой проход) —
-// own pick, not a Roslynator port. Same "hand-rolled fold instead of the dedicated method" theme as
+// Own pick, not a Roslynator port. Same "hand-rolled fold instead of the dedicated method" theme as
 // AggregateSumAnalyzer (RPAD0085, проход 164), for string concatenation specifically —
 // AggregateSumAnalyzer is scoped to the numeric SpecialTypes Enumerable.Sum() has overloads for, which
 // excludes string entirely, leaving this pattern uncovered. `xs.Aggregate((a, b) => a + b)` over a

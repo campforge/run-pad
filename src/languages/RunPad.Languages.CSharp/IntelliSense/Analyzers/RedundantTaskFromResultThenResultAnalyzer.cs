@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Task.FromResult(x).Result` wraps a value in a completed Task just to immediately unwrap it again —
 // the Task is thrown away right after construction, so the whole round trip is equivalent to just `x`.
 // Unlike TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer (RPAD0131, проход 174), this isn't about

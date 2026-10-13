@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят шестой проход, batch) — own pick, not a Roslynator port. A different
+// Own pick, not a Roslynator port. A different
 // shape than SuspiciousTypeNameStringComparisonAnalyzer (RPAD0087, this project — that one is about
 // `GetType().Name == "..."`, a reflection-based type-name check). This is `enumValue.ToString() ==
 // "Foo"` — comparing an enum's formatted name to a string literal instead of comparing the enum value

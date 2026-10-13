@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (456-й проход, batch) — candidate #4 from the eighteenth research subagent survey,
+// Candidate #4 from the eighteenth research subagent survey,
 // re-verified independently before implementing. `System.Collections.Immutable.ImmutableArray.
 // CreateBuilder<T>(int initialCapacity)` — a static factory method, confirmed empirically to throw
 // `ArgumentOutOfRangeException` for a negative `initialCapacity`; `0` and positive values are valid. A

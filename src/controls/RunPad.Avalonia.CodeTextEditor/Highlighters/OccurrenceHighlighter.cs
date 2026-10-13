@@ -4,7 +4,7 @@ using AvaloniaEdit.Rendering;
 
 namespace RunPad.Avalonia.CodeTextEditor;
 
-// TODO.md #62 "occurrence highlighting" — draws a highlight rectangle over every occurrence of the
+// Draws a highlight rectangle over every occurrence of the
 // symbol under the caret, elsewhere in the document. Same IBackgroundRenderer approach as
 // BraceMatchHighlighter, generalized from two fixed single-character positions to an arbitrary list
 // of (offset, length) spans.

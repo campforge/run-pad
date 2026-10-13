@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцатый проход, batch; Version/TimeSpan/Guid added двести двадцать пятый
-// проход) — own pick, not a Roslynator port. A sibling shape to
+// Own pick, not a Roslynator port. A sibling shape to
 // PreferEqualityOperatorOverDateTimeCompareAnalyzer (RPAD0173, проход 187 — that one is the STATIC
 // `DateTime.Compare(a, b) == 0` form). This is the INSTANCE `x.CompareTo(y) == 0` form: `x.CompareTo(y)`
 // computes a full three-way ordering (negative/zero/positive) just to throw away everything except

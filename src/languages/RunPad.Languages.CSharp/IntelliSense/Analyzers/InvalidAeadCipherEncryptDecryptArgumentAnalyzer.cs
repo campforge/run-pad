@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (478-й проход, batch) — candidate #1 from the fortieth research subagent survey,
+// Candidate #1 from the fortieth research subagent survey,
 // re-verified independently before implementing (the agent's own transcript understated a trap — see
 // below). `AesGcm`/`AesCcm`/`ChaCha20Poly1305`'s instance `Encrypt`/`Decrypt` methods — a genuinely
 // different call site from the already-covered `InvalidAeadCipherConstructorArgumentAnalyzer`

@@ -5,10 +5,10 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #88: DapSession used to depend on the concrete, real-Process-backed ChildProcess, so its
+// DapSession used to depend on the concrete, real-Process-backed ChildProcess, so its
 // protocol logic could only ever be exercised against an actual netcoredbg process. Now that it
 // depends on IChildProcess, a fake with in-memory streams can drive it directly — starting with the
-// one path that was previously impossible to unit-test at all: ANALYSIS.md #92's "fail fast if the
+// one path that was previously impossible to unit-test at all: the "fail fast if the
 // debugger process couldn't start" check.
 public class DapSessionTests
 {

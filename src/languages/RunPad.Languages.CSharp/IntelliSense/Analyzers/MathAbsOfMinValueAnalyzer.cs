@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят восьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: two's-complement signed integers have one more negative value than positive value
 // (`int.MinValue` is -2147483648, but `int.MaxValue` is only 2147483647), so there's no in-range
 // positive representation of `Math.Abs(int.MinValue)` — `Math.Abs` is documented to throw

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок седьмой проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `new Dictionary<K, V> { { key1, v1 }, { key2, v2 }, ... }` — the `{ key, value }` element
 // form of a collection initializer desugars to a sequence of `Add(key, value)` calls, and
 // `Dictionary<K,V>.Add` throws `ArgumentException` if the key already exists — so a literal key

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #88: CompileInternalAsync used to always `new MsBuildProcessCompiler(...)` directly, so
+// CompileInternalAsync used to always `new MsBuildProcessCompiler(...)` directly, so
 // exercising CompileAsync's own logic (kind-transform wiring, ProcessCompilerResult → ICompilationResult
 // mapping) meant either a real build or not testing it at all. The injected
 // DotnetProcessCompilerFactory lets a fake compiler stand in instead — no disk/process involved.
@@ -102,7 +102,7 @@ public class CompiledDotnetLanguageHostCompilerFactoryTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
-    // TODO.md #62 — the "IL" output tab reads the compiled binary path off ILanguageHost.Compiled.
+    // The "IL" output tab reads the compiled binary path off ILanguageHost.Compiled.
     [Fact]
     public async Task CompileAsync_Should_RaiseCompiledEvent_WithTheOutputBinaryPath_OnSuccess()
     {

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #100 — WindowService used to take the whole IServiceProvider and resolve
+// WindowService used to take the whole IServiceProvider and resolve
 // DependenciesWindow/PreferencesWindow/IThemeService inside its methods (Service Locator), which
 // meant testing it in isolation needed a full ServiceCollection/ServiceProvider just to exercise one
 // method. Now it takes explicit Func<TWindow> factories plus IThemeService directly — these tests are

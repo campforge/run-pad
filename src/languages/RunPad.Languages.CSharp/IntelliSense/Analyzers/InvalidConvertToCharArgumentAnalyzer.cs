@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок четвёртый проход, batch) — own pick, not a Roslynator port. A fresh
+// Own pick, not a Roslynator port. A fresh
 // mechanism within the "literal argument that always throws" theme: `Convert.ToChar(string value)`
 // throws FormatException at runtime unless `value` is EXACTLY one character long — an empty string or a
 // multi-character string both throw — confirmed empirically via scratch `dotnet run` script, not

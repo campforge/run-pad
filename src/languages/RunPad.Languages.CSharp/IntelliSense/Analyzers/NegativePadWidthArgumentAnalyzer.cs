@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста двадцать первый проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer/NegativeCountArgumentAnalyzer/
 // NegativeTimeoutArgumentAnalyzer/InvalidRandomRangeArgumentAnalyzer (RPAD0231-0234): `string.PadLeft
 // (totalWidth[, paddingChar])`/`PadRight(totalWidth[, paddingChar])` throw ArgumentOutOfRangeException

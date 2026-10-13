@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `x.ToString().PadLeft(n, '0')` allocates an intermediate string via ToString() just to zero-pad it
 // afterwards — `x.ToString("Dn")` produces the zero-padded digits directly, in one call, with no
 // intermediate allocation. Restricted to the unsigned integer types (byte/ushort/uint/ulong): for

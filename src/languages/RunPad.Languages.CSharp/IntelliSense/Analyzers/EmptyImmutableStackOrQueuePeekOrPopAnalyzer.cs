@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят шестой проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // EmptyQueueOrStackDequeueOrPopAnalyzer (RPAD0291, проходы 319-320), applied to the immutable
 // counterparts `ImmutableStack<T>`/`ImmutableQueue<T>` instead of `Stack<T>`/`Queue<T>`:
 // `ImmutableStack<T>.Empty.Peek()`/`.Pop()` and `ImmutableQueue<T>.Empty.Peek()`/`.Dequeue()` all throw

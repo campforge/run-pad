@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "redundant round trip" theme as RedundantEncodingRoundTripAnalyzer (RPAD0165, проход 183):
 // `Convert.FromBase64String(Convert.ToBase64String(bytes))` base64-encodes `bytes` only to immediately
 // decode that same string right back — the result is exactly `bytes`, and the encode/decode work is

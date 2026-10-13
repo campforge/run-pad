@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #76: VbFoldingRegions.Compute moved here from RunPad.Avalonia.CodeTextEditor's
+// VbFoldingRegions.Compute moved here from RunPad.Avalonia.CodeTextEditor's
 // VbFoldingStrategy — a language-agnostic control project directly hosting VB-specific folding
 // regexes — into RunPad.Languages.VB, the project that actually owns VB's language rules. Framework-
 // free (plain string in, (Start, End) character-offset pairs out), so these tests need no

@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (459-й проход, batch) — candidate #1 from the twenty-second research subagent survey,
+// Candidate #1 from the twenty-second research subagent survey,
 // re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
 // CertificateRevocationListBuilder.Build(...)` — flagged as untried by the previous (twenty-first)
 // round. IMPORTANT correctness catch during re-verification: `Build` is an INSTANCE method (`new

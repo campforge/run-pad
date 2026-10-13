@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят шестой проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidGuidLiteralFormatAnalyzer/InvalidIPAddressLiteralAnalyzer
 // (RPAD0246, RPAD0249), applied to an ENUM argument instead of a string: `new Regex(pattern, options)`
 // throws ArgumentOutOfRangeException when `options` combines `RegexOptions.ECMAScript` or

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.OrderBy(key).ToList().Sort();` as a bare statement is doubly wrong: the resulting sorted list is
 // never captured by anything, so the whole statement is dead code — and even if it HAD been captured,
 // List&lt;T&gt;.Sort() with no arguments re-sorts using Comparer&lt;T&gt;.Default, silently throwing away the

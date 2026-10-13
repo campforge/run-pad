@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (477-й проход, batch) — candidate #2 from the thirty-ninth research subagent survey,
+// Candidate #2 from the thirty-ninth research subagent survey,
 // re-verified independently before implementing. `HijriCalendar.HijriAdjustment` (int, get/set) — legal
 // range is exactly [-2, 2]; any other value always throws `ArgumentOutOfRangeException`
 // (`ParamName` = "value"), regardless of any other program state. Confirmed culture-invariant (tested

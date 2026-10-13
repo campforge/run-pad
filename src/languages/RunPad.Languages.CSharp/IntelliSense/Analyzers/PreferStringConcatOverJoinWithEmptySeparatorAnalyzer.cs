@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать девятый проход, batch) — own pick, not a Roslynator port. Sibling to
+// Own pick, not a Roslynator port. Sibling to
 // PreferNewStringOverJoinOnCharArrayAnalyzer (RPAD0186, проход 198), which covers the SAME
 // `string.Join("", xs)` shape for a char sequence — this one covers it for a STRING sequence instead
 // (mutually exclusive by element type, so the two never fire on the same call). `string.Join("", xs)`

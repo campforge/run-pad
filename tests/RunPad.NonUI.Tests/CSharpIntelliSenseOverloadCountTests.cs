@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #59 remainder: GroupBy(DisplayText).First() collapses every overload of a method
+// GroupBy(DisplayText).First() collapses every overload of a method
 // down to a single completion item (one representative per name, same as before this fix) — but gave
 // no indication there was anything else under that name at all. ICompletionItem.OverloadCount now
 // carries how many Method-kind candidates shared the DisplayText, so the UI can annotate the row with

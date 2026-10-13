@@ -20,7 +20,7 @@ public class FileTreeViewModel
 
     public ObservableCollection<FileTreeViewNode> Nodes { get; }
 
-    // TODO.md #80: FileTreeView's F2/Delete handling used to check literal Key.F2/Key.Delete directly
+    // FileTreeView's F2/Delete handling used to check literal Key.F2/Key.Delete directly
     // — FileTreeView itself has no DI (it's instantiated by a plain XAML DataTemplate, not resolved
     // through the service container, so it can't take IPreferencesService as a constructor
     // parameter) — routed through this view model (its DataContext) instead, read live on every
@@ -36,13 +36,13 @@ public class FileTreeViewModel
     public void RemoveByPath(string filePath) => RemoveNodeByPath(Nodes, filePath);
 
     /// <summary>Finds the node for <paramref name="filePath"/>, if it's currently in the tree —
-    /// used right after creating a new folder (TODO.md #69) to enter rename mode on it immediately.</summary>
+    /// used right after creating a new folder to enter rename mode on it immediately.</summary>
     public FileTreeViewNode? FindByPath(string filePath) => FindNodeByPath(Nodes, filePath);
 
-    // Language is peeked once here (TODO.md #70) via the same cheap front-matter parse
+    // Language is peeked once here via the same cheap front-matter parse
     // EditorTabsControl already uses to pick an IntelliSense factory — not re-peeked on every later
     // refresh for nodes MergeNodeList preserves, only when a node is freshly built (initial load, or
-    // a path that's new/renamed/moved). No longer static (TODO.md #81) — needs _languages to resolve
+    // a path that's new/renamed/moved). No longer static — needs _languages to resolve
     // the node's icon key off the owning ILanguageHostFactory instead of switching on RpadLanguage.
     private FileTreeViewNode MapToNode(FileSystemItem fsi) => fsi.IsDirectory
         ? new FileTreeViewNode(fsi.Name, fsi.FilePath, new ObservableCollection<FileTreeViewNode>((fsi.Children ?? []).Select(MapToNode)))

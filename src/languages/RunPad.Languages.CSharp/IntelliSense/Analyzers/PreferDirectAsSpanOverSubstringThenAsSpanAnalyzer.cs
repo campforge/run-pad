@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двухсотый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s.Substring(start, length).AsSpan()` (or the one-argument `s.Substring(start).AsSpan()`) allocates
 // a brand-new string via Substring just so it can immediately be viewed as a span and (usually)
 // discarded — `s.AsSpan(start, length)`/`s.AsSpan(start)` produces the same characters as a

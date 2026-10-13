@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (461-й проход, batch) — candidate D from the twenty-fourth research subagent survey,
+// Candidate D from the twenty-fourth research subagent survey,
 // re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
 // SignatureTypeEncoder` — another sibling under the already-covered `BlobBuilder`/`MetadataBuilder`/
 // `InstructionEncoder` namespace (RPAD0474/0479-0481). Three call shapes, bundled under one diagnostic

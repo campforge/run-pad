@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (422-й проход, batch) — own pick, not a Roslynator port; direct brainstorming resumed after
+// Own pick, not a Roslynator port; direct brainstorming resumed after
 // the third research subagent's full candidate list (проходы 411-421) was exhausted. Found by reflecting
 // over `XmlConvert`'s `ToXxx(string)` static methods (the same family whose `ToBoolean`/`ToTimeSpan`/
 // `ToDateTimeOffset` members are already covered — RPAD0389/0390/0391) and noticing `ToGuid(string)` had

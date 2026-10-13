@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста девятый проход, batch) — own pick, not a Roslynator port; sibling of RPAD0392's
+// Own pick, not a Roslynator port; sibling of RPAD0392's
 // RSA.ImportFromPem, deferred there explicitly ("Scoped to RSA only, not ECDsa/DSA/other asymmetric
 // algorithms — each expects different PEM labels, a separate validation surface not probed here").
 // Confirmed via reflection BEFORE writing any matching code (applying RPAD0392's own lesson proactively):

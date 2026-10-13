@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят седьмой проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidCultureNameLiteralAnalyzer (RPAD0248)/InvalidIPAddressLiteralAnalyzer
 // (RPAD0249, both проход 255-256): `new MailAddress(s)` throws `FormatException` for a string that
 // isn't a syntactically valid email address — email address syntax is notoriously easy to get subtly

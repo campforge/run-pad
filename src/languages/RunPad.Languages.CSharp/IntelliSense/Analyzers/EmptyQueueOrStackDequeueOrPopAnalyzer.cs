@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девятнадцатый проход, batch) — own pick, not a Roslynator port. Same "provably
+// Own pick, not a Roslynator port. Same "provably
 // empty receiver" theme as EmptyArrayLiteralFirstOrSingleOrLastAnalyzer (RPAD0290, проходы 317-318),
 // applied to `Queue<T>.Dequeue()`/`Peek()` and `Stack<T>.Pop()`/`Peek()` instead of array literals:
 // calling any of them directly on a FRESHLY CONSTRUCTED `Queue<T>`/`Stack<T>` (any constructor — the

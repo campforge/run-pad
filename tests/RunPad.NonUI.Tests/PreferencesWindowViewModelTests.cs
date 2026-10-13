@@ -14,7 +14,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO.md #49 item 4: the Languages settings tree used to be two hardcoded SettingsNodes
+// The Languages settings tree used to be two hardcoded SettingsNodes
 // ("languages.csharp"/"languages.vb") instead of derived from ILanguageHostRegistry.SupportedLanguages
 // — a third registered language would never show up here without editing this file directly. Uses a
 // real LanguageHostRegistry + real CSharpLanguageHostFactory/VbLanguageHostFactory (not mocked), same
@@ -45,7 +45,7 @@ public class PreferencesWindowViewModelTests
         return registry;
     }
 
-    // TODO.md #80: these 4 properties are newly wired (F4/Ctrl+W/F2/Delete used to be hardcoded,
+    // These 4 properties are newly wired (F4/Ctrl+W/F2/Delete used to be hardcoded,
     // not editable here at all) — a real KeyboardSettings instance (not a further mock) so the
     // round-trip through SetPref is genuinely observable on the same object MainWindow/FileTreeView
     // read from.
@@ -75,7 +75,7 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Exactly(4));
     }
 
-    // TODO.md #60.4: newly wired global switch — same round-trip pattern as the hotkey properties
+    // Newly wired global switch — same round-trip pattern as the hotkey properties
     // above.
     [Fact]
     public void CommitCharactersEnabled_Should_RoundTrip_ThroughTheUnderlyingEditorSettings()
@@ -98,7 +98,7 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Once);
     }
 
-    // TODO.md #114 — live user request: Preferences > Editor exposes the language+kind Ctrl+N/File >
+    // Live user request: Preferences > Editor exposes the language+kind Ctrl+N/File >
     // New File use to skip NewFileKindDialog, and Preferences > Keyboard exposes the new hotkey
     // itself — same round-trip pattern as the other newly-wired settings above.
     [Fact]
@@ -144,7 +144,7 @@ public class PreferencesWindowViewModelTests
         prefs.Verify(p => p.Save(), Times.Once);
     }
 
-    // TODO.md "Preferences reorganization": every registered language today is .NET-based, so they
+    // Every registered language today is .NET-based, so they
     // all nest one level deeper, under a ".NET" runtime-family group — Languages -> .NET -> C#/VB —
     // rather than sitting directly under Languages the way they used to.
     [Fact]
@@ -209,7 +209,7 @@ public class PreferencesWindowViewModelTests
         Assert.Null(vm.SelectedLanguageSettingsPlaceholder);
     }
 
-    // TODO.md #62 "inlay hints" (user request 2026-07-20): C# is now the first language with a real
+    // C# is now the first language with a real
     // settings panel of its own, instead of the shared "no settings yet" placeholder every other
     // language still gets (see the Visual Basic test right below this one, unchanged).
     // IsLanguageNodeSelected itself stays true either way (still one of Languages' own child nodes) —

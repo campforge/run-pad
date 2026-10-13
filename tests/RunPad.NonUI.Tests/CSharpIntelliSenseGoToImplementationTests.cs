@@ -5,8 +5,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "Go to Implementation" (Ctrl+F12, natural follow-up to Go to Definition/F12 from the
-// eighty-seventh pass) — CSharpIntelliSenseService.GetImplementationsAsync. A single script's own
+// Go to Implementation (Ctrl+F12, the counterpart of Go to Definition/F12) —
+// CSharpIntelliSenseService.GetImplementationsAsync. A single script's own
 // AdhocWorkspace only ever contains the script itself, so every result is an in-document offset —
 // no decompiling branch needed here, unlike GetDefinitionAsync.
 public class CSharpIntelliSenseGoToImplementationTests

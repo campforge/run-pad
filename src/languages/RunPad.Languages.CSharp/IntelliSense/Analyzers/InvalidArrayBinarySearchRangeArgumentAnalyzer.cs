@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // array with a bad index/length combination always throws" theme as InvalidArrayFillArgumentAnalyzer
 // (RPAD0294), applied to the 4-/5-arg `Array.BinarySearch(Array array, int index, int length, object
 // value[, IComparer comparer])` overload's UPPER-bound case specifically: confirmed empirically (via

@@ -22,6 +22,6 @@ public interface ISemanticToken
 }
 
 // A single classified run of text used to render a member/method signature with syntax highlighting
-// in completion/signature-help/quick-info tooltips (see ANALYSIS.md TODO #50). Emphasis marks the
+// in completion/signature-help/quick-info tooltips. Emphasis marks the
 // currently-active parameter in a signature-help header.
 public readonly record struct DisplayTextSegment(string Text, SemanticTokenKind Kind, bool Emphasis = false);

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `DateTime.Now.Date` reads the current moment just to immediately strip its time-of-day component —
 // `DateTime.Today` already returns exactly that value directly (it's implemented as DateTime.Now.Date
 // internally), in one step instead of two.

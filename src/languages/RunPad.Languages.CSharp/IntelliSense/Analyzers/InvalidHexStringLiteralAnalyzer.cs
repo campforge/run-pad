@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят седьмой проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidBase64LiteralLengthAnalyzer (RPAD0245) — the decode-direction
 // sibling of `InvalidConvertToBase64StringArgumentAnalyzer`'s `ToHexString`/`ToHexStringLower`
 // coverage (RPAD0272, the opposite direction — encode, not decode): `Convert.FromHexString(string)`

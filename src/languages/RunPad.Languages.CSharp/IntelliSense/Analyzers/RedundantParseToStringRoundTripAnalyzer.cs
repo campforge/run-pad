@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят шестой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "redundant round trip" theme as RedundantIdentityConvertCallAnalyzer (RPAD0065, проход 160), but for
 // `T.Parse(x.ToString())` instead of `Convert.ToT(x)`: when x's static type is already T, converting
 // it to a string just to immediately parse it back out reconstructs the same value through a wasteful

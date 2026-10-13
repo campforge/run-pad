@@ -30,7 +30,7 @@ public sealed class FileTreeCreateFolderEventArgs(RoutedEvent routedEvent, strin
     public string? ParentPath { get; } = parentPath;
 }
 
-// TODO.md #109 — same ParentPath convention as FileTreeCreateFolderEventArgs; Language comes from
+// Same ParentPath convention as FileTreeCreateFolderEventArgs; Language comes from
 // which "New File" submenu entry (C#/Visual Basic) was clicked, same split as MainWindow's
 // File → New RPad File menu.
 public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string? parentPath, RpadLanguage language)
@@ -40,7 +40,7 @@ public sealed class FileTreeCreateFileEventArgs(RoutedEvent routedEvent, string?
     public RpadLanguage Language { get; } = language;
 }
 
-// TODO.md #110 — SourcePath is the dragged node; TargetPath follows the exact same convention as
+// SourcePath is the dragged node; TargetPath follows the exact same convention as
 // FileTreeCreateFolderEventArgs.ParentPath (null means "dropped on empty tree space, use the
 // workspace root" — see MainWindowViewModel.ResolveParentDir, reused as-is by MoveFileOrFolder).
 public sealed class FileTreeMoveEventArgs(RoutedEvent routedEvent, string sourcePath, string? targetPath)
@@ -54,7 +54,7 @@ public partial class FileTreeView : UserControl
 {
     private readonly TreeView _fileTree;
 
-    // TODO.md #110 — a custom, app-private drag format (not DataFormat.Text) so an in-tree node drag
+    // A custom, app-private drag format (not DataFormat.Text) so an in-tree node drag
     // isn't mistaken for/offered as plain text to whatever else might be watching drag-and-drop.
     // internal (not private) + InternalsVisibleTo so tests can build matching drag data directly,
     // same "internal test hook" pattern used elsewhere in this project.
@@ -66,7 +66,7 @@ public partial class FileTreeView : UserControl
         InitializeComponent();
         _fileTree = this.FindControl<TreeView>("FileTree")!;
 
-        // TODO.md #110 — TreeViewItem's own built-in click handling marks PointerPressed Handled
+        // TreeViewItem's own built-in click handling marks PointerPressed Handled
         // once it's done with it (selection/expand-collapse) — a plain XAML `PointerPressed="..."`
         // attribute (the default, handledEventsToo: false) on the outer TreeView never saw a single
         // left-click on a row because of this, which is why drag never started at all. Same fix
@@ -179,7 +179,7 @@ public partial class FileTreeView : UserControl
             return;
         }
 
-        // TODO.md #110 — a left-press on a node is only a POSSIBLE drag start, recorded here but not
+        // A left-press on a node is only a POSSIBLE drag start, recorded here but not
         // acted on yet: calling DoDragDropAsync immediately (right on press, before any real
         // movement) hijacked every plain click — a single click on a folder stopped expanding it, and
         // stopped selecting/opening a file, because starting the drag session took over the pointer
@@ -269,7 +269,7 @@ public partial class FileTreeView : UserControl
         RaiseEvent(new FileTreeMoveEventArgs(MoveEvent, sourcePath, targetPath));
     }
 
-    // TODO.md #110 — live user request: the OS drag cursor alone isn't a reliable-enough visual
+    // Live user request: the OS drag cursor alone isn't a reliable-enough visual
     // signal of where a drop will land, so the current drop target is highlighted directly too —
     // either a specific node (IsDropTarget, bound in the item template) or, for empty tree space
     // (isValidDrag but no node under the pointer — dropping there targets the workspace root), the
@@ -295,7 +295,7 @@ public partial class FileTreeView : UserControl
 
     // ── File tree — F2 / Delete hotkeys ──────────────────────────────────────
 
-    // TODO.md #80: used to check literal Key.F2/Key.Delete — this control has no DI (see
+    // Used to check literal Key.F2/Key.Delete — this control has no DI (see
     // FileTreeViewModel's own doc comment on why), so the gestures are read from its DataContext
     // instead, live on every keypress rather than a value cached at construction.
     private void FileTree_KeyDown(object? sender, KeyEventArgs e)

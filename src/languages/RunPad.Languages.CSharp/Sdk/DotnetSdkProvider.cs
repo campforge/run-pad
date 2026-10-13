@@ -10,7 +10,7 @@ public sealed class DotnetSdkProvider : ISdkProvider
     // .NET 5 and earlier are out of Microsoft support
     // (https://dotnet.microsoft.com/platform/support/policy/dotnet-core) and predate this project's
     // own minimum-supported language surface — not worth offering as a script target even if
-    // somehow still installed alongside newer SDKs (ANALYSIS.md #94).
+    // somehow still installed alongside newer SDKs.
     private const int MinSupportedSdkMajorVersion = 6;
 
     public IReadOnlyList<DotnetSdk> Get(string? dotnetExecutableOverride = null)

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `int.Parse(s.Trim())` (and the other integral types, plus bool.Parse) trims s before parsing it —
 // but the default NumberStyles for every integral Parse overload (NumberStyles.Integer) already
 // includes AllowLeadingWhite/AllowTrailingWhite, and bool.Parse is separately documented to ignore

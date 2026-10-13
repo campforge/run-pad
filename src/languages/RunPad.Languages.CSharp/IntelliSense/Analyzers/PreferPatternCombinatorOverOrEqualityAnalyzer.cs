@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят девятый проход, batch) — own pick, not a Roslynator port. Sibling to
+// Own pick, not a Roslynator port. Sibling to
 // PreferPatternCombinatorOverOrExpressionAnalyzer (RPAD0115, проход 170), which covers `x is A || x is
 // B` — that one only matches `is` type-checks, not equality (verified by reading its Analyze method
 // before writing this one). `x == 1 || x == 2` re-checks and re-reads `x` twice to ask "is x one of

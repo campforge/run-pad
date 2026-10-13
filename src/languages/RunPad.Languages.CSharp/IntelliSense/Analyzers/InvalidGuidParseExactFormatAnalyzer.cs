@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста двенадцатый проход, batch) — own pick, not a Roslynator port. `Guid.ParseExact(input,
+// Own pick, not a Roslynator port. `Guid.ParseExact(input,
 // format)` throws FormatException for ANY `format` value outside the fixed set `{"D","d","N","n","P","p",
 // "B","b","X","x"}` — REGARDLESS of what `input` contains, confirmed empirically via scratch `dotnet run`
 // script (not assumed) by reading the exact set out of the BCL's own exception message text ("Format

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (459-й проход, batch) — candidate #1 from the twenty-first research subagent survey,
+// Candidate #1 from the twenty-first research subagent survey,
 // re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
 // SubjectAlternativeNameBuilder` — a sibling of the already-covered `X500DistinguishedNameBuilder`
 // (RPAD0472), same namespace, distinct type. `AddDnsName(string)`/`AddEmailAddress(string)`/

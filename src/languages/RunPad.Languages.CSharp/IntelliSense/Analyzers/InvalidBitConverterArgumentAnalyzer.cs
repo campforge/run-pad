@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семьдесят девятый проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `BitConverter.ToInt32(byte[] value, int startIndex)` (and the other ToXxx(byte[], int)
 // overloads — ToBoolean/ToChar/ToInt16/ToUInt16/ToInt32/ToUInt32/ToInt64/ToUInt64/ToSingle/ToDouble,
 // each needing a different byte count) always throws when `startIndex` and the array's length don't

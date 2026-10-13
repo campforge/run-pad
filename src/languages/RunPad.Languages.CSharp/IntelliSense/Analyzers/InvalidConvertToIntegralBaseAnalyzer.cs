@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок второй проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeElementAtIndexAnalyzer (RPAD0236)/
 // NegativeStringRepeatCountAnalyzer (RPAD0237, same batch), for a non-negative-related validation
 // instead: `Convert.ToInt32(value, fromBase)` (and the SByte/Int16/Int64 overloads) are documented to

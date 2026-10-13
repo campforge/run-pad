@@ -14,7 +14,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md #54/#55 — end-to-end regressions for real completion-window mechanics that the pure
+// End-to-end regressions for real completion-window mechanics that the pure
 // static-function tests in CodeTextEditorAutoInvokeTests.cs can't reach (they need a live
 // CompletionWindow/TextArea, which needs a real headless Avalonia window).
 public class CodeTextEditorCompletionIntegrationTests
@@ -113,7 +113,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Rhino;", editor.Document.Text);
     }
 
-    // TODO.md #60.4: a user who finds punctuation unpredictably accepting completions can turn
+    // A user who finds punctuation unpredictably accepting completions can turn
     // this off — Enter/Tab/click still commit either way (untouched by this switch), only the
     // "typing punctuation also commits" convenience path is gated.
     [AvaloniaFact]
@@ -131,7 +131,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("R;", editor.Document.Text);
     }
 
-    // TODO.md #60.3: "MyContext" only substring-matches "Con" (no prefix — GetMatchQuality's
+    // "MyContext" only substring-matches "Con" (no prefix — GetMatchQuality's
     // "match start" tier, quality >= 5, never fires), so it's only soft-selected: shown
     // highlighted, but not confident enough for a typed commit character to accept automatically.
     [AvaloniaFact]
@@ -178,7 +178,7 @@ public class CodeTextEditorCompletionIntegrationTests
     {
         // Arrange — "Zebra" is added first (so it'd win if the window opened with no filtering/
         // selection and just defaulted to the first item), "Rhino" is the only real prefix match for
-        // "R". If the first-letter pre-selection from ANALYSIS.md #55 didn't run, accepting the
+        // "R". If the first-letter pre-selection didn't run, accepting the
         // selection here would either do nothing (no default selection) or commit the wrong item.
         var (window, editor) = CreateEditor("", ("Zebra", 1.0), ("Rhino", 1.0));
 
@@ -192,7 +192,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Rhino", editor.Document.Text);
     }
 
-    // TODO.md #60.5: committing via Tab with the caret mid-word ("Cons|ole") must consume the
+    // Committing via Tab with the caret mid-word ("Cons|ole") must consume the
     // pre-existing remainder ("ole"), producing exactly the accepted item's text — not leave it
     // dangling after the inserted text (e.g. "Consoleole").
     [AvaloniaFact]
@@ -215,7 +215,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Console", editor.Document.Text);
     }
 
-    // Same setup as above, but committing via Enter — the spec (TODO.md #60.5) deliberately keeps
+    // Same setup as above, but committing via Enter — the spec deliberately keeps
     // Enter's existing "insert, don't touch what follows the caret" behavior, only Tab replaces the
     // remainder.
     [AvaloniaFact]
@@ -232,7 +232,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("Consoleole", editor.Document.Text);
     }
 
-    // ANALYSIS.md #57: fast typing can start a second completion request before the first one
+    // Fast typing can start a second completion request before the first one
     // resolves (e.g. the 24/7 auto-invoke on a letter, immediately followed by '.'). If the first
     // (now stale) request happens to resolve *after* the second, newer one — plausible, since async
     // completion order isn't guaranteed — it used to still open its own window and overwrite
@@ -277,7 +277,7 @@ public class CodeTextEditorCompletionIntegrationTests
         await Task.Delay(20);
 
         // Nothing is pre-selected right after '.' (no member-name prefix typed yet — see
-        // ANALYSIS.md #55's alreadyTyped check), so Enter has nothing to accept until the list is
+        // CodeTextEditor's alreadyTyped check), so Enter has nothing to accept until the list is
         // filtered down to one candidate by typing part of its name, same as a real user would.
         window.KeyTextInput("R");
         await Task.Delay(20);
@@ -328,7 +328,7 @@ public class CodeTextEditorCompletionIntegrationTests
 
     // User-reported bug: an empty completion popup stayed visible (IsOpen/IsVisible both true, zero
     // items) when nothing typed so far matched any offered item. The manual CompletionList.SelectItem
-    // call ShowCompletion makes right after Show() (see ANALYSIS.md #55) bypasses CompletionWindow's
+    // call ShowCompletion makes right after Show() bypasses CompletionWindow's
     // own CaretPositionChanged handler — the one that normally hides the window once filtering
     // leaves nothing to show — since that handler only runs on the *next* caret move, not for this
     // first, manually-triggered filter.
@@ -369,7 +369,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal("list.First(x=", editor.Document.Text);
     }
 
-    // TODO.md #28 remainder: accepting a completion item for a type from an added-but-not-yet-
+    // Accepting a completion item for a type from an added-but-not-yet-
     // imported NuGet package (e.g. Newtonsoft.Json's JsonConvert) should auto-add its `using`, same
     // as the existing lightbulb quick-fix. CodeTextEditor/EditorCompletionData don't know what a
     // "using" is (language-agnostic control layer) — they just carry opaque tags through to
@@ -405,7 +405,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Contains("Newtonsoft.Json", committedTags!);
     }
 
-    // TODO.md #65: the provider (EditorTabItemControl) detects a fresh, not-yet-typed call argument
+    // The provider (EditorTabItemControl) detects a fresh, not-yet-typed call argument
     // and sets RedirectToOverloads on an explicit-invoke (Ctrl+Space) request — ShowCompletion must
     // show overloads instead of whatever completion items the provider may (or may not) have added,
     // not open a completion window at all.
@@ -474,7 +474,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.Equal(0, onCommitCallCount);
     }
 
-    // TODO.md item 60 point 8 — EditorTabItemControl builds a SnippetCompletionData (not a plain
+    // EditorTabItemControl builds a SnippetCompletionData (not a plain
     // EditorCompletionData) for an override-member stub, reusing CodeTextEditor.ExpandSnippet's
     // reindent-to-current-line + ${0} cursor placement. This proves accepting one through the real
     // completion window drives that same path end to end, not just that the service produces the
@@ -520,7 +520,7 @@ public class CodeTextEditorCompletionIntegrationTests
             editor.TextArea.Caret.Offset);
     }
 
-    // TODO.md #53 remainder: the active parameter used to update only on a typed "," — clicking,
+    // The active parameter used to update only on a typed "," — clicking,
     // arrow keys, Home/End left it stuck on whatever slot was active when the window opened.
     [AvaloniaFact]
     public async Task ShowOverloads_Should_ReRequest_WhenTheCaretMovesWhileTheWindowIsOpen()
@@ -608,7 +608,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.False(editor.IsInsightWindowOpen);
     }
 
-    // TODO.md #60.9: Esc closing the insight window — already worked via
+    // Esc closing the insight window — already worked via
     // CompletionWindowBase.OnKeyDown's fully generic Key.Escape handler (OverloadInsightWindow calls
     // base.OnKeyDown first, before its own Up/Down cycling), but had no regression test locking that
     // behavior in.
@@ -641,7 +641,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.False(editor.IsInsightWindowOpen);
     }
 
-    // TODO.md #53 remainder: any closing bracket used to hide the window unconditionally, including
+    // Any closing bracket used to hide the window unconditionally, including
     // one closing a bracket NESTED inside an already-typed argument — e.g. typing the "}" that closes
     // an array-literal argument (Foo(new[] { 1, 2 }) incorrectly hid the window for Foo's own,
     // still-open call.
@@ -711,7 +711,7 @@ public class CodeTextEditorCompletionIntegrationTests
         Assert.False(editor.IsInsightWindowOpen);
     }
 
-    // TODO.md #77 — user-reported bug, reproduced end-to-end with the REAL Roslyn-backed
+    // User-reported bug, reproduced end-to-end with the REAL Roslyn-backed
     // CSharpIntelliSenseService (not a fake AsyncCompletionProvider like every other test in this
     // file): "var a = new List<string>();" then "a" on its own line then "." replaced "a" with
     // "args". Root cause was a Roslyn quirk (see CSharpIntelliSenseEndOfBufferTests /

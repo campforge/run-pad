@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (453-й проход, batch) — candidate #4 from the fifteenth research subagent survey,
+// Candidate #4 from the fifteenth research subagent survey,
 // re-verified independently before implementing. `System.Threading.Tasks.ParallelOptions.
 // MaxDegreeOfParallelism` — throws `ArgumentOutOfRangeException` for `0` ("must be a non-zero value") or
 // any value ≤ -2; `-1` (the "unlimited" sentinel) and any positive value are valid. Confirmed invariant

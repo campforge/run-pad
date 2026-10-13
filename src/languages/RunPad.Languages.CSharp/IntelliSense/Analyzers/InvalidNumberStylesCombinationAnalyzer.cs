@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести восемьдесят седьмой проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidRegexOptionsCombinationAnalyzer (RPAD0274, проход 286), applied to
 // a different flags enum: `Xxx.Parse(s, NumberStyles style[, IFormatProvider])` throws ArgumentException
 // when `style` combines `NumberStyles.AllowHexSpecifier` with most other flags (confirmed empirically

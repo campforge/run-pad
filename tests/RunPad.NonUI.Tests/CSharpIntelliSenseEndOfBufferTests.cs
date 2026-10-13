@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #77 — user-reported bug: `var a = new List<string>();` then `a` on its own line, then `.`
+// User-reported bug: `var a = new List<string>();` then `a` on its own line, then `.`
 // replaced `a` with `args`. Traced to a genuine Roslyn quirk, confirmed directly against
 // SemanticModel.LookupSymbols outside RunPad entirely: a query position sitting at the EXACT end of
 // the source text (no trailing newline/anything after it — precisely what "just typed a fresh

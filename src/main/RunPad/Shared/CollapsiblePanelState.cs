@@ -5,7 +5,7 @@ using ReactiveUI;
 
 namespace RunPad.Shared;
 
-// TODO.md #103: MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
+// MainWindowViewModel.SidebarColumnWidth/ToggleSidebar and
 // EditorTabItemViewModel.OutputPanelHeight/ToggleOutputPanel duplicated the exact same
 // collapse/expand-plus-throttled-persist scheme almost line for line. This is that scheme,
 // extracted once — the two call sites now just supply their own saved/default size and a callback

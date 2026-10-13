@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (441-й проход, batch) — own pick, not a Roslynator port; direct brainstorming resumed after
+// Own pick, not a Roslynator port; direct brainstorming resumed after
 // the sixth research subagent's full candidate list (проходы 435-440) was exhausted. Found while
 // double-checking a stale claim from this session's own memory ("XName.Get(string) never throws" — a
 // third-party research agent's UNVERIFIED guess from проход 411, never independently re-confirmed until

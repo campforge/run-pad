@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести сорок третий проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `Path.Combine` is documented to discard every earlier segment as soon as it reaches one that
 // is itself a rooted (absolute) path — `Path.Combine(baseDir, "/etc/passwd")` returns just
 // "/etc/passwd", silently dropping `baseDir` entirely. This is a well-known, easy-to-miss surprise

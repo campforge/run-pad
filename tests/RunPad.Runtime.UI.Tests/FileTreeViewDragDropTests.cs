@@ -13,7 +13,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #110: file tree had no drag-and-drop at all. These test FileTreeView's own DragOver/Drop
+// File tree had no drag-and-drop at all. These test FileTreeView's own DragOver/Drop
 // routing directly — constructing a real DragEventArgs (it has a public constructor) and raising it on
 // a REAL, realized TreeViewItem container (not a floating, unattached one — RaiseEvent overwrites
 // Source to whatever element it's called on, so the event has to originate from the actual container
@@ -154,7 +154,7 @@ public class FileTreeViewDragDropTests
         Assert.False(raised);
     }
 
-    // TODO.md #110 — live user report: the OS drag cursor alone wasn't a reliable/visible enough
+    // Live user report: the OS drag cursor alone wasn't a reliable/visible enough
     // signal of where a drop would land — the hovered node highlights directly too.
     [AvaloniaFact]
     public void DragOver_Should_HighlightTheHoveredNode()

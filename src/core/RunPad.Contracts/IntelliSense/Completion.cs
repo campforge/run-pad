@@ -30,7 +30,7 @@ public interface ICompletionItem
     // well (e.g. both are exact prefix matches) — higher wins. Mirrors the same in-scope-first
     // ranking as SortText (locals/parameters > members > types > namespaces > keywords), computed by
     // the language model rather than hardcoded by the UI layer (see EditorTabItemControl, which used
-    // to hardcode Kind == Method ? 1.0 : 0.9 — ANALYSIS.md #55).
+    // to hardcode Kind == Method ? 1.0 : 0.9).
     double Priority { get; }
 
     // The member's signature, classified for syntax highlighting (e.g. `string Format(string format,
@@ -43,7 +43,7 @@ public interface ICompletionItem
 
     // Namespaces to add (as `using`/front-matter `namespaces:` entries — see EditorTabItemControl.
     // AddGlobalUsings) if this item is accepted. Empty for anything already in scope; non-empty for
-    // a type found in an added reference that isn't imported yet (TODO.md #28 remainder) — ReSharper-
+    // a type found in an added reference that isn't imported yet — ReSharper-
     // style auto-import on completion accept, not just via the lightbulb.
     IReadOnlyList<string> UsingsToAdd { get; }
 
@@ -53,8 +53,8 @@ public interface ICompletionItem
     // insert text. Null for anything that needs no annotation.
     string? Detail { get; }
 
-    // How many overloads share this DisplayText and were collapsed down to this single item (TODO.md
-    // #59 remainder) — 1 means "just this one, nothing else hidden". A method name with several
+    // How many overloads share this DisplayText and were collapsed down to this single item —
+    // 1 means "just this one, nothing else hidden". A method name with several
     // overloads only ever shows up once in the list (the language service already picks one
     // representative per name), so without this the list gave no indication there was anything else
     // to see under that name at all.
@@ -63,13 +63,13 @@ public interface ICompletionItem
     // True for a member declared directly on the type being completed (the receiver's type for a
     // dot-completion, or the type containing the current scope for an unqualified reference) — false
     // for an inherited member, a local/parameter/type/namespace/keyword, or anything else with no
-    // "declared on this type" notion (TODO.md item 60 point 7, ReSharper 1.1: own members render
+    // "declared on this type" notion (ReSharper 1.1: own members render
     // bold, inherited ones don't).
     bool IsOwnMember { get; }
 
     // A multi-line snippet template (same `${0}`-cursor-marker/`\t`-indent syntax as
     // ILanguageHostFactory.Snippets) to insert instead of DisplayText — non-null only for an
-    // override-member stub (TODO.md item 60 point 8: typing "override " lists overridable base
+    // override-member stub (typing "override " lists overridable base
     // members; accepting one inserts the full "<modifiers> override <returnType> <name>(<params>)
     // { <body> }" stub, not just the bare method name). Null for every ordinary completion item.
     string? InsertTemplate { get; }

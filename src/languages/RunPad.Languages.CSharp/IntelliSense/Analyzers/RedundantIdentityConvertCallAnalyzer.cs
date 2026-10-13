@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 160, batch) — own pick, not a Roslynator port. Same "redundant
+// Own pick, not a Roslynator port. Same "redundant
 // identity conversion" theme as RedundantCastAnalyzer (RPAD0022)/RedundantAsOperatorAnalyzer
 // (RPAD0023), but for System.Convert's ToXxx family: `Convert.ToInt32(intValue)` just returns
 // intValue unchanged — a genuine no-op, not merely a style nit, since Convert.ToInt32(int) is

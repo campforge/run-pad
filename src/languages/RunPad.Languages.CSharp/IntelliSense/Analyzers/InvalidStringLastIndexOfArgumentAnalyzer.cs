@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста тридцать четвёртый проход, batch) — own pick, not a Roslynator port. The
+// Own pick, not a Roslynator port. The
 // backward-searching counterpart to InvalidStringIndexOfCharArgumentAnalyzer (RPAD0299, проходы 332-333),
 // kept as a SEPARATE analyzer for the same reason InvalidArrayLastIndexOfArgumentAnalyzer (RPAD0298) is
 // separate from InvalidArrayFillArgumentAnalyzer (RPAD0294): the boundary formula is genuinely different,

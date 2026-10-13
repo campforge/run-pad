@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (445-й проход, batch) — candidate #2 from the ninth research subagent survey, re-verified
+// Candidate #2 from the ninth research subagent survey, re-verified
 // independently before implementing. `System.Net.WebProxy(string address)` — a distinct type from the
 // already-covered `Uri`/`UriBuilder(string)`, grep-confirmed no prior coverage. Confirmed empirically:
 // throws `UriFormatException` eagerly in the constructor itself (no lazy evaluation, no side effects —

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (455-й проход, batch) — candidate #2 from the seventeenth research subagent survey,
+// Candidate #2 from the seventeenth research subagent survey,
 // re-verified independently before implementing. `System.Diagnostics.TraceSwitch.Level` — property type
 // `TraceLevel` (name differs from type name), `int`-backed (confirmed via `Enum.GetUnderlyingType`).
 // Confirmed empirically: throws `ArgumentException` ("The Level must be set to a value in the

@@ -7,7 +7,7 @@ using ICSharpCode.Decompiler.Metadata;
 namespace RunPad.Languages.DotnetCommon;
 
 /// <summary>
-/// Disassembles a compiled assembly to raw IL text — backs the "IL" output tab (TODO.md #62,
+/// Disassembles a compiled assembly to raw IL text — backs the "IL" output tab (
 /// LINQPad has the same feature). Driven off <see cref="Contracts.ILanguageHost.Compiled"/>, so this
 /// only ever runs against a binary that has already finished building.
 /// </summary>

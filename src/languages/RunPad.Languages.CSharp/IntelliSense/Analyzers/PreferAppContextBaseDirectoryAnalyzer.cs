@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят второй проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `AppDomain.CurrentDomain.BaseDirectory` reaches through the current AppDomain just to read one
 // string off it — `AppContext.BaseDirectory` (.NET Core, well within this project's .NET 6 SDK floor)
 // returns the same path directly, without the AppDomain lookup (a concept .NET Core mostly kept only

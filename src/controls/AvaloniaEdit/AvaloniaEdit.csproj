@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Local fork (TODO.md #61) — was Avalonia.AvaloniaEdit 12.0.0 from NuGet, now a
+    <!-- Local fork — was Avalonia.AvaloniaEdit 12.0.0 from NuGet, now a
          ProjectReference so RunPad can customize it directly instead of waiting on upstream.
          net10.0 only (was net8.0;net10.0) — this repo builds one TFM everywhere
          (Directory.Build.props), the extra multi-targeting served no purpose here. -->

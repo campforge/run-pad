@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (479-й проход, batch) — candidate #3 from the forty-first research subagent survey,
+// Candidate #3 from the forty-first research subagent survey,
 // re-verified independently before implementing. `System.Buffers.StandardFormat.Parse(string format)` —
 // a static factory, structurally distinct from the already-covered constructor
 // (`InvalidStandardFormatConstructorAnalyzer`, RPAD0492, which only checks `new StandardFormat(char,

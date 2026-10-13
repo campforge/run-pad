@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (450-й проход, batch) — candidate #5 from the twelfth research subagent survey, re-verified
+// Candidate #5 from the twelfth research subagent survey, re-verified
 // independently before implementing. `System.Xml.XmlWriterSettings` — 3 enum property setters, all on a
 // throwaway `new XmlWriterSettings()`: `ConformanceLevel`, `NewLineHandling`, and `NamespaceHandling` all
 // throw `ArgumentOutOfRangeException` for a value outside their own enum's defined range. Confirmed

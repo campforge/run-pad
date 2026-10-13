@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `BitConverter.ToString(bytes).Replace("-", "")` is the pre-.NET-5 idiom for hex-encoding a byte
 // array — BitConverter.ToString formats as dash-separated hex pairs ("AA-BB-CC"), then Replace strips
 // the dashes. `Convert.ToHexString(bytes)` (.NET 5+, well within this project's .NET 6 SDK floor)

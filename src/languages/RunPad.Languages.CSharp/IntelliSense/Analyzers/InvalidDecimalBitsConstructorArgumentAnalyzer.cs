@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same "run
+// Own pick, not a Roslynator port. Same "run
 // the real validator" theme as InvalidSemaphoreSlimConstructorArgumentAnalyzer (RPAD0319): `new
 // decimal(int[] bits)` throws ArgumentException when the array isn't exactly 4 elements, OR when it IS
 // 4 elements but the last one (the scale/sign component) doesn't encode a valid scale (0-28) with the

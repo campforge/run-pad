@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок третий проход, batch) — own pick, not a Roslynator port. Same "negative
+// Own pick, not a Roslynator port. Same "negative
 // literal argument always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231): every
 // `string.Split(...)` overload that accepts a `count` parameter (separator as `char`/`char[]`/`string`/
 // `string[]`, with or without `StringSplitOptions`) throws ArgumentOutOfRangeException for a negative

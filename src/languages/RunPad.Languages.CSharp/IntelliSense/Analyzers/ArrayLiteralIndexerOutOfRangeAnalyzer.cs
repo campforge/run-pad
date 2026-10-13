@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (трёхсотый проход, batch) — own pick, not a Roslynator port. Same "literal receiver, known
+// Own pick, not a Roslynator port. Same "literal receiver, known
 // length" theme as StringLiteralIndexerOutOfRangeAnalyzer (RPAD0282, проход 299), applied to a freshly
 // created array literal instead of a string literal: `new[] { 1, 2, 3 }[10]` throws
 // IndexOutOfRangeException when the index is >= the initializer's own known element count — confirmed

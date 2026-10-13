@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (411-й проход, batch) — found by the third research subagent (candidate #1 of its
+// Found by the third research subagent (candidate #1 of its
 // ranked list), then independently re-verified before implementation per this session's standing
 // discipline. InvalidGuidLiteralFormatAnalyzer (RPAD0246, проход 253) only registers on
 // InvocationExpression and matches the static "Parse" call — it never handles ObjectCreationExpression,

@@ -28,7 +28,7 @@ public sealed class DapSession : IDapSession
     private const string ContentLengthPrefix = "Content-Length: ";
 
     // How long to wait for netcoredbg to acknowledge "disconnect" (and then actually exit) after the
-    // debuggee finished, before giving up and force-killing it — ANALYSIS.md #94 (named, not a bare
+    // debuggee finished, before giving up and force-killing it (named, not a bare
     // literal, since both used to be unexplained "2" seconds).
     private static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan DisconnectWaitForExitTimeout = TimeSpan.FromSeconds(2);
@@ -71,7 +71,7 @@ public sealed class DapSession : IDapSession
     // Preference order for "break on uncaught exceptions": the standard DAP/vsdbg id, then netcoredbg's.
     private static readonly string[] UncaughtExceptionFilterIds = ["unhandled", "user-unhandled"];
 
-    // TODO.md #111 — mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core) and
+    // Mirrors ChildProcess.CurrentQueryPathEnvVar (RunPad.Build.Core) and
     // RunPad.Runtime.Util.CurrentQueryPathEnvVar; duplicated, not shared (this assembly has no
     // reference to either — same precedent as RsPrefix/InputRequestPrefix mirroring across the same
     // process boundary elsewhere in the DAP/runtime split).
@@ -201,7 +201,7 @@ public sealed class DapSession : IDapSession
     {
         // Failing fast here with a clear message beats the confusing exception (e.g.
         // InvalidOperationException from a stream never redirected) that would otherwise surface
-        // later out of RunProtocolAsync's first read/write attempt (ANALYSIS.md #92).
+        // later out of RunProtocolAsync's first read/write attempt.
         if (!_process.Start())
             throw new InvalidOperationException("Failed to start the debugger process.");
         var stderrTask = DrainStderrAsync(ct);
@@ -445,7 +445,7 @@ public sealed class DapSession : IDapSession
             ? pathEl.GetString()
             : null;
 
-        // Same tolerant FileName match as HandleStoppedAsync (ANALYSIS.md #92) — matching on Line
+        // Same tolerant FileName match as HandleStoppedAsync — matching on Line
         // alone would misattribute this event to the wrong breakpoint if two source files
         // coincidentally used the same line number.
         var matched = _breakpoints.FirstOrDefault(bp => bp.Line == userLine
@@ -856,7 +856,7 @@ public sealed class DapSession : IDapSession
             var line = content.Substring(start, i - start).TrimEnd('\r');
             // A blank line (e.g. a bare Console.WriteLine()) is real output — dropping it here made
             // debug runs lose blank lines that a non-debug run (DrainReaderAsync, which forwards
-            // every ReadLineAsync result unconditionally) keeps (ANALYSIS.md #92).
+            // every ReadLineAsync result unconditionally) keeps.
             _outputHandler?.Invoke(line, kind);
             start = i + 1;
         }

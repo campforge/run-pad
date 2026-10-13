@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (467-й проход, batch) — candidate #4 from the thirtieth research subagent survey,
+// Candidate #4 from the thirtieth research subagent survey,
 // re-verified independently before implementing. `System.IO.BufferedStream(Stream stream, int
 // bufferSize)` — first touch of `BufferedStream`. Confirmed empirically: `bufferSize <= 0` always
 // throws `ArgumentOutOfRangeException` ("'bufferSize' must be greater than zero.") — confirmed BOTH `0`

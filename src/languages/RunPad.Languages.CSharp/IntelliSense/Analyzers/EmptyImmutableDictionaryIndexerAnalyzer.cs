@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят шестой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "known-empty `.Empty` receiver" theme as EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360, same
 // проход), applied to the indexer of `ImmutableDictionary<TKey,TValue>`/
 // `ImmutableSortedDictionary<TKey,TValue>` instead: `ImmutableDictionary<K,V>.Empty[key]` always throws

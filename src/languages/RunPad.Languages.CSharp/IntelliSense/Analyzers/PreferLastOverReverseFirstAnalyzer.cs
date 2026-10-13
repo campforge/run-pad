@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Reverse().First()` (or FirstOrDefault) reverses the ENTIRE sequence — buffering every element —
 // just to read what was originally the last one. `xs.Last()`/`xs.LastOrDefault()` reads the same
 // element directly, without ever reversing anything.

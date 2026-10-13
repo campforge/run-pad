@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (442-й проход, batch) — candidate #2 from the seventh research subagent survey, re-verified
+// Candidate #2 from the seventh research subagent survey, re-verified
 // independently before implementing. `Path.GetRelativePath(string relativeTo, string path)` was
 // deliberately EXCLUDED from InvalidPathEmbeddedNulLiteralAnalyzer's (RPAD0423) scope, whose own doc
 // comment names it explicitly as "left for a possible follow-up rather than rushed here" — this is that

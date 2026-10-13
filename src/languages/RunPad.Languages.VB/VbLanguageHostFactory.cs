@@ -16,7 +16,7 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     public string Language => "vb";
     public string DisplayName => "Visual Basic";
 
-    // See VbLanguageHost.SupportedCapabilities — single source of truth (ANALYSIS.md #96).
+    // See VbLanguageHost.SupportedCapabilities — single source of truth.
     public LanguageHostCapabilities Capabilities => VbLanguageHost.SupportedCapabilities;
 
     // No VB snippets defined yet — same gap as IntelliSense above.
@@ -40,11 +40,11 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         BracePairs = new Dictionary<char, char> { ['('] = ')', ['['] = ']' },
         AutoCloseBraces = new HashSet<char> { '[' },
         IndentationStrategy = IndentationStrategyKind.Default,
-        // TODO.md #49 item 3 / #76 — VB's blocks aren't brace-delimited, so the default brace-based
+        // VB's blocks aren't brace-delimited, so the default brace-based
         // folding strategy folded nothing at all in a .vb file. VbFoldingRegions.Compute lives right
-        // here in the VB language project, not in the language-agnostic editor control (TODO.md #76).
+        // here in the VB language project, not in the language-agnostic editor control.
         FoldingRegionsProvider = VbFoldingRegions.Compute,
-        // TODO.md #81: file tree's per-language icon (TODO.md #70). No Visual Basic-specific icon
+        // File tree's per-language icon. No Visual Basic-specific icon
         // exists in Material Design Icons (checked the library's own meta.json — no icon
         // anywhere named/tagged/aliased "visual-basic"/"vb.net"/"vbnet"/"basic"). Stand-in chosen
         // by the user: the Visual Studio logo (pictogrammers.com/library/mdi/icon/

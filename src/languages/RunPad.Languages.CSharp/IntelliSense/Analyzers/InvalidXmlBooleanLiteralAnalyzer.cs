@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста девяносто седьмой проход, batch) — own pick, not a Roslynator port; sourced from a
+// Own pick, not a Roslynator port; sourced from a
 // second research subagent survey (проход 397), which this time ran with read-only tools and could NOT
 // execute its own verification scripts — every candidate it returned was explicitly flagged as an
 // "unverified hunch" based only on reading XML doc comments, not empirical confirmation. Re-verified

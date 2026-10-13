@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок девятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as ListLiteralIndexerOutOfRangeAnalyzer (RPAD0303, проход 341), applied
 // to `System.Collections.BitArray` instead of `List<T>`: `new BitArray(N)[index]` throws
 // ArgumentOutOfRangeException when `index` is negative or `>= N`, for a LITERAL constructor length `N`

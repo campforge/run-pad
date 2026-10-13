@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто девяносто второй проход, batch) — own pick, not a Roslynator port. Two shapes,
+// Own pick, not a Roslynator port. Two shapes,
 // same underlying idea — an underused StringBuilder.AppendLine overload:
 // - `sb.Append(x).AppendLine()` appends `x`, then a separate call appends the line terminator —
 //   `sb.AppendLine(x)` already does both in one call.

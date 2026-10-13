@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator's
+// Idea ported from Roslynator's
 // UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `collection.Any()` (the parameterless LINQ overload) forces
 // an IEnumerator allocation and a MoveNext() call just to answer a question a `Count`/`Length`

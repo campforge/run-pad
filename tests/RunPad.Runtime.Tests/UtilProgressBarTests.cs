@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #111 (bucket 1) — LINQPad-inspired Util.ProgressBar. Redirects Console.Out — see
+// LINQPad-inspired Util.ProgressBar. Redirects Console.Out — see
 // ConsoleTestCollection for why this needs to run sequentially relative to every other test doing the
 // same (UtilTests/ObjectExtensionsTests).
 [Collection(ConsoleTestCollection.Name)]

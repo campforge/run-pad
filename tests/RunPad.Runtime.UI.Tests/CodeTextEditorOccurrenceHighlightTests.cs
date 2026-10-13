@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "occurrence highlighting" — end-to-end: CodeTextEditor.UpdateOccurrenceHighlights fires
+// End-to-end: CodeTextEditor.UpdateOccurrenceHighlights fires
 // on every caret move and applies whatever AsyncOccurrencesProvider returns via
 // OccurrenceHighlighter. The actual symbol-matching logic is covered at the provider level directly
 // by CSharpIntelliSenseDocumentHighlightsTests.cs — these only need to prove the editor-side wiring

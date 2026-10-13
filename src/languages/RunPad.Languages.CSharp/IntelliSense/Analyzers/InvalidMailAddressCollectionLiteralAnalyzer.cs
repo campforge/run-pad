@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (четыреста пятый проход, batch) — own pick, not a Roslynator port; last candidate from the
+// Own pick, not a Roslynator port; last candidate from the
 // second research subagent survey (проход 397) — flagged by the agent as "low-medium confidence" with the
 // explicit caveat that its rules "may turn out identical" to the already-shipped `new MailAddress(string)`
 // coverage (InvalidMailAddressLiteralAnalyzer, RPAD0250, проход 256), so checked for genuine non-duplication

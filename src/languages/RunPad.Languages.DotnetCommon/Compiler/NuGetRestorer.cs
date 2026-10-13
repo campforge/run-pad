@@ -33,7 +33,7 @@ public sealed record RestoredPackages(
 /// <param name="RelativePath">Destination under the output's bin directory (e.g. "de/Lib.resources.dll").</param>
 public sealed record RuntimeFile(string SourcePath, string RelativePath);
 
-// In-process `dotnet restore` for a script (docs/handoffs/roslyn-script-compiler.md): NuGet's own
+// In-process `dotnet restore` for a script: NuGet's own
 // RestoreRunner over a PackageSpec built from the front matter, so version resolution (latest/"*",
 // ranges, transitive dependencies), the global packages folder, sources and credentials behave like the
 // SDK's — without MSBuild. Restore only runs when the package set, target or NuGet configuration

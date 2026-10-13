@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят второй проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCountArgumentAnalyzer (RPAD0232), applied to
 // `SemaphoreSlim.Release(int releaseCount)` (and the non-generic `System.Threading.Semaphore.Release(int)`,
 // identical formula) instead of a LINQ method: throws ArgumentOutOfRangeException when `releaseCount`

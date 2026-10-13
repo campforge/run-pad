@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Where(x => x is T).Cast<T>()` filters down to the elements of type T and then casts them — two
 // passes and two intermediate iterators for something `xs.OfType<T>()` already does directly, in one
 // pass, without ever needing an explicit cast.

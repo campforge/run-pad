@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Math.Min(Math.Max(x, min), max)`/`Math.Max(Math.Min(x, max), min)` spell out, by hand, exactly what
 // Math.Clamp(x, min, max) already does — bound a value between a lower and upper limit. Math.Clamp
 // (added in .NET Core 2.0) says the intent directly instead of making the reader reconstruct it from

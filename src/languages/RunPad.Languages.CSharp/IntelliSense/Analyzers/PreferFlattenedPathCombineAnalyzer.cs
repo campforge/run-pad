@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Path.Combine(Path.Combine(a, b), c)` nests two Path.Combine calls, building and discarding an
 // intermediate combined path just to combine it again — Path.Combine has 3-argument, 4-argument, and
 // params overloads, so `Path.Combine(a, b, c)` already produces the same joined path in one call.

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "redundant round trip" theme as RedundantParseToStringRoundTripAnalyzer (RPAD0097, проход 166), for
 // System.Guid specifically — that analyzer is scoped to the numeric SpecialTypes and doesn't cover
 // Guid (which has no SpecialType of its own), so this is a separate analyzer rather than an extension.

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #48: _openTabs used StringComparer.OrdinalIgnoreCase unconditionally, which is correct
+// _openTabs used StringComparer.OrdinalIgnoreCase unconditionally, which is correct
 // for Windows'/macOS' default case-insensitive filesystems but wrong on Linux's case-sensitive one —
 // two genuinely different files differing only by case (Query1.rpad/query1.rpad) would collapse
 // into a single dictionary entry there. Fixed with an OS-aware comparer.

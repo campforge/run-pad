@@ -2,7 +2,7 @@ using Xunit;
 
 namespace RunPad.Format.RPad.Tests;
 
-// TODO.md #70: extracted from EditorTabsControl's private PeekLanguage so the main UI project's file
+// Extracted from EditorTabsControl's private PeekLanguage so the main UI project's file
 // tree can reuse the same cheap front-matter peek for its per-language icon, instead of duplicating
 // the parse-and-default logic a second time. Lives in this project (not the main RunPad one) because
 // it's fundamentally a .rpad-format concern, next to RpadParser/RpadLanguage themselves.

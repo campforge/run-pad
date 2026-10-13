@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (464-й проход, batch) — candidate #3 from the twenty-seventh research subagent survey,
+// Candidate #3 from the twenty-seventh research subagent survey,
 // re-verified independently before implementing. `System.Buffers.ArrayBufferWriter<T>` — constructor
 // plus three instance methods, bundled under one diagnostic (precedent RPAD0426). Confirmed
 // empirically: `ArrayBufferWriter<T>(int initialCapacity)` throws `ArgumentException` for

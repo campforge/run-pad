@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста сорок восьмой проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known contents" theme as EnumerableSumOverflowAnalyzer (this same batch): `.ToDictionary
 // (keySelector)` on a freshly created array literal that contains two elements which would map to the
 // SAME key always throws ArgumentException ("An item with the same key has already been added") —

@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (451-й проход, batch) — candidate #1 from the thirteenth research subagent survey,
+// Candidate #1 from the thirteenth research subagent survey,
 // re-verified independently before implementing. `HttpClient.Timeout` (TimeSpan) — first analyzer in this
 // catalog touching `System.Net.Http`, an entirely new configuration-object family the agent found after
 // being pointed at the productive "range-validated property setter" vein (NumberFormatInfo/

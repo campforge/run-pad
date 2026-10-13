@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятидесятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidSemaphoreSlimConstructorArgumentAnalyzer
 // (RPAD0319, проход 348), applied to `System.Threading.Semaphore(int initialCount, int
 // maximumCount)` instead of `SemaphoreSlim` — confirmed empirically to throw

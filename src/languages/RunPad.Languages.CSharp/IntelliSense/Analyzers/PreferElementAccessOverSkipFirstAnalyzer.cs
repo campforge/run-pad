@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят первый проход, batch) — same "prefer direct indexing" theme as
+// Same "prefer direct indexing" theme as
 // UseElementAccessInsteadOfLinqMethodAnalyzer (RPAD0016, проход 147), for a chain instead of a single
 // call: `xs.Skip(n).First()` walks an enumerator past the first n elements and then reads the next one
 // — `xs[n]` reads the same element directly when the receiver already supports indexing.

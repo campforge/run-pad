@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят второй проход, batch) — idea ported from Roslynator (Apache License 2.0,
+// Idea ported from Roslynator (Apache License 2.0,
 // https://github.com/dotnet/roslynator). Same "remove empty X block" theme as
 // RemoveEmptyFinallyClauseAnalyzer/RemoveEmptyElseClauseAnalyzer/RemoveEmptyDestructorAnalyzer, for
 // `lock (x) { }` — an empty lock body still takes and releases the lock (a real, if usually harmless,

@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девятый проход, batch; Array.Sort/Array.Reverse form added двести двадцать
-// седьмой проход) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Sort(); xs.Reverse();` sorts a List<T> ascending in one pass and then reverses the whole list in
 // a second pass to get a descending order — `xs.Sort((a, b) => b.CompareTo(a))` gets the same result
 // directly in one pass, with a descending comparer. Scoped to the narrowest safe shape (matching

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #74 "IntelliSenseService optimization" (pass 104) — SyncDocument now diffs the
+// SyncDocument now diffs the
 // previous full document text against the new one (ComputeMinimalChange) instead of always handing
 // Roslyn a brand-new SourceText.From(...), so SourceText.WithChanges can preserve lineage and let the
 // incremental lexer/parser reuse syntax nodes outside the edited span. These tests exercise the diff

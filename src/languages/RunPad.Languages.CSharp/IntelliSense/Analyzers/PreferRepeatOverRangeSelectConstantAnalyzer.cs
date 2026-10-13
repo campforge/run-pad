@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятнадцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Enumerable.Range(start, count).Select(i => 0)` builds a sequence of indices only to throw the index
 // away and project every element to the same constant — `Enumerable.Repeat(0, count)` says that
 // directly. Deliberately restricted to a LITERAL lambda body (not "any expression that doesn't

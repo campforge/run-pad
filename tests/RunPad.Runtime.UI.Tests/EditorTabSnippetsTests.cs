@@ -21,7 +21,7 @@ using Xunit;
 namespace RunPad.Runtime.UI.Tests;
 
 // Snippets moved from EditorTabItemControl (UI layer) to ILanguageHostFactory.Snippets
-// (RunPad.Languages.CSharp/RunPad.Languages.VB) — see TODO.md #41. These tests use the real
+// (RunPad.Languages.CSharp/RunPad.Languages.VB). These tests use the real
 // LanguageHostRegistry/CSharpLanguageHostFactory/VbLanguageHostFactory (not mocked) to prove
 // snippets actually flow from the language plugin into the editor for the tab's own language,
 // rather than always being the hardcoded C# set.
@@ -49,7 +49,7 @@ public class EditorTabSnippetsTests
         Assert.Empty(ctrl.State.Editor.Snippets);
     }
 
-    // TODO.md #58: the editor's lexical/syntactic profile (triggers, brace pairs, indentation) used
+    // The editor's lexical/syntactic profile (triggers, brace pairs, indentation) used
     // to be a single hardcoded C#-shaped set of calls in EditorTabItemControl.SetupEditor, applied to
     // every language including VB — now it flows from ILanguageHostFactory.EditorProfile, the same
     // way Snippets already does (tests above).
@@ -71,7 +71,7 @@ public class EditorTabSnippetsTests
         var editor = ctrl.State.Editor;
 
         // VB has no bare '<' generics trigger (uses "Of") and no brace-delimited blocks — a VB tab
-        // must not silently inherit C#'s profile (the bug TODO.md #58 fixes).
+        // must not silently inherit C#'s profile (a bug this guards against).
         Assert.DoesNotContain('<', editor.ContextualTriggers);
         Assert.False(editor.BracePairs.ContainsKey('{'));
 
@@ -84,7 +84,7 @@ public class EditorTabSnippetsTests
         Assert.Contains("new", editor.WordTriggers);
     }
 
-    // TODO.md #76: EditorTabItemControl.ApplyEditorLanguageProfile used to switch on a
+    // EditorTabItemControl.ApplyEditorLanguageProfile used to switch on a
     // FoldingStrategyKind enum and instantiate `new VbFoldingStrategy()` directly by name — a
     // main-project file hardcoding a concrete, VB-specific type. It now picks a language-agnostic
     // DelegateFoldingStrategy whenever EditorLanguageProfile.FoldingRegionsProvider is set, falling

@@ -176,7 +176,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // ── Output/debug panel layout (collapsible) ───────────────────────────────
 
-    // TODO.md #103: was its own copy of the collapse/expand-plus-throttled-persist scheme,
+    // Was its own copy of the collapse/expand-plus-throttled-persist scheme,
     // duplicated near-verbatim in MainWindowViewModel.SidebarColumnWidth/ToggleSidebar —
     // extracted into CollapsiblePanelState (src/main/RunPad/Shared), constructed below.
     public CollapsiblePanelState OutputPanel { get; }

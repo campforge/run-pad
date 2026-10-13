@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать третий проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding, same "always true/false" theme as AlwaysFalseNonNegativeLengthComparisonAnalyzer/
 // CompareNaNCorrectlyAnalyzer/BitwiseOperatorOnNonFlagsEnumAnalyzer, not a style simplification.
 // `flags.HasFlag(x)` checks that every bit set in x is also set in flags — when x's underlying value is

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (459-й проход, batch) — candidate #4 from the twenty-second research subagent survey,
+// Candidate #4 from the twenty-second research subagent survey,
 // re-verified independently before implementing. `System.Text.Unicode.UnicodeRange(int
 // firstCodePoint, int length)` — used by `HtmlEncoder.Create`/`JavaScriptEncoder.Create`/
 // `UrlEncoder.Create`'s `CreateRange` overloads; the validation lives entirely in the struct

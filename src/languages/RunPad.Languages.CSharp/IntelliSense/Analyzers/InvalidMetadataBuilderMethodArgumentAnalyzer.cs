@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (460-й проход, batch) — candidate #2 from the twenty-third research subagent survey,
+// Candidate #2 from the twenty-third research subagent survey,
 // re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.MetadataBuilder`
 // instance methods, bundled under one diagnostic (several call shapes — one diagnostic, precedent
 // RPAD0426): `SetCapacity(TableIndex table, int rowCount)` — negative `rowCount` or `table` outside the

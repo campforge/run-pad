@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят шестой проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // ArrayLiteralIndexerOutOfRangeAnalyzer/StringLiteralIndexerOutOfRangeAnalyzer (RPAD0283/RPAD0282,
 // extended this same проход for the `^N` Index form) — this one handles the OTHER indexer sugar form,
 // `Range` slicing (`arr[2..10]`, `"abc"[2..10]`): both throw `ArgumentOutOfRangeException` when the

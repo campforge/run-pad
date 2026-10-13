@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят четвёртый проход, batch) — own pick, not a Roslynator port; second of the
+// Own pick, not a Roslynator port; second of the
 // four "needs verification" candidates from the research subagent's ranked list (проход 377), confirmed
 // empirically before implementing. Same "run the real validator" theme as this catalog's other analyzers,
 // applied to the instance methods `IdnMapping.GetAscii(string)`/`GetUnicode(string)` instead of a

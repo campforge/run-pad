@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 149, batch) — same theme/rationale as CultureSensitiveStringCompareAnalyzer
+// Same theme/rationale as CultureSensitiveStringCompareAnalyzer
 // (RPAD0005, pass 145) extended to the other single-string-argument String instance methods that
 // are ALSO culture-sensitive by default per .NET's own documentation: StartsWith(string)/
 // EndsWith(string)/IndexOf(string) all compare using CultureInfo.CurrentCulture unless a

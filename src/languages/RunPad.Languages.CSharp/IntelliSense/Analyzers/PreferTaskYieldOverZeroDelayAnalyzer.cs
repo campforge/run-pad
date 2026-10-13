@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `await Task.Delay(0)` (or `Task.Delay(TimeSpan.Zero)`) is a common idiom for forcing a single
 // asynchronous continuation point (yielding control back to the caller/scheduler without an actual
 // delay) — but `Task.Delay` still goes through timer registration for a delay that's immediately zero.

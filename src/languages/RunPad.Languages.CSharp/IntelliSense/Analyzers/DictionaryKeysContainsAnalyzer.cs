@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `dict.Keys.Contains(k)` goes through the Keys collection's enumerator/Contains implementation to
 // answer a question the dictionary itself can answer directly and more clearly — `dict.ContainsKey(k)`
 // says exactly what's meant, without the indirection through a derived view collection. Matched

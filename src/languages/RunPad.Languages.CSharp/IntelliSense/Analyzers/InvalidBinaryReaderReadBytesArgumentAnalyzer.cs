@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (466-й проход, batch) — candidate #3 from the twenty-ninth research subagent survey,
+// Candidate #3 from the twenty-ninth research subagent survey,
 // re-verified independently before implementing. `System.IO.BinaryReader.ReadBytes(int count)` —
 // first touch of `BinaryReader`. Confirmed empirically: a negative `count` always throws
 // `ArgumentOutOfRangeException` (param `count`); `count == 0` is valid (returns an empty array).

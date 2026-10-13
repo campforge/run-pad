@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 147, batch) — idea ported from Roslynator (Apache License 2.0,
+// Idea ported from Roslynator (Apache License 2.0,
 // https://github.com/dotnet/roslynator). An empty destructor (`~C() { }`) still forces the object onto
 // the finalization queue — a real (if minor) GC cost for something that does nothing.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста шестьдесят третий проход, batch) — own pick, not a Roslynator port. Sibling of
+// Own pick, not a Roslynator port. Sibling of
 // IntegralParseOverflowAnalyzer (RPAD0258) — that analyzer covers a NUMERIC-but-too-large literal
 // (`byte.Parse("300")`, OverflowException); this one covers the opposite failure mode, a literal that
 // isn't numeric AT ALL (`int.Parse("abc")`, FormatException) — RPAD0258's own `LooksLikePlainInteger
@@ -26,8 +26,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // because they saturate to ±Infinity instead of overflowing) still throw FormatException for a
 // non-numeric literal exactly like the integral types do.
 //
-// EXTENDED проход 438 (TODO #74, candidate #4 from the sixth research subagent survey, Tier 3 — "gap in
-// an existing analyzer, extend rather than new file") to also match the `System.Convert.ToXxx(string)`
+// Extended to also match the `System.Convert.ToXxx(string)`
 // family (`ToByte`/`ToSByte`/`ToInt16`/`ToUInt16`/`ToInt32`/`ToUInt32`/`ToInt64`/`ToUInt64`/`ToSingle`/
 // `ToDouble`/`ToDecimal`) — confirmed empirically, matching the agent's report, that all eleven throw the
 // identical `FormatException` for the identical non-numeric-literal condition as the corresponding

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `obj.GetType().Name == "Foo"` is a fragile stand-in for a real type check: renaming the type
 // silently breaks the string literal (no compile error), and it doesn't account for inheritance the
 // way `obj is Foo`/`obj.GetType() == typeof(Foo)` naturally would. Warning, not Info — this is a

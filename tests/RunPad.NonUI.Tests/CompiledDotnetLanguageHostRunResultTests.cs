@@ -11,7 +11,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review R4 (docs/reviews/codebase-2026-10-05.md): RunAsync used to wait only for stdout/stderr EOF,
+// Review R4: RunAsync used to wait only for stdout/stderr EOF,
 // then dispose (kill) the process and never read its exit code — `Environment.Exit(7)` looked like a
 // success, and a script that closed its own output streams was killed while still running. Now the
 // run completes when the process exits and reports how it ended (RunResult).

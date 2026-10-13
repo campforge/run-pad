@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят четвёртый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "recognize the standard library idiom" theme as UseStringIsNullOrEmptyAnalyzer (RPAD0043).
 // `s.Trim().Length == 0` and `s.Trim() == ""` are both hand-rolled "is this string blank" checks —
 // `string.IsNullOrWhiteSpace(s)` says the same thing directly, and additionally tolerates s being

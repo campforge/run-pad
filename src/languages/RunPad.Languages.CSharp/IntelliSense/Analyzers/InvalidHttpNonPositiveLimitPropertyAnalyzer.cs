@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (451-й проход, batch) — candidates #2/#3 from the thirteenth research subagent survey,
+// Candidates #2/#3 from the thirteenth research subagent survey,
 // re-verified independently before implementing. `HttpClient.MaxResponseContentBufferSize` (long), and
 // `HttpClientHandler`/`SocketsHttpHandler`'s shared `MaxConnectionsPerServer`/`MaxAutomaticRedirections`/
 // `MaxResponseHeadersLength` (all int) — every one of these throws `ArgumentOutOfRangeException` with the

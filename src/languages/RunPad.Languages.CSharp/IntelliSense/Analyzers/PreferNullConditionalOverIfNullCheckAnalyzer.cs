@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят седьмой проход, batch) — own pick, not a Roslynator port. Probed
+// Own pick, not a Roslynator port. Probed
 // empirically against the built-in "Null check can be simplified" analyzer first — that one already
 // covers the ternary/conditional-EXPRESSION shape (`x == null ? fallback : x.Member`, blocked an idea
 // in this same проход), but does NOT extend to this IF-STATEMENT shape: `if (x != null) { x.Foo(); }`

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `if (xs.Contains(x)) xs.Remove(x);`/`if (dict.ContainsKey(k)) dict.Remove(k);` looks up the same
 // item/key twice — once to check for it, once to remove it. `ICollection<T>.Remove`/
 // `Dictionary<TKey,TValue>.Remove(TKey)` are both already safe no-ops that return `false` when the

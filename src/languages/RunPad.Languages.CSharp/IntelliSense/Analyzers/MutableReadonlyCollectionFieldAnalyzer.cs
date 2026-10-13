@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 159, batch) — own pick, not a Roslynator port. `readonly` on a
+// Own pick, not a Roslynator port. `readonly` on a
 // field only prevents the FIELD ITSELF from being reassigned — it says nothing about the mutability of
 // whatever the field's value points to. `public static readonly List<int> Items = new();` reads like
 // "safe to expose", but every caller can still call `.Add`/`.Clear`/`.RemoveAt` on it. Deliberately

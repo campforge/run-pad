@@ -2,7 +2,7 @@ using Xunit;
 
 namespace RunPad.Runtime.Tests;
 
-// TODO.md #111 (bucket 1) — LINQPad-inspired Util.KeepRunning. The real effect (a foreground Thread
+// LINQPad-inspired Util.KeepRunning. The real effect (a foreground Thread
 // that keeps the compiled script's own PROCESS from exiting) can't be observed from inside the single
 // long-lived test-runner process these tests already run in, so these assert the actual state machine
 // instead, via Util.IsKeepRunningActive (internal, InternalsVisibleTo — same "test hook" pattern as

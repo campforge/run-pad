@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `flags.HasFlag(A) && flags.HasFlag(B)` checks two separate flags one at a time — `HasFlag(x)`
 // already checks that ALL bits of `x` are set, so `flags.HasFlag(A | B)` asks the exact same question
 // (every bit of A set AND every bit of B set) in a single call.

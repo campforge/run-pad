@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят второй проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `Convert.FromBase64String` throws `FormatException` for a string that isn't valid Base64 —
 // originally this only checked the length-multiple-of-4 invariant by hand (skipping any literal with
 // whitespace, since Convert.FromBase64String strips it before validating and a raw character count

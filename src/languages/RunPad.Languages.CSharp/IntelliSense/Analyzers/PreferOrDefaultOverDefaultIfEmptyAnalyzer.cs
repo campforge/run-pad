@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести семнадцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.DefaultIfEmpty().First()`/`.Last()`/`.Single()` reaches for DefaultIfEmpty to avoid the
 // "sequence contains no elements" exception, then picks an element — exactly what
 // `xs.FirstOrDefault()`/`LastOrDefault()`/`SingleOrDefault()` already do directly: for a non-empty

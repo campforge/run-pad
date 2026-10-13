@@ -73,7 +73,7 @@
                     <Setter Property="Margin" Value="0,0" />
                     <Setter Property="Background" Value="Transparent" />
                     <Setter Property="Cursor" Value="Hand" />
-                    <!-- TODO.md #110: AllowDrop on the outer TreeView alone wasn't enough for a real
+                    <!-- AllowDrop on the outer TreeView alone wasn't enough for a real
                          drop to land on individual rows — needs to be set on each TreeViewItem
                          container too. -->
                     <Setter Property="(DragDrop.AllowDrop)" Value="True" />
@@ -106,7 +106,7 @@
                 <TreeDataTemplate DataType="models:FileTreeViewNode" ItemsSource="{Binding SubNodes}">
                     <Panel VerticalAlignment="Center" Margin="0,1">
 
-                        <!-- TODO.md #110: drop-target highlight, toggled by FileTreeView's drag
+                        <!-- Drop-target highlight, toggled by FileTreeView's drag
                              handlers on whatever node the pointer is currently over during a drag —
                              drawn first (behind the icon/text) so it reads as a row highlight. -->
                         <Border IsVisible="{Binding IsDropTarget}"
@@ -120,7 +120,7 @@
                             <Panel Width="14" Height="14" VerticalAlignment="Center">
                                 <!-- Folder (existing icon, reused) vs. file — and for a file, its
                                      language's own Material Design icon if one exists, or the
-                                     generic file icon otherwise (TODO.md #70). One brush throughout
+                                     generic file icon otherwise. One brush throughout
                                      — the icon's own shape identifies the language, not its color. -->
                                 <PathIcon IsVisible="{Binding IsFolder}"
                                           Data="{StaticResource Icon.FolderOpen}"

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста восемьдесят третий проход, batch) — own pick, not a Roslynator port; one of the four
+// Own pick, not a Roslynator port; one of the four
 // lower-confidence "needs verification" candidates from the research subagent's ranked list (проход 377),
 // confirmed empirically before implementing (all four confirmed real via one combined scratch script, this
 // проход implements the first/cleanest of the four). Sibling of InvalidContentTypeLiteralAnalyzer (RPAD0373,

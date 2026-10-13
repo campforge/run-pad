@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (429-й проход, batch) — own pick, not a Roslynator port; direct brainstorming resumed after
+// Own pick, not a Roslynator port; direct brainstorming resumed after
 // both research subagents' candidate lists (проходы 411-421, 424-428) were exhausted. Found by checking
 // whether `InvalidVersionLiteralFormatAnalyzer` (RPAD0247, проход 254) — which registers ONLY on
 // `SyntaxKind.InvocationExpression` and matches `Name.Identifier.Text: "Parse"` — also covers the

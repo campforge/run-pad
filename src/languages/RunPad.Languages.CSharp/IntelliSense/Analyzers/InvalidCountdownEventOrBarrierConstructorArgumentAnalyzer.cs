@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятидесятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322,
 // this same проход): `new CountdownEvent(int initialCount)` and `new Barrier(int
 // participantCount[, Action<Barrier>? postPhaseAction])` both throw ArgumentOutOfRangeException for a

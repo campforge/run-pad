@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать пятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "combining a value with itself is almost certainly a mistake" theme as SelfSubtractionOrXorAnalyzer
 // (RPAD0142, проход 176) and SelfArgumentMathMaxMinAnalyzer (RPAD0225, проход 234), for the remaining
 // logical/bitwise operators: `x && x`/`x || x`/`x & x`/`x | x` all evaluate to x's own value unchanged

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (463-й проход, batch) — candidate #1 from the twenty-sixth research subagent survey,
+// Candidate #1 from the twenty-sixth research subagent survey,
 // re-verified independently before implementing. `System.Diagnostics.StackTrace` constructors —
 // `StackTrace(int skipFrames)`, `StackTrace(int skipFrames, bool)`, `StackTrace(Exception, int
 // skipFrames)`, `StackTrace(Exception, int skipFrames, bool)` — all four bundled under one diagnostic

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят девятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new StringBuilder(s).ToString()` constructs a whole StringBuilder around `s` just to immediately
 // unwrap it again — with nothing appended in between, ToString() returns exactly `s` back, so the
 // StringBuilder never did anything observable. Scoped to the single-string constructor overload

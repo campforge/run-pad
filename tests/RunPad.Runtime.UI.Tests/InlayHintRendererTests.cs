@@ -8,7 +8,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "inlay hints" — InlayHintRenderer, the VisualLineElementGenerator that renders
+// InlayHintRenderer, the VisualLineElementGenerator that renders
 // IInlayHint.Text as a dim, non-editable decoration (see CSharpIntelliSenseInlayHintsTests.cs for the
 // Roslyn-backed half that produces the hints). GetFirstInterestedOffset/IsEnabled are pure logic,
 // directly unit-testable; ConstructElement needs a real TextView render pass (CurrentContext is only

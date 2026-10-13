@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста пятьдесят третий проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as InvalidArraySegmentConstructorArgumentAnalyzer (RPAD0324, проход
 // 350): `new MemoryStream(byte[] buffer, int index, int count[, bool writable])` on a literal array
 // throws ArgumentOutOfRangeException for a negative `index`, but a DIFFERENT exception type,

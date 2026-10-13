@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Count == 0 ? default : xs[0]` (or `xs.Length == 0 ? default : xs[0]` for an array) hand-writes
 // exactly what `xs.FirstOrDefault()` already does: return the first element, or default(T) when the
 // collection is empty. Matched structurally (the Count/Length receiver and the indexer receiver must

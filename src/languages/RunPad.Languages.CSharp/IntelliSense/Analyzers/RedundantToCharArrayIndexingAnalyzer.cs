@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s.ToCharArray()[i]` allocates a whole new char array — copying every character in the string — just
 // to read a single element back out of it. `string` already has its own indexer (`s[i]`) that reads
 // the same character directly, with no allocation at all.

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (454-й проход, batch) — candidates #6/#7/#8 from the sixteenth research subagent survey,
+// Candidates #6/#7/#8 from the sixteenth research subagent survey,
 // re-verified independently before implementing. `System.IO.Compression.BrotliCompressionOptions.
 // Quality` (plain `int`, valid range 0-11) and `System.IO.Compression.ZLibCompressionOptions.
 // CompressionLevel`/`CompressionStrategy`. Confirmed empirically: `Quality` throws

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят четвёртый проход, batch) — own pick, not a Roslynator port. A different
+// Own pick, not a Roslynator port. A different
 // shape than SuspiciousEqualsNullAnalyzer (RPAD0074, проход 162): that one catches the INSTANCE call
 // `x.Equals(null)` (a genuine NullReferenceException risk if x is itself null). This one is the STATIC,
 // two-argument `object.Equals(x, null)`/`object.ReferenceEquals(x, null)` form — safe (it never

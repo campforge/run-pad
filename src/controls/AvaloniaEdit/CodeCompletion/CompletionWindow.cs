@@ -44,7 +44,7 @@ public class CompletionWindow : CompletionWindowBase
     /// occupies that position (walking forward from it), so committing mid-word consumes any
     /// pre-existing remainder instead of leaving it dangling after the inserted text (e.g. accepting
     /// "Console" with the caret at "Cons|ole" should produce "Console", not "Consoleole"). Left null,
-    /// Tab behaves exactly like Enter/any other commit — RunPad TODO #60.5; kept as a delegate rather
+    /// Tab behaves exactly like Enter/any other commit; kept as a delegate rather
     /// than a hardcoded identifier-character set to stay language-agnostic here.
     /// </summary>
     public Func<int, int> WordEndOffsetProvider { get; set; }
@@ -152,7 +152,7 @@ public class CompletionWindow : CompletionWindowBase
 
     private void CompletionList_InsertionRequested(object sender, EventArgs e)
     {
-        // TODO.md #60.3: a typed commit CHARACTER (not Enter/Tab/click) shouldn't accept a match
+        // A typed commit CHARACTER (not Enter/Tab/click) shouldn't accept a match
         // the completion engine isn't confident about (CompletionList.IsSoftSelected) — only a
         // substring/camelCase guess, not something the user actually typed a real prefix of.
         // Tab/Enter/click are explicit accept gestures and always commit regardless of this (same

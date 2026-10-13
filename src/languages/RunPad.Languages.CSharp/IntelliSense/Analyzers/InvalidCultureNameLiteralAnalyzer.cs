@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as InvalidVersionLiteralFormatAnalyzer (RPAD0247, проход 254), but
 // verified differently: rather than approximating culture-name validity with a pattern (there's no
 // simple format rule — valid names range from "en" to "zh-Hans-CN" to obscure regional variants), this
@@ -18,9 +18,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // and dropped — a built-in analyzer already reports "Regex issue: ..." for a syntactically invalid
 // pattern literal, so there was nothing left to add there.
 //
-// EXTENDED проход 440 (TODO #74, candidate #6 from the sixth research subagent survey, Tier 3 — "gap in
-// an existing analyzer, extend rather than new file", explicitly flagged as low-priority/low-novelty by
-// the agent itself) to also match `CultureInfo.GetCultureInfoByIetfLanguageTag(string)` — confirmed via
+// Extended to also match `CultureInfo.GetCultureInfoByIetfLanguageTag(string)` — confirmed via
 // stack-trace reading it's a thin delegate straight to `CultureInfo.GetCultureInfo(name)` internally, so
 // no new validation logic was needed, just one more matched method name reusing the existing real-
 // validator call. Empirically re-confirmed the agent's own characterization of this method as genuinely

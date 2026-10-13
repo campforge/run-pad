@@ -14,7 +14,7 @@ public sealed class BuildCacheService : IBuildCacheService
     // Guards _entries and every read/write of the backing file below — EnsureOutputDirectory/Touch
     // run on the UI thread while a tab opens/saves, and App.axaml.cs's startup PruneStale runs
     // concurrently on a background Task.Run; without this, concurrent mutation of the plain
-    // Dictionary is undefined behavior (ANALYSIS.md #85).
+    // Dictionary is undefined behavior.
     private readonly Lock _lock = new();
     private readonly ILogger<BuildCacheService> _logger;
     private readonly string _cachePath;
@@ -23,7 +23,7 @@ public sealed class BuildCacheService : IBuildCacheService
     public BuildCacheService(ILogger<BuildCacheService> logger) : this(logger, DefaultCachePath) { }
 
     // Internal ctor with an injectable cache-file path so tests can point this at an isolated temp
-    // file instead of the real %APPDATA%/RunPad directory (ANALYSIS.md #85 testability follow-up).
+    // file instead of the real %APPDATA%/RunPad directory.
     internal BuildCacheService(ILogger<BuildCacheService> logger, string cachePath)
     {
         _logger = logger;

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — external half. Real-Roslyn
+// External half. Real-Roslyn
 // integration test (no mocking of the compiler): the thing under test is whether
 // ICSharpCode.Decompiler can locate a SPECIFIC overload's declaration line inside a type it just
 // decompiled from a REAL binary, which pure-logic unit testing can't stand in for.
@@ -39,7 +39,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
-    // TODO.md #62 "recursive F12 inside the decompiled window" (user request 2026-07-19) —
+    // Recursive F12 inside the decompiled window —
     // ResolveReferenceAtPosition, the other half that makes navigation recursive: given a caret
     // position inside a SyntaxTree Decompile already produced, resolve what's referenced there into
     // another IDefinitionResult that Decompile itself can consume — same round trip dnSpy/ILSpy's own
@@ -56,7 +56,7 @@ public class CSharpDecompilerServiceTests : IClassFixture<CSharpDecompilerServic
         }
         """;
 
-    // TODO.md #62 "ILSpy assembly explorer" (user request 2026-07-19) — EnumerateTypes/DecompileType,
+    // EnumerateTypes/DecompileType,
     // the third leg alongside Decompile/ResolveReferenceAtPosition above: browsing an arbitrary DLL,
     // not one reached by following a reference. The lambda closing over `x` forces the compiler to
     // generate a display-class (nested inside Alpha, name starting with '<') — real noise to filter,

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят девятый проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "inserting at the position right after the end is just appending" theme as
 // PreferListAddOverInsertAtCountAnalyzer (RPAD0164), for StringBuilder instead of List<T>:
 // `sb.Insert(sb.Length, value)` inserts at the position immediately past the current content — exactly

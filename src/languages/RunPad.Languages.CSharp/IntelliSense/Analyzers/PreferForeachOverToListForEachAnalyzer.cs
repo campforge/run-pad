@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.ToList().ForEach(action)` materializes a whole new List<T> just to immediately walk it once and
 // throw it away — a plain `foreach` loop over `xs` runs the same action on the same elements without
 // the extra allocation and copy. Scoped to the case where `xs` is not already a List<T> (a receiver

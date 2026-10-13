@@ -14,7 +14,7 @@ public sealed record TextFileContent(string Text, Encoding Encoding, bool HasBom
 }
 
 /// <summary>
-/// Loads and saves the text editor window's files (TODO.md "Отдельное окно текстового редактора")
+/// Loads and saves the text editor window's files
 /// without changing how they're encoded: a BOM decides the encoding; without one, strict UTF-8 is
 /// tried first, then the system ANSI code page on Windows (e.g. 1251 — Russian text files), else
 /// Latin-1, whose byte-for-byte round trip is lossless. Line breaks are never touched — the text keeps

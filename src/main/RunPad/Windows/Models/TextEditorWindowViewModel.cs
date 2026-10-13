@@ -9,7 +9,7 @@ using RunPad.Services.TextFiles;
 namespace RunPad.Windows.Models;
 
 /// <summary>
-/// The text editor window (TODO.md "Отдельное окно текстового редактора"): one whole file, saved back
+/// The text editor window: one whole file, saved back
 /// in the encoding it was read in (<see cref="TextFileCodec"/>). Dirty state follows the undo stack, so
 /// undoing back to the saved text clears it. A failed save shows an error and keeps the text, the
 /// file path and the dirty state exactly as they were.

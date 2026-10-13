@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #111 (bucket 1, Util.CurrentQueryPath) — an environment variable rather than another
+// An environment variable rather than another
 // positional CLI argument (see ChildProcess.CurrentQueryPathEnvVar's own comment: RpadKind.Statements/
 // Expression compile to top-level statements, which have an implicit `string[] args` in scope, so an
 // extra argument would leak into the user's own args). This tests ForExecution's ProcessStartInfo

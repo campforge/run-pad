@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `if (x == null) throw new ArgumentNullException(nameof(x));` (or the `if (x is null)` spelling) is
 // the hand-written guard-clause idiom that predates `ArgumentNullException.ThrowIfNull(object?, string?
 // = null)` (.NET 6+, always available given RunPad's own SDK floor,

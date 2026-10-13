@@ -6,9 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят седьмой проход, batch; Except/Intersect/Union/GroupBy/ThenBy/
-// ThenByDescending added двести десятый проход; ToDictionary/ToHashSet/MinBy added двести шестнадцатый
-// проход) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Contains(item, EqualityComparer<T>.Default)`/`xs.OrderBy(key, Comparer<T>.Default)` spell out
 // exactly the comparer these methods already use when none is supplied — passing `.Default` explicitly
 // changes nothing, it's just extra text. Scoped to LINQ methods where this is unambiguous

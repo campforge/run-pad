@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести шестьдесят пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as the Parse-family analyzers, but on a numeric (not string)
 // constant: `TimeSpan.FromDays(double)`/`FromHours`/`FromMinutes`/`FromSeconds`/`FromMilliseconds` throw
 // `ArgumentException` for `double.NaN` and `OverflowException` for a value whose equivalent time span

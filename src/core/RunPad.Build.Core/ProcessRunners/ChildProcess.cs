@@ -35,7 +35,7 @@ public sealed class ChildProcess : IChildProcess
         _process = new Process { StartInfo = startInfo };
     }
 
-    // Test-only observability (InternalsVisibleTo) — TODO.md #111, confirms ForExecution actually
+    // Test-only observability (InternalsVisibleTo) — confirms ForExecution actually
     // sets/omits the CurrentQueryPath environment variable, without starting a real process.
     internal ProcessStartInfo StartInfoForTests => _process.StartInfo;
 
@@ -67,7 +67,7 @@ public sealed class ChildProcess : IChildProcess
 
     // ── Factories ─────────────────────────────────────────────────────────────
 
-    // TODO.md #111 (Util.CurrentQueryPath) — an environment variable, not another positional
+    // An environment variable, not another positional
     // argument like assemblyPath/parentPid: RpadKind.Statements/Expression compile to C# top-level
     // statements, which have an implicit `string[] args` in scope, so any extra CLI argument here
     // would leak straight into the user's own `args` (already true, if unobserved, of --pid above).

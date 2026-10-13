@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "preserve exception diagnostic information" theme as RethrowToPreserveStackTraceAnalyzer (RPAD0035,
 // проход 150), for a different mistake: `throw new Exception(ex.Message)` inside a catch block copies
 // only the MESSAGE TEXT of the original exception into a brand-new one — the original's type, stack

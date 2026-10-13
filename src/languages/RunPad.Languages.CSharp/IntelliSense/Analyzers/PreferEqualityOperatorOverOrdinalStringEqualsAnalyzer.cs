@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят пятый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // The `==`/`!=` operators on `string` already compare ordinally (culture-invariant, case-sensitive) —
 // that's their whole point, and exactly what CultureSensitiveStringCompareAnalyzer (RPAD0005, this
 // project) pushes people TOWARD when they use something culture-sensitive instead. Spelling that same

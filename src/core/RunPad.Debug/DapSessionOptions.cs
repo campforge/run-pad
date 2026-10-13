@@ -4,7 +4,7 @@ namespace RunPad.Debug;
 
 /// <summary>
 /// Plain per-session configuration for <see cref="DapSession"/> — split out of its constructor
-/// (ANALYSIS.md #88, was 13 positional parameters) so callbacks/dependencies (process, handlers,
+/// (was 13 positional parameters) so callbacks/dependencies (process, handlers,
 /// logger) stay separate from what's really just data about the run being debugged.
 /// </summary>
 /// <param name="ProgramPath">Path to the compiled assembly netcoredbg should launch.</param>
@@ -15,7 +15,7 @@ namespace RunPad.Debug;
 /// <param name="BreakOnAllExceptions">DAP <c>setExceptionBreakpoints</c> — break on every thrown exception, not just uncaught ones.</param>
 /// <param name="BreakOnUncaughtExceptions">DAP <c>setExceptionBreakpoints</c> — break on exceptions that would otherwise crash the debuggee.</param>
 /// <param name="JustMyCode">netcoredbg's own "Just My Code" launch setting.</param>
-/// <param name="CurrentQueryPath">TODO.md #111 — the .rpad file's own path, forwarded to the
+/// <param name="CurrentQueryPath">The .rpad file's own path, forwarded to the
 /// debuggee via the launch request's own <c>env</c> (RunPad.Runtime.Util.CurrentQueryPath's
 /// RunAsync-only env var, previously never reaching a debug session at all — netcoredbg spawns the
 /// debuggee itself, so ProcessStartInfo.Environment on netcoredbg's own process has no effect on

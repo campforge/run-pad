@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (448-й проход, batch) — candidate #1 from the eleventh research subagent survey, re-verified
+// Candidate #1 from the eleventh research subagent survey, re-verified
 // independently before implementing. `TimeZoneInfo.CreateCustomTimeZone(string id, TimeSpan baseUtcOffset,
 // ...)` — all three overloads (4-arg, 6-arg with disableDaylightSavingTime, 7-arg with AdjustmentRule[])
 // validate the `baseUtcOffset` parameter (consistently the 2nd positional argument) identically. Confirmed

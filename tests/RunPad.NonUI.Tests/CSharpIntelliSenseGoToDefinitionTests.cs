@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "Go to Definition" (F12, user request 2026-07-19) — CSharpIntelliSenseService.
+// CSharpIntelliSenseService.
 // GetDefinitionAsync. A symbol the script itself declares resolves to an in-document offset (no
 // decompiling needed, single-file scratchpad); anything from outside the script (framework/NuGet
 // metadata) resolves to enough identifying info for CSharpDecompilerService (RunPad.Languages.

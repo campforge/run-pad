@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 153, batch) — same idea as RemoveRedundantOverridingMemberAnalyzer
+// Same idea as RemoveRedundantOverridingMemberAnalyzer
 // (RPAD0024, pass 148), extended to properties: an override whose getter/setter each do nothing but
 // forward to base.Property/base.Property = value behaves exactly like not overriding at all.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

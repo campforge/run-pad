@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать девятый проход, batch) — own pick, not a Roslynator port. A correctness
+// Own pick, not a Roslynator port. A correctness
 // finding: `List<T>`/`Dictionary<TKey,TValue>`/`HashSet<T>`/`Queue<T>`/`Stack<T>`/`StringBuilder` all
 // have a constructor overload accepting an initial capacity, and every one of them throws
 // `ArgumentOutOfRangeException` at runtime if that capacity is negative — a mistake the compiler can't

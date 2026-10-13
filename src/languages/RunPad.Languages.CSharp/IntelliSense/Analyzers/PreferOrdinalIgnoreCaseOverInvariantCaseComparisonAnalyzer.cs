@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят пятый проход, batch) — own pick, not a Roslynator port. Deliberately
+// Own pick, not a Roslynator port. Deliberately
 // targets ToLowerInvariant()/ToUpperInvariant() (NOT the culture-sensitive ToLower()/ToUpper(), which
 // CultureSensitiveCaseConversionAnalyzer (RPAD0039, this project) already flags on its own — probed
 // empirically, and using the culture-sensitive form here would double-message on every occurrence).

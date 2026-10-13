@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести пятьдесят шестой проход, batch) — own pick, not a Roslynator port. Same "run the
+// Own pick, not a Roslynator port. Same "run the
 // real validator" theme as InvalidCultureNameLiteralAnalyzer (RPAD0248, проход 255): `IPAddress.Parse`
 // throws `FormatException` for a string that isn't a valid IPv4 or IPv6 address — rather than
 // hand-writing an IPv6 regex (notoriously easy to get subtly wrong, given zero-compression, embedded

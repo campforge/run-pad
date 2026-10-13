@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (триста тридцать пятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // array with a bad startIndex/count combination always throws" theme as
 // InvalidArrayFillArgumentAnalyzer (RPAD0294, проходы 325/328/329), on a genuinely different receiver
 // shape: `string.Join(string separator, string[] value, int startIndex, int count)` is a STATIC method

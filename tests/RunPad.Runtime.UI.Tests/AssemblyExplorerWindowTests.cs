@@ -27,8 +27,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "ILSpy assembly explorer" (user request 2026-07-19; merged with the standalone
-// DecompiledViewWindow per user request 2026-07-20) — AssemblyExplorerWindow: file picker +
+// ILSpy-style assembly explorer (merged with the former standalone
+// DecompiledViewWindow) — AssemblyExplorerWindow: file picker +
 // namespace/type tree on the left, a read-only decompiled source pane on the right that updates IN
 // PLACE on double-click (no popped-up child window, dnSpy/ILSpy don't do that either). Also the
 // landing window for Go to Definition (F12) on a symbol outside the user's script — opened straight

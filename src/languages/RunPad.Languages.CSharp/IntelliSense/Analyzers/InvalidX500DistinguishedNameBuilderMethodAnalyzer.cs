@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (458-й проход, batch) — candidates #1/#2/#3 from the twentieth research subagent survey,
+// Candidates #1/#2/#3 from the twentieth research subagent survey,
 // re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
 // X500DistinguishedNameBuilder` — a genuinely fresh type distinct from the already-covered
 // `X500DistinguishedName` constructor (RPAD0382); bundled several call shapes into one analyzer, same

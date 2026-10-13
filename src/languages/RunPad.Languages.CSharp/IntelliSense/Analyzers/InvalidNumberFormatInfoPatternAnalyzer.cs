@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (448-й проход, batch) — candidate #2 from the eleventh research subagent survey, re-verified
+// Candidate #2 from the eleventh research subagent survey, re-verified
 // independently before implementing. `System.Globalization.NumberFormatInfo`'s integer digit/pattern
 // properties — an `int` literal assigned to `NumberDecimalDigits`/`CurrencyDecimalDigits`/
 // `PercentDecimalDigits` (valid range 0-99), `CurrencyPositivePattern`/`PercentPositivePattern` (0-3),

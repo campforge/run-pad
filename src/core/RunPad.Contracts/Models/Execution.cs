@@ -39,5 +39,5 @@ public sealed record RunResult(RunOutcome Outcome, int? ExitCode = null)
 /// <summary>Raised after a successful compile with the path to the compiled assembly on disk — see <see cref="RunPad.Contracts.ILanguageHost.Compiled"/>.</summary>
 public delegate void CompiledHandler(string binaryPath);
 
-/// <summary>Raised when a running script calls Util.ReadLine/GetPassword (TODO.md #63) — see <see cref="RunPad.Contracts.ILanguageHost.InputRequested"/>.</summary>
+/// <summary>Raised when a running script calls Util.ReadLine/GetPassword — see <see cref="RunPad.Contracts.ILanguageHost.InputRequested"/>.</summary>
 public delegate void InputRequestedHandler(string? prompt, bool isPassword);

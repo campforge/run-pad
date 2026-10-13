@@ -9,7 +9,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #62 "find references" (Shift+F12) — EditorsTabItemControl.BuildFindReferencesMenu builds
+// EditorsTabItemControl.BuildFindReferencesMenu builds
 // the clickable results list from the same IDocumentHighlightSpan data the highlight-occurrences
 // feature already computes (see CSharpIntelliSenseDocumentHighlightsTests.cs for symbol
 // resolution); internal specifically so these can inspect/click the built menu directly, the same

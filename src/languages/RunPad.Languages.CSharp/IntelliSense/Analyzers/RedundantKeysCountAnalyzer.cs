@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `dict.Keys.Count`/`dict.Values.Count` reads the count through the Keys/Values view collection — but
 // a dictionary's Keys and Values collections always have exactly as many entries as the dictionary
 // itself, so `dict.Count` gives the identical number directly, without going through the view.

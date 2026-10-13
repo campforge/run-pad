@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (452-й проход, batch) — candidate #2 from the fourteenth research subagent survey,
+// Candidate #2 from the fourteenth research subagent survey,
 // re-verified independently before implementing. `System.Net.Cache.HttpRequestCachePolicy(
 // HttpRequestCacheLevel)`/`RequestCachePolicy(RequestCacheLevel)` constructors — an out-of-range enum
 // value throws `ArgumentOutOfRangeException`. Confirmed empirically both types are pure managed

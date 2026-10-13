@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать седьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Monitor.Enter(x)` acquires the lock manually — the `lock` statement exists specifically so nobody
 // has to hand-write the try/finally that guarantees `Monitor.Exit(x)` still runs if the protected code
 // throws. `Monitor.Enter(x)` NOT immediately followed by a `try` statement with a `finally` clause means

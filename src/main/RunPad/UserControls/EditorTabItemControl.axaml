@@ -139,7 +139,7 @@
                         />
 
                     <!-- Debug-only controls: shown, not merely enabled, only while debugging
-                         (ANALYSIS.md feature #14) — an idle toolbar shouldn't be cluttered with
+ — an idle toolbar shouldn't be cluttered with
                          inactive step/pause icons. -->
                     <Border Width="1" Height="16"
                             Background="{DynamicResource RunPad.Separator.BackgroundBrush}"
@@ -221,7 +221,7 @@
                 <ContentControl Content="{Binding DebugPanel}" ContentTemplate="{StaticResource DebugPanelTemplate}"/>
             </TabItem>
 
-            <!-- LINQPad-style "IL" tab (TODO.md #62) — raw IL disassembly of the last successful
+            <!-- LINQPad-style "IL" tab — raw IL disassembly of the last successful
                  compile, refreshed via ILanguageHost.Compiled. Plain read-only TextBox rather than a
                  full CodeTextEditor: no IntelliSense/breakpoints/folding are meaningful here, this is
                  just monospace text with its own scrollbars. -->
@@ -240,7 +240,7 @@
 
         </TabControl>
 
-        <!-- Row 4: interactive input (TODO.md #63, Util.ReadLine/GetPassword) — hidden until the
+        <!-- Row 4: interactive input (Util.ReadLine/GetPassword) — hidden until the
              running script actually asks for input; ShowInputPrompt/HideInputPrompt toggle it. -->
         <Border x:Name="InputPromptBar"
                 Grid.Row="4"

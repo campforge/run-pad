@@ -21,8 +21,8 @@ namespace RunPad.Languages.DotnetCommon.Compiler;
 /// <summary>The target a script compiles for: its framework and the matching targeting pack.</summary>
 public sealed record ScriptTarget(string TargetFramework, int Major, int Minor, TargetingPack Pack);
 
-// Compiles a script in-process with Roslyn — RunPad no longer uses MSBuild at all (docs/handoffs/
-// roslyn-script-compiler.md). It reproduces what `dotnet build` of a throwaway project gave, so running,
+// Compiles a script in-process with Roslyn — RunPad no longer uses MSBuild at all.
+// It reproduces what `dotnet build` of a throwaway project gave, so running,
 // debugging (netcoredbg), the IL tab and the decompiler see the same OutputDirectory layout:
 //   OutputDirectory/RunPadQuery.<ext>               the compiled script (breakpoints map to it)
 //   OutputDirectory/bin/RunPadQuery.dll + .pdb      portable PDB, sources embedded (EmbedAllSources)
@@ -176,7 +176,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
             peStream, pdbStream,
             embeddedTexts: EmbeddedTexts(compilation),
             // pdbFilePath goes into the PE's CodeView entry: without it netcoredbg reports
-            // "Symbols not found" (docs/archive/ANALYSIS-2026-07.md, feature #16 of the old fast path).
+            // "Symbols not found" (feature #16 of the old fast path).
             options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: _pdbPath),
             cancellationToken: ct);
         diagnostics.AddRange(emit.Diagnostics);

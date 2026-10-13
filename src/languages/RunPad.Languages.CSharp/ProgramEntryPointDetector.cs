@@ -11,7 +11,7 @@ namespace RunPad.Languages.CSharp;
 /// reference — CS0176), and <c>ReturnsTask</c> (<c>async Task Main()</c>/<c>Task Main()</c>/generic
 /// <c>Task&lt;T&gt;</c> forms) picks between a fire-and-forget call and an awaited one, so an async
 /// Main's work (and any exception thrown inside it) actually gets awaited instead of silently discarded
-/// (TODO.md #63). A real (if partial — only <c>Main</c>'s own signature is parsed) syntax tree instead
+///. A real (if partial — only <c>Main</c>'s own signature is parsed) syntax tree instead
 /// of a text/regex sniff, since the project already depends on Microsoft.CodeAnalysis.CSharp for
 /// IntelliSense — a real AST doesn't false-positive on a commented-out old signature, a "Main" inside
 /// a string literal, or a same-named member on some other local type. Parsed as raw top-level-statement

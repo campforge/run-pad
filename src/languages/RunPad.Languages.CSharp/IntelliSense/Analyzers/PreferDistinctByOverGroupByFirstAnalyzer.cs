@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто восемьдесят пятый проход, batch) — own pick, not a Roslynator port. A different
+// Own pick, not a Roslynator port. A different
 // shape than PreferDistinctOverGroupByKeyAnalyzer (RPAD0100, this project — that one covers
 // `GroupBy(key).Select(g => g.Key)`, which keeps only the KEYS). This is `GroupBy(key).Select(g =>
 // g.First())`, which keeps one full ORIGINAL ELEMENT per key — exactly what `DistinctBy(key)` (.NET

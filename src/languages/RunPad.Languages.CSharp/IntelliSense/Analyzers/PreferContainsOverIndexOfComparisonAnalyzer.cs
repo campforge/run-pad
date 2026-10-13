@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.IndexOf(x) >= 0` (or `!= -1`/`> -1`) and `xs.IndexOf(x) == -1` (or `< 0`) are membership checks
 // spelled out in terms of a position that's then thrown away — `xs.Contains(x)` says exactly the same
 // thing more directly, and for types with a specialized Contains (e.g. HashSet<T>'s O(1) lookup vs

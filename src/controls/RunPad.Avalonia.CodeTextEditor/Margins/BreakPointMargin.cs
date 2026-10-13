@@ -12,7 +12,7 @@ namespace RunPad.Avalonia.CodeTextEditor;
 // Combined line-number + breakpoint gutter: a single wide column with one click handler for both,
 // instead of AvaloniaEdit's built-in LineNumberMargin sitting as a separate narrow column next to
 // ours. Two adjacent narrow columns made it easy to miss the breakpoint column when clicking
-// (see BUG-B in ANALYSIS.md) — CodeTextEditor now keeps ShowLineNumbers off and relies on this
+// — CodeTextEditor now keeps ShowLineNumbers off and relies on this
 // margin to render the number itself, hidden behind the breakpoint/debug-arrow icon on lines that
 // have one.
 public class BreakPointMargin : AbstractMargin, IDisposable
@@ -102,7 +102,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             {
                 var plan = ComputeBreakpointIconPlan(bpAtLine!);
 
-                // TODO.md #83: unverified used to be the same filled disc, just recolored amber —
+                // Unverified used to be the same filled disc, just recolored amber —
                 // now a hollow ring (VS Code's own convention for a not-yet-bound breakpoint), an
                 // actual shape difference rather than color alone.
                 if (plan.DrawOutline)
@@ -115,8 +115,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
                     DrawCentered(context, _breakpointGeo, stateBrush, yTop, lineH);
                 }
 
-                // TODO.md #83: conditional/hit-count breakpoints (IBreakpoint.Condition/HitCondition,
-                // TODO #45) used to be visually identical to a plain breakpoint — small diamond
+                // Conditional/hit-count breakpoints (IBreakpoint.Condition/HitCondition)
+                // used to be visually identical to a plain breakpoint — small diamond
                 // overlay, (Code)Rider-style, drawn with the same centering transform so it lands in
                 // the base icon's bottom-right corner regardless of verification state above.
                 if (plan.DrawConditionBadge && _conditionBadgeGeo is not null)
@@ -225,14 +225,14 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    // TODO.md #83: which icon variant a breakpoint's state maps to — pulled out of Render's drawing
+    // Which icon variant a breakpoint's state maps to — pulled out of Render's drawing
     // code (which needs a live DrawingContext/TextView and so isn't unit-testable on its own) into a
     // plain function of IBreakpoint, same "extract the decision from the drawing" precedent as
-    // CodeFixMargin.ComputeIconTransform (TODO #75/#82).
+    // CodeFixMargin.ComputeIconTransform.
     internal readonly record struct BreakpointIconPlan(bool DrawOutline, bool DrawConditionBadge);
 
     internal static BreakpointIconPlan ComputeBreakpointIconPlan(IBreakpoint bp) => new(
-        // TODO.md #83.3: disabled breakpoints get the same contour-only treatment as unverified
+        // Disabled breakpoints get the same contour-only treatment as unverified
         // ones — a hollow ring reads as "not currently active" regardless of which of the two
         // reasons applies, without needing a second brush/geometry just to tell them apart.
         DrawOutline: !bp.IsEnabled || bp.VerificationState == BreakpointVerificationState.Unverified,
@@ -253,7 +253,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             ctx.DrawGeometry(brush, null, geo);
     }
 
-    // TODO.md #83: unverified breakpoints — stroke-only instead of DrawCentered's fill, same
+    // Unverified breakpoints — stroke-only instead of DrawCentered's fill, same
     // centering transform so the ring lands exactly where the filled disc otherwise would.
     private void DrawCenteredOutline(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
                                       double yTop, double lineH)

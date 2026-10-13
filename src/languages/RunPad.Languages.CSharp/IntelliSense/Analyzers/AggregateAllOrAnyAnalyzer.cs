@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двадцать восьмой проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085, проход
 // 164) and AggregateMaxMinAnalyzer (RPAD0204, проход 219): `xs.Aggregate(true, (acc, x) => acc &&
 // predicate(x))` hand-rolls exactly what `xs.All(predicate)` already does, and the false/|| mirror

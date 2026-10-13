@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (459-й проход, batch) — candidate #2 from the twenty-second research subagent survey,
+// Candidate #2 from the twenty-second research subagent survey,
 // re-verified independently before implementing. `System.Text.Json.JsonWriterOptions.IndentSize`/
 // `.IndentCharacter`/`.NewLine` — a sibling gap of the already-covered `JsonSerializerOptions.
 // IndentSize`/`.IndentCharacter`/`.NewLine` (RPAD0443, this same trio, extended for `NewLine` in this

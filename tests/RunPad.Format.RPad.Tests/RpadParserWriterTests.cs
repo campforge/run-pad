@@ -108,7 +108,7 @@ public class RpadParserWriterTests
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
     }
 
-    // TODO.md, "tab lifecycle": a brand-new, never-saved tab wants genuinely empty code
+    // A brand-new, never-saved tab wants genuinely empty code
     // (not the "Hello, RPad!" sample below), via NewFile's optional code override. An empty code
     // block glues the closing fence onto the same line as the (empty) code instead of its own line —
     // RpadParser.FindClosingFence requires a closing fence to start its own line, so without
@@ -152,7 +152,7 @@ public class RpadParserWriterTests
         Assert.DoesNotContain('`', reparsed2.RunCode);
     }
 
-    // TODO.md #49 item 2 — NewFile used to hardcode `language: csharp` and the ```csharp fence
+    // NewFile used to hardcode `language: csharp` and the ```csharp fence
     // regardless of caller intent, so a new .vb file could only be made by hand-editing an existing
     // C# file's front matter afterward.
     [Theory]

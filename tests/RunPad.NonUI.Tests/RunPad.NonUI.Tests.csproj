@@ -11,7 +11,7 @@
          never touches a live Avalonia Application, so it doesn't reference Avalonia.Headless(.XUnit)
          at all and — unlike RunPad.Runtime.UI.Tests, where [assembly: AvaloniaTestFramework] disables
          collection parallelism for the WHOLE assembly regardless of whether a given test uses Avalonia
-         (confirmed empirically — see TODO.md проход 135) — gets ordinary xunit parallel test-collection
+         (confirmed empirically) — gets ordinary xunit parallel test-collection
          execution "for free". Still xunit.v3 (not the classic xunit 2.x the other simple projects use)
          because several of these files use xunit v3's TestContext.Current.CancellationToken.
     -->

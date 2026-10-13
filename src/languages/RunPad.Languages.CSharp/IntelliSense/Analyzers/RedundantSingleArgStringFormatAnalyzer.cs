@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят третий проход, batch) — same "recognize the redundant format string"
+// Same "recognize the redundant format string"
 // theme as RedundantStringFormatCallAnalyzer (RPAD0073, проход 162), for the single-placeholder case
 // instead of the no-placeholder one: `string.Format("{0}", x)` calls into the whole format-parsing
 // machinery just to substitute x in as the entire result — `$"{x}"` (string interpolation) does the

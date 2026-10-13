@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `!(x == y)`/`!(x != y)` negates an equality comparison instead of just using its opposite operator
 // directly. Deliberately scoped to == and != only, not the relational operators (</>/<=/>=) —
 // negating THOSE isn't a safe rewrite for floating-point types, since every comparison against NaN

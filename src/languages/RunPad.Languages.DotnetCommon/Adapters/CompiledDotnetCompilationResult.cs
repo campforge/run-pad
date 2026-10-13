@@ -6,7 +6,7 @@ namespace RunPad.Languages.DotnetCommon.Adapters;
 /// <summary>
 /// Adapts a raw <see cref="ProcessCompilerResult"/> to <see cref="ICompilationResult"/> — was two
 /// identical classes (CSharpCompilationResult/VbCompilationResult) before unification
-/// (ANALYSIS.md #86).
+///.
 /// </summary>
 public sealed class CompiledDotnetCompilationResult : ICompilationResult
 {

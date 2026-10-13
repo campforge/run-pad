@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят пятый проход, batch) — same "prefer the generic overload" theme as
+// Same "prefer the generic overload" theme as
 // EnumGetValuesCastAnalyzer (RPAD0067, проход 160). `Enum.Parse(typeof(T), s)`/`Enum.IsDefined(typeof(T),
 // v)` are the pre-generic-overload idiom — both go through the non-generic Type/object-based API and
 // box/cast the result. `Enum.Parse<T>(s)`/`Enum.IsDefined<T>(v)` (both .NET 5+, always available given

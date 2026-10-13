@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят третий проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Distinct().Distinct()` — Distinct() is idempotent, so the sequence is already fully deduplicated
 // after the first call; the second call walks the whole (already-distinct) sequence again for nothing.
 // Deliberately restricted to the no-argument overload — Distinct(comparer) with two DIFFERENT

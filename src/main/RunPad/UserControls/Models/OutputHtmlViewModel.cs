@@ -17,7 +17,7 @@ public class OutputHtmlViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = "";
 
-    // ANALYSIS.md #94: a script dumping thousands of lines used to call `Content += line` once per
+    // A script dumping thousands of lines used to call `Content += line` once per
     // line — each `+=` copies the ENTIRE accumulated string so far, making total cost O(n²) in the
     // number of lines. Backed by a StringBuilder instead; Append below is amortized O(1) per call,
     // same as the accumulation pattern it replaces was meant to look like at the call site.

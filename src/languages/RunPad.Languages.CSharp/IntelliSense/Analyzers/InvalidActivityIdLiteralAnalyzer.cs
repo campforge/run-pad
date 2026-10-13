@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (426-й проход, batch) — candidate #2 from the fourth research subagent survey (424-й
+// Candidate #2 from the fourth research subagent survey (424-й
 // проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `System.Diagnostics.ActivityTraceId.CreateFromString(ReadOnlySpan<char>)` and
 // `ActivitySpanId.CreateFromString(ReadOnlySpan<char>)` — W3C-trace-context distributed-tracing IDs, new

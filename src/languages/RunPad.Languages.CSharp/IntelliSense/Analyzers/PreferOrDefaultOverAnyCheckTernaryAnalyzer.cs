@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести тридцать второй проход, batch) — own pick, not a Roslynator port. Same
+// Own pick, not a Roslynator port. Same
 // "ternary hand-writes what a dedicated method already does" theme as
 // PreferFirstOrDefaultOverCountCheckTernaryAnalyzer (RPAD0171, проход 186), for a different shape:
 // `xs.Any() ? xs.First() : default` (or `xs.Any(pred) ? xs.First(pred) : default`, or the Last/

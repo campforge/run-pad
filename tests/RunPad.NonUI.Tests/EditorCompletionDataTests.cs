@@ -3,7 +3,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #56: building the rich Description control (real Avalonia TextBlock/Run
+// Building the rich Description control (real Avalonia TextBlock/Run
 // construction via DisplaySegmentRenderer) eagerly for every completion item — up to ~584 of them
 // on a single 24/7 auto-invoke — was the main perceived-latency contributor, since only one item's
 // Description is ever visible (whichever is currently highlighted in the list).
@@ -42,7 +42,7 @@ public class EditorCompletionDataTests
         Assert.Equal(1, callCount);
     }
 
-    // TODO.md item 60 point 6: the completion list row can show something richer than the bare name
+    // The completion list row can show something richer than the bare name
     // (e.g. a dimmed "(in Namespace)" annotation for a not-yet-imported type — EditorTabItemControl
     // builds that via DisplaySegmentRenderer.BuildListRow), but what actually gets matched/inserted
     // must stay exactly the plain name regardless — Text and Content are independent.

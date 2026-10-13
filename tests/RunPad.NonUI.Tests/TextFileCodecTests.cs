@@ -4,7 +4,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The text editor window (TODO.md "Отдельное окно текстового редактора") must save a file back in the
+// The text editor window must save a file back in the
 // encoding and with the line breaks it was read with: decoding then re-encoding an unchanged file has to
 // give back the very same bytes.
 public class TextFileCodecTests

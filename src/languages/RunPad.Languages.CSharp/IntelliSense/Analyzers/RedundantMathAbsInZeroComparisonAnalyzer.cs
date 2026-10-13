@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто семьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Math.Abs(x) == 0`/`!= 0` calls into Math.Abs just to compare the result against zero — but a value's
 // absolute value is zero if and only if the value itself is zero, so `x == 0`/`x != 0` says exactly the
 // same thing without the extra call (and without Math.Abs's own overflow risk at MinValue for signed

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят восьмой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `Task.WhenAll(new[] { t1, t2 })`/`Task.WhenAny(new[] { t1, t2 })` build an array literal just to
 // hand it to a method that also has a `params Task[]` overload — spelling the tasks out as individual
 // arguments (`Task.WhenAll(t1, t2)`) calls that overload directly, without the explicit array literal.

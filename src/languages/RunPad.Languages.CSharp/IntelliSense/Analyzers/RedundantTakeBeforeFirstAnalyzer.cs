@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят первый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `xs.Take(n).First()` (or FirstOrDefault) truncates the sequence to at most n elements just to grab
 // the first one — First()/FirstOrDefault() only ever look at the first element regardless of how many
 // followed it, so the Take is inert. Deliberately restricted to a LITERAL n >= 1: for n == 0,

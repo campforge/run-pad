@@ -16,7 +16,7 @@ using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 namespace RunPad.Windows;
 
 /// <summary>
-/// ILSpy/dnSpy-style assembly explorer (TODO.md #62, user request 2026-07-19; merged with the
+/// ILSpy/dnSpy-style assembly explorer (user request 2026-07-19; merged with the
 /// previously separate <c>DecompiledViewWindow</c> per user request 2026-07-20 — dnSpy/ILSpy don't
 /// pop a new window per decompiled type either, they update one code pane in place) — a tree of
 /// namespaces/types on the left, a read-only decompiled source pane on the right that updates in

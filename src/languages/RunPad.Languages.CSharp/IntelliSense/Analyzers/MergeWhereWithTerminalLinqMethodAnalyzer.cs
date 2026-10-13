@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (pass 155, batch) — same LINQ-hygiene theme as
+// Same LINQ-hygiene theme as
 // PreferMinByMaxByOverOrderByFirstAnalyzer next to this one. `xs.Where(pred).First()` (or
 // FirstOrDefault/Single/SingleOrDefault/Any/Last/LastOrDefault) builds an intermediate filtered
 // sequence just to immediately consume it — every one of these methods has its own predicate-accepting

@@ -19,8 +19,8 @@ public enum IndentationStrategyKind
 // docs on IdentifierChars/ContextualTriggers/WordTriggers/BracePairs/AutoCloseBraces/
 // StatementTerminators — all empty-by-default, meant to be configured externally rather than
 // assuming any language's rules). Mirrors ILanguageHostFactory.Snippets, which already flows the
-// same way from the language plugin to the editor (see TODO.md #41) — this closes the same gap for
-// everything CodeTextEditor needs configured (TODO.md #58): before this, EditorTabItemControl
+// same way from the language plugin to the editor — this closes the same gap for
+// everything CodeTextEditor needs configured: before this, EditorTabItemControl
 // hardcoded a single C#-shaped profile for every language, including VB.
 public sealed class EditorLanguageProfile
 {
@@ -38,7 +38,7 @@ public sealed class EditorLanguageProfile
     public IReadOnlySet<char> AutoCloseBraces { get; init; } = new HashSet<char>();
     public IndentationStrategyKind IndentationStrategy { get; init; } = IndentationStrategyKind.Default;
 
-    // TODO.md #76: used to be a FoldingStrategyKind enum (BraceBased/VbKeywordBased) that
+    // Used to be a FoldingStrategyKind enum (BraceBased/VbKeywordBased) that
     // EditorTabItemControl (main UI project) switched on to hardcode `new VbFoldingStrategy()` — a
     // main-project file directly naming a concrete VB-specific type. Replaced with the language
     // plugin handing over the actual algorithm as a plain delegate instead: text in, fold-region
@@ -52,7 +52,7 @@ public sealed class EditorLanguageProfile
     // correct for C#'s { }-delimited blocks.
     public Func<string, IReadOnlyList<(int Start, int End)>>? FoldingRegionsProvider { get; init; }
 
-    // TODO.md #81: used to be a `switch` on RpadLanguage hardcoded in FileTreeViewNode.LanguageIconKey
+    // Used to be a `switch` on RpadLanguage hardcoded in FileTreeViewNode.LanguageIconKey
     // (main UI project) — same class of problem as FoldingRegionsProvider above, same fix: the
     // language plugin names its own icon instead of the UI layer knowing about every language by name.
     // A resource key into src/main/RunPad/Resources/Icons.axaml (StreamGeometry, resolved at bind time

@@ -5,10 +5,10 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// ANALYSIS.md TODO #69 follow-up: GetFilesTreeInternal used to filter out any folder whose subtree
+// GetFilesTreeInternal used to filter out any folder whose subtree
 // contained zero .rpad files ("if (children.Count > 0)") — meant to declutter folders with no scripts
 // in them, but it silently ate a folder the moment it had no content yet, which is exactly the shape
-// of a folder the new "New Folder" command (TODO #69) just created. The user hit this immediately
+// of a folder the new "New Folder" command just created. The user hit this immediately
 // after that feature shipped: the directory really was created on disk, but RefreshNodes() never
 // showed it, so there was nothing for FindByPath/StartRenameForPath to find either.
 public class FileSystemServiceTests
@@ -62,7 +62,7 @@ public class FileSystemServiceTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // TODO.md #109: file tree's "New File" — CreateNewFile writes real, parseable .rpad content (via
+    // File tree's "New File" — CreateNewFile writes real, parseable .rpad content (via
     // RpadWriter.NewFile) into a caller-given directory, not just an empty stub. NullLogger avoids
     // wiring up a real Microsoft.Extensions.Logging pipeline just to construct FileSystemService —
     // the constructor's only side effect (see GetOrCreateDefaultFolder) is ensuring the real

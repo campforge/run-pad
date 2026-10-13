@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести девяносто девятый проход, batch) — own pick, not a Roslynator port. Same "literal
+// Own pick, not a Roslynator port. Same "literal
 // receiver, known length" theme as SubstringOutOfRangeAnalyzer (RPAD0235)/
 // InvalidStringRemoveOrInsertArgumentAnalyzer (RPAD0281, проходы 241/298), applied to the plain indexer
 // this time: `"literal"[index]` throws IndexOutOfRangeException when `index` is negative or >= the

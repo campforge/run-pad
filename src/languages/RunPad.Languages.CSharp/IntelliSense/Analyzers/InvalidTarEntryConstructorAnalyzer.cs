@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (457-й проход, batch) — candidate #1 from the nineteenth research subagent survey,
+// Candidate #1 from the nineteenth research subagent survey,
 // re-verified independently before implementing. `System.Formats.Tar` — first analyzer in this catalog
 // touching this namespace. `PaxTarEntry`/`GnuTarEntry`/`UstarTarEntry`/`V7TarEntry(TarEntryType, string)`
 // constructors — each of the 4 concrete entry types only accepts a DIFFERENT subset of the 18-member

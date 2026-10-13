@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (сто шестьдесят шестой проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `new Random(Environment.TickCount)` is a pre-.NET-Core idiom for getting a "different sequence each
 // run" — but the parameterless `Random()` constructor has used a proper random seed source (not
 // time-based) since .NET Core, so explicitly seeding with TickCount is now strictly worse: it's lower

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// TODO.md #51 follow-up (user feedback after trying 24/7 auto-invoke live):
+// User feedback after trying 24/7 auto-invoke live:
 // 1. Completion/signature-help/quick-info showed up while typing prose inside a comment.
 // 2. Scope ordering was pure alphabetical — a nearby local could sort behind an unrelated,
 //    merely-imported type or a keyword.
@@ -76,7 +76,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.True(localIndex < keywordIndex, "expected the in-scope local to rank before a same-ish-named keyword");
     }
 
-    // ANALYSIS.md #55: the editor used to hardcode Priority (Kind == Method ? 1.0 : 0.9) instead of
+    // The editor used to hardcode Priority (Kind == Method ? 1.0 : 0.9) instead of
     // taking it from the language model — AvaloniaEdit's CompletionList only consults Priority as a
     // tie-break among items of otherwise-equal match quality, so a method used to win pre-selection
     // ties against an equally-good-matching local/parameter despite ranking behind it in the list.
@@ -96,7 +96,7 @@ public class CSharpIntelliSenseCompletionQualityTests
             $"expected local 'r' (Priority={local.Priority}) to outrank keyword 'readonly' (Priority={keyword.Priority})");
     }
 
-    // ANALYSIS.md #52 (seventeenth-pass audit): completion showed up inside string literals — the
+    // Completion showed up inside string literals — the
     // sixteenth pass's IsInsideComment guard only covers lexical trivia (// and /* */), but string
     // content is an ordinary token, not trivia, so it needed its own check.
     [Fact]
@@ -111,7 +111,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Null(result);
     }
 
-    // ANALYSIS.md #52: "s?." resolved to nothing — the dot-completion branch only recognized plain
+    // "s?." resolved to nothing — the dot-completion branch only recognized plain
     // MemberAccessExpressionSyntax, not the MemberBindingExpressionSyntax a '?.' produces.
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferMembers_AfterConditionalAccess()
@@ -126,7 +126,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Contains(result!.Items, i => i.DisplayText == "Length");
     }
 
-    // ANALYSIS.md #52: "System." resolved to nothing — the qualifier names a namespace, which has no
+    // "System." resolved to nothing — the qualifier names a namespace, which has no
     // GetTypeInfo() result (only GetSymbolInfo does), so it fell through to "nothing to complete".
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferNestedNamespacesAndTypes_AfterANamespaceDot()
@@ -142,7 +142,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Contains(result.Items, i => i.DisplayText == "String");
     }
 
-    // ANALYSIS.md #52: ToItem had no case for INamespaceSymbol, so "System" never appeared in the
+    // ToItem had no case for INamespaceSymbol, so "System" never appeared in the
     // general (non-dot) completion list even though LookupSymbols(pos) does return it as a candidate.
     [Fact]
     public async Task GetCompletionsAsync_Should_IncludeNamespaces_InTheGeneralList()
@@ -156,7 +156,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Contains(result!.Items, i => i.DisplayText == "System");
     }
 
-    // ANALYSIS.md #52: local functions (MethodKind.LocalFunction) were filtered out of ToItem's
+    // Local functions (MethodKind.LocalFunction) were filtered out of ToItem's
     // IMethodSymbol case — the primary way top-level-statement scripts structure code, so this was
     // the single most common non-trivial identifier that never completed.
     [Fact]
@@ -172,7 +172,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Contains(result!.Items, i => i.DisplayText == "Foo");
     }
 
-    // ANALYSIS.md #52: LookupSymbols(container: type) returns every member regardless of static-ness
+    // LookupSymbols(container: type) returns every member regardless of static-ness
     // — "d." (an instance of DateTime) used to also offer the static Parse method.
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferOnlyInstanceMembers_ForAValueQualifier()
@@ -188,7 +188,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.DoesNotContain(result.Items, i => i.DisplayText == "Parse");
     }
 
-    // ANALYSIS.md #52: the same mixing in the other direction — "DateTime." (the type itself) used to
+    // The same mixing in the other direction — "DateTime." (the type itself) used to
     // also offer instance members like AddDays, which aren't callable through the type name.
     [Fact]
     public async Task GetCompletionsAsync_Should_OfferOnlyStaticMembers_ForATypeQualifier()
@@ -204,7 +204,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.DoesNotContain(result.Items, i => i.DisplayText == "AddDays");
     }
 
-    // ANALYSIS.md #53: signature help only recognized InvocationExpressionSyntax — "new Foo(" (an
+    // Signature help only recognized InvocationExpressionSyntax — "new Foo(" (an
     // ObjectCreationExpressionSyntax) never showed constructor parameters at all.
     [Fact]
     public async Task GetSignatureHelpAsync_Should_ShowConstructorOverloads_ForAnObjectCreationExpression()
@@ -218,7 +218,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.True(result!.Items.Count > 0, "expected at least one StringBuilder constructor overload");
     }
 
-    // ANALYSIS.md TODO #59: delegate types (e.g. System.Action) fell into ToItem's default branch and
+    // Delegate types (e.g. System.Action) fell into ToItem's default branch and
     // showed up with the same icon as an ordinary class, indistinguishable in the completion list.
     [Fact]
     public async Task GetCompletionsAsync_Should_ClassifyDelegateTypes_Distinctly_NotAsClass()
@@ -233,7 +233,7 @@ public class CSharpIntelliSenseCompletionQualityTests
         Assert.Equal(CompletionItemKind.Delegate, action.Kind);
     }
 
-    // ANALYSIS.md TODO #59: type parameters (the `T` in a generic method's own signature/body) were
+    // Type parameters (the `T` in a generic method's own signature/body) were
     // dropped entirely by ToItem — inside the method they're a real, referenceable symbol, not just
     // declaration-site syntax.
     [Fact]

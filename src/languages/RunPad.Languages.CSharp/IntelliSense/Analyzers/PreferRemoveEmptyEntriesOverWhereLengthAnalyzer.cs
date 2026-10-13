@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// TODO.md #74 (двести двенадцатый проход, batch) — own pick, not a Roslynator port.
+// Own pick, not a Roslynator port.
 // `s.Split(sep).Where(x => x.Length > 0)`/`s.Split(sep).Where(x => x.Length != 0)` filters out the
 // empty entries a naive Split leaves behind (consecutive separators, leading/trailing separators) —
 // exactly what `s.Split(sep, StringSplitOptions.RemoveEmptyEntries)` already does in the Split call
