@@ -44,6 +44,19 @@ public interface IWindowService
     /// </summary>
     Task<string?> ShowSaveCodeFileDialogAsync(string suggestedFileName, string extension, string startFolder);
 
+    /// <summary>Native Open dialog for any file (the text editor window's "Open Text File..."); null if cancelled.</summary>
+    Task<string?> ShowOpenTextFileDialogAsync(string startFolder);
+
+    /// <summary>Native Save As dialog for any file (the text editor window's Save As); null if cancelled.</summary>
+    Task<string?> ShowSaveTextFileDialogAsync(string suggestedFileName, string startFolder);
+
+    /// <summary>
+    /// Opens <paramref name="filePath"/> in its own text editor window (TODO.md "Отдельное окно
+    /// текстового редактора") — or brings the window already editing that file to the front. A file
+    /// that can't be read shows an error instead.
+    /// </summary>
+    Task ShowTextEditorAsync(string filePath);
+
     /// <summary>
     /// Shows the non-modal Assembly Explorer window (TODO.md #62, user request 2026-07-19) — lets
     /// the script keep running/editable behind it. There's one per app: an open one is brought to

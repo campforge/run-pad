@@ -246,6 +246,7 @@ public sealed partial class MainWindow : Window, IDisposable
                     new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
                 ]),
                 new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
+                new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuSeparator(),
                 new MainMenuCommand("_Save", ReactiveCommand.Create(_editorTabs.SaveActive), vm.SaveGesture),
                 new MainMenuCommand("Save _As...", ReactiveCommand.Create(_editorTabs.SaveAsActive), vm.SaveAsGesture),

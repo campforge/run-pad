@@ -1105,6 +1105,19 @@ public class CodeTextEditor : TextEditor
         return position != null ? Document.GetOffset(position.Value.Location) : -1;
     }
 
+    /// <summary>
+    /// <see cref="SetLanguage"/> for an arbitrary file extension: false (plain text, nothing installed)
+    /// when TextMate has no grammar for it — <see cref="SetLanguage"/> itself throws then.
+    /// </summary>
+    public bool TrySetLanguage(ThemeName theme, string fileExtension)
+    {
+        if (string.IsNullOrEmpty(fileExtension)
+            || new RegistryOptions(theme).GetLanguageByExtension(fileExtension) is null)
+            return false;
+        SetLanguage(theme, fileExtension);
+        return true;
+    }
+
     public string SetLanguage(ThemeName theme, string languageExtension)
     {
         _registryOptions = new RegistryOptions(theme);
