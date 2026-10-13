@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
-// InvalidCountdownEventOrBarrierConstructorArgumentAnalyzer (RPAD0323, проход 350) — same two types,
+// InvalidCountdownEventOrBarrierConstructorArgumentAnalyzer (RPAD0323) — same two types,
 // but their INSTANCE methods instead of their constructors: `CountdownEvent.Signal(int
 // signalCount)`/`AddCount(int signalCount)` and `Barrier.AddParticipants(int
 // participantCount)`/`RemoveParticipants(int participantCount)` all throw ArgumentOutOfRangeException

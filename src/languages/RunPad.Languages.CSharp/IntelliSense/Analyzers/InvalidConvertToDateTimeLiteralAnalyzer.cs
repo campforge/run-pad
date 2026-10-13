@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port; found by direct brainstorming
 // while re-checking InvalidNumericParseFormatAnalyzer's (RPAD0356) Convert.ToXxx coverage list (11 numeric
-// conversions, проход 438) — `Convert.ToDateTime(string)` is NOT among them and has no analyzer of its
+// conversions) — `Convert.ToDateTime(string)` is NOT among them and has no analyzer of its
 // own. Sibling of InvalidDateOrTimeParseLiteralAnalyzer (RPAD0365), reusing that analyzer's own
 // conservative guard: a literal containing no ASCII digit character at all can't be a valid date/time in
 // any format, since every one of .NET's recognized formats needs at least one digit (day, month-as-number,

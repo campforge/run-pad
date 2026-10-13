@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "StringSplitOptions already does this in the Split call itself" theme as
-// PreferRemoveEmptyEntriesOverWhereLengthAnalyzer (RPAD0198, проход 212), for the trimming sibling:
+// PreferRemoveEmptyEntriesOverWhereLengthAnalyzer (RPAD0198), for the trimming sibling:
 // `s.Split(sep).Select(x => x.Trim())` trims every entry in a second LINQ pass — exactly what
 // `s.Split(sep, StringSplitOptions.TrimEntries)` (.NET 5+) already does directly in the Split call.
 // Skipped when Split already has a StringSplitOptions argument, same reasoning as RPAD0198.

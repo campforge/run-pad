@@ -20,7 +20,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Editor smoothness (user report 2026-10-12: «при вводе все подтормаживает и моргает»). Background
+// Editor smoothness (user report: typing felt laggy and the editor flickered). Background
 // decorations — semantic colors, inlay hints, squiggles, occurrence highlights — used to sit on the
 // absolute offsets of the text they were computed for, so every keystroke put them on the wrong
 // characters until the next analysis repainted everything. They now follow the document's edits, and

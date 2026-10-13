@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the fortieth research subagent survey,
-// re-verified independently before implementing. `System.Text.CompositeFormat.Parse(string format)` — a
+// `System.Text.CompositeFormat.Parse(string format)` — a
 // static factory (.NET 8+) that pre-parses composite-format-string grammar (`{index[,alignment][:formatString]}`)
 // so it doesn't need to be re-parsed on every `.Format(...)` call. Confirmed empirically: this is a pure
 // syntax validator, independent of what arguments would later be passed to `.Format(...)` — an unbalanced/

@@ -7,12 +7,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "blocking
-// call inside async code" theme as ThreadSleepInAsyncMethodAnalyzer (RPAD0089, проход 164) and
-// SemaphoreWaitInAsyncMethodAnalyzer (RPAD0129, проход 173), for the plain `Task.Wait()`/`Task.Wait(...)`
+// call inside async code" theme as ThreadSleepInAsyncMethodAnalyzer (RPAD0089) and
+// SemaphoreWaitInAsyncMethodAnalyzer (RPAD0129), for the plain `Task.Wait()`/`Task.Wait(...)`
 // case that neither of those two nor TaskDelayThenWaitAnalyzer (RPAD0086, specific to
 // `Task.Delay(...).Wait()`) cover: `task.Wait()` inside an `async` method blocks the calling thread
 // until the task completes, exactly the deadlock-in-a-captured-synchronization-context risk that
-// TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer (RPAD0131, проход 174) documents for
+// TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer (RPAD0131) documents for
 // `.Result`/`.GetAwaiter().GetResult()` — `Wait()` has the same risk without producing a value.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TaskWaitInAsyncMethodAnalyzer : DiagnosticAnalyzer

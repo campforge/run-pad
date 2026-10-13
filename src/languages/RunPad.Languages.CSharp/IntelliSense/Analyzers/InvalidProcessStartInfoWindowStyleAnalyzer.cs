@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the fourteenth research subagent survey,
-// re-verified independently before implementing. `ProcessStartInfo.WindowStyle` — assigning a
+// `ProcessStartInfo.WindowStyle` — assigning a
 // `ProcessWindowStyle` value outside its 0-3 defined range (`Normal`/`Hidden`/`Minimized`/`Maximized`)
 // throws `System.ComponentModel.InvalidEnumArgumentException` (a genuinely different exception TYPE from
 // the plain `ArgumentOutOfRangeException` this catalog's other enum-range analyzers throw — confirmed

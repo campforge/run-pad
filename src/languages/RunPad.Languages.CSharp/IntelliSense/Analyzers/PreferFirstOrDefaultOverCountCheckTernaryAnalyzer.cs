@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // collection is empty. Matched structurally (the Count/Length receiver and the indexer receiver must
 // be the literal same expression — SyntaxNode.IsEquivalentTo) and requires the index to be the literal
 // `0` and the "empty" branch to be `default`/`default(T)`/`null`.
-// Extended (двести тридцать второй проход, batch) to also cover the opposite polarity —
+// Extended to also cover the opposite polarity —
 // `xs.Count > 0 ? xs[0] : default` says the same thing the other way around.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferFirstOrDefaultOverCountCheckTernaryAnalyzer : DiagnosticAnalyzer

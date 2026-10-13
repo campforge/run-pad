@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
-// InvalidIPAddressLiteralAnalyzer (RPAD0249, проход 256) — same "run the real validator" theme, applied
+// InvalidIPAddressLiteralAnalyzer (RPAD0249) — same "run the real validator" theme, applied
 // to the newer (.NET 8+) `System.Net.IPNetwork.Parse(string)` (CIDR notation, e.g. "192.168.1.0/24")
 // instead of a plain IP address: throws `FormatException` for a string that isn't a valid
 // address-plus-prefix-length pair — confirmed empirically (scratch `dotnet run` script) including the

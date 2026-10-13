@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "constructor argument validation" theme as InvalidSemaphoreSlimConstructorArgumentAnalyzer
-// (RPAD0319, проход 348), applied to `System.Threading.Semaphore(int initialCount, int
+// (RPAD0319), applied to `System.Threading.Semaphore(int initialCount, int
 // maximumCount)` instead of `SemaphoreSlim` — confirmed empirically to throw
 // ArgumentOutOfRangeException for a negative `initialCount` or a `maximumCount` that isn't strictly
 // positive, but a DIFFERENT exception type, ArgumentException, when `initialCount` exceeds a

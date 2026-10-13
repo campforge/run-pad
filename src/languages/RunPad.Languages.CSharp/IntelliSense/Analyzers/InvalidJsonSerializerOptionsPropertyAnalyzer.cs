@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the twelfth research subagent survey, re-verified
-// independently before implementing. `System.Text.Json.JsonSerializerOptions` — 4 scalar property
+// `System.Text.Json.JsonSerializerOptions` — 4 scalar property
 // setters, all confirmed on a freshly-constructed `new JsonSerializerOptions()` (no prior serialization
 // use, so no "already locked/read-only" state entanglement to worry about): `MaxDepth` (negative throws
 // `ArgumentOutOfRangeException`, 0 and positive are valid — 0 means "use the default", not "no depth"),
@@ -17,14 +16,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // space or horizontal tab are valid, any other char throws `ArgumentOutOfRangeException`). Confirmed
 // invariant across en-US/de-DE/ar-SA/ja-JP — pure structural/range checks, no culture data involved. No
 // side effects (no serialization ever performed, just property assignment on a throwaway instance).
-// Extended (454-й проход, candidate #4/#5 from the sixteenth research subagent survey) to also cover
+// Extended to also cover
 // `NumberHandling` (`JsonNumberHandling`, a `[Flags]` int-backed enum — valid range is any bit
 // combination 0-7; confirmed empirically both the enum type AND its underlying type before trusting a
-// naive `is int` extraction, per the enum-underlying-type lesson from the immediately-preceding проход)
+// naive `is int` extraction, per the enum-underlying-type lesson from the preceding change)
 // and `PreferredObjectCreationHandling` (`JsonObjectCreationHandling`, NOT `[Flags]`, also int-backed,
 // valid values `Replace`(0)/`Populate`(1)) — both throw `ArgumentOutOfRangeException` for a value outside
 // their own valid set, confirmed on a freshly-constructed, never-used options instance.
-// Extended (459-й проход, candidate #3 from the twenty-second research subagent survey) to also cover
+// Extended to also cover
 // `NewLine` (`string`) — throws `ArgumentOutOfRangeException` unless the value is exactly "\n" or
 // "\r\n" (confirmed "" / " " / "\r" / "ab" all throw); a sibling gap this analyzer's own IndentSize/
 // IndentCharacter checks didn't extend to when they were added.

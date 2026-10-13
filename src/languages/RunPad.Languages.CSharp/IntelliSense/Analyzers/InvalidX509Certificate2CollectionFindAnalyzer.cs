@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-ninth research subagent survey,
-// re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
+// `System.Security.Cryptography.X509Certificates.
 // X509Certificate2Collection.Find(X509FindType findType, object findValue, bool validOnly)` — a ninth
 // productive revisit of `X509Certificates` (after RPAD0472/0473/0477/0483/0485/0488/0496).
 // `X509FindType` is `int`-backed (confirmed via `Enum.GetUnderlyingType`), valid members are exactly

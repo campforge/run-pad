@@ -6,8 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the fifth research subagent survey, re-verified
-// independently before implementing. A string literal containing an embedded `'\0'` (NUL) character
+// A string literal containing an embedded `'\0'` (NUL) character
 // passed as a path to `Path.GetFullPath(string)`, `new FileInfo(string)`, `new DirectoryInfo(string)`, or
 // `Directory.CreateDirectory(string)` — confirmed empirically, matching the agent's report: all four
 // throw `ArgumentException` ("Null character in path.") from pure string validation, no filesystem I/O

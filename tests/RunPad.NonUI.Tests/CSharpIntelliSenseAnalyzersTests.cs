@@ -240,7 +240,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToString", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147 combined test
+    // Same rationale as the combined test
     // above: one end-to-end proof for the whole 10-analyzer batch instead of one per analyzer.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSecondBatch()
@@ -260,7 +260,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("redundant", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147/148 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirdBatch()
@@ -281,7 +281,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("StringBuilder", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147/148/149 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFourthBatch()
@@ -301,7 +301,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("NaN", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-150
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFifthBatch()
@@ -321,7 +321,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrEmpty", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-151
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSixthBatch()
@@ -342,7 +342,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("TryGetValue", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-152
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSeventhBatch()
@@ -363,7 +363,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("does not handle", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-153
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEighthBatch()
@@ -384,7 +384,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("never be negative", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-154 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheNinthBatch()
@@ -405,7 +405,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("simplified to", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-155
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTenthBatch()
@@ -426,7 +426,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("starts over", StringComparison.OrdinalIgnoreCase));
     }
 
-    // Same rationale as the pass 147-156
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEleventhBatch()
@@ -447,7 +447,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("FirstOrDefault", StringComparison.Ordinal));
     }
 
-    // Same rationale as the pass 147-157
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwelfthBatch()
@@ -468,7 +468,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("OrderByDescending", StringComparison.Ordinal));
     }
 
-    // Same rationale as the pass 147-158
+    // Same rationale as the
     // combined tests above; covers both brand-new analyzers and the extended coverage of earlier ones.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirteenthBatch()
@@ -490,7 +490,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("StringBuilder.Append", StringComparison.Ordinal));
     }
 
-    // Same rationale as the pass 147-159 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFourteenthBatch()
@@ -511,7 +511,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("char.ToUpper", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-160
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFifteenthBatch()
@@ -533,7 +533,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Take(0)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-161
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSixteenthBatch()
@@ -554,7 +554,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("NullReferenceException", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-162
+    // Same rationale as the
     // combined tests above; bigger batch (7 new analyzers + 1 extension) per explicit user request.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheSeventeenthBatch()
@@ -576,7 +576,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Distinct().Distinct()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-163
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheEighteenthBatch()
@@ -597,7 +597,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("GetType().Name", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-164
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheNineteenthBatch()
@@ -620,7 +620,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToString(\"G\")", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-165
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentiethBatch()
@@ -641,7 +641,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Double.Parse", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-166
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyFirstBatch()
@@ -664,7 +664,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Select(key).Distinct()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-167
+    // Same rationale as the
     // combined tests above; minimum-10-analyzer batch per explicit user request.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentySecondBatch()
@@ -686,7 +686,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToCharArray()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-168
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyThirdBatch()
@@ -708,7 +708,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Task.Yield()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-169 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyFourthBatch()
@@ -729,7 +729,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("IsNullOrEmpty", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-170 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyFifthBatch()
@@ -751,7 +751,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Keys.Count", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-171 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentySixthBatch()
@@ -772,7 +772,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("IsLetterOrDigit", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-172 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentySeventhBatch()
@@ -793,7 +793,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("!=", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-173
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyEighthBatch()
@@ -814,7 +814,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("is null", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-174 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheTwentyNinthBatch()
@@ -835,7 +835,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("OrdinalIgnoreCase", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-175 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtiethBatch()
@@ -856,7 +856,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("wraps and immediately unwraps", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-176
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyFirstBatch()
@@ -877,7 +877,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("O(n^2)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-177
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtySecondBatch()
@@ -898,7 +898,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Math.Abs", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-178
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyThirdBatch()
@@ -919,7 +919,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("single-element array", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-179 combined
+    // Same rationale as the combined
     // tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyFourthBatch()
@@ -940,7 +940,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("calls the same trim method twice", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-180
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyFifthBatch()
@@ -961,7 +961,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Sort(array, comparer)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-181
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtySixthBatch()
@@ -982,7 +982,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("AppContext.BaseDirectory", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-182
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtySeventhBatch()
@@ -1003,7 +1003,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("GetString", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-183
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyEighthBatch()
@@ -1024,7 +1024,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Guid.Parse", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-184
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheThirtyNinthBatch()
@@ -1045,7 +1045,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("single-element array", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-185
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1065,7 +1065,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("FirstOrDefault", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-186
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFortyFirstBatch()
@@ -1086,7 +1086,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("DateTime.Compare", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-187
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFortySecondBatch()
@@ -1107,7 +1107,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Environment.Is64BitProcess", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-188
+    // Same rationale as the
     // combined tests above.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseVisibleDiagnostics_ForEveryAnalyzerInTheFortyThirdBatch()
@@ -1129,7 +1129,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Activator.CreateInstance<T>", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-189 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1149,7 +1149,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("string.Compare", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-190
+    // Same rationale as the
     // combined tests above; one new analyzer this batch, so this proves both shapes it covers
     // (ToDictionary and ToLookup) through the real pipeline together.
     [Fact]
@@ -1171,7 +1171,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToLookup", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-191
+    // Same rationale as the
     // combined tests above; one new analyzer this batch, so this proves both shapes it covers
     // through the real pipeline together.
     [Fact]
@@ -1193,7 +1193,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("AppendLine()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-192
+    // Same rationale as the
     // combined tests above; one new analyzer this batch, so this proves both shapes it covers
     // through the real pipeline together.
     [Fact]
@@ -1215,7 +1215,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.IndexOf(array, value)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-193
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1236,7 +1236,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("CancellationToken.None", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-194 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1256,7 +1256,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("string.Concat", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-195
+    // Same rationale as the
     // combined tests above; one new analyzer this batch, so this proves both shapes it covers
     // through the real pipeline together.
     [Fact]
@@ -1278,7 +1278,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains(".Values", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-196
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1298,7 +1298,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("new Dictionary<TKey, TValue>(dict)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-197
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1318,7 +1318,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("new string(charArray)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-198
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1338,7 +1338,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Path.Combine", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-199 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1358,7 +1358,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("AsSpan", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-200 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves all three of its forms together through
     // the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1383,7 +1383,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Find", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-201 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1403,7 +1403,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("\"Dn\"", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-202 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1423,7 +1423,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("sb.Clear()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-203 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves all three of its forms together
     // through the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1448,7 +1448,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Find", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-204 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1468,7 +1468,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Random.Shared.Next", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-205 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves both of its forms together through the
     // real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1493,7 +1493,7 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // No new analyzer this batch, just a third shape
     // (Array.Reverse) added to the already-shipped RedundantExplicitFullRangeArrayOperationAnalyzer
-    // (RPAD0181, проход 193) — this proves the new shape fires through the real pipeline.
+    // (RPAD0181) — this proves the new shape fires through the real pipeline.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSixtyFirstBatch()
     {
@@ -1511,7 +1511,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Reverse(array)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-207 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1531,7 +1531,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("bool.Parse", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-208 combined tests
+    // Same rationale as the combined tests
     // above; only one new analyzer this batch, so this proves it alone through the real pipeline rather
     // than alongside a second one.
     [Fact]
@@ -1553,7 +1553,7 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // No new analyzer this batch, just six more method
     // names (Except/Intersect/Union/GroupBy/ThenBy/ThenByDescending) added to the already-shipped
-    // RedundantDefaultComparerArgumentAnalyzer (RPAD0099, проход 167) — this proves the new shapes fire
+    // RedundantDefaultComparerArgumentAnalyzer (RPAD0099) — this proves the new shapes fire
     // through the real pipeline.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSixtyFourthBatch()
@@ -1573,11 +1573,11 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Except", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-209 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one. Deliberately fully-qualifies NumberStyles.Integer (rather than
-    // relying on an extra `using System.Globalization;` the real preamble doesn't add) — unlike RPAD0099
-    // (проход 210's lesson), this analyzer's styles-argument match is purely semantic, not syntactic, so
+    // relying on an extra `using System.Globalization;` the real preamble doesn't add) — unlike RPAD0099, this
+    // analyzer's styles-argument match is purely semantic, not syntactic, so
     // the fully-qualified form resolves correctly.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSixtyFifthBatch()
@@ -1596,7 +1596,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("NumberStyles.Integer", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-211 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1616,7 +1616,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("RemoveEmptyEntries", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-212 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1636,7 +1636,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("TrimEntries", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-213 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1656,7 +1656,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("a == b", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-214 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1678,7 +1678,7 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // No new analyzer this batch, just four more
     // method names (ToDictionary/ToHashSet/MinBy/MaxBy) added to the already-shipped
-    // RedundantDefaultComparerArgumentAnalyzer (RPAD0099, проход 167) — this proves one of the new
+    // RedundantDefaultComparerArgumentAnalyzer (RPAD0099) — this proves one of the new
     // shapes fires through the real pipeline.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventiethBatch()
@@ -1697,7 +1697,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("ToHashSet", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-216 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves all three of its forms together
     // through the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1722,7 +1722,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("SingleOrDefault", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-217 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1742,7 +1742,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("TimeSpan.Zero", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-218 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves both of its forms together through
     // the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1765,7 +1765,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Min()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-219 combined
+    // Same rationale as the combined
     // tests above; only one new analyzer this batch, so this proves it alone through the real pipeline
     // rather than alongside a second one.
     [Fact]
@@ -1787,7 +1787,7 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // No new analyzer this batch, just a fourth
     // shape (Array.Copy) added to the already-shipped RedundantExplicitFullRangeArrayOperationAnalyzer
-    // (RPAD0181, проход 193) — this proves the new shape fires through the real pipeline.
+    // (RPAD0181) — this proves the new shape fires through the real pipeline.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventyFifthBatch()
     {
@@ -1805,7 +1805,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Copy(source, destination, length)", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-221
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves both of its forms together
     // through the real pipeline rather than alongside a second, unrelated analyzer.
     [Fact]
@@ -1828,7 +1828,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("BinarySearch", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-222
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1848,7 +1848,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Stopwatch.StartNew()", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-223
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1870,7 +1870,7 @@ public class CSharpIntelliSenseAnalyzersTests
 
     // No new analyzer this batch, just three more
     // types (Version/TimeSpan/Guid) added to the already-shipped
-    // PreferEqualityOperatorOverNumericCompareToAnalyzer (RPAD0205, проход 220) — this proves one of
+    // PreferEqualityOperatorOverNumericCompareToAnalyzer (RPAD0205) — this proves one of
     // the new shapes fires through the real pipeline.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheSeventyNinthBatch()
@@ -1889,7 +1889,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("x == y", StringComparison.Ordinal));
     }
 
-    // Same rationale as the проход 147-225
+    // Same rationale as the
     // combined tests above; only one new analyzer this batch, so this proves it alone through the real
     // pipeline rather than alongside a second one.
     [Fact]
@@ -1909,10 +1909,9 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("HashCode.Combine(a, b)", StringComparison.Ordinal));
     }
 
-    // Larger batch at the user's request ("давай
-    // продоолжим, но возьмем побольше"): one new analyzer (PreferCancellationTokenSourceConstructorOver
+    // Larger batch at the user's request: one new analyzer (PreferCancellationTokenSourceConstructorOver
     // CancelAfterAnalyzer, RPAD0210) plus a new Array.Sort/Array.Reverse form on the already-shipped
-    // PreferDescendingComparerOverSortThenReverseAnalyzer (RPAD0196, проход 209). Two solo combined
+    // PreferDescendingComparerOverSortThenReverseAnalyzer (RPAD0196). Two solo combined
     // tests, one per change, since neither shares a snippet with the other.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyFirstBatch_CancellationTokenSourceForm()
@@ -1949,8 +1948,7 @@ public class CSharpIntelliSenseAnalyzersTests
         Assert.Contains(diagnostics, d => d.Message.Contains("Array.Sort(arr, (a, b) => b.CompareTo(a))", StringComparison.Ordinal));
     }
 
-    // Larger batch at the user's request
-    // ("продолжай, бери сразу 10"): four independent, non-overlapping changes combined in one snippet
+    // Larger batch at the user's request: four independent, non-overlapping changes combined in one snippet
     // (PreferCombinedHasFlagAnalyzer/RPAD0211, PreferFirstOrDefaultOverElementAtOrDefaultZeroAnalyzer/
     // RPAD0212, PreferTrimOverTrimStartThenTrimEndAnalyzer/RPAD0213, and the new IsNullOrEmpty(Trim())
     // form on the already-shipped PreferIsNullOrWhiteSpaceAnalyzer/RPAD0084) plus a second Fact below for
@@ -2013,7 +2011,7 @@ public class CSharpIntelliSenseAnalyzersTests
     // other four (List/Array Where().ToList()/ToArray() and Select().ToList()/ToArray(), meant as
     // FindAll/ConvertAll suggestions) all collide with a built-in "Collection initialization can be
     // simplified" IDE rule on the exact ToList()/ToArray() span — dropped whole, same broad-overlap class
-    // as IDE0090 in проходы 218/227. The two survivors combined in one snippet (5 Add/Subtract forms
+    // as IDE0090 earlier. The two survivors combined in one snippet (5 Add/Subtract forms
     // plus the Join form — none share a span).
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheEightyThirdBatch()
@@ -2732,8 +2730,7 @@ public class CSharpIntelliSenseAnalyzersTests
     // One new analyzer this batch
     // (InvalidUriLiteralAnalyzer/RPAD0255). The overlap with the built-in "'new' expression can be
     // simplified" (IDE0090, target-typed new) suggestion on the same `new Uri(...)` call is a different
-    // reason on the same span — kept, established precedent (e.g. RPAD0090/Enum.Parse boxing concern,
-    // проход 260).
+    // reason on the same span — kept, established precedent (e.g. RPAD0090/Enum.Parse boxing concern).
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFifteenthBatch()
     {
@@ -3292,7 +3289,7 @@ public class CSharpIntelliSenseAnalyzersTests
     }
 
     // Extends InvalidConvertToIntegralBaseAnalyzer/RPAD0238
-    // to also cover Convert.ToByte(string, int fromBase), missed in the original batch (проход 242).
+    // to also cover Convert.ToByte(string, int fromBase), missed in the original batch.
     [Fact]
     public async Task NotifyTextChanged_Should_RaiseAVisibleDiagnostic_ForTheHundredAndFortyFourthBatch()
     {

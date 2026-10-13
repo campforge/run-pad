@@ -11,7 +11,7 @@ namespace RunPad.Runtime.UI.Tests;
 // VbLanguageHost.ApplyKindTransform/
 // CalcKindOffset had zero test coverage — unlike CSharpLanguageHost (see
 // CSharpLanguageHostKindTransformTests), nothing pinned VB's transformed text/offset, including the
-// claim (made when closing #63's async-Main fix) that Program's passthrough already handles
+// claim (made when the async-Main fix landed) that Program's passthrough already handles
 // `Async Function Main() As Task` natively without any host changes.
 public class VbLanguageHostKindTransformTests
 {
@@ -51,7 +51,7 @@ public class VbLanguageHostKindTransformTests
 
     // Program is a pure passthrough for VB (unlike C#, which prepends a "Main();"/"await Main();"
     // call) — the user supplies their own full Module/Sub Main, so an async entry point needs no
-    // host-side transform at all. This is the regression test the async-Task-Main fix (#63) left as
+    // host-side transform at all. This is the regression test the async-Task-Main fix left as
     // an explicit gap: a claim from reading the code, not from a test.
     [Fact]
     public void ApplyKindTransform_Should_PassThroughAsyncFunctionMain_Unchanged_InProgramKind()

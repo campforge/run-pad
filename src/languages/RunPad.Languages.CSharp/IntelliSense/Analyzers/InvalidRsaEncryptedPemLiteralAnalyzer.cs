@@ -7,8 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the third research subagent survey (411-й
-// проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `RSA.ImportFromEncryptedPem(ReadOnlySpan<char> input, ReadOnlySpan<char>/ReadOnlySpan<byte> password)`
 // — same "run the real validator" theme as InvalidRsaPemLiteralAnalyzer's plain ImportFromPem (RPAD0392),
 // but deliberately scoped to ONLY the `input` argument. Confirmed empirically: a malformed/empty `input`

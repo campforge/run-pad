@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the twenty-seventh research subagent survey,
-// re-verified independently before implementing. `System.Buffers.StandardFormat(char symbol, byte
+// `System.Buffers.StandardFormat(char symbol, byte
 // precision = StandardFormat.NoPrecision)` — first touch of `System.Buffers.StandardFormat`.
 // Confirmed empirically: throws `ArgumentOutOfRangeException` ("Precision cannot be larger than 99")
 // whenever `precision` is in `[100, 254]` — i.e. greater than `MaxPrecision` (99) but not equal to the

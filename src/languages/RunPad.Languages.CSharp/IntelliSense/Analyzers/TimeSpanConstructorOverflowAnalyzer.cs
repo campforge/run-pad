@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run the real
-// validator" theme as DateTimeOrDateOnlyAddMethodOverflowAnalyzer (RPAD0313, проход 346): the
+// validator" theme as DateTimeOrDateOnlyAddMethodOverflowAnalyzer (RPAD0313): the
 // `TimeSpan(int hours, int minutes, int seconds)`/`(int days, int hours, int minutes, int seconds)`/
 // `(..., int milliseconds)`/`(..., int microseconds)` constructor overloads throw
 // ArgumentOutOfRangeException when the resulting duration overflows `TimeSpan`'s representable range —

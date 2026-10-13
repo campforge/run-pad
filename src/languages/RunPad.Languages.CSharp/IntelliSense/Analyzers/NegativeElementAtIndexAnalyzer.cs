@@ -8,12 +8,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as InvalidRandomRangeArgumentAnalyzer (RPAD0234)/
-// SubstringOutOfRangeAnalyzer (RPAD0235, проход 241): `xs.ElementAt(index)` is documented to throw
+// SubstringOutOfRangeAnalyzer (RPAD0235): `xs.ElementAt(index)` is documented to throw
 // `ArgumentOutOfRangeException` when `index` is negative — a mistake the compiler can't catch on its
 // own. Scoped to a LITERAL negative integer, same reasoning as the rest of this family.
-// Extended in the триста второй проход to also catch a POSITIVE `index` that is out of range for a
+// Extended to also catch a POSITIVE `index` that is out of range for a
 // receiver that is itself a freshly created array literal with a statically known element count — same
-// "literal receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283, проход 300),
+// "literal receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283),
 // applied to `.ElementAt(index)` instead of the plain indexer. Confirmed empirically (scratch `dotnet run`
 // script) that `ElementAt` throws the same `ArgumentOutOfRangeException` for this case. This coexists with
 // (does not collide with) the built-in "Use '[N]' instead of ElementAt()" simplification hint that also

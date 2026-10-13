@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate C from the twenty-fourth research subagent survey,
-// re-verified independently before implementing. `System.Reflection.PortableExecutable.
+// `System.Reflection.PortableExecutable.
 // PEHeaderBuilder(...)` — a sibling under the same assembly/namespace tree as the already-covered
 // `MetadataBuilder`/`InstructionEncoder` (RPAD0479-0481). Both `fileAlignment` and `sectionAlignment`
 // are optional named `int` parameters (positions 1/2). Confirmed empirically: `fileAlignment` must be a

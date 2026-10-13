@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #2/#3 from the thirteenth research subagent survey,
-// re-verified independently before implementing. `HttpClient.MaxResponseContentBufferSize` (long), and
+// `HttpClient.MaxResponseContentBufferSize` (long), and
 // `HttpClientHandler`/`SocketsHttpHandler`'s shared `MaxConnectionsPerServer`/`MaxAutomaticRedirections`/
 // `MaxResponseHeadersLength` (all int) — every one of these throws `ArgumentOutOfRangeException` with the
 // identical message shape ("must be a non-negative and non-zero value") for a value ≤ 0, confirmed

@@ -7,8 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the seventh research subagent survey (441→442-й
-// проход, full tool access, empirically self-verified), re-verified independently before implementing.
 // `DataColumn.Expression` (property assignment), `DataTable.Select(string, ...)` and
 // `DataTable.Compute(string, string)` (first argument of each) all feed the SAME internal expression
 // parser — a malformed literal throws `System.Data.SyntaxErrorException` immediately, with no dependency

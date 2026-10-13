@@ -7,9 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// EC sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403,
-// проход 412) / InvalidDsaEncryptedPemLiteralAnalyzer (RPAD0404, проход 413); same candidate #2 from the
-// third research subagent survey (411-й проход). Confirmed via reflection (проход 412) that, exactly like
+// EC sibling of InvalidRsaEncryptedPemLiteralAnalyzer (RPAD0403) / InvalidDsaEncryptedPemLiteralAnalyzer (RPAD0404).
+// Confirmed via reflection that, exactly like
 // the plain ImportFromPem family (RPAD0400), `ECDsa`/`ECDiffieHellman` share `ImportFromEncryptedPem`
 // through the common intermediate base `System.Security.Cryptography.ECAlgorithm` rather than each
 // declaring their own — so this analyzer scopes to `ECAlgorithm` directly, covering both concrete types

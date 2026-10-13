@@ -8,17 +8,17 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231)/
-// NegativeCountArgumentAnalyzer (RPAD0232)/NegativeTimeoutArgumentAnalyzer (RPAD0233, all проходы
-// 239-240): `random.Next(minValue, maxValue)` is documented to throw `ArgumentOutOfRangeException` when
+// NegativeCountArgumentAnalyzer (RPAD0232)/NegativeTimeoutArgumentAnalyzer (RPAD0233): `random.Next(minValue,
+// maxValue)` is documented to throw `ArgumentOutOfRangeException` when
 // `minValue > maxValue` — almost certainly a copy-paste mistake with the two arguments swapped. Scoped
 // to two INTEGER LITERAL arguments only (same reasoning as the other analyzers in this family — proving
 // an arbitrary expression's relative order would need real data-flow analysis); `minValue == maxValue`
 // is left alone (that's valid — Next always returns exactly minValue in that case).
-// Extended (двести сорок шестой проход, batch) to also cover the single-argument overload —
+// Extended to also cover the single-argument overload —
 // `random.Next(maxValue)` throws the same `ArgumentOutOfRangeException` when `maxValue` itself is
 // negative (this overload implicitly uses 0 as minValue, and 0 is always greater than a negative
 // maxValue).
-// Extended again (триста пятнадцатый проход, batch) to also cover `random.NextInt64(minValue,
+// Extended again to also cover `random.NextInt64(minValue,
 // maxValue)`/`random.NextInt64(maxValue)` — confirmed empirically to throw identically to `Next` for the
 // same shape of arguments (a plain digit literal without an `L` suffix is still parsed by Roslyn as an
 // `int`-valued token even though it implicitly converts to `long` at the call site, so the existing

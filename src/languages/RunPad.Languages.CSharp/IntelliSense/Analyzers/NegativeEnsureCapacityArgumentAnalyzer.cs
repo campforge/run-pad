@@ -14,20 +14,20 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // all five throw `ArgumentOutOfRangeException` for a negative `capacity` (and that `EnsureCapacity(0)`
 // does NOT throw — zero is a valid, if pointless, request). Scoped to a LITERAL negative integer only,
 // same reasoning as the rest of this family.
-// Extended in the триста тридцать седьмой проход to also cover `TrimExcess(int capacity)` —
+// Extended to also cover `TrimExcess(int capacity)` —
 // confirmed via reflection (not assumed) that `Dictionary<TKey,TValue>`/`HashSet<T>`/`Queue<T>`/
 // `Stack<T>` all expose this overload alongside the parameterless `TrimExcess()` — only `List<T>` does
 // NOT (it has just the parameterless form) — and confirmed empirically that the four which do have it
 // throw identically to `EnsureCapacity` for a negative `capacity`. The parameterless `TrimExcess()`
 // overload is naturally excluded by the argument-count check. `TargetTypes` for this method name is
 // therefore `EnsureCapacity`'s set minus `List<T>`.
-// Extended again in the триста тридцать восьмой проход to also cover `PriorityQueue<TElement,
+// Extended again to also cover `PriorityQueue<TElement,
 // TPriority>.EnsureCapacity(int capacity)` — found via the same reflection sweep used for the previous
 // extension (checking every remaining `System.Collections.Generic` collection type for `EnsureCapacity`/
 // `TrimExcess` methods), and confirmed empirically to throw identically to the rest of this family.
 // `PriorityQueue<TElement, TPriority>.TrimExcess()` has no `int` overload (only the parameterless form,
 // like `List<T>`), so it isn't added to `TrimExcessTargetTypes`.
-// Extended again in the триста тридцать девятый проход to also cover `System.Text.StringBuilder.
+// Extended again to also cover `System.Text.StringBuilder.
 // EnsureCapacity(int capacity)` — confirmed empirically to throw identically to the rest of this family.
 // `StringBuilder` is NOT a generic type (unlike every other member of this family so far), so the
 // containing-type check switched from `IsGenericType`/`ConstructedFrom` to `OriginalDefinition`, which

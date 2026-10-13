@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085, проход
-// 164): `xs.Aggregate(0, (acc, x) => acc + (predicate(x) ? 1 : 0))` hand-rolls exactly what
+// "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085): `xs.Aggregate(0, (acc,
+// x) => acc + (predicate(x) ? 1 : 0))` hand-rolls exactly what
 // `xs.Count(predicate)` already does — tallying how many elements satisfy a predicate through a
 // generic fold instead of Count's dedicated implementation.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

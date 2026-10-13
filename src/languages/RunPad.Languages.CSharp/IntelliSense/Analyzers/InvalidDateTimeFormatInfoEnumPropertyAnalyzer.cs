@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #2/#3 from the twelfth research subagent survey,
-// re-verified independently before implementing. `DateTimeFormatInfo.FirstDayOfWeek` (valid range
+// `DateTimeFormatInfo.FirstDayOfWeek` (valid range
 // `DayOfWeek.Sunday`(0)-`Saturday`(6)) and `DateTimeFormatInfo.CalendarWeekRule` (valid range
 // `CalendarWeekRule.FirstDay`(0)-`FirstFourDayWeek`(2)) both throw `ArgumentOutOfRangeException` for a
 // value outside their own enum's defined range — confirmed empirically for out-of-range casts on both

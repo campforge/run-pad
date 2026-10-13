@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322,
-// проход 350): `new ManualResetEventSlim(bool initialState, int spinCount)` throws
+// "constructor argument validation" theme as InvalidSemaphoreConstructorArgumentAnalyzer (RPAD0322): `new
+// ManualResetEventSlim(bool initialState, int spinCount)` throws
 // ArgumentOutOfRangeException when `spinCount` is negative or greater than 2047 (the documented,
 // hardcoded upper bound — confirmed empirically via scratch `dotnet run` script, not assumed). A
 // managed-only construct (no live OS handle at construction time, same reasoning as

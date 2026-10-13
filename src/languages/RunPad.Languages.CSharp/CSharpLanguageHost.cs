@@ -12,8 +12,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     // Single source of truth for what this host actually supports — CSharpLanguageHostFactory.
     // Capabilities reads this instead of declaring its own copy, so the registry's
     // GetCapabilities("csharp") (checkable before a host is even created) can't silently drift from
-    // what the created host itself reports, the way it used to (missing IntelliSense
-    // #96).
+    // what the created host itself reports, the way it used to (missing IntelliSense).
     public const LanguageHostCapabilities SupportedCapabilities =
         LanguageHostCapabilities.Run |
         LanguageHostCapabilities.Debug |

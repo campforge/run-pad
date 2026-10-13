@@ -9,8 +9,8 @@ namespace RunPad.Runtime.UI.Tests;
 
 // Live user report — text selection dragged with the mouse over .Dump() output
 // appeared to lag/not visually update ("looks selected but isn't highlighted as
-// selected"). Root cause: HtmlControl.Render blits an offscreen cache (LazyRenderCache
-// #72) unless told the content is actually stale via InvalidateContent() — but SelectionHandler
+// selected"). Root cause: HtmlControl.Render blits an offscreen cache (LazyRenderCache) unless told the content is
+// actually stale via InvalidateContent() — but SelectionHandler
 // (External/Core/Handlers/SelectionHandler.cs) drives every mid-drag selection-change repaint through
 // RControl.Invalidate() -> ControlAdapter.Invalidate(), which used to call a bare
 // Control.InvalidateVisual() and never touched the cache at all.

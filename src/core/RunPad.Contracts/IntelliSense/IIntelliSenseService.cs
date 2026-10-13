@@ -86,7 +86,7 @@ public interface IIntelliSenseService : IDisposable
         string key,
         CancellationToken cancellationToken = default);
 
-    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — resolves every
+    // ReSharper-style "resolve all missing usings" — resolves every
     // unambiguous unresolved-type diagnostic in the document at once instead of requiring the
     // lightbulb's "using X;" fix to be accepted one at a time. Reuses IMaterializedFix purely as a
     // return shape: this never touches the visible text (NewCode is always == the input code), only

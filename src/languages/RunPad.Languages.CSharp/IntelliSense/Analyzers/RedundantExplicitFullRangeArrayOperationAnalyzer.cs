@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "explicit range that
-// covers the whole array is redundant" theme as RedundantExplicitFullRangeSortAnalyzer (RPAD0160,
-// проход 181), for four more `Array` static methods: `Array.Clear(array, 0, array.Length)`,
+// covers the whole array is redundant" theme as RedundantExplicitFullRangeSortAnalyzer (RPAD0160), for four more
+// `Array` static methods: `Array.Clear(array, 0, array.Length)`,
 // `Array.IndexOf(array, value, 0, array.Length)`, `Array.Reverse(array, 0, array.Length)`, and
 // `Array.Copy(src, 0, dst, 0, length)` all spell out zero start indices/a full range explicitly —
 // exactly what the shorter overloads (`Array.Clear(array)`/`Array.IndexOf(array,

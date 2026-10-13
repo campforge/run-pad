@@ -29,13 +29,12 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // completely dead for every case; fixed by dispatching on the RECEIVER EXPRESSION's own static type
 // instead (`GetTypeInfo(access.Expression).Type`), which correctly reflects the declared/inferred type
 // at the call site regardless of which class actually declares the property.
-// Extended in the триста восемьдесят первый проход (candidate surfaced by the same research subagent
-// survey as RPAD0370-RPAD0373, проход 377) to also cover the static factory overload `RSA.Create(int
+// Extended to also cover the static factory overload `RSA.Create(int
 // keySizeInBits)` — a genuinely DIFFERENT syntax shape from the `rsa.KeySize = N` assignment this
 // analyzer already covered (an invocation, not a property assignment), confirmed empirically to throw
 // the same `CryptographicException` for the same reason. `Aes`/`DES`/`TripleDES` have no equivalent
 // `Create(int)` overload (only the parameterless `Create()`), so this extension is RSA-specific.
-// Extended again (470-й проход, batch, candidate #1 from the thirty-third research subagent survey) to
+// Extended again to
 // also cover `DSA.Create(int keySizeInBits)` — the exact same `Create(int)` shape as `RSA.Create(int)`,
 // confirmed empirically to throw the same `CryptographicException` for the same reason (this machine's
 // real DSA backend rejects an invalid size, same "run the real validator" pattern as everywhere else in
@@ -56,8 +55,8 @@ public sealed class InvalidCryptoAlgorithmKeySizeAnalyzer : DiagnosticAnalyzer
         isEnabledByDefault: true,
         description: "Assigning an unsupported value to Aes/DES/TripleDES/RSA's KeySize (or Aes/DES/TripleDES's BlockSize) property, or calling RSA.Create(int) with an unsupported key size, throws CryptographicException.");
 
-    // Separate DiagnosticDescriptor, same DiagnosticId, for the RSA.Create(int) invocation shape added in
-    // проход 381 — kept apart from `Rule` above rather than reshaping its "{0}.{1} = {2}" template (which
+    // Separate DiagnosticDescriptor, same DiagnosticId, for the RSA.Create(int) invocation shape added earlier — kept
+    // apart from `Rule` above rather than reshaping its "{0}.{1} = {2}" template (which
     // reads naturally only for an ASSIGNMENT) to also fit an invocation; the existing message text/shape
     // for the assignment case is preserved byte-for-byte, so no existing test needed updating.
     private static readonly DiagnosticDescriptor CreateRule = new(

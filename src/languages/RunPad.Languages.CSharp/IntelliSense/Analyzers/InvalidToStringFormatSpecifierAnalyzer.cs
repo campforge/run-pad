@@ -20,11 +20,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // value being formatted — so the receiver expression itself doesn't need to be a literal, only its
 // static type needs to be known and its format argument needs to be a literal string. Scoped to the
 // built-in numeric types, `TimeSpan`, and `DateTime`.
-// Extended (триста пятьдесят девятый проход, batch) to also cover `Guid`/`DateOnly`/`TimeOnly` —
-// explicitly deferred back in проход 358, now confirmed empirically (again across culturally-diverse
+// Extended to also cover `Guid`/`DateOnly`/`TimeOnly` —
+// explicitly deferred earlier, now confirmed empirically (again across culturally-diverse
 // `CurrentCulture` settings) to follow the identical "run the real validator" pattern with their own
 // representative values (`Guid.Empty`/`DateOnly.MinValue`/`TimeOnly.MinValue`).
-// Extended again (446-й проход, candidate #1 from the tenth research subagent survey, re-verified
+// Extended again (re-verified
 // independently before implementing) to also cover `DateTimeOffset`/`BigInteger`/`Int128`/`UInt128`/
 // `Half` — the agent found these missing from the type switch below via a systematic sweep, confirmed
 // empirically to follow the identical pattern (own representative value: `DateTimeOffset.MinValue`/

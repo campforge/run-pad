@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port.
 // `Task.FromResult(x).Result` wraps a value in a completed Task just to immediately unwrap it again —
 // the Task is thrown away right after construction, so the whole round trip is equivalent to just `x`.
-// Unlike TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer (RPAD0131, проход 174), this isn't about
+// Unlike TaskResultOrGetAwaiterGetResultInAsyncMethodAnalyzer (RPAD0131), this isn't about
 // blocking risk — Task.FromResult's Task is already completed, so `.Result` never actually blocks —
 // it's pure redundancy, and applies in any method, async or not.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

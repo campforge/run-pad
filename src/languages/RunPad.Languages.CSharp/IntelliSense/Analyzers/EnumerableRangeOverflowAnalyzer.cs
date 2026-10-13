@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Complements
-// NegativeCountArgumentAnalyzer (RPAD0232, проход 240), which only covers `Enumerable.Range(start,
+// NegativeCountArgumentAnalyzer (RPAD0232), which only covers `Enumerable.Range(start,
 // count)`'s negative-`count` throw — `Range` also throws ArgumentOutOfRangeException when `start + count
 // - 1` overflows `int.MaxValue`, a completely different (and non-negative) failure mode, confirmed
 // empirically via scratch `dotnet run` script (not assumed) to happen EAGERLY at the `Range` call itself

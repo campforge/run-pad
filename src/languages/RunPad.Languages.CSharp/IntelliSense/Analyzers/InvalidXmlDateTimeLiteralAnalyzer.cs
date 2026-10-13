@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port; continued direct brainstorming over
-// the `XmlConvert.ToXxx` family after `ToGuid` (RPAD0413, проход 422). `ToDateTime` is the plain (non-
-// offset) sibling of `ToDateTimeOffset` (RPAD0391, проход 399) — confirmed via reflection FOUR overloads
+// the `XmlConvert.ToXxx` family after `ToGuid` (RPAD0413). `ToDateTime` is the plain (non-
+// offset) sibling of `ToDateTimeOffset` (RPAD0391) — confirmed via reflection FOUR overloads
 // exist: a bare `ToDateTime(string)`, `(string, string)` and `(string, string[])` format-specifier
 // variants, and `(string, XmlDateTimeSerializationMode)`. The bare single-string overload is marked
 // `[Obsolete]` (confirmed via reflection, not assumed) — calling it directly would trigger a CS0618

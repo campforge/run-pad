@@ -21,7 +21,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // regardless of which `OidGroup` the user's own call site passes — if the name isn't found even under the
 // broadest group, it can't be found under a narrower one either, so this can only under-report (miss a
 // real throw for a narrower group), never over-report a false positive.
-// Extended (474-й проход, batch, candidate #2 from the thirty-seventh research subagent survey) to also
+// Extended to also
 // cover the sibling static method `Oid.FromOidValue(string oidValue, OidGroup group)` — same database
 // lookup mechanism (confirmed empirically it's NOT a syntax validator: well-formed dotted-decimal
 // strings like "1.2.3"/"9.9.9" that aren't real registered OIDs throw identically to garbage text or an

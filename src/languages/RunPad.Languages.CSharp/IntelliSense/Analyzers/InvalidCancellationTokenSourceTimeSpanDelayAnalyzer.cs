@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port.
 // `CancellationTokenSource(int millisecondsDelay)` is already covered by NegativeTimeoutArgumentAnalyzer
-// (RPAD0233, проход 240), but that analyzer only recognizes an `int` literal via unary-minus pattern
+// (RPAD0233), but that analyzer only recognizes an `int` literal via unary-minus pattern
 // matching — it does not (and by its own mechanism cannot) see the sibling `CancellationTokenSource
 // (TimeSpan delay)` overload. Confirmed empirically via scratch `dotnet run` script (not assumed) that the
 // TimeSpan overload has a DIFFERENT boundary than the int one: `TimeSpan.Zero` is valid (unlike `0` isn't
@@ -18,11 +18,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `Timeout.InfiniteTimeSpan` sentinel (-1ms) throws ArgumentOutOfRangeException, and — unlike the `int`
 // overload, whose type already caps it near ~24.8 days — a `TimeSpan` can represent values large enough to
 // also throw on the upper end. Reuses the same "extract a constant-foldable TimeSpan, call the real
-// validator" technique as InvalidRegexMatchTimeoutAnalyzer (RPAD0279, проходы 294-295) — recognizing
+// validator" technique as InvalidRegexMatchTimeoutAnalyzer (RPAD0279) — recognizing
 // `TimeSpan.Zero`, `Timeout.InfiniteTimeSpan`, and `TimeSpan.FromXxx(literalNumber)`; other forms (`new
 // TimeSpan(...)`, `FromTicks`, arithmetic, non-literal factory arguments) are not evaluated, same
 // documented MVP scoping as that analyzer.
-// Extended in the двести девяносто седьмой проход to also cover `Task.Delay(TimeSpan[, CancellationToken])`
+// Extended to also cover `Task.Delay(TimeSpan[, CancellationToken])`
 // — RPAD0233 covers `Task.Delay(int)`/`Thread.Sleep(int)` too, and confirmed empirically (scratch
 // `dotnet run` script) that `Task.Delay`'s `TimeSpan` overload has the SAME zero-ok/negative-throws/
 // too-large-throws boundary as `CancellationTokenSource(TimeSpan)`. Deliberately does NOT probe

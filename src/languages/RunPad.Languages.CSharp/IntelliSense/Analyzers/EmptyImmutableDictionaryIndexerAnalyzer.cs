@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "known-empty `.Empty` receiver" theme as EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360, same
-// проход), applied to the indexer of `ImmutableDictionary<TKey,TValue>`/
+// "known-empty `.Empty` receiver" theme as EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360), applied to the
+// indexer of `ImmutableDictionary<TKey,TValue>`/
 // `ImmutableSortedDictionary<TKey,TValue>` instead: `ImmutableDictionary<K,V>.Empty[key]` always throws
 // KeyNotFoundException — confirmed empirically via scratch `dotnet run` script — regardless of what
 // `key` actually is, since the receiver is PROVABLY empty (unlike DictionaryLiteralMissingKeyAnalyzer/

@@ -7,15 +7,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; found by direct
-// brainstorming after the second research subagent's list (проход 397) was fully exhausted. The agent's
-// own report had flagged `XComment`/`XProcessingInstruction` as "uncertain — LINQ-to-XML is known to defer
-// some validation to serialization time, not construction — could be a dead end like new Oid(string)".
-// Checked both empirically: `new XComment(string)` IS a confirmed dead end — it never throws for ANY input,
+// Own pick, not a Roslynator port. Checked `XComment`/`XProcessingInstruction` empirically: `new XComment(string)` IS
+// a confirmed dead end — it never throws for ANY input,
 // including content containing "--" (illegal inside an XML comment) or ending in "-" (also illegal) —
 // LINQ-to-XML silently SANITIZES the content at construction time (inserting a space to break up "--" or
-// append after a trailing "-") instead of throwing, the same "lenient, never throws" shape as `new
-// Oid(string)` from проход 395. `new XProcessingInstruction(string target, string data)`, however, is NOT a
+// append after a trailing "-") instead of throwing, the same "lenient, never throws" shape as `new Oid(string)`. `new
+// XProcessingInstruction(string target, string data)`, however, is NOT a
 // dead end — confirmed empirically it genuinely throws for a bad TARGET (though, matching XComment's
 // leniency, a `data` value containing the PI-closing "?>" sequence is similarly sanitized rather than
 // rejected, confirmed empirically before assuming `data` might also throw). Confirmed empirically this is a

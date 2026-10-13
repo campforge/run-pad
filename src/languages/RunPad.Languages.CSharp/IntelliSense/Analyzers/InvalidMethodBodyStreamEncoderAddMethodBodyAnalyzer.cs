@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the twenty-fifth research subagent survey,
-// re-verified independently before implementing. `System.Reflection.Metadata.Ecma335.
+// `System.Reflection.Metadata.Ecma335.
 // MethodBodyStreamEncoder.AddMethodBody(int codeSize, int maxStack, int exceptionRegionCount, ...)` —
 // another sibling under the already-covered Ecma335 tree (RPAD0474/0479-0481/0487). Targets only the
 // two overloads whose first three parameters are `int`/`int`/`int` (the other two overloads take an
@@ -22,7 +21,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // this analyzer matches arguments by PARAMETER NAME (via `NameColon` or positional `IMethodSymbol.
 // Parameters` lookup), not a fixed array-pattern index — the same fix applied to
 // `InvalidSignatureTypeEncoderArgumentAnalyzer`/RPAD0487 and `InvalidPEHeaderBuilderConstructorAnalyzer`/
-// RPAD0486 earlier this проход. No `[SupportedOSPlatform]` gating, no side effects — writes into an
+// RPAD0486 earlier this change. No `[SupportedOSPlatform]` gating, no side effects — writes into an
 // in-memory `BlobBuilder` only. Confirmed invariant across en-US/de-DE/ar-SA/ja-JP.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidMethodBodyStreamEncoderAddMethodBodyAnalyzer : DiagnosticAnalyzer

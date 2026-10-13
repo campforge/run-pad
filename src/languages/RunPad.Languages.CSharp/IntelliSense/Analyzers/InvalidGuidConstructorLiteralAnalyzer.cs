@@ -6,9 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Found by the third research subagent (candidate #1 of its
-// ranked list), then independently re-verified before implementation per this session's standing
-// discipline. InvalidGuidLiteralFormatAnalyzer (RPAD0246, проход 253) only registers on
+// InvalidGuidLiteralFormatAnalyzer (RPAD0246) only registers on
 // InvocationExpression and matches the static "Parse" call — it never handles ObjectCreationExpression,
 // so `new Guid("...")` was a genuine, unguarded gap. Rather than reuse RPAD0246's hand-rolled
 // ValidGuidPattern regex (which deliberately excludes the "X" hex-array format), this analyzer uses the

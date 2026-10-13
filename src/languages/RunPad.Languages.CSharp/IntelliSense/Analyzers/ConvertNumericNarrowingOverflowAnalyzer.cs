@@ -14,14 +14,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // range, unlike a plain unchecked `(byte)someInt` cast, which silently truncates instead — confirmed
 // empirically via scratch `dotnet run` script, not assumed. Scoped to `int`/`long` source arguments;
 // other source types (short, uint, etc.) are a future extension candidate, not attempted in this batch.
-// Extended in the триста шестой проход to also cover a `long` source narrowing to `int`/`uint`/`ulong` —
+// Extended to also cover a `long` source narrowing to `int`/`uint`/`ulong` —
 // confirmed empirically that `Convert.ToInt32(long)` overflows for a too-large magnitude, and that
 // `Convert.ToUInt32`/`ToUInt64` overflow for a NEGATIVE value regardless of whether the source is `int`
 // or `long` (so those two now also accept an `int` source, not just `long` — `Convert.ToUInt32(-1)`
 // throws just as much as `Convert.ToUInt32(-1L)`). `Convert.ToInt64` from a `long` source is identity and
 // has no such overload, so it stays out of scope, same as `Convert.ToInt32` from an `int` source.
-// Extended again in the триста сорок восьмой проход to also cover `double`/`float`/`decimal` SOURCE
-// arguments (explicitly deferred back in проход 305), and one more TARGET method that only overflows
+// Extended again to also cover `double`/`float`/`decimal` SOURCE
+// arguments (explicitly deferred earlier), and one more TARGET method that only overflows
 // meaningfully from these non-integral sources: `ToInt64` (a genuine overload exists for `double`/
 // `float`/`decimal` sources, unlike the `int`/`long` sources this analyzer already handled, where
 // `ToInt64` is identity/widening and therefore stayed out of scope). Deliberately does NOT add `ToChar`
@@ -38,14 +38,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // anyway), but now that `double`/`decimal` sources are in scope, a value between `long.MaxValue` and
 // `ulong.MaxValue` (e.g. `Convert.ToUInt64(1.5e19)`) is genuinely valid and must NOT be flagged —
 // confirmed empirically before fixing, not just reasoned about.
-// Extended again in the триста сорок девятый проход to also cover `ToDecimal` as a target — confirmed
+// Extended again to also cover `ToDecimal` as a target — confirmed
 // empirically that `Convert.ToDecimal(double)` overflows for a magnitude beyond `decimal`'s own (much
 // smaller) representable range, e.g. `Convert.ToDecimal(double.MaxValue)`. The `int`/`long`/`float`
 // source overloads of `ToDecimal` never overflow (every value of those types fits within `decimal`'s
 // range), so this needed no extra scoping — the existing generic range check simply never fires for
 // those sources, exactly as intended.
-// Extended again in the триста пятьдесят шестой проход to also cover `uint`/`ulong` SOURCE arguments
-// (explicitly deferred back in проход 305) — confirmed empirically that e.g. `Convert.ToSByte(200u)`/
+// Extended again to also cover `uint`/`ulong` SOURCE arguments
+// (explicitly deferred earlier) — confirmed empirically that e.g. `Convert.ToSByte(200u)`/
 // `Convert.ToInt16(100000ul)` overflow identically to the already-covered signed sources, same range
 // comparison in `double` (both `uint`/`ulong` convert losslessly enough for boundary purposes, same as
 // the existing `decimal` handling).

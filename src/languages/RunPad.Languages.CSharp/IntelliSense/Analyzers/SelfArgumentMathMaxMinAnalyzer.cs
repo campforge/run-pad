@@ -8,8 +8,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "combining/comparing a value with itself is almost certainly a mistake" theme as
-// SelfEqualityCheckAnalyzer (RPAD0096, проход 166) and SelfSubtractionOrXorAnalyzer (RPAD0142, проход
-// 176), for a different shape: `Math.Max(x, x)`/`Math.Min(x, x)` always evaluates to x's own value (even
+// SelfEqualityCheckAnalyzer (RPAD0096) and SelfSubtractionOrXorAnalyzer (RPAD0142), for a different shape:
+// `Math.Max(x, x)`/`Math.Min(x, x)` always evaluates to x's own value (even
 // for NaN — Max/Min propagate NaN, and x compared against itself is still x either way), so the call is
 // a pointless no-op — almost certainly meant to compare x against something else. Deliberately
 // restricted to a bare identifier in both argument positions, same as RPAD0096/RPAD0142 — two separate

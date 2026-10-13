@@ -41,8 +41,8 @@ public sealed class InvalidBigIntegerPowExponentAnalyzer : DiagnosticAnalyzer
         isEnabledByDefault: true,
         description: "BigInteger.Pow(value, exponent) and BigInteger.ModPow(value, exponent, modulus) throw ArgumentOutOfRangeException when exponent is negative.");
 
-    // Separate DiagnosticDescriptor, same DiagnosticId, for the ModPow zero-modulus shape added in
-    // проход 439 — kept apart from `Rule` above since it's a different exception type entirely
+    // Separate DiagnosticDescriptor, same DiagnosticId, for the ModPow zero-modulus shape added earlier — kept apart
+    // from `Rule` above since it's a different exception type entirely
     // (DivideByZeroException, not ArgumentOutOfRangeException) at a different argument position,
     // same "same ID, distinct message shape" pattern InvalidCryptoAlgorithmKeySizeAnalyzer (RPAD0352)
     // already established for its own two call shapes.

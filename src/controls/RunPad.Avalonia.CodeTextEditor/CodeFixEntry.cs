@@ -23,7 +23,7 @@ public enum CodeFixSeverity
 // FixApplyRequested → EditorTabItemControl). DiagnosticId mirrors ICodeFixInfo.DiagnosticId — a
 // plain nullable string, same as Title/Key, so carrying it doesn't add a RunPad.Contracts dependency
 // — it's null for a caret-position-triggered refactoring, which has no underlying diagnostic to key
-// off (pass 106, user request 2026-07-21). Defaults to null rather than being required —
+// off. Defaults to null rather than being required —
 // most call sites (every test that isn't specifically about ID-based exclusion filtering) don't care
 // about it, same rationale as ICodeFixInfo's real implementation defaulting it for refactorings.
 public sealed record CodeFixEntry(int Line, string Title, CodeFixSeverity Severity, string Key, string? DiagnosticId = null);

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #7 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `System.Formats.Asn1.AsnWriter(AsnEncodingRules)` and
+// `System.Formats.Asn1.AsnWriter(AsnEncodingRules)` and
 // `AsnReader(ReadOnlyMemory<byte>, AsnEncodingRules, ...)` constructors — an out-of-range
 // `AsnEncodingRules` value (defined members `BER`=0/`CER`=1/`DER`=2 only) throws
 // `ArgumentOutOfRangeException` (param `ruleSet`, matching the enum's own type name). `AsnEncodingRules`

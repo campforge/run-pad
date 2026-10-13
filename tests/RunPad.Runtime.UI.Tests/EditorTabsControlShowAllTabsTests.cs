@@ -18,7 +18,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The tab strip already scrolls (pass 30... pass 61)
+// The tab strip already scrolls
 // once there are too many tabs to fit, but a user still has to scroll blindly to find a specific
 // far-away one — this dropdown (a chevron button next to "+") lists every open tab by name so they
 // can jump straight to it, the other half of what the user originally asked for

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the ninth research subagent survey, re-verified
-// independently before implementing. `SqlByte`/`SqlInt16`/`SqlInt32`/`SqlInt64.Parse(string)` — the four
+// `SqlByte`/`SqlInt16`/`SqlInt32`/`SqlInt64.Parse(string)` — the four
 // integer members of the `System.Data.SqlTypes` family the existing SqlMoney/SqlDecimal/SqlBoolean/
 // SqlDateTime/SqlGuid analyzers simply never got around to (grep-confirmed no prior coverage). Confirmed
 // empirically, matching the agent's report: a `FormatException` for non-numeric-shaped text (`"abc"`,

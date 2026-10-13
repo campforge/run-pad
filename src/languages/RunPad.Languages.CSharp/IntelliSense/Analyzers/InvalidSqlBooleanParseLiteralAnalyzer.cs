@@ -7,8 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #6 from the third research subagent survey (411-й проход,
-// full tool access, empirically self-verified), re-verified independently before implementing.
 // `SqlBoolean.Parse(string)` — joins the SqlMoney/SqlDecimal/SqlDateTime family already in this catalog
 // (RPAD0388/0395/0396), a genuinely different value domain from `bool.Parse` (accepts "1"/"0" and any
 // other numeric string as well as "true"/"false" case-insensitively, per SQL Server's bit-to-boolean

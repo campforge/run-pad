@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the thirtieth research subagent survey,
-// re-verified independently before implementing. `System.Collections.Specialized.BitVector32` static
+// `System.Collections.Specialized.BitVector32` static
 // helpers, bundled under one diagnostic (precedent RPAD0426): `CreateMask(int previous)` — throws
 // `InvalidOperationException` ("Bit vector is full.") for exactly ONE sentinel value,
 // `previous == int.MinValue` (0x80000000) — confirmed a true sentinel, not a range (every other tested

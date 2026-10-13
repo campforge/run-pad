@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // finding: `Convert.FromBase64String` throws `FormatException` for a string that isn't valid Base64 —
 // originally this only checked the length-multiple-of-4 invariant by hand (skipping any literal with
 // whitespace, since Convert.FromBase64String strips it before validating and a raw character count
-// wouldn't be reliable). Rewritten (двести шестьдесят второй проход, batch) to the "run the real
+// wouldn't be reliable). Rewritten to the "run the real
 // validator" technique established by InvalidGuidLiteralFormatAnalyzer/InvalidIPAddressLiteralAnalyzer
 // (RPAD0246, RPAD0249): calls the REAL `Convert.TryFromBase64String` in-process on the literal (into a
 // scratch buffer sized to the literal's own length, always large enough since decoded output can never

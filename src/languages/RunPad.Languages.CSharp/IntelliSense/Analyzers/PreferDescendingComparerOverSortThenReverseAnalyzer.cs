@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `xs.Sort(); xs.Reverse();` sorts a List<T> ascending in one pass and then reverses the whole list in
 // a second pass to get a descending order — `xs.Sort((a, b) => b.CompareTo(a))` gets the same result
 // directly in one pass, with a descending comparer. Scoped to the narrowest safe shape (matching
-// PreferListConstructorOverAddRangeAnalyzer, проход 179): a parameterless Sort() call whose VERY NEXT
+// PreferListConstructorOverAddRangeAnalyzer): a parameterless Sort() call whose VERY NEXT
 // sibling statement is a parameterless Reverse() call on that exact same identifier, and nothing else —
 // anything in between could depend on the intermediate ascending order. `Array.Sort(arr);
 // Array.Reverse(arr);` is the exact same idea for the static Array methods instead of List<T>'s

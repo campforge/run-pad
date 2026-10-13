@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "spelling out exactly what the default parameter already provides" theme as
-// RedundantDefaultComparerArgumentAnalyzer (RPAD0099, проход 167), for a different, very common
+// RedundantDefaultComparerArgumentAnalyzer (RPAD0099), for a different, very common
 // parameter shape: passing `CancellationToken.None` explicitly to an optional `CancellationToken`
 // parameter whose own default is `default` — omitting the argument entirely already gets exactly that
 // same value (default(CancellationToken) and CancellationToken.None are the same value; None is just

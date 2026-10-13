@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
-// InvalidXmlNameLiteralAnalyzer (RPAD0384, проход 392), which deliberately deferred `VerifyTOKEN`/
+// InvalidXmlNameLiteralAnalyzer (RPAD0384), which deliberately deferred `VerifyTOKEN`/
 // `VerifyNMTOKEN` rather than guessing their exception profile matched `VerifyName`/`VerifyNCName`'s.
 // Confirmed empirically it does NOT: `VerifyTOKEN`/`VerifyNMTOKEN` throw ONLY `XmlException`, never
 // `ArgumentException` — critically, an EMPTY string does not get the special-cased `ArgumentException`

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal receiver, known
-// length" theme as StringLiteralIndexerOutOfRangeAnalyzer (RPAD0282, проход 299), applied to a freshly
+// length" theme as StringLiteralIndexerOutOfRangeAnalyzer (RPAD0282), applied to a freshly
 // created array literal instead of a string literal: `new[] { 1, 2, 3 }[10]` throws
 // IndexOutOfRangeException when the index is >= the initializer's own known element count — confirmed
 // empirically (not assumed) that the C# compiler does NOT catch this itself. Deliberately restricted to a
@@ -16,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // scratch script, so that half of the theme is already covered and out of scope here, unlike
 // StringLiteralIndexerOutOfRangeAnalyzer (whose receiver is a string literal, not subject to CS0251, which
 // only applies to actual arrays).
-// Extended in the триста шестьдесят шестой проход to also handle the `^N` Index-form single-element
+// Extended to also handle the `^N` Index-form single-element
 // indexer (`new[] { 1, 2, 3 }[^5]`), the shape this analyzer's own doc comment previously didn't mention
 // at all and sibling StringLiteralIndexerOutOfRangeAnalyzer explicitly calls out as deferred — resolved
 // to a plain offset (`elementCount - N`) and fed through the SAME bounds check/exception type

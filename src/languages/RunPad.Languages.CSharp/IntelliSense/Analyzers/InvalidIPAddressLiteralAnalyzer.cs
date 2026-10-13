@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run the
-// real validator" theme as InvalidCultureNameLiteralAnalyzer (RPAD0248, проход 255): `IPAddress.Parse`
+// real validator" theme as InvalidCultureNameLiteralAnalyzer (RPAD0248): `IPAddress.Parse`
 // throws `FormatException` for a string that isn't a valid IPv4 or IPv6 address — rather than
 // hand-writing an IPv6 regex (notoriously easy to get subtly wrong, given zero-compression, embedded
 // IPv4 tails, and scope IDs), this analyzer calls the REAL `System.Net.IPAddress.TryParse` in-process on

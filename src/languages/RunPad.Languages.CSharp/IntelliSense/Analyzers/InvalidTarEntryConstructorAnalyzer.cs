@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the nineteenth research subagent survey,
-// re-verified independently before implementing. `System.Formats.Tar` — first analyzer in this catalog
+// `System.Formats.Tar` — first analyzer in this catalog
 // touching this namespace. `PaxTarEntry`/`GnuTarEntry`/`UstarTarEntry`/`V7TarEntry(TarEntryType, string)`
 // constructors — each of the 4 concrete entry types only accepts a DIFFERENT subset of the 18-member
 // `TarEntryType` enum, a richer shape than a flat invalid-enum-range check (same class of "valid enum

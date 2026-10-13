@@ -56,7 +56,7 @@ internal sealed class RoslynCodeFixEngine
 
     // Two independent caches (not one shared, keys-only-unique-by-luck dictionary): code fixes and
     // refactorings are listed on completely different triggers (text change vs caret move — see
-    // EditorTabItemControl's own diagnosticFixEntries/refactoringFixEntries split, pass 102) and
+    // EditorTabItemControl's own diagnosticFixEntries/refactoringFixEntries split) and
     // must not invalidate each other — computing a fresh refactoring list on caret move has no
     // business silently expiring the still-valid, still-displayed diagnostic fixes, and vice versa.
     // Guarded by _cacheLock since a listing pass (background Task.Run) and a materialize call
@@ -171,7 +171,7 @@ internal sealed class RoslynCodeFixEngine
         return result;
     }
 
-    // ReSharper-style "resolve all missing usings" (live user request 2026-07-27) — for each
+    // ReSharper-style "resolve all missing usings" — for each
     // unresolved-type diagnostic, materializes its candidate fixes and keeps only the ones that
     // resolved to a PURE import (no change to the user's own code — TryMaterializeAsync's own no-op
     // check already recognizes this same shape: NewCode unchanged, one namespace to add). A

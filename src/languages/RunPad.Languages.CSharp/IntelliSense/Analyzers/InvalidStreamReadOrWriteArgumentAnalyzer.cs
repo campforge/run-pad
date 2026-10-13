@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as InvalidMemoryStreamConstructorArgumentAnalyzer (RPAD0335, same
-// проход): `memoryStream.Read(byte[] buffer, int offset, int count)` and `memoryStream.Write(byte[]
+// receiver, known length" theme as InvalidMemoryStreamConstructorArgumentAnalyzer (RPAD0335):
+// `memoryStream.Read(byte[] buffer, int offset, int count)` and `memoryStream.Write(byte[]
 // buffer, int offset, int count)` on a LITERAL array throw ArgumentOutOfRangeException for a negative
 // `offset`/`count` or when `offset + count` exceeds the buffer's length — confirmed empirically via
 // scratch `dotnet run` script. Deliberately scoped to `ContainingType == "System.IO.MemoryStream"`

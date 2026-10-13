@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "ternary hand-writes what a dedicated method already does" theme as
-// PreferFirstOrDefaultOverCountCheckTernaryAnalyzer (RPAD0171, проход 186), for a different shape:
+// PreferFirstOrDefaultOverCountCheckTernaryAnalyzer (RPAD0171), for a different shape:
 // `xs.Any() ? xs.First() : default` (or `xs.Any(pred) ? xs.First(pred) : default`, or the Last/
 // LastOrDefault mirror) checks for existence and then re-walks the sequence to fetch the element —
 // `xs.FirstOrDefault()`/`xs.FirstOrDefault(pred)`/`xs.LastOrDefault()`/`xs.LastOrDefault(pred)` do both

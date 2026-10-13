@@ -11,7 +11,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // https://github.com/dotnet/roslynator), narrowed to its single most unambiguous case: `lock (this)`.
 // Any external caller holding a reference to the same object can lock on it too, deadlocking
 // unrelated code — the standard fix is a private, dedicated lock object.
-// Extended (двести тридцать шестой проход, batch) to also cover `lock (typeof(X))` and `lock
+// Extended to also cover `lock (typeof(X))` and `lock
 // ("a literal string")` — same underlying "publicly/globally shared lock target" problem as `lock
 // (this)`: a `Type` object is one instance shared by every piece of code in the process, and a string
 // LITERAL is interned by the CLR (so the exact same string instance can be shared across unrelated

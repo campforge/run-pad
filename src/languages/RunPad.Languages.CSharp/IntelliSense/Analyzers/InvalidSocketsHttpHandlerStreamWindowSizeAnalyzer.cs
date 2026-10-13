@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5 from the thirteenth research subagent survey,
-// re-verified independently before implementing. `SocketsHttpHandler.InitialHttp2StreamWindowSize` (int)
+// `SocketsHttpHandler.InitialHttp2StreamWindowSize` (int)
 // — throws `ArgumentOutOfRangeException` unless the value is within `[65535, 16777216]` inclusive.
 // Confirmed empirically: `0` throws, `65535` (lower boundary) is valid, `16777216` (upper boundary) is
 // valid, `16777217` throws. Confirmed invariant across en-US/de-DE/ar-SA/ja-JP. No side effects. Kept as

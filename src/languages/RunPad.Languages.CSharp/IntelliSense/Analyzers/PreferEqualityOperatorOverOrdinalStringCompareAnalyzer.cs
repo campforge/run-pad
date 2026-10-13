@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. A different method
-// than PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer (RPAD0138, проход 179), which covers
+// than PreferEqualityOperatorOverOrdinalStringEqualsAnalyzer (RPAD0138), which covers
 // `string.Equals(a, b, StringComparison.Ordinal)`: this is `string.Compare(a, b,
 // StringComparison.Ordinal) == 0` (and the other comparison outcomes) — the `==`/`!=` operators on
 // strings already compare ordinally, so there's no need to go through the three-way Compare and then

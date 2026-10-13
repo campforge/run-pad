@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "acquire without a guaranteed release" theme as MonitorEnterWithoutTryFinallyAnalyzer (RPAD0228,
-// проход 237), for two more synchronization primitives that don't have a `lock`-style keyword of their
+// "acquire without a guaranteed release" theme as MonitorEnterWithoutTryFinallyAnalyzer (RPAD0228), for two more
+// synchronization primitives that don't have a `lock`-style keyword of their
 // own: `SemaphoreSlim.Wait()`/`WaitAsync()` and `ReaderWriterLockSlim.EnterReadLock()`/
 // `EnterWriteLock()`/`EnterUpgradeableReadLock()` all acquire something that MUST be released
 // (`Release()`/`ExitReadLock()`/etc.) for other threads to proceed — an exception thrown before that

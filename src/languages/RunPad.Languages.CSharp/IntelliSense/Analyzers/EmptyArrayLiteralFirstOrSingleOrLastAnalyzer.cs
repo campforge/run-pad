@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283, проход 300), applied
+// receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283), applied
 // to the LINQ terminal operators `.First()`/`.Single()`/`.Last()` (with or without a predicate) instead
 // of the plain indexer: calling any of them on a freshly created array literal with ZERO elements always
 // throws InvalidOperationException, regardless of whether a predicate is supplied (there is nothing to
@@ -20,15 +20,15 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // coexists with (does not collide with) the built-in "Use '[0]'/'[^1]' instead of First()/Last()"
 // simplification hint that also fires on array-receiver calls — that hint's reason (simplify to indexer
 // syntax) is unrelated to this analyzer's reason (the call always throws), same coexistence precedent as
-// NegativeElementAtIndexAnalyzer's positive-range extension (RPAD0236, проход 302).
-// Extended in the триста восемнадцатый проход to also cover the single-argument (no-seed)
+// NegativeElementAtIndexAnalyzer's positive-range extension (RPAD0236).
+// Extended to also cover the single-argument (no-seed)
 // `.Aggregate(func)` overload — confirmed empirically to throw InvalidOperationException for an empty
 // receiver with no element-type nuance (unlike Max/Min, still out of scope). The two-argument
 // `Aggregate(seed, func)` overload does NOT throw for an empty sequence (it just returns `seed`), but
 // needs no special-casing here — it's already excluded by the existing `Arguments.Count > 1` guard.
 // Class name/`DiagnosticId` kept as-is despite the scope growing beyond First/Single/Last, same
 // precedent as other same-mechanism extensions in this catalog.
-// Extended in the триста сороковой проход to also cover `.Average()`/`.Min()`/`.Max()`/`.MinBy(...)`/
+// Extended to also cover `.Average()`/`.Min()`/`.Max()`/`.MinBy(...)`/
 // `.MaxBy(...)` — the case explicitly deferred above. Confirmed empirically (scratch `dotnet run`
 // script) that the type-dependence is precisely characterized by the RESOLVED method's RETURN type: when
 // it's a non-nullable value type (the specialized `int`/`long`/`float`/`double`/`decimal` overloads, or
@@ -41,20 +41,20 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // return-type check subsumes all the argument-count variants (0-arg Min/Max, 1-arg Min/Max-with-comparer
 // or Average-with-selector, 1-/2-arg MinBy/MaxBy), so the argument-count ceiling for these five method
 // names is raised to 2 rather than reusing First/Single/Last/Aggregate's ceiling of 1.
-// Extended in the триста шестьдесят шестой проход to also recognize `ImmutableArray<T>.Empty`/
+// Extended to also recognize `ImmutableArray<T>.Empty`/
 // `ImmutableList<T>.Empty`/`ImmutableHashSet<T>.Empty`/`ImmutableSortedSet<T>.Empty`/
 // `ImmutableStack<T>.Empty`/`ImmutableQueue<T>.Empty` as a known-empty receiver, alongside the existing
 // array-literal one — confirmed empirically (scratch `dotnet run` script) that every one of the six
 // throws identically (`InvalidOperationException`, "Sequence contains no elements") for `.First()`/
 // `.Min()` etc., since they're all plain `IEnumerable<T>` sequences underneath. Message format's
 // "array literal" wording generalized to just "the receiver", since it's no longer always an array.
-// Self-correction (same проход): a Theory row for `ImmutableStack<int>.Empty.First()`/
+// Self-correction: a Theory row for `ImmutableStack<int>.Empty.First()`/
 // `ImmutableQueue<int>.Empty.First()` failed — the exact same `Empty`-is-a-PROPERTY-not-a-FIELD gap
-// caught and fixed in sibling EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360, same проход), just
+// caught and fixed in sibling EmptyImmutableStackOrQueuePeekOrPopAnalyzer (RPAD0360), just
 // not yet applied here when this extension was first written; fixed the same way, accepting either
 // `IFieldSymbol` or `IPropertySymbol` named `Empty`. Separately, a Theory row using
 // `ImmutableSortedSet<int>.Empty.Min()` was a bad TEST case, not an analyzer bug: reflection confirmed
-// `ImmutableSortedSet<T>` (unlike the other five types touched this проход) has its own instance
+// `ImmutableSortedSet<T>` (unlike the other five types touched this change) has its own instance
 // PROPERTY named `Min`/`Max` (returning `T`), which C# member lookup resolves in preference to the
 // `Enumerable.Min()` extension entirely — so `.Min()` on it doesn't invoke the LINQ method this analyzer
 // is about at all. Fixed by using `.Aggregate(...)` for that row's SortedSet case instead. A THIRD,

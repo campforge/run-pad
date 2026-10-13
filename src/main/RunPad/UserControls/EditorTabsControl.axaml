@@ -111,7 +111,7 @@
             <Setter Property="Opacity" Value="1"/>
         </Style>
 
-        <!-- Dirty indicator ("Жизненный цикл вкладок") — the header's TextBlock lives here,
+        <!-- Dirty indicator — the header's TextBlock lives here,
              not in EditorTabItemControl.axaml: TabHeaderTemplate is fetched from that UserControl's
              own Resources but applied as THIS TabControl's TabItem.HeaderTemplate (see
              EditorTabsControl.AddTabItem), so the realized TextBlock ends up in this control's visual

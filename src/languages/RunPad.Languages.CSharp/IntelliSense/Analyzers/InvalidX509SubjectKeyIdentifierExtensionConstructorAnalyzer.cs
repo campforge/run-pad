@@ -7,11 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5 from the twenty-third research subagent survey
-// (a fourth revisit of `System.Security.Cryptography.X509Certificates`, which has now produced a new
-// find on every visit — X500DistinguishedNameBuilder/RPAD0472, SubjectAlternativeNameBuilder/RPAD0473,
-// CertificateRevocationListBuilder/RPAD0477, and now this), re-verified independently before
-// implementing. `X509SubjectKeyIdentifierExtension(string subjectKeyIdentifier, bool critical)` —
+// `X509SubjectKeyIdentifierExtension(string subjectKeyIdentifier, bool critical)` —
 // confirmed empirically: length 0 or exactly 1 throws `ArgumentException` ("Array may not be empty or
 // null"); length 2 or more NEVER throws at construction regardless of hex validity (deliberately
 // NOT claimed as a hex-format check — confirmed a non-hex string like "zz" and an odd-length leftover

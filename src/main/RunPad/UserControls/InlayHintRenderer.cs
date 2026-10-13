@@ -15,7 +15,7 @@ internal sealed class InlayHintRenderer : VisualLineElementGenerator
 {
     public static IBrush DefaultBrush { get; } = Brushes.Gray;
 
-    // Preferences.CSharp.InlayHintsEnabled (user request 2026-07-20) — gates rendering only, not
+    // Preferences.CSharp.InlayHintsEnabled — gates rendering only, not
     // computation: CSharpIntelliSenseService always computes hints regardless of this flag (it has
     // no knowledge of IPreferencesService at all, same separation as every other IntelliSense
     // feature), the UI layer just doesn't render them here when disabled.

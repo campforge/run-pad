@@ -11,9 +11,9 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `s.Trim().Length == 0` and `s.Trim() == ""` are both hand-rolled "is this string blank" checks —
 // `string.IsNullOrWhiteSpace(s)` says the same thing directly, and additionally tolerates s being
 // null (the hand-rolled forms throw NullReferenceException on a null receiver).
-// Extended (сто семидесятый проход, batch) to also cover the negated AND-form —
+// Extended to also cover the negated AND-form —
 // `s != null && s.Trim().Length > 0` says exactly what `!string.IsNullOrWhiteSpace(s)` already says.
-// Extended (двести двадцать восьмой проход, batch) to also cover `string.IsNullOrEmpty(s.Trim())` —
+// Extended to also cover `string.IsNullOrEmpty(s.Trim())` —
 // a THIRD hand-rolled shape for the same "is this blank" question, and one with a sharper edge than
 // the other two: if s is null, `s.Trim()` throws NullReferenceException before IsNullOrEmpty ever runs,
 // silently defeating the null-tolerance the caller likely thought they were getting by reaching for

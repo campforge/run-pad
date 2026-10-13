@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Same theme/rationale as CultureSensitiveStringCompareAnalyzer
-// (RPAD0005, pass 145) extended to the other single-string-argument String instance methods that
+// (RPAD0005) extended to the other single-string-argument String instance methods that
 // are ALSO culture-sensitive by default per .NET's own documentation: StartsWith(string)/
 // EndsWith(string)/IndexOf(string) all compare using CultureInfo.CurrentCulture unless a
 // StringComparison is passed explicitly — the same well-known "Turkish I" class of gotcha.

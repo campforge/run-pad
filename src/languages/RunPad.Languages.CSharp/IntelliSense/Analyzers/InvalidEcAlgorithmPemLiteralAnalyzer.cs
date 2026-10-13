@@ -19,7 +19,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // specifically — a deliberately broader, empirically-justified scope that correctly and uniformly covers
 // BOTH `ECDsa` and `ECDiffieHellman` receivers with one analyzer, unlike RSA which genuinely needed its own
 // separate one. Confirmed empirically this is a TWO-exception-type situation, the same shape discovered for
-// RSA's sibling while researching this very analyzer (which led to the проход 408 fix of RPAD0392): empty
+// RSA's sibling while researching this very analyzer (which led to the fix of RPAD0392): empty
 // string, garbage text, and an unrecognized PEM structure throw `ArgumentException`, while a
 // structurally-recognized PEM (a generic "PUBLIC KEY" label) whose key data is for a DIFFERENT algorithm
 // (e.g. a real RSA public key under the generic label) throws `System.Security.Cryptography.

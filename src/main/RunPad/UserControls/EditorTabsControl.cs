@@ -243,7 +243,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     public void FormatActive()
         => _ = GetActiveControl()?.FormatAsync();
 
-    // Ctrl+Alt+U — ReSharper-style "add all missing usings" (live user request 2026-07-27).
+    // Ctrl+Alt+U — ReSharper-style "add all missing usings".
     public void ResolveAllUsingsActive()
         => _ = GetActiveControl()?.ResolveAllUsingsAsync();
 

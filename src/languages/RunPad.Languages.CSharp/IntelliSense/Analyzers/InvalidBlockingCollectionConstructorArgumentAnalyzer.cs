@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "constructor argument validation" theme as InvalidBarrierConstructorArgumentAnalyzer family (RPAD0323,
-// проход 350): `new BlockingCollection<T>(int boundedCapacity)` throws ArgumentOutOfRangeException when
+// "constructor argument validation" theme as InvalidBarrierConstructorArgumentAnalyzer family (RPAD0323): `new
+// BlockingCollection<T>(int boundedCapacity)` throws ArgumentOutOfRangeException when
 // `boundedCapacity` isn't strictly positive — confirmed empirically via scratch `dotnet run` script
 // (unlike most "capacity" parameters elsewhere in this catalog where zero is valid, `boundedCapacity`
 // must be > 0, the same "must be strictly positive" rule as `SemaphoreSlim`'s `maxCount` — RPAD0319).

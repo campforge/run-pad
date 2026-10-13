@@ -8,9 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the fortieth research subagent survey,
-// re-verified independently before implementing (the agent's own transcript understated a trap — see
-// below). `AesGcm`/`AesCcm`/`ChaCha20Poly1305`'s instance `Encrypt`/`Decrypt` methods — a genuinely
+// `AesGcm`/`AesCcm`/`ChaCha20Poly1305`'s instance `Encrypt`/`Decrypt` methods — a genuinely
 // different call site from the already-covered `InvalidAeadCipherConstructorArgumentAnalyzer`
 // (RPAD0463), which only checks the CONSTRUCTOR's `key`/`tagSizeInBytes` arguments. Here, a literal
 // `nonce`/`tag` byte array/`stackalloc` buffer of the wrong length always throws `ArgumentException`

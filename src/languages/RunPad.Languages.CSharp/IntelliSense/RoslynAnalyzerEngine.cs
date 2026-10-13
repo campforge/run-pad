@@ -20,8 +20,8 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // alongside Microsoft's own Features assembly, so a hand-written analyzer here (IntelliSense/
 // Analyzers/) is discovered the same way, no separate registration list to keep in sync. First tenants:
 // EmptyCatchClauseAnalyzer/DuplicateEnumValueAnalyzer — ported ideas from Roslynator (RCS1075/RCS1234,
-// see that project's Apache-2.0-licensed source referenced in each file), not a dependency on it (TODO
-// #74's own "own hands, not a package" constraint).
+// see that project's Apache-2.0-licensed source referenced in each file), not a dependency on it (written by hand,
+// not pulled in as a package).
 internal sealed class RoslynAnalyzerEngine
 {
     private readonly ImmutableArray<DiagnosticAnalyzer> _analyzers;

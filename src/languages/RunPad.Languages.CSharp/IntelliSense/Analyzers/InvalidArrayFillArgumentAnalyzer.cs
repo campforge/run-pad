@@ -20,7 +20,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // project's existing precedent of not factoring out this small helper across files). The 2-argument
 // overload (`Array.Fill(array, value)`, no startIndex/count) is naturally excluded by the argument-count
 // pattern match.
-// Extended in the триста двадцать восьмой проход to also cover `Array.IndexOf<T>(T[] array, T value, int
+// Extended to also cover `Array.IndexOf<T>(T[] array, T value, int
 // startIndex, int count)` — confirmed empirically to throw under the IDENTICAL boundary formula as
 // `Fill` (negative startIndex, negative count, or startIndex + count exceeding the array's length), and
 // at the exact same argument positions (2/3), so it reuses the same branch rather than duplicating it.
@@ -30,7 +30,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // instead of `startIndex + count <= length`) — a genuinely different check, left as a possible future
 // analyzer rather than shoehorned into this one. Class name/`DiagnosticId` kept as-is despite the scope
 // growing beyond `Array.Fill`, same precedent as other same-mechanism extensions in this catalog.
-// Extended again in the триста двадцать девятый проход to also cover `Array.FindIndex<T>(T[] array, int
+// Extended again to also cover `Array.FindIndex<T>(T[] array, int
 // startIndex, int count, Predicate<T> match)` — confirmed empirically to throw under the SAME
 // forward-searching boundary formula as `Fill`/`IndexOf`, but with a DIFFERENT argument SHAPE (`array,
 // startIndex, count, predicate` — no `value` argument at position 1, so `startIndex`/`count` sit at

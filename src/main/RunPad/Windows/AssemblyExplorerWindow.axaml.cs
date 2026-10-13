@@ -16,22 +16,22 @@ using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 namespace RunPad.Windows;
 
 /// <summary>
-/// ILSpy/dnSpy-style assembly explorer (user request 2026-07-19; merged with the
-/// previously separate <c>DecompiledViewWindow</c> per user request 2026-07-20 — dnSpy/ILSpy don't
+/// ILSpy/dnSpy-style assembly explorer (merged with the
+/// previously separate <c>DecompiledViewWindow</c> — dnSpy/ILSpy don't
 /// pop a new window per decompiled type either, they update one code pane in place) — a tree of
 /// namespaces/types on the left, a read-only decompiled source pane on the right that updates in
-/// place on selection. The tree follows ILSpy (user request 2026-10-07): types expand lazily into
+/// place on selection. The tree follows ILSpy: types expand lazily into
 /// Base Types / Derived Types / nested types / members, every node has a kind icon, non-public API is
 /// greyed, and selecting a member decompiles just that member. Like ILSpy's assembly list, the tree
-/// holds any number of assemblies (user request 2026-10-09): Browse adds one, a References row opens
+/// holds any number of assemblies: Browse adds one, a References row opens
 /// the assembly it names, and F12 into another assembly adds that assembly too. Serves two entry points:
 ///  - Go to Definition (F12) from the user's own script, for a symbol outside it — opened with the
 ///    resolved member already decompiled AND its assembly loaded into the tree, so the user can keep
 ///    browsing right from there (<see cref="UserControls.EditorsTabItemControl.ShowGoToDefinitionAsync"/>).
 ///  - "Edit → Assembly Explorer..." — an arbitrary DLL the user picks via <see cref="BrowseAsync"/>,
 ///    nothing decompiled until a type is picked from the tree.
-/// F12 inside the source pane keeps working recursively either way (<see cref="NavigateAsync"/>,
-/// pass 96) — it resolves against the currently-shown <see cref="SyntaxTree"/>, not
+/// F12 inside the source pane keeps working recursively either way (<see cref="NavigateAsync"/>) — it resolves
+/// against the currently-shown <see cref="SyntaxTree"/>, not
 /// against whatever's loaded in the tree, so it also works for entry points where nothing was
 /// browsed via the tree at all.
 /// </summary>
@@ -1165,7 +1165,7 @@ public partial class AssemblyExplorerWindow : Window
             reference.MemberName is null ? 0 : reference.MetadataToken);
         // Back on the UI thread after the render — Avalonia's own SynchronizationContext resumes the
         // continuation there, same as EditorTabItemControl.ShowGoToDefinitionAsync's identical
-        // await Task.Run(...) pattern (see pass 96 for why an explicit
+        // await Task.Run(...) pattern (an explicit
         // Dispatcher.Post here was a real, caught-by-test bug, not just unnecessary).
         await RenderAndShowAsync(version, page, typeItem, () =>
         {

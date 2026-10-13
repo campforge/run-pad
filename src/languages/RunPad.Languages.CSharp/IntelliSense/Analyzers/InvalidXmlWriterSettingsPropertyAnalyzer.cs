@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #5 from the twelfth research subagent survey, re-verified
-// independently before implementing. `System.Xml.XmlWriterSettings` — 3 enum property setters, all on a
+// `System.Xml.XmlWriterSettings` — 3 enum property setters, all on a
 // throwaway `new XmlWriterSettings()`: `ConformanceLevel`, `NewLineHandling`, and `NamespaceHandling` all
 // throw `ArgumentOutOfRangeException` for a value outside their own enum's defined range. Confirmed
 // `NamespaceHandling` specifically — despite being a `[Flags]` enum — only accepts 0 or 1 (`Default`/

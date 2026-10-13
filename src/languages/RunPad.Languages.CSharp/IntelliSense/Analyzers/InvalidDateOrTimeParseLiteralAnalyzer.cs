@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // InvalidNumericParseFormatAnalyzer (RPAD0356) — same "run the real validator, but only after a
 // conservative structural guard" theme, applied to `DateTime`/`DateTimeOffset`/`TimeSpan`/`DateOnly`/
 // `TimeOnly`.Parse(string) instead: a literal that can't possibly be a date/time in ANY format/culture
-// always throws `FormatException`. `InvalidDateTimeStylesCombinationAnalyzer`'s (RPAD0276, проход 288)
+// always throws `FormatException`. `InvalidDateTimeStylesCombinationAnalyzer`'s (RPAD0276)
 // own doc comment explicitly named this exact question — "the actual date string" being unparseable —
 // as "a different, string-content-dependent issue this project has deliberately not tried to validate
 // further"; this analyzer is that follow-up. Deliberately does NOT reuse RPAD0356's "contains a Unicode

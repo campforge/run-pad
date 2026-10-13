@@ -9,8 +9,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // Own pick, not a Roslynator port.
 // `var sw = new Stopwatch(); sw.Start();` constructs a stopped Stopwatch and then immediately starts
 // it — `Stopwatch.StartNew()` does both in one call, and is the API the type was designed to offer for
-// exactly this. Scoped to the narrowest safe shape (matching PreferListConstructorOverAddRangeAnalyzer,
-// проход 179): a parameterless `new Stopwatch()` local declaration whose VERY NEXT sibling statement is
+// exactly this. Scoped to the narrowest safe shape (matching PreferListConstructorOverAddRangeAnalyzer): a
+// parameterless `new Stopwatch()` local declaration whose VERY NEXT sibling statement is
 // a parameterless `.Start()` call on that exact local, and nothing else in between.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferStopwatchStartNewOverConstructorThenStartAnalyzer : DiagnosticAnalyzer

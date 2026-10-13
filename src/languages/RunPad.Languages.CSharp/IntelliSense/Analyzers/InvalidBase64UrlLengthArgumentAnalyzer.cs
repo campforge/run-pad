@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #2/#3 from the twenty-sixth research subagent survey,
-// re-verified independently before implementing. `System.Buffers.Text.Base64Url.
+// `System.Buffers.Text.Base64Url.
 // GetMaxDecodedLength(int base64Length)`/`.GetEncodedLength(int bytesLength)` — bundled under one
 // diagnostic (precedent RPAD0426); distinct from the already-covered `InvalidBase64UrlLiteralAnalyzer`
 // (RPAD0406, which is scoped to the 1-arg `DecodeFromChars(ReadOnlySpan<char>)` content-validity check

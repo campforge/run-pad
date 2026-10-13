@@ -6,9 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the fifth research subagent survey, re-verified
-// independently before implementing. `new UriBuilder(string)` (1-arg constructor only) — same exception
-// family as the already-covered `new Uri(string)` (`InvalidUriLiteralAnalyzer`, RPAD0255, проход 261,
+// `new UriBuilder(string)` (1-arg constructor only) — same exception
+// family as the already-covered `new Uri(string)` (`InvalidUriLiteralAnalyzer`, RPAD0255,
 // confirmed via re-reading that file's source to be scoped strictly to `ctor.ContainingType ==
 // "System.Uri"`), but `UriBuilder` is a genuinely distinct type/constructor not matched by that analyzer.
 // Confirmed empirically, matching the agent's report exactly: single exception type,

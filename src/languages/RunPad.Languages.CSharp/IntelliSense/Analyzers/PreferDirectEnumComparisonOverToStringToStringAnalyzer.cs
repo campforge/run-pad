@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. A sibling shape
-// to PreferDirectEnumComparisonOverToStringAnalyzer (RPAD0141, проход 176 — that one is `enumValue.
+// to PreferDirectEnumComparisonOverToStringAnalyzer (RPAD0141 — that one is `enumValue.
 // ToString() == "Foo"`, comparing a formatted enum against a string literal). This is `a.ToString() ==
 // b.ToString()` where both sides are the SAME enum type — formatting both values to strings just to
 // compare the strings, instead of comparing the enum values directly. Slower (two ToString() calls

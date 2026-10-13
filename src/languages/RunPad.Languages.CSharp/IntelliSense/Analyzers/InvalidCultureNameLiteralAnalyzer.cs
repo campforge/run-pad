@@ -8,13 +8,13 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// argument that always throws" theme as InvalidVersionLiteralFormatAnalyzer (RPAD0247, проход 254), but
+// argument that always throws" theme as InvalidVersionLiteralFormatAnalyzer (RPAD0247), but
 // verified differently: rather than approximating culture-name validity with a pattern (there's no
 // simple format rule — valid names range from "en" to "zh-Hans-CN" to obscure regional variants), this
 // analyzer calls the REAL `CultureInfo.GetCultureInfo` in-process on the literal and reports only if
 // THAT call itself throws `CultureNotFoundException` — the exact same check the user's own code would
 // perform at runtime, so there's no approximation or false-positive risk at all. `Regex`'s pattern
-// argument was considered for the same "run the real validator" treatment in this проход's PROBE round
+// argument was considered for the same "run the real validator" treatment in this change's PROBE round
 // and dropped — a built-in analyzer already reports "Regex issue: ..." for a syntactically invalid
 // pattern literal, so there was nothing left to add there.
 //

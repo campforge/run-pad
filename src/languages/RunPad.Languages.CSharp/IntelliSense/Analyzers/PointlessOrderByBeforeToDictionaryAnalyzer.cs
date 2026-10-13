@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "ordering thrown away by what comes next" theme as PointlessOrderByToListSortAnalyzer (RPAD0113,
-// проход 169), for a different sink: `xs.OrderBy(...).ToDictionary(...)` sorts the sequence only to
+// "ordering thrown away by what comes next" theme as PointlessOrderByToListSortAnalyzer (RPAD0113), for a different
+// sink: `xs.OrderBy(...).ToDictionary(...)` sorts the sequence only to
 // dump it into a Dictionary<TKey, TValue> — a type with no ordering guarantee at all (its enumeration
 // order is an implementation detail, not part of its contract). The OrderBy work is pure waste; if the
 // caller actually wants the entries visitable in a specific order later, a Dictionary is the wrong

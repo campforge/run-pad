@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the thirty-ninth research subagent survey,
-// re-verified independently before implementing. `Calendar.TwoDigitYearMax` (int, get/set) — every
+// `Calendar.TwoDigitYearMax` (int, get/set) — every
 // concrete `Calendar` subtype in the BCL enforces its OWN `[min, max]` range (min is always 99; max
 // varies wildly per type — 9999 for `GregorianCalendar`/`JulianCalendar`, 9666 for `HijriCalendar`, 5999
 // for `HebrewCalendar`, 1500 for `UmAlQuraCalendar`, etc.) — a value outside that specific instance's own

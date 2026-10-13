@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port.
-// Same idea as PreferListSearchMethodOverLinqEquivalentAnalyzer (RPAD0189, проход 201), applied to
+// Same idea as PreferListSearchMethodOverLinqEquivalentAnalyzer (RPAD0189), applied to
 // arrays: `Array` ships static predicate-based search methods that predate LINQ and do the same job
 // without an `IEnumerable<T>` iterator in between — `Array.Exists(arr, match)` for `arr.Any(predicate)`,
 // `Array.TrueForAll(arr, match)` for `arr.All(predicate)`, `Array.Find(arr, match)` for the

@@ -10,8 +10,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // RemoveRedundantCast-adjacent family, applied to LINQ's Cast<T>() (Apache License 2.0,
 // https://github.com/dotnet/roslynator). `xs.Cast<int>()` where `xs` is already
 // `IEnumerable<int>` does a no-op runtime type check on every element for nothing — same
-// "identity conversion" idea as RedundantCastAnalyzer/RedundantAsOperatorAnalyzer (RPAD0022/RPAD0023,
-// pass 148), just for the LINQ method form of casting instead of a C-style cast/`as`.
+// "identity conversion" idea as RedundantCastAnalyzer/RedundantAsOperatorAnalyzer (RPAD0022/RPAD0023), just for the
+// LINQ method form of casting instead of a C-style cast/`as`.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RedundantEnumerableCastAnalyzer : DiagnosticAnalyzer
 {

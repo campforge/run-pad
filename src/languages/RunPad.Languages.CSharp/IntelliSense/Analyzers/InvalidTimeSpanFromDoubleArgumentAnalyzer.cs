@@ -18,8 +18,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // too, not just numeric literals) inside a try/catch, and reports only if THAT call itself throws — a
 // numeric constant has no culture dependency to worry about (unlike the string-literal Parse analyzers),
 // since GetConstantValue already resolves it to the exact double value the runtime call would receive.
-// Extended in the триста шестнадцатый проход to also cover `TimeSpan.FromMicroseconds(double)` (added in
-// .NET 7, missed in the original батч) — confirmed empirically to throw identically to the other five.
+// Extended to also cover `TimeSpan.FromMicroseconds(double)` (added in
+// .NET 7, missed in the original batch) — confirmed empirically to throw identically to the other five.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidTimeSpanFromDoubleArgumentAnalyzer : DiagnosticAnalyzer
 {

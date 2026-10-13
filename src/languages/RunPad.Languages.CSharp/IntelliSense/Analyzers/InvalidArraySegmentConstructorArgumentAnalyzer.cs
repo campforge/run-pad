@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer (RPAD0271, проход
-// 283): `new ArraySegment<T>(array, offset, count)` throws ArgumentOutOfRangeException for a negative
+// receiver, known length" theme as InvalidArrayAsSpanOrAsMemoryArgumentAnalyzer (RPAD0271): `new
+// ArraySegment<T>(array, offset, count)` throws ArgumentOutOfRangeException for a negative
 // `offset` or `count`, but a DIFFERENT exception type, ArgumentException, when `offset + count`
 // exceeds the array's length — confirmed empirically via scratch `dotnet run` script (unlike
 // AsSpan/AsMemory, which throw ArgumentOutOfRangeException uniformly for every invalid case). The

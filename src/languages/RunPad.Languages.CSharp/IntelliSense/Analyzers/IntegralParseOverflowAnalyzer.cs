@@ -22,7 +22,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `TryParse` (with NumberStyles.Integer and CultureInfo.InvariantCulture, matching the no-arg overload's
 // own default style) rather than hand-copying each type's Min/MaxValue, so it can't drift from the real
 // implementation's actual bounds.
-// Extended (двести шестьдесят шестой проход, batch) to also cover `decimal.Parse(s)`/
+// Extended to also cover `decimal.Parse(s)`/
 // `Convert.ToDecimal(s)` — decimal.Parse also throws OverflowException for a plain-digit literal outside
 // decimal's range (unlike double/float.Parse, which have saturated to ±Infinity instead of throwing
 // since .NET Core 3.0, confirmed empirically before extending — so this was deliberately NOT extended to

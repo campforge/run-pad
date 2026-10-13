@@ -7,11 +7,9 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the fifth research subagent survey (full tool
-// access, empirically self-verified), re-verified independently before implementing.
 // `ActivityContext.Parse(string traceParent, string? traceState)` — a richer composite-format superset of
-// the already-covered `ActivityTraceId.CreateFromString`/`ActivitySpanId.CreateFromString` (RPAD0416,
-// проход 426), which each validate only ONE segment of the W3C traceparent header in isolation.
+// the already-covered `ActivityTraceId.CreateFromString`/`ActivitySpanId.CreateFromString` (RPAD0416), which each
+// validate only ONE segment of the W3C traceparent header in isolation.
 // `ActivityContext.Parse` validates the WHOLE `"{version}-{traceId}-{spanId}-{flags}"` composite string in
 // one pass and additionally rejects cases the per-segment checks can't catch on their own: an all-zero
 // trace-id or span-id that's individually well-formed hex of the right length, and a reserved version byte

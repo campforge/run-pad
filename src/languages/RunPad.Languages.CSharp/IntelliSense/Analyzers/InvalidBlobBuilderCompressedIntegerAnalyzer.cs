@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the twenty-first research subagent survey,
-// re-verified independently before implementing. `System.Reflection.Metadata.BlobBuilder.
+// `System.Reflection.Metadata.BlobBuilder.
 // WriteCompressedInteger(int)`/`.WriteCompressedSignedInteger(int)` — ECMA-335 §II.23.2 compressed-
 // integer encodings, fixed valid ranges independent of any other state. Confirmed empirically:
 // `WriteCompressedInteger` valid range is [0, 0x1FFFFFFF] (536,870,911); `WriteCompressedSignedInteger`

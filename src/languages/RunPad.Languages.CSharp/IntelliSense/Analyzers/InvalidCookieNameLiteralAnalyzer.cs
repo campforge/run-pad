@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port; the research
-// subagent's ranked list (проход 377) is now fully exhausted (проходы 377-386, all 8 candidates shipped) —
+// subagent's ranked list is now fully exhausted (all 8 candidates shipped) —
 // found by direct brainstorming afterward, scanning for un-mined BCL namespaces against the existing
 // analyzer catalog (grep-confirmed no prior coverage of System.Net.Cookie before implementing). Same "run
 // the real validator" theme, applied to `new System.Net.Cookie(name, value[, path[, domain]])`. Confirmed

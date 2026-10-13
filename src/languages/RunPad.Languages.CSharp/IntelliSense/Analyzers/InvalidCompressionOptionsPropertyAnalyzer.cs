@@ -7,13 +7,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #6/#7/#8 from the sixteenth research subagent survey,
-// re-verified independently before implementing. `System.IO.Compression.BrotliCompressionOptions.
+// `System.IO.Compression.BrotliCompressionOptions.
 // Quality` (plain `int`, valid range 0-11) and `System.IO.Compression.ZLibCompressionOptions.
 // CompressionLevel`/`CompressionStrategy`. Confirmed empirically: `Quality` throws
 // `ArgumentOutOfRangeException` outside [0, 11]. `CompressionLevel` — despite its name, confirmed the
 // property's own TYPE is a plain `int`, NOT the `System.IO.Compression.CompressionLevel` ENUM (flagging
-// explicitly per the property-name-vs-type-name lesson from the immediately-preceding проход) — valid
+// explicitly per the property-name-vs-type-name lesson from the preceding change) — valid
 // range [-1, 9] (`-1` is the "use default" sentinel, `0` means no compression), throws outside that.
 // `CompressionStrategy` — type `ZLibCompressionStrategy`, int-backed (confirmed, not `[Flags]`), valid
 // values 0-4 (`Default`/`Filtered`/`HuffmanOnly`/`RunLengthEncoding`/`Fixed`), throws outside that range.

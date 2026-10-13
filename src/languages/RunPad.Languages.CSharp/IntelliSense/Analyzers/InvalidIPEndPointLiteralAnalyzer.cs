@@ -9,7 +9,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Third sibling
 // in the `System.Net` "run the real validator" Parse family this session, alongside
-// InvalidIPAddressLiteralAnalyzer (RPAD0249) and InvalidIPNetworkLiteralAnalyzer (RPAD0366, same проход
+// InvalidIPAddressLiteralAnalyzer (RPAD0249) and InvalidIPNetworkLiteralAnalyzer (RPAD0366, same change
 // prior): `IPEndPoint.Parse(string)` (address plus port, e.g. "192.168.1.1:80" or "[::1]:80" for IPv6)
 // throws `FormatException` for a string that isn't a valid endpoint — confirmed empirically. Kept as a
 // SEPARATE analyzer from RPAD0366 rather than folded in, matching this sub-family's own established

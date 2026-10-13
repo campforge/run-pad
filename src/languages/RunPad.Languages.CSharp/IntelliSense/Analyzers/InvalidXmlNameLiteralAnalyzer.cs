@@ -11,7 +11,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // brainstorming, same pass that found RPAD0379-RPAD0383 — grep-confirmed no prior coverage. Confirmed via
 // reflection that `XmlConvert.VerifyName(string)`'s parameter carries no `[StringSyntax]` attribute (unlike
 // `JsonDocument.Parse`'s, whose IDE-built-in coverage caused RPAD0257's sibling `InvalidJsonLiteralAnalyzer`
-// to be dropped in проход 263) — no built-in-analyzer collision risk here. `XmlConvert` has SEVEN
+// to be dropped earlier) — no built-in-analyzer collision risk here. `XmlConvert` has SEVEN
 // `VerifyXxx(string)` static methods total (confirmed via reflection); this analyzer covers only
 // `VerifyName`/`VerifyNCName`, confirmed empirically to share the IDENTICAL two-exception-type profile —
 // empty string throws `ArgumentException`, any other XML-Name-grammar violation (starts with a digit,

@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "generic overload avoids the Type/object round trip" theme as PreferGenericMarshalSizeOfAnalyzer
-// (RPAD0176, this same проход). `Activator.CreateInstance(typeof(T))` boxes through `Type` and
+// (RPAD0176). `Activator.CreateInstance(typeof(T))` boxes through `Type` and
 // returns a plain `object?` that then needs casting — `Activator.CreateInstance<T>()` (available since
 // this project's SDK floor) does the same construction and returns `T` directly, strongly typed.
 // Scoped to the argument-less constructor overload only — `Activator.CreateInstance(typeof(T), args)`

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Same LINQ-hygiene theme as UseCountOrLengthPropertyInsteadOfAnyMethodAnalyzer/
-// CallAnyInsteadOfCountAnalyzer (RPAD0015/RPAD0017, pass 147): `xs.ToList().Count`/`xs.ToArray().Length`
+// CallAnyInsteadOfCountAnalyzer (RPAD0015/RPAD0017): `xs.ToList().Count`/`xs.ToArray().Length`
 // materializes the ENTIRE sequence into a new list/array just to read its count — `xs.Count()`
 // (LINQ's own Enumerable.Count(), which the earlier CallAnyInsteadOfCountAnalyzer already knows to
 // prefer Any() over when comparing to zero, but is still the right call here) gets the same number

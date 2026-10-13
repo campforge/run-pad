@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the thirty-fifth research subagent survey,
-// re-verified independently before implementing. `System.Runtime.InteropServices.CollectionsMarshal.
+// `System.Runtime.InteropServices.CollectionsMarshal.
 // SetCount<T>(List<T> list, int count)` — first touch of `CollectionsMarshal`. Confirmed empirically:
 // negative `count` always throws `ArgumentOutOfRangeException` (param `count`, populated); `0` and
 // positive values are valid. Confirmed NOT covered by `NegativeCapacityArgumentAnalyzer` (RPAD0231,

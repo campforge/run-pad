@@ -19,7 +19,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // differently-spelled expressions that happen to evaluate to the same constant, e.g. `1 + 1` and `2`,
 // are still caught) — two keys that are merely the same variable read twice aren't assumed to be
 // constant-equal.
-// Extended (двести сорок девятый проход, batch) to also catch string keys that differ only in CASE
+// Extended to also catch string keys that differ only in CASE
 // when the dictionary was constructed with one of the three built-in case-insensitive comparers
 // (`StringComparer.OrdinalIgnoreCase`/`InvariantCultureIgnoreCase`/`CurrentCultureIgnoreCase`) — under
 // one of those, `"a"` and `"A"` collide too, the same `Add` throw as an exact duplicate. Detected via a

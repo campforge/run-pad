@@ -9,11 +9,11 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. First analyzer
 // in this catalog to touch `System.Text.Json` — an entirely fresh area (a prior candidate,
-// InvalidJsonLiteralAnalyzer, was dropped in проход 360 because the SDK's own `[StringSyntax("Json")]`
+// InvalidJsonLiteralAnalyzer, was dropped earlier because the SDK's own `[StringSyntax("Json")]`
 // analyzer already validates JSON string SYNTAX; this is a different, later question — given a
 // SYNTACTICALLY VALID JSON literal, does a specific `.GetProperty(key)`/`[index]` access into its
 // resulting `JsonElement` tree actually succeed). Uses the "run the real validator" technique already
-// established in this catalog (e.g. crypto algorithms проход 361, `Guid`/`IPAddress`/`DateTime` earlier)
+// established in this catalog (e.g. crypto algorithms, `Guid`/`IPAddress`/`DateTime`)
 // taken one step further: the ANALYZER ITSELF calls the real `System.Text.Json.JsonDocument.Parse` on the
 // literal JSON text at analysis time (safe — pure, local, no I/O/OS handles, same reasoning as the crypto
 // precedent) and walks the ACTUAL resulting `JsonElement` tree to answer "does this property/index exist,
@@ -36,10 +36,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // after its source document is disposed. Invalid JSON text (should not normally occur given the SDK's own
 // `[StringSyntax("Json")]` coverage, but not guaranteed — e.g. a non-literal-checkable interpolation) is
 // caught via `JsonException` and treated as unresolvable, not a diagnostic this analyzer reports itself.
-// Scoped to `GetProperty`/the plain indexer only that проход — the typed value getters
+// Scoped to `GetProperty`/the plain indexer only that change — the typed value getters
 // (`GetInt32`/`GetString`/etc.) throwing `InvalidOperationException` for a `JsonElement` of the wrong
-// `ValueKind` was a further, same-shaped case explicitly deferred to a future проход.
-// Extended in the триста шестьдесят девятый проход to close that deferral, for all 17 zero-argument
+// `ValueKind` was a further, same-shaped case explicitly deferred at first.
+// Extended to close that deferral, for all 17 zero-argument
 // `JsonElement.GetXxx()` typed value getters (confirmed the exact set via reflection —
 // `GetBoolean`/`GetString`/`GetBytesFromBase64`/`GetSByte`/`GetByte`/`GetInt16`/`GetUInt16`/`GetInt32`/
 // `GetUInt32`/`GetInt64`/`GetUInt64`/`GetDouble`/`GetSingle`/`GetDecimal`/`GetDateTime`/

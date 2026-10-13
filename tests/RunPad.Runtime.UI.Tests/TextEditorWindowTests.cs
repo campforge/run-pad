@@ -14,7 +14,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The text editor window (user request 2026-10-13):
+// The text editor window:
 // one whole file per window; Save / Save As keep its encoding and line breaks; unsaved changes are
 // shown, and closing asks Save / Don't Save / Cancel; a failed write keeps the window and its text.
 public sealed class TextEditorWindowTests : IDisposable

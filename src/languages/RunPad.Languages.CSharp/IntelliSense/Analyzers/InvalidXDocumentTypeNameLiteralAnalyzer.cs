@@ -7,8 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the third research subagent survey (411-й проход,
-// full tool access, empirically self-verified), re-verified independently before implementing.
 // `new XDocumentType(string name, string? publicId, string? systemId, string? internalSubset)` — scoped
 // to ONLY the `name` argument, per the agent's recommendation, matching what's empirically confirmed:
 // garbage `publicId`/`systemId`/`internalSubset` literals never throw (they're stored as opaque data, not
@@ -18,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `null` literal yields a constant whose `Value` is `null`, not a `string` — the `is string` pattern match
 // already filters it out, same as every other analyzer in this catalog), and text that violates XML's Name
 // production (e.g. starting with a digit, containing a space) throws `System.Xml.XmlException`. Same
-// technique as InvalidXmlNameLiteralAnalyzer (RPAD0384, проход 392), but calling the REAL
+// technique as InvalidXmlNameLiteralAnalyzer (RPAD0384), but calling the REAL
 // `XDocumentType` constructor directly instead of `XmlConvert.VerifyName`, since the exact validation this
 // constructor performs on `name` is what matters here, not just XML-Name-in-general.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

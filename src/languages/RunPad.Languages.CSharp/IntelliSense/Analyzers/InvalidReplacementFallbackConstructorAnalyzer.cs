@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the twenty-seventh research subagent survey,
-// re-verified independently before implementing. `System.Text.EncoderReplacementFallback(string)`/
+// `System.Text.EncoderReplacementFallback(string)`/
 // `System.Text.DecoderReplacementFallback(string)` — first touch of the fallback-replacement classes.
 // Confirmed empirically: both throw `ArgumentException` ("String contains invalid Unicode code
 // points") whenever the string contains ANY unpaired UTF-16 surrogate (lone high surrogate, lone low

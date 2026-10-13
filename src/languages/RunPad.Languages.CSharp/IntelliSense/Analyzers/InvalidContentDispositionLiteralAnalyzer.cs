@@ -7,13 +7,10 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; one of the four
-// lower-confidence "needs verification" candidates from the research subagent's ranked list (проход 377),
-// confirmed empirically before implementing (all four confirmed real via one combined scratch script, this
-// проход implements the first/cleanest of the four). Sibling of InvalidContentTypeLiteralAnalyzer (RPAD0373,
-// проход 380) — same "run the real validator via try/catch around the real constructor" theme, applied to
+// Own pick, not a Roslynator port. Sibling of InvalidContentTypeLiteralAnalyzer (RPAD0373) — same "run the real
+// validator via try/catch around the real constructor" theme, applied to
 // `new System.Net.Mime.ContentDisposition(string)` instead of `ContentType`. Genuinely NOT covered by the
-// pre-existing InvalidHttpHeaderValueLiteralAnalyzer (RPAD0371, проход 378): that analyzer's
+// pre-existing InvalidHttpHeaderValueLiteralAnalyzer (RPAD0371): that analyzer's
 // "ContentDispositionHeaderValue" case is `System.Net.Http.Headers.ContentDispositionHeaderValue`, a
 // different type in a different namespace — same split as ContentType vs MediaTypeHeaderValue already
 // established in this catalog. Confirmed empirically this is a single-exception-type situation (unlike its

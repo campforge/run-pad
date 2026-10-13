@@ -6,10 +6,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; candidate
-// surfaced by a research subagent survey of BCL Parse/indexer families not yet covered by this catalog,
-// then independently confirmed empirically (scratch `dotnet run` script) before implementing, same
-// discipline as every other analyzer here. `System.Numerics.Vector2`/`Vector3`/`Vector4`/`Quaternion`'s
+// Own pick, not a Roslynator port; confirmed empirically before implementing.
+// `System.Numerics.Vector2`/`Vector3`/`Vector4`/`Quaternion`'s
 // `this[int]` indexer, and `Matrix3x2`/`Matrix4x4`'s `this[int, int]` indexer, throw
 // `ArgumentOutOfRangeException` for an index outside a FIXED, per-type bound baked into the type itself
 // (Vector2: [0,1], Vector3: [0,2], Vector4/Quaternion: [0,3], Matrix3x2: row [0,2]/col [0,1], Matrix4x4:

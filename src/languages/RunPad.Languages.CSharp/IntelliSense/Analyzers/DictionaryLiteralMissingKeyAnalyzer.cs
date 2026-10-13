@@ -18,7 +18,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // itself a compile-time constant of the same type as the indexer argument — if even one key can't be
 // resolved as a constant, the analyzer bails out entirely rather than risk a false positive from an
 // incomplete picture of the dictionary's actual contents.
-// Extended in the триста семьдесят первый проход to also cover `SortedList<TKey,TValue>`/
+// Extended to also cover `SortedList<TKey,TValue>`/
 // `SortedDictionary<TKey,TValue>` — confirmed empirically to throw the exact same `KeyNotFoundException`
 // for a missing literal key as `Dictionary<TKey,TValue>` does, same mechanism, so an extension rather
 // than a new analyzer (matching e.g. RPAD0290's own multi-type extension precedent). The type check was

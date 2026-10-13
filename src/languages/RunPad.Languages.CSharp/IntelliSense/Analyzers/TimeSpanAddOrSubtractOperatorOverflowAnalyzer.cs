@@ -12,14 +12,14 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // TimeSpan2` and `TimeSpan1 - TimeSpan2` throw OverflowException when the result overflows TimeSpan's
 // representable range — confirmed empirically via scratch `dotnet run` script, not assumed (e.g.
 // `TimeSpan.MaxValue + TimeSpan.FromDays(1)`). Reuses the same constant-`TimeSpan`-value extraction
-// shape as InvalidRegexMatchTimeoutAnalyzer's `TryGetConstantTimeSpan` helper (RPAD0279, проходы
-// 294-295) — `TimeSpan.Zero`/`TimeSpan.FromXxx(literalNumber)` — extended here to also recognize the
+// shape as InvalidRegexMatchTimeoutAnalyzer's `TryGetConstantTimeSpan` helper (RPAD0279) —
+// `TimeSpan.Zero`/`TimeSpan.FromXxx(literalNumber)` — extended here to also recognize the
 // `TimeSpan.MaxValue`/`TimeSpan.MinValue` fields (needed for the most realistic overflow-triggering
 // expressions), duplicated rather than shared per this project's existing small-helper precedent. Both
 // operands must resolve to a known constant `TimeSpan` value for this analyzer to proceed; an operand
 // built from a plain `new TimeSpan(...)` literal constructor call is a possible future extension, left
 // out here to keep the operand-extraction helper's scope manageable.
-// Extended (триста пятьдесят шестой проход, batch) to also cover `TimeSpan * double`/`double *
+// Extended to also cover `TimeSpan * double`/`double *
 // TimeSpan`, `TimeSpan / double`, and unary `-TimeSpan` — confirmed empirically to throw the same
 // OverflowException for the same "result outside TimeSpan's representable range" reason (e.g.
 // `TimeSpan.MaxValue * 2`, `-TimeSpan.MinValue`). `TimeSpan / TimeSpan` (returns `double`, not

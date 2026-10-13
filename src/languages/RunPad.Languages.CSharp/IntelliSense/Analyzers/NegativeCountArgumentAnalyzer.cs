@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "literal argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231, проход
-// 239), for `Enumerable.Repeat(element, count)`/`Enumerable.Range(start, count)` — both are documented
+// "literal argument that always throws" theme as NegativeCapacityArgumentAnalyzer (RPAD0231), for
+// `Enumerable.Repeat(element, count)`/`Enumerable.Range(start, count)` — both are documented
 // to throw `ArgumentOutOfRangeException` when `count` is negative, a mistake the compiler can't catch
 // on its own. Scoped to a LITERAL negative integer only, same reasoning as RPAD0231 — an arbitrary
 // negative-valued expression would need real data-flow analysis to prove.

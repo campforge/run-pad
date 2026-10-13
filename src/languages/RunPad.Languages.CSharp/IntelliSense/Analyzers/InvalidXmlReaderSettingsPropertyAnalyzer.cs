@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #6 from the twelfth research subagent survey, re-verified
-// independently before implementing. `System.Xml.XmlReaderSettings` — 2 enum property setters
+// `System.Xml.XmlReaderSettings` — 2 enum property setters
 // (`DtdProcessing`, `ValidationType`) and 2 `long` property setters (`MaxCharactersInDocument`,
 // `MaxCharactersFromEntities`), all on a throwaway `new XmlReaderSettings()`. Confirmed empirically: the
 // enum properties throw `ArgumentOutOfRangeException` for a value outside their own enum's defined range
@@ -17,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // itself valid, unlike a genuinely negative count). Confirmed invariant across en-US/de-DE/ar-SA/ja-JP. No
 // side effects. Kept as its own analyzer/type rather than merged with RPAD0444, mirroring how this catalog
 // already splits per-declaring-type instead of combining siblings across two distinct settings types.
-// Extended (453-й проход, candidate #3 from the fifteenth research subagent survey) to also cover
+// Extended to also cover
 // `ValidationFlags` (a `[Flags]` `XmlSchemaValidationFlags`) — confirmed empirically it throws
 // `ArgumentOutOfRangeException` for any bit pattern beyond the OR of all 5 defined flags (31), or a
 // negative value; confirmed state-independent (identical throw behavior whether `ValidationType` is left

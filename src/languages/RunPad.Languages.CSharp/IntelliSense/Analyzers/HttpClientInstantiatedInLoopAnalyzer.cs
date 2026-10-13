@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "allocated fresh every iteration instead of reused" theme as RandomInstantiatedInLoopAnalyzer
-// (RPAD0133, проход 174), for a much more consequential type: `new HttpClient()` inside a loop is one
+// (RPAD0133), for a much more consequential type: `new HttpClient()` inside a loop is one
 // of the most well-documented .NET anti-patterns — each instance owns its own socket handler, and even
 // when disposed promptly, the underlying TCP connection lingers in TIME_WAIT, so a tight loop can
 // exhaust the local port range under load ("socket exhaustion"). HttpClient is explicitly designed to

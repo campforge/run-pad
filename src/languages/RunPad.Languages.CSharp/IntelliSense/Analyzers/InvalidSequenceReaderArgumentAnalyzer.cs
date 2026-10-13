@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the twenty-ninth research subagent survey,
-// re-verified independently before implementing. `System.Buffers.SequenceReader<T>.Advance(long
+// `System.Buffers.SequenceReader<T>.Advance(long
 // count)`/`.Rewind(long count)` — an OPEN item left by the previous (28th) round's
 // `InvalidReadOnlySequenceArgumentAnalyzer` (RPAD0497), which explicitly declined `SequenceReader<T>`
 // because it's a `ref struct` and can't be captured in a lambda/used as a generic argument. Resolved

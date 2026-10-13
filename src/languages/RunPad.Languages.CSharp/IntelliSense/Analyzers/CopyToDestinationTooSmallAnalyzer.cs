@@ -18,7 +18,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // array/list-literal-length helpers (duplicated rather than shared, matching this project's existing
 // precedent). The literal `index` argument (2-arg overload only) defaults to `0` when the call is the
 // 1-argument overload.
-// Extended (триста пятидесятый проход, batch) to also cover the STATIC `Array.Copy(source,
+// Extended to also cover the STATIC `Array.Copy(source,
 // destination, length)` (3-arg) and `Array.Copy(source, sourceIndex, destination, destinationIndex,
 // length)` (5-arg) overloads — a genuinely different method (static, not an instance `.CopyTo`) with
 // its own bounds-checking mechanism: confirmed empirically that it checks the SOURCE side first
@@ -29,7 +29,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // sourceIndex/destinationIndex/length case already covered by
 // NegativeArrayResizeOrClearArgumentAnalyzer (RPAD0263) for the very same `Array.Copy` overload — this
 // extension bails out early whenever any of those three are negative, leaving that check to RPAD0263.
-// Extended (триста пятьдесят четвёртый проход, batch) to also cover the 4-arg `List<T>.CopyTo(int
+// Extended to also cover the 4-arg `List<T>.CopyTo(int
 // index, T[] array, int arrayIndex, int count)` overload and `StringBuilder.CopyTo(int sourceIndex,
 // char[] destination, int destinationIndex, int count)` — both throw ArgumentException with the same
 // "destination too small" mechanism (`destinationIndex/arrayIndex + count` exceeding the destination
@@ -38,7 +38,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // generally knowable from its literal constructor the way a `List<T>`/array literal's element count
 // is), so it only validates the destination side, same scope limitation as the `Array.Copy` branch's
 // destination check.
-// Extended (триста пятьдесят пятый проход, batch) to also cover `Queue<T>.CopyTo(array, index)` and
+// Extended to also cover `Queue<T>.CopyTo(array, index)` and
 // `Stack<T>.CopyTo(array, index)` — confirmed empirically to throw ArgumentException with the same
 // "destination too small" mechanism as the existing `List<T>`/`HashSet<T>` branch. Unlike those two
 // types, `Queue<T>`/`Stack<T>` have no collection-initializer syntax (no public `Add` method — they

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283, проход 300), applied
+// receiver, known length" theme as ArrayLiteralIndexerOutOfRangeAnalyzer (RPAD0283), applied
 // to a freshly created `List<T>` collection-initializer instead of an array literal: `new List<int> { 1,
 // 2, 3 }[10]`/`.RemoveAt(10)`/`.Insert(10, x)` all throw when the index is out of range for the
 // initializer's own known element count — confirmed empirically (scratch `dotnet run` script, since
@@ -20,7 +20,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // confirmed empirically, handled via a per-method boundary check. Scoped to the classic `new List<T> {
 // ... }` object-creation-with-collection-initializer syntax only (not the `[1, 2, 3]` collection-
 // expression form), matching RPAD0283's own scope precedent for this same reason.
-// Extended in the триста сорок девятый проход to also cover `.RemoveRange(index, count)`/`.GetRange
+// Extended to also cover `.RemoveRange(index, count)`/`.GetRange
 // (index, count)` — confirmed empirically to throw `ArgumentException` (a genuinely DIFFERENT exception
 // type from the indexer/`RemoveAt`/`Insert` family — confirmed rather than assumed) when `index`/`count`
 // are negative or `index + count` exceeds the literal's own known element count. Deliberately NOT
@@ -30,16 +30,16 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // length-dependent, exactly this analyzer's own theme, not RPAD0287's, so it belongs here instead,
 // alongside the same-theme indexer/`RemoveAt`/`Insert` checks. The message format is now parameterized
 // with the exception type name to describe either family.
-// Extended in the триста пятьдесят четвёртый проход to also cover `.InsertRange(index, collection)`
+// Extended to also cover `.InsertRange(index, collection)`
 // (confirmed empirically to share `Insert`'s EXACT boundary rule — `index` in `[0, count]` inclusive —
 // and exception type, so it's simply added alongside `Insert` in the same index-only branch; `Insert`
 // Range` isn't in RPAD0287's own target set, so there's no overlap to defer to) and the 4-arg
 // `.BinarySearch(index, count, item, comparer)` overload for the LENGTH-exceeding case only — `Binary
 // Search` throws `ArgumentException` when `index + count` exceeds the literal's known element count.
-// Extended again in the триста пятьдесят пятый проход to also cover the 3-arg
+// Extended again to also cover the 3-arg
 // `.IndexOf(item, index, count)` overload, again for the LENGTH-exceeding case only —
 // `ArgumentOutOfRangeException` when `index + count` exceeds the literal's known element count.
-// Self-correction (триста пятьдесят пятый проход): the `BinarySearch` branch originally ALSO
+// Self-correction: the `BinarySearch` branch originally ALSO
 // re-reported the negative-`index`/`count` case (with `ArgumentOutOfRangeException`), and the new
 // `IndexOf` branch was initially written the same way — but `BinarySearch` AND `IndexOf` are BOTH
 // already in `NegativeListIndexOrCountArgumentAnalyzer`'s (RPAD0287) own target method set, which
@@ -50,8 +50,8 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // entirely to RPAD0287 for negativity (early-return whenever `index < 0 || count < 0`) and only report
 // the length-exceeding case here, matching the intentional split already used for `RemoveRange`/
 // `GetRange` vs. RPAD0287. (`RemoveRange`/`GetRange` themselves were left as-is — that split predates
-// this проход and is out of scope for today's fix.)
-// Extended in the триста шестьдесят шестой проход to also handle the `^N` Index-form single-element
+// this change and is out of scope for today's fix.)
+// Extended to also handle the `^N` Index-form single-element
 // indexer (`new List<int> { 1, 2, 3 }[^5]`) on the plain indexer only — confirmed empirically that
 // `List<T>` supports `^`/`Index` sugar (it has the `Count` property + `int` indexer pattern the compiler
 // looks for) but NOT `RemoveAt(^N)`/`Insert(^N, x)` (those take a plain `int` parameter, which has no

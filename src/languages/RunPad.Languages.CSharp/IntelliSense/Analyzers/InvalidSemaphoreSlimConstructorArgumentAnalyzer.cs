@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "run the real
-// validator" theme as TimeSpanConstructorOverflowAnalyzer (RPAD0314, проход 347): `new
+// validator" theme as TimeSpanConstructorOverflowAnalyzer (RPAD0314): `new
 // SemaphoreSlim(int initialCount[, int maxCount])` throws ArgumentOutOfRangeException for a negative
 // `initialCount`, a negative or zero `maxCount` (confirmed empirically — `maxCount` must be strictly
 // positive, unlike most "count" parameters elsewhere in this catalog where zero is valid), or an

@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Проход 134/135 (CI-cost pass) — this project is RunPad.Runtime.UI.Tests' non-Avalonia half:
+    <!-- Split out to cut CI time — this project is RunPad.Runtime.UI.Tests' non-Avalonia half:
          every test here exercises language hosts/IntelliSense/decompiler/DAP/view-model logic that
          never touches a live Avalonia Application, so it doesn't reference Avalonia.Headless(.XUnit)
          at all and — unlike RunPad.Runtime.UI.Tests, where [assembly: AvaloniaTestFramework] disables

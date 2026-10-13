@@ -15,7 +15,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `.IsEmpty`, `.RemoveAt`, `.Insert`, `.Add`, `.Contains`, and `.IndexOf` (all throw identically), while
 // `.IsDefault`/`.IsDefaultOrEmpty` do NOT throw (confirmed too — those are the two members specifically
 // designed to be safe to call on a default instance, so they're deliberately excluded here). Distinct
-// from InvalidImmutableArrayLiteralIndexerAnalyzer (RPAD0357, проход 365) both in exception type
+// from InvalidImmutableArrayLiteralIndexerAnalyzer (RPAD0357) both in exception type
 // (NullReferenceException here vs. IndexOutOfRangeException/ArgumentOutOfRangeException there) and in
 // receiver shape (`default(ImmutableArray<T>)` — an uninitialized struct — vs. `ImmutableArray.Create
 // (...)`/`ImmutableArray<T>.Empty` — a genuinely empty-but-initialized one). Scoped, like the rest of this

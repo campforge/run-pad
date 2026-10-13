@@ -8,10 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; last of the four
-// "needs verification" candidates from the research subagent's ranked list (проход 377), confirmed
-// empirically before implementing — the one that needed the deepest extra verification pass, done in this
-// проход before writing any code. Same "run the real validator" theme, applied to
+// Own pick, not a Roslynator port. Same "run the real validator" theme, applied to
 // `System.Numerics.Complex.Parse(string, IFormatProvider)` (the generic-math `INumberBase<Complex>.Parse`
 // overload — `Complex` has no bare `Parse(string)`, unlike most other numeric types; deliberately NOT the
 // 3-arg `Parse(string, NumberStyles, IFormatProvider)` overload, same single-shape restraint as this

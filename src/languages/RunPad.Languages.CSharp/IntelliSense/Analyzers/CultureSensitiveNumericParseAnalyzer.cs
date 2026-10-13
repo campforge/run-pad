@@ -16,7 +16,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // data from another system) on a machine set to a different locale. NOT extended to int/long.Parse —
 // integers have no decimal separator, so NumberStyles.Integer's default parsing isn't
 // culture-sensitive in the same way.
-// Extended (двести сорок четвёртый проход, batch) to also cover `DateTime.Parse(s)`/
+// Extended to also cover `DateTime.Parse(s)`/
 // `TimeSpan.Parse(s)` — same underlying gotcha, different symptom: DateTime's default parse is
 // ambiguous about day/month ORDER ("01/02/2024" is Jan 2 in en-US but Feb 1 in most of Europe), and
 // TimeSpan's default parse expects the current culture's own separators. Matched by containing-type

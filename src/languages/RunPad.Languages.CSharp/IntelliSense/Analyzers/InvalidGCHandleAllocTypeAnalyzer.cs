@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the thirty-first research subagent survey,
-// re-verified independently before implementing. `System.Runtime.InteropServices.GCHandle.Alloc(object?,
+// `System.Runtime.InteropServices.GCHandle.Alloc(object?,
 // GCHandleType)` — first touch of `GCHandle`. Confirmed empirically: throws `ArgumentOutOfRangeException`
 // ("Enum value was out of legal range.", param `type`) whenever `type` is outside the defined
 // `GCHandleType` range `0..3` (`Weak`/`WeakTrackResurrection`/`Normal`/`Pinned`); confirmed `int`-backed

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
-// receiver, known length" theme as ListLiteralIndexerOutOfRangeAnalyzer (RPAD0303, проход 341), applied
+// receiver, known length" theme as ListLiteralIndexerOutOfRangeAnalyzer (RPAD0303), applied
 // to `System.Collections.BitArray` instead of `List<T>`: `new BitArray(N)[index]` throws
 // ArgumentOutOfRangeException when `index` is negative or `>= N`, for a LITERAL constructor length `N`
 // and a literal `index` — confirmed empirically via scratch `dotnet run` script, not assumed. Unlike

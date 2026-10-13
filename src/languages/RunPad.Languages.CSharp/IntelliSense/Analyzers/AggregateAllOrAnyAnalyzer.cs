@@ -7,11 +7,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085, проход
-// 164) and AggregateMaxMinAnalyzer (RPAD0204, проход 219): `xs.Aggregate(true, (acc, x) => acc &&
+// "hand-rolled fold instead of the dedicated method" theme as AggregateSumAnalyzer (RPAD0085) and
+// AggregateMaxMinAnalyzer (RPAD0204): `xs.Aggregate(true, (acc, x) => acc &&
 // predicate(x))` hand-rolls exactly what `xs.All(predicate)` already does, and the false/|| mirror
-// hand-rolls `xs.Any(predicate)`. Unlike the seeded Max/Min case considered and rejected in проход
-// 219's brainstorming (Aggregate on an empty sequence returns the seed silently, while Max()/Min()
+// hand-rolls `xs.Any(predicate)`. Unlike the seeded Max/Min case considered and rejected earlier's brainstorming
+// (Aggregate on an empty sequence returns the seed silently, while Max()/Min()
 // throw — a real behavioral gap), All()/Any() do NOT throw on an empty sequence: both simply return
 // their identity (true for All, false for Any) for an empty source, exactly matching what
 // Aggregate(seed, ...) already returns for an empty source with that same seed — no behavioral gap

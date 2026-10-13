@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #4 from the thirteenth research subagent survey,
-// re-verified independently before implementing. `SocketsHttpHandler`'s seven `TimeSpan`-typed
+// `SocketsHttpHandler`'s seven `TimeSpan`-typed
 // properties — `ConnectTimeout`, `PooledConnectionLifetime`, `PooledConnectionIdleTimeout`,
 // `Expect100ContinueTimeout`, `KeepAlivePingTimeout`, `KeepAlivePingDelay`, `ResponseDrainTimeout` — each
 // validated individually by its own real setter, with genuinely DIFFERENT per-property boundaries

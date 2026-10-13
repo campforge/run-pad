@@ -24,10 +24,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // parameter type in the last position; only proceeds when every argument is itself a literal (constant)
 // `int`, then calls the REAL constructor in-process on those values inside a try/catch, reporting only
 // if that call itself throws.
-// Extended (двести семьдесят пятый проход, batch) to also cover `DateOnly(year, month, day)` and
+// Extended to also cover `DateOnly(year, month, day)` and
 // `TimeOnly(hour, minute[, second[, millisecond]])` (.NET 6+, within this project's SDK floor) — the
 // same int-only, culture-invariant validation, confirmed empirically for both before extending.
-// Extended again (триста сорок четвёртый проход, batch) to also cover `TimeOnly`'s 5-argument
+// Extended again to also cover `TimeOnly`'s 5-argument
 // `(hour, minute, second, millisecond, microsecond)` overload — confirmed empirically to throw
 // identically to the other TimeOnly overloads; simply widened the accepted argument count and added a
 // branch to `AlwaysThrows`.

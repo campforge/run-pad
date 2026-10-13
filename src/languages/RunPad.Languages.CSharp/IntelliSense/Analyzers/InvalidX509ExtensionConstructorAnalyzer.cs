@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #3 from the thirty-first research subagent survey,
-// re-verified independently before implementing. An eleventh productive revisit of
+// An eleventh productive revisit of
 // `X509Certificates` (after RPAD0472/0473/0477/0483/0485/0488/0496/0500). `X509Extension(string oid,
 // byte[] rawData, bool critical)` — the BASE extension type, distinct from the already-covered derived
 // `X509BasicConstraintsExtension`/`X509SubjectKeyIdentifierExtension` (confirmed via grep — no existing

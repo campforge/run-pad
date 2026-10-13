@@ -7,11 +7,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Own pick, not a Roslynator port; candidate
-// surfaced by a research subagent survey (same проход as RPAD0370), which read the actual .NET SDK
-// reference-assembly XML doc comments to confirm every member below documents `FormatException` for
-// malformed input, then independently re-confirmed empirically (scratch `dotnet run` script, 8 of the 19
-// types sampled directly) before implementing, same discipline as every other analyzer in this catalog.
+// Own pick, not a Roslynator port. Every member below documents `FormatException` for malformed input in the .NET SDK
+// reference-assembly XML doc comments, confirmed empirically for 8 of the 19 types.
 // `System.Net.Http.Headers` has a large family of `XxxHeaderValue.Parse(string)` static methods — one
 // per HTTP header value shape (media type, authentication challenge, cache-control directive, entity
 // tag, product token, byte-range, etc.) — that all throw `FormatException` for a string that doesn't

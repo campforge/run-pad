@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same "literal
 // array with a bad start/length combination always throws" theme as InvalidBitConverterArgumentAnalyzer
-// (RPAD0268, проход 279): `new string(char[] value, int startIndex, int length)` throws
+// (RPAD0268): `new string(char[] value, int startIndex, int length)` throws
 // ArgumentOutOfRangeException when startIndex or length is negative, or when `startIndex + length`
 // exceeds the array's length — confirmed empirically before writing this, including the boundary case
 // (`startIndex == array.Length` with `length == 0` is valid — an empty result — while `startIndex +

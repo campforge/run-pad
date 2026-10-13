@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidates #1/#2/#3 from the twentieth research subagent survey,
-// re-verified independently before implementing. `System.Security.Cryptography.X509Certificates.
+// `System.Security.Cryptography.X509Certificates.
 // X500DistinguishedNameBuilder` — a genuinely fresh type distinct from the already-covered
 // `X500DistinguishedName` constructor (RPAD0382); bundled several call shapes into one analyzer, same
 // "several methods, one diagnostic" precedent as `InvalidHashAlgorithmNameLiteralAnalyzer` (RPAD0426).
@@ -23,7 +22,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // confirmed `AddEmailAddress` is otherwise fully lenient (no email-format validation at all, `"not-an-
 // email"` is accepted). Confirmed no `[SupportedOSPlatform]` gating (reflection: only nullable-context
 // attributes present) and no side effects — pure in-memory ASN.1 buffer building, same internals already
-// accepted for `System.Formats.Asn1` (проход 457). Confirmed invariant across en-US/de-DE/ar-SA/ja-JP.
+// accepted for `System.Formats.Asn1`. Confirmed invariant across en-US/de-DE/ar-SA/ja-JP.
 // Deliberately excludes the sibling `Add(Oid oid, string value, ...)` overload — `Oid` isn't a
 // literal-friendly type, same single-string-overload restraint used elsewhere in this catalog.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

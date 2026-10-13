@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Sibling of
-// InvalidJsonElementPropertyOrIndexAnalyzer (RPAD0364/проходы 368-369) — same "parse the literal JSON at
+// InvalidJsonElementPropertyOrIndexAnalyzer (RPAD0364) — same "parse the literal JSON at
 // analysis time, then check the access against the REAL result" theme, applied to the OTHER JSON API
 // surface, `System.Text.Json.Nodes.JsonNode`/`JsonArray` (the mutable DOM), instead of `JsonDocument`/
 // `JsonElement` (the read-only one). Deliberately its own analyzer rather than a RPAD0364 extension —
@@ -22,7 +22,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // SYNTACTIC shape can only be discovered by actually parsing the literal text — reuses `System.Text.Json.
 // JsonDocument.Parse` purely as an internal structure-probe for this, same "run the real parser" trick,
 // even though the user's own code calls `JsonNode.Parse`/`JsonArray.Parse` instead). NOT extended to
-// recursive chains or the string-keyed object indexer this проход — confirmed empirically that `JsonNode`
+// recursive chains or the string-keyed object indexer this change — confirmed empirically that `JsonNode`
 // 's own STRING-keyed indexer on a missing object key returns `null` rather than throwing (a genuinely
 // different, null-propagating design from `JsonElement.GetProperty`'s throwing one), so that indexer form
 // doesn't fit this catalog's "always throws" theme at all and is out of scope entirely, not merely

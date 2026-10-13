@@ -7,12 +7,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Same "prefer the generic overload" theme as
-// EnumGetValuesCastAnalyzer (RPAD0067, проход 160). `Enum.Parse(typeof(T), s)`/`Enum.IsDefined(typeof(T),
+// EnumGetValuesCastAnalyzer (RPAD0067). `Enum.Parse(typeof(T), s)`/`Enum.IsDefined(typeof(T),
 // v)` are the pre-generic-overload idiom — both go through the non-generic Type/object-based API and
 // box/cast the result. `Enum.Parse<T>(s)`/`Enum.IsDefined<T>(v)` (both .NET 5+, always available given
 // this project's own MinSupportedSdkMajorVersion=6) do the same thing strongly-typed, without the
 // boxing round-trip.
-// Extended (сто шестьдесят седьмой проход, batch) to also cover `Enum.GetName(typeof(T), v)` →
+// Extended to also cover `Enum.GetName(typeof(T), v)` →
 // `Enum.GetName<T>(v)` — same idiom, same fix, one more method in the same family.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PreferGenericEnumStaticMethodAnalyzer : DiagnosticAnalyzer

@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the forty-first research subagent survey,
-// re-verified independently before implementing. `StringInfo.SubstringByTextElements(int
+// `StringInfo.SubstringByTextElements(int
 // startingTextElement)` / `(int startingTextElement, int lengthInTextElements)`. Confirmed empirically:
 // a NEGATIVE `startingTextElement` or `lengthInTextElements` always throws `ArgumentOutOfRangeException`
 // with a `ParamName` matching the offending parameter's own name, regardless of the actual text the

@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "explicit .Default comparer is redundant" theme as RedundantDefaultComparerArgumentAnalyzer
-// (RPAD0099, проход 167), but for List&lt;T&gt;.Sort/BinarySearch and Array.Sort/BinarySearch instead
+// (RPAD0099), but for List&lt;T&gt;.Sort/BinarySearch and Array.Sort/BinarySearch instead
 // of the LINQ extension methods RPAD0099 covers — those are instance/static methods on List&lt;T&gt;
 // and Array, not System.Linq.Enumerable extensions, so they needed their own detection rather than an
 // extra entry in RPAD0099's method-name set.

@@ -12,7 +12,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // the numeric types Enumerable.Sum() actually has an overload for (int/long/float/double/decimal) —
 // for anything else (e.g. a custom type with its own operator+), Sum() wouldn't even compile, so the
 // suggestion would be actively wrong.
-// Extended (сто шестьдесят шестой проход, batch) to also cover the seeded 2-arg overload —
+// Extended to also cover the seeded 2-arg overload —
 // `xs.Aggregate(0, (acc, x) => acc + x)` is the same hand-rolled sum, just with the seed spelled out
 // explicitly instead of implicitly using the first element. Only fires when the seed is a compile-time
 // constant equal to zero (checked via GetConstantValue, not literal text matching, so `0`/`0.0`/`0m`/a

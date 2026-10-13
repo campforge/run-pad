@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
-// "redundant round trip" theme as RedundantParseToStringRoundTripAnalyzer (RPAD0097, проход 166), for
+// "redundant round trip" theme as RedundantParseToStringRoundTripAnalyzer (RPAD0097), for
 // System.Guid specifically — that analyzer is scoped to the numeric SpecialTypes and doesn't cover
 // Guid (which has no SpecialType of its own), so this is a separate analyzer rather than an extension.
 // `Guid.Parse(g.ToString())`, when `g` is already a Guid, formats it to a string only to immediately

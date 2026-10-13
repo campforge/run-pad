@@ -7,8 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #2 from the sixth research subagent survey (full tool
-// access, empirically self-verified), re-verified independently before implementing. A `new
+// A `new
 // HashAlgorithmName(string)` literal passed as the algorithm-name argument to
 // `CryptographicOperations.HashData`/`HmacData` or `IncrementalHash.CreateHash`/`CreateHMAC` — distinct
 // from the already-rejected `HashAlgorithm.Create(string)`/`CryptoConfig.CreateFromName` (those return

@@ -175,7 +175,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         Assert.Empty(margin.Fixes);
     }
 
-    // User request 2026-07-21 (pass 106) — real end-to-end proof, not just the unit-level
+    // User request 2026-07-21 — real end-to-end proof, not just the unit-level
     // "default List<string> contains IDE0055" check (PreferencesWindowViewModelTests.
     // CSharpLanguageSettings_Should_ExcludeFixFormatting_ByDefault): a REAL CSharpIntelliSenseService
     // (Roslyn's own FormattingAnalyzer, not a fake) run against deliberately badly-formatted code,

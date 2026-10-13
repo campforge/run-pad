@@ -10,7 +10,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // `xs.Where(x => x is T).Cast<T>()` filters down to the elements of type T and then casts them — two
 // passes and two intermediate iterators for something `xs.OfType<T>()` already does directly, in one
 // pass, without ever needing an explicit cast.
-// Extended (сто шестьдесят девятый проход, batch) to also cover the "as + null-check" shape —
+// Extended to also cover the "as + null-check" shape —
 // `xs.Select(x => x as T).Where(x => x != null)` — the same OfType<T>-replaceable idea, just written
 // the other way around (project first with `as`, then filter out the nulls that produced).
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

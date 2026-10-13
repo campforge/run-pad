@@ -8,7 +8,7 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
 // Own pick, not a Roslynator port. Same
 // "combining a value with itself is almost certainly a mistake" theme as SelfSubtractionOrXorAnalyzer
-// (RPAD0142, проход 176) and SelfArgumentMathMaxMinAnalyzer (RPAD0225, проход 234), for the remaining
+// (RPAD0142) and SelfArgumentMathMaxMinAnalyzer (RPAD0225), for the remaining
 // logical/bitwise operators: `x && x`/`x || x`/`x & x`/`x | x` all evaluate to x's own value unchanged
 // (for both bool and integer operands) — a pointless combination almost certainly meant to compare/
 // combine x with something else. Deliberately a separate analyzer from RPAD0142 rather than an

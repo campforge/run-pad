@@ -12,10 +12,10 @@ namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 // instead: `Convert.ToInt32(value, fromBase)` (and the SByte/Int16/Int64 overloads) are documented to
 // throw `ArgumentException` unless `fromBase` is exactly 2, 8, 10, or 16 — any other literal base always
 // throws, a mistake the compiler can't catch on its own since fromBase is just a normal int parameter.
-// Extended in the двести девяностый проход to also cover `Convert.ToByte(string, int fromBase)` — the
+// Extended to also cover `Convert.ToByte(string, int fromBase)` — the
 // fifth and last integral overload with a `fromBase` parameter (there is no unsigned Int16/32/64 overload
 // with `fromBase`), confirmed via scratch script to throw identically to the other four for an
-// out-of-set base; missed in the original батч, caught via PROBE while brainstorming the next batch.
+// out-of-set base; missed in the original batch, caught via PROBE while brainstorming the next batch.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InvalidConvertToIntegralBaseAnalyzer : DiagnosticAnalyzer
 {

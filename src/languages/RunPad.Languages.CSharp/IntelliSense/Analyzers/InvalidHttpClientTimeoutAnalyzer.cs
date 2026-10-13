@@ -8,11 +8,10 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RunPad.Languages.CSharp.IntelliSense.Analyzers;
 
-// Candidate #1 from the thirteenth research subagent survey,
-// re-verified independently before implementing. `HttpClient.Timeout` (TimeSpan) — first analyzer in this
+// `HttpClient.Timeout` (TimeSpan) — first analyzer in this
 // catalog touching `System.Net.Http`, an entirely new configuration-object family the agent found after
 // being pointed at the productive "range-validated property setter" vein (NumberFormatInfo/
-// DateTimeFormatInfo/JsonSerializerOptions/XmlWriterSettings/XmlReaderSettings, проходы 448-450).
+// DateTimeFormatInfo/JsonSerializerOptions/XmlWriterSettings/XmlReaderSettings).
 // Confirmed empirically, single exception type: `ArgumentOutOfRangeException` for `TimeSpan.Zero` (unlike
 // `CancellationTokenSource(TimeSpan)`/`Task.Delay(TimeSpan)`, RPAD0280, where zero IS valid — this
 // property requires STRICTLY greater than zero), any other negative value, or a value exceeding
