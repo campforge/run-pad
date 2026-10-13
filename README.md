@@ -17,7 +17,7 @@ C# specifics
 
 ## Installation
 
-Prebuilt binaries are on the [releases page](https://github.com/coddwrench/run-pad/releases/latest).
+Prebuilt binaries are on the [releases page](https://github.com/Campforge/run-pad/releases/latest).
 
 **Windows** — download `RunPad-win-x64.msi` and run it (adds a Start Menu shortcut, an uninstaller
 under "Add or remove programs", and the next version installs over it). Or `RunPad-win-x64.zip` — a
