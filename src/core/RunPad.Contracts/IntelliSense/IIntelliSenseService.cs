@@ -114,6 +114,14 @@ public interface IIntelliSenseService : IDisposable
 
     void NotifyTextChanged(string code);
 
+    /// <summary>
+    /// Like <see cref="NotifyTextChanged(string)"/>, for an editor that changes on every keystroke:
+    /// <paramref name="getCode"/> (e.g. reading an immutable document snapshot) is called only for the
+    /// latest notification once the service actually analyzes, off the UI thread — so typing doesn't
+    /// copy the whole document into a string per keystroke. The default just calls it right away.
+    /// </summary>
+    void NotifyTextChanged(Func<string> getCode) => NotifyTextChanged(getCode());
+
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.
     void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
 

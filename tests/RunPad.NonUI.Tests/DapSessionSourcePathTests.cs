@@ -72,6 +72,7 @@ public class DapSessionSourcePathTests : IDisposable
         public bool Start() => true;
         public void Kill() => Killed = true;
         public Task WaitForExitAsync(CancellationToken ct) => Task.CompletedTask;
+        public int ExitCode => 0;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 

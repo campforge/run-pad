@@ -59,6 +59,12 @@
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
 
+    <!-- WixUI_Minimal's first page is the license agreement the user must accept to install; without
+         this variable it shows WiX's own placeholder text. License.rtf is generated from
+         installer/EULA.txt (scripts/make-license-rtf.pl) — edit the .txt and regenerate, never the .rtf
+         by hand. Repo-root-relative, like the Icon's SourceFile above. LICENSE.txt and EULA.txt themselves
+         are installed next to RunPad.exe as part of the publish output (RunPad.csproj). -->
+    <WixVariable Id="WixUILicenseRtf" Value="installer\windows\License.rtf" />
     <ui:WixUI Id="WixUI_Minimal" />
   </Package>
 

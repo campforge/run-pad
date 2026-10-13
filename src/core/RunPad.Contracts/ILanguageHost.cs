@@ -31,8 +31,12 @@ public interface ILanguageHost : IAsyncDisposable
     /// </summary>
     event CompiledHandler? Compiled;
 
-    /// <summary>Compiles and runs <paramref name="code"/>, streaming stdout/stderr/dump output to <paramref name="outputHandler"/>. Always available.</summary>
-    Task RunAsync(string code,
+    /// <summary>
+    /// Compiles and runs <paramref name="code"/>, streaming stdout/stderr/dump output to <paramref name="outputHandler"/>,
+    /// and completes once the script's process has exited — see <see cref="RunResult"/> for how it ended.
+    /// Always available.
+    /// </summary>
+    Task<RunResult> RunAsync(string code,
         OutputReceivedHandler outputHandler,
         CancellationToken cancellationToken);
 

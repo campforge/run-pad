@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.TextEditorWindow"
+        x:DataType="models:TextEditorWindowViewModel"
+        Icon="/Assets/icon.ico"
+        Title="{Binding Title}"
+        Width="900" Height="640"
+        MinWidth="420" MinHeight="260"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="8,6">
+            <Button x:Name="SaveButton" Command="{Binding SaveCommand}"
+                    ToolTip.Tip="Save" AutomationProperties.Name="Save">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <PathIcon Data="{StaticResource Icon.Save}" Width="14" Height="14"/>
+                    <TextBlock Text="Save" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button x:Name="SaveAsButton" Command="{Binding SaveAsCommand}" Content="Save As..."
+                    ToolTip.Tip="Save As" AutomationProperties.Name="Save As"/>
+        </StackPanel>
+
+        <ContentPresenter x:Name="EditorHost" Grid.Row="1"/>
+
+        <!-- Status bar: caret, the file's encoding and line breaks (kept on save), its path. -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,*" Margin="8,3"
+              TextElement.Foreground="{DynamicResource RunPad.Text.SecondaryBrush}">
+            <TextBlock x:Name="CaretText" Grid.Column="0" Margin="0,0,16,0"/>
+            <TextBlock Grid.Column="1" Margin="0,0,16,0" Text="{Binding EncodingLabel}"
+                       ToolTip.Tip="Encoding (kept on save)"/>
+            <TextBlock Grid.Column="2" Margin="0,0,16,0" Text="{Binding NewLineLabel}"
+                       ToolTip.Tip="Line breaks (kept on save)"/>
+            <TextBlock Grid.Column="3" Text="{Binding FilePath}" TextTrimming="CharacterEllipsis"
+                       HorizontalAlignment="Right"/>
+        </Grid>
+
+    </Grid>
+
+</Window>

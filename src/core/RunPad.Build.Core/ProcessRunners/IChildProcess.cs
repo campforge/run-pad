@@ -28,4 +28,7 @@ public interface IChildProcess : IAsyncDisposable
 
     /// <summary>Waits until the process exits.</summary>
     Task WaitForExitAsync(CancellationToken ct);
+
+    /// <summary>The process's exit code — valid once <see cref="WaitForExitAsync"/> has completed.</summary>
+    int ExitCode { get; }
 }
