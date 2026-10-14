@@ -2,6 +2,9 @@ using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using AvaloniaEdit;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
@@ -95,6 +98,7 @@ public class MainWindowChromeTests
 
     // The same application menu paths on every OS. Runs on
     // any OS: both projections are built from MainWindow.MainMenuEntries regardless of platform.
+    // File → Exit exists only off macOS, where RunPad → Quit in the application menu takes its place.
     private static readonly string[] ExpectedMenuTree =
     [
         "File",
@@ -102,19 +106,54 @@ public class MainWindowChromeTests
         "File/New RPad File",
         "File/New RPad File/C#",
         "File/New RPad File/Visual Basic",
-        "File/Import LINQPad Query...",
         "File/Open Text File...",
+        "File/Import LINQPad Query...",
         "File/---",
         "File/Save",
         "File/Save As...",
+        "File/---",
+        "File/Close Tab",
+        .. (OperatingSystem.IsMacOS() ? Array.Empty<string>() : ["File/---", "File/Exit"]),
         "Edit",
-        "Edit/Dependencies",
-        "Edit/Assembly Explorer...",
+        "Edit/Undo",
+        "Edit/Redo",
         "Edit/---",
-        "Edit/Preferences",
+        "Edit/Cut",
+        "Edit/Copy",
+        "Edit/Paste",
+        "Edit/Select All",
+        "Edit/---",
+        "Edit/Format Document",
+        "Edit/Go to Line...",
+        "Edit/Resolve All Usings",
         "View",
         "View/Toggle File Tree",
+        "View/Toggle Output Panel",
+        "View/---",
+        "View/Zoom In",
+        "View/Zoom Out",
+        "View/Reset Zoom",
+        "Run",
+        "Run/Run / Continue",
+        "Run/Stop",
+        "Run/---",
+        "Run/Debug Mode",
+        "Run/---",
+        "Run/Step Over",
+        "Run/Step Into",
+        "Run/Step Out",
+        "Run/Pause",
+        "Run/Run to Cursor",
+        "Tools",
+        "Tools/Dependencies...",
+        "Tools/Assembly Explorer...",
+        "Tools/---",
+        "Tools/Preferences...",
         "Help",
+        "Help/User Guide",
+        "Help/Release Notes",
+        "Help/Report an Issue",
+        "Help/---",
         "Help/About RunPad",
     ];
 
@@ -166,10 +205,71 @@ public class MainWindowChromeTests
         commands["View/Toggle File Tree"].Execute(null);
         Assert.NotEqual(sizeBefore, vm.Sidebar.Size);
 
-        commands["Edit/Preferences"].Execute(null);
+        commands["Tools/Preferences..."].Execute(null);
         commands["Help/About RunPad"].Execute(null);
         windowService.Verify(w => w.ShowPreferencesAsync(), Times.Once);
         windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+    }
+
+    // Run, View and Edit items act on the active tab — the same code as its toolbar and shortcuts.
+    [AvaloniaFact]
+    public async Task MainMenu_Should_RouteToTheActiveTab()
+    {
+        using var window = CreateMainWindow();
+        window.Show();
+        var vm = (MainWindowViewModel)window.DataContext!;
+        var commands = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Command!);
+
+        var editor = await WaitForActiveEditorAsync(window);
+        var tab = vm.ActiveTab!;
+
+        var debugMode = tab.DebugModeEnabled;
+        commands["Run/Debug Mode"].Execute(null);
+        Assert.NotEqual(debugMode, tab.DebugModeEnabled);
+
+        var outputSize = tab.OutputPanel.Size;
+        commands["View/Toggle Output Panel"].Execute(null);
+        Assert.NotEqual(outputSize, tab.OutputPanel.Size);
+
+        // Reset Zoom returns to the font size set in Preferences (100%), whatever the zoom was.
+        var baseFontSize = new EditorSettings().FontSize;
+        commands["View/Reset Zoom"].Execute(null);
+        Assert.Equal(baseFontSize, editor.FontSize);
+        commands["View/Zoom In"].Execute(null);
+        Assert.True(editor.FontSize > baseFontSize);
+        commands["View/Reset Zoom"].Execute(null);
+        Assert.Equal(baseFontSize, editor.FontSize);
+
+        editor.Text = "var answer = 42;";
+        Assert.True(editor.TextArea.Focus());
+        commands["Edit/Select All"].Execute(null);
+        Assert.Equal(editor.Text.Length, editor.SelectionLength);
+    }
+
+    // Opening the in-window menu can take focus away from the editor; the Edit menu still acts on
+    // the text control that had focus last.
+    [AvaloniaFact]
+    public async Task EditMenu_Should_ActOnTheLastFocusedTextControl()
+    {
+        using var window = CreateMainWindow();
+        window.Show();
+        var commands = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Command!);
+        var editor = await WaitForActiveEditorAsync(window);
+        editor.Text = "abc";
+        Assert.True(editor.TextArea.Focus());
+
+        // Any non-text control taking focus, as a menu item does when the menu opens.
+        var button = window.GetVisualDescendants().OfType<Button>().First(b => b.IsEffectivelyVisible && b.Focusable);
+        Assert.True(button.Focus());
+        Assert.Same(button, window.FocusManager!.GetFocusedElement());
+        Assert.Same(editor, window.EditTarget);
+
+        commands["Edit/Select All"].Execute(null);
+        Assert.Equal(3, editor.SelectionLength);
     }
 
     // The application menu must already exist when App.Initialize returns — Avalonia.Native's
@@ -196,6 +296,23 @@ public class MainWindowChromeTests
         menu.Items.OfType<NativeMenuItem>().Single(i => i.Header == "About RunPad").Command!.Execute(null);
 
         windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+    }
+
+    // EditorTabsControl builds the blank tab it opens on Attach asynchronously (a Task.Run hop, see
+    // MainWindowHotkeysTests.WaitForActiveTabControlAsync); tab-level commands no-op until it exists.
+    private static async Task<TextEditor> WaitForActiveEditorAsync(Window window)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (window.GetVisualDescendants().OfType<TabItem>()
+                    .Select(t => t.Content).OfType<EditorsTabItemControl>().FirstOrDefault() is { } control
+                && control.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault() is { IsEffectivelyVisible: true } editor)
+                return editor;
+            await Task.Delay(20);
+        }
+
+        throw new TimeoutException("The active tab's editor was not created.");
     }
 
     private static bool IsLeaf(string path)

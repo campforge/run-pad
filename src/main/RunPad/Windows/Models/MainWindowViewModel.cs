@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -81,56 +80,6 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         var path = await _windowService.ShowOpenTextFileDialogAsync(_fileSystemService.Folder);
         if (path is not null) await _windowService.ShowTextEditorAsync(path);
-    }
-
-    // The F4 gesture behind OpenDependenciesCommand already worked (OnWindowKeyDown), it
-    // just wasn't shown anywhere — this feeds MainWindow.axaml's MenuItem.InputGesture (Avalonia has
-    // no WPF-style InputGestureText string property; InputGesture takes a real KeyGesture and renders
-    // its own formatted text, same as CodeTextEditor.CreateEditMenuItem's Copy/Cut/Paste items). Not re-evaluated
-    // live on a Preferences edit (unlike EditorTabItemViewModel's tooltip
-    // labels, which do resubscribe to _prefs.Changed) — a known, minor gap: the menu hint can go
-    // stale until restart if the user rebinds this gesture, while the actual keyboard dispatch always
-    // reads the current value fresh on every keypress regardless.
-    public KeyGesture? OpenDependenciesGesture
-    {
-        get
-        {
-            try { return KeyGesture.Parse(_prefs.Keyboard.OpenDependencies); }
-            catch { return null; }
-        }
-    }
-
-    // Feeds MainWindow.axaml's File > Save MenuItem.InputGesture — same rationale as
-    // OpenDependenciesGesture above.
-    public KeyGesture? SaveGesture
-    {
-        get
-        {
-            try { return KeyGesture.Parse(_prefs.Keyboard.Save); }
-            catch { return null; }
-        }
-    }
-
-    // Feeds MainWindow.axaml's File > Save As MenuItem.InputGesture — same rationale as
-    // OpenDependenciesGesture above.
-    public KeyGesture? SaveAsGesture
-    {
-        get
-        {
-            try { return KeyGesture.Parse(_prefs.Keyboard.SaveAs); }
-            catch { return null; }
-        }
-    }
-
-    // Feeds MainWindow.axaml's File > New File MenuItem.InputGesture — same rationale
-    // as OpenDependenciesGesture above.
-    public KeyGesture? NewFileGesture
-    {
-        get
-        {
-            try { return KeyGesture.Parse(_prefs.Keyboard.NewFile); }
-            catch { return null; }
-        }
     }
 
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
