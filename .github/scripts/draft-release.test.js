@@ -207,6 +207,52 @@ test('readVersion parses RunPad.csproj without grep -P', () =>
     assert.throws(() => helper.readVersion('<Version>1.0; rm -rf</Version>'), /Unexpected <Version>/);
 });
 
+test('readReleaseNotes takes the version section up to the next version or the link definitions', () =>
+{
+    const changelog = [
+        '# Changelog', '', 'Intro.', '',
+        '## [0.3.0] — 2026-10-12', '', '### Added', '', '- New thing, see [roadmap](ROADMAP.md).', '',
+        '## [0.2.0] — 2026-07-18', '', '- Old thing.', '',
+        '[0.3.0]: https://example.com/v0.3.0',
+    ].join('\r\n');
+    assert.equal(helper.readReleaseNotes(changelog, '0.3.0'), '### Added\n\n- New thing, see [roadmap](ROADMAP.md).');
+    assert.equal(helper.readReleaseNotes(changelog, '0.2.0'), '- Old thing.');
+    assert.throws(() => helper.readReleaseNotes(changelog, '0.4.0'), /no "## \[0\.4\.0\]" section/);
+    assert.throws(() => helper.readReleaseNotes(changelog, '0.3'), /no "## \[0\.3\]" section/);
+    assert.throws(() => helper.readReleaseNotes('## [1.0.0]\n\n## [0.9.0]\n- x', '1.0.0'), /is empty/);
+});
+
+test('readReleaseNotes joins wrapped lines, but not list items, headings or code', () =>
+{
+    const changelog = [
+        '## [1.0.0]', '', 'A paragraph', 'wrapped here.', '',
+        '- First item', '  continues.', '- Second item.', '', '### Fixed', '- Third.', '',
+        '```text', 'code line', 'next line', '```',
+    ].join('\n');
+    assert.equal(helper.readReleaseNotes(changelog, '1.0.0'), [
+        'A paragraph wrapped here.', '',
+        '- First item continues.', '- Second item.', '', '### Fixed', '- Third.', '',
+        '```text', 'code line', 'next line', '```',
+    ].join('\n'));
+});
+
+test('CHANGELOG.md describes the version in RunPad.csproj', () =>
+{
+    const root = path.join(__dirname, '../..');
+    const version = helper.readVersionFromFile(path.join(root, 'src/main/RunPad/RunPad.csproj'));
+    assert.ok(helper.readReleaseNotesFromFile(path.join(root, 'CHANGELOG.md'), version).length > 0);
+});
+
+test('absolutizeLinks points repository-relative links at the released commit', () =>
+{
+    const notes = '[roadmap](ROADMAP.md), [code](src/main/RunPad), [site](https://example.com), [top](#added)';
+    assert.equal(
+        helper.absolutizeLinks(notes, makeContext()),
+        '[roadmap](https://github.com/Campforge/run-pad/blob/abc123/ROADMAP.md), ' +
+        '[code](https://github.com/Campforge/run-pad/blob/abc123/src/main/RunPad), ' +
+        '[site](https://example.com), [top](#added)');
+});
+
 test('workflow uploads exactly the expected manifest, with macOS shipped as two DMGs', () =>
 {
     const workflow = fs.readFileSync(WORKFLOW, 'utf8');
@@ -237,11 +283,14 @@ test('happy path: draft created, all seven assets uploaded across jobs, then pub
     const core = makeCore();
     const mock = makeGithub({ releases: [{ draft: false, tag_name: 'v0.1.0' }, { draft: false, tag_name: 'v0.2.0' }] });
 
-    const draft = await helper.prepareDraft({ github: mock.github, context, core, version: VERSION });
+    const notes = '### Fixed\n\n- A bug, see [CONTRIBUTING](CONTRIBUTING.md).';
+    const draft = await helper.prepareDraft({ github: mock.github, context, core, version: VERSION, notes });
     const created = mock.state.calls.find((entry) => entry.name === 'createRelease').params;
     assert.equal(created.draft, true);
     assert.equal(created.target_commitish, SHA);
     assert.equal(created.tag_name, TAG);
+    assert.ok(created.body.startsWith(
+        '### Fixed\n\n- A bug, see [CONTRIBUTING](https://github.com/Campforge/run-pad/blob/abc123/CONTRIBUTING.md).'));
     assert.match(created.body, /source-sha=abc123 run-id=4242/);
 
     for (const names of PLATFORM_FILES)
