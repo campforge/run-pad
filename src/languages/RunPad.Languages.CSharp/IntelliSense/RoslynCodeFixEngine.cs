@@ -469,6 +469,7 @@ internal sealed class RoslynCodeFixEngine
             && changes.Any(c => c.Span.Start < preambleLength))
             return ApplyLineDeletionsAcrossPreamble(changes, originalFullText, preambleLength, userCodeLength);
 
+        var preambleChanges = new List<TextChange>();
         foreach (var change in changes.OrderBy(c => c.Span.Start))
         {
             if (change.Span.Start >= preambleLength)
@@ -479,31 +480,65 @@ internal sealed class RoslynCodeFixEngine
                 continue;
             }
 
-            // Touches the hidden preamble. Only a pure `using X;` insertion right there is
-            // recoverable — anything else (replaces/removes existing preamble text, straddles into
-            // the user's code, or inserts something that isn't a plain using directive) can't be
-            // represented without risking corruption, so bail out entirely.
-            if (change.Span.Length > 0 || change.Span.End > preambleLength)
+            // Touches the hidden preamble. Only `using X;` insertions there are recoverable — a change
+            // that straddles into the user's code can't be split safely, so bail out entirely.
+            if (change.Span.End > preambleLength)
             {
                 _logger.LogDebug(
-                    "Discarding fix: preamble-touching change [{Start}..{End}) (len={Len}) isn't a pure "
-                    + "zero-length insertion at/before preambleLength={PreambleLength}",
-                    change.Span.Start, change.Span.End, change.Span.Length, preambleLength);
+                    "Discarding fix: preamble-touching change [{Start}..{End}) straddles preambleLength={PreambleLength}",
+                    change.Span.Start, change.Span.End, preambleLength);
                 return null;
             }
+            preambleChanges.Add(change);
+        }
 
-            var match = _usingInsertionRegex.Match(change.NewText ?? "");
-            if (!match.Success)
+        if (preambleChanges.Count > 0)
+        {
+            var preambleText = originalFullText.GetSubText(new TextSpan(0, preambleLength)).ToString();
+            var inserted = UsingsInsertedIntoPreamble(preambleText, preambleChanges);
+            if (inserted is null)
             {
-                _logger.LogDebug("Discarding fix: preamble insertion \"{NewText}\" isn't a pure using directive",
-                    Truncate(change.NewText));
+                _logger.LogDebug(
+                    "Discarding fix: preamble-touching changes {Changes} aren't only `using X;` insertions",
+                    string.Join(" | ", preambleChanges.Select(c => $"[{c.Span.Start}..{c.Span.End}) -> \"{Truncate(c.NewText)}\"")));
                 return null;
             }
-            usingsToAdd.Add(match.Groups[1].Value);
+            usingsToAdd.AddRange(inserted);
         }
 
         var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
         return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
+    }
+
+    // The namespaces a fix adds to the hidden preamble, or null if its preamble changes do anything
+    // other than insert whole `using X;` lines (replace or remove an existing line, insert other text).
+    // Usually such a fix arrives as one zero-length insertion of "using X;\n" at a line start, but the
+    // diff Roslyn computes depends on its version (and with it on the installed SDK): a using sorted
+    // into the middle of the preamble can instead come back as a minimal character diff that rewrites
+    // the following lines ("IO" -> "Diagnostics", "Linq" -> "IO", ...) while still meaning "one line
+    // inserted". So the changes are applied to the preamble text and the result is compared line by
+    // line: every original line must still be there, in order, and every extra line must be a using.
+    internal static IReadOnlyList<string>? UsingsInsertedIntoPreamble(string preambleText, IEnumerable<TextChange> changes)
+    {
+        var oldLines = SplitLinesKeepingTerminators(preambleText);
+        var newLines = SplitLinesKeepingTerminators(SourceText.From(preambleText).WithChanges(changes).ToString());
+        var usings = new List<string>();
+        var next = 0;
+        foreach (var line in newLines)
+        {
+            if (next < oldLines.Count && line == oldLines[next])
+            {
+                next++;
+                continue;
+            }
+
+            var match = _usingInsertionRegex.Match(line);
+            if (!match.Success)
+                return null;
+            usings.Add(match.Groups[1].Value);
+        }
+
+        return next == oldLines.Count ? usings : null;
     }
 
     // Deletion-only fixes that also touch the preamble — "Remove unnecessary usings" removes the
