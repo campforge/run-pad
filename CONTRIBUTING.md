@@ -1,101 +1,90 @@
-# Contributing to RunPad
+# Contributing
 
-Thanks for helping. Bug reports, ideas, documentation fixes and code are all welcome.
+Thanks for helping. Bug reports, ideas, documentation fixes and code are all welcome. Report bugs and
+ideas as [GitHub issues](https://github.com/Campforge/run-pad/issues) — for a bug, include your OS,
+the RunPad version (Help → About RunPad), `dotnet --list-sdks` and the smallest `.rpad` script that
+shows the problem. For anything larger than a small fix, open an issue first and agree on the approach.
 
-## Reporting a bug or asking for a feature
+## Getting started
 
-Open a [GitHub issue](https://github.com/Campforge/run-pad/issues). For a bug, include:
-
-- your OS, the RunPad version (Help → About RunPad) and `dotnet --list-sdks`;
-- what you did, what you expected and what happened instead;
-- the smallest `.rpad` script that shows the problem, if there is one.
-
-Check the [roadmap](ROADMAP.md) and the existing issues first — your idea may already be there.
-
-## Before you write code
-
-For anything larger than a small fix, open an issue first and describe the change. It saves you
-from building something that does not fit, and lets us agree on the approach before you invest the
-time.
-
-## Setting up
-
-You need the .NET 10 SDK (the exact version is pinned in `global.json`). The debugger,
-[netcoredbg](https://github.com/Samsung/netcoredbg), is only needed to try debugging; RunPad's setup
-window can install it.
+You need the .NET 10 SDK (pinned in `global.json`). Debugging also needs
+[netcoredbg](https://github.com/Samsung/netcoredbg); RunPad's setup window can install it.
 
 ```bash
-dotnet restore
 dotnet build
 dotnet run --project src/main/RunPad/RunPad.csproj
 ```
 
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) describes the architecture, the projects and how they depend on each other —
-read it before changing anything outside a single class. The `.rpad` format is specified in
-[`docs/SpecificationRPad.md`](docs/SpecificationRPad.md).
-
-## Checks
-
-Run the same checks CI runs before you open a pull request:
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before changing anything outside a single class.
+Before opening a pull request, run what CI runs (on Windows, Linux and macOS):
 
 ```bash
-dotnet format --verify-no-changes                     # formatting (run `dotnet format` to fix)
-dotnet build --configuration Release -warnaserror     # no warnings allowed
-dotnet test                                           # all test projects
+dotnet format --verify-no-changes                  # `dotnet format` fixes it
+dotnet build --configuration Release -warnaserror
+dotnet test                                        # or one project: dotnet test tests/RunPad.NonUI.Tests
 ```
-
-To iterate faster, run one project or one class:
-
-```bash
-dotnet test tests/RunPad.NonUI.Tests
-dotnet test --filter "FullyQualifiedName~DumpRendererTests"
-```
-
-CI runs these on Windows, Linux and macOS.
-
-## Conventions
-
-- **Style** is enforced by `.editorconfig`: CRLF line endings, 4-space indent, Allman braces,
-  file-scoped namespaces, sorted `using` directives outside the namespace. Nullable reference types
-  are on everywhere.
-- **Packages** are versioned centrally in `Directory.Packages.props`; reference them by name only in a
-  `.csproj`.
-- **Layering**: `src/core` → `src/languages` → `src/main`; `src/controls` stay language-agnostic —
-  language-specific behavior is supplied by the language host, never hardcoded in a control.
-- **MVVM with ReactiveUI only** — do not mix in CommunityToolkit.Mvvm.
-- **`RunPad.Runtime`** is MIT-licensed and ships inside users' programs: keep it free of dependencies
-  and never copy code from other RunPad projects into it.
-- **Tests**: a bug fix comes with a test that fails without it; a feature comes with tests for its
-  behavior. UI tests that need a real Avalonia control go to `tests/RunPad.Runtime.UI.Tests`,
-  everything else to `tests/RunPad.NonUI.Tests` or the project's own test project.
-- **Comments** are in English and explain *why*; they must make sense on their own, without
-  references to issue trackers or notes outside this repository.
-
-## Pull requests
-
-- One topic per pull request; keep unrelated refactoring out.
-- Commit messages: a short imperative subject (`Fix …`, `Add …`), then a body explaining what changed
-  and why when it is not obvious.
-- Describe how you tested the change; for UI changes, a screenshot helps.
-- If the change is visible to users, mention it so the
-  [user guide](https://github.com/Campforge/run-pad-docs) can be updated — or send a pull request
-  there too.
 
 ## Contributor License Agreement
 
-Before your first pull request can be merged, you need to accept the
-[Contributor License Agreement](CLA.md). You keep the copyright in your work; the agreement grants the
-maintainer a license to use and distribute it as part of RunPad — under the project's license
-([GPL v3.0](LICENSE), and [MIT](src/runtime/RunPad.Runtime/LICENSE) for `src/runtime/RunPad.Runtime`)
-and, if the project's licensing ever changes, under other terms.
-
-You only do this once. When you open your first pull request, the CLA check asks you to accept the
-agreement by posting this comment on the pull request:
+Before your first pull request can be merged, accept the [Contributor License Agreement](CLA.md): you
+keep the copyright in your work and grant the maintainer a license to distribute it as part of RunPad,
+under the project's license and, if the licensing ever changes, under other terms. The CLA check on
+your pull request asks you to post this comment once:
 
 ```text
 I have read the CLA Document and I hereby sign the CLA
 ```
 
-Every author of a commit in the pull request has to accept it. Comment `recheck` to run the check
-again. Only submit work you have the right to contribute — if your employer has rights to what you
-write, make sure they allow the contribution.
+Every commit author in the pull request has to accept it; comment `recheck` to run the check again.
+
+## Rules
+
+- **Language:** C# on .NET 10 only, with Avalonia UI for the interface. No web views or embedded
+  browsers — RunPad is a native app.
+- **License:** contributions are GPL-3.0 ([`LICENSE`](LICENSE)); `src/runtime/RunPad.Runtime` is MIT
+  ([its `LICENSE`](src/runtime/RunPad.Runtime/LICENSE)) and must stay free of dependencies and of code
+  copied from other RunPad projects, because it ships inside users' programs.
+- **Clean-room:** do not copy code, icons or other assets from proprietary software, LINQPad included.
+  Matching a public API shape for compatibility is fine; the implementation must be your own, from
+  documentation and observed behavior. Third-party code or assets need a permissive license compatible
+  with GPL-3.0, keep that license next to them, and credit the source in the file (as the analyzers
+  ported from Roslynator ideas do).
+- **Never crash:** a broken script, bad input or a failing tool (SDK, NuGet, debugger) must never take
+  RunPad down. Report the error in the output or a dialog, catch at every `async void` boundary, and
+  ship a regression test with every crash fix.
+- **Layering:** `src/core` → `src/languages` → `src/main`; controls in `src/controls` stay
+  language-agnostic — per-language behavior comes from the language host, never from a control.
+- **MVVM:** ReactiveUI only (no CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
+- **Packages:** versions live in `Directory.Packages.props`; a `.csproj` references packages by name only.
+- **Tests:** required for every change. UI tests that create real Avalonia controls go to
+  `tests/RunPad.Runtime.UI.Tests`, everything else to `tests/RunPad.NonUI.Tests` or the project's own
+  test project.
+- **Style:** `.editorconfig` (CRLF, 4 spaces, Allman braces, file-scoped namespaces) and no warnings.
+  Match the surrounding code. Comments are in English, explain *why* and stand on their own — no
+  references to issue numbers or notes outside the repository.
+- **UI:** use the theme resources from `RunPad.Avalonia.Themes` instead of hard-coded colors, check
+  both the light and dark themes, and attach before/after screenshots to the pull request.
+- **Commits:** small and focused, with a short imperative subject (`Fix …`, `Add …`); one topic per
+  pull request.
+- **Docs:** if users can see the change, update the [user guide](https://github.com/Campforge/run-pad-docs)
+  too or mention it in the pull request.
+
+## Adding an analyzer
+
+RunPad ships its own C# analyzers (`RPADxxxx`), shown as squiggles while typing and next to the
+lightbulb.
+
+1. **Check it is new.** Search `src/languages/RunPad.Languages.CSharp/IntelliSense/Analyzers/` and the
+   built-in Roslyn analyzers — extend an existing analyzer rather than add a near-duplicate.
+2. **Write the analyzer** as one file in that folder: a `[DiagnosticAnalyzer(LanguageNames.CSharp)]`
+   class with a public `DiagnosticId` constant — the next free `RPADxxxx` number — and a
+   `DiagnosticDescriptor` with a title, message and description. Register only the syntax or operation
+   kinds you need, call `EnableConcurrentExecution()` and skip generated code. RunPad discovers it by
+   reflection; there is no list to update.
+3. **Keep false positives near zero.** Use the semantic model rather than names alone, and when the
+   rule is "this value always throws", confirm it against the real .NET API.
+4. **Credit the source** in a comment at the top if the idea comes from another project.
+5. **Unit tests** in `tests/RunPad.NonUI.Tests/RunPadAnalyzersTests.cs`: cases that must be flagged
+   and cases that must not be.
+6. **End-to-end test** in `tests/RunPad.NonUI.Tests/CSharpIntelliSenseAnalyzersTests.cs` proving the
+   diagnostic reaches the editor through the real IntelliSense pipeline.
