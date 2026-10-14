@@ -5,10 +5,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Product>RunPad</Product>
-    <Version>0.4.0</Version>
+    <Version>0.4.1</Version>
     <Authors>hobobyte</Authors>
     <Company>hobobyte</Company>
-    <Copyright>© 2026 Vadim (hobobyte)</Copyright>
+    <Copyright>© 2026 Vadim S (hobobyte)</Copyright>
     <!-- AVLN3001: XAML controls using constructor DI have no public ctor — expected pattern -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>

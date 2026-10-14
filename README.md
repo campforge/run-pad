@@ -95,7 +95,7 @@ and changes are described in [`src/controls/AvaloniaEdit/README.md`](src/control
 
 ## License
 
-Copyright (C) 2026 Vadim ([hobobyte](https://github.com/hobobyte)). RunPad is licensed under the
+Copyright (C) 2026 Vadim S ([hobobyte](https://github.com/hobobyte)). RunPad is licensed under the
 [GNU General Public License v3.0](LICENSE).
 
 The `RunPad.Runtime` library ([`src/runtime/RunPad.Runtime`](src/runtime/RunPad.Runtime)) — the only

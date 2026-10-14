@@ -2,7 +2,7 @@
 
 Version 1.0
 
-This agreement is between you and Vadim (GitHub: [hobobyte](https://github.com/hobobyte)), the
+This agreement is between you and Vadim S (GitHub: [hobobyte](https://github.com/hobobyte)), the
 maintainer and copyright holder of RunPad ("the maintainer"). It covers everything you submit to
 RunPad — code, documentation or other material — through pull requests, issues or otherwise
 ("your contributions").
