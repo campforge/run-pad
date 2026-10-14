@@ -4,6 +4,8 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit.Document;
 using RunPad.Avalonia.CodeTextEditor;
 using Xunit;
@@ -438,6 +440,185 @@ public class CodeFixMarginTests
         {
             Application.Current.Resources.MergedDictionaries.Remove(include);
         }
+    }
+
+    // ── The bulb's square click target ───────────────────────────────────────
+
+    private static CodeFixMargin MarginWithFixOnCaretLine(CodeTextEditor editor, CodeFixMargin margin, int line)
+    {
+        editor.TextArea.Caret.Line = line;
+        margin.Update([new CodeFixEntry(line, "fix", CodeFixSeverity.Error, "fix-key")]);
+        Settle(editor);
+        return margin;
+    }
+
+    // Layout, then the margin's deferred re-measure, then layout again.
+    private static void Settle(CodeTextEditor editor)
+    {
+        editor.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        editor.UpdateLayout();
+    }
+
+    private static void ScrollTo(CodeTextEditor editor, double offset)
+    {
+        // TextEditor.ScrollToVerticalOffset does nothing in this AvaloniaEdit version: scroll its viewer.
+        editor.GetVisualDescendants().OfType<ScrollViewer>().First().Offset = new Vector(0, offset);
+        Settle(editor);
+    }
+
+    private static string Lines(int count) => string.Concat(Enumerable.Range(1, count).Select(i => $"line{i}\n"));
+
+    // Square, larger than the glyph, inside the margin's own column, centered on the glyph.
+    [AvaloniaFact]
+    public void HitTarget_Should_BeASquare_CenteredOnTheGlyph_InsideItsColumn()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(5));
+        MarginWithFixOnCaretLine(editor, margin, 2);
+
+        var target = Assert.NotNull(margin.HitTarget());
+        var center = PointOnLine(margin, 2);
+        var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
+        var (scale, x, y) = margin.ComputeIconTransform(vl.Height, center.Y - vl.Height / 2);
+        var glyph = 24 * scale;
+
+        Assert.Equal(target.Width, target.Height, 6);
+        Assert.True(target.Width > glyph, $"target {target.Width}, glyph {glyph}");
+        Assert.Equal(Math.Min(CodeFixMargin.MinimumHitTargetSize, margin.Bounds.Width), target.Width, 6);
+        Assert.True(target.X >= 0 && target.Right <= margin.Bounds.Width + 1e-9);
+        Assert.Equal(x + glyph / 2, target.Center.X, 6);
+        Assert.Equal(y + glyph / 2, target.Center.Y, 6);
+    }
+
+    // Anywhere in the square — padding, edges, corners — does what a click on the glyph does.
+    [AvaloniaFact]
+    public void AClickAnywhereInTheSquare_Should_OpenTheSameFixes_AsTheCenter()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(5));
+        MarginWithFixOnCaretLine(editor, margin, 3);
+        var t = margin.HitTarget()!.Value;
+        const double inset = 0.5;
+        var center = margin.ResolveCandidatesForClick(t.Center);
+        Assert.Single(center);
+
+        foreach (var point in new[]
+                 {
+                     new Point(t.X + inset, t.Y + inset), new Point(t.Right - inset, t.Y + inset),
+                     new Point(t.X + inset, t.Bottom - inset), new Point(t.Right - inset, t.Bottom - inset),
+                     new Point(t.Center.X, t.Y + inset), new Point(t.Center.X, t.Bottom - inset),
+                     new Point(t.X + inset, t.Center.Y), new Point(t.Right - inset, t.Center.Y),
+                 })
+            Assert.Equal(center, margin.ResolveCandidatesForClick(point));
+    }
+
+    // Outside the square nothing happens — beside it on the same line (a wide column: four-digit line
+    // numbers) and above/below it.
+    [AvaloniaFact]
+    public void AClickOutsideTheSquare_Should_NotOpenAnyFix()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(1500));
+        MarginWithFixOnCaretLine(editor, margin, 3);
+        var t = margin.HitTarget()!.Value;
+        Assert.True(margin.Bounds.Width > t.Width + 4, $"column {margin.Bounds.Width}, target {t.Width}");
+
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.X - 1, t.Center.Y)));
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Right + 1, t.Center.Y)));
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Center.X, t.Y - 1)));
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Center.X, t.Bottom + 1)));
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(0.5, t.Center.Y)));
+    }
+
+    // A line shorter than the square: the part of the square over the next line's row still opens
+    // the caret line's fixes, not that line's.
+    [AvaloniaFact]
+    public void TheSquare_Should_ReachPastAShortLine_AndStillOpenTheCaretLinesFixes()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(5));
+        MarginWithFixOnCaretLine(editor, margin, 2);
+        margin.Update([.. margin.Fixes, new CodeFixEntry(3, "other", CodeFixSeverity.Warning, "other-key")]);
+        var t = margin.HitTarget()!.Value;
+        var lineHeight = margin.TextView.DefaultLineHeight;
+        Assert.True(lineHeight < t.Height, $"line {lineHeight}, target {t.Height}");
+
+        var belowTheLine = new Point(t.Center.X, t.Bottom - 0.5);
+        Assert.Equal(3, margin.ResolveLineFromPoint(belowTheLine));
+        Assert.Equal(["fix"], margin.ResolveCandidatesForClick(belowTheLine).Select(f => f.Title));
+    }
+
+    [AvaloniaFact]
+    public void WithoutAFixOnTheCaretLine_Should_HaveNoTarget()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(5));
+        Arrange(margin);
+        Assert.Null(margin.HitTarget()); // no fixes at all
+
+        editor.TextArea.Caret.Line = 1;
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+        Settle(editor);
+        Assert.Null(margin.HitTarget());
+        Assert.Empty(margin.ResolveCandidatesForClick(PointOnLine(margin, 2)));
+    }
+
+    // The target moves with the caret, and with scrolling; a caret line scrolled out of view has none.
+    [AvaloniaFact]
+    public void TheTarget_Should_FollowTheCaret_AndScrolling()
+    {
+        var (window, editor, margin) = CreateEditor(Lines(300));
+        window.Height = 300; // shorter than the document, so it scrolls
+        MarginWithFixOnCaretLine(editor, margin, 2);
+        var before = margin.HitTarget()!.Value;
+
+        editor.TextArea.Caret.Line = 3;
+        margin.Update([new CodeFixEntry(3, "fix", CodeFixSeverity.Error, "fix-key")]);
+        Settle(editor);
+        var moved = margin.HitTarget()!.Value;
+        Assert.Equal(PointOnLine(margin, 3).Y, moved.Center.Y, 6);
+        Assert.True(moved.Center.Y > before.Center.Y);
+
+        ScrollTo(editor, margin.TextView.DefaultLineHeight * 1.5);
+        var scrolled = margin.HitTarget()!.Value;
+        Assert.Equal(PointOnLine(margin, 3).Y, scrolled.Center.Y, 6);
+        Assert.True(scrolled.Center.Y < moved.Center.Y);
+        Assert.Single(margin.ResolveCandidatesForClick(scrolled.Center));
+
+        ScrollTo(editor, margin.TextView.DefaultLineHeight * 200);
+        Assert.Null(margin.HitTarget());
+    }
+
+    // A wrapped caret line: the glyph and its square sit at the middle of the whole wrapped line.
+    [AvaloniaFact]
+    public void OnAWrappedLine_TheSquare_Should_StayCenteredOnTheGlyph()
+    {
+        var (window, editor, margin) = CreateEditor("short\n" + string.Join(' ', Enumerable.Repeat("wrapped", 80)) + "\nshort\n");
+        window.Width = 300;
+        editor.WordWrap = true;
+        MarginWithFixOnCaretLine(editor, margin, 2);
+        var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
+        Assert.True(vl.TextLines.Count > 1);
+
+        var t = margin.HitTarget()!.Value;
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
+                   - margin.TextView.VerticalOffset;
+        var (scale, x, y) = margin.ComputeIconTransform(vl.Height, yTop);
+        Assert.Equal(y + 12 * scale, t.Center.Y, 6);
+        Assert.Equal(x + 12 * scale, t.Center.X, 6);
+        Assert.Single(margin.ResolveCandidatesForClick(new Point(t.X + 0.5, t.Y + 0.5)));
+    }
+
+    // A large font makes the glyph bigger than 24 px: the square grows with it, still inside the column.
+    [AvaloniaFact]
+    public void WithALargeFont_TheSquare_Should_StayLargerThanTheGlyph()
+    {
+        var (_, editor, margin) = CreateEditor(Lines(5));
+        editor.FontSize = 48;
+        MarginWithFixOnCaretLine(editor, margin, 2);
+
+        var t = margin.HitTarget()!.Value;
+        var glyph = 24 * margin.ComputeIconTransform(20, 0).Scale;
+        Assert.True(glyph > CodeFixMargin.MinimumHitTargetSize);
+        Assert.True(t.Width > glyph, $"target {t.Width}, glyph {glyph}");
+        Assert.True(t.Right <= margin.Bounds.Width + 1e-9);
+        Assert.Equal(t.Width, t.Height, 6);
     }
 
     private static void Arrange(CodeFixMargin margin)
