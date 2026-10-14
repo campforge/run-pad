@@ -24,6 +24,8 @@ public sealed class WindowService : IWindowService
     private readonly IThemeService _themeService;
     private readonly IPreferencesService? _preferences;
 
+    private KeyboardSettings Keyboard => _preferences?.Keyboard ?? new KeyboardSettings();
+
     // preferences: the text editor window's Save/Save As key gestures (the user's keyboard settings);
     // optional so tests constructing a WindowService for other windows needn't supply it.
     public WindowService(
@@ -223,7 +225,7 @@ public sealed class WindowService : IWindowService
             return Task.CompletedTask;
         }
 
-        ShowTracked(new AssemblyExplorerWindow(_themeService, this, startFolder));
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, startFolder) { Keyboard = Keyboard });
         return Task.CompletedTask;
     }
 
@@ -236,7 +238,7 @@ public sealed class WindowService : IWindowService
             return;
         }
 
-        ShowTracked(new AssemblyExplorerWindow(_themeService, this, decompiled, definition.AssemblyPath, definition));
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, decompiled, definition.AssemblyPath, definition) { Keyboard = Keyboard });
     }
 
     private void ShowTracked(AssemblyExplorerWindow window)

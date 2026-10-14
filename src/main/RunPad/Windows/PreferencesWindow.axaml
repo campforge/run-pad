@@ -144,7 +144,7 @@
                                  PlaceholderText="monospace"/>
                     </Grid>
 
-                    <TextBlock Text="New file defaults (Ctrl+N):" Margin="0,10,0,2" FontWeight="SemiBold"/>
+                    <TextBlock Text="New file defaults (File → New File):" Margin="0,10,0,2" FontWeight="SemiBold"/>
                     <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="Language:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <ComboBox Grid.Column="1"
@@ -168,81 +168,41 @@
                     <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
                 </StackPanel>
 
-                <Grid IsVisible="{Binding IsKeyboardSelected}"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                               Text="Key Bindings:" FontWeight="SemiBold" Margin="0,0,0,10"/>
-
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Run / Continue:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="1" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyRun, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cancel:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="2" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyCancel, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Step Over:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="3" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyStepOver, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Step In:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="4" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyStepIn, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Step Out:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="5" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyStepOut, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Format Document:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="6" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyFormat, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Go to Line:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="7" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyGoToLine, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Open Dependencies:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="8" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyOpenDependencies, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="9" Grid.Column="0" Text="Close Tab:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="9" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyCloseTab, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Rename File:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="10" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyRenameFile, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="11" Grid.Column="0" Text="Delete File:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="11" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyDeleteFile, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="12" Grid.Column="0" Text="New File:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="12" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyNewFile, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="13" Grid.Column="0" Text="Save As:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="13" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeySaveAs, UpdateSourceTrigger=LostFocus}"/>
-
-                    <TextBlock Grid.Row="14" Grid.Column="0" Text="Resolve All Usings:"
-                               VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <TextBox   Grid.Row="14" Grid.Column="1" Margin="0,0,0,6"
-                               Text="{Binding HotkeyResolveAllUsings, UpdateSourceTrigger=LostFocus}"/>
-                </Grid>
+                <StackPanel IsVisible="{Binding IsKeyboardSelected}" Spacing="4">
+                    <TextBlock Text="Key Bindings:" FontWeight="SemiBold"/>
+                    <TextBlock Text="Type a key combination such as Ctrl+Shift+S, Cmd+, or F5; leave it empty to remove the key. Changes apply when the field loses focus."
+                               TextWrapping="Wrap" Margin="0,0,0,6"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                    <ItemsControl ItemsSource="{Binding KeyBindingGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="viewModels:KeyBindingGroup">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding Category}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <ItemsControl ItemsSource="{Binding Rows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="viewModels:KeyBindingRowViewModel">
+                                                <Grid ColumnDefinitions="170,180,Auto,*" RowDefinitions="Auto,Auto" Margin="0,0,0,4">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBox Grid.Column="1" Text="{Binding Key, UpdateSourceTrigger=LostFocus}"
+                                                             Watermark="none"/>
+                                                    <Button Grid.Column="2" Content="Reset" Margin="6,0,0,0" Padding="8,2"
+                                                            Command="{Binding ResetCommand}" IsVisible="{Binding IsCustomized}"
+                                                            ToolTip.Tip="{Binding DefaultKeyText}"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding DefaultKeyText}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                               IsVisible="{Binding !IsCustomized}"
+                                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Warning}"
+                                                               IsVisible="{Binding HasWarning}" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsLanguagesSelected}">
                     <TextBlock Text="Select a language from the list to configure its settings."

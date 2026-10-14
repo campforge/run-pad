@@ -109,6 +109,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
+        prefs.Keyboard.ApplyTo(editor);
         prefs.Changed += OnPreferencesChanged;
 
         // Ctrl+wheel (inside CodeTextEditor) and the status-bar zoom menu both just change FontSize.
@@ -1081,6 +1082,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var zoomFactor = _zoomFactor;
             ApplyEditorSettings(State.Editor, _prefs.Editor);
+            _prefs.Keyboard.ApplyTo(State.Editor);
             if (zoomFactor != 1)
                 State.Editor.FontSize = Math.Max(1, _prefs.Editor.FontSize * zoomFactor);
 

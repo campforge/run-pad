@@ -113,6 +113,21 @@ public class CodeTextEditor : TextEditor
     /// after trying Ctrl+F12 here) that it isn't a safe default to add another one.</summary>
     public event EventHandler? GoToDefinitionRequested;
 
+    // The editor's own key commands. The defaults are the Windows/Linux ones; RunPad sets them from
+    // Preferences → Keyboard (and to the macOS defaults on a Mac). Null disables a command's key.
+    public KeyGesture? CompletionGesture { get; set; } = new(Key.Space, KeyModifiers.Control);
+    public KeyGesture? SignatureHelpGesture { get; set; } = new(Key.Space, KeyModifiers.Control | KeyModifiers.Shift);
+    public KeyGesture? JumpToBracketGesture { get; set; } = new(Key.OemCloseBrackets, KeyModifiers.Control);
+    public KeyGesture? RenameSymbolGesture { get; set; } = new(Key.F2);
+    public KeyGesture? GoToDefinitionGesture { get; set; } = new(Key.F12);
+    public KeyGesture? FindReferencesGesture { get; set; } = new(Key.F12, KeyModifiers.Shift);
+
+    /// <summary>The modifier held for mouse actions such as zooming with the wheel: Ctrl, or Cmd on
+    /// macOS.</summary>
+    public KeyModifiers CommandModifier { get; set; } = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+
+    private static bool Matches(KeyGesture? gesture, KeyEventArgs e) => gesture?.Matches(e) == true;
+
     public IEnumerable<IBreakpoint> Breakpoints => _breakpointStore;
 
     public void AddBreakpoint(int line) => _breakpointStore.Add(line);
@@ -355,8 +370,8 @@ public class CodeTextEditor : TextEditor
 
         AddHandler(PointerWheelChangedEvent, OnFontSizeScroll, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // Intercept Tab (snippet expansion), Ctrl+] (brace navigation) and F2 (rename symbol)
-        // before AvaloniaEdit's built-in KeyBinding handlers fire. Attached to TextArea, not the
+        // Intercept Tab (snippet expansion) and the editor's key commands (brace navigation, rename
+        // symbol…) before AvaloniaEdit's built-in KeyBinding handlers fire. Attached to TextArea, not the
         // Window — this is deliberately how F2 here avoids colliding with FileTreeView's own F2
         // (rename FILE, KeyboardSettings.RenameFile): that handler is likewise scoped to the file
         // tree's own TreeView, so ordinary Avalonia routing (starting from whichever control
@@ -368,32 +383,32 @@ public class CodeTextEditor : TextEditor
             {
                 if (e.Key == Key.Tab && e.KeyModifiers == KeyModifiers.None && TryExpandSnippet())
                     e.Handled = true;
-                else if (e.Key == Key.OemCloseBrackets && e.KeyModifiers == KeyModifiers.Control)
+                else if (Matches(JumpToBracketGesture, e))
                 {
                     JumpToMatchingBrace();
                     e.Handled = true;
                 }
-                else if (e.Key == Key.Space && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+                else if (Matches(SignatureHelpGesture, e))
                 {
                     ShowOverloads('\0');
                     e.Handled = true;
                 }
-                else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+                else if (Matches(CompletionGesture, e))
                 {
                     ShowCompletion('\0', explicitInvoke: true);
                     e.Handled = true;
                 }
-                else if (e.Key == Key.F2 && e.KeyModifiers == KeyModifiers.None)
+                else if (Matches(RenameSymbolGesture, e))
                 {
                     RenameSymbolRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
-                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.Shift)
+                else if (Matches(FindReferencesGesture, e))
                 {
                     FindReferencesRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                 }
-                else if (e.Key == Key.F12 && e.KeyModifiers == KeyModifiers.None)
+                else if (Matches(GoToDefinitionGesture, e))
                 {
                     GoToDefinitionRequested?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
@@ -805,7 +820,7 @@ public class CodeTextEditor : TextEditor
 
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {
-        if (e.KeyModifiers != KeyModifiers.Control) return;
+        if (e.KeyModifiers != CommandModifier) return;
         FontSize = e.Delta.Y > 0 ? FontSize + 1 : Math.Max(1, FontSize - 1);
     }
 

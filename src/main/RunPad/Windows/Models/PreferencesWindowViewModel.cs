@@ -406,90 +406,20 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
-    public string HotkeyRun
-    {
-        get => _prefs.Keyboard.Run;
-        set => SetPref(_prefs.Keyboard.Run, value, v => _prefs.Keyboard.Run = v);
-    }
+    // Every command in KeyCommands, in catalog order (the page groups them by Category).
+    private IReadOnlyList<KeyBindingRowViewModel>? _keyBindings;
+    public IReadOnlyList<KeyBindingRowViewModel> KeyBindings => _keyBindings ??=
+        KeyCommands.All.Select(c => new KeyBindingRowViewModel(c, _prefs.Keyboard, OnKeyBindingChanged)).ToList();
 
-    public string HotkeyCancel
-    {
-        get => _prefs.Keyboard.Cancel;
-        set => SetPref(_prefs.Keyboard.Cancel, value, v => _prefs.Keyboard.Cancel = v);
-    }
+    public IReadOnlyList<KeyBindingGroup> KeyBindingGroups => KeyBindings
+        .GroupBy(r => r.Category)
+        .Select(g => new KeyBindingGroup(g.Key, g.ToList()))
+        .ToList();
 
-    public string HotkeyStepOver
+    private void OnKeyBindingChanged()
     {
-        get => _prefs.Keyboard.StepOver;
-        set => SetPref(_prefs.Keyboard.StepOver, value, v => _prefs.Keyboard.StepOver = v);
-    }
-
-    public string HotkeyStepIn
-    {
-        get => _prefs.Keyboard.StepIn;
-        set => SetPref(_prefs.Keyboard.StepIn, value, v => _prefs.Keyboard.StepIn = v);
-    }
-
-    public string HotkeyStepOut
-    {
-        get => _prefs.Keyboard.StepOut;
-        set => SetPref(_prefs.Keyboard.StepOut, value, v => _prefs.Keyboard.StepOut = v);
-    }
-
-    public string HotkeyFormat
-    {
-        get => _prefs.Keyboard.Format;
-        set => SetPref(_prefs.Keyboard.Format, value, v => _prefs.Keyboard.Format = v);
-    }
-
-    public string HotkeyGoToLine
-    {
-        get => _prefs.Keyboard.GoToLine;
-        set => SetPref(_prefs.Keyboard.GoToLine, value, v => _prefs.Keyboard.GoToLine = v);
-    }
-
-    // These 4 used to be literal Key.XXX checks in MainWindow.axaml.cs/FileTreeView.cs,
-    // not editable here at all — same pattern as the 7 above, just newly wired up.
-    public string HotkeyOpenDependencies
-    {
-        get => _prefs.Keyboard.OpenDependencies;
-        set => SetPref(_prefs.Keyboard.OpenDependencies, value, v => _prefs.Keyboard.OpenDependencies = v);
-    }
-
-    public string HotkeyCloseTab
-    {
-        get => _prefs.Keyboard.CloseTab;
-        set => SetPref(_prefs.Keyboard.CloseTab, value, v => _prefs.Keyboard.CloseTab = v);
-    }
-
-    public string HotkeyRenameFile
-    {
-        get => _prefs.Keyboard.RenameFile;
-        set => SetPref(_prefs.Keyboard.RenameFile, value, v => _prefs.Keyboard.RenameFile = v);
-    }
-
-    public string HotkeyDeleteFile
-    {
-        get => _prefs.Keyboard.DeleteFile;
-        set => SetPref(_prefs.Keyboard.DeleteFile, value, v => _prefs.Keyboard.DeleteFile = v);
-    }
-
-    public string HotkeyNewFile
-    {
-        get => _prefs.Keyboard.NewFile;
-        set => SetPref(_prefs.Keyboard.NewFile, value, v => _prefs.Keyboard.NewFile = v);
-    }
-
-    public string HotkeySaveAs
-    {
-        get => _prefs.Keyboard.SaveAs;
-        set => SetPref(_prefs.Keyboard.SaveAs, value, v => _prefs.Keyboard.SaveAs = v);
-    }
-
-    public string HotkeyResolveAllUsings
-    {
-        get => _prefs.Keyboard.ResolveAllUsings;
-        set => SetPref(_prefs.Keyboard.ResolveAllUsings, value, v => _prefs.Keyboard.ResolveAllUsings = v);
+        _prefs.Save();
+        foreach (var row in KeyBindings) row.Refresh();
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
@@ -502,3 +432,5 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(name);
     }
 }
+
+public sealed record KeyBindingGroup(string Category, IReadOnlyList<KeyBindingRowViewModel> Rows);

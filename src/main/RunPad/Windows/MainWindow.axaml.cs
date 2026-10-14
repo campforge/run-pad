@@ -1,6 +1,8 @@
 using System.Reactive;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
@@ -38,6 +40,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         InitializeComponent();
 
+        _keyActions = CreateKeyActions();
         MainMenuEntries = CreateMainMenu();
         var mainMenu = this.FindControl<Menu>("MainMenu")!;
         foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) mainMenu.Items.Add(item);
@@ -92,85 +95,51 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         var kb = _prefs.Keyboard;
-        var vm = GetViewModel();
-
-        if (Match(e, kb.Run))
+        foreach (var (command, action) in _keyActions)
         {
-            _editorTabs.RunOrContinueActive();
+            if (!kb.Matches(e, command)) continue;
+            // Stop is only taken while something runs, so the key stays free otherwise.
+            if (command == KeyCommands.Stop && GetViewModel().ActiveTab?.EnableCancelButton != true) return;
+            action();
             e.Handled = true;
-        }
-        else if (Match(e, kb.Cancel) && vm.ActiveTab?.EnableCancelButton == true)
-        {
-            _editorTabs.CancelActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepOver))
-        {
-            _editorTabs.StepOverActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepIn))
-        {
-            _editorTabs.StepInActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepOut))
-        {
-            _editorTabs.StepOutActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.Format))
-        {
-            _editorTabs.FormatActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.ResolveAllUsings))
-        {
-            _editorTabs.ResolveAllUsingsActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.GoToLine))
-        {
-            _editorTabs.GoToLineActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.Save))
-        {
-            _editorTabs.SaveActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.SaveAs))
-        {
-            _editorTabs.SaveAsActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.OpenDependencies))
-        {
-            vm.OpenDependenciesWindow();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.CloseTab))
-        {
-            _editorTabs.CloseActiveTab();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.NewFile))
-        {
-            vm.NewRpadFileWithDefaults();
-            e.Handled = true;
+            return;
         }
     }
 
-    private static bool Match(KeyEventArgs e, string gesture)
+    // Window-wide commands and what they do — behind both the key bindings above and the menu.
+    // Editor-only keys (completion, F12…) are handled by the editor itself; see EditorTabItemControl.
+    private readonly IReadOnlyDictionary<KeyCommand, Action> _keyActions;
+
+    private Dictionary<KeyCommand, Action> CreateKeyActions()
     {
-        try
+        var vm = GetViewModel();
+        var tabs = _editorTabs;
+        return new()
         {
-            return KeyGesture.Parse(gesture).Matches(e);
-        }
-        catch
-        {
-            return false;
-        }
+            [KeyCommands.NewFile] = vm.NewRpadFileWithDefaults,
+            [KeyCommands.Save] = tabs.SaveActive,
+            [KeyCommands.SaveAs] = tabs.SaveAsActive,
+            [KeyCommands.CloseTab] = tabs.CloseActiveTab,
+            [KeyCommands.OpenDependencies] = vm.OpenDependenciesWindow,
+            [KeyCommands.OpenAssemblyExplorer] = () => vm.OpenAssemblyExplorerCommand.Execute().Subscribe(),
+            [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
+            [KeyCommands.ToggleFileTree] = () => vm.Sidebar.ToggleCommand.Execute().Subscribe(),
+            [KeyCommands.ToggleOutputPanel] = tabs.ToggleOutputPanelActive,
+            [KeyCommands.ZoomIn] = tabs.ZoomInActive,
+            [KeyCommands.ZoomOut] = tabs.ZoomOutActive,
+            [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
+            [KeyCommands.RunOrContinue] = tabs.RunOrContinueActive,
+            [KeyCommands.Stop] = tabs.CancelActive,
+            [KeyCommands.ToggleDebugMode] = tabs.ToggleDebugModeActive,
+            [KeyCommands.StepOver] = tabs.StepOverActive,
+            [KeyCommands.StepInto] = tabs.StepInActive,
+            [KeyCommands.StepOut] = tabs.StepOutActive,
+            [KeyCommands.Pause] = tabs.PauseActive,
+            [KeyCommands.RunToCursor] = tabs.RunToCursorActive,
+            [KeyCommands.Format] = tabs.FormatActive,
+            [KeyCommands.GoToLine] = tabs.GoToLineActive,
+            [KeyCommands.ResolveAllUsings] = tabs.ResolveAllUsingsActive,
+        };
     }
 
     // ── Per-platform window chrome ──────────────────
@@ -250,7 +219,7 @@ public sealed partial class MainWindow : Window, IDisposable
         [
             new MainMenuGroup("File",
             [
-                new MainMenuCommand("_New File", ReactiveCommand.Create(vm.NewRpadFileWithDefaults), Gesture(k => k.NewFile)),
+                Item("_New File", KeyCommands.NewFile),
                 new MainMenuGroup("New _RPad File",
                 [
                     new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
@@ -259,10 +228,10 @@ public sealed partial class MainWindow : Window, IDisposable
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Save", ReactiveCommand.Create(tabs.SaveActive), Gesture(k => k.Save)),
-                new MainMenuCommand("Save _As...", ReactiveCommand.Create(tabs.SaveAsActive), Gesture(k => k.SaveAs)),
+                Item("_Save", KeyCommands.Save),
+                Item("Save _As...", KeyCommands.SaveAs),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Close Tab", ReactiveCommand.Create(tabs.CloseActiveTab), Gesture(k => k.CloseTab)),
+                Item("_Close Tab", KeyCommands.CloseTab),
                 // macOS has Quit in the application menu instead; Close() goes through the same
                 // unsaved-changes confirmation as the window's close button.
                 .. (OperatingSystem.IsMacOS()
@@ -271,48 +240,48 @@ public sealed partial class MainWindow : Window, IDisposable
             ]),
             new MainMenuGroup("Edit",
             [
-                new MainMenuCommand("_Undo", EditCommand(e => e.Undo(), t => t.Undo()), new KeyGesture(Key.Z, KeyModifiers.Control)),
-                new MainMenuCommand("_Redo", EditCommand(e => e.Redo(), t => t.Redo()), new KeyGesture(Key.Y, KeyModifiers.Control)),
+                new MainMenuCommand("_Undo", EditCommand(e => e.Undo(), t => t.Undo()), Hotkey(h => h.Undo)),
+                new MainMenuCommand("_Redo", EditCommand(e => e.Redo(), t => t.Redo()), Hotkey(h => h.Redo)),
                 new MainMenuSeparator(),
-                new MainMenuCommand("Cu_t", EditCommand(e => e.Cut(), t => t.Cut()), new KeyGesture(Key.X, KeyModifiers.Control)),
-                new MainMenuCommand("_Copy", EditCommand(e => e.Copy(), t => t.Copy()), new KeyGesture(Key.C, KeyModifiers.Control)),
-                new MainMenuCommand("_Paste", EditCommand(e => e.Paste(), t => t.Paste()), new KeyGesture(Key.V, KeyModifiers.Control)),
-                new MainMenuCommand("Select _All", EditCommand(e => e.SelectAll(), t => t.SelectAll()), new KeyGesture(Key.A, KeyModifiers.Control)),
+                new MainMenuCommand("Cu_t", EditCommand(e => e.Cut(), t => t.Cut()), Hotkey(h => h.Cut)),
+                new MainMenuCommand("_Copy", EditCommand(e => e.Copy(), t => t.Copy()), Hotkey(h => h.Copy)),
+                new MainMenuCommand("_Paste", EditCommand(e => e.Paste(), t => t.Paste()), Hotkey(h => h.Paste)),
+                new MainMenuCommand("Select _All", EditCommand(e => e.SelectAll(), t => t.SelectAll()), Hotkey(h => h.SelectAll)),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Format Document", ReactiveCommand.Create(tabs.FormatActive), Gesture(k => k.Format)),
-                new MainMenuCommand("_Go to Line...", ReactiveCommand.Create(tabs.GoToLineActive), Gesture(k => k.GoToLine)),
-                new MainMenuCommand("_Resolve All Usings", ReactiveCommand.Create(tabs.ResolveAllUsingsActive), Gesture(k => k.ResolveAllUsings)),
+                Item("_Format Document", KeyCommands.Format),
+                Item("_Go to Line...", KeyCommands.GoToLine),
+                Item("_Resolve All Usings", KeyCommands.ResolveAllUsings),
             ]),
             // Toggle File Tree is the title-bar sidebar button's command — on macOS that button is
             // hidden with the rest of the custom title row, so the menu is the only way to reach it.
             new MainMenuGroup("View",
             [
-                new MainMenuCommand("Toggle _File Tree", vm.Sidebar.ToggleCommand),
-                new MainMenuCommand("Toggle _Output Panel", ReactiveCommand.Create(tabs.ToggleOutputPanelActive)),
+                Item("Toggle _File Tree", KeyCommands.ToggleFileTree),
+                Item("Toggle _Output Panel", KeyCommands.ToggleOutputPanel),
                 new MainMenuSeparator(),
-                new MainMenuCommand("Zoom _In", ReactiveCommand.Create(tabs.ZoomInActive)),
-                new MainMenuCommand("Zoom O_ut", ReactiveCommand.Create(tabs.ZoomOutActive)),
-                new MainMenuCommand("_Reset Zoom", ReactiveCommand.Create(tabs.ResetZoomActive)),
+                Item("Zoom _In", KeyCommands.ZoomIn),
+                Item("Zoom O_ut", KeyCommands.ZoomOut),
+                Item("_Reset Zoom", KeyCommands.ResetZoom),
             ]),
             new MainMenuGroup("Run",
             [
-                new MainMenuCommand("_Run / Continue", ReactiveCommand.Create(tabs.RunOrContinueActive), Gesture(k => k.Run)),
-                new MainMenuCommand("_Stop", ReactiveCommand.Create(tabs.CancelActive), Gesture(k => k.Cancel)),
+                Item("_Run / Continue", KeyCommands.RunOrContinue),
+                Item("_Stop", KeyCommands.Stop),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Debug Mode", ReactiveCommand.Create(tabs.ToggleDebugModeActive)),
+                Item("_Debug Mode", KeyCommands.ToggleDebugMode),
                 new MainMenuSeparator(),
-                new MainMenuCommand("Step _Over", ReactiveCommand.Create(tabs.StepOverActive), Gesture(k => k.StepOver)),
-                new MainMenuCommand("Step _Into", ReactiveCommand.Create(tabs.StepInActive), Gesture(k => k.StepIn)),
-                new MainMenuCommand("Step Ou_t", ReactiveCommand.Create(tabs.StepOutActive), Gesture(k => k.StepOut)),
-                new MainMenuCommand("_Pause", ReactiveCommand.Create(tabs.PauseActive)),
-                new MainMenuCommand("Run to _Cursor", ReactiveCommand.Create(tabs.RunToCursorActive)),
+                Item("Step _Over", KeyCommands.StepOver),
+                Item("Step _Into", KeyCommands.StepInto),
+                Item("Step Ou_t", KeyCommands.StepOut),
+                Item("_Pause", KeyCommands.Pause),
+                Item("Run to _Cursor", KeyCommands.RunToCursor),
             ]),
             new MainMenuGroup("Tools",
             [
-                new MainMenuCommand("_Dependencies...", vm.OpenDependenciesCommand, Gesture(k => k.OpenDependencies)),
-                new MainMenuCommand("_Assembly Explorer...", vm.OpenAssemblyExplorerCommand),
+                Item("_Dependencies...", KeyCommands.OpenDependencies),
+                Item("_Assembly Explorer...", KeyCommands.OpenAssemblyExplorer),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Preferences...", vm.OpenPreferencesCommand),
+                Item("_Preferences...", KeyCommands.OpenPreferences),
             ]),
             new MainMenuGroup("Help",
             [
@@ -325,14 +294,16 @@ public sealed partial class MainWindow : Window, IDisposable
         ];
     }
 
-    // Customizable shortcuts (Preferences → Keyboard) as menu hints. Read once when the menu is built:
-    // a rebound shortcut shows its old hint until restart, while OnWindowKeyDown always reads the
-    // current value.
-    private KeyGesture? Gesture(Func<KeyboardSettings, string> select)
-    {
-        try { return KeyGesture.Parse(select(_prefs.Keyboard)); }
-        catch { return null; }
-    }
+    // A menu item for a key-bindable command: the same action as its key, and the key as a hint.
+    // The hint is read once, when the menu is built: a rebound key shows its old hint until restart,
+    // while OnWindowKeyDown always reads the current binding.
+    private MainMenuCommand Item(string header, KeyCommand command)
+        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command));
+
+    // Undo, Copy… are handled by the text boxes themselves, with the platform's keys (Cmd on macOS);
+    // the menu only shows them.
+    private KeyGesture? Hotkey(Func<PlatformHotkeyConfiguration, List<KeyGesture>> select)
+        => Application.Current?.PlatformSettings?.HotkeyConfiguration is { } hotkeys ? select(hotkeys).FirstOrDefault() : null;
 
     private ReactiveCommand<Unit, Unit> OpenLinkCommand(string url)
         => ReactiveCommand.CreateFromTask(async () => { await Launcher.LaunchUriAsync(new Uri(url)); });
