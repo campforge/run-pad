@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Languages.CSharp;
@@ -193,5 +194,62 @@ public class CSharpIntelliSenseRefactoringsTests
             Assert.True(materialized is not null,
                 $"'{refactoring.Title}' is listed but materializes to nothing. Engine log:\n{log.Drain()}");
         }
+    }
+
+    // A fix that adds a using to the hidden preamble can arrive, depending on the Roslyn version the
+    // installed SDK brings, as a minimal character diff over the following lines instead of one
+    // inserted line — this is the shape newer SDKs produced for "Add 'DebuggerDisplay' attribute".
+    private const string PreambleSample =
+        "using System;\nusing System.Collections.Generic;\nusing System.IO;\nusing System.Linq;\nusing System.Net.Http;\n";
+
+    private static TextChange Replace(string text, string find, string replacement)
+    {
+        var start = text.IndexOf(find, StringComparison.Ordinal);
+        return new TextChange(new TextSpan(start, find.Length), replacement);
+    }
+
+    [Fact]
+    public void UsingsInsertedIntoPreamble_Should_RecognizeAUsingSortedInAsACharacterDiff()
+    {
+        var changes = new[]
+        {
+            Replace(PreambleSample, "IO;", "Diagnostics;"),
+            Replace(PreambleSample, "Linq;", "IO;"),
+            Replace(PreambleSample, "Net.Http;", "Linq;"),
+            new TextChange(new TextSpan(PreambleSample.Length, 0), "using System.Net.Http;\n"),
+        };
+
+        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(PreambleSample, changes);
+
+        Assert.Equal(["System.Diagnostics"], usings);
+    }
+
+    [Fact]
+    public void UsingsInsertedIntoPreamble_Should_AcceptAPlainLineInsertion()
+    {
+        var at = PreambleSample.IndexOf("using System.IO;", StringComparison.Ordinal);
+
+        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+            PreambleSample, [new TextChange(new TextSpan(at, 0), "using System.Diagnostics;\n")]);
+
+        Assert.Equal(["System.Diagnostics"], usings);
+    }
+
+    [Fact]
+    public void UsingsInsertedIntoPreamble_Should_RejectChangingAnExistingUsing()
+    {
+        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+            PreambleSample, [Replace(PreambleSample, "IO;", "Diagnostics;")]);
+
+        Assert.Null(usings);
+    }
+
+    [Fact]
+    public void UsingsInsertedIntoPreamble_Should_RejectInsertingSomethingOtherThanAUsing()
+    {
+        var usings = RoslynCodeFixEngine.UsingsInsertedIntoPreamble(
+            PreambleSample, [new TextChange(new TextSpan(0, 0), "[assembly: System.CLSCompliant(true)]\n")]);
+
+        Assert.Null(usings);
     }
 }
