@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
@@ -144,12 +145,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private static bool IsInsideTypeArgumentList(SyntaxNode root, int position) =>
         HasAncestorMatching(root, position, n => n is TypeArgumentListSyntax);
 
-    private static readonly string[] _tfmPreference =
-    [
-        "net10.0", "net9.0", "net8.0", "net7.0", "net6.0", "net5.0",
-        "netcoreapp3.1", "netstandard2.1", "netstandard2.0",
-    ];
-
     // Debounce for NotifyTextChanged's background diagnostics/semantic-tokens pass — long enough
     // that fast typing doesn't re-run the full Roslyn analysis on every keystroke, short enough to
     // still feel live. Settable only by tests (InternalsVisibleTo): a test that calls
@@ -172,8 +167,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // fix without a real Windows run.
     internal string FormattingNewLineOptionForTests
         => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
-    private readonly string _nugetRoot = NuGetPaths.GetGlobalPackagesFolder();
     private readonly List<MetadataReference> _nugetRefs = [];
+    private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
     private readonly RoslynAnalyzerEngine _analyzerEngine;
 
@@ -1911,50 +1906,58 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Package references ────────────────────────────────────────────────────
 
+    // Without a build context: the runtime IntelliSense itself runs on, the user's NuGet settings.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages)
+        => UpdatePackageReferences(packages,
+            new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null));
+
+    // The same assemblies a build compiles against: the last restore's selection while it still matches
+    // the packages (resolved versions, transitive packages, the target framework's compile assets), else
+    // the best local match by NuGet's version rules — never a restore, which would need the network.
+    public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
-        var newPaths = packages
-            .SelectMany(kv => FindPackageDlls(_nugetRoot, kv.Key, kv.Value.Version))
+        var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
+                packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
+                context.TargetFramework,
+                context.OutputDirectory is { } output ? RoslynScriptCompiler.ObjDirectory(output) : null,
+                context.NuGetConfigFile)
+            .Where(File.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var newRefs = newPaths
-            .Select(p => (MetadataReference)CreateReference(p))
-            .ToList();
+        // The same workspace lock as SyncDocument: a background analysis pass applies its own changes
+        // under it, and both sides must see one consistent "current" solution.
+        lock (_syncLock)
+        {
+            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)) return;
 
-        var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var newRefs = newPaths
+                .Select(p => (MetadataReference)CreateReference(p))
+                .ToList();
 
-        // Keep base BCL refs, replace NuGet refs with the new set.
-        var baseRefs = project.MetadataReferences
-            .Where(r => !_nugetRefs.Contains(r))
-            .ToList();
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
 
-        _nugetRefs.Clear();
-        _nugetRefs.AddRange(newRefs);
+            // Keep base BCL refs, replace NuGet refs with the new set — stale ones (a removed package, an
+            // older resolved version) go away with it.
+            var baseRefs = project.MetadataReferences
+                .Where(r => !_nugetRefs.Contains(r))
+                .ToList();
 
-        _workspace.TryApplyChanges(
-            project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution);
-        // force re-sync on next analysis pass
-        lock (_syncLock) { _lastCode = ""; }
+            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution))
+                return; // the next update tries again: _nugetPaths still describes the workspace
+
+            _nugetRefs.Clear();
+            _nugetRefs.AddRange(newRefs);
+            _nugetPaths = newPaths;
+            // force re-sync on next analysis pass
+            _lastCode = "";
+        }
     }
 
-    private static IEnumerable<string> FindPackageDlls(string nugetRoot, string id, string version)
+    // Test-only (InternalsVisibleTo): the package assemblies the workspace currently references.
+    internal IReadOnlyList<string> PackageReferencePathsForTests
     {
-        var libDir = Path.Combine(nugetRoot, id.ToLowerInvariant(), version, "lib");
-        if (!Directory.Exists(libDir)) yield break;
-
-        var available = Directory.EnumerateDirectories(libDir)
-            .Select(Path.GetFileName)
-            .OfType<string>()
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var tfm in _tfmPreference)
-        {
-            if (!available.Contains(tfm)) continue;
-            foreach (var dll in Directory.GetFiles(Path.Combine(libDir, tfm), "*.dll"))
-                yield return dll;
-            yield break;
-        }
+        get { lock (_syncLock) return _nugetPaths; }
     }
 
     // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can

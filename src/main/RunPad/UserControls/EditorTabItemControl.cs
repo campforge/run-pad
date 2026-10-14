@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Text;
 using System.Web;
 using Avalonia;
@@ -50,6 +51,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
+    private IDisposable? _selectedSdkSub;
     private bool _disposed;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
@@ -128,6 +130,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
+        // Another target framework can mean other compile assets of the same packages.
+        _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(_ => RefreshIntelliSensePackages());
 
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
@@ -370,7 +374,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
-                host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
+                host.Compiled += binaryPath =>
+                {
+                    UpdateIlOutput(binaryPath);
+                    // The build has just restored the packages: completion and diagnostics now see the
+                    // versions and transitive packages it resolved.
+                    Dispatcher.Post(RefreshIntelliSensePackages);
+                };
                 host.InputRequested += (prompt, isPassword) =>
                     Dispatcher.Post(() => ShowInputPrompt(prompt, isPassword));
 
@@ -428,6 +438,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
 
             UpdateOutputUi();
+            // Also when the script itself failed to compile: the restore before it may have succeeded.
+            RefreshIntelliSensePackages();
         }
     }
 
@@ -436,6 +448,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _selectedKindSub?.Dispose();
+        _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
         State.RunCts?.Dispose();
@@ -1640,13 +1653,24 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Pushes this tab's current NuGet packages into its own IntelliSense instance. Called on initial
-    /// load and again after the Dependencies window closes, since it mutates the same RpadFrontMatter
-    /// in place without any change notification of its own.
+    /// Pushes this tab's current NuGet packages into its own IntelliSense instance, with where this
+    /// tab builds, so it can use the assemblies the last restore resolved. Called on initial load,
+    /// after the Dependencies window closes (it mutates the same RpadFrontMatter in place without any
+    /// change notification of its own), after each successful build and when the SDK changes.
     /// </summary>
     internal void RefreshIntelliSensePackages()
-        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
-                                                  new Dictionary<string, Package>());
+    {
+        if (_disposed || _intelliSense is not { } intelliSense) return;
+        var packages = State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, Package>();
+        var targetFramework = (_vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault())?.TargetFrameworkMoniker;
+        if (targetFramework is null)
+        {
+            intelliSense.UpdatePackageReferences(packages);
+            return;
+        }
+        intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile));
+    }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
     // change just like typed text. It used to be written straight away without ever setting
