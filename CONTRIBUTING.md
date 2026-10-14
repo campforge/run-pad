@@ -81,8 +81,21 @@ CI runs these on Windows, Linux and macOS.
   [user guide](https://github.com/Campforge/run-pad-docs) can be updated — or send a pull request
   there too.
 
-## License of contributions
+## Contributor License Agreement
 
-By contributing, you agree that your contribution is licensed under the license of the code you
-change: the [GNU GPL v3.0](LICENSE) for RunPad, and the [MIT License](src/runtime/RunPad.Runtime/LICENSE)
-for `src/runtime/RunPad.Runtime`. Only submit work you have the right to contribute.
+Before your first pull request can be merged, you need to accept the
+[Contributor License Agreement](CLA.md). You keep the copyright in your work; the agreement grants the
+maintainer a license to use and distribute it as part of RunPad — under the project's license
+([GPL v3.0](LICENSE), and [MIT](src/runtime/RunPad.Runtime/LICENSE) for `src/runtime/RunPad.Runtime`)
+and, if the project's licensing ever changes, under other terms.
+
+You only do this once. When you open your first pull request, the CLA check asks you to accept the
+agreement by posting this comment on the pull request:
+
+```text
+I have read the CLA Document and I hereby sign the CLA
+```
+
+Every author of a commit in the pull request has to accept it. Comment `recheck` to run the check
+again. Only submit work you have the right to contribute — if your employer has rights to what you
+write, make sure they allow the contribution.
