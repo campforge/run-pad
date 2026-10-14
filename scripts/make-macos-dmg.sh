@@ -94,7 +94,7 @@ downloaded it from:
     your macOS version and security settings it may not be offered at all.
 
 Only do this for a copy downloaded from the official releases page:
-https://github.com/Campforge/run-pad/releases
+https://github.com/campforge/run-pad/releases
 README
 
 TMP_DMG="$WORK/output.dmg"
