@@ -27,7 +27,8 @@ public sealed class BraceFoldingStrategy : IFoldingStrategy
             else if (c == ClosingBrace && stack.Count > 0)
             {
                 int start = stack.Pop();
-                if (i - start > 1)
+                // A pair on one line has nothing to hide: no fold marker for `{ Run(); }`.
+                if (text.AsSpan(start + 1, i - start - 1).IndexOfAny('\r', '\n') >= 0)
                     result.Add(new NewFolding(start + 1, i));
             }
         }
