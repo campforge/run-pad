@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
@@ -619,6 +621,94 @@ public class CodeFixMarginTests
         Assert.True(t.Width > glyph, $"target {t.Width}, glyph {glyph}");
         Assert.True(t.Right <= margin.Bounds.Width + 1e-9);
         Assert.Equal(t.Width, t.Height, 6);
+    }
+
+    // ── Real pointer events ───────────────────────────────────────────────────
+    //
+    // Through the window's input pipeline (hit testing, routing, capture), not the helpers above: a
+    // click on the square's transparent padding used to miss the margin — it draws only the glyph —
+    // and moved the caret in the text area instead.
+
+    private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin, Rect Target) BulbOnLine2()
+    {
+        var editor = new CodeTextEditor { Document = new TextDocument("line1\nvar value = \"sample\";\nline3\n") };
+        var window = new Window { Content = editor, Width = 600, Height = 300 };
+        window.Show();
+        var margin = editor.TextArea.LeftMargins.OfType<CodeFixMargin>().Single();
+        editor.TextArea.Caret.Line = 2;
+        editor.TextArea.Caret.Column = 5;
+        margin.Update([new CodeFixEntry(2, "fix", CodeFixSeverity.Warning, "fix-key")]);
+        Settle(editor);
+        // Input hit testing uses the rendered scene: render a frame first, as a real window would.
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Dispatcher.UIThread.RunJobs();
+        return (window, editor, margin, margin.HitTarget()!.Value);
+    }
+
+    private static void Click(Window window, CodeFixMargin margin, Point inMargin, Point? releaseInMargin = null)
+    {
+        window.MouseDown(margin.TranslatePoint(inMargin, window)!.Value, MouseButton.Left);
+        window.MouseUp(margin.TranslatePoint(releaseInMargin ?? inMargin, window)!.Value, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(0.0, 0.0)]    // the glyph's center
+    [InlineData(0.0, 0.45)]   // padding below the glyph (the reported case)
+    [InlineData(0.0, -0.45)]  // padding above
+    [InlineData(-0.45, 0.45)] // corners
+    [InlineData(0.45, -0.45)]
+    public void AClickInTheSquare_Should_OpenTheMenu_AndLeaveTheCaret(double dx, double dy)
+    {
+        var (window, editor, margin, t) = BulbOnLine2();
+        var point = new Point(t.Center.X + t.Width * dx, t.Center.Y + t.Height * dy);
+
+        Assert.Same(margin, window.InputHitTest(margin.TranslatePoint(point, window)!.Value));
+        Click(window, margin, point);
+
+        Assert.True(margin.OpenMenu?.IsOpen, "the menu is open after the release");
+        Assert.Equal(["fix"], margin.OpenMenu!.Items.OfType<MenuItem>().Select(i => i.Header));
+        Assert.Equal((2, 5), (editor.TextArea.Caret.Line, editor.TextArea.Caret.Column));
+    }
+
+    // Beside the square (a wide column) or on another line's row: no menu, and the click stays in the
+    // margin instead of reaching the text area.
+    [AvaloniaFact]
+    public void AClickInTheColumn_OutsideTheSquare_Should_DoNothing()
+    {
+        var (window, editor, margin, t) = BulbOnLine2();
+        var lineHeight = margin.TextView.DefaultLineHeight;
+
+        Click(window, margin, new Point(t.Center.X, t.Bottom + lineHeight)); // the next lines' rows
+        Click(window, margin, new Point(t.Center.X, t.Top - 2));
+
+        Assert.Null(margin.OpenMenu);
+        Assert.Equal((2, 5), (editor.TextArea.Caret.Line, editor.TextArea.Caret.Column));
+    }
+
+    // Pressed on the bulb, released elsewhere: not a click.
+    [AvaloniaFact]
+    public void PressingOnTheBulb_AndReleasingOutside_Should_NotOpenTheMenu()
+    {
+        var (window, _, margin, t) = BulbOnLine2();
+
+        Click(window, margin, t.Center, releaseInMargin: new Point(t.Center.X, t.Bottom + 30));
+
+        Assert.Null(margin.OpenMenu);
+    }
+
+    // Picking an entry of the opened menu applies that fix (the same routing as before).
+    [AvaloniaFact]
+    public void AnEntryOfTheMenuOpenedByAClick_Should_ApplyItsFix()
+    {
+        var (window, _, margin, t) = BulbOnLine2();
+        CodeFixEntry? applied = null;
+        margin.FixApplyRequested += fix => applied = fix;
+
+        Click(window, margin, new Point(t.Center.X, t.Bottom - 1));
+        margin.OpenMenu!.Items.OfType<MenuItem>().Single().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+        Assert.Equal("fix-key", applied?.Key);
     }
 
     private static void Arrange(CodeFixMargin margin)
