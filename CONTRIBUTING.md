@@ -68,6 +68,8 @@ RunPad, under the project's license and, if the licensing ever changes, under ot
   pull request.
 - **Docs:** if users can see the change, update the [user guide](https://github.com/campforge/run-pad-docs)
   too or mention it in the pull request.
+- **Changelog:** if users can see the change, add a line for them under `## [Unreleased]` in
+  [`CHANGELOG.md`](CHANGELOG.md) — it becomes the release notes of the next version.
 
 ## Adding an analyzer
 
