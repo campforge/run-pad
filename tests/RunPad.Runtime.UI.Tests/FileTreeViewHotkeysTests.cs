@@ -20,6 +20,10 @@ namespace RunPad.Runtime.UI.Tests;
 // while the NEW bound one does — same proof shape as MainWindowHotkeysTests for F4/Ctrl+W.
 public class FileTreeViewHotkeysTests
 {
+    // The Windows/Linux defaults on every OS, so the keys pressed below are the bound ones.
+    private static KeyboardSettings Keys(KeyCommand command, string key)
+        => new() { IsMac = false, Bindings = { [command.Id] = key } };
+
     private static (Window Window, FileTreeView View, FileTreeViewNode Node) CreateViewWithOneSelectedNode(
         KeyboardSettings keyboard)
     {
@@ -48,7 +52,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingTheDefaultF2_Should_StartRenaming()
     {
-        var (window, _, node) = CreateViewWithOneSelectedNode(new KeyboardSettings());
+        var (window, _, node) = CreateViewWithOneSelectedNode(new KeyboardSettings { IsMac = false });
 
         window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
 
@@ -58,7 +62,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingF2_Should_NotStartRenaming_WhenTheGestureHasBeenRebound()
     {
-        var (window, _, node) = CreateViewWithOneSelectedNode(new KeyboardSettings { RenameFile = "Ctrl+Shift+R" });
+        var (window, _, node) = CreateViewWithOneSelectedNode(Keys(KeyCommands.RenameFile, "Ctrl+Shift+R"));
 
         window.KeyPress(Key.F2, RawInputModifiers.None, PhysicalKey.F2, null);
 
@@ -68,7 +72,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingTheReboundGesture_Should_StartRenaming()
     {
-        var (window, _, node) = CreateViewWithOneSelectedNode(new KeyboardSettings { RenameFile = "Ctrl+Shift+R" });
+        var (window, _, node) = CreateViewWithOneSelectedNode(Keys(KeyCommands.RenameFile, "Ctrl+Shift+R"));
 
         window.KeyPress(Key.R, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.R, null);
 
@@ -78,7 +82,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingTheDefaultDeleteKey_Should_RaiseTheDeleteEvent()
     {
-        var (window, view, node) = CreateViewWithOneSelectedNode(new KeyboardSettings());
+        var (window, view, node) = CreateViewWithOneSelectedNode(new KeyboardSettings { IsMac = false });
         string? deletedPath = null;
         view.Delete += (_, e) => deletedPath = e.FilePath;
 
@@ -90,7 +94,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingDeleteKey_Should_NotRaiseTheDeleteEvent_WhenTheGestureHasBeenRebound()
     {
-        var (window, view, _) = CreateViewWithOneSelectedNode(new KeyboardSettings { DeleteFile = "Ctrl+Shift+D" });
+        var (window, view, _) = CreateViewWithOneSelectedNode(Keys(KeyCommands.DeleteFile, "Ctrl+Shift+D"));
         var raised = false;
         view.Delete += (_, _) => raised = true;
 
@@ -102,7 +106,7 @@ public class FileTreeViewHotkeysTests
     [AvaloniaFact]
     public void PressingTheReboundGesture_Should_RaiseTheDeleteEvent()
     {
-        var (window, view, node) = CreateViewWithOneSelectedNode(new KeyboardSettings { DeleteFile = "Ctrl+Shift+D" });
+        var (window, view, node) = CreateViewWithOneSelectedNode(Keys(KeyCommands.DeleteFile, "Ctrl+Shift+D"));
         string? deletedPath = null;
         view.Delete += (_, e) => deletedPath = e.FilePath;
 

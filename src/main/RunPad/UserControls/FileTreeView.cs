@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using RunPad.Format.RPad;
+using RunPad.Services.Preferences;
 using RunPad.UserControls.Models;
 
 namespace RunPad.UserControls;
@@ -316,16 +317,7 @@ public partial class FileTreeView : UserControl
     }
 
     private static bool Match(KeyEventArgs e, string gesture)
-    {
-        try
-        {
-            return KeyGesture.Parse(gesture).Matches(e);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+        => KeyGestureText.Parse(gesture)?.Matches(e) == true;
 
     // ── Rename helpers ────────────────────────────────────────────────────────
 

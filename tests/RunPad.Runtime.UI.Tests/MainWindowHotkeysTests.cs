@@ -28,6 +28,10 @@ namespace RunPad.Runtime.UI.Tests;
 // the NEW bound one does.
 public class MainWindowHotkeysTests
 {
+    // The Windows/Linux defaults on every OS, so the keys pressed below are the bound ones.
+    private static KeyboardSettings Keys(KeyCommand command, string key)
+        => new() { IsMac = false, Bindings = { [command.Id] = key } };
+
     private static (MainWindow Window, MainWindowViewModel ViewModel, Mock<IWindowService> WindowService) CreateMainWindow(
         KeyboardSettings keyboard)
     {
@@ -105,7 +109,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingTheDefaultF4Gesture_Should_OpenDependencies()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings());
+        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { IsMac = false });
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
@@ -115,7 +119,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingF4_Should_NotOpenDependencies_WhenTheGestureHasBeenRebound()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { OpenDependencies = "Ctrl+Shift+X" });
+        var (window, _, windowService) = CreateMainWindow(Keys(KeyCommands.OpenDependencies, "Ctrl+Shift+X"));
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
@@ -125,7 +129,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingTheReboundGesture_Should_OpenDependencies()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { OpenDependencies = "Ctrl+Shift+X" });
+        var (window, _, windowService) = CreateMainWindow(Keys(KeyCommands.OpenDependencies, "Ctrl+Shift+X"));
 
         window.KeyPress(Key.X, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.X, null);
 
@@ -135,7 +139,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingTheDefaultCtrlW_Should_CloseTheActiveTab()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings());
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { IsMac = false });
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
         Assert.True(tabCountBefore > 0); // the initial blank tab EditorTabsControl.Attach creates
@@ -145,10 +149,25 @@ public class MainWindowHotkeysTests
         Assert.Equal(tabCountBefore - 1, vm.Tabs.Count);
     }
 
+    // The macOS defaults use Cmd: Cmd+W closes the tab and Ctrl+W no longer does.
+    [AvaloniaFact]
+    public async Task OnMacOS_TheDefaultCmdW_Should_CloseTheActiveTab()
+    {
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { IsMac = true });
+        Assert.NotNull(await WaitForActiveTabControlAsync(window));
+        var tabCountBefore = vm.Tabs.Count;
+
+        window.KeyPress(Key.W, RawInputModifiers.Control, PhysicalKey.W, null);
+        Assert.Equal(tabCountBefore, vm.Tabs.Count);
+
+        window.KeyPress(Key.W, RawInputModifiers.Meta, PhysicalKey.W, null);
+        Assert.Equal(tabCountBefore - 1, vm.Tabs.Count);
+    }
+
     [AvaloniaFact]
     public async Task PressingCtrlW_Should_NotCloseTheActiveTab_WhenTheGestureHasBeenRebound()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { CloseTab = "Ctrl+Shift+Q" });
+        var (window, vm, _) = CreateMainWindow(Keys(KeyCommands.CloseTab, "Ctrl+Shift+Q"));
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
 
@@ -160,7 +179,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingTheReboundGesture_Should_CloseTheActiveTab()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { CloseTab = "Ctrl+Shift+Q" });
+        var (window, vm, _) = CreateMainWindow(Keys(KeyCommands.CloseTab, "Ctrl+Shift+Q"));
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
         var tabCountBefore = vm.Tabs.Count;
         Assert.True(tabCountBefore > 0);
@@ -177,7 +196,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingCtrlW_OnADirtyUntitledTab_Should_AskBeforeClosing()
     {
-        var (window, vm, windowService) = CreateMainWindow(new KeyboardSettings());
+        var (window, vm, windowService) = CreateMainWindow(new KeyboardSettings { IsMac = false });
         windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
             .ReturnsAsync(UnsavedChangesResult.Cancel);
 
@@ -198,7 +217,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingTheDefaultCtrlN_Should_CreateANewTab()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings());
+        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { IsMac = false });
         var tabCountBefore = vm.Tabs.Count;
 
         window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
@@ -209,7 +228,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingCtrlN_Should_NotCreateANewTab_WhenTheGestureHasBeenRebound()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { NewFile = "Ctrl+Shift+N" });
+        var (window, vm, _) = CreateMainWindow(Keys(KeyCommands.NewFile, "Ctrl+Shift+N"));
         var tabCountBefore = vm.Tabs.Count;
 
         window.KeyPress(Key.N, RawInputModifiers.Control, PhysicalKey.N, null);
@@ -220,7 +239,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public void PressingTheReboundGesture_Should_CreateANewTab()
     {
-        var (window, vm, _) = CreateMainWindow(new KeyboardSettings { NewFile = "Ctrl+Shift+N" });
+        var (window, vm, _) = CreateMainWindow(Keys(KeyCommands.NewFile, "Ctrl+Shift+N"));
         var tabCountBefore = vm.Tabs.Count;
 
         window.KeyPress(Key.N, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.N, null);
@@ -238,7 +257,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingTheDefaultCtrlShiftS_Should_OpenTheSaveAsDialog()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings());
+        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { IsMac = false });
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
         windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((string?)null); // cancelled — this test only cares that the dialog was asked for
@@ -251,7 +270,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingCtrlShiftS_Should_NotOpenTheSaveAsDialog_WhenTheGestureHasBeenRebound()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { SaveAs = "Ctrl+Shift+X" });
+        var (window, _, windowService) = CreateMainWindow(Keys(KeyCommands.SaveAs, "Ctrl+Shift+X"));
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
 
         window.KeyPress(Key.S, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.S, null);
@@ -262,7 +281,7 @@ public class MainWindowHotkeysTests
     [AvaloniaFact]
     public async Task PressingTheReboundGesture_Should_OpenTheSaveAsDialog()
     {
-        var (window, _, windowService) = CreateMainWindow(new KeyboardSettings { SaveAs = "Ctrl+Shift+X" });
+        var (window, _, windowService) = CreateMainWindow(Keys(KeyCommands.SaveAs, "Ctrl+Shift+X"));
         Assert.NotNull(await WaitForActiveTabControlAsync(window));
         windowService.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync((string?)null);
@@ -282,7 +301,7 @@ public class MainWindowHotkeysTests
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
-        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings { IsMac = false });
         prefs.Setup(p => p.Editor).Returns(new EditorSettings
         {
             NewFileLanguage = RpadLanguage.Vb,

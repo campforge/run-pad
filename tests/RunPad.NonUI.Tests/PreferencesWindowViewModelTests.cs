@@ -45,34 +45,62 @@ public class PreferencesWindowViewModelTests
         return registry;
     }
 
-    // These 4 properties are newly wired (F4/Ctrl+W/F2/Delete used to be hardcoded,
-    // not editable here at all) — a real KeyboardSettings instance (not a further mock) so the
-    // round-trip through SetPref is genuinely observable on the same object MainWindow/FileTreeView
-    // read from.
+    // The Keyboard page lists every command of the catalog; editing a row writes the binding to
+    // the same KeyboardSettings object MainWindow/FileTreeView read from, and saves.
     [Fact]
-    public void HotkeyProperties_Should_RoundTrip_ThroughTheUnderlyingKeyboardSettings()
+    public void KeyBindingRows_Should_RoundTrip_ThroughTheUnderlyingKeyboardSettings()
     {
-        var keyboard = new KeyboardSettings();
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
+        var vm = CreateViewModel(prefs);
+
+        Assert.Equal(KeyCommands.All, vm.KeyBindings.Select(r => r.Command));
+        var closeTab = vm.KeyBindings.Single(r => r.Command == KeyCommands.CloseTab);
+        Assert.Equal("Ctrl+W", closeTab.Key);
+        Assert.False(closeTab.IsCustomized);
+
+        closeTab.Key = "ctrl+shift+w";
+
+        Assert.Equal("Ctrl+Shift+W", keyboard.KeyFor(KeyCommands.CloseTab));
+        Assert.True(closeTab.IsCustomized);
+        prefs.Verify(p => p.Save(), Times.Once);
+
+        closeTab.ResetCommand.Execute().Subscribe();
+
+        Assert.Empty(keyboard.Bindings);
+        Assert.Equal("Ctrl+W", closeTab.Key);
+    }
+
+    [Fact]
+    public void KeyBindingRows_Should_WarnAboutConflictsAndInvalidKeys()
+    {
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
+        var vm = CreateViewModel(prefs);
+        var save = vm.KeyBindings.Single(r => r.Command == KeyCommands.Save);
+        var newFile = vm.KeyBindings.Single(r => r.Command == KeyCommands.NewFile);
+
+        newFile.Key = "Ctrl+S";
+
+        Assert.Equal("Also used by Save", newFile.Warning);
+        Assert.Equal("Also used by New File", save.Warning); // refreshed by the other row's change
+
+        newFile.Key = "Ctrl+Nope";
+        Assert.Equal("Not a key combination", newFile.Warning);
+        Assert.False(save.HasWarning);
+    }
+
+    private static PreferencesWindowViewModel CreateViewModel(Mock<IPreferencesService> prefs)
+    {
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", ThemeName.DarkPlus, true)));
         theme.Setup(t => t.InterfaceThemes).Returns([]);
         theme.Setup(t => t.EditorThemes).Returns([]);
-        var prefs = new Mock<IPreferencesService>();
-        prefs.Setup(p => p.Keyboard).Returns(keyboard);
-        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
-
-        vm.HotkeyOpenDependencies = "Ctrl+Alt+D";
-        vm.HotkeyCloseTab = "Ctrl+Shift+W";
-        vm.HotkeyRenameFile = "Ctrl+R";
-        vm.HotkeyDeleteFile = "Ctrl+Delete";
-
-        Assert.Equal("Ctrl+Alt+D", keyboard.OpenDependencies);
-        Assert.Equal("Ctrl+Shift+W", keyboard.CloseTab);
-        Assert.Equal("Ctrl+R", keyboard.RenameFile);
-        Assert.Equal("Ctrl+Delete", keyboard.DeleteFile);
-        prefs.Verify(p => p.Save(), Times.Exactly(4));
+        return new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
     }
 
     // Newly wired global switch — same round-trip pattern as the hotkey properties
@@ -122,26 +150,6 @@ public class PreferencesWindowViewModelTests
         Assert.Equal(RpadLanguage.Vb, editorSettings.NewFileLanguage);
         Assert.Equal(RpadKind.Program, editorSettings.NewFileKind);
         prefs.Verify(p => p.Save(), Times.Exactly(2));
-    }
-
-    [Fact]
-    public void HotkeyNewFile_Should_RoundTrip_ThroughTheUnderlyingKeyboardSettings()
-    {
-        var keyboard = new KeyboardSettings();
-        var theme = new Mock<IThemeService>();
-        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
-            new InterfaceTheme("Test", ThemeVariant.Dark, true),
-            new EditorTheme("Test", ThemeName.DarkPlus, true)));
-        theme.Setup(t => t.InterfaceThemes).Returns([]);
-        theme.Setup(t => t.EditorThemes).Returns([]);
-        var prefs = new Mock<IPreferencesService>();
-        prefs.Setup(p => p.Keyboard).Returns(keyboard);
-        var vm = new PreferencesWindowViewModel(theme.Object, prefs.Object, CreateRealRegistry());
-
-        vm.HotkeyNewFile = "Ctrl+Alt+N";
-
-        Assert.Equal("Ctrl+Alt+N", keyboard.NewFile);
-        prefs.Verify(p => p.Save(), Times.Once);
     }
 
     // Every registered language today is .NET-based, so they

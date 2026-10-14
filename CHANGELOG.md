@@ -11,6 +11,13 @@ Notable changes in each RunPad release. Downloads are on the
   every system. Every toolbar button and shortcut is now in the menu too: undo and clipboard
   commands, formatting, zoom, running and debugging. Dependencies, Assembly Explorer and Preferences
   moved to **Tools**, and **Help** links to the user guide, the release notes and the issue tracker.
+- Every keyboard shortcut can be changed in **Preferences → Keyboard**: the page now lists all
+  commands — including the editor's (completion, Go to Definition…) and the Assembly Explorer's —
+  grouped by area, with **Reset** and a warning when two commands share a key.
+- New default shortcuts follow LINQPad: **Stop** is **Shift+F5** (was Esc), **Run to Cursor** is
+  **Ctrl+F10** and **Ctrl+R** shows or hides the output panel. Shortcuts you changed before are kept.
+- On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
+  Preferences…), and ⌘ + mouse wheel zooms the editor.
 
 ## [0.4.1] — 2026-10-14
 

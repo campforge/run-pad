@@ -33,6 +33,7 @@ public partial class TextEditorWindow : Window
         };
         EditorHost.Content = editor;
         Editor = editor;
+        preferences?.Keyboard.ApplyTo(editor);
 
         // SetLanguage needs the editor in the visual tree (same as every other CodeTextEditor host)
         EventHandler<global::Avalonia.VisualTreeAttachmentEventArgs>? onAttached = null;
@@ -47,8 +48,8 @@ public partial class TextEditorWindow : Window
         editor.TextArea.Caret.PositionChanged += (_, _) => UpdateCaret();
 
         // the user's own Save / Save As gestures, as in the main window
-        AddGesture(preferences?.Keyboard.Save, viewModel.SaveCommand);
-        AddGesture(preferences?.Keyboard.SaveAs, viewModel.SaveAsCommand);
+        AddGesture(preferences?.Keyboard.GestureFor(KeyCommands.Save), viewModel.SaveCommand);
+        AddGesture(preferences?.Keyboard.GestureFor(KeyCommands.SaveAs), viewModel.SaveAsCommand);
 
         Closing += async (_, e) =>
         {
@@ -86,16 +87,9 @@ public partial class TextEditorWindow : Window
     private void UpdateCaret() =>
         CaretText.Text = $"Ln {Editor.TextArea.Caret.Line}, Col {Editor.TextArea.Caret.Column}";
 
-    private void AddGesture(string? gesture, System.Windows.Input.ICommand command)
+    // An unbound or unparsable key: the toolbar buttons still work.
+    private void AddGesture(KeyGesture? gesture, System.Windows.Input.ICommand command)
     {
-        if (string.IsNullOrWhiteSpace(gesture)) return;
-        try
-        {
-            KeyBindings.Add(new KeyBinding { Gesture = KeyGesture.Parse(gesture), Command = command });
-        }
-        catch (ArgumentException)
-        {
-            // an unparsable gesture in the settings: the toolbar buttons still work
-        }
+        if (gesture is not null) KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = command });
     }
 }

@@ -297,7 +297,7 @@
                     VerticalContentAlignment="Center"
                     Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                     FontSize="12"
-                    ToolTip.Tip="Editor zoom (Ctrl+Mouse Wheel)"
+                    ToolTip.Tip="Editor zoom"
                     Content="100%">
                 <Button.Flyout>
                     <MenuFlyout Placement="TopEdgeAlignedRight">

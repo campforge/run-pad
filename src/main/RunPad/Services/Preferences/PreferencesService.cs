@@ -47,6 +47,7 @@ public sealed class PreferencesService : IPreferencesService
         {
             var json = File.ReadAllText(SettingsPath);
             _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new();
+            if (_settings.Keyboard.MigrateLegacy()) Save();
         }
         catch (Exception ex)
         {

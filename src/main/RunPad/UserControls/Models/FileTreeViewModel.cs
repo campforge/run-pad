@@ -26,8 +26,8 @@ public class FileTreeViewModel
     // parameter) — routed through this view model (its DataContext) instead, read live on every
     // keypress the same way MainWindow.OnWindowKeyDown re-reads _prefs.Keyboard fresh each time,
     // rather than a value snapshotted once at construction.
-    public string RenameGesture => _prefs.Keyboard.RenameFile;
-    public string DeleteGesture => _prefs.Keyboard.DeleteFile;
+    public string RenameGesture => _prefs.Keyboard.KeyFor(KeyCommands.RenameFile);
+    public string DeleteGesture => _prefs.Keyboard.KeyFor(KeyCommands.DeleteFile);
 
     /// <summary>Rebuilds <see cref="Nodes"/> from disk, preserving existing node
     /// objects where possible so selection and expand state survive small changes.</summary>
