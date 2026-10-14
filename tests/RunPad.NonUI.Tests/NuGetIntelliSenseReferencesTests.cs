@@ -18,7 +18,7 @@ public sealed class NuGetIntelliSenseReferencesTests : IAsyncDisposable
 {
     private const string Tfm = "net8.0";
 
-    private readonly string _root = Directory.CreateTempSubdirectory("runpad-r10").FullName;
+    private readonly string _root = Directory.CreateTempSubdirectory("runpad-nuget-intellisense").FullName;
     private readonly string _packages;
     private readonly string _feed;
     private readonly string _config;
