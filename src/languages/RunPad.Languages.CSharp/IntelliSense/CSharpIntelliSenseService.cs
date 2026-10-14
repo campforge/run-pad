@@ -176,6 +176,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly List<MetadataReference> _nugetRefs = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
     private readonly RoslynAnalyzerEngine _analyzerEngine;
+
+    // RunPad's own analyzers are experimental and off until the host turns them on.
+    private volatile bool _runPadAnalyzersEnabled;
+
+    public void UpdateRunPadAnalyzers(bool enabled) => _runPadAnalyzersEnabled = enabled;
     private string[] _extraPreambleUsings = [];
     private string _preamble = "";
     private int _preambleLength;
@@ -1842,7 +1847,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var compilation = await document.Project.GetCompilationAsync(ct);
         var analyzerDiagnostics = compilation is null
             ? []
-            : await _analyzerEngine.ComputeAsync(compilation, ct);
+            : await _analyzerEngine.ComputeAsync(compilation, _runPadAnalyzersEnabled, ct);
 
         var headerLength = HeaderLength(code);
         var visible = new List<IDiagnosticInfo>();

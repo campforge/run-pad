@@ -29,6 +29,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     private static readonly SettingsNode InterfaceNode = new("interface", "Interface");
     private static readonly SettingsNode EditorNode = new("editor", "Editor");
     private static readonly SettingsNode KeyboardNode = new("keyboard", "Keyboard");
+    private static readonly SettingsNode ExperimentalNode = new("experimental", "Experimental");
 
     private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
@@ -68,7 +69,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             .ToList();
         var dotnetNode = new SettingsNode(DotnetNodeId, ".NET", languageNodes);
         _languagesNode = new SettingsNode("languages", "Languages", [dotnetNode]);
-        _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode];
+        _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode, ExperimentalNode];
 
         // Initialize directly — no bindings exist yet, so no RaisePropertyChanged needed
         var theme = themeService.CurrentTheme;
@@ -109,6 +110,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             this.RaisePropertyChanged(nameof(IsEditorSelected));
             this.RaisePropertyChanged(nameof(IsDotnetSelected));
             this.RaisePropertyChanged(nameof(IsKeyboardSelected));
+            this.RaisePropertyChanged(nameof(IsExperimentalSelected));
             this.RaisePropertyChanged(nameof(IsLanguagesSelected));
             this.RaisePropertyChanged(nameof(IsLanguageNodeSelected));
             this.RaisePropertyChanged(nameof(IsCSharpNodeSelected));
@@ -121,6 +123,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public bool IsEditorSelected => _selectedNode?.Id == "editor";
     public bool IsDotnetSelected => _selectedNode?.Id == DotnetNodeId;
     public bool IsKeyboardSelected => _selectedNode?.Id == "keyboard";
+    public bool IsExperimentalSelected => _selectedNode?.Id == "experimental";
     public bool IsLanguagesSelected => _selectedNode?.Id == "languages";
 
     // True for one of Languages' own child nodes (e.g. "languages.csharp") — not the "Languages"
@@ -402,6 +405,14 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Debugger.DebuggerPath;
         set => SetPref(_prefs.Debugger.DebuggerPath, value, v => _prefs.Debugger.DebuggerPath = v);
+    }
+
+    // ── Experimental ──────────────────────────────────────────────────────────
+
+    public bool RunPadAnalyzersEnabled
+    {
+        get => _prefs.Experimental.RunPadAnalyzers;
+        set => SetPref(_prefs.Experimental.RunPadAnalyzers, value, v => _prefs.Experimental.RunPadAnalyzers = v);
     }
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────

@@ -18,6 +18,13 @@ Notable changes in each RunPad release. Downloads are on the
   **Ctrl+F10** and **Ctrl+R** shows or hides the output panel. Shortcuts you changed before are kept.
 - On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
   Preferences…), and ⌘ + mouse wheel zooms the editor.
+- RunPad's own analyzers (`RPAD…` warnings) are now an experimental feature, off by default. Turn
+  them on in **Preferences → Experimental**.
+
+### Fixed
+
+- In the light theme, the children of a selected item in the Preferences tree and in the file
+  tree no longer turn white.
 
 ## [0.4.1] — 2026-10-14
 

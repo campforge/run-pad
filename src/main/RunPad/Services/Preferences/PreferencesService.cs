@@ -21,6 +21,7 @@ public sealed class PreferencesService : IPreferencesService
     public KeyboardSettings Keyboard => _settings.Keyboard;
     public LayoutSettings Layout => _settings.Layout;
     public SessionSettings Session => _settings.Session;
+    public ExperimentalSettings Experimental => _settings.Experimental;
 
     public event Action? Changed;
 

@@ -89,11 +89,16 @@
                 <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
                     <Setter Property="IsVisible" Value="False" />
                 </Style>
-                <Style Selector="TreeViewItem:selected TextBlock">
+                <!-- The text color is set on each item's own header, not on "TreeViewItem:selected TextBlock":
+                     that selector also matched the text of the selected item's children, which turned white
+                     on the light background. -->
+                <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
+                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}" />
+                </Style>
+                <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
                     <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}" />
                 </Style>
                 <Style Selector="TreeViewItem TextBlock">
-                    <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}" />
                     <Setter Property="FontSize" Value="13" />
                     <Setter Property="VerticalAlignment" Value="Center" />
                 </Style>

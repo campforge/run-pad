@@ -35,11 +35,16 @@
         <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
-        <Style Selector="TreeViewItem:selected TextBlock">
+        <!-- The text color is set on each item's own header, not on "TreeViewItem:selected TextBlock":
+             that selector also matched the text of the selected item's children, which turned white
+             on the light background. -->
+        <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
             <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
         </Style>
         <Style Selector="TreeViewItem TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -166,6 +171,18 @@
                     <TextBox PlaceholderText="Path to dotnet.exe" Text="{Binding DotnetPath}"/>
                     <TextBlock Text="Debugger path:" Margin="0,8,0,0"/>
                     <TextBox PlaceholderText="Path to netcoredbg.exe" Text="{Binding DebuggerPath}"/>
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsExperimentalSelected}" Spacing="6">
+                    <TextBlock Text="Experimental:" FontWeight="SemiBold"/>
+                    <TextBlock Text="Features that work but are not finished yet. They are off by default and may change or go away."
+                               TextWrapping="Wrap" Margin="0,0,0,6"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                    <CheckBox Content="RunPad analyzers (RPAD… warnings in C# scripts)"
+                              IsChecked="{Binding RunPadAnalyzersEnabled}"/>
+                    <TextBlock Text="RunPad's own checks for code that always fails at run time, such as int.Parse(&quot;abc&quot;), shown as warnings while you type."
+                               TextWrapping="Wrap" Margin="28,0,0,0"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                 </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsKeyboardSelected}" Spacing="4">

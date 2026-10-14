@@ -41,6 +41,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
+    private bool _runPadAnalyzers;
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
     // filtering happens at render time instead of once when each list is produced.
@@ -120,6 +121,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         OnEditorFontSizeChanged();
 
         _intelliSense = intelliSense;
+        _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
+        intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
         SetupEditor(editor, intelliSense);
         editor.BreakpointAdded += OnGutterBreakpointAdded;
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
@@ -1083,6 +1086,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var zoomFactor = _zoomFactor;
             ApplyEditorSettings(State.Editor, _prefs.Editor);
             _prefs.Keyboard.ApplyTo(State.Editor);
+            if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
+            {
+                _runPadAnalyzers = !_runPadAnalyzers;
+                _intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
+                _intelliSense?.NotifyTextChanged(State.Editor.Text);
+            }
             if (zoomFactor != 1)
                 State.Editor.FontSize = Math.Max(1, _prefs.Editor.FontSize * zoomFactor);
 
