@@ -57,6 +57,8 @@ public class KeyboardSettingsTests
     [InlineData(true, "explorer.back", "Cmd+W", "file.closeTab")]
     [InlineData(false, "explorer.search", "F12", "editor.goToDefinition")]
     [InlineData(false, "explorer.removeAssembly", "Alt+Left", "explorer.back")]
+    [InlineData(false, "file.exit", "Ctrl+R", "explorer.analyze")]         // Exit works in every window
+    [InlineData(true, "editor.goToDefinition", "Cmd+Q", "file.exit")]      // …including over the editors
     public void ConflictsOf_Should_FindCommandsTheSameKeypressReaches(bool mac, string id, string key, string otherId)
     {
         var keyboard = new KeyboardSettings { IsMac = mac };

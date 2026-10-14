@@ -101,6 +101,7 @@ public class App : Application
                 desktop.MainWindow = wizard;
             }
 
+            ApplicationExit.Attach(() => desktop.MainWindow, _serviceProvider.GetRequiredService<IPreferencesService>(), desktop);
             desktop.Exit += (_, _) => _serviceProvider.Dispose();
         }
 

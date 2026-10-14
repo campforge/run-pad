@@ -5,6 +5,8 @@
     <PackageReference Include="ICSharpCode.Decompiler" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" />
     <PackageReference Include="NuGet.Commands" />
+    <!-- the fixed version of a NuGet.Packaging dependency (see Directory.Packages.props) -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
   <ItemGroup>

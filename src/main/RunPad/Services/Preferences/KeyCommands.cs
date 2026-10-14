@@ -130,6 +130,12 @@ public static class KeyCommands
 
         if (command == Save || command == SaveAs) scopes.Add(new(TextEditorWindow));
         if (command == Save || command == CloseTab) scopes.Add(new(AssemblyExplorerWindow));
+        // Exit quits from every window (ApplicationExit).
+        if (command == Exit)
+        {
+            scopes.Add(new(TextEditorWindow));
+            scopes.Add(new(AssemblyExplorerWindow));
+        }
         return scopes;
     }
 }

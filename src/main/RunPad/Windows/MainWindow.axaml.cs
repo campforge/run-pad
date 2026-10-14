@@ -67,6 +67,10 @@ public sealed partial class MainWindow : Window, IDisposable
     // (if the user actually wants to proceed) call Close() again for real once the async
     // confirmation resolves; _confirmedClose tells that second, real close apart from the first one
     // this handler itself cancelled.
+    //
+    // The text editor windows this window owns leave their unsaved changes to it when it closes (see
+    // TextEditorWindow): each is asked here after the tabs and closed once answered, so closing the
+    // app asks once per unsaved document and then really closes.
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_confirmedClose) return;
@@ -75,7 +79,8 @@ public sealed partial class MainWindow : Window, IDisposable
             e.Cancel = true;
             return;
         }
-        if (!_editorTabs.HasUnsavedTabs()) return;
+        var unsavedWindows = OwnedWindows.OfType<TextEditorWindow>().Where(w => w.ViewModel.IsDirty).ToList();
+        if (!_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
 
         e.Cancel = true;
         _closeConfirmationInProgress = true;
@@ -83,6 +88,11 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            foreach (var window in unsavedWindows)
+            {
+                if (!canClose) break;
+                canClose = await window.TryCloseAsync();
+            }
         }
         finally
         {
