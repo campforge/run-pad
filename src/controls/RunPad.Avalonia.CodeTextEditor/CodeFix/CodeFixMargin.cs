@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
@@ -66,10 +67,11 @@ public class CodeFixMargin : AbstractMargin
     // up via CodeTextEditor.FixApplyRequested).
     public event Action<CodeFixEntry>? FixApplyRequested;
 
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+
     public CodeFixMargin(CodeTextEditor editor)
     {
         _editor = editor;
-        Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
 
         _caretLine = _editor.TextArea.Caret.Line;
@@ -90,22 +92,62 @@ public class CodeFixMargin : AbstractMargin
 
     public override void Render(DrawingContext context)
     {
-        if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0) return;
-
-        var worst = WorstSeverityOnLine(_caretLine);
-        if (worst is null) return;
-
-        var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
-        if (vl is null) return; // caret line currently scrolled out of view — nothing to draw
+        if (BulbLayout() is not var (severity, yTop, lineH)) return;
 
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
         if (_bulbGeo is null) return;
 
-        var brush = LoadThemedResource<IBrush>(SeverityBrushKey(worst.Value));
-        var lineH = vl.Height;
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                      - TextView.VerticalOffset;
+        // Only the glyph: the square around it is an invisible click target (HitTarget), with no
+        // frame or background, not even on hover.
+        var brush = LoadThemedResource<IBrush>(SeverityBrushKey(severity));
         DrawCentered(context, _bulbGeo, brush, yTop, lineH);
+    }
+
+    // Where the bulb is: the caret's line, when it has a fix and is on screen — the worst severity
+    // there, and the line's top and height in this margin's coordinates. Shared by Render and the
+    // click target, so a click hits exactly what is drawn.
+    private (CodeFixSeverity Severity, double YTop, double LineHeight)? BulbLayout()
+    {
+        if (TextView is null || !TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0)
+            return null;
+
+        if (WorstSeverityOnLine(_caretLine) is not { } worst) return null;
+
+        var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
+        if (vl is null) return null; // caret line currently scrolled out of view — nothing to draw
+
+        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
+                   - TextView.VerticalOffset;
+        return (worst, yTop, vl.Height);
+    }
+
+    // The bulb's click target: a square centered on the glyph, larger than it — 24 logical pixels, or
+    // the glyph plus a margin when a large font makes the glyph itself bigger — but never wider than
+    // this margin's own column, so it can't overlap the line numbers or the folding margin. It may
+    // reach a little above and below a short line, into this column only, where nothing else is.
+    internal const double MinimumHitTargetSize = 24;
+
+    internal Rect? HitTarget()
+    {
+        if (BulbLayout() is not var (_, yTop, lineH)) return null;
+
+        var glyph = TextView.DefaultLineHeight * IconScaleFactor;
+        var side = Math.Min(Bounds.Width, Math.Max(MinimumHitTargetSize, glyph + 8));
+        var center = new Point(Bounds.Width / 2, yTop + lineH / 2);
+        return new Rect(center.X - side / 2, center.Y - side / 2, side, side);
+    }
+
+    // A hand only over the bulb's target: elsewhere a click does nothing.
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        Cursor = HitTarget() is { } target && target.Contains(e.GetPosition(this)) ? HandCursor : Cursor.Default;
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        Cursor = Cursor.Default;
     }
 
     // Test-only observability — same rationale as every other "internal test hook" this session: lets
@@ -277,14 +319,13 @@ public class CodeFixMargin : AbstractMargin
     // directly with a Point instead of needing to synthesize a real PointerPressedEventArgs
     // (Avalonia's pointer/device plumbing has no simple headless test surface for that) — same
     // "internal test hook" pattern as WorstSeverityOnLine/ResolveLineFromPoint right above. Only the
-    // caret's own line ever has a visible icon (Render's own doc comment) — a click at some OTHER
-    // line that merely also happens to have a fix returns empty rather than that line's candidates,
-    // so a menu can never open with no icon having prompted it.
+    // caret's own line ever has a visible icon (Render's own doc comment), and only a click inside its
+    // square HitTarget counts — anywhere in it, padding and corners included, does what a click on the
+    // glyph does, even where the square reaches past a short line; outside it, nothing happens.
     internal IReadOnlyList<CodeFixEntry> ResolveCandidatesForClick(Point point)
     {
-        var lineNumber = ResolveLineFromPoint(point);
-        if (lineNumber is null || lineNumber != _caretLine) return [];
-        return _fixes.Where(f => f.Line == lineNumber).ToList();
+        if (HitTarget() is not { } target || !target.Contains(point)) return [];
+        return _fixes.Where(f => f.Line == _caretLine).ToList();
     }
 
     private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
@@ -296,8 +337,28 @@ public class CodeFixMargin : AbstractMargin
     protected override Size MeasureOverride(Size availableSize)
     {
         if (TextView is null) return new Size(0, 0);
-        if (TextView.Document is null) return new Size(TextView.DefaultLineHeight, 0);
-        return new Size(GutterMetrics.LineNumberColumnWidth(_editor, TextView, GutterHorizontalPadding), 0);
+        return new Size(ColumnWidth(), 0);
+    }
+
+    private double ColumnWidth() => TextView.Document is null
+        ? TextView.DefaultLineHeight
+        : GutterMetrics.LineNumberColumnWidth(_editor, TextView, GutterHorizontalPadding);
+
+    // A new font size (zoom) or line count changes the column's width, and the bulb and its square
+    // must stay inside it. Re-measured after the text view's own layout pass, not during it — same
+    // deferral as BreakPointMargin's width check.
+    private bool _measureInvalidationPending;
+
+    protected override void OnTextViewVisualLinesChanged()
+    {
+        base.OnTextViewVisualLinesChanged();
+        if (TextView is null || _measureInvalidationPending || Math.Abs(ColumnWidth() - Bounds.Width) <= 0.5) return;
+        _measureInvalidationPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _measureInvalidationPending = false;
+            InvalidateMeasure();
+        });
     }
 
     // Same padding constant as BreakPointMargin.HorizontalPadding — kept as a separate private

@@ -9,6 +9,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 - Braces opened and closed on the same line, such as `if (ok) { Run(); }`, no longer get a fold
   marker in the editor's margin; braces spanning several lines fold as before.
+- The quick-fix lightbulb is easier to click: an invisible square around it, larger than the icon,
+  opens its menu, and it stays the right size when you zoom. Clicks beside the square no longer do.
 - Completion, error highlighting and automatic `using`s now see the types of NuGet packages
   added as `latest`, with a floating version (`1.*`) or with a version range: they used to work
   only for an exact version, although such scripts compiled and ran. After a run, the editor uses
