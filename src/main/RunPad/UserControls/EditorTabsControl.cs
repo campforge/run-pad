@@ -132,7 +132,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             foreach (EditorTabItemViewModel vm in e.OldItems)
             {
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
-                // No save here (review R1): a write failure discovered only now would have nowhere
+                // No save here: a write failure discovered only now would have nowhere
                 // to go — the tab and its editor are being destroyed. Every removal path resolves
                 // unsaved content BEFORE removing (MainWindowViewModel.
                 // ResolveUnsavedChangesBeforeCloseAsync / TrySaveTabsBeforeFileOperation).
@@ -263,7 +263,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // The per-tab confirmation above only fires when a
     // SPECIFIC tab is closed — quitting the whole app skipped it entirely. MainWindow's Closing
     // handler checks this first (cheap, synchronous) before deciding whether it even needs to cancel
-    // the close and await ConfirmCloseAllUnsavedTabsAsync below. Review R1: dirty named tabs count
+    // the close and await ConfirmCloseAllUnsavedTabsAsync below. Dirty named tabs count
     // too — they used to be written by Dispose after the window was already gone, so a failed
     // write lost the edits silently.
     public bool HasUnsavedTabs()
@@ -371,7 +371,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         _activeTabSub?.Dispose();
 
-        // No save here (review R1): unsaved content was already resolved by MainWindow's Closing
+        // No save here: unsaved content was already resolved by MainWindow's Closing
         // confirmation — saving again would overwrite a "Don't Save" choice and report a failure
         // into a window that no longer exists.
         foreach (var (tabVm, (_, ctrl)) in _tabs)

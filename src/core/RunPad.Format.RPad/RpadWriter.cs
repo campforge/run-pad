@@ -9,7 +9,7 @@ public static class RpadWriter
     public static string Write(RpadDocument doc)
     {
         var yaml = SerializeFm(doc.FrontMatter);
-        // A truly empty block stays empty (review R11) rather than gaining a blank code line; the
+        // A truly empty block stays empty rather than gaining a blank code line; the
         // closing fence already starts its own line after the opening fence's newline.
         var code = doc.RunCode.Length == 0 || doc.RunCode.EndsWith('\n') ? doc.RunCode : doc.RunCode + "\n";
         // A document built in code (not parsed) has no surrounding Markdown — and so no run fence,

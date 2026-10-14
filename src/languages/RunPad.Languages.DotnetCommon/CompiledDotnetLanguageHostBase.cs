@@ -159,7 +159,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                     WrapWithSentinelDetection(outputHandler), cts.Token),
                 DrainReaderAsync(process.StandardError, OutputKind.StandardError, outputHandler, cts.Token));
 
-            // Review R4: the run ends when the process exits, not when its output closes — a script
+            // The run ends when the process exits, not when its output closes — a script
             // that closes stdout/stderr itself is still running, and disposing the process here
             // would kill it. Both pipes are still drained to EOF (concurrently, BUG-1) so no output
             // is lost; a failed drain stops waiting at once (the disposal below then kills the script).

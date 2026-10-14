@@ -102,7 +102,7 @@ public class FileSystemServiceTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
-    // Review follow-up: the token used to only gate Task.Run scheduling — the walk itself ignored it.
+    // The token used to only gate Task.Run scheduling — the walk itself ignored it.
     [Fact]
     public void GetFilesTreeInternal_Should_ThrowOperationCanceled_WhenTheTokenIsCancelled()
     {
@@ -119,7 +119,7 @@ public class FileSystemServiceTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // Review 2026-10-05, R2: one unreadable subfolder used to abort the whole walk (and, through the
+    // One unreadable subfolder used to abort the whole walk (and, through the
     // fire-and-forget refresh, crash the app). It's now listed without children, siblings intact.
     [Fact]
     public void GetFilesTreeInternal_Should_KeepWalking_WhenASubfolderIsUnreadable()

@@ -17,7 +17,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review R4: the tab's run status used to read "Success" whenever no exception reached the UI — a
+// The tab's run status used to read "Success" whenever no exception reached the UI — a
 // script ending in `Environment.Exit(7)`, or one that didn't even compile, looked successful. The
 // status now follows ILanguageHost.RunAsync's RunResult.
 public class EditorTabRunResultTests

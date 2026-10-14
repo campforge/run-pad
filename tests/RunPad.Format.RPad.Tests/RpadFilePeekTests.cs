@@ -40,7 +40,7 @@ public class RpadFilePeekTests
     public void PeekLanguage_Should_DefaultToCSharp_ForANullPath()
         => Assert.Equal(RpadLanguage.CSharp, RpadFilePeek.PeekLanguage(null));
 
-    // Review R3: an invalid document has no trustworthy language — PeekDocumentLanguage says so
+    // An invalid document has no trustworthy language — PeekDocumentLanguage says so
     // (null) so the tab gets no language services; PeekLanguage keeps its C# display default.
     [Fact]
     public void PeekDocumentLanguage_Should_ReturnNull_ForAnInvalidDocument()

@@ -206,7 +206,7 @@ public class RpadParserWriterTests
         Assert.Equal(RpadKind.Statements, parsed!.FrontMatter.Kind);
     }
 
-    // Review R3: an unparseable value used to reset the *whole* front matter to defaults (C#, no
+    // An unparseable value used to reset the *whole* front matter to defaults (C#, no
     // packages), which a later save then persisted. It's now an explicit parse error instead.
     [Fact]
     public void Parse_InvalidKindValue_ReportsErrorInsteadOfDefaultFrontMatter()
@@ -251,7 +251,7 @@ public class RpadParserWriterTests
         Assert.Contains(expectedError, result.Error);
     }
 
-    // Review finding: YamlDotNet's enum binding accepted numbers and the placeholder member,
+    // YamlDotNet's enum binding accepted numbers and the placeholder member,
     // so `kind: 99` parsed as an undefined RpadKind and `kind: Unknown`/`0` silently became Statements.
     [Theory]
     [InlineData("kind: 99", "Unsupported kind '99'")]
@@ -304,7 +304,7 @@ public class RpadParserWriterTests
         Assert.Equal(expected, result.Document.FrontMatter.Language);
     }
 
-    // ── Delimiter lines (review findings) ─────────────────────────────
+    // ── Delimiter lines ─────────────────────────────
 
     [Theory]
     [InlineData("---x\nlanguage: csharp\n---\n\n```csharp run\n1\n```\n", "does not start")]
@@ -408,7 +408,7 @@ public class RpadParserWriterTests
         Assert.Empty(fm.Namespaces!);
     }
 
-    // ── Empty code block / fence detection (review R11) ──────────────────────
+    // ── Empty code block / fence detection ──────────────────────
 
     // Same front matter RpadWriter emits, so Write(Parse(x)) == x is a meaningful byte-for-byte check.
     private const string CanonicalFm = "---\nversion: 1.0\nlanguage: csharp\ntargetSdk: latest\nkind: Statements\n---\n";

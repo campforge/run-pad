@@ -6,7 +6,7 @@ namespace RunPad.Format.RPad;
 /// Outcome of <see cref="RpadParser.Parse"/> — exactly one of <see cref="Document"/>/<see cref="Error"/>
 /// is non-null. An invalid document (no front matter, malformed YAML, no run block for the declared
 /// language) is reported as an <see cref="Error"/> rather than silently replaced with default
-/// metadata, so callers can keep the original text intact and refuse to run it (review R3).
+/// metadata, so callers can keep the original text intact and refuse to run it.
 /// </summary>
 public sealed class RpadParseResult
 {

@@ -78,8 +78,8 @@ public class EditorTabSnippetsTests
         // VB is case-insensitive (VbLanguageHostFactory.EditorProfile builds WordTriggers with
         // StringComparer.OrdinalIgnoreCase) — only "New" was ever added, so finding differently-cased
         // "new" here only works if ApplyEditorLanguageProfile preserved that comparer instead of
-        // Add()-ing entries one at a time into a fresh default-comparer HashSet (bug found in code
-        // review). Same-cased assertions (e.g. Assert.Contains("New", ...)) can't catch this — an
+        // Add()-ing entries one at a time into a fresh default-comparer HashSet. Same-cased
+        // assertions (e.g. Assert.Contains("New", ...)) can't catch this — an
         // exact match passes regardless of comparer.
         Assert.Contains("new", editor.WordTriggers);
     }
@@ -125,7 +125,7 @@ public class EditorTabSnippetsTests
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
             // NewFile emits the matching ```{language} run fence — retargeting a parsed C# document's
-            // language would leave a C# fence the parser (rightly, review R3) rejects for VB.
+            // language would leave a C# fence the parser (rightly) rejects for VB.
             File.WriteAllText(filePath, RpadWriter.NewFile("Demo", language: language));
 
             var prefs = new Mock<IPreferencesService>();

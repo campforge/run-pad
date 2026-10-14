@@ -254,7 +254,7 @@ public class EditorTabsControlCloseConfirmationTests
             tab.CloseCommand.Execute().Subscribe();
             await Task.Delay(50);
 
-            // A dirty tab with a real path is written in place before it's removed (review R1) —
+            // A dirty tab with a real path is written in place before it's removed —
             // nothing to confirm while that write succeeds.
             windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Never);
             Assert.Empty(mainVm.Tabs);
@@ -407,7 +407,7 @@ public class EditorTabsControlCloseConfirmationTests
         finally { Cleanup(h); }
     }
 
-    // ── Review R1: named tabs whose write fails ─────────────────────────────────
+    // ── Named tabs whose write fails ─────────────────────────────────
 
     private static async Task<(EditorTabItemViewModel Tab, EditorsTabItemControl Control)> OpenNamedTabAsync(
         EditorTabsControl editorTabs, MainWindowViewModel mainVm, string filePath)

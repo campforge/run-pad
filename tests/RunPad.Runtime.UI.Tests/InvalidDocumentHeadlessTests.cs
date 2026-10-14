@@ -20,7 +20,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review 2026-10-05, R3: a .rpad with malformed YAML used to open as a default C# document (no
+// A .rpad with malformed YAML used to open as a default C# document (no
 // packages/references, empty code from a C# fence that wasn't there), and the next save persisted
 // those defaults over the original metadata. Now the tab shows the whole file verbatim, saves it
 // back verbatim, and refuses Run/Debug until the file is fixed and reopened.
@@ -189,7 +189,7 @@ public class InvalidDocumentHeadlessTests
         finally { Cleanup(h); }
     }
 
-    // Review finding: a numeric kind used to parse as an undefined RpadKind and run.
+    // A numeric kind used to parse as an undefined RpadKind and run.
     [AvaloniaFact]
     public async Task Run_OnANumericUndeclaredKind_Should_BeRefused_AndKeepTheFile()
     {

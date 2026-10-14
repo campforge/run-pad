@@ -182,7 +182,7 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
-    // Review R3: malformed YAML used to silently become a default C# document and run (or fail on)
+    // Malformed YAML used to silently become a default C# document and run (or fail on)
     // the wrong code — now rejected before any SDK lookup/compilation, with the YAML diagnostic.
     [Fact]
     public async Task RunAsync_Should_RejectInvalidFrontMatter_WithDiagnostic()
@@ -207,7 +207,7 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
-    // Review finding: `kind: 99` used to parse as an undefined RpadKind and run.
+    // `kind: 99` used to parse as an undefined RpadKind and run.
     [Theory]
     [InlineData("kind: 99", "Unsupported kind '99'")]
     [InlineData("kind: Unknown", "Unsupported kind 'Unknown'")]
@@ -231,7 +231,7 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
-    // ── exit code (review R4) ────────────────────────────────────────────────────
+    // ── exit code ────────────────────────────────────────────────────
 
     [Theory]
     [InlineData(RunOutcome.Exited, 0, 0)]

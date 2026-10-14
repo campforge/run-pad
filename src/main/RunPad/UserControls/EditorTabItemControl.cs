@@ -257,7 +257,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Called for explicit Save and in-place metadata edits (tab close/app exit/rename resolve
-            // unsaved content themselves first — review R1) — silently eating a real write
+            // unsaved content themselves first) — silently eating a real write
             // failure (disk full, permissions, file deleted/locked externally) meant the user never
             // found out their edits weren't persisted. Surface it via the same status indicator
             // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
@@ -294,7 +294,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var s = State;
         if (s.RunCts is { IsCancellationRequested: false }) return;
 
-        // Never run an invalid .rpad as raw code (review R3) — the editor holds the whole file
+        // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
         if (s.DocumentParseError is { } parseError)
         {
@@ -891,7 +891,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => $"Cannot run: this file is not a valid .rpad document. {parseError} " +
            "Fix it in the editor, save, and reopen the file to run it.";
 
-    // Review R4: the run's status follows the script's real exit code (and a failed compile/start),
+    // The run's status follows the script's real exit code (and a failed compile/start),
     // not "Success" whenever no exception reached the UI. The message is posted like the script's own
     // output, so it lands after the last lines the script wrote.
     private void ReportRunFailure(RunResult result)
@@ -1511,7 +1511,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         foreach (var ch in profile.ContextualTriggers) editor.ContextualTriggers.Add(ch);
         // Assigned wholesale, not Add()-ed into the default set, so a case-insensitive language
         // (VB, see VbLanguageHostFactory.EditorProfile) keeps its comparer — copying entries one at
-        // a time into a fresh default-comparer HashSet would silently drop it (found in code review).
+        // a time into a fresh default-comparer HashSet would silently drop it.
         editor.WordTriggers = profile.WordTriggers;
         foreach (var ch in profile.StatementTerminators) editor.StatementTerminators.Add(ch);
         foreach (var (open, close) in profile.BracePairs) editor.BracePairs[open] = close;
@@ -1568,7 +1568,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             var raw = File.ReadAllText(filePath);
             var parsed = RpadParser.Parse(raw);
             rpad = parsed.Document;
-            // Invalid document (review R3): show the whole file as-is instead of default metadata —
+            // Invalid document: show the whole file as-is instead of default metadata —
             // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
             content = rpad?.RunCode ?? raw;
             State.DocumentParseError = parsed.Error;
@@ -1627,7 +1627,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
                                                   new Dictionary<string, Package>());
 
-    // Review R1 follow-up: a front-matter edit (kind, usings, packages, references) is a real unsaved
+    // A front-matter edit (kind, usings, packages, references) is a real unsaved
     // change just like typed text. It used to be written straight away without ever setting
     // IsDirty — so if that write failed, the tab still looked clean and the next close/quit
     // dropped the edit silently. Flag dirty FIRST, then write: a successful write clears it again,

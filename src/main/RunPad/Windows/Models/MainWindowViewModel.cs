@@ -56,7 +56,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // "the UI thread" and fail the next test's app setup (VerifyAccess).
     private readonly Dispatcher _dispatcher = Dispatcher.UIThread;
 
-    // Review R2: file-tree refresh ordering/lifetime. Each walk gets a version; only the result of
+    // File-tree refresh ordering/lifetime. Each walk gets a version; only the result of
     // the LATEST requested walk is applied (or reported) — an older walk finishing late can't
     // overwrite a newer tree, nor resurrect a stale one after a newer walk failed and deliberately
     // kept the previous tree. _treeErrorReported keeps a persistently unreadable root from re-showing the same error
@@ -240,7 +240,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
 
         // Close the initial blank tab when the first real file is opened — only while it's still
-        // pristine (review R1: CloseTab never saves, so a typed-into untitled tab must stay).
+        // pristine (CloseTab never saves, so a typed-into untitled tab must stay).
         EditorTabItemViewModel? blankToClose = null;
         if (filePath is not null && Tabs.Count == 1 && Tabs[0].FilePath is null && !Tabs[0].IsDirty)
             blankToClose = Tabs[0];
@@ -360,7 +360,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         CloseTab(vm);
     }
 
-    // Review R1: the single "may this dirty tab's content be dropped now?" decision, shared by a
+    // The single "may this dirty tab's content be dropped now?" decision, shared by a
     // single tab's close (CloseAsync above) and app quit (EditorTabsControl.
     // ConfirmCloseAllUnsavedTabsAsync). Runs BEFORE the tab is removed — removal itself no longer
     // saves anything, so a write failure can't be discovered only after the tab/editor is gone.
@@ -389,7 +389,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return !vm.IsDirty;
     }
 
-    // Review R1: writes a dirty named tab to its own path (the same serializer explicit Save uses,
+    // Writes a dirty named tab to its own path (the same serializer explicit Save uses,
     // via vm.WriteToFile). A clean or untitled tab is a successful no-op. Fails closed: a dirty
     // named tab whose editor isn't wired up (no WriteToFile) can't be written, so it must not be
     // reported as saved and then discarded.
@@ -416,7 +416,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
     }
 
-    // Review R1: rename/move/delete flush every affected dirty tab first and abort the whole
+    // Rename/move/delete flush every affected dirty tab first and abort the whole
     // operation (nothing closed, nothing touched on disk) if any of them can't be written.
     private bool TrySaveTabsBeforeFileOperation(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
     {
@@ -490,7 +490,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     // internal (not private): DeleteFile/MoveOrRenameOnDisk below also remove a tab directly,
     // bypassing the unsaved-changes confirmation CloseAsync above does — they flush affected tabs
-    // themselves first (TrySaveTabsBeforeFileOperation). Removing a tab never saves it (review R1):
+    // themselves first (TrySaveTabsBeforeFileOperation). Removing a tab never saves it:
     // every caller must have resolved its unsaved content beforehand.
     internal void CloseTab(EditorTabItemViewModel vm)
     {
@@ -523,8 +523,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // even though the tree acted like it had.
         var isDirectory = Directory.Exists(filePath);
 
-        // Affected tabs — the file itself, or (for a folder) every tab nested inside it. Review R1:
-        // they're flushed first (a failed write aborts the delete) and only closed once the delete
+        // Affected tabs — the file itself, or (for a folder) every tab nested inside it.
+        // They're flushed first (a failed write aborts the delete) and only closed once the delete
         // actually succeeded, so a failed delete leaves the very same tabs (editor state included)
         // open instead of closing and reloading them from disk.
         var affectedTabs = FindAffectedTabs(filePath, isDirectory);
@@ -587,7 +587,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
-    // name). Review R1: affected tab(s) are flushed to the OLD path first (a failed write aborts
+    // name). Affected tab(s) are flushed to the OLD path first (a failed write aborts
     // the operation), and only closed/reopened at the new path once the move succeeded — a failed
     // move leaves the very same tabs open rather than closing and reloading them from disk.
     private void MoveOrRenameOnDisk(
@@ -761,7 +761,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // (MainWindow.axaml.cs) calls FileTreeView.StartRenameForPath immediately after, which needs the
     // new folder to already be in FileTree.Nodes to find it.
     //
-    // Review R2: never throws — RefreshNodes discards the Task, and this used to be awaited from an
+    // Never throws — RefreshNodes discards the Task, and this used to be awaited from an
     // async void, so any walk failure (unreadable/vanished root, network path gone) escaped onto the
     // UI dispatcher as an unhandled exception. A failed walk keeps the previous tree as-is.
     // internal (not private) so tests can await a specific refresh.

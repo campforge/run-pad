@@ -67,7 +67,7 @@ public static class RpadParser
         }
         catch (YamlException ex)
         {
-            // Never fall back to a fresh RpadFrontMatter here (review R3) — that silently swapped the
+            // Never fall back to a fresh RpadFrontMatter here — that silently swapped the
             // declared language/kind/packages/references for defaults, which a later save then
             // persisted. The YAML starts on the file's second line, hence the +1. The innermost
             // exception carries the plain reason (YamlDotNet prefixes its own message with marks).
@@ -88,7 +88,7 @@ public static class RpadParser
             return RpadParseResult.Failure($"No '```{languageId} run' code block found.");
 
         var codeStart = SkipLine(markdownBody, openIdx);
-        // Checks the line at codeStart too (review R11) — an empty block's closing fence sits right
+        // Checks the line at codeStart too — an empty block's closing fence sits right
         // there, and skipping it swallowed the fence and the Markdown after it into RunCode.
         var closeStart = FindLine(markdownBody, codeStart, IsClosingFence);
 

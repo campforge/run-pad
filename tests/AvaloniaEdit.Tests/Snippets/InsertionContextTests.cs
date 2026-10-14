@@ -500,7 +500,7 @@ public class InsertionContextTests
     [AvaloniaTest]
     public void InsertText_CrLfBoundary_TabEndsWithCr_FollowedByLfInSource()
     {
-        // This is the exact counterexample identified during code review:
+        // The exact counterexample:
         // Tab = "\r", text = "\t\n"
         //
         // Original behavior:
