@@ -56,6 +56,77 @@ function readVersionFromFile(csprojPath)
     return readVersion(fs.readFileSync(csprojPath, 'utf8'));
 }
 
+// CHANGELOG.md is wrapped at ~100 columns, but a release body renders every newline as a line
+// break; joins each continuation line onto the paragraph or list item it continues.
+function unwrapLines(lines)
+{
+    const result = [];
+    let inFence = false;
+    for (const line of lines)
+    {
+        const previous = result.length > 0 ? result[result.length - 1] : '';
+        const startsBlock = /^\s*([-*+] |\d+\. |#|>|\||```)/.test(line);
+        if (!inFence && line.trim() && previous.trim() && !startsBlock && !/^\s*(#|```)/.test(previous))
+        {
+            result[result.length - 1] = `${previous} ${line.trim()}`;
+        }
+        else
+        {
+            result.push(line);
+        }
+        if (/^\s*```/.test(line))
+        {
+            inFence = !inFence;
+        }
+    }
+    return result;
+}
+
+// The release notes are the version's "## [x.y.z]" section of CHANGELOG.md, without its heading,
+// up to the next version or the link definitions at the end of the file.
+function readReleaseNotes(changelogText, version)
+{
+    const lines = changelogText.replace(/\r\n/g, '\n').split('\n');
+    const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const heading = new RegExp(`^## \\[?${escaped}\\]?(\\s|$)`);
+    const start = lines.findIndex((line) => heading.test(line));
+    if (start < 0)
+    {
+        throw new Error(
+            `CHANGELOG.md has no "## [${version}]" section. Describe what changed in ${version} there ` +
+            'before bumping <Version>; it becomes the release notes.');
+    }
+    const section = [];
+    for (const line of lines.slice(start + 1))
+    {
+        if (/^## /.test(line) || /^\[[^\]]+\]:\s/.test(line))
+        {
+            break;
+        }
+        section.push(line);
+    }
+    const notes = unwrapLines(section).join('\n').trim();
+    if (!notes)
+    {
+        throw new Error(`The "## [${version}]" section of CHANGELOG.md is empty.`);
+    }
+    return notes;
+}
+
+function readReleaseNotesFromFile(changelogPath, version)
+{
+    return readReleaseNotes(fs.readFileSync(changelogPath, 'utf8'), version);
+}
+
+// Links relative to the repository root (ROADMAP.md, src/...) do not resolve in a release body;
+// point them at the released commit instead.
+function absolutizeLinks(notes, context)
+{
+    const { owner, repo } = context.repo;
+    return notes.replace(/\]\((?![a-z][a-z0-9+.-]*:|#|\/)([^)\s]+)\)/gi,
+        (_, target) => `](https://github.com/${owner}/${repo}/blob/${context.sha}/${target})`);
+}
+
 function isNotFound(error)
 {
     return error && error.status === 404;
@@ -139,8 +210,9 @@ async function getOwnedDraft(github, context, releaseId, version)
     return release;
 }
 
-// Creates the draft for this run, or reuses it when the same run is retried.
-async function prepareDraft({ github, context, core, version })
+// Creates the draft for this run, with `notes` (Markdown) as its description, or reuses it when the
+// same run is retried.
+async function prepareDraft({ github, context, core, version, notes })
 {
     const { owner, repo } = context.repo;
     const tag = releaseTag(version);
@@ -174,7 +246,7 @@ async function prepareDraft({ github, context, core, version })
         tag_name: tag,
         target_commitish: context.sha,
         name: `RunPad ${tag}`,
-        body: ownershipMarker(context),
+        body: notes ? `${absolutizeLinks(notes, context)}\n\n${ownershipMarker(context)}` : ownershipMarker(context),
         draft: true,
     });
     core.info(`Created draft release ${created.id} for ${tag}.`);
@@ -295,10 +367,13 @@ async function publishDraft({ github, context, core, releaseId, version })
 }
 
 module.exports = {
+    absolutizeLinks,
     expectedAssetNames,
     ownershipMarker,
     publishDraft,
     prepareDraft,
+    readReleaseNotes,
+    readReleaseNotesFromFile,
     readVersion,
     readVersionFromFile,
     releaseTag,
