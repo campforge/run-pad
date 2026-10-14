@@ -9,6 +9,7 @@ public interface IPreferencesService
     KeyboardSettings Keyboard { get; }
     LayoutSettings Layout { get; }
     SessionSettings Session { get; }
+    ExperimentalSettings Experimental { get; }
 
     void Save();
 

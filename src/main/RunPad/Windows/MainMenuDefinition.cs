@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
+using RunPad.Services.Preferences;
 
 namespace RunPad.Windows;
 
@@ -14,7 +15,10 @@ internal sealed record MainMenuSeparator : MainMenuEntry;
 
 internal sealed record MainMenuGroup(string Header, IReadOnlyList<MainMenuEntry> Items) : MainMenuEntry;
 
-internal sealed record MainMenuCommand(string Header, ICommand Command, KeyGesture? Gesture = null) : MainMenuEntry;
+// Key: the bindable command whose key Gesture shows (null for keys that are not bindable, such as
+// the platform's Copy/Paste).
+internal sealed record MainMenuCommand(string Header, ICommand Command, KeyGesture? Gesture = null, KeyCommand? Key = null)
+    : MainMenuEntry;
 
 internal static class MainMenuDefinition
 {
@@ -40,9 +44,11 @@ internal static class MainMenuDefinition
         return item;
     }
 
-    // No NativeMenuItem.Gesture: KeyboardSettings gestures are Ctrl-based and already dispatched by
-    // MainWindow.OnWindowKeyDown; registering them as menu key equivalents too would risk running an
-    // action twice per keypress.
+    // NativeMenuItem.Gesture is more than a hint on macOS: it becomes the item's key equivalent, and
+    // AppKit offers a keypress to the active window's menu bar before the window sees it. A matching
+    // item runs its command and the window never gets that keypress, so MainWindow.OnWindowKeyDown
+    // does not run the same action a second time. The main window's menu bar is only active while
+    // that window is: other windows keep their own keys.
     public static NativeMenu ToNativeMenu(IEnumerable<MainMenuEntry> entries)
     {
         var menu = new NativeMenu();
@@ -54,9 +60,63 @@ internal static class MainMenuDefinition
     {
         MainMenuSeparator => new NativeMenuItemSeparator(),
         MainMenuGroup group => new NativeMenuItem(StripAccessKey(group.Header)) { Menu = ToNativeMenu(group.Items) },
-        MainMenuCommand command => new NativeMenuItem(StripAccessKey(command.Header)) { Command = command.Command },
+        MainMenuCommand command => new NativeMenuItem(StripAccessKey(command.Header))
+        {
+            Command = command.Command,
+            Gesture = command.Gesture,
+        },
         _ => throw new ArgumentOutOfRangeException(nameof(entry), entry, null),
     };
+
+    // ── Rebinding ─────────────────────────────────────────────────────────────
+
+    /// <summary>The same entries with the current key of every bindable command; headers and command
+    /// instances are kept.</summary>
+    public static IReadOnlyList<MainMenuGroup> WithGestures(
+        IReadOnlyList<MainMenuGroup> groups, Func<KeyCommand, KeyGesture?> gestureFor)
+        => groups.Select(g => (MainMenuGroup)WithGestures(g, gestureFor)).ToList();
+
+    private static MainMenuEntry WithGestures(MainMenuEntry entry, Func<KeyCommand, KeyGesture?> gestureFor) => entry switch
+    {
+        MainMenuGroup group => group with { Items = group.Items.Select(e => WithGestures(e, gestureFor)).ToList() },
+        MainMenuCommand { Key: { } key } command => command with { Gesture = gestureFor(key) },
+        _ => entry,
+    };
+
+    /// <summary>Shows <paramref name="entries"/>' keys on an in-window menu projected from the same
+    /// tree, changing its items in place.</summary>
+    public static void UpdateGestures(IReadOnlyList<MainMenuEntry> entries, ItemCollection items)
+    {
+        for (var i = 0; i < entries.Count; i++)
+        {
+            switch (entries[i], items[i])
+            {
+                case (MainMenuGroup group, MenuItem item):
+                    UpdateGestures(group.Items, item.Items);
+                    break;
+                case (MainMenuCommand command, MenuItem item):
+                    item.InputGesture = command.Gesture;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>The same for a native menu; the macOS exporter follows the changed items.</summary>
+    public static void UpdateGestures(IReadOnlyList<MainMenuEntry> entries, NativeMenu menu)
+    {
+        for (var i = 0; i < entries.Count; i++)
+        {
+            switch (entries[i], menu.Items[i])
+            {
+                case (MainMenuGroup group, NativeMenuItem { Menu: { } submenu }):
+                    UpdateGestures(group.Items, submenu);
+                    break;
+                case (MainMenuCommand command, NativeMenuItem item):
+                    item.Gesture = command.Gesture;
+                    break;
+            }
+        }
+    }
 
     public static string StripAccessKey(string header) => header.Replace("_", "");
 }

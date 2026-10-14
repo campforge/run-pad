@@ -21,6 +21,7 @@ public sealed class PreferencesService : IPreferencesService
     public KeyboardSettings Keyboard => _settings.Keyboard;
     public LayoutSettings Layout => _settings.Layout;
     public SessionSettings Session => _settings.Session;
+    public ExperimentalSettings Experimental => _settings.Experimental;
 
     public event Action? Changed;
 
@@ -47,6 +48,7 @@ public sealed class PreferencesService : IPreferencesService
         {
             var json = File.ReadAllText(SettingsPath);
             _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new();
+            if (_settings.Keyboard.MigrateLegacy()) Save();
         }
         catch (Exception ex)
         {

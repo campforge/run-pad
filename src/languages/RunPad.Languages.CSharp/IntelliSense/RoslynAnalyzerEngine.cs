@@ -24,7 +24,9 @@ namespace RunPad.Languages.CSharp.IntelliSense;
 // not pulled in as a package).
 internal sealed class RoslynAnalyzerEngine
 {
-    private readonly ImmutableArray<DiagnosticAnalyzer> _analyzers;
+    // Roslyn's own IDE analyzers, and RunPad's (RPAD…), which the user can turn off.
+    private readonly ImmutableArray<DiagnosticAnalyzer> _ideAnalyzers;
+    private readonly ImmutableArray<DiagnosticAnalyzer> _runPadAnalyzers;
     private readonly ILogger _logger;
 
     public RoslynAnalyzerEngine(ILogger logger)
@@ -43,8 +45,13 @@ internal sealed class RoslynAnalyzerEngine
         Type[] ownTypes;
         try { ownTypes = typeof(RoslynAnalyzerEngine).Assembly.GetTypes(); }
         catch (ReflectionTypeLoadException ex) { ownTypes = ex.Types.Where(t => t != null).ToArray()!; }
-        types = [.. types, .. ownTypes];
 
+        _ideAnalyzers = Construct(types);
+        _runPadAnalyzers = Construct(ownTypes);
+    }
+
+    private ImmutableArray<DiagnosticAnalyzer> Construct(IEnumerable<Type> types)
+    {
         var analyzers = ImmutableArray.CreateBuilder<DiagnosticAnalyzer>();
         foreach (var type in types)
         {
@@ -67,18 +74,20 @@ internal sealed class RoslynAnalyzerEngine
                 _logger.LogDebug(ex, "Could not construct analyzer {Analyzer}", type.Name);
             }
         }
-        _analyzers = analyzers.ToImmutable();
+        return analyzers.ToImmutable();
     }
 
     // Empty (not null) on failure — same "degrade gracefully, never take down the rest of the
     // background analysis pass" contract as RoslynCodeFixEngine's own materialization failures.
-    public async Task<ImmutableArray<Diagnostic>> ComputeAsync(Compilation compilation, CancellationToken ct)
+    public async Task<ImmutableArray<Diagnostic>> ComputeAsync(
+        Compilation compilation, bool includeRunPadAnalyzers, CancellationToken ct)
     {
-        if (_analyzers.IsEmpty) return [];
+        var analyzers = includeRunPadAnalyzers ? _ideAnalyzers.AddRange(_runPadAnalyzers) : _ideAnalyzers;
+        if (analyzers.IsEmpty) return [];
 
         try
         {
-            var withAnalyzers = compilation.WithAnalyzers(_analyzers, new CompilationWithAnalyzersOptions(
+            var withAnalyzers = compilation.WithAnalyzers(analyzers, new CompilationWithAnalyzersOptions(
                 new AnalyzerOptions([]),
                 onAnalyzerException: (ex, analyzer, _) =>
                     _logger.LogDebug(ex, "Analyzer {Analyzer} threw", analyzer.GetType().Name),

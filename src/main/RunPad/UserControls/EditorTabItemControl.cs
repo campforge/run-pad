@@ -41,6 +41,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
+    private bool _runPadAnalyzers;
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
     // filtering happens at render time instead of once when each list is produced.
@@ -109,6 +110,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             themeService.CurrentTheme.Interface.IsDark);
 
         ApplyEditorSettings(editor, prefs.Editor);
+        prefs.Keyboard.ApplyTo(editor);
         prefs.Changed += OnPreferencesChanged;
 
         // Ctrl+wheel (inside CodeTextEditor) and the status-bar zoom menu both just change FontSize.
@@ -119,6 +121,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         OnEditorFontSizeChanged();
 
         _intelliSense = intelliSense;
+        _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
+        intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
         SetupEditor(editor, intelliSense);
         editor.BreakpointAdded += OnGutterBreakpointAdded;
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
@@ -464,8 +468,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void DbgStepIn_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepIn);
     private void DbgStepOut_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOut);
 
-    private async void DbgPause_Click(object? sender, RoutedEventArgs e)
+    private void DbgPause_Click(object? sender, RoutedEventArgs e) => Pause();
+
+    private void DbgRunToCursor_Click(object? sender, RoutedEventArgs e) => RunToCursor();
+
+    // Also reached from Run → Pause in the main menu, which is enabled whatever the run state.
+    public async void Pause()
     {
+        if (_vm.RunState != RunState.RunDebug) return;
         try
         {
             if (State.RunningHost is not null)
@@ -484,7 +494,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async void DbgRunToCursor_Click(object? sender, RoutedEventArgs e)
+    public async void RunToCursor()
     {
         try
         {
@@ -1075,6 +1085,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var zoomFactor = _zoomFactor;
             ApplyEditorSettings(State.Editor, _prefs.Editor);
+            _prefs.Keyboard.ApplyTo(State.Editor);
+            if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
+            {
+                _runPadAnalyzers = !_runPadAnalyzers;
+                _intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
+                _intelliSense?.NotifyTextChanged(State.Editor.Text);
+            }
             if (zoomFactor != 1)
                 State.Editor.FontSize = Math.Max(1, _prefs.Editor.FontSize * zoomFactor);
 
@@ -1108,11 +1125,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private int CurrentZoomPercent => EditorZoom.ToPercent(State.Editor.FontSize, _prefs.Editor.FontSize);
 
-    private void ZoomIn_Click(object? sender, RoutedEventArgs e) =>
-        SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
+    public void ZoomIn() => SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
 
-    private void ZoomOut_Click(object? sender, RoutedEventArgs e) =>
-        SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
+    public void ZoomOut() => SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
+
+    public void ResetZoom() => SetZoomPercent(100);
+
+    private void ZoomIn_Click(object? sender, RoutedEventArgs e) => ZoomIn();
+
+    private void ZoomOut_Click(object? sender, RoutedEventArgs e) => ZoomOut();
 
     private void ZoomPreset_Click(object? sender, RoutedEventArgs e)
     {

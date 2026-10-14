@@ -18,15 +18,49 @@ public class CSharpIntelliSenseAnalyzersTests
 {
     private static readonly TimeSpan BackgroundAnalysisTimeout = TimeSpan.FromSeconds(30);
 
-    private static CSharpIntelliSenseService CreateService()
+    // RunPad's own analyzers are experimental and off by default; most tests here are about them.
+    private static CSharpIntelliSenseService CreateService(bool runPadAnalyzers = true)
     {
         var referenceService = new CSharpReferenceService();
         var refs = referenceService.GetDefault().Append(referenceService.GetExtensionReference());
         // Every test here calls NotifyTextChanged exactly once — nothing to debounce.
-        return new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance)
+        var service = new CSharpIntelliSenseService(refs, NullLogger<CSharpIntelliSenseService>.Instance)
         {
             BackgroundAnalysisDebounce = TimeSpan.Zero,
         };
+        service.UpdateRunPadAnalyzers(runPadAnalyzers);
+        return service;
+    }
+
+    // Off by default (Preferences → Experimental): Roslyn's own analyzers still run, RPAD ones (here
+    // RPAD0258, "byte.Parse(...) always throws") don't.
+    [Fact]
+    public async Task RunPadAnalyzers_Should_BeOffUntilEnabled()
+    {
+        const string code = "class C { private int count = 0; void M() { System.Console.WriteLine(count + byte.Parse(\"300\")); } }";
+        using var off = new CSharpIntelliSenseService(
+            new CSharpReferenceService().GetDefault(), NullLogger<CSharpIntelliSenseService>.Instance)
+        {
+            BackgroundAnalysisDebounce = TimeSpan.Zero,
+        };
+        var offDiagnostics = await AnalyzeAsync(off, code);
+        Assert.Contains(offDiagnostics, d => d.Message.Contains("readonly", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(offDiagnostics, d => d.Message.Contains("always throws", StringComparison.Ordinal));
+
+        using var on = CreateService();
+        var onDiagnostics = await AnalyzeAsync(on, code);
+        Assert.Contains(onDiagnostics, d => d.Message.Contains("always throws", StringComparison.Ordinal));
+    }
+
+    private static async Task<IReadOnlyList<IDiagnosticInfo>> AnalyzeAsync(CSharpIntelliSenseService service, string code)
+    {
+        var tcs = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (_, d) =>
+        {
+            if (d.Count > 0) tcs.TrySetResult(d);
+        };
+        service.NotifyTextChanged(code);
+        return await tcs.Task.WaitAsync(BackgroundAnalysisTimeout, TestContext.Current.CancellationToken);
     }
 
     // IDE0044 ("Make field readonly") fires at Info severity, not Hidden — a real, visible-squiggle

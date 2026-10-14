@@ -41,22 +41,15 @@ public class App : Application
         // exporter in an AppBuilder.AfterSetup callback, i.e. right after this method returns and
         // before OnFrameworkInitializationCompleted. If Application has no NativeMenu by then, the
         // exporter installs its own default app menu (the "About Avalonia" item) and doesn't pick up
-        // a menu assigned later (e.g. from MainWindow's constructor). Setting it here — before any
-        // window, including SetupWizardWindow — is the earliest point the Application exists. The
-        // command resolves IWindowService lazily since DI isn't built yet. The exporter itself
-        // appends the standard Hide/Show All/Quit items. Other platforms ignore Application menus.
-        NativeMenu.SetMenu(this, CreateApplicationMenu(() => _serviceProvider?.GetService<IWindowService>()));
+        // a menu assigned later. Setting it here — before any window, including SetupWizardWindow —
+        // is the earliest point the Application exists. Other platforms ignore Application menus.
+        NativeMenu.SetMenu(this, CreateApplicationMenu());
     }
 
-    // App-level items only; the application's own commands (Preferences included) live in
-    // MainWindow's menu so every OS gets the same File/Edit/View/Help paths.
-    internal static NativeMenu CreateApplicationMenu(Func<IWindowService?> windowService) => new()
-    {
-        new NativeMenuItem("About RunPad")
-        {
-            Command = ReactiveCommand.CreateFromTask(() => windowService()?.ShowAboutAsync() ?? Task.CompletedTask),
-        },
-    };
+    // Deliberately empty: every command lives in MainWindow's menu, so each OS has the same
+    // File/Edit/…/Help paths (About under Help, Exit under File). Program.BuildAvaloniaApp turns off
+    // the items macOS would otherwise append (Services, Hide, Show All, Quit).
+    internal static NativeMenu CreateApplicationMenu() => new();
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -108,6 +101,7 @@ public class App : Application
                 desktop.MainWindow = wizard;
             }
 
+            ApplicationExit.Attach(() => desktop.MainWindow, _serviceProvider.GetRequiredService<IPreferencesService>(), desktop);
             desktop.Exit += (_, _) => _serviceProvider.Dispose();
         }
 

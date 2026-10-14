@@ -81,7 +81,9 @@
     <Style Selector="TreeViewItem:selected:pointerover /template/ Border">
         <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
     </Style>
-    <Style Selector="TreeViewItem:selected">
+    <!-- On the selected item's own header only: a Foreground on the whole item is inherited by its
+         children's text too. -->
+    <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
     </Style>
 

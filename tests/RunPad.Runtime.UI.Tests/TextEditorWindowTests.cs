@@ -42,10 +42,10 @@ public sealed class TextEditorWindowTests : IDisposable
         return theme;
     }
 
-    private static Mock<IPreferencesService> Prefs()
+    private static Mock<IPreferencesService> Prefs(KeyboardSettings? keyboard = null)
     {
         var prefs = new Mock<IPreferencesService>();
-        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Keyboard).Returns(keyboard ?? new KeyboardSettings());
         return prefs;
     }
 
@@ -56,10 +56,10 @@ public sealed class TextEditorWindowTests : IDisposable
         return path;
     }
 
-    private async Task<TextEditorWindow> OpenAsync(string path)
+    private async Task<TextEditorWindow> OpenAsync(string path, Mock<IPreferencesService>? prefs = null)
     {
         var viewModel = await TextEditorWindowViewModel.LoadAsync(path, _windowService.Object);
-        var window = new TextEditorWindow(viewModel, Theme().Object, Prefs().Object);
+        var window = new TextEditorWindow(viewModel, Theme().Object, (prefs ?? Prefs()).Object);
         window.Show();
         return window;
     }
@@ -199,17 +199,71 @@ public sealed class TextEditorWindowTests : IDisposable
         Assert.Equal("new old", window.Editor.Text);
     }
 
-    [AvaloniaFact]
-    public async Task TheSaveGesture_Should_Save()
+    // The platform's default Save key — Ctrl+S on Windows and Linux, Cmd+S on macOS — with the
+    // focus in the editor, where the key is typed.
+    [AvaloniaTheory]
+    [InlineData(false, RawInputModifiers.Control)]
+    [InlineData(true, RawInputModifiers.Meta)]
+    public async Task TheDefaultSaveKey_Should_Save_FromTheFocusedEditor(bool mac, RawInputModifiers command)
     {
         var path = WriteFile("k.ini", "a=1"u8.ToArray());
-        var window = await OpenAsync(path);
+        var window = await OpenAsync(path, Prefs(new KeyboardSettings { IsMac = mac }));
         window.Editor.Document.Insert(3, "\nb=2");
+        Assert.True(window.Editor.TextArea.Focus());
 
-        window.KeyPressQwerty(PhysicalKey.S, RawInputModifiers.Control); // the default Save gesture
+        window.KeyPressQwerty(PhysicalKey.S, command);
         await TestWait.WhileAsync(() => window.ViewModel.IsDirty);
 
         Assert.Equal("a=1\nb=2", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+        Assert.True(window.Editor.TextArea.IsFocused);
+    }
+
+    // The other platform's key is not Save: Ctrl+S on macOS leaves the file as it is.
+    [AvaloniaFact]
+    public async Task OnMacOS_CtrlS_Should_NotSave()
+    {
+        var path = WriteFile("k.ini", "a=1"u8.ToArray());
+        var window = await OpenAsync(path, Prefs(new KeyboardSettings { IsMac = true }));
+        window.Editor.Document.Insert(3, "\nb=2");
+        Assert.True(window.Editor.TextArea.Focus());
+
+        window.KeyPressQwerty(PhysicalKey.S, RawInputModifiers.Control);
+        await Task.Delay(50);
+
+        Assert.True(window.ViewModel.IsDirty);
+        Assert.Equal("a=1", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+    }
+
+    // Rebinding Save in Preferences while the window is open: the old key stops saving, the new one
+    // saves, and the editor's own keys follow too.
+    [AvaloniaFact]
+    public async Task RebindingSave_WhileTheWindowIsOpen_Should_TakeEffectAtOnce()
+    {
+        var path = WriteFile("k.ini", "a=1"u8.ToArray());
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = Prefs(keyboard);
+        var window = await OpenAsync(path, prefs);
+        window.Editor.Document.Insert(3, "\nb=2");
+        Assert.True(window.Editor.TextArea.Focus());
+
+        keyboard.SetKey(KeyCommands.Save, "Ctrl+Alt+S");
+        keyboard.SetKey(KeyCommands.TriggerCompletion, "Ctrl+J");
+        prefs.Raise(p => p.Changed += null);
+
+        window.KeyPressQwerty(PhysicalKey.S, RawInputModifiers.Control);
+        await Task.Delay(50);
+        Assert.True(window.ViewModel.IsDirty);
+
+        window.KeyPressQwerty(PhysicalKey.S, RawInputModifiers.Control | RawInputModifiers.Alt);
+        await TestWait.WhileAsync(() => window.ViewModel.IsDirty);
+        Assert.Equal("a=1\nb=2", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+        Assert.Equal(new KeyGesture(Key.J, KeyModifiers.Control), window.Editor.CompletionGesture);
+
+        // closed: no longer follows Preferences
+        Assert.True(await window.TryCloseAsync());
+        keyboard.SetKey(KeyCommands.TriggerCompletion, "Ctrl+K");
+        prefs.Raise(p => p.Changed += null);
+        Assert.Equal(new KeyGesture(Key.J, KeyModifiers.Control), window.Editor.CompletionGesture);
     }
 
     [AvaloniaTheory]
