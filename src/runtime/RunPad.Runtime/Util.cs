@@ -154,8 +154,8 @@ public static class Util
     // concurrent-stdout/stderr-draining infrastructure for the compiled SCRIPT's own process, but this
     // assembly (netstandard2.0, referenced by the compiled script's own project) has no reference to
     // it — reimplemented here directly against System.Diagnostics.Process, same principle (draining
-    // one stream while the other's OS pipe buffer fills would deadlock the child — see docs/ARCHITECTURE.md's
-    // note on this same class of bug), not shared code.
+    // one stream while the other's OS pipe buffer fills would deadlock the child, the same
+    // class of bug the language hosts guard against), not shared code.
 
     /// <summary>
     /// Runs an external process, streaming its stdout/stderr lines live to <see cref="Console.Out"/>/

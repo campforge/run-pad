@@ -11,8 +11,8 @@ namespace RunPad.Runtime.UI.Tests;
 //
 // Pass 134 (CI-cost pass) — 7 tests used to each spawn their own real `dotnet build` for one of
 // only 3 distinct source snippets. An IClassFixture compiles each snippet exactly once per test class
-// run and every test just reads the shared result. A later pass (test-design cleanup per
-// docs/unit-test.md — real `dotnet build` child processes test the compiler/MSBuild, not RunPad's own
+// run and every test just reads the shared result. A later pass (test-design cleanup:
+// real `dotnet build` child processes test the compiler/MSBuild, not RunPad's own
 // code) swapped the fixture compilation itself from a real `dotnet build` to
 // InProcessFixtureCompiler (in-process Roslyn CSharpCompilation.Emit) — same real IL bytes for the
 // decompiler, zero child processes, no RealBuildTestCollection serialization needed anymore.

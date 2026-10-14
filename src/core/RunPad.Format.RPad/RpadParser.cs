@@ -140,8 +140,7 @@ public static class RpadParser
     private static bool IsFrontMatterDelimiter(ReadOnlySpan<char> line) => line.SequenceEqual("---");
 
     // "```{languageId} run" exactly, as words: "```csharp runner", "```csharprun" and
-    // "```csharp run extra" are not run blocks (the fence must be unambiguous — see
-    // docs/SpecificationRPad.md, "The run attribute").
+    // "```csharp run extra" are not run blocks (the fence must be unambiguous).
     private static bool IsRunFence(ReadOnlySpan<char> line, string languageId)
     {
         if (!line.StartsWith("```")) return false;
