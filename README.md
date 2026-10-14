@@ -68,7 +68,9 @@ changes is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md)
-first. Report problems as [GitHub issues](https://github.com/Campforge/run-pad/issues).
+first. Report problems as [GitHub issues](https://github.com/Campforge/run-pad/issues). Code
+contributions need a one-time [Contributor License Agreement](CLA.md), accepted with a comment on
+your first pull request.
 
 ## Acknowledgements
 
