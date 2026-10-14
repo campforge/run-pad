@@ -19,7 +19,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // cancels to go resolve unsaved tabs.
     private bool _confirmedClose;
 
-    // Review R1: a second Close (Cmd+Q / window button again) while the first confirmation is
+    // A second Close (Cmd+Q / window button again) while the first confirmation is
     // still awaiting a dialog must not start a second, overlapping walk over the dirty tabs.
     private bool _closeConfirmationInProgress;
 

@@ -8,11 +8,10 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review 2026-10-05, R1/R2:
-// R1 — closing/renaming/moving/deleting used to remove the tab first and only then try to save it
+// Closing/renaming/moving/deleting used to remove the tab first and only then try to save it
 // (EditorTabsControl's CollectionChanged handler), so a failed write lost the edits along with the
 // tab. Unsaved content is now resolved BEFORE removal, and a failed write keeps the very same tab.
-// R2 — a file-tree walk failure escaped an async void onto the UI dispatcher.
+// A file-tree walk failure escaped an async void onto the UI dispatcher.
 // No EditorsTabItemControl here: tab.WriteToFile is set directly to a fake writer.
 public class MainWindowViewModelDocumentSafetyTests
 {
@@ -50,7 +49,7 @@ public class MainWindowViewModelDocumentSafetyTests
 
     private static void ThrowDiskFull(string _) => throw new IOException("disk full");
 
-    // ── R1: single tab close ──────────────────────────────────────────────────
+    // ── Single tab close ──────────────────────────────────────────────────
 
     [Fact]
     public async Task CloseAsync_Should_WriteADirtyNamedTab_BeforeRemovingIt()
@@ -139,7 +138,7 @@ public class MainWindowViewModelDocumentSafetyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // Review follow-up: a dirty named tab whose editor never wired WriteToFile used to count as
+    // A dirty named tab whose editor never wired WriteToFile used to count as
     // "saved" and get closed with its content dropped. It must fail closed instead.
     [Fact]
     public async Task CloseAsync_Should_NotTreatAMissingWriterAsASuccessfulSave()
@@ -169,7 +168,7 @@ public class MainWindowViewModelDocumentSafetyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // ── R1: rename / move / delete ────────────────────────────────────────────
+    // ── Rename / move / delete ────────────────────────────────────────────
 
     [Fact]
     public void RenameFile_Should_AbortWithoutTouchingDisk_WhenADirtyTabCannotBeSaved()
@@ -282,7 +281,7 @@ public class MainWindowViewModelDocumentSafetyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // ── R2: file tree refresh ─────────────────────────────────────────────────
+    // ── File tree refresh ─────────────────────────────────────────────────
 
     [Fact]
     public async Task RefreshNodesAsync_Should_KeepThePreviousTree_AndReportOnce_WhenTheWalkFails()
@@ -341,7 +340,7 @@ public class MainWindowViewModelDocumentSafetyTests
         Assert.Equal("/root/new.rpad", node.FilePath);
     }
 
-    // Review follow-up: comparing against the last APPLIED version let an older walk land after a
+    // Comparing against the last APPLIED version let an older walk land after a
     // newer walk had failed (and deliberately kept the previous tree) — resurrecting stale content.
     [Fact]
     public async Task RefreshNodesAsync_Should_KeepThePreviousTree_WhenANewerWalkFailed_AndAnOlderOneFinishesLate()

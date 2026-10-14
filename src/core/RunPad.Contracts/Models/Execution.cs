@@ -23,7 +23,7 @@ public enum RunOutcome
 }
 
 /// <summary>
-/// The result of <see cref="RunPad.Contracts.ILanguageHost.RunAsync"/> (review R4): success is decided by
+/// The result of <see cref="RunPad.Contracts.ILanguageHost.RunAsync"/>: success is decided by
 /// the process's real exit code, not by whether anything was written to stderr. A cancelled run
 /// throws <see cref="OperationCanceledException"/> instead of returning a result.
 /// </summary>

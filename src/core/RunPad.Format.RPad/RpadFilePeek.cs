@@ -12,7 +12,7 @@ public static class RpadFilePeek
         => PeekDocumentLanguage(filePath) ?? RpadLanguage.CSharp;
 
     // Like PeekLanguage, but null when the file exists and isn't a valid .rpad document (see
-    // RpadParser.Parse) — such a tab is opened as raw text with Run/Debug blocked (review R3), so it
+    // RpadParser.Parse) — such a tab is opened as raw text with Run/Debug blocked, so it
     // shouldn't get language services wired up against its YAML/Markdown either. A missing or
     // unreadable file still answers C#, same as an empty new document.
     public static RpadLanguage? PeekDocumentLanguage(string? filePath)

@@ -20,7 +20,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Review 2026-10-05, R1 follow-up: end-to-end against a real MainWindow + EditorTabsControl +
+// End-to-end against a real MainWindow + EditorTabsControl +
 // EditorsTabItemControl. The tab's writer is replaced with one that throws IOException, so a write
 // failure is deterministic on every OS; the assertions check the SAME control instance and its live
 // editor text survive a cancelled close/quit, not merely that some tab for the path still exists.
@@ -168,7 +168,7 @@ public class DocumentSafetyHeadlessTests
         finally { Cleanup(h); }
     }
 
-    // Review follow-up: kind/usings/packages edits were written without ever flagging the tab dirty.
+    // Kind/usings/packages edits were written without ever flagging the tab dirty.
     // A failed write left a "clean" tab that the next close dropped along with the edit.
     [AvaloniaFact]
     public async Task ChangingKind_WhenTheWriteFails_Should_LeaveTheTabDirty_SoCloseStillAsks()

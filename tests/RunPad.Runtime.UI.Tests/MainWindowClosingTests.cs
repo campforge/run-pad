@@ -133,7 +133,7 @@ public class MainWindowClosingTests
         Assert.True(closedFired);
     }
 
-    // Review R1: a second Close (window button / Cmd+Q again) while the first confirmation dialog
+    // A second Close (window button / Cmd+Q again) while the first confirmation dialog
     // is still open must not start a second, overlapping walk over the dirty tabs.
     [AvaloniaFact]
     public async Task ClosingTheWindowAgain_WhileTheConfirmationIsPending_Should_NotAskTwice()

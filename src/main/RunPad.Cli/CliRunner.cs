@@ -117,7 +117,7 @@ public static class CliRunner
         }
     }
 
-    // Review R4: the script's own exit code is the CLI's, so `Environment.Exit(7)` gives 7 and text on
+    // The script's own exit code is the CLI's, so `Environment.Exit(7)` gives 7 and text on
     // stderr alone (a warning, a log line) doesn't fail the run. Not compiling or not starting is 1.
     internal static int ExitCodeFor(RunResult result)
         => result.Outcome == RunOutcome.Exited ? result.ExitCode ?? 1 : 1;

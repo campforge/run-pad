@@ -35,7 +35,7 @@ internal sealed class EditorTabState
     // Set when the active file is an .rpad document; null for untitled tabs
     public RpadDocument? RpadDocument { get; set; }
 
-    // Set when the file on disk isn't a valid .rpad document (RpadParser.Parse error, review R3): the
+    // Set when the file on disk isn't a valid .rpad document (RpadParser.Parse error): the
     // editor then holds the full raw file so Save writes it back verbatim, and Run/Debug are refused.
     public string? DocumentParseError { get; set; }
 

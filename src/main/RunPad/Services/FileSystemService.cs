@@ -83,7 +83,7 @@ public sealed class FileSystemService : IFileSystemService
         // GetFilesTreeInternal immediately filtered it out as "empty", so it never made it into
         // FileTreeViewModel.Nodes, and FindByPath couldn't find it to enter rename mode.
         //
-        // Review R2: a single unreadable subfolder (permissions) or one deleted between
+        // A single unreadable subfolder (permissions) or one deleted between
         // GetDirectories and the recursion used to abort the whole walk — and, through the
         // fire-and-forget refresh, the app. Only the root's own failure propagates now: a vanished
         // child is dropped, an unreadable one is still listed but with no children.

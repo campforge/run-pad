@@ -68,7 +68,7 @@ public class MainWindowViewModelDeleteRenameFolderTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    // Code-review finding on the folder delete/rename PR: DeleteFile closed the tab before attempting the
+    // DeleteFile closed the tab before attempting the
     // delete but never reopened it on failure (unlike RenameFile, which already did) — a failed
     // delete could make a tab disappear even though the file was still on disk. Forces a real delete
     // failure (Unix permission trick, same precedent as SaveIfNeededFailureTests) rather than mocking
