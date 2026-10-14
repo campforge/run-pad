@@ -25,16 +25,9 @@ dotnet test                                        # or one project: dotnet test
 
 ## Contributor License Agreement
 
-Before your first pull request can be merged, accept the [Contributor License Agreement](CLA.md): you
-keep the copyright in your work and grant the maintainer a license to distribute it as part of RunPad,
-under the project's license and, if the licensing ever changes, under other terms. The CLA check on
-your pull request asks you to post this comment once:
-
-```text
-I have read the CLA Document and I hereby sign the CLA
-```
-
-Every commit author in the pull request has to accept it; comment `recheck` to run the check again.
+By opening a pull request you agree to the [Contributor License Agreement](CLA.md) — nothing to sign.
+You keep the copyright in your work and grant the maintainer a license to distribute it as part of
+RunPad, under the project's license and, if the licensing ever changes, under other terms.
 
 ## Rules
 
