@@ -7,8 +7,8 @@ maintainer and copyright holder of RunPad ("the maintainer"). It covers everythi
 RunPad — code, documentation or other material — through pull requests, issues or otherwise
 ("your contributions").
 
-You accept it once, by posting the comment the CLA check asks for on your pull request. It then
-applies to all your contributions to RunPad.
+By submitting a contribution — for example, by opening a pull request — you accept this agreement
+for that contribution and all your later contributions to RunPad.
 
 1. **You keep your copyright.** You grant the maintainer, and everyone who receives RunPad from the
    maintainer, a perpetual, worldwide, free, irrevocable license to use, copy, modify, distribute and
