@@ -23,7 +23,9 @@ copied next to them, is licensed under the MIT License. Its text is in the
 RunPad.Runtime.LICENSE.txt file installed next to the application.
 
 RunPad includes third-party components that are distributed under their own
-open-source licenses; those licenses apply to the respective components.
+open-source licenses; those licenses apply to the respective components. They
+are listed, with their license texts, in the THIRD-PARTY-NOTICES.txt file
+installed next to the application.
 
 
 2. No warranty ("as is")

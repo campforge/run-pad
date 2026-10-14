@@ -1,6 +1,17 @@
 # RunPad.Avalonia.HtmlRenderer
 
-Avalonia port of the [HTML Renderer](https://github.com/ArthurHub/HTML-Renderer) library (originally by Arthur Teplitzki / TheArtOfDev). Provides a custom HTML/CSS rendering engine for Avalonia controls — no WebView, no Chromium, no native OS web component. All rendering is done on Avalonia's `DrawingContext`.
+Avalonia port of the [HTML Renderer](https://github.com/ArthurHub/HTML-Renderer) library (originally by Arthur Teplitzki / TheArtOfDev), taken from [Avalonia.HtmlRenderer](https://github.com/AvaloniaUI/Avalonia.HtmlRenderer).
+
+**Origin and licenses.** This project is a modified copy of third-party code, which keeps its own
+licenses — RunPad's GPL-3.0 does not replace them:
+
+- the HTML Renderer core in [`External/`](External) — BSD-3-Clause, see [`External/LICENSE`](External/LICENSE)
+  (Copyright (c) 2009 José Manuel Menéndez Poo, Copyright (c) 2013-2026 Arthur Teplitzki);
+- the Avalonia adapters and controls, from Avalonia.HtmlRenderer — MIT, see [`LICENSE`](LICENSE)
+  (Copyright (c) 2014 Steven Kirk).
+
+The copyright and license notices must stay with this code; RunPad's own changes to it are recorded in
+the git history of this folder. Provides a custom HTML/CSS rendering engine for Avalonia controls — no WebView, no Chromium, no native OS web component. All rendering is done on Avalonia's `DrawingContext`.
 
 ---
 

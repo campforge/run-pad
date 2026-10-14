@@ -104,3 +104,8 @@ RunPad assembly your scripts are compiled against and shipped with — is licens
 [MIT License](src/runtime/RunPad.Runtime/LICENSE), so programs written in RunPad can be distributed
 under any license. The installers show an [end-user agreement](installer/EULA.txt) that summarizes
 these terms; it adds no restrictions to the GPL-3.0.
+
+Third-party code keeps its own license: the [AvaloniaEdit fork](#avaloniaedit-fork) (MIT) and the
+HTML renderer in [`src/controls/RunPad.Avalonia.HtmlRenderer`](src/controls/RunPad.Avalonia.HtmlRenderer)
+(BSD-3-Clause and MIT), with license files next to the code. Every third-party component RunPad ships,
+with its license text, is listed in [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt).
