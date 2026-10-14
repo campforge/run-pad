@@ -3,7 +3,7 @@
 
     <!-- This file used to also carry a second, unrelated 31-entry DrawingImage icon set
          (Noun Project / Visual Studio Image Library sourced) that had zero references anywhere in
-         src/ — full audit in docs/Icons.md. Deleted outright rather than trimmed, since every concept
+         src/. Deleted outright rather than trimmed, since every concept
          it covered that's actually in use already has a live Icon.* replacement below. -->
 
     <!-- Path icons (24×24 viewbox, no external library needed) -->

@@ -15,7 +15,6 @@ dotnet build
 dotnet run --project src/main/RunPad/RunPad.csproj
 ```
 
-Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before changing anything outside a single class.
 Before opening a pull request, run what CI runs (on Windows, Linux and macOS):
 
 ```bash
@@ -54,6 +53,12 @@ Every commit author in the pull request has to accept it; comment `recheck` to r
   ship a regression test with every crash fix.
 - **Layering:** `src/core` → `src/languages` → `src/main`; controls in `src/controls` stay
   language-agnostic — per-language behavior comes from the language host, never from a control.
+- **AvaloniaEdit fork:** `src/controls/AvaloniaEdit` and `src/controls/AvaloniaEdit.TextMate` are a
+  fork of AvaloniaEdit under its own MIT license (see
+  [their README](src/controls/AvaloniaEdit/README.md)). Change them only when the control itself has to
+  change — otherwise use `RunPad.Avalonia.CodeTextEditor`; keep upstream's style and license headers,
+  and leave the upstream suite in `tests/AvaloniaEdit.Tests` as it is (RunPad's tests for the fork go
+  to `tests/RunPad.Runtime.UI.Tests`).
 - **MVVM:** ReactiveUI only (no CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
 - **Packages:** versions live in `Directory.Packages.props`; a `.csproj` references packages by name only.
 - **Tests:** required for every change. UI tests that create real Avalonia controls go to

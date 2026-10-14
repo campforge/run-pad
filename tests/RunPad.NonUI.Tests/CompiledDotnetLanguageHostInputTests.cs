@@ -18,7 +18,7 @@ namespace RunPad.Runtime.UI.Tests;
 // CompiledDotnetLanguageHostBase.InputRequestPrefix directly (internal to their own assemblies, not
 // visible here — RunPad.Runtime only grants InternalsVisibleTo to RunPad.Runtime.Tests).
 //
-// Test-design cleanup (docs/unit-test.md — real `dotnet build`/child-process round trips test the
+// Test-design cleanup (real `dotnet build`/child-process round trips test the
 // compiler and the OS, not RunPad's own code) removed this file's one real end-to-end test
 // (RunAsync_Should_SupportARealScriptCallingUtilReadLine_EndToEnd): every piece it proved is already
 // covered here in isolation — InputRequested_Should_FireWithThePromptAndIsPasswordFlag/

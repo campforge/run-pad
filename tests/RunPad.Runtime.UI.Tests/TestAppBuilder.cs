@@ -12,7 +12,7 @@ using RunPad.Runtime.UI.Tests;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Minimal headless Avalonia app for [AvaloniaFact]/[AvaloniaTheory] tests (docs/TEST-GUIDE-AVALONIA.md).
+// Minimal headless Avalonia app for [AvaloniaFact]/[AvaloniaTheory] tests.
 // Deliberately configures a plain Application rather than the real RunPad.App — the latter's
 // OnFrameworkInitializationCompleted wires up the full DI composition root (file system service,
 // preferences file, SDK detection, ...), which the test guide explicitly says UI tests shouldn't

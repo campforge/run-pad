@@ -83,8 +83,8 @@ jobs:
 
       # PRs pay per-minute for Windows runners (2x the Linux rate) — build-linux already runs the
       # FULL suite on every PR, so this lane skips only the expensive, redundant-on-this-OS parts:
-      # RunPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial — see docs/ARCHITECTURE.md on
-      # AvaloniaTestFramework disabling collection parallelism assembly-wide) and RealBuildTestCollection
+      # RunPad.Runtime.UI.Tests (215 headless-Avalonia tests, forced fully serial, since
+      # AvaloniaTestFramework disables collection parallelism assembly-wide) and RealBuildTestCollection
       # (real `dotnet build` child-process spawns, ~5s floor each regardless of caching — measured directly).
       # Everything else — the actual cross-platform
       # risk surface (process/file-path handling, real dotnet-build behavior on THIS os specifically)

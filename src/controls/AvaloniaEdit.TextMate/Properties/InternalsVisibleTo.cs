@@ -4,6 +4,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("AvaloniaEdit.Tests")]
 // RunPad.Runtime.UI.Tests exercises TextTransformation.GetFontStyle() directly (no
 // italic comments) — the upstream NUnit suite above deliberately stays untouched by RunPad-specific
-// regressions, per its own "kept as-is" convention (see docs/ARCHITECTURE.md).
+// regressions.
 [assembly: InternalsVisibleTo("RunPad.Runtime.UI.Tests")]
 [assembly: InternalsVisibleTo("RunPad.NonUI.Tests")]

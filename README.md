@@ -49,7 +49,7 @@ for the first-launch steps on each OS.
 
 - [User guide](https://campforge.github.io/run-pad-docs/) — installation, quick start, editor,
   debugging, results, packages, command line.
-- [`.rpad` format specification](docs/SpecificationRPad.md).
+- [Scripts and `.rpad` files](https://campforge.github.io/run-pad-docs/scripts/) — the script format.
 - [Roadmap](ROADMAP.md) — what is planned next.
 
 ## Building from source
@@ -62,8 +62,7 @@ dotnet run --project src/main/RunPad/RunPad.csproj   # start the app
 dotnet test                                          # all tests
 ```
 
-Architecture, project layout and coding conventions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); how to send
-changes is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+How to send changes, and the rules the code follows, are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Contributing
 
@@ -72,12 +71,22 @@ first. Report problems as [GitHub issues](https://github.com/Campforge/run-pad/i
 contributions need a one-time [Contributor License Agreement](CLA.md), accepted with a comment on
 your first pull request.
 
+## AvaloniaEdit fork
+
+RunPad's code editor is built on a **fork of [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
+and AvaloniaEdit.TextMate**, taken from the 12.0.0 packages and kept in
+[`src/controls/AvaloniaEdit`](src/controls/AvaloniaEdit) and
+[`src/controls/AvaloniaEdit.TextMate`](src/controls/AvaloniaEdit.TextMate), so the editor control
+itself can be changed for RunPad — completion behavior, font rendering, macOS clipboard and
+highlighting fixes. The fork keeps its upstream MIT license (`LICENSE` in each folder); its origin
+and changes are described in [`src/controls/AvaloniaEdit/README.md`](src/controls/AvaloniaEdit/README.md).
+
 ## Acknowledgements
 
 - [netcoredbg](https://github.com/Samsung/netcoredbg) — the debugger, driven over the Debug Adapter
   Protocol.
-- [Avalonia UI](https://avaloniaui.net/) and [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
-  (a local fork lives in `src/controls`).
+- [Avalonia UI](https://avaloniaui.net/), and [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
+  with its predecessor AvalonEdit from SharpDevelop — the editor RunPad's fork is based on.
 - [Roslyn](https://github.com/dotnet/roslyn) for compiling and IntelliSense;
   [ILSpy](https://github.com/icsharpcode/ILSpy) for decompiling;
   [Spectre.Console](https://spectreconsole.net/) for the command-line output.
