@@ -3,7 +3,9 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.4.2] — 2026-10-14
+
+A new main menu, the same on every system, and shortcuts you can change for every command.
 
 ### Changed
 
@@ -182,6 +184,7 @@ Even this groundwork showed how large the rest of the changes would be — the d
 features had not been started yet — so writing a new application from scratch turned out to be the
 better choice. RunPad began as DotPad two days after the last commit to the fork.
 
+[0.4.2]: https://github.com/campforge/run-pad/releases/tag/v0.4.2
 [0.4.1]: https://github.com/campforge/run-pad/releases/tag/v0.4.1
 [0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
 [0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
