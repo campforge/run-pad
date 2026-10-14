@@ -1,6 +1,6 @@
 # Roadmap
 
-Planned work for RunPad. Missing something? [Open an issue](https://github.com/Campforge/run-pad/issues).
+Planned work for RunPad. Missing something? [Open an issue](https://github.com/campforge/run-pad/issues).
 
 ## Next
 

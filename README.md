@@ -33,7 +33,7 @@ block — so your notes live right next to the code.
 
 ## Download
 
-Installers and portable builds are on the [releases page](https://github.com/Campforge/run-pad/releases/latest):
+Installers and portable builds are on the [releases page](https://github.com/campforge/run-pad/releases/latest):
 
 | OS | Package |
 | --- | --- |
@@ -67,7 +67,7 @@ How to send changes, and the rules the code follows, are in [`CONTRIBUTING.md`](
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md)
-first. Report problems as [GitHub issues](https://github.com/Campforge/run-pad/issues). Opening a
+first. Report problems as [GitHub issues](https://github.com/campforge/run-pad/issues). Opening a
 pull request means you agree to the [Contributor License Agreement](CLA.md).
 
 ## AvaloniaEdit fork

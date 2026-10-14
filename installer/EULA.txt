@@ -86,7 +86,7 @@ the original project; a modified version should be clearly marked as such.
 The complete source code of RunPad, including the code of every released
 version, is publicly available at:
 
-    https://github.com/Campforge/run-pad
+    https://github.com/campforge/run-pad
 
 Each release is built from the tagged commit of the same version in that
 repository, and its source code archive is attached to the release.

@@ -1,7 +1,7 @@
 # Contributing
 
 Thanks for helping. Bug reports, ideas, documentation fixes and code are all welcome. Report bugs and
-ideas as [GitHub issues](https://github.com/Campforge/run-pad/issues) — for a bug, include your OS,
+ideas as [GitHub issues](https://github.com/campforge/run-pad/issues) — for a bug, include your OS,
 the RunPad version (Help → About RunPad), `dotnet --list-sdks` and the smallest `.rpad` script that
 shows the problem. For anything larger than a small fix, open an issue first and agree on the approach.
 
@@ -66,7 +66,7 @@ RunPad, under the project's license and, if the licensing ever changes, under ot
   both the light and dark themes, and attach before/after screenshots to the pull request.
 - **Commits:** small and focused, with a short imperative subject (`Fix …`, `Add …`); one topic per
   pull request.
-- **Docs:** if users can see the change, update the [user guide](https://github.com/Campforge/run-pad-docs)
+- **Docs:** if users can see the change, update the [user guide](https://github.com/campforge/run-pad-docs)
   too or mention it in the pull request.
 
 ## Adding an analyzer
