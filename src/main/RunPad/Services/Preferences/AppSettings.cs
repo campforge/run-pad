@@ -9,4 +9,5 @@ public sealed class AppSettings
     public KeyboardSettings Keyboard { get; set; } = new();
     public LayoutSettings Layout { get; set; } = new();
     public SessionSettings Session { get; set; } = new();
+    public ExperimentalSettings Experimental { get; set; } = new();
 }

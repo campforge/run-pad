@@ -19,6 +19,8 @@ public partial class TextEditorWindow : Window
     // set once the close was confirmed, so the real Close() below isn't asked about again
     private bool _closeConfirmed;
 
+    private readonly IPreferencesService? _preferences;
+
     public TextEditorWindow(TextEditorWindowViewModel viewModel, IThemeService themeService, IPreferencesService? preferences)
     {
         InitializeComponent();
@@ -46,13 +48,24 @@ public partial class TextEditorWindow : Window
         UpdateCaret();
         editor.TextArea.Caret.PositionChanged += (_, _) => UpdateCaret();
 
-        // the user's own Save / Save As gestures, as in the main window
-        AddGesture(preferences?.Keyboard.Save, viewModel.SaveCommand);
-        AddGesture(preferences?.Keyboard.SaveAs, viewModel.SaveAsCommand);
+        // the user's own keys, as in the main window, and again whenever Preferences change them
+        _preferences = preferences;
+        ApplyKeyBindings();
+        if (preferences is not null)
+        {
+            preferences.Changed += ApplyKeyBindings;
+            Closed += (_, _) => preferences.Changed -= ApplyKeyBindings;
+        }
 
         Closing += async (_, e) =>
         {
             if (_closeConfirmed) return;
+            // The main window owns this one and, when it closes (Exit, Cmd+Q, quitting the app), asks
+            // about this window's unsaved changes itself, together with its own tabs, so that one
+            // answer per document is enough and the app does not stop halfway.
+            if (Owner is not null && e.CloseReason is WindowCloseReason.OwnerWindowClosing
+                    or WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown)
+                return;
             e.Cancel = true; // Closing can't await the question: cancel, ask, then close for real
             if (await ViewModel.ConfirmCloseAsync())
             {
@@ -86,16 +99,25 @@ public partial class TextEditorWindow : Window
     private void UpdateCaret() =>
         CaretText.Text = $"Ln {Editor.TextArea.Caret.Line}, Col {Editor.TextArea.Caret.Column}";
 
-    private void AddGesture(string? gesture, System.Windows.Input.ICommand command)
+    private readonly List<KeyBinding> _saveBindings = [];
+
+    private void ApplyKeyBindings()
     {
-        if (string.IsNullOrWhiteSpace(gesture)) return;
-        try
-        {
-            KeyBindings.Add(new KeyBinding { Gesture = KeyGesture.Parse(gesture), Command = command });
-        }
-        catch (ArgumentException)
-        {
-            // an unparsable gesture in the settings: the toolbar buttons still work
-        }
+        if (_preferences?.Keyboard is not { } keyboard) return;
+        keyboard.ApplyTo(Editor);
+
+        foreach (var binding in _saveBindings) KeyBindings.Remove(binding);
+        _saveBindings.Clear();
+        AddGesture(keyboard.GestureFor(KeyCommands.Save), ViewModel.SaveCommand);
+        AddGesture(keyboard.GestureFor(KeyCommands.SaveAs), ViewModel.SaveAsCommand);
+    }
+
+    // An unbound or unparsable key: the toolbar buttons still work.
+    private void AddGesture(KeyGesture? gesture, System.Windows.Input.ICommand command)
+    {
+        if (gesture is null) return;
+        var binding = new KeyBinding { Gesture = gesture, Command = command };
+        _saveBindings.Add(binding);
+        KeyBindings.Add(binding);
     }
 }

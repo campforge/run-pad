@@ -135,4 +135,8 @@ public interface IIntelliSenseService : IDisposable
     // (e.g. RpadKind.Program's implicit `Main();` call) — otherwise the user's own entry point can be
     // flagged as unused.
     void UpdateKind(RpadKind kind);
+
+    // Turns RunPad's own analyzers (RPAD… diagnostics) on or off; they are an experimental feature,
+    // off until the host says otherwise. Takes effect on the next analysis pass (NotifyTextChanged).
+    void UpdateRunPadAnalyzers(bool enabled) { }
 }

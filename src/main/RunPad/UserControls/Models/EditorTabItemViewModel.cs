@@ -222,12 +222,12 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     private void SyncTooltips()
     {
         var kb = _prefs.Keyboard;
-        TooltipRun = Label("Run", kb.Run);
-        TooltipContinue = Label("Continue", kb.Run);
-        TooltipCancel = Label("Cancel", kb.Cancel);
-        TooltipStepOver = Label("Step Over", kb.StepOver);
-        TooltipStepIn = Label("Step In", kb.StepIn);
-        TooltipStepOut = Label("Step Out", kb.StepOut);
+        TooltipRun = Label("Run", kb.KeyFor(KeyCommands.RunOrContinue));
+        TooltipContinue = Label("Continue", kb.KeyFor(KeyCommands.RunOrContinue));
+        TooltipCancel = Label("Stop", kb.KeyFor(KeyCommands.Stop));
+        TooltipStepOver = Label("Step Over", kb.KeyFor(KeyCommands.StepOver));
+        TooltipStepIn = Label("Step Into", kb.KeyFor(KeyCommands.StepInto));
+        TooltipStepOut = Label("Step Out", kb.KeyFor(KeyCommands.StepOut));
         this.RaisePropertyChanged(nameof(TooltipRunOrContinue));
 
         static string Label(string name, string key)

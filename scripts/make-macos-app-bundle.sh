@@ -71,9 +71,8 @@ chmod +x "$APP/Contents/MacOS/RunPad"
 # publish output's managed assemblies and data files (System.*.dll, RunPad.deps.json, …) and its
 # satellite folders (de/, zh-Hans/, … holding *.resources.dll) as "code object is not signed at all".
 # Only Mach-O binaries stay in Contents/MacOS; every other top-level file and each culture folder is
-# moved to Contents/Resources and replaced by a relative symlink, which is sealed as-is, so the .NET
-# host and runtime still find <app dir>/X.dll and <app dir>/<culture>/X.resources.dll at their
-# original paths. Existing symlinks are left as they are; any other kind of subfolder, or a name
+# moved to Contents/Resources and replaced by a relative symlink, which is sealed as-is, so
+# Contents/MacOS/X.dll and Contents/MacOS/<culture>/X.resources.dll still exist. Existing symlinks are left as they are; any other kind of subfolder, or a name
 # that already exists in Contents/Resources, fails the build instead of guessing.
 relocate_to_resources()
 {
@@ -102,6 +101,22 @@ for ENTRY in "$APP/Contents/MacOS"/*; do
 done
 [[ -f "$APP/Contents/MacOS/RunPad" && ! -L "$APP/Contents/MacOS/RunPad" ]] \
     || { echo "error: Contents/MacOS/RunPad is not a Mach-O executable" >&2; exit 1; }
+
+# The .NET host resolves Contents/MacOS/RunPad.dll through its symlink, so it takes
+# Contents/Resources as the application directory: that is where it looks for libhostfxr (to run
+# self-contained at all — otherwise it falls back to a globally installed .NET, or fails), then
+# libhostpolicy, libcoreclr and every native library the app loads (libSkiaSharp, …). So each Mach-O
+# file that stays in Contents/MacOS, where it is signed as code, also gets a relative symlink in
+# Contents/Resources: both folders then list the complete application.
+for ENTRY in "$APP/Contents/MacOS"/*; do
+    NAME="$(basename "$ENTRY")"
+    [[ -L "$ENTRY" || ! -f "$ENTRY" || "$NAME" == RunPad ]] && continue
+    if [[ -e "$APP/Contents/Resources/$NAME" || -L "$APP/Contents/Resources/$NAME" ]]; then
+        echo "error: cannot link Contents/Resources/$NAME: it already exists" >&2
+        exit 1
+    fi
+    ln -s "../MacOS/$NAME" "$APP/Contents/Resources/$NAME"
+done
 
 # Sign inside-out, no --deep: first every nested Mach-O (the runtime/native .dylibs, createdump, …)
 # next to the main executable, then the bundle itself, which signs Contents/MacOS/RunPad with the

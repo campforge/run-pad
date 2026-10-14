@@ -10,6 +10,7 @@ using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
+using RunPad.Services.Preferences;
 using RunPad.Windows.Models;
 using SyntaxTree = ICSharpCode.Decompiler.CSharp.Syntax.SyntaxTree;
 
@@ -67,6 +68,48 @@ public partial class AssemblyExplorerWindow : Window
 
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
+
+    private readonly KeyboardSettings _defaultKeyboard = new();
+    private IPreferencesService? _preferences;
+
+    /// <summary>The user's key bindings (Preferences → Keyboard), else the defaults. Read on every
+    /// keypress.</summary>
+    public KeyboardSettings Keyboard => _preferences?.Keyboard ?? _defaultKeyboard;
+
+    /// <summary>Where the key bindings come from (WindowService passes the app's preferences); the
+    /// editor's keys and the key hints follow every change made in Preferences while the window is
+    /// open.</summary>
+    public IPreferencesService? Preferences
+    {
+        get => _preferences;
+        init
+        {
+            _preferences = value;
+            ApplyKeyBindings();
+            if (value is null) return;
+            value.Changed += ApplyKeyBindings;
+            Closed += (_, _) => value.Changed -= ApplyKeyBindings;
+        }
+    }
+
+    private void ApplyKeyBindings()
+    {
+        Keyboard.ApplyTo(Editor);
+        ShowKeyHints();
+    }
+
+    private void ShowKeyHints()
+    {
+        ToolTip.SetTip(SaveCodeButton, WithKey("Save the shown code", KeyCommands.Save));
+        SearchBox.PlaceholderText = WithKey("Search types and members", KeyCommands.ExplorerSearch);
+    }
+
+    private string WithKey(string text, KeyCommand command)
+        => Keyboard.KeyFor(command) is { Length: > 0 } key ? $"{text} ({key})" : text;
+
+    // Ctrl, or Cmd on macOS — the key that underlines navigable names and makes a click navigate.
+    private bool IsCommandKey(Key key)
+        => Keyboard.IsMac ? key is Key.LWin or Key.RWin : key is Key.LeftCtrl or Key.RightCtrl;
 
     internal TreeView Tree => TypeTree;
     internal TextBlock AssemblyPathText => AssemblyPathBlock;
@@ -206,7 +249,7 @@ public partial class AssemblyExplorerWindow : Window
         {
             var point = e.GetCurrentPoint(TypeTree);
             var newTab = point.Properties.IsMiddleButtonPressed
-                         || (point.Properties.IsLeftButtonPressed && e.KeyModifiers == KeyModifiers.Control);
+                         || (point.Properties.IsLeftButtonPressed && e.KeyModifiers == Keyboard.CommandModifier);
             if (!newTab || (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true)
                     is not { Header: AssemblyTreeNode node } row) return;
             e.Handled = true;
@@ -254,7 +297,7 @@ public partial class AssemblyExplorerWindow : Window
         {
             if (TypeTree.SelectedItem is not TreeViewItem { Header: AssemblyTreeNode node } item) return;
             if (e.Key == Key.Enter && node.Reference is { } reference) _ = OpenReferenceAsync(reference);
-            else if (e.Key == Key.Delete && node.Kind == AssemblyNodeKind.Assembly) RemoveAssembly(item);
+            else if (Keyboard.Matches(e, KeyCommands.ExplorerRemoveAssembly) && node.Kind == AssemblyNodeKind.Assembly) RemoveAssembly(item);
             else return;
             e.Handled = true;
         };
@@ -280,23 +323,25 @@ public partial class AssemblyExplorerWindow : Window
                 RemoveAssembly(item);
         };
 
-        // Alt+←/→ and the mouse's back/forward buttons, anywhere in the window (Tunnel: before the
-        // editor or tree can use the keys).
+        // Back/Forward (also the mouse's back/forward buttons, below) and the explorer's other keys,
+        // anywhere in the window (Tunnel: before the editor or tree can use the keys). Save and Close
+        // Tab share the main window's keys.
         AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Left) GoBack();
-            else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Right) GoForward();
-            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.S) _ = SaveCodeAsync();
-            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.W) CloseActiveTab();
-            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab) ActivateNextTab(+1);
-            else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.Tab) ActivateNextTab(-1);
-            else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.F)
+            var kb = Keyboard;
+            if (kb.Matches(e, KeyCommands.ExplorerBack)) GoBack();
+            else if (kb.Matches(e, KeyCommands.ExplorerForward)) GoForward();
+            else if (kb.Matches(e, KeyCommands.Save)) _ = SaveCodeAsync();
+            else if (kb.Matches(e, KeyCommands.CloseTab)) CloseActiveTab();
+            else if (kb.Matches(e, KeyCommands.ExplorerNextTab)) ActivateNextTab(+1);
+            else if (kb.Matches(e, KeyCommands.ExplorerPreviousTab)) ActivateNextTab(-1);
+            else if (kb.Matches(e, KeyCommands.ExplorerSearch))
             {
                 SearchBox.Focus();
                 SearchBox.SelectAll();
             }
             // ILSpy's Analyze shortcut: the selected row's first analysis
-            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.R
+            else if (kb.Matches(e, KeyCommands.ExplorerAnalyze)
                      && TypeTree.SelectedItem is TreeViewItem { Header: AssemblyTreeNode selected }
                      && CSharpDecompilerService.AnalysesFor(selected.Kind, selected.Member) is [var first, ..])
             {
@@ -344,7 +389,7 @@ public partial class AssemblyExplorerWindow : Window
         // Ctrl+click = F12 at the clicked spot (Tunnel: before the text area starts a selection).
         editor.TextArea.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            if (e.KeyModifiers != KeyModifiers.Control
+            if (e.KeyModifiers != Keyboard.CommandModifier
                 || !e.GetCurrentPoint(editor).Properties.IsLeftButtonPressed) return;
             if (editor.GetPositionFromPoint(e.GetPosition(editor)) is not { } position) return;
             e.Handled = true;
@@ -356,7 +401,7 @@ public partial class AssemblyExplorerWindow : Window
         editor.TextArea.AddHandler(PointerMovedEvent, (_, e) =>
         {
             _lastPointerPosition = editor.GetPositionFromPoint(e.GetPosition(editor)) is { } p ? (p.Line, p.Column) : null;
-            UpdateReferenceHover(e.KeyModifiers.HasFlag(KeyModifiers.Control) ? _lastPointerPosition : null);
+            UpdateReferenceHover(e.KeyModifiers.HasFlag(Keyboard.CommandModifier) ? _lastPointerPosition : null);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         editor.TextArea.PointerExited += (_, _) =>
         {
@@ -365,13 +410,14 @@ public partial class AssemblyExplorerWindow : Window
         };
         AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.Key is Key.LeftCtrl or Key.RightCtrl) UpdateReferenceHover(_lastPointerPosition);
+            if (IsCommandKey(e.Key)) UpdateReferenceHover(_lastPointerPosition);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyUpEvent, (_, e) =>
         {
-            if (e.Key is Key.LeftCtrl or Key.RightCtrl) UpdateReferenceHover(null);
+            if (IsCommandKey(e.Key)) UpdateReferenceHover(null);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         EditorHost.Content = editor;
+        ApplyKeyBindings();
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
         // internally, which needs the editor already in the visual tree.
@@ -735,6 +781,7 @@ public partial class AssemblyExplorerWindow : Window
     {
         var selected = TypeTree.SelectedItem as TreeViewItem;
         RemoveAssemblyMenuItem.IsEnabled = selected?.Header is AssemblyTreeNode { Kind: AssemblyNodeKind.Assembly };
+        RemoveAssemblyMenuItem.InputGesture = Keyboard.GestureFor(KeyCommands.ExplorerRemoveAssembly);
 
         foreach (var old in TreeContextMenu.Items.OfType<Control>().Where(c => c.Tag is "analysis" or "row").ToList())
             TreeContextMenu.Items.Remove(old);
@@ -756,7 +803,7 @@ public partial class AssemblyExplorerWindow : Window
         {
             var kind = analyses[i];
             var item = new MenuItem { Header = "Analyze: " + AnalysisLabel(kind), Tag = "analysis" };
-            if (i == 0) item.InputGesture = new KeyGesture(Key.R, KeyModifiers.Control);
+            if (i == 0) item.InputGesture = Keyboard.GestureFor(KeyCommands.ExplorerAnalyze);
             item.Click += (_, _) => _ = AnalyzeAsync(node, kind);
             TreeContextMenu.Items.Insert(position++, item);
         }

@@ -1,6 +1,11 @@
+using System.Reactive;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using AvaloniaEdit;
 using ReactiveUI;
 using RunPad.Format.RPad;
 using RunPad.Services.Preferences;
@@ -35,14 +40,20 @@ public sealed partial class MainWindow : Window, IDisposable
 
         InitializeComponent();
 
+        _keyActions = CreateKeyActions();
         MainMenuEntries = CreateMainMenu();
-        var mainMenu = this.FindControl<Menu>("MainMenu")!;
-        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) mainMenu.Items.Add(item);
+        _mainMenu = this.FindControl<Menu>("MainMenu")!;
+        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
 
         ApplyPlatformChrome();
 
+        // A key rebound in Preferences shows in both menus at once (OnWindowKeyDown reads it anyway).
+        _prefs.Changed += OnPreferencesChanged;
+        Closed += (_, _) => _prefs.Changed -= OnPreferencesChanged;
+
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
 
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
@@ -56,6 +67,10 @@ public sealed partial class MainWindow : Window, IDisposable
     // (if the user actually wants to proceed) call Close() again for real once the async
     // confirmation resolves; _confirmedClose tells that second, real close apart from the first one
     // this handler itself cancelled.
+    //
+    // The text editor windows this window owns leave their unsaved changes to it when it closes (see
+    // TextEditorWindow): each is asked here after the tabs and closed once answered, so closing the
+    // app asks once per unsaved document and then really closes.
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_confirmedClose) return;
@@ -64,7 +79,8 @@ public sealed partial class MainWindow : Window, IDisposable
             e.Cancel = true;
             return;
         }
-        if (!_editorTabs.HasUnsavedTabs()) return;
+        var unsavedWindows = OwnedWindows.OfType<TextEditorWindow>().Where(w => w.ViewModel.IsDirty).ToList();
+        if (!_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
 
         e.Cancel = true;
         _closeConfirmationInProgress = true;
@@ -72,6 +88,11 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            foreach (var window in unsavedWindows)
+            {
+                if (!canClose) break;
+                canClose = await window.TryCloseAsync();
+            }
         }
         finally
         {
@@ -88,85 +109,53 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         var kb = _prefs.Keyboard;
-        var vm = GetViewModel();
-
-        if (Match(e, kb.Run))
+        foreach (var (command, action) in _keyActions)
         {
-            _editorTabs.RunOrContinueActive();
+            if (!kb.Matches(e, command)) continue;
+            // Stop is only taken while something runs, so the key stays free otherwise.
+            if (command == KeyCommands.Stop && GetViewModel().ActiveTab?.EnableCancelButton != true) return;
+            action();
             e.Handled = true;
-        }
-        else if (Match(e, kb.Cancel) && vm.ActiveTab?.EnableCancelButton == true)
-        {
-            _editorTabs.CancelActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepOver))
-        {
-            _editorTabs.StepOverActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepIn))
-        {
-            _editorTabs.StepInActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.StepOut))
-        {
-            _editorTabs.StepOutActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.Format))
-        {
-            _editorTabs.FormatActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.ResolveAllUsings))
-        {
-            _editorTabs.ResolveAllUsingsActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.GoToLine))
-        {
-            _editorTabs.GoToLineActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.Save))
-        {
-            _editorTabs.SaveActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.SaveAs))
-        {
-            _editorTabs.SaveAsActive();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.OpenDependencies))
-        {
-            vm.OpenDependenciesWindow();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.CloseTab))
-        {
-            _editorTabs.CloseActiveTab();
-            e.Handled = true;
-        }
-        else if (Match(e, kb.NewFile))
-        {
-            vm.NewRpadFileWithDefaults();
-            e.Handled = true;
+            return;
         }
     }
 
-    private static bool Match(KeyEventArgs e, string gesture)
+    // Window-wide commands and what they do — behind both the key bindings above and the menu.
+    // Editor-only keys (completion, F12…) are handled by the editor itself; see EditorTabItemControl.
+    private readonly IReadOnlyDictionary<KeyCommand, Action> _keyActions;
+
+    private Dictionary<KeyCommand, Action> CreateKeyActions()
     {
-        try
+        var vm = GetViewModel();
+        var tabs = _editorTabs;
+        return new()
         {
-            return KeyGesture.Parse(gesture).Matches(e);
-        }
-        catch
-        {
-            return false;
-        }
+            [KeyCommands.NewFile] = vm.NewRpadFileWithDefaults,
+            [KeyCommands.Save] = tabs.SaveActive,
+            [KeyCommands.SaveAs] = tabs.SaveAsActive,
+            [KeyCommands.CloseTab] = tabs.CloseActiveTab,
+            // Close(), as the window's close button: unsaved tabs are asked about first.
+            [KeyCommands.Exit] = Close,
+            [KeyCommands.OpenDependencies] = vm.OpenDependenciesWindow,
+            [KeyCommands.OpenAssemblyExplorer] = () => vm.OpenAssemblyExplorerCommand.Execute().Subscribe(),
+            [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
+            [KeyCommands.ToggleFileTree] = () => vm.Sidebar.ToggleCommand.Execute().Subscribe(),
+            [KeyCommands.ToggleOutputPanel] = tabs.ToggleOutputPanelActive,
+            [KeyCommands.ZoomIn] = tabs.ZoomInActive,
+            [KeyCommands.ZoomOut] = tabs.ZoomOutActive,
+            [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
+            [KeyCommands.RunOrContinue] = tabs.RunOrContinueActive,
+            [KeyCommands.Stop] = tabs.CancelActive,
+            [KeyCommands.ToggleDebugMode] = tabs.ToggleDebugModeActive,
+            [KeyCommands.StepOver] = tabs.StepOverActive,
+            [KeyCommands.StepInto] = tabs.StepInActive,
+            [KeyCommands.StepOut] = tabs.StepOutActive,
+            [KeyCommands.Pause] = tabs.PauseActive,
+            [KeyCommands.RunToCursor] = tabs.RunToCursorActive,
+            [KeyCommands.Format] = tabs.FormatActive,
+            [KeyCommands.GoToLine] = tabs.GoToLineActive,
+            [KeyCommands.ResolveAllUsings] = tabs.ResolveAllUsingsActive,
+        };
     }
 
     // ── Per-platform window chrome ──────────────────
@@ -229,47 +218,160 @@ public sealed partial class MainWindow : Window, IDisposable
     // DataContext, so XAML {Binding} commands on them would silently resolve to nothing.
     //
     // The application ("RunPad") menu is not part of this tree — see App.CreateApplicationMenu.
-    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; }
+    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; private set; }
 
+    private readonly Menu _mainMenu;
+
+    private void OnPreferencesChanged()
+    {
+        MainMenuEntries = MainMenuDefinition.WithGestures(MainMenuEntries, _prefs.Keyboard.GestureFor);
+        MainMenuDefinition.UpdateGestures(MainMenuEntries, _mainMenu.Items);
+        if (NativeMenu.GetMenu(this) is { } nativeMenu) MainMenuDefinition.UpdateGestures(MainMenuEntries, nativeMenu);
+    }
+
+    internal const string UserGuideUrl = "https://campforge.github.io/run-pad-docs/";
+    internal const string ReleaseNotesUrl = "https://github.com/campforge/run-pad/releases";
+    internal const string ReportIssueUrl = "https://github.com/campforge/run-pad/issues/new";
+
+    // A conventional IDE layout, the same on every OS. Every item calls the code behind the matching
+    // toolbar button or shortcut (OnWindowKeyDown, EditorTabsControl.*Active), never a copy of it.
     private IReadOnlyList<MainMenuGroup> CreateMainMenu()
     {
         var vm = GetViewModel();
+        var tabs = _editorTabs;
 
         return
         [
             new MainMenuGroup("File",
             [
-                new MainMenuCommand("_New File", ReactiveCommand.Create(vm.NewRpadFileWithDefaults), vm.NewFileGesture),
+                Item("_New File", KeyCommands.NewFile),
                 new MainMenuGroup("New _RPad File",
                 [
                     new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
                     new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
                 ]),
-                new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
+                new MainMenuCommand("_Import LINQPad Query...", vm.ImportLinqFileCommand),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Save", ReactiveCommand.Create(_editorTabs.SaveActive), vm.SaveGesture),
-                new MainMenuCommand("Save _As...", ReactiveCommand.Create(_editorTabs.SaveAsActive), vm.SaveAsGesture),
+                Item("_Save", KeyCommands.Save),
+                Item("Save _As...", KeyCommands.SaveAs),
+                new MainMenuSeparator(),
+                Item("_Close Tab", KeyCommands.CloseTab),
+                new MainMenuSeparator(),
+                Item("E_xit", KeyCommands.Exit),
             ]),
             new MainMenuGroup("Edit",
             [
-                new MainMenuCommand("_Dependencies", vm.OpenDependenciesCommand, vm.OpenDependenciesGesture),
-                new MainMenuCommand("_Assembly Explorer...", vm.OpenAssemblyExplorerCommand),
+                new MainMenuCommand("_Undo", EditCommand(e => e.Undo(), t => t.Undo()), Hotkey(h => h.Undo)),
+                new MainMenuCommand("_Redo", EditCommand(e => e.Redo(), t => t.Redo()), Hotkey(h => h.Redo)),
                 new MainMenuSeparator(),
-                new MainMenuCommand("_Preferences", vm.OpenPreferencesCommand),
+                new MainMenuCommand("Cu_t", EditCommand(e => e.Cut(), t => t.Cut()), Hotkey(h => h.Cut)),
+                new MainMenuCommand("_Copy", EditCommand(e => e.Copy(), t => t.Copy()), Hotkey(h => h.Copy)),
+                new MainMenuCommand("_Paste", EditCommand(e => e.Paste(), t => t.Paste()), Hotkey(h => h.Paste)),
+                new MainMenuCommand("Select _All", EditCommand(e => e.SelectAll(), t => t.SelectAll()), Hotkey(h => h.SelectAll)),
+                new MainMenuSeparator(),
+                Item("_Format Document", KeyCommands.Format),
+                Item("_Go to Line...", KeyCommands.GoToLine),
+                Item("_Resolve All Usings", KeyCommands.ResolveAllUsings),
             ]),
-            // The title-bar sidebar button's command — on macOS that button is hidden with the rest
-            // of the custom title row, so the menu is the only way to reach it there.
+            // Toggle File Tree is the title-bar sidebar button's command — on macOS that button is
+            // hidden with the rest of the custom title row, so the menu is the only way to reach it.
             new MainMenuGroup("View",
             [
-                new MainMenuCommand("_Toggle File Tree", vm.Sidebar.ToggleCommand),
+                Item("Toggle _File Tree", KeyCommands.ToggleFileTree),
+                Item("Toggle _Output Panel", KeyCommands.ToggleOutputPanel),
+                new MainMenuSeparator(),
+                Item("Zoom _In", KeyCommands.ZoomIn),
+                Item("Zoom O_ut", KeyCommands.ZoomOut),
+                Item("_Reset Zoom", KeyCommands.ResetZoom),
+            ]),
+            new MainMenuGroup("Run",
+            [
+                Item("_Run / Continue", KeyCommands.RunOrContinue),
+                Item("_Stop", KeyCommands.Stop),
+                new MainMenuSeparator(),
+                Item("_Debug Mode", KeyCommands.ToggleDebugMode),
+                new MainMenuSeparator(),
+                Item("Step _Over", KeyCommands.StepOver),
+                Item("Step _Into", KeyCommands.StepInto),
+                Item("Step Ou_t", KeyCommands.StepOut),
+                Item("_Pause", KeyCommands.Pause),
+                Item("Run to _Cursor", KeyCommands.RunToCursor),
+            ]),
+            new MainMenuGroup("Tools",
+            [
+                Item("_Dependencies...", KeyCommands.OpenDependencies),
+                Item("_Assembly Explorer...", KeyCommands.OpenAssemblyExplorer),
+                new MainMenuSeparator(),
+                Item("_Preferences...", KeyCommands.OpenPreferences),
             ]),
             new MainMenuGroup("Help",
             [
+                new MainMenuCommand("_User Guide", OpenLinkCommand(UserGuideUrl)),
+                new MainMenuCommand("Release _Notes", OpenLinkCommand(ReleaseNotesUrl)),
+                new MainMenuCommand("_Report an Issue", OpenLinkCommand(ReportIssueUrl)),
+                new MainMenuSeparator(),
                 new MainMenuCommand("_About RunPad", vm.OpenAboutCommand),
             ]),
         ];
     }
+
+    // A menu item for a key-bindable command: the same action as its key, and the key as a hint
+    // (kept current by OnPreferencesChanged).
+    private MainMenuCommand Item(string header, KeyCommand command)
+        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command), command);
+
+    // Undo, Copy… use the platform's keys (Cmd on macOS). Elsewhere the text boxes handle them and
+    // the menu only shows them; on macOS the menu bar takes the key first and its Edit command acts on
+    // the focused text control (EditTarget), so each keypress is still handled once.
+    private KeyGesture? Hotkey(Func<PlatformHotkeyConfiguration, List<KeyGesture>> select)
+        => Application.Current?.PlatformSettings?.HotkeyConfiguration is { } hotkeys ? select(hotkeys).FirstOrDefault() : null;
+
+    private ReactiveCommand<Unit, Unit> OpenLinkCommand(string url)
+        => ReactiveCommand.CreateFromTask(async () => { await Launcher.LaunchUriAsync(new Uri(url)); });
+
+    // ── Edit menu target ──────────────────────────────────────────────────────
+
+    // The text control the Edit menu acts on: the focused one, or else the last one that had focus,
+    // because opening the in-window menu can take focus away from it.
+    private Control? _lastTextTarget;
+
+    private void OnAnyGotFocus(object? sender, FocusChangedEventArgs e)
+    {
+        if (e.Source is Control control && FindTextTarget(control) is { } target)
+            _lastTextTarget = target;
+    }
+
+    private static Control? FindTextTarget(Control control)
+        => (Control?)control.FindAncestorOfType<TextEditor>(includeSelf: true)
+           ?? control.FindAncestorOfType<TextBox>(includeSelf: true);
+
+    internal Control? EditTarget
+    {
+        get
+        {
+            var focused = FocusManager?.GetFocusedElement() is Control control ? FindTextTarget(control) : null;
+            var target = focused ?? _lastTextTarget;
+            // A closed tab's editor is detached from this window; don't act on it.
+            return target is not null && TopLevel.GetTopLevel(target) == this ? target : null;
+        }
+    }
+
+    private ReactiveCommand<Unit, Unit> EditCommand(Action<TextEditor> onEditor, Action<TextBox> onTextBox)
+        => ReactiveCommand.Create(() =>
+        {
+            switch (EditTarget)
+            {
+                case TextEditor editor:
+                    onEditor(editor);
+                    editor.TextArea.Focus();
+                    break;
+                case TextBox textBox:
+                    onTextBox(textBox);
+                    textBox.Focus();
+                    break;
+            }
+        });
 
     // ── Title bar window controls ─────────────────────────────────────────────
 
@@ -338,6 +440,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _prefs.Changed -= OnPreferencesChanged;
         _editorTabs.Dispose();
         GC.SuppressFinalize(this);
     }

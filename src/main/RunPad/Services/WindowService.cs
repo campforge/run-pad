@@ -223,7 +223,7 @@ public sealed class WindowService : IWindowService
             return Task.CompletedTask;
         }
 
-        ShowTracked(new AssemblyExplorerWindow(_themeService, this, startFolder));
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, startFolder) { Preferences = _preferences });
         return Task.CompletedTask;
     }
 
@@ -236,7 +236,7 @@ public sealed class WindowService : IWindowService
             return;
         }
 
-        ShowTracked(new AssemblyExplorerWindow(_themeService, this, decompiled, definition.AssemblyPath, definition));
+        ShowTracked(new AssemblyExplorerWindow(_themeService, this, decompiled, definition.AssemblyPath, definition) { Preferences = _preferences });
     }
 
     private void ShowTracked(AssemblyExplorerWindow window)

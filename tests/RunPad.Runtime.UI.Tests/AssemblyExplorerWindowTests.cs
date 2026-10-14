@@ -20,6 +20,7 @@ using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using RunPad.Services;
+using RunPad.Services.Preferences;
 using RunPad.Windows;
 using RunPad.Windows.Models;
 using TextMateSharp.Grammars;
@@ -129,7 +130,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     public async Task LoadAssemblyAsync_Should_BuildATree_GroupedByNamespace_OneNodePerType()
     {
         var windowService = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
 
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
@@ -170,7 +171,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task ExpandAsync_Should_ListBaseAndDerivedTypes_ThenMembers_WithIconsAndGreyedNonPublic()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -198,7 +199,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task BaseTypeEntries_Should_Expand_IntoTheBaseTypesOwnMembers()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -213,7 +214,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     // Opens Gamma.Call() (which calls Alpha.Run()) and F12s on the call — the ILSpy round trip.
     private async Task<(AssemblyExplorerWindow Window, TreeViewItem Call)> OpenCallAndNavigateToRunAsync()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
         var barNode = Namespace(window, "Foo.Bar");
@@ -267,7 +268,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task CtrlClick_OnAReference_Should_NavigateToIt()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
         var gamma = Namespace(window, "Foo.Bar")
@@ -298,7 +299,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SetViewAsync_IL_Should_ReRenderTheCurrentPage_InPlace()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -334,7 +335,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task LanguageBox_Should_SwitchTheView_AndHideTheVersionBoxForIl()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.SelectNodeAsync(Node(alpha), alpha);
@@ -360,7 +361,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var service = new Mock<IWindowService>();
         service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(path);
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
         try
         {
             window.Show();
@@ -469,9 +470,17 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
 
     // ── Search ──
 
+    // The Windows/Linux defaults on every OS, so the Ctrl/Alt keys the tests press are the bound ones.
+    private static IPreferencesService WindowsLinuxKeys(bool mac = false)
+    {
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings { IsMac = mac });
+        return prefs.Object;
+    }
+
     private async Task<AssemblyExplorerWindow> OpenLoadedWindowAsync()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
         return window;
@@ -553,6 +562,57 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Shift);
 
         Assert.True(searchBox.IsFocused);
+    }
+
+    // The macOS defaults: Cmd instead of Ctrl.
+    [AvaloniaFact]
+    public void OnMacOS_CmdShiftF_Should_FocusTheSearchBox()
+    {
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "")
+        {
+            Preferences = WindowsLinuxKeys(mac: true),
+        };
+        window.Show();
+        var searchBox = window.FindControl<TextBox>("SearchBox")!;
+
+        window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+        Assert.False(searchBox.IsFocused);
+        window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Meta | RawInputModifiers.Shift);
+        Assert.True(searchBox.IsFocused);
+    }
+
+    // Rebinding in Preferences while the explorer is open: its own keys, its editor's keys and the
+    // key hints follow at once; the old key stops working.
+    [AvaloniaFact]
+    public void RebindingKeys_WhileTheWindowIsOpen_Should_TakeEffectAtOnce()
+    {
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = new Mock<IPreferencesService>();
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "")
+        {
+            Preferences = prefs.Object,
+        };
+        window.Show();
+        var searchBox = window.FindControl<TextBox>("SearchBox")!;
+        Assert.Equal(new KeyGesture(Key.F12), window.Editor.GoToDefinitionGesture);
+
+        keyboard.SetKey(KeyCommands.ExplorerSearch, "Ctrl+Alt+F");
+        keyboard.SetKey(KeyCommands.GoToDefinition, "Ctrl+F12");
+        prefs.Raise(p => p.Changed += null);
+
+        Assert.Equal(new KeyGesture(Key.F12, KeyModifiers.Control), window.Editor.GoToDefinitionGesture);
+        Assert.Contains("(Ctrl+Alt+F)", searchBox.PlaceholderText);
+        window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+        Assert.False(searchBox.IsFocused);
+        window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Alt);
+        Assert.True(searchBox.IsFocused);
+
+        // closed: no longer follows Preferences
+        window.Close();
+        keyboard.SetKey(KeyCommands.GoToDefinition, null);
+        prefs.Raise(p => p.Changed += null);
+        Assert.Equal(new KeyGesture(Key.F12, KeyModifiers.Control), window.Editor.GoToDefinitionGesture);
     }
 
     // ── Several assemblies, References ──
@@ -876,7 +936,8 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var title = "Func<" + string.Join(", ", Enumerable.Range(1, 16).Select(i => $"T{i}")) + ", TResult>";
         var window = new AssemblyExplorerWindow(
             CreateThemeService().Object, new Mock<IWindowService>().Object,
-            new DecompiledMemberResult("// code", 1, title), assemblyPath: null);
+            new DecompiledMemberResult("// code", 1, title), assemblyPath: null)
+        { Preferences = WindowsLinuxKeys() };
         window.Show();
         window.UpdateLayout();
 
@@ -927,7 +988,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
                 ]);
                 Assert.True(emitted.Success);
             }
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+            var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
             window.Show();
             await window.LoadAssemblyAsync(dll);
 
@@ -950,7 +1011,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     public async Task OpenDroppedFilesAsync_Should_AddTheAssemblies_AndIgnoreOtherFiles()
     {
         var service = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
 
         await window.OpenDroppedFilesAsync([_explorerAssembly.BinaryPath, Path.ChangeExtension(_explorerAssembly.BinaryPath, ".txt")]);
@@ -1011,7 +1072,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         service.Setup(s => s.ShowSaveCodeFileDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(savePath);
         service.Setup(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, service.Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1023,7 +1084,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SaveCode_Should_BeDisabled_UntilAPageIsShown()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         Assert.False(window.FindControl<Button>("SaveCodeButton")!.IsEnabled);
 
@@ -1133,7 +1194,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task Tree_Should_ItaliciseAbstractTypesAndMembers_AndMarkStaticMembers()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         await window.LoadAssemblyAsync(_explorerAssembly.BinaryPath);
         var bazNode = Namespace(window, "Foo.Baz");
@@ -1197,7 +1258,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectNodeAsync_Should_DecompileOnlyTheSelectedMember_UnderTheHeader()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1215,7 +1276,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectingATreeItem_Should_DecompileIt()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -1228,7 +1289,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task SelectNodeAsync_Should_KeepTheNewestSelection_WhenAnOlderOneFinishesLater()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
         await window.ExpandAsync(alpha);
@@ -1252,7 +1313,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         {
             var windowService = new Mock<IWindowService>();
             windowService.Setup(s => s.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
-            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
+            var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
             window.Show();
 
             await window.LoadAssemblyAsync(notAnAssembly);
@@ -1267,7 +1328,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     public async Task SelectNodeAsync_Should_DecompileInPlace_ForTheSelectedType()
     {
         var windowService = new Mock<IWindowService>();
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, windowService.Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = await LoadAndFindAlphaAsync(window);
 
@@ -1388,7 +1449,7 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
     [AvaloniaFact]
     public async Task AScriptF12_IntoAnEmptyExplorer_Should_UseItsOnlyTab()
     {
-        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "");
+        var window = new AssemblyExplorerWindow(CreateThemeService().Object, new Mock<IWindowService>().Object, "") { Preferences = WindowsLinuxKeys() };
         window.Show();
         var alpha = ScriptDefinition("Foo.Bar.Alpha", memberName: null);
 

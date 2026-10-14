@@ -1,7 +1,11 @@
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using AvaloniaEdit;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
@@ -24,11 +28,14 @@ namespace RunPad.Runtime.UI.Tests;
 public class MainWindowChromeTests
 {
     private static MainWindow CreateMainWindow(IWindowService? windowService = null)
+        => CreateMainWindow(new KeyboardSettings(), new Mock<IPreferencesService>(), windowService);
+
+    private static MainWindow CreateMainWindow(
+        KeyboardSettings keyboard, Mock<IPreferencesService> prefs, IWindowService? windowService = null)
     {
-        var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
-        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
         prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
@@ -93,8 +100,9 @@ public class MainWindowChromeTests
         Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
     }
 
-    // The same application menu paths on every OS. Runs on
-    // any OS: both projections are built from MainWindow.MainMenuEntries regardless of platform.
+    // The same application menu paths on every OS, File → Exit included (macOS has no Quit of its
+    // own in the application menu). Runs on any OS: both projections are built from
+    // MainWindow.MainMenuEntries regardless of platform.
     private static readonly string[] ExpectedMenuTree =
     [
         "File",
@@ -102,19 +110,55 @@ public class MainWindowChromeTests
         "File/New RPad File",
         "File/New RPad File/C#",
         "File/New RPad File/Visual Basic",
-        "File/Import LINQPad Query...",
         "File/Open Text File...",
+        "File/Import LINQPad Query...",
         "File/---",
         "File/Save",
         "File/Save As...",
+        "File/---",
+        "File/Close Tab",
+        "File/---",
+        "File/Exit",
         "Edit",
-        "Edit/Dependencies",
-        "Edit/Assembly Explorer...",
+        "Edit/Undo",
+        "Edit/Redo",
         "Edit/---",
-        "Edit/Preferences",
+        "Edit/Cut",
+        "Edit/Copy",
+        "Edit/Paste",
+        "Edit/Select All",
+        "Edit/---",
+        "Edit/Format Document",
+        "Edit/Go to Line...",
+        "Edit/Resolve All Usings",
         "View",
         "View/Toggle File Tree",
+        "View/Toggle Output Panel",
+        "View/---",
+        "View/Zoom In",
+        "View/Zoom Out",
+        "View/Reset Zoom",
+        "Run",
+        "Run/Run / Continue",
+        "Run/Stop",
+        "Run/---",
+        "Run/Debug Mode",
+        "Run/---",
+        "Run/Step Over",
+        "Run/Step Into",
+        "Run/Step Out",
+        "Run/Pause",
+        "Run/Run to Cursor",
+        "Tools",
+        "Tools/Dependencies...",
+        "Tools/Assembly Explorer...",
+        "Tools/---",
+        "Tools/Preferences...",
         "Help",
+        "Help/User Guide",
+        "Help/Release Notes",
+        "Help/Report an Issue",
+        "Help/---",
         "Help/About RunPad",
     ];
 
@@ -128,8 +172,10 @@ public class MainWindowChromeTests
 
         Assert.Equal(ExpectedMenuTree, inWindow.Select(n => n.Path));
         Assert.Equal(ExpectedMenuTree, native.Select(n => n.Path));
-        // Same ICommand instance behind each path → identical routing, not just identical labels.
+        // Same ICommand instance behind each path → identical routing, not just identical labels;
+        // and the same key shown next to it.
         Assert.Equal(inWindow.Select(n => n.Command), native.Select(n => n.Command));
+        Assert.Equal(inWindow.Select(n => n.Gesture), native.Select(n => n.Gesture));
         Assert.All(inWindow.Where(n => IsLeaf(n.Path)), n => Assert.NotNull(n.Command));
 
         // Only macOS exports a window NativeMenu (system menu bar); elsewhere it would duplicate the
@@ -141,6 +187,7 @@ public class MainWindowChromeTests
             var exportedNodes = Describe(exported!, "").ToList();
             Assert.Equal(ExpectedMenuTree, exportedNodes.Select(n => n.Path));
             Assert.Equal(inWindow.Select(n => n.Command), exportedNodes.Select(n => n.Command));
+            Assert.Equal(inWindow.Select(n => n.Gesture), exportedNodes.Select(n => n.Gesture));
         }
         else
         {
@@ -166,43 +213,172 @@ public class MainWindowChromeTests
         commands["View/Toggle File Tree"].Execute(null);
         Assert.NotEqual(sizeBefore, vm.Sidebar.Size);
 
-        commands["Edit/Preferences"].Execute(null);
+        commands["Tools/Preferences..."].Execute(null);
         commands["Help/About RunPad"].Execute(null);
         windowService.Verify(w => w.ShowPreferencesAsync(), Times.Once);
         windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
     }
 
-    // The application menu must already exist when App.Initialize returns — Avalonia.Native's
-    // exporter is created right after (AfterSetup) and otherwise installs "About Avalonia".
+    // Run, View and Edit items act on the active tab — the same code as its toolbar and shortcuts.
     [AvaloniaFact]
-    public void AppInitialize_Should_SetApplicationMenu_WithoutAvaloniaAbout()
+    public async Task MainMenu_Should_RouteToTheActiveTab()
+    {
+        using var window = CreateMainWindow();
+        window.Show();
+        var vm = (MainWindowViewModel)window.DataContext!;
+        var commands = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Command!);
+
+        var editor = await WaitForActiveEditorAsync(window);
+        var tab = vm.ActiveTab!;
+
+        var debugMode = tab.DebugModeEnabled;
+        commands["Run/Debug Mode"].Execute(null);
+        Assert.NotEqual(debugMode, tab.DebugModeEnabled);
+
+        var outputSize = tab.OutputPanel.Size;
+        commands["View/Toggle Output Panel"].Execute(null);
+        Assert.NotEqual(outputSize, tab.OutputPanel.Size);
+
+        // Reset Zoom returns to the font size set in Preferences (100%), whatever the zoom was.
+        var baseFontSize = new EditorSettings().FontSize;
+        commands["View/Reset Zoom"].Execute(null);
+        Assert.Equal(baseFontSize, editor.FontSize);
+        commands["View/Zoom In"].Execute(null);
+        Assert.True(editor.FontSize > baseFontSize);
+        commands["View/Reset Zoom"].Execute(null);
+        Assert.Equal(baseFontSize, editor.FontSize);
+
+        editor.Text = "var answer = 42;";
+        Assert.True(editor.TextArea.Focus());
+        commands["Edit/Select All"].Execute(null);
+        Assert.Equal(editor.Text.Length, editor.SelectionLength);
+    }
+
+    // Opening the in-window menu can take focus away from the editor; the Edit menu still acts on
+    // the text control that had focus last.
+    [AvaloniaFact]
+    public async Task EditMenu_Should_ActOnTheLastFocusedTextControl()
+    {
+        using var window = CreateMainWindow();
+        window.Show();
+        var commands = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Command!);
+        var editor = await WaitForActiveEditorAsync(window);
+        editor.Text = "abc";
+        Assert.True(editor.TextArea.Focus());
+
+        // Any non-text control taking focus, as a menu item does when the menu opens.
+        var button = window.GetVisualDescendants().OfType<Button>().First(b => b.IsEffectivelyVisible && b.Focusable);
+        Assert.True(button.Focus());
+        Assert.Same(button, window.FocusManager!.GetFocusedElement());
+        Assert.Same(editor, window.EditTarget);
+
+        commands["Edit/Select All"].Execute(null);
+        Assert.Equal(3, editor.SelectionLength);
+    }
+
+    // The application menu must already exist when App.Initialize returns — Avalonia.Native's
+    // exporter is created right after (AfterSetup) and otherwise installs "About Avalonia". It is
+    // empty: About is under Help and Exit under File, as on every other OS.
+    [AvaloniaFact]
+    public void AppInitialize_Should_SetAnEmptyApplicationMenu()
     {
         var app = new App();
         app.Initialize();
 
         var menu = NativeMenu.GetMenu(app);
         Assert.NotNull(menu);
-        var headers = menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header).ToList();
-        Assert.Equal(["About RunPad"], headers);
-        Assert.DoesNotContain(headers, h => h!.Contains("Avalonia"));
+        Assert.Empty(menu!.Items);
     }
 
-    [AvaloniaFact]
-    public void ApplicationMenu_About_Should_ShowAboutRunPad()
+    // Both menus show each command's key for the OS: Cmd on macOS, Ctrl elsewhere, nothing for an
+    // unbound command.
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MainMenu_Should_ShowThePlatformKeys(bool mac)
     {
-        var windowService = new Mock<IWindowService>();
-        var menu = App.CreateApplicationMenu(() => windowService.Object);
+        using var window = CreateMainWindow(new KeyboardSettings { IsMac = mac }, new Mock<IPreferencesService>());
 
-        menu.Items.OfType<NativeMenuItem>().Single(i => i.Header == "About RunPad").Command!.Execute(null);
+        var gestures = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Gesture);
 
-        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+        var command = mac ? KeyModifiers.Meta : KeyModifiers.Control;
+        Assert.Equal(new KeyGesture(Key.S, command), gestures["File/Save"]);
+        Assert.Equal(new KeyGesture(Key.S, command | KeyModifiers.Shift), gestures["File/Save As..."]);
+        Assert.Equal(new KeyGesture(Key.N, command), gestures["File/New File"]);
+        Assert.Equal(mac ? new KeyGesture(Key.Q, KeyModifiers.Meta) : null, gestures["File/Exit"]);
+        Assert.Equal(mac ? new KeyGesture(Key.OemComma, KeyModifiers.Meta) : null, gestures["Tools/Preferences..."]);
+        Assert.Equal(new KeyGesture(Key.F5), gestures["Run/Run / Continue"]);
+        Assert.Null(gestures["Tools/Assembly Explorer..."]);
+        Assert.Null(gestures["Help/About RunPad"]);
+    }
+
+    // Rebinding, resetting or unbinding a key in Preferences shows in the open window's menus at
+    // once, on the same items and commands.
+    [AvaloniaFact]
+    public void MainMenu_Should_FollowRebinding()
+    {
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = new Mock<IPreferencesService>();
+        using var window = CreateMainWindow(keyboard, prefs);
+        var menu = window.FindControl<Menu>("MainMenu")!;
+        var native = MainMenuDefinition.ToNativeMenu(window.MainMenuEntries);
+        var itemsBefore = Describe(menu.Items, "").ToList();
+
+        MenuNode Find(IEnumerable<MenuNode> nodes, string path) => nodes.Single(n => n.Path == path);
+
+        keyboard.SetKey(KeyCommands.Save, "Ctrl+Alt+S");
+        keyboard.SetKey(KeyCommands.NewFile, "");
+        keyboard.SetKey(KeyCommands.OpenAssemblyExplorer, "Ctrl+Shift+E");
+        prefs.Raise(p => p.Changed += null);
+        MainMenuDefinition.UpdateGestures(window.MainMenuEntries, native);
+
+        var inWindow = Describe(menu.Items, "").ToList();
+        var nativeNodes = Describe(native, "").ToList();
+        foreach (var nodes in new[] { inWindow, nativeNodes })
+        {
+            Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Alt), Find(nodes, "File/Save").Gesture);
+            Assert.Null(Find(nodes, "File/New File").Gesture);
+            Assert.Equal(new KeyGesture(Key.E, KeyModifiers.Control | KeyModifiers.Shift), Find(nodes, "Tools/Assembly Explorer...").Gesture);
+        }
+        Assert.Equal(itemsBefore.Select(n => n.Command), inWindow.Select(n => n.Command));
+
+        keyboard.SetKey(KeyCommands.Save, null);
+        prefs.Raise(p => p.Changed += null);
+        Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control), Find(Describe(menu.Items, ""), "File/Save").Gesture);
+
+        // macOS: the exported system menu bar follows too.
+        if (NativeMenu.GetMenu(window) is { } exported)
+            Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control), Find(Describe(exported, ""), "File/Save").Gesture);
+    }
+
+    // EditorTabsControl builds the blank tab it opens on Attach asynchronously (a Task.Run hop, see
+    // MainWindowHotkeysTests.WaitForActiveTabControlAsync); tab-level commands no-op until it exists.
+    private static async Task<TextEditor> WaitForActiveEditorAsync(Window window)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (window.GetVisualDescendants().OfType<TabItem>()
+                    .Select(t => t.Content).OfType<EditorsTabItemControl>().FirstOrDefault() is { } control
+                && control.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault() is { IsEffectivelyVisible: true } editor)
+                return editor;
+            await Task.Delay(20);
+        }
+
+        throw new TimeoutException("The active tab's editor was not created.");
     }
 
     private static bool IsLeaf(string path)
         => !path.EndsWith("---", StringComparison.Ordinal)
            && !ExpectedMenuTree.Any(p => p.StartsWith(path + "/", StringComparison.Ordinal));
 
-    private sealed record MenuNode(string Path, ICommand? Command);
+    private sealed record MenuNode(string Path, ICommand? Command, KeyGesture? Gesture = null);
 
     private static IEnumerable<MenuNode> Describe(IEnumerable<object?> items, string prefix)
     {
@@ -215,7 +391,7 @@ public class MainWindowChromeTests
                     break;
                 case MenuItem menuItem:
                     var path = prefix + MainMenuDefinition.StripAccessKey((string)menuItem.Header!);
-                    yield return new MenuNode(path, menuItem.Command);
+                    yield return new MenuNode(path, menuItem.Command, menuItem.InputGesture);
                     foreach (var child in Describe(menuItem.Items, path + "/")) yield return child;
                     break;
                 default:
@@ -235,7 +411,7 @@ public class MainWindowChromeTests
                     break;
                 case NativeMenuItem nativeItem:
                     var path = prefix + nativeItem.Header;
-                    yield return new MenuNode(path, nativeItem.Command);
+                    yield return new MenuNode(path, nativeItem.Command, nativeItem.Gesture);
                     if (nativeItem.Menu is { } sub)
                     {
                         foreach (var child in Describe(sub, path + "/")) yield return child;

@@ -160,4 +160,95 @@ public class MainWindowClosingTests
 
         Assert.True(closedFired);
     }
+
+    // A text editor window with unsaved changes is asked about by the main window as it closes —
+    // once, after the tabs — instead of cancelling the close on its own and leaving the app running.
+    private static async Task<TextEditorWindow> OpenDirtyTextEditorAsync(
+        MainWindow owner, Mock<IWindowService> textWindowService, UnsavedChangesResult answer)
+    {
+        var path = Path.Combine(Directory.CreateTempSubdirectory("runpad-exit").FullName, "notes.txt");
+        await File.WriteAllTextAsync(path, "old");
+        textWindowService.Setup(s => s.ShowUnsavedChangesDialogAsync("notes.txt")).ReturnsAsync(answer);
+        var viewModel = await TextEditorWindowViewModel.LoadAsync(path, textWindowService.Object);
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+        var editor = new TextEditorWindow(viewModel, theme.Object, preferences: null);
+        editor.Show(owner);
+        editor.Editor.Document.Insert(0, "new ");
+        Assert.True(viewModel.IsDirty);
+        return editor;
+    }
+
+    [AvaloniaTheory]
+    [InlineData(UnsavedChangesResult.Cancel, false)]
+    [InlineData(UnsavedChangesResult.DontSave, true)]
+    public async Task FileExit_WithADirtyTextEditorWindow_Should_AskOnce_ThenCloseBothOrNeither(
+        UnsavedChangesResult answer, bool closes)
+    {
+        var (window, _, _) = CreateMainWindow();
+        await GetSoleControlAsync(window);
+        var textWindowService = new Mock<IWindowService>();
+        var editor = await OpenDirtyTextEditorAsync(window, textWindowService, answer);
+
+        var mainClosed = false;
+        var editorClosed = false;
+        window.Closed += (_, _) => mainClosed = true;
+        editor.Closed += (_, _) => editorClosed = true;
+
+        ExecuteFileExit(window);
+        await Task.Delay(100);
+
+        Assert.Equal(closes, mainClosed);
+        Assert.Equal(closes, editorClosed);
+        textWindowService.Verify(s => s.ShowUnsavedChangesDialogAsync("notes.txt"), Times.Once);
+    }
+
+    // File → Exit, on every OS (macOS included, with Cmd+Q): the same Close() and confirmation as
+    // the window's close button.
+    private static void ExecuteFileExit(MainWindow window)
+    {
+        var file = window.MainMenuEntries.Single(g => g.Header == "File");
+        file.Items.OfType<MainMenuCommand>().Single(c => c.Key == KeyCommands.Exit).Command.Execute(null);
+    }
+
+    [AvaloniaFact]
+    public async Task FileExit_WithADirtyUntitledTab_AndCancelling_Should_KeepTheWindowOpen()
+    {
+        var (window, _, windowService) = CreateMainWindow();
+        var ctrl = await GetSoleControlAsync(window);
+        ctrl.State.Editor.Text = "Console.WriteLine(1);";
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+        var closedFired = false;
+        window.Closed += (_, _) => closedFired = true;
+
+        ExecuteFileExit(window);
+        await Task.Delay(50);
+
+        Assert.False(closedFired);
+        Assert.True(window.IsVisible);
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+    }
+
+    [AvaloniaFact]
+    public async Task FileExit_WithADirtyUntitledTab_AndChoosingDontSave_Should_Close()
+    {
+        var (window, _, windowService) = CreateMainWindow();
+        var ctrl = await GetSoleControlAsync(window);
+        ctrl.State.Editor.Text = "Console.WriteLine(1);";
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.DontSave);
+
+        var closedFired = false;
+        window.Closed += (_, _) => closedFired = true;
+
+        ExecuteFileExit(window);
+        await Task.Delay(50);
+
+        Assert.True(closedFired);
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+    }
 }

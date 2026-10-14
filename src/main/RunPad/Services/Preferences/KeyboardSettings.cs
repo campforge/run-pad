@@ -1,43 +1,104 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Avalonia.Input;
+
 namespace RunPad.Services.Preferences;
 
+/// <summary>
+/// The user's own key bindings, by <see cref="KeyCommand.Id"/>. Only changed bindings are stored, as
+/// in VS Code's keybindings.json: everything else follows <see cref="KeyCommands"/>' defaults for the
+/// current OS, so a default can change in a later version without being pinned by an old settings
+/// file. An empty string unbinds a command.
+/// </summary>
 public sealed class KeyboardSettings
 {
-    public string Run { get; set; } = "F5";
-    public string Cancel { get; set; } = "Escape";
-    public string StepOver { get; set; } = "F10";
-    public string StepIn { get; set; } = "F11";
-    public string StepOut { get; set; } = "Shift+F11";
-    public string Format { get; set; } = "Shift+Alt+F";
-    public string GoToLine { get; set; } = "Ctrl+G";
+    public Dictionary<string, string> Bindings { get; set; } = new();
 
-    // Bug report 2026-07-17: there was no explicit Save action anywhere (only implicit saves on tab
-    // close/Run/etc., or the always-dialog "Save As") — pressing Ctrl+S out of muscle memory matched
-    // no gesture and silently did nothing, so IsDirty (correctly) never cleared. See
-    // EditorTabsControl.SaveActive.
-    public string Save { get; set; } = "Ctrl+S";
+    /// <summary>Whether the macOS defaults apply. Settable for tests.</summary>
+    [JsonIgnore]
+    public bool IsMac { get; set; } = OperatingSystem.IsMacOS();
 
-    // Bug report 2026-07-27: Ctrl+Shift+S ("Save As", the conventional gesture across editors) matched
-    // no gesture and silently did nothing — same class of gap as Save above, just for the
-    // always-shows-the-dialog variant (as opposed to Save, which only falls through to Save As for an
-    // untitled tab). See EditorTabsControl.SaveAsActive.
-    public string SaveAs { get; set; } = "Ctrl+Shift+S";
+    /// <summary>The modifier held with a click or the mouse wheel (go to definition, zoom): Ctrl, or
+    /// Cmd on macOS.</summary>
+    [JsonIgnore]
+    public KeyModifiers CommandModifier => IsMac ? KeyModifiers.Meta : KeyModifiers.Control;
 
-    // These 4 used to be literal Key.XXX checks — MainWindow.axaml.cs (F4/Ctrl+W) and
-    // FileTreeView.cs (F2/Delete) — sitting right next to the gestures above but not going through
-    // this settings object at all, so they weren't shown as a tooltip/menu hint, weren't editable in
-    // Preferences, and a third registered command would again mean editing the dispatcher directly.
-    public string OpenDependencies { get; set; } = "F4";
-    public string CloseTab { get; set; } = "Ctrl+W";
-    public string RenameFile { get; set; } = "F2";
-    public string DeleteFile { get; set; } = "Delete";
+    /// <summary>The key text for <paramref name="command"/>: the user's binding, else the default
+    /// for this OS. Empty when the command has no key.</summary>
+    public string KeyFor(KeyCommand command)
+        => Bindings.TryGetValue(command.Id, out var key) ? key : command.DefaultKeyFor(IsMac);
 
-    // There was no hotkey for "new file" at all — creating one meant reaching for the
-    // File menu every time. Skips NewFileKindDialog entirely, using EditorSettings.NewFileLanguage/
-    // NewFileKind instead (see MainWindow.OnWindowKeyDown).
-    public string NewFile { get; set; } = "Ctrl+N";
+    public KeyGesture? GestureFor(KeyCommand command) => KeyGestureText.Parse(KeyFor(command));
 
-    // Feature request 2026-07-27 (live user report) — ReSharper-style "add all missing usings" in one
-    // shot, instead of accepting the lightbulb's "using X;" fix one at a time. See
-    // EditorTabsControl.ResolveAllUsingsActive / EditorTabItemControl.ResolveAllUsingsAsync.
-    public string ResolveAllUsings { get; set; } = "Ctrl+Alt+U";
+    public bool Matches(KeyEventArgs e, KeyCommand command) => GestureFor(command)?.Matches(e) == true;
+
+    public bool IsCustomized(KeyCommand command) => Bindings.ContainsKey(command.Id);
+
+    /// <summary>Binds <paramref name="command"/> to <paramref name="key"/>; the default key (or null)
+    /// removes the user's binding instead of storing a copy of the default.</summary>
+    public void SetKey(KeyCommand command, string? key)
+    {
+        key = key is null ? null : KeyGestureText.Normalize(key) ?? key.Trim();
+        if (key is null || key == command.DefaultKeyFor(IsMac)) Bindings.Remove(command.Id);
+        else Bindings[command.Id] = key;
+    }
+
+    /// <summary>Other commands bound to the same key as <paramref name="command"/> where one keypress
+    /// can reach both (<see cref="KeyCommands.ScopesOf"/>). A file-tree key may repeat an editor key,
+    /// and an Assembly Explorer key a main-window one: they never see the same keypress.</summary>
+    public IEnumerable<KeyCommand> ConflictsOf(KeyCommand command)
+    {
+        if (GestureFor(command) is not { } gesture) yield break;
+        var scopes = KeyCommands.ScopesOf(command);
+        foreach (var other in KeyCommands.All)
+        {
+            if (other == command || !KeyCommands.ScopesOf(other).Any(o => scopes.Any(s => s.Overlaps(o)))) continue;
+            if (GestureFor(other) is { } g && g.Key == gesture.Key && g.KeyModifiers == gesture.KeyModifiers)
+                yield return other;
+        }
+    }
+
+    // ── Settings written before version 0.5 ──────────────────────────────────
+
+    // Those stored every binding, defaults included, as one property each ("Run": "F5"). Read here
+    // and turned into Bindings by MigrateLegacy; values that were the old defaults are dropped, so
+    // they follow the new (and on macOS, Cmd-based) defaults.
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Legacy { get; set; }
+
+    private static readonly (string Property, KeyCommand Command, string OldDefault)[] LegacyProperties =
+    [
+        ("Run", KeyCommands.RunOrContinue, "F5"),
+        ("Cancel", KeyCommands.Stop, "Escape"),
+        ("StepOver", KeyCommands.StepOver, "F10"),
+        ("StepIn", KeyCommands.StepInto, "F11"),
+        ("StepOut", KeyCommands.StepOut, "Shift+F11"),
+        ("Format", KeyCommands.Format, "Shift+Alt+F"),
+        ("GoToLine", KeyCommands.GoToLine, "Ctrl+G"),
+        ("Save", KeyCommands.Save, "Ctrl+S"),
+        ("SaveAs", KeyCommands.SaveAs, "Ctrl+Shift+S"),
+        ("OpenDependencies", KeyCommands.OpenDependencies, "F4"),
+        ("CloseTab", KeyCommands.CloseTab, "Ctrl+W"),
+        ("RenameFile", KeyCommands.RenameFile, "F2"),
+        ("DeleteFile", KeyCommands.DeleteFile, "Delete"),
+        ("NewFile", KeyCommands.NewFile, "Ctrl+N"),
+        ("ResolveAllUsings", KeyCommands.ResolveAllUsings, "Ctrl+Alt+U"),
+    ];
+
+    /// <summary>Moves bindings from the pre-0.5 format into <see cref="Bindings"/>. Returns whether
+    /// anything was found, so the caller can save the file in the new format.</summary>
+    public bool MigrateLegacy()
+    {
+        if (Legacy is not { Count: > 0 } legacy) return false;
+        foreach (var (property, command, oldDefault) in LegacyProperties)
+        {
+            if (!legacy.TryGetValue(property, out var value) || value.ValueKind != JsonValueKind.String) continue;
+            var key = value.GetString() ?? "";
+            if (Bindings.ContainsKey(command.Id)
+                || KeyGestureText.Normalize(key) == KeyGestureText.Normalize(oldDefault)) continue;
+            Bindings[command.Id] = KeyGestureText.Normalize(key) ?? key;
+        }
+        Legacy = null;
+        return true;
+    }
 }
