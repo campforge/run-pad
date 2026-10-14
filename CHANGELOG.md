@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Braces opened and closed on the same line, such as `if (ok) { Run(); }`, no longer get a fold
+  marker in the editor's margin; braces spanning several lines fold as before.
+
 ## [0.4.2] — 2026-10-14
 
 A new main menu, the same on every system, and shortcuts you can change for every command. On
