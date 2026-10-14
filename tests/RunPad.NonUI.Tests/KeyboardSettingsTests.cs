@@ -46,6 +46,46 @@ public class KeyboardSettingsTests
         Assert.All(KeyCommands.All, c => Assert.Empty(keyboard.ConflictsOf(c)));
     }
 
+    // A conflict is two commands one keypress can reach: the main window's keys are live in its
+    // file tree too, and Save and Close Tab also in the Assembly Explorer window, whose editor has
+    // the editor keys.
+    [Theory]
+    [InlineData(false, "fileTree.delete", "Ctrl+N", "file.new")]
+    [InlineData(true, "fileTree.delete", "Cmd+N", "file.new")]
+    [InlineData(false, "fileTree.rename", "F5", "run.run")]
+    [InlineData(false, "explorer.analyze", "Ctrl+S", "file.save")]
+    [InlineData(true, "explorer.back", "Cmd+W", "file.closeTab")]
+    [InlineData(false, "explorer.search", "F12", "editor.goToDefinition")]
+    [InlineData(false, "explorer.removeAssembly", "Alt+Left", "explorer.back")]
+    public void ConflictsOf_Should_FindCommandsTheSameKeypressReaches(bool mac, string id, string key, string otherId)
+    {
+        var keyboard = new KeyboardSettings { IsMac = mac };
+        var command = KeyCommands.Find(id)!;
+        var other = KeyCommands.Find(otherId)!;
+
+        keyboard.SetKey(command, key);
+
+        Assert.Contains(other, keyboard.ConflictsOf(command));
+        Assert.Contains(command, keyboard.ConflictsOf(other));
+    }
+
+    // Keys in places that never see the same keypress stay independent.
+    [Theory]
+    [InlineData("fileTree.delete", "Ctrl+Space")]      // completion: only in a focused code editor
+    [InlineData("explorer.search", "Ctrl+N")]          // New File: only in the main window
+    [InlineData("explorer.analyze", "Shift+Alt+F")]    // Format: only in the main window
+    [InlineData("explorer.removeAssembly", "Delete")]  // file-tree Delete: main window
+    [InlineData("tools.assemblyExplorer", "Alt+Left")] // explorer Back: explorer window
+    public void ConflictsOf_Should_IgnoreKeysInSeparatePlaces(string id, string key)
+    {
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var command = KeyCommands.Find(id)!;
+
+        keyboard.SetKey(command, key);
+
+        Assert.Empty(keyboard.ConflictsOf(command));
+    }
+
     [Fact]
     public void SetKey_Should_StoreOnlyChangesFromTheDefault()
     {

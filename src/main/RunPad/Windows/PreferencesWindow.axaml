@@ -201,7 +201,7 @@
                                                 <Grid ColumnDefinitions="170,180,Auto,*" RowDefinitions="Auto,Auto" Margin="0,0,0,4">
                                                     <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                     <TextBox Grid.Column="1" Text="{Binding Key, UpdateSourceTrigger=LostFocus}"
-                                                             Watermark="none"/>
+                                                             PlaceholderText="none"/>
                                                     <Button Grid.Column="2" Content="Reset" Margin="6,0,0,0" Padding="8,2"
                                                             Command="{Binding ResetCommand}" IsVisible="{Binding IsCustomized}"
                                                             ToolTip.Tip="{Binding DefaultKeyText}"/>

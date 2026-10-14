@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -27,11 +28,14 @@ namespace RunPad.Runtime.UI.Tests;
 public class MainWindowChromeTests
 {
     private static MainWindow CreateMainWindow(IWindowService? windowService = null)
+        => CreateMainWindow(new KeyboardSettings(), new Mock<IPreferencesService>(), windowService);
+
+    private static MainWindow CreateMainWindow(
+        KeyboardSettings keyboard, Mock<IPreferencesService> prefs, IWindowService? windowService = null)
     {
-        var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
-        prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
+        prefs.Setup(p => p.Keyboard).Returns(keyboard);
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
         prefs.Setup(p => p.CSharp).Returns(new CSharpLanguageSettings());
 
@@ -96,9 +100,9 @@ public class MainWindowChromeTests
         Assert.Equal(0, window.FindControl<Grid>("RootLayout")!.RowDefinitions[0].Height.Value);
     }
 
-    // The same application menu paths on every OS. Runs on
-    // any OS: both projections are built from MainWindow.MainMenuEntries regardless of platform.
-    // File → Exit exists only off macOS, where RunPad → Quit in the application menu takes its place.
+    // The same application menu paths on every OS, File → Exit included (macOS has no Quit of its
+    // own in the application menu). Runs on any OS: both projections are built from
+    // MainWindow.MainMenuEntries regardless of platform.
     private static readonly string[] ExpectedMenuTree =
     [
         "File",
@@ -113,7 +117,8 @@ public class MainWindowChromeTests
         "File/Save As...",
         "File/---",
         "File/Close Tab",
-        .. (OperatingSystem.IsMacOS() ? Array.Empty<string>() : ["File/---", "File/Exit"]),
+        "File/---",
+        "File/Exit",
         "Edit",
         "Edit/Undo",
         "Edit/Redo",
@@ -167,8 +172,10 @@ public class MainWindowChromeTests
 
         Assert.Equal(ExpectedMenuTree, inWindow.Select(n => n.Path));
         Assert.Equal(ExpectedMenuTree, native.Select(n => n.Path));
-        // Same ICommand instance behind each path → identical routing, not just identical labels.
+        // Same ICommand instance behind each path → identical routing, not just identical labels;
+        // and the same key shown next to it.
         Assert.Equal(inWindow.Select(n => n.Command), native.Select(n => n.Command));
+        Assert.Equal(inWindow.Select(n => n.Gesture), native.Select(n => n.Gesture));
         Assert.All(inWindow.Where(n => IsLeaf(n.Path)), n => Assert.NotNull(n.Command));
 
         // Only macOS exports a window NativeMenu (system menu bar); elsewhere it would duplicate the
@@ -180,6 +187,7 @@ public class MainWindowChromeTests
             var exportedNodes = Describe(exported!, "").ToList();
             Assert.Equal(ExpectedMenuTree, exportedNodes.Select(n => n.Path));
             Assert.Equal(inWindow.Select(n => n.Command), exportedNodes.Select(n => n.Command));
+            Assert.Equal(inWindow.Select(n => n.Gesture), exportedNodes.Select(n => n.Gesture));
         }
         else
         {
@@ -273,29 +281,80 @@ public class MainWindowChromeTests
     }
 
     // The application menu must already exist when App.Initialize returns — Avalonia.Native's
-    // exporter is created right after (AfterSetup) and otherwise installs "About Avalonia".
+    // exporter is created right after (AfterSetup) and otherwise installs "About Avalonia". It is
+    // empty: About is under Help and Exit under File, as on every other OS.
     [AvaloniaFact]
-    public void AppInitialize_Should_SetApplicationMenu_WithoutAvaloniaAbout()
+    public void AppInitialize_Should_SetAnEmptyApplicationMenu()
     {
         var app = new App();
         app.Initialize();
 
         var menu = NativeMenu.GetMenu(app);
         Assert.NotNull(menu);
-        var headers = menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header).ToList();
-        Assert.Equal(["About RunPad"], headers);
-        Assert.DoesNotContain(headers, h => h!.Contains("Avalonia"));
+        Assert.Empty(menu!.Items);
     }
 
-    [AvaloniaFact]
-    public void ApplicationMenu_About_Should_ShowAboutRunPad()
+    // Both menus show each command's key for the OS: Cmd on macOS, Ctrl elsewhere, nothing for an
+    // unbound command.
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MainMenu_Should_ShowThePlatformKeys(bool mac)
     {
-        var windowService = new Mock<IWindowService>();
-        var menu = App.CreateApplicationMenu(() => windowService.Object);
+        using var window = CreateMainWindow(new KeyboardSettings { IsMac = mac }, new Mock<IPreferencesService>());
 
-        menu.Items.OfType<NativeMenuItem>().Single(i => i.Header == "About RunPad").Command!.Execute(null);
+        var gestures = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "")
+            .Where(n => n.Command is not null)
+            .ToDictionary(n => n.Path, n => n.Gesture);
 
-        windowService.Verify(w => w.ShowAboutAsync(), Times.Once);
+        var command = mac ? KeyModifiers.Meta : KeyModifiers.Control;
+        Assert.Equal(new KeyGesture(Key.S, command), gestures["File/Save"]);
+        Assert.Equal(new KeyGesture(Key.S, command | KeyModifiers.Shift), gestures["File/Save As..."]);
+        Assert.Equal(new KeyGesture(Key.N, command), gestures["File/New File"]);
+        Assert.Equal(mac ? new KeyGesture(Key.Q, KeyModifiers.Meta) : null, gestures["File/Exit"]);
+        Assert.Equal(mac ? new KeyGesture(Key.OemComma, KeyModifiers.Meta) : null, gestures["Tools/Preferences..."]);
+        Assert.Equal(new KeyGesture(Key.F5), gestures["Run/Run / Continue"]);
+        Assert.Null(gestures["Tools/Assembly Explorer..."]);
+        Assert.Null(gestures["Help/About RunPad"]);
+    }
+
+    // Rebinding, resetting or unbinding a key in Preferences shows in the open window's menus at
+    // once, on the same items and commands.
+    [AvaloniaFact]
+    public void MainMenu_Should_FollowRebinding()
+    {
+        var keyboard = new KeyboardSettings { IsMac = false };
+        var prefs = new Mock<IPreferencesService>();
+        using var window = CreateMainWindow(keyboard, prefs);
+        var menu = window.FindControl<Menu>("MainMenu")!;
+        var native = MainMenuDefinition.ToNativeMenu(window.MainMenuEntries);
+        var itemsBefore = Describe(menu.Items, "").ToList();
+
+        MenuNode Find(IEnumerable<MenuNode> nodes, string path) => nodes.Single(n => n.Path == path);
+
+        keyboard.SetKey(KeyCommands.Save, "Ctrl+Alt+S");
+        keyboard.SetKey(KeyCommands.NewFile, "");
+        keyboard.SetKey(KeyCommands.OpenAssemblyExplorer, "Ctrl+Shift+E");
+        prefs.Raise(p => p.Changed += null);
+        MainMenuDefinition.UpdateGestures(window.MainMenuEntries, native);
+
+        var inWindow = Describe(menu.Items, "").ToList();
+        var nativeNodes = Describe(native, "").ToList();
+        foreach (var nodes in new[] { inWindow, nativeNodes })
+        {
+            Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Alt), Find(nodes, "File/Save").Gesture);
+            Assert.Null(Find(nodes, "File/New File").Gesture);
+            Assert.Equal(new KeyGesture(Key.E, KeyModifiers.Control | KeyModifiers.Shift), Find(nodes, "Tools/Assembly Explorer...").Gesture);
+        }
+        Assert.Equal(itemsBefore.Select(n => n.Command), inWindow.Select(n => n.Command));
+
+        keyboard.SetKey(KeyCommands.Save, null);
+        prefs.Raise(p => p.Changed += null);
+        Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control), Find(Describe(menu.Items, ""), "File/Save").Gesture);
+
+        // macOS: the exported system menu bar follows too.
+        if (NativeMenu.GetMenu(window) is { } exported)
+            Assert.Equal(new KeyGesture(Key.S, KeyModifiers.Control), Find(Describe(exported, ""), "File/Save").Gesture);
     }
 
     // EditorTabsControl builds the blank tab it opens on Attach asynchronously (a Task.Run hop, see
@@ -319,7 +378,7 @@ public class MainWindowChromeTests
         => !path.EndsWith("---", StringComparison.Ordinal)
            && !ExpectedMenuTree.Any(p => p.StartsWith(path + "/", StringComparison.Ordinal));
 
-    private sealed record MenuNode(string Path, ICommand? Command);
+    private sealed record MenuNode(string Path, ICommand? Command, KeyGesture? Gesture = null);
 
     private static IEnumerable<MenuNode> Describe(IEnumerable<object?> items, string prefix)
     {
@@ -332,7 +391,7 @@ public class MainWindowChromeTests
                     break;
                 case MenuItem menuItem:
                     var path = prefix + MainMenuDefinition.StripAccessKey((string)menuItem.Header!);
-                    yield return new MenuNode(path, menuItem.Command);
+                    yield return new MenuNode(path, menuItem.Command, menuItem.InputGesture);
                     foreach (var child in Describe(menuItem.Items, path + "/")) yield return child;
                     break;
                 default:
@@ -352,7 +411,7 @@ public class MainWindowChromeTests
                     break;
                 case NativeMenuItem nativeItem:
                     var path = prefix + nativeItem.Header;
-                    yield return new MenuNode(path, nativeItem.Command);
+                    yield return new MenuNode(path, nativeItem.Command, nativeItem.Gesture);
                     if (nativeItem.Menu is { } sub)
                     {
                         foreach (var child in Describe(sub, path + "/")) yield return child;

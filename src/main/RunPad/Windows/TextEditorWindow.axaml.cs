@@ -19,6 +19,8 @@ public partial class TextEditorWindow : Window
     // set once the close was confirmed, so the real Close() below isn't asked about again
     private bool _closeConfirmed;
 
+    private readonly IPreferencesService? _preferences;
+
     public TextEditorWindow(TextEditorWindowViewModel viewModel, IThemeService themeService, IPreferencesService? preferences)
     {
         InitializeComponent();
@@ -33,7 +35,6 @@ public partial class TextEditorWindow : Window
         };
         EditorHost.Content = editor;
         Editor = editor;
-        preferences?.Keyboard.ApplyTo(editor);
 
         // SetLanguage needs the editor in the visual tree (same as every other CodeTextEditor host)
         EventHandler<global::Avalonia.VisualTreeAttachmentEventArgs>? onAttached = null;
@@ -47,9 +48,14 @@ public partial class TextEditorWindow : Window
         UpdateCaret();
         editor.TextArea.Caret.PositionChanged += (_, _) => UpdateCaret();
 
-        // the user's own Save / Save As gestures, as in the main window
-        AddGesture(preferences?.Keyboard.GestureFor(KeyCommands.Save), viewModel.SaveCommand);
-        AddGesture(preferences?.Keyboard.GestureFor(KeyCommands.SaveAs), viewModel.SaveAsCommand);
+        // the user's own keys, as in the main window, and again whenever Preferences change them
+        _preferences = preferences;
+        ApplyKeyBindings();
+        if (preferences is not null)
+        {
+            preferences.Changed += ApplyKeyBindings;
+            Closed += (_, _) => preferences.Changed -= ApplyKeyBindings;
+        }
 
         Closing += async (_, e) =>
         {
@@ -87,9 +93,25 @@ public partial class TextEditorWindow : Window
     private void UpdateCaret() =>
         CaretText.Text = $"Ln {Editor.TextArea.Caret.Line}, Col {Editor.TextArea.Caret.Column}";
 
+    private readonly List<KeyBinding> _saveBindings = [];
+
+    private void ApplyKeyBindings()
+    {
+        if (_preferences?.Keyboard is not { } keyboard) return;
+        keyboard.ApplyTo(Editor);
+
+        foreach (var binding in _saveBindings) KeyBindings.Remove(binding);
+        _saveBindings.Clear();
+        AddGesture(keyboard.GestureFor(KeyCommands.Save), ViewModel.SaveCommand);
+        AddGesture(keyboard.GestureFor(KeyCommands.SaveAs), ViewModel.SaveAsCommand);
+    }
+
     // An unbound or unparsable key: the toolbar buttons still work.
     private void AddGesture(KeyGesture? gesture, System.Windows.Input.ICommand command)
     {
-        if (gesture is not null) KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = command });
+        if (gesture is null) return;
+        var binding = new KeyBinding { Gesture = gesture, Command = command };
+        _saveBindings.Add(binding);
+        KeyBindings.Add(binding);
     }
 }

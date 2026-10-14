@@ -160,4 +160,51 @@ public class MainWindowClosingTests
 
         Assert.True(closedFired);
     }
+
+    // File → Exit, on every OS (macOS included, with Cmd+Q): the same Close() and confirmation as
+    // the window's close button.
+    private static void ExecuteFileExit(MainWindow window)
+    {
+        var file = window.MainMenuEntries.Single(g => g.Header == "File");
+        file.Items.OfType<MainMenuCommand>().Single(c => c.Key == KeyCommands.Exit).Command.Execute(null);
+    }
+
+    [AvaloniaFact]
+    public async Task FileExit_WithADirtyUntitledTab_AndCancelling_Should_KeepTheWindowOpen()
+    {
+        var (window, _, windowService) = CreateMainWindow();
+        var ctrl = await GetSoleControlAsync(window);
+        ctrl.State.Editor.Text = "Console.WriteLine(1);";
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.Cancel);
+
+        var closedFired = false;
+        window.Closed += (_, _) => closedFired = true;
+
+        ExecuteFileExit(window);
+        await Task.Delay(50);
+
+        Assert.False(closedFired);
+        Assert.True(window.IsVisible);
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+    }
+
+    [AvaloniaFact]
+    public async Task FileExit_WithADirtyUntitledTab_AndChoosingDontSave_Should_Close()
+    {
+        var (window, _, windowService) = CreateMainWindow();
+        var ctrl = await GetSoleControlAsync(window);
+        ctrl.State.Editor.Text = "Console.WriteLine(1);";
+        windowService.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()))
+            .ReturnsAsync(UnsavedChangesResult.DontSave);
+
+        var closedFired = false;
+        window.Closed += (_, _) => closedFired = true;
+
+        ExecuteFileExit(window);
+        await Task.Delay(50);
+
+        Assert.True(closedFired);
+        windowService.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+    }
 }

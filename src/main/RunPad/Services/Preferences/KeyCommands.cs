@@ -29,6 +29,8 @@ public static class KeyCommands
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
+    // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
+    public static readonly KeyCommand Exit = new("file.exit", General, "Exit", "", "Cmd+Q");
     public static readonly KeyCommand OpenDependencies = new("tools.dependencies", General, "Dependencies", "F4");
     public static readonly KeyCommand OpenAssemblyExplorer = new("tools.assemblyExplorer", General, "Assembly Explorer", "");
     public static readonly KeyCommand OpenPreferences = new("tools.preferences", General, "Preferences", "", "Cmd+,");
@@ -70,7 +72,7 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, Save, SaveAs, CloseTab, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        NewFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,
@@ -81,4 +83,63 @@ public static class KeyCommands
     ];
 
     public static KeyCommand? Find(string id) => All.FirstOrDefault(c => c.Id == id);
+
+    // ── Where each key is live ────────────────────────────────────────────────
+
+    public const string MainWindow = "Main window";
+    public const string TextEditorWindow = "Text editor window";
+    public const string AssemblyExplorerWindow = "Assembly Explorer window";
+
+    private const string CodeEditor = "code editor";
+    private const string Tree = "tree";
+
+    // The keys the code editor control handles itself (EditorKeyBindings.ApplyTo), in every window
+    // that has one.
+    private static readonly HashSet<KeyCommand> CodeEditorCommands =
+        [TriggerCompletion, SignatureHelp, JumpToBracket, RenameSymbol, GoToDefinition, FindReferences];
+
+    /// <summary>Where <paramref name="command"/>'s key is handled: the main window dispatches General
+    /// and Run keys (and Format, Go to Line, Resolve All Usings) wherever its focus is; the code
+    /// editor and the file tree only see keys while they have focus; the text editor and Assembly
+    /// Explorer windows share a few keys with the main window.</summary>
+    public static IReadOnlyList<KeyScope> ScopesOf(KeyCommand command)
+    {
+        List<KeyScope> scopes = [];
+        if (CodeEditorCommands.Contains(command))
+        {
+            scopes.Add(new(MainWindow, CodeEditor));
+            scopes.Add(new(TextEditorWindow, CodeEditor));
+            scopes.Add(new(AssemblyExplorerWindow, CodeEditor));
+        }
+        else if (command.Category == FileTree)
+        {
+            scopes.Add(new(MainWindow, Tree));
+        }
+        else if (command == ExplorerRemoveAssembly)
+        {
+            scopes.Add(new(AssemblyExplorerWindow, Tree));
+        }
+        else if (command.Category == AssemblyExplorer)
+        {
+            scopes.Add(new(AssemblyExplorerWindow));
+        }
+        else
+        {
+            scopes.Add(new(MainWindow));
+        }
+
+        if (command == Save || command == SaveAs) scopes.Add(new(TextEditorWindow));
+        if (command == Save || command == CloseTab) scopes.Add(new(AssemblyExplorerWindow));
+        return scopes;
+    }
+}
+
+/// <summary>A place where a key is handled: a whole window (<paramref name="Area"/> null), or one
+/// part of it that only sees the key while it has focus.</summary>
+public readonly record struct KeyScope(string Window, string? Area = null)
+{
+    /// <summary>Whether one keypress can reach both scopes: the same window, and either one of them
+    /// covers the whole window or both are the same part.</summary>
+    public bool Overlaps(KeyScope other)
+        => Window == other.Window && (Area is null || other.Area is null || Area == other.Area);
 }

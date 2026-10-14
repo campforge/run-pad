@@ -17,6 +17,9 @@ internal sealed class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            // The macOS application menu stays as App.CreateApplicationMenu leaves it, without the
+            // Hide/Show All/Quit items Avalonia appends: Quit is File → Exit, as on other systems.
+            .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true })
             .LogToTrace()
             .UseReactiveUI();
 }

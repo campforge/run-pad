@@ -42,10 +42,14 @@ public sealed partial class MainWindow : Window, IDisposable
 
         _keyActions = CreateKeyActions();
         MainMenuEntries = CreateMainMenu();
-        var mainMenu = this.FindControl<Menu>("MainMenu")!;
-        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) mainMenu.Items.Add(item);
+        _mainMenu = this.FindControl<Menu>("MainMenu")!;
+        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
 
         ApplyPlatformChrome();
+
+        // A key rebound in Preferences shows in both menus at once (OnWindowKeyDown reads it anyway).
+        _prefs.Changed += OnPreferencesChanged;
+        Closed += (_, _) => _prefs.Changed -= OnPreferencesChanged;
 
         // handledEventsToo: true — fires even when AvaloniaEdit marks the event Handled
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -120,6 +124,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
             [KeyCommands.CloseTab] = tabs.CloseActiveTab,
+            // Close(), as the window's close button: unsaved tabs are asked about first.
+            [KeyCommands.Exit] = Close,
             [KeyCommands.OpenDependencies] = vm.OpenDependenciesWindow,
             [KeyCommands.OpenAssemblyExplorer] = () => vm.OpenAssemblyExplorerCommand.Execute().Subscribe(),
             [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
@@ -202,7 +208,16 @@ public sealed partial class MainWindow : Window, IDisposable
     // DataContext, so XAML {Binding} commands on them would silently resolve to nothing.
     //
     // The application ("RunPad") menu is not part of this tree — see App.CreateApplicationMenu.
-    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; }
+    internal IReadOnlyList<MainMenuGroup> MainMenuEntries { get; private set; }
+
+    private readonly Menu _mainMenu;
+
+    private void OnPreferencesChanged()
+    {
+        MainMenuEntries = MainMenuDefinition.WithGestures(MainMenuEntries, _prefs.Keyboard.GestureFor);
+        MainMenuDefinition.UpdateGestures(MainMenuEntries, _mainMenu.Items);
+        if (NativeMenu.GetMenu(this) is { } nativeMenu) MainMenuDefinition.UpdateGestures(MainMenuEntries, nativeMenu);
+    }
 
     internal const string UserGuideUrl = "https://campforge.github.io/run-pad-docs/";
     internal const string ReleaseNotesUrl = "https://github.com/campforge/run-pad/releases";
@@ -232,11 +247,8 @@ public sealed partial class MainWindow : Window, IDisposable
                 Item("Save _As...", KeyCommands.SaveAs),
                 new MainMenuSeparator(),
                 Item("_Close Tab", KeyCommands.CloseTab),
-                // macOS has Quit in the application menu instead; Close() goes through the same
-                // unsaved-changes confirmation as the window's close button.
-                .. (OperatingSystem.IsMacOS()
-                    ? Array.Empty<MainMenuEntry>()
-                    : new MainMenuEntry[] { new MainMenuSeparator(), new MainMenuCommand("E_xit", ReactiveCommand.Create(Close)) }),
+                new MainMenuSeparator(),
+                Item("E_xit", KeyCommands.Exit),
             ]),
             new MainMenuGroup("Edit",
             [
@@ -294,14 +306,14 @@ public sealed partial class MainWindow : Window, IDisposable
         ];
     }
 
-    // A menu item for a key-bindable command: the same action as its key, and the key as a hint.
-    // The hint is read once, when the menu is built: a rebound key shows its old hint until restart,
-    // while OnWindowKeyDown always reads the current binding.
+    // A menu item for a key-bindable command: the same action as its key, and the key as a hint
+    // (kept current by OnPreferencesChanged).
     private MainMenuCommand Item(string header, KeyCommand command)
-        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command));
+        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command), command);
 
-    // Undo, Copy… are handled by the text boxes themselves, with the platform's keys (Cmd on macOS);
-    // the menu only shows them.
+    // Undo, Copy… use the platform's keys (Cmd on macOS). Elsewhere the text boxes handle them and
+    // the menu only shows them; on macOS the menu bar takes the key first and its Edit command acts on
+    // the focused text control (EditTarget), so each keypress is still handled once.
     private KeyGesture? Hotkey(Func<PlatformHotkeyConfiguration, List<KeyGesture>> select)
         => Application.Current?.PlatformSettings?.HotkeyConfiguration is { } hotkeys ? select(hotkeys).FirstOrDefault() : null;
 
@@ -418,6 +430,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _prefs.Changed -= OnPreferencesChanged;
         _editorTabs.Dispose();
         GC.SuppressFinalize(this);
     }
