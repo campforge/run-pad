@@ -137,6 +137,11 @@ The first public release.
 - The project started as **DotPad**: an Avalonia desktop scratchpad for C# with a code editor
   based on AvaloniaEdit and an HTML renderer for results.
 
+Before that, from September 2023 to April 2024, the plan was to extend RoslynPad rather than start
+from scratch: a [fork of RoslynPad](https://github.com/hobobyte/roslynpad) was meant to gain a
+debugger and the other features RunPad has today. The changes it needed turned out to be so large
+that writing a new application from scratch was the better choice.
+
 [0.4.1]: https://github.com/campforge/run-pad/releases/tag/v0.4.1
 [0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
 [0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
