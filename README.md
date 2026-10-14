@@ -1,11 +1,18 @@
 # RunPad
 
-A desktop scratchpad for C# and Visual Basic scripts — in the same space as LINQPad, RoslynPad and
-NetPad, cross-platform (Windows, Linux, macOS) and open source.
+**A native, fast, cross-platform C# scratchpad for .NET** — an open-source alternative to
+[LINQPad](https://www.linqpad.net/), [RoslynPad](https://github.com/roslynpad/roslynpad) and
+[NetPad](https://github.com/tareqimbasher/NetPad).
 
-Every script is a `.rpad` file: a Markdown document with a short YAML header and one runnable code
-block, so a script can carry its own notes. RunPad compiles the block with the .NET SDK on your
-machine, runs it and shows the output and `.Dump()` results right under the editor.
+- **Native** — a real desktop app built on [Avalonia UI](https://avaloniaui.net/), with no embedded
+  browser: even `.Dump()` results are drawn by RunPad's own renderer.
+- **Fast** — scripts compile in-process with Roslyn, without MSBuild, and an unchanged script skips the
+  build entirely.
+- **Cross-platform** — the same app on Windows, Linux and macOS (Apple Silicon and Intel).
+
+Write C# against the .NET SDK you already have, run it in a keystroke and explore the results with
+`.Dump()`. Every script is a `.rpad` file — Markdown with a short YAML header and one runnable code
+block — so your notes live right next to the code.
 
 ![RunPad main window](https://campforge.github.io/run-pad-docs/assets/screenshots/overview.png)
 
@@ -22,7 +29,7 @@ machine, runs it and shows the output and `.Dump()` results right under the edit
 - **NuGet packages and references** from a Dependencies window; **Assembly Explorer** with decompiled
   C#, IL, resources and usage analysis.
 - **Command-line runner** for scripts and a **LINQPad `.linq` importer**.
-- **Visual Basic** compiles, runs and debugs the same way (editor intelligence is C#-only for now).
+- **Visual Basic** scripts compile, run and debug too (editor intelligence is C#-only for now).
 
 ## Download
 
