@@ -936,7 +936,8 @@ public class AssemblyExplorerWindowTests : IClassFixture<AssemblyExplorerWindowT
         var title = "Func<" + string.Join(", ", Enumerable.Range(1, 16).Select(i => $"T{i}")) + ", TResult>";
         var window = new AssemblyExplorerWindow(
             CreateThemeService().Object, new Mock<IWindowService>().Object,
-            new DecompiledMemberResult("// code", 1, title), assemblyPath: null) { Preferences = WindowsLinuxKeys() };
+            new DecompiledMemberResult("// code", 1, title), assemblyPath: null)
+        { Preferences = WindowsLinuxKeys() };
         window.Show();
         window.UpdateLayout();
 
