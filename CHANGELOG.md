@@ -3,6 +3,15 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Changed
+
+- The main menu has a conventional layout — File, Edit, View, Run, Tools and Help — the same on
+  every system. Every toolbar button and shortcut is now in the menu too: undo and clipboard
+  commands, formatting, zoom, running and debugging. Dependencies, Assembly Explorer and Preferences
+  moved to **Tools**, and **Help** links to the user guide, the release notes and the issue tracker.
+
 ## [0.4.1] — 2026-10-14
 
 The first public release.

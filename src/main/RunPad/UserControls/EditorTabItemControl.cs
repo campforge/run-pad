@@ -464,8 +464,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void DbgStepIn_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepIn);
     private void DbgStepOut_Click(object? sender, RoutedEventArgs e) => ResumeDebug(DebugAction.StepOut);
 
-    private async void DbgPause_Click(object? sender, RoutedEventArgs e)
+    private void DbgPause_Click(object? sender, RoutedEventArgs e) => Pause();
+
+    private void DbgRunToCursor_Click(object? sender, RoutedEventArgs e) => RunToCursor();
+
+    // Also reached from Run → Pause in the main menu, which is enabled whatever the run state.
+    public async void Pause()
     {
+        if (_vm.RunState != RunState.RunDebug) return;
         try
         {
             if (State.RunningHost is not null)
@@ -484,7 +490,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async void DbgRunToCursor_Click(object? sender, RoutedEventArgs e)
+    public async void RunToCursor()
     {
         try
         {
@@ -1108,11 +1114,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private int CurrentZoomPercent => EditorZoom.ToPercent(State.Editor.FontSize, _prefs.Editor.FontSize);
 
-    private void ZoomIn_Click(object? sender, RoutedEventArgs e) =>
-        SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
+    public void ZoomIn() => SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
 
-    private void ZoomOut_Click(object? sender, RoutedEventArgs e) =>
-        SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
+    public void ZoomOut() => SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
+
+    public void ResetZoom() => SetZoomPercent(100);
+
+    private void ZoomIn_Click(object? sender, RoutedEventArgs e) => ZoomIn();
+
+    private void ZoomOut_Click(object? sender, RoutedEventArgs e) => ZoomOut();
 
     private void ZoomPreset_Click(object? sender, RoutedEventArgs e)
     {

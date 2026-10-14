@@ -213,6 +213,29 @@ public partial class EditorTabsControl : UserControl, IDisposable
         if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.ResumeDebug(DebugAction.StepOut);
     }
 
+    public void PauseActive()
+        => GetActiveControl()?.Pause();
+
+    public void RunToCursorActive()
+    {
+        if (_vm?.ActiveTab?.IsPaused == true) GetActiveControl()?.RunToCursor();
+    }
+
+    // The toolbar's bug button binds to the same flag.
+    public void ToggleDebugModeActive()
+    {
+        if (_vm?.ActiveTab is { } vm) vm.DebugModeEnabled = !vm.DebugModeEnabled;
+    }
+
+    public void ToggleOutputPanelActive()
+        => _vm?.ActiveTab?.OutputPanel.ToggleCommand.Execute().Subscribe();
+
+    public void ZoomInActive() => GetActiveControl()?.ZoomIn();
+
+    public void ZoomOutActive() => GetActiveControl()?.ZoomOut();
+
+    public void ResetZoomActive() => GetActiveControl()?.ResetZoom();
+
     // Explicit Save (Ctrl+S) — the gap a user hit as "IsDirty doesn't reset when I save" (2026-07-17):
     // there was no actual Save action anywhere, only implicit saves (tab close/Run/etc.) or the
     // always-dialog "Save As", so Ctrl+S out of muscle memory matched nothing and silently did
