@@ -92,6 +92,12 @@ public class CodeFixMargin : AbstractMargin
 
     public override void Render(DrawingContext context)
     {
+        // Avalonia hit-tests a control by what it draws. With only the glyph drawn, a click on the
+        // square's padding (or anywhere else in the column) went past this margin to the text area
+        // and moved the caret. A transparent fill paints nothing visible but makes the whole column
+        // this margin's; ResolveCandidatesForClick decides which part of it opens the menu.
+        context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
+
         if (BulbLayout() is not var (severity, yTop, lineH)) return;
 
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
@@ -178,10 +184,27 @@ public class CodeFixMargin : AbstractMargin
         _ => "RunPad.Margin.DebugArrowBrush",
     };
 
+    // Clicks in the column are this margin's (HitTest): none of them reaches the text area. A press
+    // inside the bulb's square is remembered and the menu opens when the button is released inside it
+    // too — a click, like a button or a context menu, rather than on the press itself, so the opening
+    // popup is not in the way of the rest of the press (pointer capture, focus, the release).
+    private bool _pressedOnBulb;
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
+        e.Handled = true;
+        _pressedOnBulb = e.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+                         && ResolveCandidatesForClick(e.GetPosition(this)).Count > 0;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        e.Handled = true;
+        if (!_pressedOnBulb || e.InitialPressMouseButton != MouseButton.Left) return;
+        _pressedOnBulb = false;
+
         var candidates = ResolveCandidatesForClick(e.GetPosition(this));
-        if (candidates.Count == 0) return;
+        if (candidates.Count == 0) return; // released outside the square
 
         // Always go through the menu, even for a single candidate — VS/Rider-style, so the lightbulb
         // never applies anything sight-unseen and there's a consistent place to add more entries later
@@ -194,9 +217,17 @@ public class CodeFixMargin : AbstractMargin
         // whole margin control, which spans the full editor height and made the menu appear pinned to
         // the bottom-left corner regardless of which line's lightbulb was clicked.
         menu.ShowAt(this, true);
-
-        e.Handled = true;
+        OpenMenu = menu;
     }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        _pressedOnBulb = false;
+    }
+
+    // Test-only (InternalsVisibleTo): the menu the last click opened.
+    internal MenuFlyout? OpenMenu { get; private set; }
 
     // Group order the dropdown menu presents categories in — using-directive fixes
     // first (the single most common/expected quick fix), then create/implement, then everything
