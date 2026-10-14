@@ -50,6 +50,7 @@ for the first-launch steps on each OS.
 - [User guide](https://campforge.github.io/run-pad-docs/) — installation, quick start, editor,
   debugging, results, packages, command line.
 - [Scripts and `.rpad` files](https://campforge.github.io/run-pad-docs/scripts/) — the script format.
+- [Changelog](CHANGELOG.md) — what changed in each release.
 - [Roadmap](ROADMAP.md) — what is planned next.
 
 ## Building from source
