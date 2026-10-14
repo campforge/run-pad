@@ -18,6 +18,11 @@ Notable changes in each RunPad release. Downloads are on the
   **Ctrl+F10** and **Ctrl+R** shows or hides the output panel. Shortcuts you changed before are kept.
 - On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
   Preferences…), and ⌘ + mouse wheel zooms the editor.
+- On macOS, the menu bar shows each command's shortcut, as the menu does on Windows and Linux, and
+  the application menu no longer adds Hide, Show All, Quit or a second About: About is under
+  **Help**, and **File → Exit** (⌘Q) quits after asking about unsaved tabs, as on other systems.
+- A shortcut changed in Preferences takes effect at once in every open window — the menu, text
+  editor windows and the Assembly Explorer — without reopening them.
 - RunPad's own analyzers (`RPAD…` warnings) are now an experimental feature, off by default. Turn
   them on in **Preferences → Experimental**.
 
@@ -25,6 +30,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 - In the light theme, the children of a selected item in the Preferences tree and in the file
   tree no longer turn white.
+- Preferences → Keyboard warns when a file-tree or Assembly Explorer shortcut is also used by a
+  command the same keypress reaches, such as the file tree's Delete rebound to New File's key.
 
 ## [0.4.1] — 2026-10-14
 

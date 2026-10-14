@@ -43,26 +43,20 @@ public sealed class KeyboardSettings
         else Bindings[command.Id] = key;
     }
 
-    /// <summary>Other commands bound to the same key as <paramref name="command"/>, in the same or a
-    /// global category (a file-tree key may repeat an editor key: they never see the same keypress).</summary>
+    /// <summary>Other commands bound to the same key as <paramref name="command"/> where one keypress
+    /// can reach both (<see cref="KeyCommands.ScopesOf"/>). A file-tree key may repeat an editor key,
+    /// and an Assembly Explorer key a main-window one: they never see the same keypress.</summary>
     public IEnumerable<KeyCommand> ConflictsOf(KeyCommand command)
     {
         if (GestureFor(command) is not { } gesture) yield break;
+        var scopes = KeyCommands.ScopesOf(command);
         foreach (var other in KeyCommands.All)
         {
-            if (other == command || !SharesKeys(command, other)) continue;
+            if (other == command || !KeyCommands.ScopesOf(other).Any(o => scopes.Any(s => s.Overlaps(o)))) continue;
             if (GestureFor(other) is { } g && g.Key == gesture.Key && g.KeyModifiers == gesture.KeyModifiers)
                 yield return other;
         }
     }
-
-    private static bool SharesKeys(KeyCommand a, KeyCommand b)
-        => a.Category == b.Category
-           || IsWindowWide(a.Category) && IsWindowWide(b.Category);
-
-    // General, Run and Editor keys are all live while the script editor has focus.
-    private static bool IsWindowWide(string category)
-        => category is KeyCommands.General or KeyCommands.Run or KeyCommands.Editor;
 
     // ── Settings written before version 0.5 ──────────────────────────────────
 

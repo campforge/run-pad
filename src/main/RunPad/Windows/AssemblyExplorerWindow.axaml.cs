@@ -69,19 +69,33 @@ public partial class AssemblyExplorerWindow : Window
     /// <summary>Test-only observability — same rationale as the old DecompiledViewWindow.Editor.</summary>
     internal CodeTextEditor Editor => (CodeTextEditor)EditorHost.Content!;
 
-    private KeyboardSettings _keyboard = new();
+    private readonly KeyboardSettings _defaultKeyboard = new();
+    private IPreferencesService? _preferences;
 
-    /// <summary>The user's key bindings (WindowService passes Preferences → Keyboard); the defaults
-    /// until then. Read on every keypress.</summary>
-    public KeyboardSettings Keyboard
+    /// <summary>The user's key bindings (Preferences → Keyboard), else the defaults. Read on every
+    /// keypress.</summary>
+    public KeyboardSettings Keyboard => _preferences?.Keyboard ?? _defaultKeyboard;
+
+    /// <summary>Where the key bindings come from (WindowService passes the app's preferences); the
+    /// editor's keys and the key hints follow every change made in Preferences while the window is
+    /// open.</summary>
+    public IPreferencesService? Preferences
     {
-        get => _keyboard;
+        get => _preferences;
         init
         {
-            _keyboard = value;
-            value.ApplyTo(Editor);
-            ShowKeyHints();
+            _preferences = value;
+            ApplyKeyBindings();
+            if (value is null) return;
+            value.Changed += ApplyKeyBindings;
+            Closed += (_, _) => value.Changed -= ApplyKeyBindings;
         }
+    }
+
+    private void ApplyKeyBindings()
+    {
+        Keyboard.ApplyTo(Editor);
+        ShowKeyHints();
     }
 
     private void ShowKeyHints()
@@ -403,8 +417,7 @@ public partial class AssemblyExplorerWindow : Window
             if (IsCommandKey(e.Key)) UpdateReferenceHover(null);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         EditorHost.Content = editor;
-        _keyboard.ApplyTo(editor);
-        ShowKeyHints();
+        ApplyKeyBindings();
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
         // internally, which needs the editor already in the visual tree.
