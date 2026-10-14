@@ -60,6 +60,12 @@ public partial class TextEditorWindow : Window
         Closing += async (_, e) =>
         {
             if (_closeConfirmed) return;
+            // The main window owns this one and, when it closes (Exit, Cmd+Q, quitting the app), asks
+            // about this window's unsaved changes itself, together with its own tabs, so that one
+            // answer per document is enough and the app does not stop halfway.
+            if (Owner is not null && e.CloseReason is WindowCloseReason.OwnerWindowClosing
+                    or WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown)
+                return;
             e.Cancel = true; // Closing can't await the question: cancel, ask, then close for real
             if (await ViewModel.ConfirmCloseAsync())
             {

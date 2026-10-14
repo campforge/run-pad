@@ -5,7 +5,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [0.4.2] — 2026-10-14
 
-A new main menu, the same on every system, and shortcuts you can change for every command.
+A new main menu, the same on every system, and shortcuts you can change for every command. On
+macOS, RunPad starts again: the 0.4.1 app quit as soon as it was opened.
 
 ### Changed
 
@@ -21,8 +22,10 @@ A new main menu, the same on every system, and shortcuts you can change for ever
 - On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
   Preferences…), and ⌘ + mouse wheel zooms the editor.
 - On macOS, the menu bar shows each command's shortcut, as the menu does on Windows and Linux, and
-  the application menu no longer adds Hide, Show All, Quit or a second About: About is under
-  **Help**, and **File → Exit** (⌘Q) quits after asking about unsaved tabs, as on other systems.
+  holds only RunPad's own commands: no Hide, Show All, Quit or second About in the application
+  menu, and no AutoFill, Start Dictation… or Emoji & Symbols in **Edit**. About is under **Help**,
+  and **File → Exit** (⌘Q) quits, as on other systems; ⌘Q also works from Preferences, text editor
+  windows and the Assembly Explorer.
 - A shortcut changed in Preferences takes effect at once in every open window — the menu, text
   editor windows and the Assembly Explorer — without reopening them.
 - RunPad's own analyzers (`RPAD…` warnings) are now an experimental feature, off by default. Turn
@@ -30,6 +33,12 @@ A new main menu, the same on every system, and shortcuts you can change for ever
 
 ### Fixed
 
+- The macOS app starts again. In 0.4.1 it quit at once because it could not find its own .NET
+  runtime inside the app bundle.
+- Quitting asks about unsaved changes in text editor windows together with unsaved tabs, then
+  quits; before, answering for a text editor window stopped the quit and RunPad stayed open.
+- Updated a component of the in-app NuGet restore that had known denial-of-service
+  vulnerabilities (System.Security.Cryptography.Pkcs 8.0.2).
 - In the light theme, the children of a selected item in the Preferences tree and in the file
   tree no longer turn white.
 - Preferences → Keyboard warns when a file-tree or Assembly Explorer shortcut is also used by a
