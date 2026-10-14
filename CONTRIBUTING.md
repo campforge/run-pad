@@ -61,6 +61,8 @@ Every commit author in the pull request has to accept it; comment `recheck` to r
   to `tests/RunPad.Runtime.UI.Tests`).
 - **MVVM:** ReactiveUI only (no CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
 - **Packages:** versions live in `Directory.Packages.props`; a `.csproj` references packages by name only.
+  A new package must have a license compatible with GPL-3.0; after adding, removing or updating one,
+  regenerate `THIRD-PARTY-NOTICES.txt` with `python scripts/make-third-party-notices.py` and commit it.
 - **Tests:** required for every change. UI tests that create real Avalonia controls go to
   `tests/RunPad.Runtime.UI.Tests`, everything else to `tests/RunPad.NonUI.Tests` or the project's own
   test project.
