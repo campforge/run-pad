@@ -20,6 +20,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- A .NET SDK installed by the first-run setup is found again after RunPad restarts — on macOS,
+  also when RunPad is started from Finder or the Dock. Its path is now saved in
+  **Preferences → Languages → .NET**.
+- **Cancel** in the first-run setup stops the installer instead of leaving it running in the
+  background, so a second install can no longer start next to the first.
 - Braces opened and closed on the same line, such as `if (ok) { Run(); }`, no longer get a fold
   marker in the editor's margin; braces spanning several lines fold as before.
 - The quick-fix lightbulb is easier to click: an invisible square around it, larger than the icon,
