@@ -20,38 +20,51 @@
 
     <Window.Styles>
 
-        <!-- Sidebar tabs (Queries / Examples) -->
+        <!-- Sidebar tabs (Queries / Examples), styled like the code-document tabs (EditorTabsControl):
+             the strip and inactive tabs in the editor background, the selected tab in the colour of
+             what it opens onto (here the side panel, as a document tab takes the editor's), a 1 px
+             separator after each tab, the hover brush on hover. No accent line; keyboard focus gets a
+             thin accent frame. -->
         <Style Selector="TabStrip.sidebar">
             <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
         </Style>
         <Style Selector="TabStrip.sidebar > TabStripItem">
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="MinHeight" Value="29"/>
-            <Setter Property="Height" Value="29"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="Padding" Value="12,0"/>
             <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             <Setter Property="Template">
                 <ControlTemplate TargetType="TabStripItem">
+                    <!-- Transparent: the whole tab takes clicks whatever brush the theme supplies. -->
                     <Panel Background="Transparent">
-                        <Border x:Name="TopAccent" Height="1" VerticalAlignment="Top" Background="Transparent"/>
-                        <ContentPresenter x:Name="PART_ContentPresenter"
-                                          Content="{TemplateBinding Content}"
-                                          Padding="{TemplateBinding Padding}"
-                                          VerticalAlignment="Center"
-                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+                                BorderThickness="0,0,1,0">
+                            <ContentPresenter x:Name="PART_ContentPresenter"
+                                              Content="{TemplateBinding Content}"
+                                              Padding="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <Border x:Name="FocusFrame" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
                     </Panel>
                 </ControlTemplate>
             </Setter>
         </Style>
         <Style Selector="TabStrip.sidebar > TabStripItem:selected">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Sidebar.BackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem:selected /template/ Border#TopAccent">
-            <Setter Property="Background" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
+        <Style Selector="TabStrip.sidebar > TabStripItem:pointerover /template/ Border#Root">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem:pointerover">
-            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Style Selector="TabStrip.sidebar > TabStripItem:focus-visible /template/ Border#FocusFrame">
+            <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
         </Style>
         <Style Selector="ListBox.examples > ListBoxItem">
             <Setter Property="FontSize" Value="13"/>
@@ -148,10 +161,9 @@
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
             <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
-                <!-- Queries / Examples, as compact as the editor's own tab strip: the same 30 px row,
-                     the selected tab marked by the accent line on top, one separator below. -->
-                <Border DockPanel.Dock="Top" Height="30"
-                        BorderThickness="0,0,0,1" BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}">
+                <!-- Queries / Examples, as compact as the editor's own tab strip (30 px) and styled
+                     like it (see TabStrip.sidebar above): the selected tab joins the panel below. -->
+                <Border DockPanel.Dock="Top" Height="30" Background="{DynamicResource RunPad.Editor.BackgroundBrush}">
                     <TabStrip x:Name="SidebarTabs" Classes="sidebar" SelectedIndex="{Binding SidebarTab}">
                         <TabStripItem Content="Queries"/>
                         <TabStripItem Content="Examples"/>
