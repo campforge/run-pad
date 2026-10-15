@@ -12,17 +12,12 @@ namespace RunPad.Runtime.UI.Tests;
 // setting to change it, because RunPad never asked for a specific font in the first place.
 public class EditorTabItemControlFontSettingsTests
 {
-    // Confirmed via a live headless-Skia render probe (not guessed): Avalonia's comma-separated
-    // FontFamily fallback list does NOT move on to the next name when the first one isn't installed —
-    // on Linux, where neither "Consolas" nor "Menlo" exist, a chain starting with either of them
-    // silently fell back to the surrounding theme's own (proportional) default, i.e. exactly the bug
-    // this setting exists to fix. The bare "monospace" keyword is what actually rendered as a real,
-    // non-ligature monospace font in that same probe — pinned here so a future "helpful" change back
-    // to a named fallback chain doesn't quietly reintroduce the original bug.
+    // The setting keeps the generic name ("the platform's default code font"), not this machine's
+    // font name, so a settings file moved to another system still gets that system's font.
     [Fact]
-    public void EditorSettings_Should_DefaultFontFamily_ToTheBareGenericKeyword_NotANamedFallbackChain()
+    public void EditorSettings_Should_DefaultFontFamily_ToTheGenericName()
     {
-        Assert.Equal("monospace", new EditorSettings().FontFamily);
+        Assert.Equal(MonospaceFont.GenericName, new EditorSettings().FontFamily);
     }
 
     // Live user report ("font size and padding too large", LINQPad 4 as a denser
@@ -33,15 +28,29 @@ public class EditorTabItemControlFontSettingsTests
         Assert.Equal(12, new EditorSettings().FontSize);
     }
 
+    // The generic name used to reach the editor as is — Helvetica on macOS.
     [AvaloniaFact]
-    public void ApplyEditorSettings_Should_ApplyFontFamily_FromEditorSettings()
+    public void ApplyEditorSettings_Should_ShowTheGenericSetting_InThePlatformsDefaultCodeFont()
     {
         var editor = new CodeTextEditor();
-        var settings = new EditorSettings { FontFamily = "Liberation Mono" };
+
+        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { FontFamily = "monospace" });
+
+        Assert.Equal(MonospaceFont.Default, editor.FontFamily);
+    }
+
+    // A named font that isn't installed falls back to the default code font, not the theme's
+    // proportional font; the setting itself is left as the user wrote it.
+    [AvaloniaFact]
+    public void ApplyEditorSettings_Should_UseTheDefaultCodeFont_ForANamedFontThatIsNotInstalled()
+    {
+        var editor = new CodeTextEditor();
+        var settings = new EditorSettings { FontFamily = "No Such Font 7f3c" };
 
         EditorsTabItemControl.ApplyEditorSettings(editor, settings);
 
-        Assert.Equal(new FontFamily("Liberation Mono"), editor.FontFamily);
+        Assert.Equal(MonospaceFont.Default, editor.FontFamily);
+        Assert.Equal("No Such Font 7f3c", settings.FontFamily);
     }
 
     [AvaloniaFact]
@@ -53,6 +62,6 @@ public class EditorTabItemControlFontSettingsTests
         EditorsTabItemControl.ApplyEditorSettings(editor, settings);
 
         Assert.Equal(18, editor.FontSize);
-        Assert.Equal(new FontFamily("monospace"), editor.FontFamily);
+        Assert.Equal(MonospaceFont.Default, editor.FontFamily);
     }
 }

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
              xmlns:models="clr-namespace:RunPad.UserControls.Models"
              x:Class="RunPad.UserControls.DebugPanel"
              x:DataType="models:DebugPanelViewModel">
@@ -81,7 +82,7 @@
                           IsVisible="{Binding StoppedExceptionDetails, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <SelectableTextBlock Name="StoppedExceptionDetailsText"
                                      Text="{Binding StoppedExceptionDetails}"
-                                     FontSize="11" FontFamily="Consolas,Menlo,Courier New,monospace"
+                                     FontSize="11" FontFamily="{x:Static cte:MonospaceFont.Default}"
                                      Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             </ScrollViewer>
         </StackPanel>

@@ -188,7 +188,7 @@ public class CodeFixMarginTests
 
         var item = margin.BuildMenuItem(new CodeFixEntry(1, "Introduce local for '\"\"'", CodeFixSeverity.Info, "fix-key"));
 
-        Assert.Equal(new FontFamily("monospace"), item.FontFamily);
+        Assert.Equal(MonospaceFont.Default, item.FontFamily);
     }
 
     // The quick-fix MenuFlyout used to build each MenuItem with only a Header, no icon

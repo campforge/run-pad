@@ -339,10 +339,8 @@ public class CodeFixMargin : AbstractMargin
     // reformat these titles itself (fix.Title reaches here verbatim from Roslyn's own CodeAction.
     // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
     // adjacent quote glyphs stay visually separable regardless of what expression text ends up
-    // embedded in a future title. "monospace" (the bare generic keyword, not a specific font name) —
-    // same choice, same reason, as EditorSettings.FontFamily's own default: reliably
-    // resolves to a real non-ligature monospace font on every platform, unlike a named fallback chain.
-    private static readonly FontFamily MenuItemFontFamily = new("monospace");
+    // embedded in a future title. The platform's default code font (see MonospaceFont), the same
+    // one the editor uses when no font was chosen.
 
     internal MenuItem BuildMenuItem(CodeFixEntry fix)
     {
@@ -353,7 +351,7 @@ public class CodeFixMargin : AbstractMargin
             _menuIconCache[iconKey] = geo;
         }
 
-        var item = new MenuItem { Header = fix.Title, FontFamily = MenuItemFontFamily };
+        var item = new MenuItem { Header = fix.Title, FontFamily = MonospaceFont.Default };
         if (geo is not null)
             item.Icon = new PathIcon { Data = geo, Width = 16, Height = 16 };
         item.Click += (_, _) => Apply(fix);

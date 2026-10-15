@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
              xmlns:build="using:RunPad.Contracts.Models"
              xmlns:vm="clr-namespace:RunPad.UserControls.Models"
              xmlns:tc="clr-namespace:RunPad.TemplatedControls"
@@ -232,7 +233,7 @@
                          AcceptsTab="True"
                          TextWrapping="NoWrap"
                          BorderThickness="0"
-                         FontFamily="Consolas,Menlo,Courier New,monospace"
+                         FontFamily="{x:Static cte:MonospaceFont.Default}"
                          FontSize="12"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
                          ScrollViewer.VerticalScrollBarVisibility="Auto"/>
