@@ -285,8 +285,9 @@
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
-            <!-- Editor zoom (Ctrl+wheel changes it too) — percent of the Preferences font size,
-                 kept in sync by UpdateZoomButton. Presets carry their percent in Tag. -->
+            <!-- Code zoom, shared by every editor (Ctrl/Cmd+wheel and View → Zoom change it too) —
+                 percent on top of the interface scale, kept in sync by UpdateZoomButton. Presets
+                 carry their percent in Tag. -->
             <Button x:Name="ZoomButton"
                     Grid.Column="4"
                     Background="Transparent"
@@ -298,7 +299,7 @@
                     VerticalContentAlignment="Center"
                     Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                     FontSize="12"
-                    ToolTip.Tip="Editor zoom"
+                    ToolTip.Tip="Code zoom in all editors, on top of the interface scale"
                     Content="100%">
                 <Button.Flyout>
                     <MenuFlyout Placement="TopEdgeAlignedRight">

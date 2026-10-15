@@ -77,6 +77,7 @@ public class CompletionWindow : CompletionWindowBase
             IsLightDismissEnabled = false,
 
             PlacementTarget = this,
+            InheritsTransform = true, // RunPad: same scale as the completion list it describes
             Child = _toolTipContent,
         };
 

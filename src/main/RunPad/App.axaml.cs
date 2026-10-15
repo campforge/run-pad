@@ -15,6 +15,7 @@ using RunPad.Logging;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
+using RunPad.Services.Scaling;
 using RunPad.Services.Setup;
 using RunPad.UserControls;
 using RunPad.Windows.Models;
@@ -77,6 +78,10 @@ public class App : Application
             // branch below shows a window — guarantees the theme is always applied first.
             _serviceProvider.GetRequiredService<IThemeService>();
 
+            // Before any window exists, so each one is first laid out at the interface scale.
+            var viewScale = ViewScale.For(_serviceProvider.GetRequiredService<IPreferencesService>());
+            InterfaceScaling.Attach(viewScale);
+
             var prerequisites = _serviceProvider.GetRequiredService<IPrerequisiteService>();
             if (prerequisites.Check().IsComplete)
             {
@@ -102,7 +107,11 @@ public class App : Application
             }
 
             ApplicationExit.Attach(() => desktop.MainWindow, _serviceProvider.GetRequiredService<IPreferencesService>(), desktop);
-            desktop.Exit += (_, _) => _serviceProvider.Dispose();
+            desktop.Exit += (_, _) =>
+            {
+                viewScale.Flush();
+                _serviceProvider.Dispose();
+            };
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -79,6 +79,9 @@ public class CompletionWindowBase : Popup
         StartOffset = EndOffset = TextArea.Caret.Offset;
 
         PlacementTarget = TextArea.TextView;
+        // RunPad: a host that scales the editor (a layout transform around the window's content)
+        // scales its completion and insight windows too.
+        InheritsTransform = true;
         Placement = PlacementMode.AnchorAndGravity;
         PlacementAnchor = Avalonia.Controls.Primitives.PopupPositioning.PopupAnchor.TopLeft;
         PlacementGravity = Avalonia.Controls.Primitives.PopupPositioning.PopupGravity.BottomRight;

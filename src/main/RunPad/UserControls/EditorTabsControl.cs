@@ -12,6 +12,7 @@ using RunPad.Languages.CSharp;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
+using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
 using RunPad.Windows.Models;
 
@@ -230,11 +231,14 @@ public partial class EditorTabsControl : UserControl, IDisposable
     public void ToggleOutputPanelActive()
         => _vm?.ActiveTab?.OutputPanel.ToggleCommand.Execute().Subscribe();
 
-    public void ZoomInActive() => GetActiveControl()?.ZoomIn();
+    // View → Zoom changes the one code zoom every editor shares, also with no tab open.
+    public void ZoomInActive() => CodeZoom?.ZoomIn();
 
-    public void ZoomOutActive() => GetActiveControl()?.ZoomOut();
+    public void ZoomOutActive() => CodeZoom?.ZoomOut();
 
-    public void ResetZoomActive() => GetActiveControl()?.ResetZoom();
+    public void ResetZoomActive() => CodeZoom?.ResetCodeZoom();
+
+    private ViewScale? CodeZoom => _prefs is null ? null : ViewScale.For(_prefs);
 
     // Explicit Save (Ctrl+S) — the gap a user hit as "IsDirty doesn't reset when I save" (2026-07-17):
     // there was no actual Save action anywhere, only implicit saves (tab close/Run/etc.) or the
