@@ -151,6 +151,38 @@ public class HtmlControlRenderScalingTests : IClassFixture<SkiaHeadlessSessionFi
             }
         }, CancellationToken.None);
 
+    // An interface scale is a layout transform around the whole window content: Results must be
+    // painted for the scaled size, not painted at 1x and stretched (blurry, grey edges). Scales
+    // that keep the block's edges on whole pixels, so any grey pixel means resampling.
+    [Fact]
+    public Task Panel_InsideAScaledLayout_Should_PaintForTheScaledSize_AndFollowItsChanges()
+        => _fixture.Session.Dispatch(() =>
+        {
+            var panel = new HtmlPanel { Background = Brushes.White, Text = BlockHtml };
+            var scaleRoot = new LayoutTransformControl { Child = panel, LayoutTransform = new ScaleTransform(1.2, 1.2) };
+            var window = new Window { Width = 300, Height = 120, Background = Brushes.White, Content = scaleRoot };
+            window.Show();
+            try
+            {
+                foreach (var scale in new[] { 1.2, 1.5, 1.0 })
+                {
+                    scaleRoot.LayoutTransform = new ScaleTransform(scale, scale);
+                    window.CaptureRenderedFrame();
+                    var frame = window.CaptureRenderedFrame()!;
+
+                    var block = DarkExtent(frame, 64);
+                    Assert.InRange(block.Width, 50 * scale - 1, 50 * scale + 1);
+                    Assert.InRange(block.Height, 30 * scale - 1, 30 * scale + 1);
+                    Assert.Equal(0, GreyPixelCount(frame));
+                    AssertCacheMatchesScaling(panel, scale);
+                }
+            }
+            finally
+            {
+                window.Close();
+            }
+        }, CancellationToken.None);
+
     private static (Window Window, HtmlPanel Panel) Show(string html, double scaling)
     {
         var panel = new HtmlPanel { Background = Brushes.White, Text = html };

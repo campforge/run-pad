@@ -3,31 +3,10 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Status-bar editor zoom: the percent shown is the editor FontSize relative to the Preferences font
-// size, and Zoom In/Out move to the nearest browser-style step even from an in-between Ctrl+wheel zoom.
+// Code zoom steps: Zoom In/Out (wheel, View menu, status-bar menu) move to the nearest browser-style
+// step, also from an in-between value a settings file may hold.
 public class EditorZoomTests
 {
-    [Theory]
-    [InlineData(12, 12, 100)]
-    [InlineData(13, 12, 108)]
-    [InlineData(6, 12, 50)]
-    [InlineData(24, 12, 200)]
-    [InlineData(12, 0, 100)]
-    public void ToPercent_Should_RelateFontSizeToTheBaseFontSize(double fontSize, double baseFontSize, int expected)
-    {
-        Assert.Equal(expected, EditorZoom.ToPercent(fontSize, baseFontSize));
-    }
-
-    [Theory]
-    [InlineData(100, 12, 12)]
-    [InlineData(150, 12, 18)]
-    [InlineData(50, 12, 6)]
-    [InlineData(1, 12, 1)]
-    public void ToFontSize_Should_ScaleTheBaseFontSize_AndNeverGoBelowOnePoint(int percent, double baseFontSize, double expected)
-    {
-        Assert.Equal(expected, EditorZoom.ToFontSize(percent, baseFontSize));
-    }
-
     [Theory]
     [InlineData(100, 110)]
     [InlineData(108, 110)]

@@ -79,6 +79,7 @@ public class HtmlControl : Control
     // controls, sibling repaints, ...). See LazyRenderCache/InvalidateContent.
     private readonly LazyRenderCache _renderCache = new();
     private RenderTargetBitmap? _cachedBitmap;
+    private double _renderedScaling;
 
     // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
     // in the solution — lets a test confirm ControlAdapter.Invalidate() actually marks
@@ -399,12 +400,13 @@ public class HtmlControl : Control
         // A display scaling change (window moved between monitors) keeps Bounds unchanged but
         // re-runs Render (TopLevel.HandleScalingChanged) — keying the cache on scaling is what makes
         // that rebuild the bitmap at the new pixel density instead of resampling the old one.
-        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        var scaling = DevicePixelScale();
         if (_renderCache.ShouldRedraw(renderSize, scaling))
         {
             RepaintCache(renderSize, scaling);
             _renderCache.MarkRedrawn(renderSize, scaling);
         }
+        _renderedScaling = scaling;
 
         // The cache is a 96-DPI bitmap, so its DIP and pixel coordinates coincide and the source rect
         // below is the exact device-pixel area PaintCore covered — see RepaintCache for why the
@@ -505,9 +507,34 @@ public class HtmlControl : Control
         }
     }
 
+    // Device pixels per DIP of this control: the display's pixel density times any scale an ancestor
+    // applies (a layout transform that scales a whole window, for one). Without the second factor
+    // the cache would be painted for an unscaled control and then stretched — blurry text.
+    private double DevicePixelScale()
+    {
+        if (TopLevel.GetTopLevel(this) is not { } topLevel) return 1;
+        var ancestorScale = this.TransformToVisual(topLevel) is { } m ? Math.Sqrt(m.M11 * m.M11 + m.M12 * m.M12) : 1;
+        return topLevel.RenderScaling * (ancestorScale > 0 ? ancestorScale : 1);
+    }
+
+    // A changed ancestor transform doesn't necessarily re-run Render (the recorded drawing is simply
+    // replayed under the new transform), so after each layout pass the scale is checked again.
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (_cachedBitmap is not null && DevicePixelScale() != _renderedScaling)
+            InvalidateVisual();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        LayoutUpdated += OnLayoutUpdated;
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        LayoutUpdated -= OnLayoutUpdated;
         _cachedBitmap?.Dispose();
         _cachedBitmap = null;
         _renderCache.Invalidate();

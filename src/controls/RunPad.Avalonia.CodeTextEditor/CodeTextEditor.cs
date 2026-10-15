@@ -851,10 +851,22 @@ public class CodeTextEditor : TextEditor
     internal static bool IsCommitCharacter(char ch, IReadOnlySet<char> identifierChars) =>
         !char.IsLetterOrDigit(ch) && !identifierChars.Contains(ch) && ch != ' ' && ch != '=';
 
+    /// <summary>
+    /// Raised by Ctrl/Cmd+wheel with +1 (zoom in) or -1 (zoom out). An application that keeps one
+    /// zoom for all its editors handles it and sets <see cref="TemplatedControl.FontSize"/> itself;
+    /// with no handler the wheel changes this editor's FontSize by one point.
+    /// </summary>
+    public event Action<int>? ZoomRequested;
+
     private void OnFontSizeScroll(object? sender, PointerWheelEventArgs e)
     {
-        if (e.KeyModifiers != CommandModifier) return;
-        FontSize = e.Delta.Y > 0 ? FontSize + 1 : Math.Max(1, FontSize - 1);
+        if (e.KeyModifiers != CommandModifier || e.Delta.Y == 0) return;
+        var direction = e.Delta.Y > 0 ? 1 : -1;
+        if (ZoomRequested is { } zoom)
+            zoom(direction);
+        else
+            FontSize = Math.Max(1, FontSize + direction);
+        e.Handled = true;
     }
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)

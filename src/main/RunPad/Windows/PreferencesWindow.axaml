@@ -86,8 +86,26 @@
 
                 <StackPanel IsVisible="{Binding IsInterfaceSelected}" Spacing="6">
 
+                    <!-- Interface scale: everything in RunPad's windows, code included -->
+                    <TextBlock Text="Interface scale:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox x:Name="InterfaceScaleBox"
+                                  ItemsSource="{Binding InterfaceScaleOptions}"
+                                  SelectedItem="{Binding InterfaceScalePercent}"
+                                  MinWidth="90">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="x:Int32">
+                                    <TextBlock Text="{Binding StringFormat={}{0}%}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="Reset to 100%" Command="{Binding ResetInterfaceScaleCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="Text, icons and spacing of every RunPad window, code included. Code zoom (Editor) is applied on top."
+                               TextWrapping="Wrap" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+
                     <!-- Appearance mode -->
-                    <TextBlock Text="Appearance:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                    <TextBlock Text="Appearance:" FontWeight="SemiBold" Margin="0,8,0,2"/>
                     <StackPanel Orientation="Horizontal" Spacing="16">
                         <RadioButton Content="System"
                                      IsChecked="{Binding IsSystemMode}"
@@ -143,6 +161,15 @@
                                        Minimum="8" Maximum="32" Increment="1"
                                        FormatString="0"/>
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,6,0,0">
+                        <TextBlock Grid.Column="0" Text="Code zoom:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="1" x:Name="CodeZoomText" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Text="{Binding CodeZoomPercent, StringFormat={}{0}%}"/>
+                        <Button Grid.Column="2" Content="Reset to 100%" HorizontalAlignment="Left"
+                                Command="{Binding ResetCodeZoomCommand}"/>
+                    </Grid>
+                    <TextBlock Text="Extra size of code in every editor, on top of the interface scale. Also Ctrl+wheel (Cmd+wheel on macOS) and View → Zoom."
+                               TextWrapping="Wrap" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                     <Grid ColumnDefinitions="Auto,*" Margin="0,6,0,0">
                         <TextBlock Grid.Column="0" Text="Font family:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBox Grid.Column="1"

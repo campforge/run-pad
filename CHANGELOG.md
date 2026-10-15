@@ -3,6 +3,25 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Added
+
+- **Preferences → Interface → Interface scale** makes everything in RunPad's windows larger or
+  smaller — text, icons, spacing and click targets of the panels, tabs, results, debugger, dialogs,
+  menus, tooltips and code completion, and the code itself. Choose 90% to 200%; **Reset to 100%**
+  brings back the usual size. The menu bar at the top of the screen on macOS stays as the system
+  draws it.
+
+### Changed
+
+- Code zoom (**View → Zoom In/Out**, Ctrl+wheel or Cmd+wheel on macOS, and the percentage in the
+  status bar) is now one setting for all editors: every open tab and every tab opened later shows
+  code at the same zoom, and it is kept when RunPad restarts. It works on top of the interface
+  scale — 100% is the interface-scaled font size — and the wheel moves through the same steps as
+  the menu. **Preferences → Editor → Code zoom** shows it and resets it on its own. Files opened in
+  their own editor window now use the editor font, size and zoom too.
+
 ## [0.5.0] — 2026-10-15
 
 ### Added
