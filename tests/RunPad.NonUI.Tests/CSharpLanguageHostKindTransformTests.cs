@@ -58,15 +58,25 @@ public class CSharpLanguageHostKindTransformTests
     }
 
     private const string WrapperClass = RpadKindTransform.ProgramWrapperClassName;
-    private const string TrampolineCall = $"{WrapperClass}.__RunPadRun()";
+    private const string TrampolineCall = $"{WrapperClass}.__RunPadRun(args)";
 
-    private static string ExpectedProgramTransform(string code, bool isStatic, bool returnsTask)
+    // The trampoline takes the top-level `args`; an int-returning Main's result is returned from the
+    // top level (the exit code).
+    private static string ExpectedProgramTransform(string code, bool isStatic, bool returnsTask, bool returnsInt = false)
     {
-        var callStatement = returnsTask ? $"await {TrampolineCall};" : $"{TrampolineCall};";
+        var call = returnsTask ? $"await {TrampolineCall}" : TrampolineCall;
+        var callStatement = returnsInt ? $"return {call};" : $"{call};";
         var mainCall = isStatic ? "Main()" : $"new {WrapperClass}().Main()";
-        var trampoline = returnsTask
-            ? $"internal static Task __RunPadRun() => {mainCall};"
-            : $"internal static void __RunPadRun() {{ {mainCall}; }}";
+        var returnType = (returnsTask, returnsInt) switch
+        {
+            (true, true) => "global::System.Threading.Tasks.Task<int>",
+            (true, false) => "global::System.Threading.Tasks.Task",
+            (false, true) => "int",
+            _ => "void",
+        };
+        var trampoline = returnType == "void"
+            ? $"internal static void __RunPadRun(string[] args) {{ {mainCall}; }}"
+            : $"internal static {returnType} __RunPadRun(string[] args) => {mainCall};";
         return $"{callStatement}class {WrapperClass}\n{{\n{code}\n{trampoline}\n}}\n";
     }
 
@@ -197,7 +207,7 @@ public class CSharpLanguageHostKindTransformTests
         var host = CreateHost(RpadKind.Program, out var outputDir);
         try
         {
-            Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: expectAwait), host.ApplyKindTransform(code));
+            Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: expectAwait, returnsInt: code.Contains("<int>")), host.ApplyKindTransform(code));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

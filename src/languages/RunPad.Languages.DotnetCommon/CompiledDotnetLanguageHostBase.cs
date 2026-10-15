@@ -50,6 +50,15 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     // ASCII Unit Separator + base64 JSON — see RunPad.Runtime.Util.InputRequestPrefixChar.
     private const char InputRequestPrefix = '\x1f';
 
+    // ASCII Group Separator — see RunPad.Runtime.Util.CancelListeningPrefixChar: the script asked for
+    // Util.CancellationToken, so Stop asks it to finish (RequestStop) before ending it.
+    private const char CancelListeningPrefix = '\x1d';
+
+    // How long a script that listens for Stop gets to finish on its own before it is ended.
+    internal static TimeSpan StopGracePeriod { get; set; } = TimeSpan.FromSeconds(3);
+
+    private volatile bool _scriptListensForStop;
+
     private readonly CompiledDotnetLanguageHostOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly DotnetProcessCompilerFactory _compilerFactory;
@@ -140,8 +149,11 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         // method's own natural completion); disposing here would let that call land on an
         // already-disposed CTS and throw ObjectDisposedException. A CTS with no timer holds no
         // resources, so simply never disposing it is safe.
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // Not linked to cancellationToken: cancelling that (Stop) ends the run through StopAsync,
+        // which first gives a script that listens for it a moment to finish.
+        var cts = new CancellationTokenSource();
         _runCts = cts;
+        _scriptListensForStop = false;
 
         try
         {
@@ -152,6 +164,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 _options.CurrentQueryPath);
 
             if (!process.Start()) return RunResult.StartFailed;
+            await using var stop = cancellationToken.Register(() => _ = StopAsync(process, cts));
 
             _currentInputStream = process.InputStream;
             var drained = Task.WhenAll(
@@ -169,6 +182,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             await exited;
             await drained;
 
+            // Stopped by the user, even if the script then finished on its own within the grace period.
+            cancellationToken.ThrowIfCancellationRequested();
             return RunResult.Exited(process.ExitCode);
         }
         finally
@@ -176,6 +191,29 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             _runCts = null;
             _currentInputStream = null;
         }
+    }
+
+    // Stop: a script that listens for it (Util.CancellationToken) is asked to finish and given
+    // StopGracePeriod to exit; then — or at once, for any other script — the run is ended.
+    private async Task StopAsync(IChildProcess process, CancellationTokenSource run)
+    {
+        if (_scriptListensForStop && process.RequestStop())
+        {
+            using var grace = new CancellationTokenSource(StopGracePeriod);
+            try
+            {
+                await process.WaitForExitAsync(grace.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Didn't finish in time.
+            }
+            catch (InvalidOperationException)
+            {
+                // Already gone.
+            }
+        }
+        run.Cancel();
     }
 
     // ── Debug ─────────────────────────────────────────────────────────────────
@@ -326,6 +364,10 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
             if (data.Length > 0 && data[0] == RsPrefix)
             {
                 handler(data[1..], OutputKind.DumpHtml);
+            }
+            else if (data.Length > 0 && data[0] == CancelListeningPrefix)
+            {
+                _scriptListensForStop = true;
             }
             else if (data.Length > 0 && data[0] == InputRequestPrefix && _currentInputStream is not null)
             {

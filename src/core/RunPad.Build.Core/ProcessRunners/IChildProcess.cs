@@ -31,4 +31,8 @@ public interface IChildProcess : IAsyncDisposable
 
     /// <summary>The process's exit code — valid once <see cref="WaitForExitAsync"/> has completed.</summary>
     int ExitCode { get; }
+
+    /// <summary>Asks a running script to stop on its own (it sees <c>Util.CancellationToken</c> cancelled).
+    /// False when the process can't be asked, as for any process RunPad didn't start for a script.</summary>
+    bool RequestStop() => false;
 }

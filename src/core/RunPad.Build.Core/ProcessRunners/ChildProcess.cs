@@ -56,12 +56,40 @@ public sealed class ChildProcess : IChildProcess
 
     public int ExitCode => _process.ExitCode;
 
+    // Set for a script run (ForExecution): the file whose appearance cancels the script's
+    // Util.CancellationToken.
+    private string? _cancelFilePath;
+
+    public bool RequestStop()
+    {
+        if (_cancelFilePath is null) return false;
+        try
+        {
+            File.WriteAllText(_cancelFilePath, "");
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         Kill();
         try { await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false); }
         catch { }
         _process.Dispose();
+        if (_cancelFilePath is not null)
+        {
+            try { File.Delete(_cancelFilePath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
         GC.SuppressFinalize(this);
     }
 
@@ -77,6 +105,11 @@ public sealed class ChildProcess : IChildProcess
     // CompiledDotnetLanguageHostBase's RsPrefix/InputRequestPrefix mirroring RunPad.Runtime.Util's.
     internal const string CurrentQueryPathEnvVar = "RUNPAD_CURRENT_QUERY_PATH";
 
+    // Same reasoning: the script reads these, never its `args`. RUNPAD_CANCEL_FILE is mirrored by
+    // RunPad.Runtime.Util.CancelFileEnvVar (see RequestStop).
+    internal const string CancelFileEnvVar = "RUNPAD_CANCEL_FILE";
+    internal const string ParentProcessIdEnvVar = "RUNPAD_PARENT_PID";
+
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
     public static ChildProcess ForExecution(
         ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath = null)
@@ -84,7 +117,8 @@ public sealed class ChildProcess : IChildProcess
         var startInfo = new ProcessStartInfo
         {
             FileName = options.Runtime.RuntimePath,
-            Arguments = new LocalExecutionArgs(assemblyPath, parentPid).ToString(),
+            // Only the assembly: anything after it becomes the script's own `args`.
+            Arguments = $"\"{assemblyPath}\"",
             WorkingDirectory = options.WorkingDirectory,
             CreateNoWindow = !options.CreateWindow,
             UseShellExecute = false,
@@ -96,8 +130,11 @@ public sealed class ChildProcess : IChildProcess
         };
         if (currentQueryPath is not null)
             startInfo.Environment[CurrentQueryPathEnvVar] = currentQueryPath;
+        startInfo.Environment[ParentProcessIdEnvVar] = parentPid;
+        var cancelFile = Path.Combine(Path.GetTempPath(), $"runpad-stop-{Guid.NewGuid():N}");
+        startInfo.Environment[CancelFileEnvVar] = cancelFile;
 
-        return new ChildProcess(startInfo);
+        return new ChildProcess(startInfo) { _cancelFilePath = cancelFile };
     }
 
     /// <summary>Creates a process for the netcoredbg DAP debugger.</summary>
