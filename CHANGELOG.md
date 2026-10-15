@@ -5,6 +5,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Changed
+
+- The File menu's import command is now called **Import .linq Query...**.
+
 ### Fixed
 
 - Braces opened and closed on the same line, such as `if (ok) { Run(); }`, no longer get a fold
@@ -30,7 +34,7 @@ macOS, RunPad starts again: the 0.4.1 app quit as soon as it was opened.
 - Every keyboard shortcut can be changed in **Preferences → Keyboard**: the page now lists all
   commands — including the editor's (completion, Go to Definition…) and the Assembly Explorer's —
   grouped by area, with **Reset** and a warning when two commands share a key.
-- New default shortcuts follow LINQPad: **Stop** is **Shift+F5** (was Esc), **Run to Cursor** is
+- New default shortcuts follow common IDE conventions: **Stop** is **Shift+F5** (was Esc), **Run to Cursor** is
   **Ctrl+F10** and **Ctrl+R** shows or hides the output panel. Shortcuts you changed before are kept.
 - On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
   Preferences…), and ⌘ + mouse wheel zooms the editor.
@@ -115,10 +119,10 @@ The first public release.
   (Used By, Uses, Instantiated By, Implemented By, Overridden By and more).
 - **Runtime helpers:** interactive input (`Util.ReadLine`, `Util.GetPassword`),
   `Util.ProgressBar`, `Util.Cache`/`CacheAsync`, file helpers (`Util.SaveString`, `LoadString`, …),
-  `Util.CurrentQueryPath` and wider LINQPad compatibility.
-- **LINQPad import:** File → Import LINQPad Query... and `runpad convert` turn `.linq` files into
+  `Util.CurrentQueryPath` and wider compatibility with imported `.linq` scripts.
+- **`.linq` import:** a File menu command and `runpad convert` turn `.linq` files into
   `.rpad` scripts.
-- **NuGet manager** in the style of LINQPad's, with package source configuration and authentication.
+- **NuGet manager** with package source configuration and authentication.
 - **First-run setup** that finds or installs the .NET SDK and the netcoredbg debugger.
 - **Installers:** MSI for Windows, `.deb` and AppImage for Linux, unsigned DMG images for Apple
   Silicon and Intel Macs, and portable archives.
@@ -156,7 +160,7 @@ The first public release.
   filtering inside generic arguments, and snippets.
 - Formatting and navigation commands with keyboard shortcuts.
 - **Command-line runner** (`RunPad.Cli`) for running `.rpad` files from a terminal.
-- `.Dump()` overloads compatible with LINQPad and documented `DumpOptions`.
+- More `.Dump()` overloads and documented `DumpOptions`.
 - Path macros in references, such as `$(CurrentQueryPath)`.
 - File tree with New Folder and per-language icons; New RPad File for C# and Visual Basic.
 - Save, Save As (Ctrl+Shift+S), confirmation before closing unsaved tabs, restoring open tabs on

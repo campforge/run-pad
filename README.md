@@ -1,8 +1,6 @@
 # RunPad
 
-**A native, fast, cross-platform C# scratchpad for .NET** — an open-source alternative to
-[LINQPad](https://www.linqpad.net/), [RoslynPad](https://github.com/roslynpad/roslynpad) and
-[NetPad](https://github.com/tareqimbasher/NetPad).
+**A native, fast, cross-platform C# scratchpad for .NET** — free and open source.
 
 - **Native** — a real desktop app built on [Avalonia UI](https://avaloniaui.net/), with no embedded
   browser: even `.Dump()` results are drawn by RunPad's own renderer.
@@ -28,7 +26,7 @@ block — so your notes live right next to the code.
 - **Rich results** — `.Dump()` tables, live-updating `DumpContainer`, progress bars, interactive input.
 - **NuGet packages and references** from a Dependencies window; **Assembly Explorer** with decompiled
   C#, IL, resources and usage analysis.
-- **Command-line runner** for scripts and a **LINQPad `.linq` importer**.
+- **Command-line runner** for scripts and a **`.linq` query importer**.
 - **Visual Basic** scripts compile, run and debug too (editor intelligence is C#-only for now).
 
 ## Download

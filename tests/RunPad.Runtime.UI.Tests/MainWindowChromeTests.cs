@@ -111,7 +111,7 @@ public class MainWindowChromeTests
         "File/New RPad File/C#",
         "File/New RPad File/Visual Basic",
         "File/Open Text File...",
-        "File/Import LINQPad Query...",
+        "File/Import .linq Query...",
         "File/---",
         "File/Save",
         "File/Save As...",
