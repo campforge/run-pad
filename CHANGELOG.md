@@ -18,6 +18,9 @@ Notable changes in each RunPad release. Downloads are on the
   to **Program** wraps its code in `Main` — `async Task Main()` when the code awaits — and keeps
   methods and types after it; one **Undo** brings the old code back. Visual Basic scripts get a
   `Module` with `Sub Main()`.
+- An **Examples** tab next to **Queries** in the panel on the left, with sample scripts that come
+  with RunPad. Clicking one opens it as a new, unsaved script: it does not run, and nothing is
+  written until you save it, which asks where to put the copy.
 
 ### Changed
 
@@ -31,6 +34,10 @@ Notable changes in each RunPad release. Downloads are on the
   lightbulb used to appear lower, in the middle of the whole line.
 - With the caret at a brace, both braces of the pair are highlighted in the theme's colors, and the
   guide between them is emphasized in the code and in the gutter.
+- The panel on the left has **Queries** and **Examples** tabs instead of the *FILES* heading; the
+  file tree is on **Queries**, with everything it did before.
+- The lightbulb's column is narrower: just wide enough for the icon, which keeps its size and its
+  click area around it.
 
 ### Fixed
 

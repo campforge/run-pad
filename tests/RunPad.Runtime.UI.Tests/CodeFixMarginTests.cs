@@ -122,9 +122,12 @@ public class CodeFixMarginTests
         MarginWithFixOnCaretLine(shortEditor, shortMargin, 1);
         MarginWithFixOnCaretLine(longEditor, longMargin, 1);
 
-        Assert.Equal(CodeFixMargin.MinimumHitTargetSize, shortMargin.Bounds.Width, 3);
+        // layout rounds the column up to whole pixels; the square itself is exactly the computed side
+        var side = shortMargin.HitTargetSide();
+        Assert.True(side >= CodeFixMargin.MinimumHitTargetSize);
+        Assert.InRange(shortMargin.Bounds.Width, side, side + 1);
         Assert.Equal(shortMargin.Bounds.Width, longMargin.Bounds.Width, 3);
-        Assert.Equal(shortMargin.Bounds.Width, shortMargin.HitTarget()!.Value.Width, 3);
+        Assert.Equal(side, shortMargin.HitTarget()!.Value.Width, 3);
         Assert.Equal(shortMargin.ComputeIconTransform(lineH: 20, yTop: 0).Scale,
             longMargin.ComputeIconTransform(lineH: 20, yTop: 0).Scale, 6);
     }
@@ -459,7 +462,9 @@ public class CodeFixMarginTests
 
         Assert.Equal(target.Width, target.Height, 6);
         Assert.True(target.Width > glyph, $"target {target.Width}, glyph {glyph}");
-        Assert.Equal(Math.Min(CodeFixMargin.MinimumHitTargetSize, margin.Bounds.Width), target.Width, 6);
+        Assert.Equal(Math.Min(margin.HitTargetSide(), margin.Bounds.Width), target.Width, 6);
+        // the glyph plus the padding on each side
+        Assert.Equal(Math.Max(CodeFixMargin.MinimumHitTargetSize, glyph + 2 * CodeFixMargin.HitTargetPadding), target.Width, 6);
         Assert.True(target.X >= 0 && target.Right <= margin.Bounds.Width + 1e-9);
         Assert.Equal(x + glyph / 2, target.Center.X, 6);
         Assert.Equal(y + glyph / 2, target.Center.Y, 6);

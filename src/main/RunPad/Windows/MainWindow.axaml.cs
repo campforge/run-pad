@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ReactiveUI;
 using RunPad.Format.RPad;
+using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.UserControls;
 using RunPad.Windows.Models;
@@ -397,6 +398,24 @@ public sealed partial class MainWindow : Window, IDisposable
         if (kind is null) return; // cancelled
 
         GetViewModel().NewRpadFile(language, kind.Value);
+    }
+
+    // ── Examples ──────────────────────────────────────────────────────────────
+
+    // A click (also on the example already selected, e.g. after closing its tab) or Enter opens it.
+    private void ExampleList_Tapped(object? sender, TappedEventArgs e) => OpenSelectedExample(sender);
+
+    private void ExampleList_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Return) return;
+        OpenSelectedExample(sender);
+        e.Handled = true;
+    }
+
+    private void OpenSelectedExample(object? sender)
+    {
+        if (sender is ListBox { SelectedItem: ExampleScript example })
+            GetViewModel().OpenExample(example);
     }
 
     // ── File tree ─────────────────────────────────────────────────────────────

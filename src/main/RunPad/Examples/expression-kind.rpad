@@ -1,0 +1,17 @@
+---
+version: "1.0"
+language: csharp
+targetSdk: latest
+kind: Expression
+---
+
+# Expression kind
+
+With `kind: Expression` the code block is a single C# expression. RunPad evaluates it and
+renders the result as if you had called `.Dump()` on it. There is no trailing semicolon.
+
+```csharp run
+Enumerable.Range(1, 10)
+    .Where(n => n % 2 == 0)
+    .Select(n => new { Number = n, Square = n * n, IsLarge = n * n > 25 })
+```

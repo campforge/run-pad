@@ -1584,7 +1584,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         string content;
         RpadDocument? rpad = null;
 
-        if (filePath is null)
+        if (filePath is null && _vm.Example is { } example)
+        {
+            // An example: an untitled, editable copy of its whole document — the code, its front
+            // matter and the Markdown around it, which Save As writes out — never the original.
+            var parsed = RpadParser.Parse(example.Text);
+            rpad = parsed.Document;
+            content = rpad?.RunCode ?? "";
+        }
+        else if (filePath is null)
         {
             // Deferred creation ("tab lifecycle") — a brand-new tab is genuinely
             // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
@@ -1644,9 +1652,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
-        var (text, caret) = CodeTemplate.TakeCaret(content);
-        editor.Document = new TextDocument(text);
-        if (caret > 0) editor.CaretOffset = caret;
+        if (_vm.Example is not null && filePath is null)
+        {
+            // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
+            editor.Document = new TextDocument(content);
+            _vm.IsDirty = true;
+        }
+        else
+        {
+            var (text, caret) = CodeTemplate.TakeCaret(content);
+            editor.Document = new TextDocument(text);
+            if (caret > 0) editor.CaretOffset = caret;
+        }
 
         // Shows which kind/target framework the script actually runs as —
         // helps tell the two compile paths apart and diagnose compile/run discrepancies without
