@@ -67,6 +67,39 @@ public class SetupWizardViewModelTests
         Assert.Contains("network unreachable", vm.StatusText);
     }
 
+    // The installer only puts the SDK on this process's PATH; without the saved path a restart
+    // (on macOS, any start from Finder or the Dock) couldn't find the SDK it had just installed.
+    [Fact]
+    public async Task InstallSdkCommand_Should_SaveTheInstalledDotnetPath_IntoPreferences()
+    {
+        var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(false, false));
+        installer
+            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("/home/user/.dotnet/dotnet");
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+
+        await vm.InstallSdkCommand.Execute();
+
+        Assert.Equal("/home/user/.dotnet/dotnet", debugger.DotnetPath);
+        prefs.Verify(p => p.Save(), Times.Once);
+    }
+
+    [Fact]
+    public async Task InstallSdkCommand_Should_KeepTheDotnetPath_WhenTheInstallFails()
+    {
+        var (installer, prefs, debugger, prerequisites) = CreateMocks(new PrerequisiteStatus(false, false));
+        debugger.DotnetPath = "/custom/dotnet";
+        installer
+            .Setup(i => i.InstallDotnetSdkAsync(It.IsAny<IProgress<SetupProgress>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("dotnet-install exited with code 1."));
+        var vm = new SetupWizardViewModel(installer.Object, prefs.Object, prerequisites.Object);
+
+        await vm.InstallSdkCommand.Execute();
+
+        Assert.Equal("/custom/dotnet", debugger.DotnetPath);
+        prefs.Verify(p => p.Save(), Times.Never);
+    }
+
     [Fact]
     public async Task InstallDebuggerCommand_Should_SaveTheResolvedPath_IntoPreferences_WhenTheInstallerSucceeds()
     {
