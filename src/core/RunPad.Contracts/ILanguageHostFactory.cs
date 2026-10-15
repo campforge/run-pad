@@ -1,3 +1,5 @@
+using RunPad.Format.RPad;
+
 namespace RunPad.Contracts;
 
 // Marker interface — extend with language-specific settings.
@@ -35,6 +37,11 @@ public interface ILanguageHostFactory
     // see EditorLanguageProfile. Same reasoning as Snippets above.
     EditorLanguageProfile EditorProfile { get; }
 
+    // The code a script gets when it switches to <kind> — for Program, a Main skeleton for empty code
+    // or the existing statements wrapped in Main — with a `${0}` caret marker, as in Snippets. Null
+    // when the code should stay as it is (it already fits the kind, or the language has no template).
+    string? CodeForKind(string code, RpadKind kind) => null;
+
     ILanguageHost Create(ILanguageHostOptions? options = null);
 }
 
@@ -50,5 +57,6 @@ public interface ILanguageHostRegistry
     IReadOnlyDictionary<string, string> GetSnippets(string language);
     EditorLanguageProfile GetEditorProfile(string language);
     string GetDisplayName(string language);
+    string? GetCodeForKind(string language, string code, RpadKind kind);
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
 }

@@ -1,3 +1,5 @@
+using RunPad.Format.RPad;
+
 namespace RunPad.Contracts;
 
 public sealed class LanguageHostRegistry : ILanguageHostRegistry
@@ -28,6 +30,10 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
 
     public string GetDisplayName(string language) =>
         GetFactory(language).DisplayName;
+
+    // Null for a language that isn't registered, as for one without a template.
+    public string? GetCodeForKind(string language, string code, RpadKind kind) =>
+        _factories.TryGetValue(language, out var factory) ? factory.CodeForKind(code, kind) : null;
 
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         GetFactory(language).Create(options);

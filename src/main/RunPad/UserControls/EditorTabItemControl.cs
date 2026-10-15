@@ -1593,9 +1593,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // that's what lets the toolbar's kind combobox, IntelliSense's kind-aware analysis, and
             // Run/Debug all already behave correctly for the chosen language/kind before the first
             // save, the same as they do for a file freshly loaded from disk.
-            content = "";
+            // Empty, except that a Program starts with its Main skeleton.
+            content = _registry.NewScriptCode(_vm.NewFileLanguage, _vm.NewFileKind);
             rpad = RpadParser.TryParse(RpadWriter.NewFile(
-                title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind, code: content));
+                "", title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind));
         }
         else if (File.Exists(filePath))
         {
@@ -1643,7 +1644,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
-        editor.Document = new TextDocument(content);
+        var (text, caret) = CodeTemplate.TakeCaret(content);
+        editor.Document = new TextDocument(text);
+        if (caret > 0) editor.CaretOffset = caret;
 
         // Shows which kind/target framework the script actually runs as —
         // helps tell the two compile paths apart and diagnose compile/run discrepancies without
@@ -1756,10 +1759,25 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
 
         rpad.FrontMatter.Kind = parsedKind;
+        ApplyKindTemplate(parsedKind);
         RefreshIntelliSenseKind();
         UpdateProjectInfoBlock();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
         CommitMetadataChange();
+    }
+
+    // Switching to Program gives an empty script its Main skeleton and wraps existing statements in
+    // Main (the language decides how; see ILanguageHostFactory.CodeForKind) — one replacement, so a
+    // single Undo brings the old code back. Code that already fits the kind is left alone, and so is
+    // every switch away from Program.
+    private void ApplyKindTemplate(RpadKind kind)
+    {
+        if (_registry.GetCodeForKind(ResolveLanguageId(), State.Editor.Text, kind) is not { } code) return;
+        var (text, caret) = CodeTemplate.TakeCaret(code);
+        var document = State.Editor.Document;
+        document.Replace(0, document.TextLength, text);
+        State.Editor.CaretOffset = Math.Max(0, caret);
+        State.Editor.TextArea.Caret.BringCaretToView();
     }
 
     // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad —

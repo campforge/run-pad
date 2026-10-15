@@ -5,9 +5,18 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- A new Program script starts with a `Main` method, with the caret inside it. Switching a script
+  to **Program** wraps its code in `Main` — `async Task Main()` when the code awaits — and keeps
+  methods and types after it; one **Undo** brings the old code back. Visual Basic scripts get a
+  `Module` with `Sub Main()`.
+
 ### Changed
 
 - The File menu's import command is now called **Import .linq Query...**.
+- A new Statements or Expression script created from the file tree starts empty, like one created
+  with **File → New File**.
 
 ### Fixed
 

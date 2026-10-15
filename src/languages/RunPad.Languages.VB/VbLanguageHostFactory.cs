@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
+using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.VB;
@@ -29,6 +30,8 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
     // CompletionTriggers). No required statement terminator — a newline ends a statement. VB is
     // case-insensitive, so "New"/"new" both starting completion is a real language property, not
     // sloppiness, hence the case-insensitive HashSet.
+    public string? CodeForKind(string code, RpadKind kind) => VbProgramTemplate.CodeForKind(code, kind);
+
     public EditorLanguageProfile EditorProfile { get; } = new()
     {
         CompletionTriggers = new HashSet<char> { '.' },

@@ -35,7 +35,7 @@ public class DependenciesRealTabIntegrationTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            var doc = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+            var doc = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
             doc.FrontMatter.Packages["Existing.Package"] = new Package("1.2.3");
             File.WriteAllText(filePath, RpadWriter.Write(doc));
 
