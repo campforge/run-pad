@@ -17,6 +17,11 @@ Notable changes in each RunPad release. Downloads are on the
 - The File menu's import command is now called **Import .linq Query...**.
 - A new Statements or Expression script created from the file tree starts empty, like one created
   with **File → New File**.
+- The editor's gutter is more compact and calmer: a thin line separates it from the code, the current
+  line's row is highlighted, and breakpoints and the lightbulb are sized to the text. Fold arrows of
+  open blocks appear while the pointer is over the fold column; collapsed blocks always show theirs.
+- With the caret at a brace, both braces of the pair are highlighted in the theme's colors, and the
+  guide between them is emphasized in the code and in the gutter.
 
 ### Fixed
 

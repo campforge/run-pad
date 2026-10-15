@@ -15,10 +15,8 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// The lightbulb margin used to paint every fix with the same neutral color and measure
-// its own column independently of BreakPointMargin's line-number/debug-arrow column right next to
-// it. These exercise the two fixes directly: severity picks the right themed brush key, and the
-// margin's measured width now comes from the same GutterMetrics formula BreakPointMargin uses.
+// The quick-fix lightbulb margin: severity colors, the compact column as wide as the bulb's square,
+// the square click target (through the helpers and through real pointer events) and the menu.
 public class CodeFixMarginTests
 {
     private static (Window Window, CodeTextEditor Editor, CodeFixMargin Margin) CreateEditor(string text)
@@ -113,48 +111,22 @@ public class CodeFixMarginTests
         Assert.Equal(expectedKey, CodeFixMargin.SeverityBrushKey(severity));
     }
 
-    // Regression guard for the alignment half of the gutter fix: before the fix, MeasureOverride returned
-    // TextView.DefaultLineHeight * 0.8 regardless of the shared gutter formula — a value that
-    // diverges from GutterMetrics as soon as the document needs more than the 2-digit minimum (e.g.
-    // 100+ lines), and is narrower even at the minimum. Comparing directly against GutterMetrics
-    // (the same helper BreakPointMargin's own width now goes through) is what actually proves the
-    // two margins stay in lockstep, rather than merely asserting some specific pixel value.
+    // The column is exactly as wide as the bulb's square — a compact gutter with the glyph next to the
+    // line numbers — whatever the line count (it used to follow the line-number column's width), and
+    // the glyph's size follows the line height, not the column.
     [AvaloniaFact]
-    public void MeasureOverride_Should_MatchGutterMetrics_LineNumberColumnWidth()
+    public void TheColumn_Should_BeAsWideAsTheSquare_WhateverTheLineCount()
     {
-        var (_, editor, margin) = CreateEditor(string.Concat(Enumerable.Repeat("line\n", 150)));
+        var (_, shortEditor, shortMargin) = CreateEditor("line\n");
+        var (_, longEditor, longMargin) = CreateEditor(string.Concat(Enumerable.Repeat("line\n", 1500)));
+        MarginWithFixOnCaretLine(shortEditor, shortMargin, 1);
+        MarginWithFixOnCaretLine(longEditor, longMargin, 1);
 
-        margin.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var expected = GutterMetrics.LineNumberColumnWidth(editor, editor.TextArea.TextView, 6.0);
-
-        Assert.Equal(expected, margin.DesiredSize.Width, precision: 3);
-    }
-
-    // DrawCentered's scale used to be Bounds.Width * 0.72 / 24.0 — once a later change made
-    // Bounds.Width track the (line-number-digit-driven) gutter width, a document needing more digits
-    // inflated the icon itself right along with the column. A narrow (few lines) and a wide (150
-    // lines) document give two CodeFixMargin instances with deliberately different Bounds.Width —
-    // the icon's Scale must come out identical across both (tied to line height, not column width),
-    // while its centering X must still differ (it has to center within whichever width the column
-    // actually ended up).
-    [AvaloniaFact]
-    public void ComputeIconTransform_Should_KeepScaleIndependent_OfColumnWidth()
-    {
-        var (_, _, narrowMargin) = CreateEditor("line\n");
-        var (_, _, wideMargin) = CreateEditor(string.Concat(Enumerable.Repeat("line\n", 150)));
-
-        Arrange(narrowMargin);
-        Arrange(wideMargin);
-
-        // Sanity check: the two columns really do end up different widths, otherwise the Scale
-        // equality below would hold trivially and prove nothing about the fix.
-        Assert.NotEqual(narrowMargin.Bounds.Width, wideMargin.Bounds.Width);
-
-        var narrowTransform = narrowMargin.ComputeIconTransform(lineH: 20, yTop: 0);
-        var wideTransform = wideMargin.ComputeIconTransform(lineH: 20, yTop: 0);
-
-        Assert.Equal(narrowTransform.Scale, wideTransform.Scale, precision: 6);
-        Assert.NotEqual(narrowTransform.X, wideTransform.X);
+        Assert.Equal(CodeFixMargin.MinimumHitTargetSize, shortMargin.Bounds.Width, 3);
+        Assert.Equal(shortMargin.Bounds.Width, longMargin.Bounds.Width, 3);
+        Assert.Equal(shortMargin.Bounds.Width, shortMargin.HitTarget()!.Value.Width, 3);
+        Assert.Equal(shortMargin.ComputeIconTransform(lineH: 20, yTop: 0).Scale,
+            longMargin.ComputeIconTransform(lineH: 20, yTop: 0).Scale, 6);
     }
 
     // Confirms the click target was never
@@ -514,21 +486,18 @@ public class CodeFixMarginTests
             Assert.Equal(center, margin.ResolveCandidatesForClick(point));
     }
 
-    // Outside the square nothing happens — beside it on the same line (a wide column: four-digit line
-    // numbers) and above/below it.
+    // Outside the square — above and below it, in this column — nothing happens. (Beside it there is no
+    // room: the column is as wide as the square.)
     [AvaloniaFact]
     public void AClickOutsideTheSquare_Should_NotOpenAnyFix()
     {
         var (_, editor, margin) = CreateEditor(Lines(1500));
         MarginWithFixOnCaretLine(editor, margin, 3);
         var t = margin.HitTarget()!.Value;
-        Assert.True(margin.Bounds.Width > t.Width + 4, $"column {margin.Bounds.Width}, target {t.Width}");
 
-        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.X - 1, t.Center.Y)));
-        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Right + 1, t.Center.Y)));
         Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Center.X, t.Y - 1)));
         Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Center.X, t.Bottom + 1)));
-        Assert.Empty(margin.ResolveCandidatesForClick(new Point(0.5, t.Center.Y)));
+        Assert.Empty(margin.ResolveCandidatesForClick(new Point(t.Center.X, t.Bottom + 3 * margin.TextView.DefaultLineHeight)));
     }
 
     // A line shorter than the square: the part of the square over the next line's row still opens

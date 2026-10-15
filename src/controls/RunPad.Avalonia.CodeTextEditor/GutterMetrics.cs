@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Rendering;
 
@@ -19,5 +20,38 @@ internal static class GutterMetrics
         var text = new FormattedText(probe, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
             typeface, editor.FontSize, Brushes.Black);
         return Math.Max(textView.DefaultLineHeight, text.Width + horizontalPadding * 2);
+    }
+
+    // ── Shared by every gutter column ────────────────────────────────────────
+
+    /// <summary>Top and height of a document line's row in the gutter (a margin's coordinates), or
+    /// null when the line is not on screen.</summary>
+    public static (double Top, double Height)? Row(TextView textView, int lineNumber)
+    {
+        if (!textView.VisualLinesValid) return null;
+        foreach (var vl in textView.VisualLines)
+        {
+            if (vl.FirstDocumentLine.LineNumber > lineNumber) break;
+            if (lineNumber > vl.LastDocumentLine.LineNumber) continue;
+            var top = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - textView.VerticalOffset;
+            return (top, vl.Height);
+        }
+        return null;
+    }
+
+    /// <summary>The subtle current-line band each gutter column paints behind the caret's row, so the
+    /// row reads as one across the gutter.</summary>
+    public static void DrawCurrentLineRow(DrawingContext context, TextView textView, int caretLine, double width)
+    {
+        if (Row(textView, caretLine) is not var (top, height)) return;
+        if (ThemedResource<IBrush>("RunPad.Margin.CurrentLineBrush") is { } brush)
+            context.FillRectangle(brush, new Rect(0, top, width, height));
+    }
+
+    public static T? ThemedResource<T>(string key) where T : class
+    {
+        object? res = null;
+        Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out res);
+        return res as T;
     }
 }
