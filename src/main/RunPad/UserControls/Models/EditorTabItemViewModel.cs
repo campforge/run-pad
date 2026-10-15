@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using ReactiveUI;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.Shared;
 
@@ -76,11 +77,20 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    public string FileName => FilePath is null ? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+    public string FileName => FilePath is null ? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+
+    /// <summary>The bundled example this untitled tab was opened from: its document is the tab's
+    /// starting text (a copy — the example itself never changes). Null for any other tab.</summary>
+    public ExampleScript? Example { get; init; }
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
     public List<DotnetSdk> AvailableSdks { get; }
+
+    // The toolbar's list: "latest (.NET …)" first — a script that follows the newest SDK — then each
+    // installed SDK by version.
+    public DotnetSdk? LatestSdk { get; }
+    public IReadOnlyList<DotnetSdk> SdkChoices { get; }
 
     public List<string> Kinds { get; } = new() { "Statements", "Program", "Expression" };
 
@@ -193,7 +203,9 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     {
         FilePath = filePath;
         AvailableSdks = sdks;
-        _selectedSdk = sdks.FirstOrDefault();
+        LatestSdk = TargetSdkResolver.LatestChoice(sdks);
+        SdkChoices = LatestSdk is null ? sdks : [LatestSdk, .. sdks];
+        _selectedSdk = LatestSdk;
         _prefs = prefs;
         _actions = actions;
         NewFileLanguage = newFileLanguage;

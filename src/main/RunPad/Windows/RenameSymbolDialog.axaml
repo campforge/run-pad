@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
         x:Class="RunPad.Windows.RenameSymbolDialog"
         Icon="/Assets/icon.ico"
         Title="Rename"
@@ -22,7 +23,7 @@
         <TextBox x:Name="NameBox"
                  Grid.Row="1"
                  FontSize="13"
-                 FontFamily="Consolas,Menlo,Courier New,monospace"
+                 FontFamily="{x:Static cte:MonospaceFont.Default}"
                  Padding="6,4"
                  Margin="0,0,0,12"
                  TextChanged="NameBox_TextChanged"/>

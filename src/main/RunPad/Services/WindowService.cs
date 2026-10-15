@@ -83,10 +83,10 @@ public sealed class WindowService : IWindowService
         var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Import LINQPad Query",
+            Title = "Import .linq Query",
             AllowMultiple = false,
             SuggestedStartLocation = startLocation,
-            FileTypeFilter = [new FilePickerFileType("LINQPad Query") { Patterns = ["*.linq"] }],
+            FileTypeFilter = [new FilePickerFileType(".linq Query") { Patterns = ["*.linq"] }],
         });
         return files.Count > 0 ? files[0].TryGetLocalPath() : null;
     }

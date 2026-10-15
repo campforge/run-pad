@@ -36,7 +36,7 @@ RunPad, under the project's license and, if the licensing ever changes, under ot
 - **License:** contributions are GPL-3.0 ([`LICENSE`](LICENSE)); `src/runtime/RunPad.Runtime` is MIT
   ([its `LICENSE`](src/runtime/RunPad.Runtime/LICENSE)) and must stay free of dependencies and of code
   copied from other RunPad projects, because it ships inside users' programs.
-- **Clean-room:** do not copy code, icons or other assets from proprietary software, LINQPad included.
+- **Clean-room:** do not copy code, icons or other assets from proprietary software.
   Matching a public API shape for compatibility is fine; the implementation must be your own, from
   documentation and observed behavior. Third-party code or assets need a permissive license compatible
   with GPL-3.0, keep that license next to them, and credit the source in the file (as the analyzers

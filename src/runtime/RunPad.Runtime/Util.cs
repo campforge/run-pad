@@ -34,6 +34,47 @@ public static class Util
     /// </summary>
     public static string? CurrentQueryPath => Environment.GetEnvironmentVariable(CurrentQueryPathEnvVar);
 
+    // Mirror ChildProcess.CancelFileEnvVar/CompiledDotnetLanguageHostBase.CancelListeningPrefix: RunPad
+    // creates this file when the user presses Stop, and learns that the script listens for it from a
+    // stdout line starting with CancelListeningPrefixChar.
+    internal const string CancelFileEnvVar = "RUNPAD_CANCEL_FILE";
+    internal const char CancelListeningPrefixChar = '\x1d'; // ASCII Group Separator
+    private static readonly TimeSpan CancelPollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly object CancellationLock = new();
+    private static CancellationTokenSource? _cancellation;
+    private static Timer? _cancelPoll;
+
+    /// <summary>
+    /// Cancelled when the user presses Stop. A script that uses it — directly, or by declaring
+    /// <c>Main(CancellationToken)</c> / <c>Main(string[], CancellationToken)</c> — gets a few seconds to
+    /// close files, connections and child processes before RunPad ends it; a script that never asks
+    /// for it is stopped at once. Never cancelled when the script runs outside RunPad.
+    /// </summary>
+    public static CancellationToken CancellationToken
+    {
+        get
+        {
+            lock (CancellationLock)
+            {
+                if (_cancellation is not null) return _cancellation.Token;
+                _cancellation = new CancellationTokenSource();
+                if (Environment.GetEnvironmentVariable(CancelFileEnvVar) is { Length: > 0 } cancelFile)
+                {
+                    var cts = _cancellation;
+                    _cancelPoll = new Timer(_ =>
+                    {
+                        if (!File.Exists(cancelFile)) return;
+                        _cancelPoll?.Dispose();
+                        cts.Cancel();
+                    }, null, CancelPollInterval, CancelPollInterval);
+                    Console.WriteLine(CancelListeningPrefixChar.ToString());
+                    Console.Out.Flush();
+                }
+                return _cancellation.Token;
+            }
+        }
+    }
+
     /// <summary>
     /// The process-wide default rendering options every <c>.Dump()</c> call starts from —
     /// LINQPad-compatible <c>Util.DumpDefaults</c> (signature verified against the real

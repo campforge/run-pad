@@ -103,7 +103,11 @@ public sealed class SetupWizardViewModel : ReactiveObject
         try
         {
             var progress = CreateProgressReporter();
-            await _installer.InstallDotnetSdkAsync(progress, cts.Token);
+            // Saved like netcoredbg's path: the installer only puts the SDK on this process's PATH,
+            // so after a restart — on macOS any start from Finder or the Dock — it wasn't found again.
+            var dotnetPath = await _installer.InstallDotnetSdkAsync(progress, cts.Token);
+            _preferences.Debugger.DotnetPath = dotnetPath;
+            _preferences.Save();
             StatusText = ".NET SDK installed.";
         }
         catch (OperationCanceledException)

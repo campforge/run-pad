@@ -77,7 +77,7 @@ public class EditorTabsControlShowAllTabsTests
         try
         {
             var pathA = Path.Combine(rootFolder, "A.rpad");
-            File.WriteAllText(pathA, RpadWriter.NewFile("A"));
+            File.WriteAllText(pathA, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "A"));
             mainVm.OpenTab(pathA);
             await TestWait.WhileAsync(() => mainVm.Tabs.Count < 2);
 

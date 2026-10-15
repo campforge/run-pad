@@ -10,6 +10,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Services;
+using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.Shared;
 using RunPad.UserControls.Models;
@@ -21,6 +22,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly IFileSystemService _fileSystemService;
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
+    private readonly ILanguageHostRegistry _languageRegistry;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
@@ -92,6 +94,60 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter));
         DependenciesWindowClosed?.Invoke();
+    }
+
+    // ── Sidebar tabs: Queries (the file tree) and Examples ──────────────────────
+
+    public const int QueriesTab = 0;
+    public const int ExamplesTab = 1;
+
+    /// <summary>Which of the sidebar's tabs is shown; both keep their state while hidden.</summary>
+    public int SidebarTab
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(IsQueriesTabShown));
+            this.RaisePropertyChanged(nameof(IsExamplesTabShown));
+            this.RaisePropertyChanged(nameof(ShowNoExamplesHint));
+        }
+    }
+
+    // Both panels stay in the tree and are only hidden, so the file tree keeps its selection,
+    // expanded folders and scroll position while Examples is shown.
+    public bool IsQueriesTabShown => SidebarTab != ExamplesTab;
+    public bool IsExamplesTabShown => SidebarTab == ExamplesTab;
+    public bool ShowNoExamplesHint => IsExamplesTabShown && Examples.Count == 0;
+
+    /// <summary>The bundled examples (empty if none could be read).</summary>
+    public IReadOnlyList<ExampleScript> Examples { get; init; } = ExampleScripts.All;
+
+    /// <summary>
+    /// Opens an example as an untitled, unsaved copy — never run, nothing written to disk; Save
+    /// asks where to save it, as for any new script. An example already open in an untitled tab is
+    /// brought to the front instead of opened again.
+    /// </summary>
+    public void OpenExample(ExampleScript example)
+    {
+        if (Tabs.FirstOrDefault(t => t.FilePath is null && t.Example?.Id == example.Id) is { } open)
+        {
+            ActiveTab = open;
+            return;
+        }
+
+        // Like opening a file: the initial blank tab goes if it is still pristine.
+        EditorTabItemViewModel? blankToClose = null;
+        if (Tabs.Count == 1 && Tabs[0].FilePath is null && Tabs[0].Example is null && !Tabs[0].IsDirty)
+            blankToClose = Tabs[0];
+
+        AddTab(new EditorTabItemViewModel(null, AvailableSdks, _prefs, this, example.Language, example.Kind)
+        {
+            Example = example,
+        });
+
+        if (blankToClose is not null)
+            CloseTab(blankToClose);
     }
 
     // ── Sidebar layout (collapsible file tree) ────────────────────────────────
@@ -600,7 +656,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
     {
         var parentDir = ResolveParentDir(contextPath);
-        var path = _fileSystemService.CreateNewFile(parentDir, language, kind);
+        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind)).Text;
+        var path = _fileSystemService.CreateNewFile(parentDir, language, kind, code);
         await RefreshNodesAsync();
         OpenTab(path);
         return path;
@@ -652,6 +709,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
         // constructor body.
+        _languageRegistry = languageRegistry;
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);

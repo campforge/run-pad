@@ -75,7 +75,7 @@ public class FileSystemServiceTests
         var dir = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
         try
         {
-            var path = service.CreateNewFile(dir, RpadLanguage.Vb, RpadKind.Program);
+            var path = service.CreateNewFile(dir, RpadLanguage.Vb, RpadKind.Program, "");
 
             Assert.True(File.Exists(path));
             var doc = RpadParser.TryParse(File.ReadAllText(path));
@@ -95,7 +95,7 @@ public class FileSystemServiceTests
         {
             File.WriteAllText(Path.Combine(dir, "Query 1.rpad"), "");
 
-            var path = service.CreateNewFile(dir, RpadLanguage.CSharp, RpadKind.Statements);
+            var path = service.CreateNewFile(dir, RpadLanguage.CSharp, RpadKind.Statements, "");
 
             Assert.Equal(Path.Combine(dir, "Query 2.rpad"), path);
         }

@@ -8,10 +8,17 @@ using AvaloniaEdit.Rendering;
 
 namespace RunPad.Avalonia.CodeTextEditor;
 
+// Folding chevrons, Rider-style: a collapsed block's chevron is always shown; an expanded block's
+// only while the pointer is over this column — anywhere in it, revealing all of them at once — so
+// the gutter stays quiet while reading code. Hovering changes only colors and visibility, never the
+// layout. Also the thin scope line of each expanded block, the active one (the block whose braces
+// the caret is at) emphasized.
 internal sealed class FoldingMargin : AbstractMargin
 {
     private readonly FoldingManager _manager;
     private FoldingSection? _hovered;
+    private bool _columnHovered;
+    private (int Open, int Close)? _activeBraces;
 
     private const double W = 16.0; // gutter width — wide enough to hit easily
 
@@ -27,20 +34,70 @@ internal sealed class FoldingMargin : AbstractMargin
 
     protected override Size MeasureOverride(Size _) => new(W, 0);
 
+    /// <summary>The matched brace pair at the caret, if any: the block it encloses gets the active scope
+    /// line.</summary>
+    public void SetActiveBraces(int open, int close)
+    {
+        (int, int)? value = open >= 0 && close >= 0 ? (open, close) : null;
+        if (_activeBraces == value) return;
+        _activeBraces = value;
+        InvalidateVisual();
+    }
+
+    // Test-only (InternalsVisibleTo).
+    internal bool IsColumnHovered => _columnHovered;
+    internal FoldingManager ManagerForTests => _manager;
+    internal int? ActiveFoldStartLineForTests => ActiveSection() is { } section && Document is { } doc
+        ? doc.GetLineByOffset(section.StartOffset - 1).LineNumber
+        : null;
+
+    // Which chevrons are drawn now: (line, collapsed) for each fold starting on a visible line —
+    // collapsed ones always, expanded ones only while the column is hovered.
+    internal IReadOnlyList<(int Line, bool Collapsed)> VisibleChevrons()
+    {
+        var tv = TextView;
+        var doc = Document;
+        if (tv is null || doc is null || !tv.VisualLinesValid) return [];
+        var result = new List<(int, bool)>();
+        foreach (var vl in tv.VisualLines)
+        {
+            if (FindFoldStartOnLine(vl, doc) is not { } section) continue;
+            if (section.IsFolded || _columnHovered)
+                result.Add((vl.FirstDocumentLine.LineNumber, section.IsFolded));
+        }
+        return result;
+    }
+
+    private FoldingSection? ActiveSection()
+    {
+        if (_activeBraces is not var (open, close)) return null;
+        // BraceFoldingStrategy: StartOffset = the opening brace + 1, EndOffset = the closing brace.
+        return _manager.AllFoldings.FirstOrDefault(f => f.StartOffset - 1 == open && f.EndOffset == close);
+    }
+
     public override void Render(DrawingContext ctx)
     {
         var tv = TextView;
         var doc = Document;
         if (tv is null || doc is null || !tv.VisualLinesValid || tv.VisualLines.Count == 0) return;
 
+        // Transparent, but it makes the whole column hit-testable: with the expanded chevrons hidden
+        // nothing else is drawn there, and the pointer must still "hover the column" to reveal them.
+        ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
+        if (TextArea is { } textArea)
+            GutterMetrics.DrawCurrentLineRow(ctx, tv, textArea.Caret.Line, Bounds.Width);
+
         var chevronBrush = LoadThemedResource<IBrush>("RunPad.Folding.ChevronBrush");
         var hoverBrush = LoadThemedResource<IBrush>("RunPad.Folding.ChevronHoverBrush");
         var lineBrush = LoadThemedResource<IBrush>("RunPad.Folding.LineBrush");
+        var activeBrush = LoadThemedResource<IBrush>("RunPad.Editor.ActiveScopeGuideBrush") ?? lineBrush;
+        var active = ActiveSection();
 
         // ── Pass 1: thin vertical scope line for each expanded fold ──────────
         if (lineBrush is not null)
         {
             var linePen = new Pen(lineBrush, 1.0);
+            var activePen = new Pen(activeBrush, 1.0);
             var cx = Math.Floor(W / 2.0) + 0.5; // pixel-aligned centre
 
             foreach (var section in _manager.AllFoldings)
@@ -77,7 +134,7 @@ internal sealed class FoldingMargin : AbstractMargin
                 }
 
                 if (yStart.HasValue && hasEnd && yEnd > yStart.Value)
-                    ctx.DrawLine(linePen, new Point(cx, yStart.Value), new Point(cx, yEnd));
+                    ctx.DrawLine(section == active ? activePen : linePen, new Point(cx, yStart.Value), new Point(cx, yEnd));
             }
         }
 
@@ -86,15 +143,11 @@ internal sealed class FoldingMargin : AbstractMargin
         {
             var section = FindFoldStartOnLine(vl, doc);
             if (section is null) continue;
+            if (!section.IsFolded && !_columnHovered) continue; // expanded: only while the column is hovered
 
-            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
-            var yMid = yTop + vl.Height / 2.0;
+            var (rowTop, rowHeight) = GutterMetrics.FirstRow(tv, vl);
+            var yMid = rowTop + rowHeight / 2.0;
             var isHover = section == _hovered;
-
-            // Subtle background highlight across the full line height on hover
-            if (isHover)
-                ctx.FillRectangle(new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)),
-                                  new Rect(0, yTop, W, vl.Height));
 
             IBrush brush = (isHover ? hoverBrush : chevronBrush)
                            ?? new SolidColorBrush(isHover ? Colors.White : Color.FromRgb(100, 100, 100));
@@ -119,19 +172,28 @@ internal sealed class FoldingMargin : AbstractMargin
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        // Presses in the column stay here: a click beside a chevron must not move the caret.
+        e.Handled = true;
         var section = HitTest(e.GetPosition(this));
         if (section is null) return;
         section.IsFolded = !section.IsFolded;
         TextView?.InvalidateMeasure();
         InvalidateVisual();
-        e.Handled = true;
+    }
+
+    protected override void OnPointerEntered(PointerEventArgs e)
+    {
+        base.OnPointerEntered(e);
+        _columnHovered = true;
+        InvalidateVisual();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         var section = HitTest(e.GetPosition(this));
-        if (section == _hovered) return;
+        if (_columnHovered && section == _hovered) return;
+        _columnHovered = true;
         _hovered = section;
         InvalidateVisual();
     }
@@ -139,7 +201,7 @@ internal sealed class FoldingMargin : AbstractMargin
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
-        if (_hovered is null) return;
+        _columnHovered = false;
         _hovered = null;
         InvalidateVisual();
     }

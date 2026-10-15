@@ -63,12 +63,15 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         Options = options;
         _logger = logger;
         _outputDir = options.OutputDirectory;
-        _objDir = Path.Combine(_outputDir, "obj");
+        _objDir = ObjDirectory(_outputDir);
         _sourcePath = Path.Combine(_outputDir, options.OutputName + SourceFileExtension);
         _binDir = Path.Combine(_outputDir, BinDir);
         _dllPath = Path.Combine(_binDir, options.OutputName + ".dll");
         _pdbPath = Path.Combine(_binDir, options.OutputName + ".pdb");
     }
+
+    /// <summary>Where a build in <paramref name="outputDirectory"/> restores its packages.</summary>
+    public static string ObjDirectory(string outputDirectory) => Path.Combine(outputDirectory, "obj");
 
     // ── Language specifics ───────────────────────────────────────────────────
 

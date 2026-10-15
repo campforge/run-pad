@@ -240,7 +240,7 @@ public class EditorTabsControlCloseConfirmationTests
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             mainVm.OpenTab(filePath);
             await TestWait.WhileAsync(() => mainVm.ActiveTab?.FrontMatter is null);
             var tab = mainVm.Tabs.Single(t => t.FilePath == filePath);
@@ -435,7 +435,7 @@ public class EditorTabsControlCloseConfirmationTests
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(2);";
             File.SetUnixFileMode(filePath, UnixFileMode.UserRead);
@@ -468,7 +468,7 @@ public class EditorTabsControlCloseConfirmationTests
         try
         {
             var filePath = Path.Combine(rootFolder, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(3);";
             mainVm.NewRpadFile(); // makes the named tab inactive
@@ -495,7 +495,7 @@ public class EditorTabsControlCloseConfirmationTests
         var filePath = Path.Combine(rootFolder, "demo.rpad");
         try
         {
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (tab, ctrl) = await OpenNamedTabAsync(editorTabs, mainVm, filePath);
             ctrl.State.Editor.Text = "Console.WriteLine(4);";
             mainVm.NewRpadFile();

@@ -1,0 +1,25 @@
+---
+version: "1.0"
+language: csharp
+targetSdk: latest
+kind: Statements
+---
+
+# Quick start
+
+A first RunPad script. It prints one line of plain text and then renders a small
+collection as a table with `.Dump()`.
+
+Press **Run** (F5) and look at the **Results** tab under the editor.
+
+```csharp run
+var languages = new[] { "C#", "Visual Basic" };
+Console.WriteLine($"Hello from RunPad! {languages.Length} languages are supported.");
+
+languages
+    .Select((name, index) => new { Position = index + 1, Name = name, Letters = name.Length })
+    .Dump("Supported languages");
+```
+
+Everything outside the fenced `csharp run` block, including this paragraph, is ordinary
+Markdown. RunPad keeps it unchanged when it saves the file.

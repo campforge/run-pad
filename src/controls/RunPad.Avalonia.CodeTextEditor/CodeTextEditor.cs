@@ -37,6 +37,8 @@ public class CodeTextEditor : TextEditor
     private readonly CodeFixMargin _codeFixMargin;
     private readonly DebugLineHighlighter _debugLineHighlighter;
     private readonly BraceMatchHighlighter _braceMatchHighlighter = new();
+    private readonly GutterSeparatorMargin _gutterSeparator = new();
+    private int _gutterCaretLine;
     private readonly OccurrenceHighlighter _occurrenceHighlighter = new();
     // Debounce before recomputing folding regions after a text change — long enough that fast
     // typing doesn't re-run the folding strategy on every keystroke.
@@ -143,6 +145,12 @@ public class CodeTextEditor : TextEditor
     /// session (e.g. DecompiledViewWindow.Editor): lets a test confirm what UpdateCodeFixes actually
     /// did without simulating a real paint pass.</summary>
     internal CodeFixSeverity? WorstCodeFixSeverityOnLine(int line) => _codeFixMargin.WorstSeverityOnLine(line);
+
+    // Test-only (InternalsVisibleTo): the gutter's folding margin and separator, and the brace pair
+    // highlighter.
+    internal FoldingMargin? FoldingMarginForTests => _foldingMargin;
+    internal GutterSeparatorMargin GutterSeparatorForTests => _gutterSeparator;
+    internal BraceMatchHighlighter BraceMatchHighlighterForTests => _braceMatchHighlighter;
 
     /// <summary>Fired when the user clicks a specific lightbulb menu entry — see CodeFixEntry's own
     /// doc comment for why materializing/applying it is left entirely to whoever owns
@@ -292,6 +300,7 @@ public class CodeTextEditor : TextEditor
         _codeFixMargin = new CodeFixMargin(this);
         _codeFixMargin.FixApplyRequested += fix => FixApplyRequested?.Invoke(fix);
         TextArea.LeftMargins.Add(_codeFixMargin);
+        TextArea.LeftMargins.Add(_gutterSeparator);
         _debugLineHighlighter = new DebugLineHighlighter();
 
         _foldingTimer = new DispatcherTimer { Interval = FoldingDebounce };
@@ -315,6 +324,7 @@ public class CodeTextEditor : TextEditor
         TextArea.TextView.BackgroundRenderers.Add(_braceMatchHighlighter);
         TextArea.TextView.BackgroundRenderers.Add(_occurrenceHighlighter);
         TextArea.Caret.PositionChanged += (_, _) => UpdateBraceMatch();
+        TextArea.Caret.PositionChanged += (_, _) => UpdateGutterCaretLine();
         TextArea.Caret.PositionChanged += (_, _) => UpdateOccurrenceHighlights();
         // The active (bold) parameter used to update only when a "," was
         // typed — clicking, arrow keys, Home/End, etc. left it stuck on whatever slot was active when
@@ -463,6 +473,26 @@ public class CodeTextEditor : TextEditor
             leftMargins.Insert(0, _breakpointMargin);
         else
             leftMargins.Remove(_breakpointMargin);
+        KeepGutterSeparatorLast();
+    }
+
+    // The separator sits between the whole gutter and the code, whichever margins come and go.
+    private void KeepGutterSeparatorLast()
+    {
+        var leftMargins = TextArea.LeftMargins;
+        if (leftMargins.Count > 0 && leftMargins[^1] == _gutterSeparator) return;
+        leftMargins.Remove(_gutterSeparator);
+        leftMargins.Add(_gutterSeparator);
+    }
+
+    // The gutter columns paint the caret's row: repaint them when the caret moves to another line.
+    private void UpdateGutterCaretLine()
+    {
+        var line = TextArea.Caret.Line;
+        if (line == _gutterCaretLine) return;
+        _gutterCaretLine = line;
+        _breakpointMargin.InvalidateVisual();
+        _foldingMargin?.InvalidateVisual();
     }
 
     private void OnShowFoldingChanged(bool? show)
@@ -493,6 +523,7 @@ public class CodeTextEditor : TextEditor
             _foldingMargin = new FoldingMargin(_foldingManager);
             TextArea.LeftMargins.Insert(idx, _foldingMargin);
         }
+        KeepGutterSeparatorLast();
 
         UpdateFoldings();
     }
@@ -523,6 +554,8 @@ public class CodeTextEditor : TextEditor
             _braceMatchHighlighter.Clear();
         else
             _braceMatchHighlighter.Update(open, close, matched);
+        if (matched) _foldingMargin?.SetActiveBraces(open, close);
+        else _foldingMargin?.SetActiveBraces(-1, -1);
         TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
     }
 

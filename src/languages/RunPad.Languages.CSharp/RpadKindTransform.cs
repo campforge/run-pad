@@ -42,16 +42,23 @@ internal static class RpadKindTransform
     public const string ProgramWrapperClassName = "__RunPadProgram";
     private const string TrampolineMethodName = "__RunPadRun";
 
+    // Cancelled when the user presses Stop; RunPad then waits a moment for the script to finish.
+    private const string CancellationTokenExpression = "global::Util.CancellationToken";
+
     // Glued onto one physical line, immediately followed by the wrapper class's header and opening
     // brace, each on its own line: exactly 2 embedded '\n's, regardless of whether Main turned out to
     // be Task-returning (CalcKindOffset relies on this being a plain constant, not code-dependent).
     // Always calls the trampoline (see class doc comment for why, not Main directly) — statically, so
     // it never needs `new`/an IsStatic check here; that check lives in ProgramSuffixFor instead, where
     // the trampoline itself decides how to reach the user's actual Main.
+    // The top-level `args` are the script's command-line arguments; an int-returning Main's result is
+    // returned from the top level, which makes it the process exit code.
     public static string ProgramPrefixFor(string code)
     {
-        var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}()";
-        var callStatement = ProgramEntryPointDetector.DetectMain(code).ReturnsTask ? $"await {call};" : $"{call};";
+        var main = ProgramEntryPointDetector.DetectMain(code);
+        var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
+        if (main.ReturnsTask) call = "await " + call;
+        var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
         return $"{callStatement}class {ProgramWrapperClassName}\n{{\n";
     }
 
@@ -64,12 +71,26 @@ internal static class RpadKindTransform
     public static string ProgramSuffixFor(string code)
     {
         var main = ProgramEntryPointDetector.DetectMain(code);
-        var mainCall = main.IsStatic ? "Main()" : $"new {ProgramWrapperClassName}().Main()";
+        var arguments = main.Parameters switch
+        {
+            ProgramEntryPointDetector.MainParameters.Args => "args",
+            ProgramEntryPointDetector.MainParameters.Token => CancellationTokenExpression,
+            ProgramEntryPointDetector.MainParameters.ArgsAndToken => $"args, {CancellationTokenExpression}",
+            _ => "",
+        };
+        var mainCall = main.IsStatic ? $"Main({arguments})" : $"new {ProgramWrapperClassName}().Main({arguments})";
+        var returnType = (main.ReturnsTask, main.ReturnsInt) switch
+        {
+            (true, true) => "global::System.Threading.Tasks.Task<int>",
+            (true, false) => "global::System.Threading.Tasks.Task",
+            (false, true) => "int",
+            _ => "void",
+        };
         // internal (not private): unlike Main, the trampoline IS called from outside the class — the
         // top-level-statement call site ProgramPrefixFor glues in front of the class declaration.
-        var trampoline = main.ReturnsTask
-            ? $"internal static Task {TrampolineMethodName}() => {mainCall};"
-            : $"internal static void {TrampolineMethodName}() {{ {mainCall}; }}";
+        var trampoline = returnType == "void"
+            ? $"internal static void {TrampolineMethodName}(string[] args) {{ {mainCall}; }}"
+            : $"internal static {returnType} {TrampolineMethodName}(string[] args) => {mainCall};";
         return $"\n{trampoline}\n}}\n";
     }
 }

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
         x:Class="RunPad.Windows.ConditionDialog"
         Icon="/Assets/icon.ico"
         Title="Conditional Breakpoint"
@@ -27,7 +28,7 @@
         <TextBox x:Name="ConditionBox"
                  Grid.Row="2"
                  FontSize="13"
-                 FontFamily="Consolas,Menlo,Courier New,monospace"
+                 FontFamily="{x:Static cte:MonospaceFont.Default}"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
 
@@ -40,7 +41,7 @@
         <TextBox x:Name="HitConditionBox"
                  Grid.Row="4"
                  FontSize="13"
-                 FontFamily="Consolas,Menlo,Courier New,monospace"
+                 FontFamily="{x:Static cte:MonospaceFont.Default}"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
 
