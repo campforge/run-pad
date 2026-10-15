@@ -20,6 +20,8 @@ Notable changes in each RunPad release. Downloads are on the
 - The editor's gutter is more compact and calmer: a thin line separates it from the code, the current
   line's row is highlighted, and breakpoints and the lightbulb are sized to the text. Fold arrows of
   open blocks appear while the pointer is over the fold column; collapsed blocks always show theirs.
+  On a wrapped line, its number, breakpoint, lightbulb and fold arrow sit next to its first row — the
+  lightbulb used to appear lower, in the middle of the whole line.
 - With the caret at a brace, both braces of the pair are highlighted in the theme's colors, and the
   guide between them is emphasized in the code and in the gutter.
 

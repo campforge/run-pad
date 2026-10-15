@@ -145,8 +145,8 @@ internal sealed class FoldingMargin : AbstractMargin
             if (section is null) continue;
             if (!section.IsFolded && !_columnHovered) continue; // expanded: only while the column is hovered
 
-            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop) - tv.VerticalOffset;
-            var yMid = yTop + vl.Height / 2.0;
+            var (rowTop, rowHeight) = GutterMetrics.FirstRow(tv, vl);
+            var yMid = rowTop + rowHeight / 2.0;
             var isHover = section == _hovered;
 
             IBrush brush = (isHover ? hoverBrush : chevronBrush)

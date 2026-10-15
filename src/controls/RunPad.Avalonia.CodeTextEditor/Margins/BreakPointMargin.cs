@@ -87,9 +87,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         foreach (var vl in TextView.VisualLines)
         {
             var lineNo = vl.FirstDocumentLine.LineNumber;
-            var lineH = vl.Height;
-            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                          - TextView.VerticalOffset;
+            // number and markers on the line's first row (see GutterMetrics.FirstRow)
+            var (yTop, lineH) = GutterMetrics.FirstRow(TextView, vl);
             var bpAtLine = _manager?.FirstOrDefault(bp => bp.Line == lineNo);
             var hasBp = bpAtLine is not null;
             var isDebug = DebugLine == lineNo;

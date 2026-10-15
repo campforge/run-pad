@@ -557,24 +557,54 @@ public class CodeFixMarginTests
         Assert.Null(margin.HitTarget());
     }
 
-    // A wrapped caret line: the glyph and its square sit at the middle of the whole wrapped line.
-    [AvaloniaFact]
-    public void OnAWrappedLine_TheSquare_Should_StayCenteredOnTheGlyph()
+    // A wrapped caret line: the glyph — its actual drawn shape, the app's own icon — and its square sit
+    // on the line's first rendered row, the row the code starts on, not in the middle of the whole
+    // multi-row block (where the bulb ended up below the line's start). Several font sizes: the
+    // position follows the row, with no fixed correction.
+    [AvaloniaTheory]
+    [InlineData(9.0)]
+    [InlineData(14.0)]
+    [InlineData(28.0)]
+    public void OnAWrappedLine_TheGlyph_Should_BeCenteredOnTheFirstTextRow(double fontSize)
     {
-        var (window, editor, margin) = CreateEditor("short\n" + string.Join(' ', Enumerable.Repeat("wrapped", 80)) + "\nshort\n");
-        window.Width = 300;
-        editor.WordWrap = true;
-        MarginWithFixOnCaretLine(editor, margin, 2);
-        var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
-        Assert.True(vl.TextLines.Count > 1);
+        // avares://RunPad/ resolves only once the RunPad assembly is loaded
+        _ = typeof(RunPad.App).Assembly;
+        var icons = new global::Avalonia.Markup.Xaml.Styling.ResourceInclude(new Uri("avares://RunPad/"))
+        {
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
+        };
+        Application.Current!.Resources.MergedDictionaries.Add(icons);
+        try
+        {
+            var (window, editor, margin) = CreateEditor("short\n" + string.Join(' ', Enumerable.Repeat("wrapped", 80)) + "\nshort\n");
+            window.Width = 300;
+            editor.FontSize = fontSize;
+            editor.WordWrap = true;
+            MarginWithFixOnCaretLine(editor, margin, 2);
+            var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
+            Assert.True(vl.TextLines.Count > 2, $"{vl.TextLines.Count} rows");
 
-        var t = margin.HitTarget()!.Value;
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop)
-                   - margin.TextView.VerticalOffset;
-        var (scale, x, y) = margin.ComputeIconTransform(vl.Height, yTop);
-        Assert.Equal(y + 12 * scale, t.Center.Y, 6);
-        Assert.Equal(x + 12 * scale, t.Center.X, 6);
-        Assert.Single(margin.ResolveCandidatesForClick(new Point(t.X + 0.5, t.Y + 0.5)));
+            var offset = margin.TextView.VerticalOffset;
+            var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
+            var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
+            var rowCenter = (rowTop + rowBottom) / 2;
+            var blockCenter = rowTop + vl.Height / 2;
+
+            var glyph = Assert.NotNull(margin.GlyphBounds());
+            Assert.InRange(glyph.Center.Y, rowCenter - 0.5, rowCenter + 0.5);
+            Assert.True(glyph.Top >= rowTop - 0.5 && glyph.Bottom <= rowBottom + 0.5,
+                $"glyph {glyph.Top}..{glyph.Bottom}, row {rowTop}..{rowBottom}");
+            Assert.True(blockCenter - glyph.Center.Y > (rowBottom - rowTop) / 2, "not centered on the whole block");
+
+            var t = margin.HitTarget()!.Value;
+            Assert.Equal(rowCenter, t.Center.Y, 3);
+            Assert.Equal(glyph.Center.X, t.Center.X, 3);
+            Assert.Single(margin.ResolveCandidatesForClick(new Point(t.X + 0.5, t.Y + 0.5)));
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(icons);
+        }
     }
 
     // A large font makes the glyph bigger than 24 px: the square grows with it, still inside the column.
