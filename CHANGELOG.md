@@ -24,6 +24,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- A script runs on the .NET version its `targetSdk` names, in the RunPad window and the
+  command-line runner alike. The toolbar's SDK list shows it — **latest (.NET 10.0.100)** keeps
+  `targetSdk: latest`, any other entry writes its version — and a version that isn't installed runs on
+  the newest SDK with a warning in Results and *(not installed)* in the status bar. Before, `targetSdk`
+  was only shown and the newest SDK always ran. New scripts get `targetSdk: latest`.
 - The File menu's import command is now called **Import .linq Query...**.
 - A new Statements or Expression script created from the file tree starts empty, like one created
   with **File → New File**.

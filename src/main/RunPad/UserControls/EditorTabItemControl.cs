@@ -131,7 +131,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
         // Another target framework can mean other compile assets of the same packages.
-        _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(_ => RefreshIntelliSensePackages());
+        _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(OnSelectedSdkChanged);
 
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
@@ -321,6 +321,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IlOutput.Text = "";
         SetStatus("Process", "RunPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
+        if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
+            s.Output.Append($"\n<div>warning: {HttpUtility.HtmlEncode(sdkWarning)}</div>");
         UpdateOutputUi();
 
         if (_vm.FilePath is not null)
@@ -1635,6 +1637,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
+        // The toolbar shows the SDK the script's targetSdk names: "latest (…)" for `latest`, else that
+        // version (or the newest, when it isn't installed — RunAsync then says so).
+        var targetSdk = rpad?.FrontMatter.TargetSdk ?? TargetSdk.Default;
+        _syncingSdk = true;
+        try
+        {
+            _vm.SelectedSdk = TargetSdkResolver.IsLatest(targetSdk)
+                ? _vm.LatestSdk
+                : TargetSdkResolver.Resolve(_vm.AvailableSdks, targetSdk);
+        }
+        finally
+        {
+            _syncingSdk = false;
+        }
 
         // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
         // editor.Document below fires TextChanged synchronously, which is what actually triggers the
@@ -1797,12 +1813,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         State.Editor.TextArea.Caret.BringCaretToView();
     }
 
+    // The front matter's targetSdk is the source of truth, like Kind: picking an SDK in the toolbar
+    // writes it — "latest (…)" as `latest`, any other entry as its version (net8.0). Selecting what the
+    // file already says when it opens (SetDocumentContent, _syncingSdk) isn't an edit.
+    private bool _syncingSdk;
+
+    private void OnSelectedSdkChanged(DotnetSdk? sdk)
+    {
+        RefreshIntelliSensePackages();
+        if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
+
+        var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
+        if (target == rpad.FrontMatter.TargetSdk) return;
+        rpad.FrontMatter.TargetSdk = target;
+        UpdateProjectInfoBlock();
+        CommitMetadataChange();
+    }
+
     // "{Kind} · {TargetSdk}" status-bar readout for the currently open .rpad —
     // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
     private void UpdateProjectInfoBlock()
         => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
-            ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
+            ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}{NotInstalledSuffix(rpad.FrontMatter.TargetSdk)}"
             : "";
+
+    // The script runs on another SDK than its targetSdk names (RunAsync prints the warning).
+    private string NotInstalledSuffix(TargetSdk target)
+        => _vm.SelectedSdk is { } sdk && TargetSdkResolver.Warning(target, sdk) is not null ? " (not installed)" : "";
 
     // The click-time half of
     // the lightbulb (both diagnostic fixes and refactorings feed the same CodeFixEntry.Key/

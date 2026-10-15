@@ -103,7 +103,7 @@
                         Height="24"
                         VerticalAlignment="Center"
                         VerticalContentAlignment="Center"
-                        ItemsSource="{Binding AvailableSdks}"
+                        ItemsSource="{Binding SdkChoices}"
                         SelectedItem="{Binding SelectedSdk}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="build:DotnetSdk">

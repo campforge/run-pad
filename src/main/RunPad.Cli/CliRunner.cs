@@ -67,12 +67,15 @@ public static class CliRunner
             return 1;
         }
 
-        var platform = new DotnetSdkProvider().Get().FirstOrDefault();
+        // The SDK the script's targetSdk names — the same rule as the RunPad window.
+        var platform = TargetSdkResolver.Resolve(new DotnetSdkProvider().Get(), document.FrontMatter.TargetSdk);
         if (platform is null)
         {
             stderr.WriteLine("No .NET SDK found (checked `dotnet --list-sdks`).");
             return 1;
         }
+        if (TargetSdkResolver.Warning(document.FrontMatter.TargetSdk, platform) is { } sdkWarning)
+            stderr.WriteLine("warning: " + sdkWarning);
 
         var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
