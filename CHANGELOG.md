@@ -39,8 +39,8 @@ Notable changes in each RunPad release. Downloads are on the
   lightbulb used to appear lower, in the middle of the whole line.
 - With the caret at a brace, both braces of the pair are highlighted in the theme's colors, and the
   guide between them is emphasized in the code and in the gutter.
-- The panel on the left has **Queries** and **Examples** tabs instead of the *FILES* heading; the
-  file tree is on **Queries**, with everything it did before.
+- The panel on the left has **Queries** and **Examples** tabs, styled like the editor's document tabs,
+  instead of the *FILES* heading; the file tree is on **Queries**, with everything it did before.
 - The lightbulb's column is narrower: just wide enough for the icon, which keeps its size and its
   click area around it.
 
