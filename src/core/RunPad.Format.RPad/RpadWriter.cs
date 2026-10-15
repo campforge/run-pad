@@ -25,7 +25,7 @@ public static class RpadWriter
     public static string NewFile(
         string code,
         string title = "Untitled",
-        string targetSdk = "net10.0",
+        string targetSdk = "latest",
         RpadKind kind = RpadKind.Statements,
         RpadLanguage language = RpadLanguage.CSharp)
     {

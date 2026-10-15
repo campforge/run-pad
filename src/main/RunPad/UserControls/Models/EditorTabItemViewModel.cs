@@ -87,6 +87,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public List<DotnetSdk> AvailableSdks { get; }
 
+    // The toolbar's list: "latest (.NET …)" first — a script that follows the newest SDK — then each
+    // installed SDK by version.
+    public DotnetSdk? LatestSdk { get; }
+    public IReadOnlyList<DotnetSdk> SdkChoices { get; }
+
     public List<string> Kinds { get; } = new() { "Statements", "Program", "Expression" };
 
     private string? _selectedKind = "Statements";
@@ -198,7 +203,9 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     {
         FilePath = filePath;
         AvailableSdks = sdks;
-        _selectedSdk = sdks.FirstOrDefault();
+        LatestSdk = TargetSdkResolver.LatestChoice(sdks);
+        SdkChoices = LatestSdk is null ? sdks : [LatestSdk, .. sdks];
+        _selectedSdk = LatestSdk;
         _prefs = prefs;
         _actions = actions;
         NewFileLanguage = newFileLanguage;
