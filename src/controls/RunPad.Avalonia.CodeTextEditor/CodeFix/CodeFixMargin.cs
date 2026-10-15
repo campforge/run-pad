@@ -98,6 +98,7 @@ public class CodeFixMargin : AbstractMargin
         // and moved the caret. A transparent fill paints nothing visible but makes the whole column
         // this margin's; ResolveCandidatesForClick decides which part of it opens the menu.
         context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
+        GutterMetrics.DrawCurrentLineRow(context, TextView, _caretLine, Bounds.Width);
 
         if (BulbLayout() is not var (severity, yTop, lineH)) return;
 
@@ -138,8 +139,7 @@ public class CodeFixMargin : AbstractMargin
     {
         if (BulbLayout() is not var (_, yTop, lineH)) return null;
 
-        var glyph = TextView.DefaultLineHeight * IconScaleFactor;
-        var side = Math.Min(Bounds.Width, Math.Max(MinimumHitTargetSize, glyph + 8));
+        var side = Math.Min(Bounds.Width, HitTargetSide());
         var center = new Point(Bounds.Width / 2, yTop + lineH / 2);
         return new Rect(center.X - side / 2, center.Y - side / 2, side, side);
     }
@@ -371,19 +371,19 @@ public class CodeFixMargin : AbstractMargin
 
     private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
 
-    // Matches BreakPointMargin's own line-number-column width (via the shared
-    // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two
-    // margins sit right next to each other in the gutter, so a mismatched width made the lightbulb
-    // and the line-number/debug-arrow icons look like two misaligned columns instead of one gutter.
+    // The column is exactly as wide as the bulb's square: a compact gutter, with the glyph right
+    // next to the line numbers (as in Rider), and one formula for both the width and the click
+    // target, so they cannot drift apart.
     protected override Size MeasureOverride(Size availableSize)
     {
         if (TextView is null) return new Size(0, 0);
         return new Size(ColumnWidth(), 0);
     }
 
-    private double ColumnWidth() => TextView.Document is null
-        ? TextView.DefaultLineHeight
-        : GutterMetrics.LineNumberColumnWidth(_editor, TextView, GutterHorizontalPadding);
+    private double ColumnWidth() => HitTargetSide();
+
+    // 24 logical pixels, or the glyph plus a margin when a large font makes the glyph bigger.
+    private double HitTargetSide() => Math.Max(MinimumHitTargetSize, TextView.DefaultLineHeight * IconScaleFactor + 8);
 
     // A new font size (zoom) or line count changes the column's width, and the bulb and its square
     // must stay inside it. Re-measured after the text view's own layout pass, not during it — same
@@ -402,10 +402,6 @@ public class CodeFixMargin : AbstractMargin
         });
     }
 
-    // Same padding constant as BreakPointMargin.HorizontalPadding — kept as a separate private
-    // constant (rather than a shared public one) since the two margins have no other reason to
-    // reference each other's internals; GutterMetrics is the only intentional coupling point.
-    private const double GutterHorizontalPadding = 6.0;
 
     // Scale used to be Bounds.Width * 0.72 / 24.0 — fine back when Bounds.Width was
     // a small fixed constant, but this margin's width was later made to track BreakPointMargin's own
