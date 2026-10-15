@@ -68,6 +68,12 @@ Notable changes in each RunPad release. Downloads are on the
   added as `latest`, with a floating version (`1.*`) or with a version range: they used to work
   only for an exact version, although such scripts compiled and ran. After a run, the editor uses
   the versions the restore actually chose, including the packages they depend on.
+- Code is shown in a real monospace font on macOS: the editor's default font resolved to
+  Helvetica there. With **Preferences → Editor → Font family** left at `monospace`, RunPad now uses
+  a fixed-width font that comes with the system — Menlo on macOS, Cascadia Mono or Consolas on
+  Windows, DejaVu Sans Mono or a similar font on Linux — in the editor, the quick-fix menu, the IL
+  view and the breakpoint condition, rename and package dialogs. A font you chose yourself is kept;
+  one that isn't installed falls back to that default. Font sizes are unchanged.
 
 ## [0.4.2] — 2026-10-14
 

@@ -1231,7 +1231,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.ShowLineNumberText = s.ShowLineNumbers;
         editor.ShowFolding = s.ShowFolding;
         editor.FontSize = s.FontSize;
-        editor.FontFamily = new FontFamily(s.FontFamily);
+        editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;
         editor.Options.ShowSpaces = s.ShowSpaces;

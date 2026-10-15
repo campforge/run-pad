@@ -1,3 +1,4 @@
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Format.RPad;
 
 namespace RunPad.Services.Preferences;
@@ -24,19 +25,14 @@ public sealed class EditorSettings
     // rendering as a single arrow) got substituted in — not something RunPad ever asked for, and with
     // no setting to turn it off since there was nothing to turn off in the first place.
     //
-    // "monospace" (the bare CSS-style generic keyword, not a real font name) rather than a named
-    // fallback chain like "Consolas,Menlo,Courier New,monospace" — confirmed via a live headless-Skia
-    // render probe that Avalonia's comma-separated FontFamily list does NOT cascade to the next name
-    // when the first one isn't installed (only used for *glyph-level* fallback within whatever font
-    // DID resolve): on Linux, where neither "Consolas" nor "Menlo" exist, that whole chain silently
-    // fell back to FluentTheme's own (proportional, non-monospace) default — the exact bug this is
-    // fixing, just reintroduced by the "fix" itself. The bare generic keyword is resolved specially by
-    // Avalonia's own font manager on every platform and reliably returned a real, non-ligature
-    // monospace font in that same probe. Real system monospace fonts essentially never enable
-    // ligatures by default (that's an opt-in feature of specific "programming" fonts like Fira Code/
-    // Cascadia Code/JetBrains Mono, not a general monospace-font trait), so this sidesteps the
-    // reported bug without needing to name (and keep working, per-platform) specific font families.
-    public string FontFamily { get; set; } = "monospace";
+    // "monospace" stands for the platform's default code font, not a font name: the editor shows it
+    // in MonospaceFont.Default, a fixed-pitch font that comes with the system (Menlo on macOS,
+    // Cascadia Mono or Consolas on Windows, DejaVu Sans Mono or similar on Linux). Kept generic
+    // rather than saving the font found on this machine, so a settings file moved to another
+    // system still gets that system's font. Those system fonts don't use ligatures (an opt-in
+    // feature of programming fonts such as Fira Code or Cascadia Code), so "=>" stays two
+    // characters unless the user picks such a font here.
+    public string FontFamily { get; set; } = MonospaceFont.GenericName;
 
     // Global switch for "typing punctuation also commits the open completion
     // window" — some users find that unpredictable and want completions accepted only via
