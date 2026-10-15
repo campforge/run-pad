@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Moq;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
@@ -311,5 +312,67 @@ public class InterfaceScalingTests
         prefs.Scale.SetCodeZoomPercent(150);
         vm.ResetInterfaceScaleCommand.Execute().Subscribe();
         Assert.Equal((100, 150), (vm.InterfaceScalePercent, vm.CodeZoomPercent));
+    }
+
+    // Preferences is designed at 760×480 with a 640×420 minimum. At 200% on a 1280×800 laptop screen
+    // (a 1280×775 work area below the macOS menu bar) the scaled minimum, 1280×840, used to be forced
+    // on the window although it can't fit: the window could neither fit nor be made smaller. The
+    // window must stay inside the work area, frame included, with its content scrolling instead, and
+    // come back to its designed sizes at 100%.
+    [AvaloniaFact]
+    public void AScaledDialog_Should_StayInsideASmallWorkArea_AndScroll_ThenRestoreAt100Percent()
+    {
+        var prefs = new Prefs();
+        var theme = new Mock<IThemeService>();
+        theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
+            new InterfaceTheme("Test", ThemeVariant.Dark, true),
+            new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
+        theme.Setup(t => t.InterfaceThemes).Returns([]);
+        theme.Setup(t => t.EditorThemes).Returns([]);
+        prefs.Mock.Setup(p => p.Experimental).Returns(new ExperimentalSettings());
+        prefs.Scale.SetInterfaceScalePercent(200);
+        var workArea = new Size(1280, 775);
+        InterfaceScaling.WorkAreaOverride = _ => workArea;
+        InterfaceScaling.Attach(prefs.Scale);
+        try
+        {
+            using var vm = new RunPad.Windows.Models.PreferencesWindowViewModel(theme.Object, prefs.Mock.Object, new LanguageHostRegistry());
+            var window = new RunPad.Windows.PreferencesWindow(vm);
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var frame = window.FrameSize ?? window.ClientSize;
+            var chrome = new Size(frame.Width - window.ClientSize.Width, frame.Height - window.ClientSize.Height);
+            Assert.True(window.MinWidth + chrome.Width <= workArea.Width && window.MinHeight + chrome.Height <= workArea.Height,
+                $"minimum {window.MinWidth}×{window.MinHeight} (+ frame {chrome}) exceeds the {workArea} work area");
+            Assert.True(window.Width + chrome.Width <= workArea.Width && window.Height + chrome.Height <= workArea.Height,
+                $"size {window.Width}×{window.Height} (+ frame {chrome}) exceeds the {workArea} work area");
+            Assert.Equal(2, InterfaceScaling.ScaleOf(window));
+
+            // The content keeps its designed minimum (in its own units) and scrolls to the rest of it.
+            Assert.True(InterfaceScaling.IsContentScrolling(window));
+            var scroller = window.GetVisualDescendants().OfType<ScrollViewer>().First();
+            Assert.True(scroller.Extent.Height > scroller.Viewport.Height, $"extent {scroller.Extent}, viewport {scroller.Viewport}");
+            Assert.True(scroller.Extent.Width >= 640 && scroller.Extent.Height >= 420, $"extent {scroller.Extent}");
+
+            // 150% fits that screen: scaled sizes, no scrolling.
+            prefs.Scale.SetInterfaceScalePercent(150);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal((960, 630, 1140, 720), (window.MinWidth, window.MinHeight, window.Width, window.Height));
+            Assert.False(InterfaceScaling.IsContentScrolling(window));
+
+            prefs.Scale.ResetInterfaceScale();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(100, prefs.Scale.InterfaceScalePercent);
+            Assert.Equal((640, 420, 760, 480), (window.MinWidth, window.MinHeight, window.Width, window.Height));
+            Assert.False(InterfaceScaling.IsContentScrolling(window));
+            Assert.Equal(1, InterfaceScaling.ScaleOf(window));
+            window.Close();
+        }
+        finally
+        {
+            InterfaceScaling.Detach();
+            InterfaceScaling.WorkAreaOverride = null;
+        }
     }
 }

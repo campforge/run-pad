@@ -61,6 +61,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         _prefs = prefs;
         _viewScale = ViewScale.For(prefs);
         _viewScale.Changed += OnViewScaleChanged;
+        InterfaceScaleOptions = [.. ScalePercent.InterfacePresets.Append(_viewScale.InterfaceScalePercent).Distinct().Order()];
         ResetInterfaceScaleCommand = ReactiveCommand.Create(_viewScale.ResetInterfaceScale);
         ResetCodeZoomCommand = ReactiveCommand.Create(_viewScale.ResetCodeZoom);
 
@@ -335,9 +336,11 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     // ── Interface scale and code zoom ─────────────────────────────────────────
 
-    /// <summary>The presets, plus the current value when a settings file holds another one.</summary>
-    public IReadOnlyList<int> InterfaceScaleOptions =>
-        [.. ScalePercent.InterfacePresets.Append(_viewScale.InterfaceScalePercent).Distinct().Order()];
+    /// <summary>
+    /// The presets, plus the value at opening when a settings file holds another one. Built once:
+    /// a new list while the window is open made the combo box re-select, and write back, the old value.
+    /// </summary>
+    public IReadOnlyList<int> InterfaceScaleOptions { get; }
 
     public int InterfaceScalePercent
     {
@@ -353,7 +356,6 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     private void OnViewScaleChanged()
     {
-        this.RaisePropertyChanged(nameof(InterfaceScaleOptions));
         this.RaisePropertyChanged(nameof(InterfaceScalePercent));
         this.RaisePropertyChanged(nameof(CodeZoomPercent));
     }
