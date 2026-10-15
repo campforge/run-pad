@@ -60,6 +60,44 @@
 
     </UserControl.Styles>
 
+    <DockPanel>
+
+    <!-- What the debugger reported about the current stop: the exception it stopped on and/or a
+         rejected step. Hidden for an ordinary breakpoint/step/pause stop and while running. -->
+    <Border DockPanel.Dock="Top"
+            Name="StopInfoBorder"
+            Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+            BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,6"
+            IsVisible="{Binding StoppedException, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <StackPanel Spacing="4">
+            <SelectableTextBlock Name="StoppedExceptionText"
+                                 Text="{Binding StoppedException}"
+                                 FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                                 Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
+            <ScrollViewer MaxHeight="120"
+                          HorizontalScrollBarVisibility="Auto"
+                          IsVisible="{Binding StoppedExceptionDetails, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <SelectableTextBlock Name="StoppedExceptionDetailsText"
+                                     Text="{Binding StoppedExceptionDetails}"
+                                     FontSize="11" FontFamily="Consolas,Menlo,Courier New,monospace"
+                                     Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+            </ScrollViewer>
+        </StackPanel>
+    </Border>
+    <Border DockPanel.Dock="Top"
+            Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+            BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,4"
+            IsVisible="{Binding StopNotice, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <SelectableTextBlock Name="StopNoticeText"
+                             Text="{Binding StopNotice}"
+                             FontSize="12" TextWrapping="Wrap"
+                             Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Border>
+
     <TabControl>
 
         <!-- ── Threads ─────────────────────────────────────────────────────── -->
@@ -243,4 +281,5 @@
         </TabItem>
 
     </TabControl>
+    </DockPanel>
 </UserControl>
