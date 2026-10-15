@@ -105,6 +105,22 @@ public class DapSessionExceptionStopTests
         return result;
     }
 
+    // seq of the count-th written request with this command.
+    private static int RequestSeq(MemoryStream input, string command, int count = 1)
+    {
+        var seqs = new List<int>();
+        foreach (var part in Encoding.UTF8.GetString(input.ToArray()).Split("Content-Length: ", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var bodyStart = part.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+            if (bodyStart < 0) continue;
+            using var doc = JsonDocument.Parse(part[(bodyStart + 4)..]);
+            if (doc.RootElement.GetProperty("command").GetString() == command)
+                seqs.Add(doc.RootElement.GetProperty("seq").GetInt32());
+        }
+
+        return seqs[count - 1];
+    }
+
     private static async Task WaitForRequestAsync(MemoryStream input, string command, int count = 1)
     {
         for (var i = 0; i < 100; i++)
@@ -116,8 +132,17 @@ public class DapSessionExceptionStopTests
         throw new TimeoutException($"""Never saw written "{command}" request #{count}.""");
     }
 
-    private static object Response(int seq, string command, object? body = null, bool success = true, string? message = null) =>
-        new { seq, type = "response", request_seq = seq, command, success, message, body = body ?? new { } };
+    private static object Response(int seq, string command, object? body = null, bool success = true, string? message = null, int? requestSeq = null) =>
+        new { seq, type = "response", request_seq = requestSeq ?? seq, command, success, message, body = body ?? new { } };
+
+    private static object ExceptionInfoBody(string typeName) => new
+    {
+        exceptionId = typeName,
+        breakMode = "unhandled",
+        details = new { message = "details of " + typeName, fullTypeName = typeName },
+    };
+
+    private static readonly TimeSpan ShortExceptionInfoTimeout = TimeSpan.FromMilliseconds(300);
 
     private static async Task HandshakeAsync(FakeChildProcess process, bool supportsExceptionInfo)
     {
@@ -154,14 +179,16 @@ public class DapSessionExceptionStopTests
         })));
     }
 
-    private static DapSession CreateSession(FakeChildProcess process, Action<IBreakpointHitContext> onHit) => new(
+    private static DapSession CreateSession(
+        FakeChildProcess process, Action<IBreakpointHitContext> onHit, TimeSpan? exceptionInfoTimeout = null) => new(
         process,
         new DapSessionOptions(
             ProgramPath: "/out/bin/RunPadQuery.dll",
             WorkingDirectory: "/out",
             Breakpoints: [new TestBreakpoint(1)],
             SourceFileExtension: ".cs",
-            LineOffset: 0),
+            LineOffset: 0,
+            ExceptionInfoTimeout: exceptionInfoTimeout),
         outputHandler: null,
         onBreakpointHit: onHit,
         logger: NullLogger<DapSession>.Instance);
@@ -181,7 +208,7 @@ public class DapSessionExceptionStopTests
         process.Output.Push(Frame(ExceptionStopped()));
         await AnswerStopQueriesAsync(process);
         await WaitForRequestAsync(process.Input, "exceptionInfo");
-        process.Output.Push(Frame(Response(15, "exceptionInfo", new
+        process.Output.Push(Frame(Response(15, "exceptionInfo", requestSeq: RequestSeq(process.Input, "exceptionInfo"), body: new
         {
             exceptionId = "System.FormatException",
             description = "The input string 'not-a-number' was not in a correct format.",
@@ -235,7 +262,8 @@ public class DapSessionExceptionStopTests
         if (supportsExceptionInfo)
         {
             await WaitForRequestAsync(process.Input, "exceptionInfo");
-            process.Output.Push(Frame(Response(15, "exceptionInfo", success: false, message: "Failed command 'exceptionInfo' : 0x80004005")));
+            process.Output.Push(Frame(Response(15, "exceptionInfo", success: false, message: "Failed command 'exceptionInfo' : 0x80004005",
+                requestSeq: RequestSeq(process.Input, "exceptionInfo"))));
         }
 
         var context = await hit.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -309,5 +337,114 @@ public class DapSessionExceptionStopTests
         await WaitForRequestAsync(process.Input, "continue");
         process.Output.Push(Frame(new { seq = 20, type = "event", @event = "exited" }));
         await runTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    // An adapter that declares exceptionInfo and never answers it: the stop is still shown, with the
+    // stop's own text, once the bounded wait ends — and the session keeps working. The answer that
+    // finally arrives must be skipped cleanly (framing intact), and must not be taken for the answer
+    // to the next stop's exceptionInfo.
+    [Fact]
+    public async Task UnansweredExceptionInfo_Should_ShowTheStopAfterTheTimeout_AndSkipTheLateAnswer()
+    {
+        var hits = Channel.CreateUnbounded<IBreakpointHitContext>();
+        var process = new FakeChildProcess();
+        await using var session = CreateSession(process, ctx => hits.Writer.TryWrite(ctx), ShortExceptionInfoTimeout);
+        var runTask = session.RunAsync(TestContext.Current.CancellationToken);
+        await HandshakeAsync(process, supportsExceptionInfo: true);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+        process.Output.Push(Frame(ExceptionStopped()));
+        await AnswerStopQueriesAsync(process);
+        await WaitForRequestAsync(process.Input, "exceptionInfo");
+        var first = await hits.Reader.ReadAsync(timeout.Token); // no answer pushed
+
+        Assert.Equal(DebugStopReason.Exception, first.StopReason);
+        Assert.Equal(UnhandledText, first.Exception?.Description);
+        Assert.Equal("System.FormatException", first.Exception?.TypeName); // "$exception" local
+        Assert.Null(first.Exception?.Message);
+
+        // The late answer arrives while paused, then the user continues to a second exception stop.
+        var firstSeq = RequestSeq(process.Input, "exceptionInfo");
+        process.Output.Push(Frame(Response(30, "exceptionInfo", ExceptionInfoBody("Late.FirstException"), requestSeq: firstSeq)));
+        first.Resume(DebugAction.Continue);
+        await WaitForRequestAsync(process.Input, "continue");
+        process.Output.Push(Frame(ExceptionStopped()));
+        await AnswerStopQueriesAsync(process, count: 2);
+        await WaitForRequestAsync(process.Input, "exceptionInfo", count: 2);
+        process.Output.Push(Frame(Response(31, "exceptionInfo", ExceptionInfoBody("System.FormatException"),
+            requestSeq: RequestSeq(process.Input, "exceptionInfo", count: 2))));
+        var second = await hits.Reader.ReadAsync(timeout.Token);
+
+        Assert.Equal("System.FormatException", second.Exception?.TypeName);
+        Assert.Equal("details of System.FormatException", second.Exception?.Message);
+        Assert.True(second.Exception?.IsUnhandled);
+
+        second.Resume(DebugAction.Continue);
+        await WaitForRequestAsync(process.Input, "continue", count: 2);
+        process.Output.Push(Frame(new { seq = 40, type = "event", @event = "exited" }));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    // The answer to a stop's exceptionInfo was already late when its wait ended; a second, later
+    // reply to an older request shows up mid-way through the next stop's queries — both skipped.
+    [Fact]
+    public async Task LateExceptionInfoAnswer_Should_NotBeMistakenForTheNextStopsAnswer()
+    {
+        var hits = Channel.CreateUnbounded<IBreakpointHitContext>();
+        var process = new FakeChildProcess();
+        await using var session = CreateSession(process, ctx => hits.Writer.TryWrite(ctx), ShortExceptionInfoTimeout);
+        var runTask = session.RunAsync(TestContext.Current.CancellationToken);
+        await HandshakeAsync(process, supportsExceptionInfo: true);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+        process.Output.Push(Frame(ExceptionStopped()));
+        await AnswerStopQueriesAsync(process);
+        await WaitForRequestAsync(process.Input, "exceptionInfo");
+        var first = await hits.Reader.ReadAsync(timeout.Token);
+        first.Resume(DebugAction.Continue);
+        await WaitForRequestAsync(process.Input, "continue");
+
+        process.Output.Push(Frame(ExceptionStopped()));
+        await AnswerStopQueriesAsync(process, count: 2);
+        await WaitForRequestAsync(process.Input, "exceptionInfo", count: 2);
+        // The first request's answer comes only now, right before the second's.
+        process.Output.Push(Frame(Response(30, "exceptionInfo", ExceptionInfoBody("Late.FirstException"),
+            requestSeq: RequestSeq(process.Input, "exceptionInfo"))));
+        process.Output.Push(Frame(Response(31, "exceptionInfo", ExceptionInfoBody("System.FormatException"),
+            requestSeq: RequestSeq(process.Input, "exceptionInfo", count: 2))));
+        var second = await hits.Reader.ReadAsync(timeout.Token);
+
+        Assert.Equal("System.FormatException", second.Exception?.TypeName);
+        second.Resume(DebugAction.Continue);
+        await WaitForRequestAsync(process.Input, "continue", count: 2);
+        process.Output.Push(Frame(new { seq = 40, type = "event", @event = "exited" }));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    // Stop pressed while paused on a stop whose exceptionInfo never came: the session still ends
+    // promptly through cancellation and kills the debugger, with the abandoned wait not in the way.
+    [Fact]
+    public async Task UnansweredExceptionInfo_Should_StillLetStopEndTheSession()
+    {
+        var hit = new TaskCompletionSource<IBreakpointHitContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var process = new FakeChildProcess();
+        await using var session = CreateSession(process, ctx => hit.TrySetResult(ctx), ShortExceptionInfoTimeout);
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var runTask = session.RunAsync(runCts.Token);
+        await HandshakeAsync(process, supportsExceptionInfo: true);
+
+        process.Output.Push(Frame(ExceptionStopped()));
+        await AnswerStopQueriesAsync(process);
+        var context = await hit.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Equal(DebugStopReason.Exception, context.StopReason);
+
+        await runCts.CancelAsync(); // what Stop does
+        var ended = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.Same(runTask, ended);
+        if (runTask.IsFaulted)
+            Assert.IsAssignableFrom<OperationCanceledException>(runTask.Exception!.InnerException);
+        Assert.True(process.Killed);
     }
 }

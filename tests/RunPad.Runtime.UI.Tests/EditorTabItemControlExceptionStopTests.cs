@@ -25,7 +25,9 @@ public class EditorTabItemControlExceptionStopTests
 {
     private sealed class StopContext : IBreakpointHitContext
     {
-        public DebugAction? ResumedWith { get; private set; }
+        private readonly TaskCompletionSource<DebugAction> _resumed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public DebugAction? ResumedWith => _resumed.Task.IsCompleted ? _resumed.Task.Result : null;
+        public Task<DebugAction> Resumed => _resumed.Task;
         public IBreakpoint Breakpoint { get; init; } = Mock.Of<IBreakpoint>(b => b.Line == 1);
         public int ThreadId => 1;
         public IReadOnlyList<IVariableInfo> LocalVariables => [];
@@ -34,7 +36,7 @@ public class EditorTabItemControlExceptionStopTests
         public DebugStopReason StopReason { get; init; }
         public DebugExceptionInfo? Exception { get; init; }
         public string? ResumeError { get; init; }
-        public void Resume(DebugAction action = DebugAction.Continue) => ResumedWith = action;
+        public void Resume(DebugAction action = DebugAction.Continue) => _resumed.TrySetResult(action);
         public Task<IReadOnlyList<IVariableInfo>> GetChildrenAsync(int variablesReference, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<IVariableInfo>>([]);
         public Task RunToCursorAsync(int line, CancellationToken ct = default) => Task.CompletedTask;
@@ -48,7 +50,7 @@ public class EditorTabItemControlExceptionStopTests
         "   at System.Int32.Parse(String s)",
         IsUnhandled: true);
 
-    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm, Window Host) CreateTab()
+    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm, Window Host) CreateTab(ILanguageHost? languageHost = null)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
@@ -56,6 +58,10 @@ public class EditorTabItemControlExceptionStopTests
         prefs.Setup(p => p.Keyboard).Returns(new KeyboardSettings());
         prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
         prefs.Setup(p => p.Session).Returns(new SessionSettings());
+        prefs.Setup(p => p.Debugger).Returns(new DebuggerSettings());
+        var registry = new Mock<ILanguageHostRegistry>();
+        if (languageHost is not null)
+            registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>())).Returns(languageHost);
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
@@ -63,7 +69,7 @@ public class EditorTabItemControlExceptionStopTests
         var vm = new EditorTabItemViewModel(
             filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var control = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new CSharpReferenceService(),
+            registry.Object, prefs.Object, intelliSense: null, new CSharpReferenceService(),
             new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = control, Width = 1000, Height = 800 };
         host.Show();
@@ -137,6 +143,69 @@ public class EditorTabItemControlExceptionStopTests
         Assert.Null(VisibleText(host, "StoppedExceptionText"));
         Assert.Null(VisibleText(host, "StopNoticeText"));
         Assert.Null(control.State.UnhandledDebugException);
+        host.Close();
+    }
+
+    // A debug host that stops once on the given exception, then — once resumed — ends the way
+    // netcoredbg does after an unhandled exception: the runtime's report on stderr, no failure result.
+    private static Mock<ILanguageHost> DebugHostStoppingOn(StopContext stop)
+    {
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.Supports(It.IsAny<LanguageHostCapabilities>())).Returns(true);
+        host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        host.Setup(h => h.RunDebugAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string _, OutputReceivedHandler output, CancellationToken _) =>
+            {
+                host.Raise(h => h.BreakpointHit += null, stop);
+                await stop.Resumed;
+                if (stop.Exception is { IsUnhandled: true })
+                    output("Unhandled exception. System.FormatException: The input string 'not-a-number' was not in a correct format.", OutputKind.StandardError);
+            });
+        return host;
+    }
+
+    private static async Task<RunState> RunUntilPausedAndContinueAsync(EditorsTabItemControl control, EditorTabItemViewModel vm)
+    {
+        var run = control.RunAsync(debug: true, new DotnetSdk("10.0.100", "net10.0", "10.0.0", ".NET 10.0"));
+        for (var i = 0; i < 200 && vm.RunState != RunState.Paused; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        var pausedState = vm.RunState;
+        control.ResumeDebug(DebugAction.Continue);
+        await run;
+        Dispatcher.UIThread.RunJobs();
+        return pausedState;
+    }
+
+    [AvaloniaFact]
+    public async Task ContinuingFromAnUnhandledException_Should_EndTheRunAsUnhandled_NotSuccess()
+    {
+        var stop = new StopContext { StopReason = DebugStopReason.Exception, Exception = Unhandled };
+        var (control, vm, host) = CreateTab(DebugHostStoppingOn(stop).Object);
+
+        Assert.Equal(RunState.Paused, await RunUntilPausedAndContinueAsync(control, vm));
+
+        Assert.Equal(RunState.Idle, vm.RunState);
+        Assert.Equal("Unhandled FormatException", control.State.ExecStatusText);
+        Assert.Equal("RunPad.Status.ErrorBrush", control.State.ExecStatusColor);
+        Assert.Contains("Unhandled exception. System.FormatException", control.State.Output.Content);
+        Assert.Null(VisibleText(host, "StoppedExceptionText"));
+
+        host.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task ContinuingFromACaughtException_Should_EndTheRunAsSuccess()
+    {
+        var stop = new StopContext { StopReason = DebugStopReason.Exception, Exception = Unhandled with { IsUnhandled = false } };
+        var (control, vm, host) = CreateTab(DebugHostStoppingOn(stop).Object);
+
+        Assert.Equal(RunState.Paused, await RunUntilPausedAndContinueAsync(control, vm));
+
+        Assert.Equal("Success", control.State.ExecStatusText);
         host.Close();
     }
 }
