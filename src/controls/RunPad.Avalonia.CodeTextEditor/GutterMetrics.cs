@@ -39,6 +39,17 @@ internal static class GutterMetrics
         return null;
     }
 
+    /// <summary>Top and height of a visual line's first rendered row (a margin's coordinates): what
+    /// gutter marks — number, breakpoint, lightbulb, fold chevron — are centered on, so on a wrapped
+    /// line they sit next to the row where the line starts, together.</summary>
+    public static (double Top, double Height) FirstRow(TextView textView, VisualLine visualLine)
+    {
+        var row = visualLine.TextLines[0];
+        var top = visualLine.GetTextLineVisualYPosition(row, VisualYPosition.LineTop) - textView.VerticalOffset;
+        var bottom = visualLine.GetTextLineVisualYPosition(row, VisualYPosition.LineBottom) - textView.VerticalOffset;
+        return (top, bottom - top);
+    }
+
     /// <summary>The subtle current-line band each gutter column paints behind the caret's row, so the
     /// row reads as one across the gutter.</summary>
     public static void DrawCurrentLineRow(DrawingContext context, TextView textView, int caretLine, double width)

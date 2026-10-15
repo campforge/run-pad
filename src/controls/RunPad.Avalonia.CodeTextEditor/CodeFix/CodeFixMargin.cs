@@ -124,9 +124,21 @@ public class CodeFixMargin : AbstractMargin
         var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
         if (vl is null) return null; // caret line currently scrolled out of view — nothing to draw
 
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                   - TextView.VerticalOffset;
-        return (worst, yTop, vl.Height);
+        // The first rendered row of the caret's line: on a wrapped line the bulb belongs next to the
+        // row where the line starts (with its line number), not in the middle of the whole block.
+        var (yTop, rowHeight) = GutterMetrics.FirstRow(TextView, vl);
+        return (worst, yTop, rowHeight);
+    }
+
+    // Test-only (InternalsVisibleTo): where the glyph's own shape is drawn now (the geometry's bounds
+    // under the drawing transform), or null when there is no bulb or no glyph resource.
+    internal Rect? GlyphBounds()
+    {
+        if (BulbLayout() is not var (_, yTop, rowHeight)) return null;
+        _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
+        if (_bulbGeo is null) return null;
+        var (s, x, y) = ComputeIconTransform(rowHeight, yTop);
+        return _bulbGeo.Bounds.TransformToAABB(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(x, y));
     }
 
     // The bulb's click target: a square centered on the glyph, larger than it — 24 logical pixels, or
