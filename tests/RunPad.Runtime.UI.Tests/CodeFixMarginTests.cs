@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -669,6 +670,28 @@ public class CodeFixMarginTests
         Assert.True(margin.OpenMenu?.IsOpen, "the menu is open after the release");
         Assert.Equal(["fix"], margin.OpenMenu!.Items.OfType<MenuItem>().Select(i => i.Header));
         Assert.Equal((2, 5), (editor.TextArea.Caret.Line, editor.TextArea.Caret.Column));
+    }
+
+    // The menu is anchored to the bulb's square and opens right below it — not "at the pointer", which
+    // depends on the window's last known pointer position and, without one, put the native menu at the
+    // top-left corner of the screen.
+    [AvaloniaFact]
+    public void TheMenu_Should_OpenRightBelowTheSquare()
+    {
+        var (window, _, margin, t) = BulbOnLine2();
+
+        Click(window, margin, new Point(t.Center.X, t.Bottom - 1));
+
+        var menu = margin.OpenMenu!;
+        Assert.True(menu.IsOpen);
+        Assert.Same(margin, menu.Target);
+        Assert.Equal(t, menu.Popup.PlacementRect);
+        Assert.Equal(PlacementMode.BottomEdgeAlignedLeft, menu.Popup.Placement);
+        var presenter = Assert.IsAssignableFrom<Control>(menu.Popup.Child);
+        var topLeft = presenter.TranslatePoint(default, margin)!.Value;
+        // popups are placed on whole pixels
+        Assert.InRange(topLeft.X, t.X - 1, t.X + 1);
+        Assert.InRange(topLeft.Y, t.Bottom - 1, t.Bottom + 1);
     }
 
     // Beside the square (a wide column) or on another line's row: no menu, and the click stays in the

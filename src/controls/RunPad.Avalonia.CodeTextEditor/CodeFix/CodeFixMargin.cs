@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -184,7 +185,7 @@ public class CodeFixMargin : AbstractMargin
         _ => "RunPad.Margin.DebugArrowBrush",
     };
 
-    // Clicks in the column are this margin's (HitTest): none of them reaches the text area. A press
+    // Clicks in the column are this margin's (its transparent fill, see Render): none reaches the text area. A press
     // inside the bulb's square is remembered and the menu opens when the button is released inside it
     // too — a click, like a button or a context menu, rather than on the press itself, so the opening
     // popup is not in the way of the rest of the press (pointer capture, focus, the release).
@@ -205,6 +206,13 @@ public class CodeFixMargin : AbstractMargin
 
         var candidates = ResolveCandidatesForClick(e.GetPosition(this));
         if (candidates.Count == 0) return; // released outside the square
+        ShowFixMenu(candidates);
+    }
+
+    // The menu for the caret line's fixes, below the bulb's square.
+    internal void ShowFixMenu(IReadOnlyList<CodeFixEntry> candidates)
+    {
+        if (HitTarget() is not { } target) return;
 
         // Always go through the menu, even for a single candidate — VS/Rider-style, so the lightbulb
         // never applies anything sight-unseen and there's a consistent place to add more entries later
@@ -212,11 +220,13 @@ public class CodeFixMargin : AbstractMargin
         var menu = new MenuFlyout();
         foreach (var item in BuildMenuItems(candidates))
             menu.Items.Add(item);
-        // showAtPointer: true — anchors the flyout to where the user actually clicked (the lightbulb
-        // icon on this specific line) instead of PopupFlyoutBase's default placement relative to the
-        // whole margin control, which spans the full editor height and made the menu appear pinned to
-        // the bottom-left corner regardless of which line's lightbulb was clicked.
-        menu.ShowAt(this, true);
+        // Anchored to the bulb's square, just below it. Not to the margin control (it spans the whole
+        // editor height: the menu ended up at its bottom), and not "at the pointer": that placement
+        // uses the window's last known pointer position, and when there is none the menu opens at the
+        // top-left corner of the screen, away from the window.
+        menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
+        menu.Popup.PlacementRect = target;
+        menu.ShowAt(this);
         OpenMenu = menu;
     }
 
