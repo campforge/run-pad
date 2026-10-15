@@ -141,11 +141,15 @@ public class CodeFixMargin : AbstractMargin
         return _bulbGeo.Bounds.TransformToAABB(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(x, y));
     }
 
-    // The bulb's click target: a square centered on the glyph, larger than it — 24 logical pixels, or
-    // the glyph plus a margin when a large font makes the glyph itself bigger — but never wider than
-    // this margin's own column, so it can't overlap the line numbers or the folding margin. It may
-    // reach a little above and below a short line, into this column only, where nothing else is.
-    internal const double MinimumHitTargetSize = 24;
+    // The bulb's click target: a square centered on the glyph, the glyph plus a small margin on each
+    // side (at least MinimumHitTargetSize) — never wider than this margin's own column, so it can't
+    // overlap the line numbers or the folding margin. It reaches a little above and below a short
+    // line, into this column only, where nothing else is. The column is no wider than the square, so
+    // the gutter carries no empty space around the bulb.
+    internal const double MinimumHitTargetSize = 18;
+
+    // Logical pixels between the glyph and each side of the square.
+    internal const double HitTargetPadding = 2;
 
     internal Rect? HitTarget()
     {
@@ -394,8 +398,8 @@ public class CodeFixMargin : AbstractMargin
 
     private double ColumnWidth() => HitTargetSide();
 
-    // 24 logical pixels, or the glyph plus a margin when a large font makes the glyph bigger.
-    private double HitTargetSide() => Math.Max(MinimumHitTargetSize, TextView.DefaultLineHeight * IconScaleFactor + 8);
+    // The glyph (it follows the line height: font size, zoom) plus HitTargetPadding on each side.
+    internal double HitTargetSide() => Math.Max(MinimumHitTargetSize, TextView.DefaultLineHeight * IconScaleFactor + 2 * HitTargetPadding);
 
     // A new font size (zoom) or line count changes the column's width, and the bulb and its square
     // must stay inside it. Re-measured after the text view's own layout pass, not during it — same

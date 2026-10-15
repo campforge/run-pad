@@ -5,7 +5,8 @@
     xmlns:vm="clr-namespace:RunPad.Windows.Models"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:uc="clr-namespace:RunPad.UserControls"
-    xmlns:ucm="clr-namespace:RunPad.UserControls.Models" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
+    xmlns:ucm="clr-namespace:RunPad.UserControls.Models"
+    xmlns:ex="clr-namespace:RunPad.Services.Examples" mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450" x:Class="RunPad.Windows.MainWindow" x:DataType="vm:MainWindowViewModel" Icon="/Assets/icon.ico" Title="RunPad" WindowDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="32">
 
     <Window.Resources>
         <!-- Referenced via ContentTemplate on the sidebar's ContentControl below. DataTemplate.Build()
@@ -18,6 +19,46 @@
     </Window.Resources>
 
     <Window.Styles>
+
+        <!-- Sidebar tabs (Queries / Examples) -->
+        <Style Selector="TabStrip.sidebar">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style Selector="TabStrip.sidebar > TabStripItem">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="MinHeight" Value="29"/>
+            <Setter Property="Height" Value="29"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TabStripItem">
+                    <Panel Background="Transparent">
+                        <Border x:Name="TopAccent" Height="1" VerticalAlignment="Top" Background="Transparent"/>
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Panel>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="TabStrip.sidebar > TabStripItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="TabStrip.sidebar > TabStripItem:selected /template/ Border#TopAccent">
+            <Setter Property="Background" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
+        </Style>
+        <Style Selector="TabStrip.sidebar > TabStripItem:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        </Style>
+        <Style Selector="ListBox.examples > ListBoxItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="MinHeight" Value="27"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
 
         <!-- Window control buttons -->
         <Style Selector="Button.wc-btn">
@@ -105,10 +146,37 @@
             </Grid.ColumnDefinitions>
 
             <!-- ── Sidebar ───────────────────────────────────────────────── -->
-            <Grid Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
+            <DockPanel Grid.Column="0" ClipToBounds="True" Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}">
 
-                <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"/>
-            </Grid>
+                <!-- Queries / Examples, as compact as the editor's own tab strip: the same 30 px row,
+                     the selected tab marked by the accent line on top, one separator below. -->
+                <Border DockPanel.Dock="Top" Height="30"
+                        BorderThickness="0,0,0,1" BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}">
+                    <TabStrip x:Name="SidebarTabs" Classes="sidebar" SelectedIndex="{Binding SidebarTab}">
+                        <TabStripItem Content="Queries"/>
+                        <TabStripItem Content="Examples"/>
+                    </TabStrip>
+                </Border>
+
+                <Panel>
+                    <ContentControl Content="{Binding FileTree}" ContentTemplate="{StaticResource FileTreeTemplate}"
+                                    IsVisible="{Binding IsQueriesTabShown}"/>
+                    <ListBox x:Name="ExampleList" Classes="examples" ItemsSource="{Binding Examples}"
+                             IsVisible="{Binding IsExamplesTabShown}"
+                             Background="Transparent" BorderThickness="0" Padding="4,4,4,8"
+                             SelectionMode="Single"
+                             Tapped="ExampleList_Tapped" KeyDown="ExampleList_KeyDown">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="ex:ExampleScript">
+                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="No examples available" Margin="12,8" Opacity="0.6"
+                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
+                               IsVisible="{Binding ShowNoExamplesHint}"/>
+                </Panel>
+            </DockPanel>
 
             <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource RunPad.Separator.BackgroundBrush}" ResizeDirection="Columns"/>
 

@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using ReactiveUI;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.Shared;
 
@@ -76,7 +77,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    public string FileName => FilePath is null ? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+    public string FileName => FilePath is null ? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+
+    /// <summary>The bundled example this untitled tab was opened from: its document is the tab's
+    /// starting text (a copy — the example itself never changes). Null for any other tab.</summary>
+    public ExampleScript? Example { get; init; }
 
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
