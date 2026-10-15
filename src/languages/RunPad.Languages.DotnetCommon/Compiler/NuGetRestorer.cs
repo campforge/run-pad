@@ -3,9 +3,11 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using NuGet.Client;
 using NuGet.Commands;
 using NuGet.Common;
 using NuGet.Configuration;
+using NuGet.ContentModel;
 using NuGet.Frameworks;
 using NuGet.LibraryModel;
 using NuGet.Packaging;
@@ -88,6 +90,114 @@ public static class NuGetRestorer
 
         var folders = new[] { globalPackagesFolder }.Concat(SettingsUtility.GetFallbackPackageFolders(settings)).ToList();
         return SelectAssets(lockFile, target, folders, languageFolder, warnings);
+    }
+
+    // ── Without restoring ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The assemblies to compile against for <paramref name="packages"/>, for an editor that must not
+    /// restore (no network on every keystroke). When the last restore in <paramref name="objDirectory"/>
+    /// was made for exactly these packages, target framework and NuGet configuration, its selection is
+    /// used — the versions it resolved, transitive packages and the framework's compile assets, the
+    /// same files a build compiles against. Otherwise each package is looked up in the local package
+    /// folders with NuGet's own version rules (<see cref="ResolveFromPackageFolders"/>).
+    /// </summary>
+    public static IReadOnlyList<string> CompileReferencesWithoutRestore(
+        IReadOnlyDictionary<string, string> packages, string targetFramework, string? objDirectory,
+        string? nugetConfigFile)
+    {
+        if (packages.Count == 0) return [];
+        try
+        {
+            if (objDirectory is not null
+                && ReadRestored(packages, targetFramework, objDirectory, nugetConfigFile) is { } restored)
+                return restored;
+
+            var settings = LoadSettings(nugetConfigFile, objDirectory ?? Path.GetTempPath());
+            var folders = new[] { SettingsUtility.GetGlobalPackagesFolder(settings) }
+                .Concat(SettingsUtility.GetFallbackPackageFolders(settings)).ToList();
+            return ResolveFromPackageFolders(packages, targetFramework, folders);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or FormatException or ArgumentException or InvalidOperationException)
+        {
+            // An unreadable configuration or lock file: no package types rather than a broken editor.
+            return [];
+        }
+    }
+
+    /// <summary>The compile references of the restore in <paramref name="objDirectory"/>, or null when it
+    /// is missing or was made for other packages, another target framework or another configuration.</summary>
+    internal static IReadOnlyList<string>? ReadRestored(
+        IReadOnlyDictionary<string, string> packages, string targetFramework, string objDirectory, string? nugetConfigFile)
+    {
+        var assetsPath = Path.Combine(objDirectory, LockFileFormat.AssetsFileName);
+        var keyPath = Path.Combine(objDirectory, ProjectName + ".restore.key");
+        if (!File.Exists(keyPath) || !File.Exists(assetsPath)
+            || File.ReadAllText(keyPath) != RestoreKey(packages, targetFramework, nugetConfigFile))
+            return null;
+
+        var lockFile = LockFileUtilities.GetLockFile(assetsPath, NullLogger.Instance);
+        var target = lockFile?.GetTarget(NuGetFramework.Parse(targetFramework), runtimeIdentifier: null);
+        if (lockFile is null || target is null) return null;
+
+        var settings = LoadSettings(nugetConfigFile, objDirectory);
+        var folders = new[] { SettingsUtility.GetGlobalPackagesFolder(settings) }
+            .Concat(SettingsUtility.GetFallbackPackageFolders(settings)).ToList();
+        // The language folder only matters for source generators, which are not compile references.
+        return SelectAssets(lockFile, target, folders, languageFolder: "cs", []).CompileReferences;
+    }
+
+    /// <summary>
+    /// Before any restore: for each package, the version the restore would choose among those already
+    /// extracted in <paramref name="packageFolders"/> — <see cref="VersionRange.FindBestMatch"/> with the
+    /// version text parsed as restore parses it ("latest" and "*" float to the newest stable version, a
+    /// plain version is a minimum and prefers itself, ranges keep their exclusive bounds, prerelease
+    /// versions only when the range asks for them) — and that version's compile assets for
+    /// <paramref name="targetFramework"/> (ref/ before lib/, nearest framework), chosen by NuGet's own
+    /// conventions. Only the listed packages: their dependencies come with the first restore. A package
+    /// with an invalid version, or with no version in the folders that satisfies it, contributes nothing.
+    /// </summary>
+    internal static IReadOnlyList<string> ResolveFromPackageFolders(
+        IReadOnlyDictionary<string, string> packages, string targetFramework, IReadOnlyList<string> packageFolders)
+    {
+        var framework = NuGetFramework.Parse(targetFramework);
+        var conventions = new ManagedCodeConventions(new NuGet.RuntimeModel.RuntimeGraph());
+        var result = new List<string>();
+
+        foreach (var (id, versionText) in packages)
+        {
+            if (!IsValidVersion(versionText)) continue;
+            var range = ParseVersion(versionText);
+
+            var candidates = packageFolders
+                .Select(folder => Path.Combine(folder, id.ToLowerInvariant()))
+                .Where(Directory.Exists)
+                .SelectMany(Directory.EnumerateDirectories)
+                .Select(dir => (Dir: dir, Version: NuGetVersion.TryParse(Path.GetFileName(dir), out var v) ? v : null))
+                // NuGet writes .nupkg.metadata last when it extracts a package: without it the folder is
+                // incomplete (an extraction in progress or interrupted).
+                .Where(c => c.Version is not null && File.Exists(Path.Combine(c.Dir, ".nupkg.metadata")))
+                .ToList();
+            var best = range.FindBestMatch(candidates.Select(c => c.Version!));
+            if (best is null) continue;
+            var packageDir = candidates.First(c => c.Version == best).Dir;
+
+            var files = Directory.EnumerateFiles(packageDir, "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(packageDir, f).Replace(Path.DirectorySeparatorChar, '/'))
+                .ToList();
+            var items = new ContentItemCollection();
+            items.Load(files);
+            var group = items.FindBestItemGroup(conventions.Criteria.ForFramework(framework),
+                conventions.Patterns.CompileRefAssemblies, conventions.Patterns.CompileLibAssemblies);
+            if (group is null) continue;
+
+            result.AddRange(group.Items
+                .Where(i => i.Path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                .Select(i => Path.Combine(packageDir, i.Path.Replace('/', Path.DirectorySeparatorChar))));
+        }
+
+        return result;
     }
 
     // Downloads the targeting pack for a target framework (highest patch of its major.minor) into the

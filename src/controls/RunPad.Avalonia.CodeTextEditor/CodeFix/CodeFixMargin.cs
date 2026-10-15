@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
 
@@ -66,10 +68,11 @@ public class CodeFixMargin : AbstractMargin
     // up via CodeTextEditor.FixApplyRequested).
     public event Action<CodeFixEntry>? FixApplyRequested;
 
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+
     public CodeFixMargin(CodeTextEditor editor)
     {
         _editor = editor;
-        Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
 
         _caretLine = _editor.TextArea.Caret.Line;
@@ -90,22 +93,84 @@ public class CodeFixMargin : AbstractMargin
 
     public override void Render(DrawingContext context)
     {
-        if (!TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0) return;
+        // Avalonia hit-tests a control by what it draws. With only the glyph drawn, a click on the
+        // square's padding (or anywhere else in the column) went past this margin to the text area
+        // and moved the caret. A transparent fill paints nothing visible but makes the whole column
+        // this margin's; ResolveCandidatesForClick decides which part of it opens the menu.
+        context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
+        GutterMetrics.DrawCurrentLineRow(context, TextView, _caretLine, Bounds.Width);
 
-        var worst = WorstSeverityOnLine(_caretLine);
-        if (worst is null) return;
-
-        var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
-        if (vl is null) return; // caret line currently scrolled out of view — nothing to draw
+        if (BulbLayout() is not var (severity, yTop, rowHeight)) return;
 
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
         if (_bulbGeo is null) return;
 
-        var brush = LoadThemedResource<IBrush>(SeverityBrushKey(worst.Value));
-        var lineH = vl.Height;
-        var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                      - TextView.VerticalOffset;
-        DrawCentered(context, _bulbGeo, brush, yTop, lineH);
+        // Only the glyph: the square around it is an invisible click target (HitTarget), with no
+        // frame or background, not even on hover.
+        var brush = LoadThemedResource<IBrush>(SeverityBrushKey(severity));
+        DrawCentered(context, _bulbGeo, brush, yTop, rowHeight);
+    }
+
+    // Where the bulb is: the caret's line, when it has a fix and is on screen — the worst severity
+    // there, and the top and height of the line's first rendered row in this margin's coordinates.
+    // Shared by Render and the click target, so a click hits exactly what is drawn.
+    private (CodeFixSeverity Severity, double YTop, double RowHeight)? BulbLayout()
+    {
+        if (TextView is null || !TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0)
+            return null;
+
+        if (WorstSeverityOnLine(_caretLine) is not { } worst) return null;
+
+        var vl = TextView.VisualLines.FirstOrDefault(v => v.FirstDocumentLine.LineNumber == _caretLine);
+        if (vl is null) return null; // caret line currently scrolled out of view — nothing to draw
+
+        // The first rendered row of the caret's line: on a wrapped line the bulb belongs next to the
+        // row where the line starts (with its line number), not in the middle of the whole block.
+        var (yTop, rowHeight) = GutterMetrics.FirstRow(TextView, vl);
+        return (worst, yTop, rowHeight);
+    }
+
+    // Test-only (InternalsVisibleTo): where the glyph's own shape is drawn now (the geometry's bounds
+    // under the drawing transform), or null when there is no bulb or no glyph resource.
+    internal Rect? GlyphBounds()
+    {
+        if (BulbLayout() is not var (_, yTop, rowHeight)) return null;
+        _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
+        if (_bulbGeo is null) return null;
+        var (s, x, y) = ComputeIconTransform(rowHeight, yTop);
+        return _bulbGeo.Bounds.TransformToAABB(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(x, y));
+    }
+
+    // The bulb's click target: a square centered on the glyph, the glyph plus a small margin on each
+    // side (at least MinimumHitTargetSize) — never wider than this margin's own column, so it can't
+    // overlap the line numbers or the folding margin. It reaches a little above and below a short
+    // line, into this column only, where nothing else is. The column is no wider than the square, so
+    // the gutter carries no empty space around the bulb.
+    internal const double MinimumHitTargetSize = 18;
+
+    // Logical pixels between the glyph and each side of the square.
+    internal const double HitTargetPadding = 2;
+
+    internal Rect? HitTarget()
+    {
+        if (BulbLayout() is not var (_, yTop, lineH)) return null;
+
+        var side = Math.Min(Bounds.Width, HitTargetSide());
+        var center = new Point(Bounds.Width / 2, yTop + lineH / 2);
+        return new Rect(center.X - side / 2, center.Y - side / 2, side, side);
+    }
+
+    // A hand only over the bulb's target: elsewhere a click does nothing.
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        Cursor = HitTarget() is { } target && target.Contains(e.GetPosition(this)) ? HandCursor : Cursor.Default;
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        Cursor = Cursor.Default;
     }
 
     // Test-only observability — same rationale as every other "internal test hook" this session: lets
@@ -136,10 +201,34 @@ public class CodeFixMargin : AbstractMargin
         _ => "RunPad.Margin.DebugArrowBrush",
     };
 
+    // Clicks in the column are this margin's (its transparent fill, see Render): none reaches the text area. A press
+    // inside the bulb's square is remembered and the menu opens when the button is released inside it
+    // too — a click, like a button or a context menu, rather than on the press itself, so the opening
+    // popup is not in the way of the rest of the press (pointer capture, focus, the release).
+    private bool _pressedOnBulb;
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
+        e.Handled = true;
+        _pressedOnBulb = e.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+                         && ResolveCandidatesForClick(e.GetPosition(this)).Count > 0;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        e.Handled = true;
+        if (!_pressedOnBulb || e.InitialPressMouseButton != MouseButton.Left) return;
+        _pressedOnBulb = false;
+
         var candidates = ResolveCandidatesForClick(e.GetPosition(this));
-        if (candidates.Count == 0) return;
+        if (candidates.Count == 0) return; // released outside the square
+        ShowFixMenu(candidates);
+    }
+
+    // The menu for the caret line's fixes, below the bulb's square.
+    internal void ShowFixMenu(IReadOnlyList<CodeFixEntry> candidates)
+    {
+        if (HitTarget() is not { } target) return;
 
         // Always go through the menu, even for a single candidate — VS/Rider-style, so the lightbulb
         // never applies anything sight-unseen and there's a consistent place to add more entries later
@@ -147,14 +236,24 @@ public class CodeFixMargin : AbstractMargin
         var menu = new MenuFlyout();
         foreach (var item in BuildMenuItems(candidates))
             menu.Items.Add(item);
-        // showAtPointer: true — anchors the flyout to where the user actually clicked (the lightbulb
-        // icon on this specific line) instead of PopupFlyoutBase's default placement relative to the
-        // whole margin control, which spans the full editor height and made the menu appear pinned to
-        // the bottom-left corner regardless of which line's lightbulb was clicked.
-        menu.ShowAt(this, true);
-
-        e.Handled = true;
+        // Anchored to the bulb's square, just below it. Not to the margin control (it spans the whole
+        // editor height: the menu ended up at its bottom), and not "at the pointer": that placement
+        // uses the window's last known pointer position, and when there is none the menu opens at the
+        // top-left corner of the screen, away from the window.
+        menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
+        menu.Popup.PlacementRect = target;
+        menu.ShowAt(this);
+        OpenMenu = menu;
     }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        _pressedOnBulb = false;
+    }
+
+    // Test-only (InternalsVisibleTo): the menu the last click opened.
+    internal MenuFlyout? OpenMenu { get; private set; }
 
     // Group order the dropdown menu presents categories in — using-directive fixes
     // first (the single most common/expected quick fix), then create/implement, then everything
@@ -240,10 +339,8 @@ public class CodeFixMargin : AbstractMargin
     // reformat these titles itself (fix.Title reaches here verbatim from Roslyn's own CodeAction.
     // Title) — a monospace font is the general fix: every character gets equal, fixed width, so
     // adjacent quote glyphs stay visually separable regardless of what expression text ends up
-    // embedded in a future title. "monospace" (the bare generic keyword, not a specific font name) —
-    // same choice, same reason, as EditorSettings.FontFamily's own default: reliably
-    // resolves to a real non-ligature monospace font on every platform, unlike a named fallback chain.
-    private static readonly FontFamily MenuItemFontFamily = new("monospace");
+    // embedded in a future title. The platform's default code font (see MonospaceFont), the same
+    // one the editor uses when no font was chosen.
 
     internal MenuItem BuildMenuItem(CodeFixEntry fix)
     {
@@ -254,7 +351,7 @@ public class CodeFixMargin : AbstractMargin
             _menuIconCache[iconKey] = geo;
         }
 
-        var item = new MenuItem { Header = fix.Title, FontFamily = MenuItemFontFamily };
+        var item = new MenuItem { Header = fix.Title, FontFamily = MonospaceFont.Default };
         if (geo is not null)
             item.Icon = new PathIcon { Data = geo, Width = 16, Height = 16 };
         item.Click += (_, _) => Apply(fix);
@@ -277,33 +374,48 @@ public class CodeFixMargin : AbstractMargin
     // directly with a Point instead of needing to synthesize a real PointerPressedEventArgs
     // (Avalonia's pointer/device plumbing has no simple headless test surface for that) — same
     // "internal test hook" pattern as WorstSeverityOnLine/ResolveLineFromPoint right above. Only the
-    // caret's own line ever has a visible icon (Render's own doc comment) — a click at some OTHER
-    // line that merely also happens to have a fix returns empty rather than that line's candidates,
-    // so a menu can never open with no icon having prompted it.
+    // caret's own line ever has a visible icon (Render's own doc comment), and only a click inside its
+    // square HitTarget counts — anywhere in it, padding and corners included, does what a click on the
+    // glyph does, even where the square reaches past a short line; outside it, nothing happens.
     internal IReadOnlyList<CodeFixEntry> ResolveCandidatesForClick(Point point)
     {
-        var lineNumber = ResolveLineFromPoint(point);
-        if (lineNumber is null || lineNumber != _caretLine) return [];
-        return _fixes.Where(f => f.Line == lineNumber).ToList();
+        if (HitTarget() is not { } target || !target.Contains(point)) return [];
+        return _fixes.Where(f => f.Line == _caretLine).ToList();
     }
 
     private void Apply(CodeFixEntry fix) => FixApplyRequested?.Invoke(fix);
 
-    // Matches BreakPointMargin's own line-number-column width (via the shared
-    // GutterMetrics helper) instead of an independent TextView.DefaultLineHeight * 0.8 — the two
-    // margins sit right next to each other in the gutter, so a mismatched width made the lightbulb
-    // and the line-number/debug-arrow icons look like two misaligned columns instead of one gutter.
+    // The column is exactly as wide as the bulb's square: a compact gutter, with the glyph right
+    // next to the line numbers (as in Rider), and one formula for both the width and the click
+    // target, so they cannot drift apart.
     protected override Size MeasureOverride(Size availableSize)
     {
         if (TextView is null) return new Size(0, 0);
-        if (TextView.Document is null) return new Size(TextView.DefaultLineHeight, 0);
-        return new Size(GutterMetrics.LineNumberColumnWidth(_editor, TextView, GutterHorizontalPadding), 0);
+        return new Size(ColumnWidth(), 0);
     }
 
-    // Same padding constant as BreakPointMargin.HorizontalPadding — kept as a separate private
-    // constant (rather than a shared public one) since the two margins have no other reason to
-    // reference each other's internals; GutterMetrics is the only intentional coupling point.
-    private const double GutterHorizontalPadding = 6.0;
+    private double ColumnWidth() => HitTargetSide();
+
+    // The glyph (it follows the line height: font size, zoom) plus HitTargetPadding on each side.
+    internal double HitTargetSide() => Math.Max(MinimumHitTargetSize, TextView.DefaultLineHeight * IconScaleFactor + 2 * HitTargetPadding);
+
+    // A new font size (zoom) or line count changes the column's width, and the bulb and its square
+    // must stay inside it. Re-measured after the text view's own layout pass, not during it — same
+    // deferral as BreakPointMargin's width check.
+    private bool _measureInvalidationPending;
+
+    protected override void OnTextViewVisualLinesChanged()
+    {
+        base.OnTextViewVisualLinesChanged();
+        if (TextView is null || _measureInvalidationPending || Math.Abs(ColumnWidth() - Bounds.Width) <= 0.5) return;
+        _measureInvalidationPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _measureInvalidationPending = false;
+            InvalidateMeasure();
+        });
+    }
+
 
     // Scale used to be Bounds.Width * 0.72 / 24.0 — fine back when Bounds.Width was
     // a small fixed constant, but this margin's width was later made to track BreakPointMargin's own

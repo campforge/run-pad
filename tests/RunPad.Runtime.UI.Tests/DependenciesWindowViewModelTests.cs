@@ -86,7 +86,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task AddingASearchResult_Should_ChangeOnlyTheDraft_UntilOkIsClicked()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -130,7 +130,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task RowAddButton_Should_AddTheLatestVersion_FromTheOnlineList()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -159,7 +159,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public async Task EnterInTheNamespacesBox_Should_AddALine_InvalidLine_Should_DisableSave_AndEscape_Should_AskBeforeDiscarding()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var namespacesBefore = rpad.FrontMatter.Namespaces?.ToList() ?? [];
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
@@ -206,7 +206,7 @@ public class DependenciesWindowViewModelTests
     [AvaloniaFact]
     public void Save_Should_StayDisabled_UntilSomethingChanges_AndCancelWithoutChanges_Should_CloseAtOnce()
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -240,7 +240,7 @@ public class DependenciesWindowViewModelTests
     [InlineData("Cancel", true, false)]
     public async Task CancelWithChanges_Should_AskToSave(string answer, bool staysOpen, bool applied)
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm);
         try
@@ -291,7 +291,7 @@ public class DependenciesWindowViewModelTests
     [InlineData(1000, 640)]
     public async Task Layout_Should_KeepFooterAndPackageActionsInsideTheWindow(double width, double height)
     {
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         var vm = CreateVm();
         var window = new DependenciesWindow(vm) { Width = width, Height = height };
         try
@@ -336,7 +336,7 @@ public class DependenciesWindowViewModelTests
         const string id = "Contoso.Enterprise.Platform.Integration.Messaging.Transport.Extensions.VeryLongPackageName";
         const string version = "10.0.0-preview.20261006.1234567890+sha.0123456789abcdef0123456789abcdef";
         const string range = "[1.0.0-preview.1, 2.0.0-preview.999999)";
-        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"))!;
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"))!;
         rpad.FrontMatter.Packages[id] = new Package(range);
         var vm = CreateVm([new PackageSearchResult(id, version, "A long description " + new string('x', 400), 1)], [version],
             cached: [new CachedPackageInfo(id + ".Cached", version)]);
@@ -401,7 +401,7 @@ public class DependenciesWindowViewModelTests
             Assert.False(vm.HasFrontMatter);
 
             // Act: the async tab load completes and assigns the real front matter moments later.
-            var rpad = RpadParser.TryParse(RpadWriter.NewFile("Demo"));
+            var rpad = RpadParser.TryParse(RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             tab.FrontMatter = rpad!.FrontMatter;
 
             // Assert

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
+using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.CSharp;
@@ -38,6 +39,8 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         ["using"] = "using (var resource = ${0})\n{\n\t\n}",
         ["lock"] = "lock (${0})\n{\n\t\n}",
     };
+
+    public string? CodeForKind(string code, RpadKind kind) => ProgramTemplate.CodeForKind(code, kind);
 
     public EditorLanguageProfile EditorProfile { get; } = new()
     {

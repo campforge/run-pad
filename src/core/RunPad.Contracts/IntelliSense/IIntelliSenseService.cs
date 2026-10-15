@@ -125,6 +125,14 @@ public interface IIntelliSenseService : IDisposable
     // Call when the tab's NuGet packages change so IntelliSense sees the new types.
     void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages);
 
+    /// <summary>
+    /// Like <see cref="UpdatePackageReferences(IReadOnlyDictionary{string, Package})"/>, with where the
+    /// script builds: a service can then use the assemblies its last package restore selected. Call
+    /// again after each build and whenever the packages change. The default ignores the context.
+    /// </summary>
+    void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
+        => UpdatePackageReferences(packages);
+
     // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
     // will add — see IMaterializedFix.UsingsToAdd.

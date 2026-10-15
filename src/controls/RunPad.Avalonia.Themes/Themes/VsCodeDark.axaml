@@ -50,6 +50,10 @@
                     <SolidColorBrush x:Key="RunPad.Folding.ChevronBrush"            Color="#858585" />
                     <SolidColorBrush x:Key="RunPad.Folding.ChevronHoverBrush"       Color="#C5C5C5" />
                     <SolidColorBrush x:Key="RunPad.Folding.LineBrush"               Color="#404040" />
+                    <SolidColorBrush x:Key="RunPad.Margin.CurrentLineBrush"          Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.Editor.BraceMatchBrush"           Color="#5A7E57B0" />
+                    <SolidColorBrush x:Key="RunPad.Editor.BraceMismatchBrush"        Color="#50DC3C3C" />
+                    <SolidColorBrush x:Key="RunPad.Editor.ActiveScopeGuideBrush"     Color="#8E6BB8" />
                     <SolidColorBrush x:Key="RunPad.Dump.TableHeaderBrush"           Color="#1B4F7D" />
                     <SolidColorBrush x:Key="RunPad.Dump.TableHeaderForegroundBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="RunPad.Dump.TableBorderBrush"           Color="#3C3C3C" />

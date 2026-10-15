@@ -69,6 +69,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         }
 
         context.FillRectangle(_editor?.Background ?? Brushes.Honeydew, Bounds);
+        if (_editor is not null)
+            GutterMetrics.DrawCurrentLineRow(context, TextView, _editor.TextArea.Caret.Line, Bounds.Width);
 
         _breakpointGeo ??= LoadResource<StreamGeometry>("Icon.Breakpoint");
         _debugArrowGeo ??= LoadResource<StreamGeometry>("Icon.DebugArrow");
@@ -85,9 +87,8 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         foreach (var vl in TextView.VisualLines)
         {
             var lineNo = vl.FirstDocumentLine.LineNumber;
-            var lineH = vl.Height;
-            var yTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.LineTop)
-                          - TextView.VerticalOffset;
+            // number and markers on the line's first row (see GutterMetrics.FirstRow)
+            var (yTop, lineH) = GutterMetrics.FirstRow(TextView, vl);
             var bpAtLine = _manager?.FirstOrDefault(bp => bp.Line == lineNo);
             var hasBp = bpAtLine is not null;
             var isDebug = DebugLine == lineNo;
@@ -240,13 +241,19 @@ public class BreakPointMargin : AbstractMargin, IDisposable
 
     // ── Drawing helpers ───────────────────────────────────────────────────────
 
-    // Icons are defined in a 24×24 viewbox.
+    // Icons are defined in a 24×24 viewbox. Their size follows the line height (font size, zoom),
+    // not the column's width — which grows with the number of digits and used to make a breakpoint
+    // in a long file much larger than one in a short file.
+    internal const double MarkerScaleFactor = 0.72;
+    internal const double ArrowScaleFactor = 0.9;
+
+    internal double MarkerScale => TextView.DefaultLineHeight * MarkerScaleFactor / 24.0;
 
     private void DrawCentered(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
                                double yTop, double lineH)
     {
         if (brush is null) return;
-        var s = Bounds.Width * 0.72 / 24.0;
+        var s = MarkerScale;
         var cx = Bounds.Width / 2 - 12 * s;
         var cy = yTop + lineH / 2 - 12 * s;
         using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
@@ -259,7 +266,7 @@ public class BreakPointMargin : AbstractMargin, IDisposable
                                       double yTop, double lineH)
     {
         if (brush is null) return;
-        var s = Bounds.Width * 0.72 / 24.0;
+        var s = MarkerScale;
         var cx = Bounds.Width / 2 - 12 * s;
         var cy = yTop + lineH / 2 - 12 * s;
         var pen = new Pen(brush, 2.2);
@@ -267,13 +274,15 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             ctx.DrawGeometry(null, pen, geo);
     }
 
+    // The execution arrow, at the code-side end of the column, pointing at the line.
     private void DrawFullWidth(DrawingContext ctx, StreamGeometry geo, IBrush? brush,
                                 double yTop, double lineH)
     {
         if (brush is null) return;
-        var s = Bounds.Width / 24.0;
+        var s = TextView.DefaultLineHeight * ArrowScaleFactor / 24.0;
+        var cx = Math.Max(0, Bounds.Width - 24 * s);
         var cy = yTop + lineH / 2 - 12 * s;
-        using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(0, cy)))
+        using (ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation(cx, cy)))
             ctx.DrawGeometry(brush, null, geo);
     }
 

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:models="clr-namespace:RunPad.Avalonia.Themes;assembly=RunPad.Avalonia.Themes"
@@ -250,7 +251,7 @@
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              Height="90"
-                             FontFamily="Consolas,Menlo,Courier New,monospace"
+                             FontFamily="{x:Static cte:MonospaceFont.Default}"
                              IsEnabled="{Binding CodeFixesEnabled}"
                              PlaceholderText="CS0184&#10;IDE0007"/>
                 </StackPanel>

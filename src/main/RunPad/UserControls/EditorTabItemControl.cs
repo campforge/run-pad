@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Text;
 using System.Web;
 using Avalonia;
@@ -50,6 +51,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
+    private IDisposable? _selectedSdkSub;
     private bool _disposed;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
@@ -128,6 +130,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
+        // Another target framework can mean other compile assets of the same packages.
+        _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(OnSelectedSdkChanged);
 
         // Load document content first, without TextMate.
         // SetLanguage calls Redraw() internally, which crashes when the editor
@@ -290,6 +294,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         State.CurrentDebugCtx?.Resume(DebugAction.Continue);
         State.CurrentDebugCtx = null;
+        _vm.DebugPanel.ClearStop();
         State.RunCts?.Cancel();
     }
 
@@ -313,10 +318,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.Output.Clear();
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
+        s.UnhandledDebugException = null;
+        _vm.DebugPanel.ClearStop();
         s.ElapsedText = "";
         IlOutput.Text = "";
         SetStatus("Process", "RunPad.Status.RunningBrush");
         s.RunStopwatch.Restart();
+        if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
+            s.Output.Append($"\n<div>warning: {HttpUtility.HtmlEncode(sdkWarning)}</div>");
         UpdateOutputUi();
 
         if (_vm.FilePath is not null)
@@ -370,7 +379,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 await using var host = _registry.Create(ResolveLanguageId(), options);
                 s.RunningHost = host;
-                host.Compiled += binaryPath => UpdateIlOutput(binaryPath);
+                host.Compiled += binaryPath =>
+                {
+                    UpdateIlOutput(binaryPath);
+                    // The build has just restored the packages: completion and diagnostics now see the
+                    // versions and transitive packages it resolved.
+                    Dispatcher.Post(RefreshIntelliSensePackages);
+                };
                 host.InputRequested += (prompt, isPassword) =>
                     Dispatcher.Post(() => ShowInputPrompt(prompt, isPassword));
 
@@ -414,9 +429,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             s.RunStopwatch.Stop();
             s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
+            _vm.DebugPanel.ClearStop();
             if (cancelled)
             {
                 SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+            }
+            else if (s.UnhandledDebugException is { } unhandled)
+            {
+                s.HadRunError = true;
+                SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
             }
             else if (runResult is { Succeeded: false } failed)
             {
@@ -428,6 +449,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             }
 
             UpdateOutputUi();
+            // Also when the script itself failed to compile: the restore before it may have succeeded.
+            RefreshIntelliSensePackages();
         }
     }
 
@@ -436,6 +459,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _selectedKindSub?.Dispose();
+        _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
         State.RunCts?.Dispose();
@@ -504,6 +528,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
+            _vm.DebugPanel.ClearStop();
             SetStatus("Process", "RunPad.Status.RunningBrush");
             UpdateOutputUi();
             await ctx.RunToCursorAsync(line);
@@ -824,6 +849,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _vm.RunState = RunState.RunDebug;
         State.Editor.DebugCurrentLine = null;
+        _vm.DebugPanel.ClearStop();
         SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
         State.CurrentDebugCtx = null;
@@ -1033,7 +1059,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         host.RemoveBreakpoint(new ScriptBreakpoint(path, e.Line, null));
     }
 
-    private void OnBreakpointHit(IBreakpointHitContext context)
+    internal void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
         s.CurrentDebugCtx = context;
@@ -1062,7 +1088,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // for the new stop — stale values from the previous breakpoint hit would be misleading.
         foreach (var w in _vm.DebugPanel.WatchExpressions) _ = EvaluateWatchAsync(w);
 
-        SetStatus("Paused", "RunPad.Status.PausedBrush");
+        _vm.DebugPanel.ShowStop(context);
+        if (context.StopReason == DebugStopReason.Exception)
+        {
+            if (context.Exception is { IsUnhandled: true } unhandled)
+                s.UnhandledDebugException = unhandled;
+            SetStatus($"Paused on {DebugPanelViewModel.ShortTypeName(context.Exception)}", "RunPad.Status.ErrorBrush");
+        }
+        else
+        {
+            SetStatus("Paused", "RunPad.Status.PausedBrush");
+        }
+
         UpdateOutputUi();
     }
 
@@ -1194,7 +1231,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.ShowLineNumberText = s.ShowLineNumbers;
         editor.ShowFolding = s.ShowFolding;
         editor.FontSize = s.FontSize;
-        editor.FontFamily = new FontFamily(s.FontFamily);
+        editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;
         editor.Options.ShowSpaces = s.ShowSpaces;
@@ -1571,7 +1608,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         string content;
         RpadDocument? rpad = null;
 
-        if (filePath is null)
+        if (filePath is null && _vm.Example is { } example)
+        {
+            // An example: an untitled, editable copy of its whole document — the code, its front
+            // matter and the Markdown around it, which Save As writes out — never the original.
+            var parsed = RpadParser.Parse(example.Text);
+            rpad = parsed.Document;
+            content = rpad?.RunCode ?? "";
+        }
+        else if (filePath is null)
         {
             // Deferred creation ("tab lifecycle") — a brand-new tab is genuinely
             // empty, not the old "Hello, RPad!" sample, and stays in-memory only until the user does
@@ -1580,9 +1625,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // that's what lets the toolbar's kind combobox, IntelliSense's kind-aware analysis, and
             // Run/Debug all already behave correctly for the chosen language/kind before the first
             // save, the same as they do for a file freshly loaded from disk.
-            content = "";
+            // Empty, except that a Program starts with its Main skeleton.
+            content = _registry.NewScriptCode(_vm.NewFileLanguage, _vm.NewFileKind);
             rpad = RpadParser.TryParse(RpadWriter.NewFile(
-                title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind, code: content));
+                "", title: "Untitled", language: _vm.NewFileLanguage, kind: _vm.NewFileKind));
         }
         else if (File.Exists(filePath))
         {
@@ -1613,6 +1659,20 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
         _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
+        // The toolbar shows the SDK the script's targetSdk names: "latest (…)" for `latest`, else that
+        // version (or the newest, when it isn't installed — RunAsync then says so).
+        var targetSdk = rpad?.FrontMatter.TargetSdk ?? TargetSdk.Default;
+        _syncingSdk = true;
+        try
+        {
+            _vm.SelectedSdk = TargetSdkResolver.IsLatest(targetSdk)
+                ? _vm.LatestSdk
+                : TargetSdkResolver.Resolve(_vm.AvailableSdks, targetSdk);
+        }
+        finally
+        {
+            _syncingSdk = false;
+        }
 
         // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
         // editor.Document below fires TextChanged synchronously, which is what actually triggers the
@@ -1630,7 +1690,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
-        editor.Document = new TextDocument(content);
+        if (_vm.Example is not null && filePath is null)
+        {
+            // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
+            editor.Document = new TextDocument(content);
+            _vm.IsDirty = true;
+        }
+        else
+        {
+            var (text, caret) = CodeTemplate.TakeCaret(content);
+            editor.Document = new TextDocument(text);
+            if (caret > 0) editor.CaretOffset = caret;
+        }
 
         // Shows which kind/target framework the script actually runs as —
         // helps tell the two compile paths apart and diagnose compile/run discrepancies without
@@ -1640,13 +1711,24 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Pushes this tab's current NuGet packages into its own IntelliSense instance. Called on initial
-    /// load and again after the Dependencies window closes, since it mutates the same RpadFrontMatter
-    /// in place without any change notification of its own.
+    /// Pushes this tab's current NuGet packages into its own IntelliSense instance, with where this
+    /// tab builds, so it can use the assemblies the last restore resolved. Called on initial load,
+    /// after the Dependencies window closes (it mutates the same RpadFrontMatter in place without any
+    /// change notification of its own), after each successful build and when the SDK changes.
     /// </summary>
     internal void RefreshIntelliSensePackages()
-        => _intelliSense?.UpdatePackageReferences(State.RpadDocument?.FrontMatter.Packages ??
-                                                  new Dictionary<string, Package>());
+    {
+        if (_disposed || _intelliSense is not { } intelliSense) return;
+        var packages = State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, Package>();
+        var targetFramework = (_vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault())?.TargetFrameworkMoniker;
+        if (targetFramework is null)
+        {
+            intelliSense.UpdatePackageReferences(packages);
+            return;
+        }
+        intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile));
+    }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
     // change just like typed text. It used to be written straight away without ever setting
@@ -1732,9 +1814,41 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (!Enum.TryParse(kind, out RpadKind parsedKind) || rpad.FrontMatter.Kind == parsedKind) return;
 
         rpad.FrontMatter.Kind = parsedKind;
+        ApplyKindTemplate(parsedKind);
         RefreshIntelliSenseKind();
         UpdateProjectInfoBlock();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        CommitMetadataChange();
+    }
+
+    // Switching to Program gives an empty script its Main skeleton and wraps existing statements in
+    // Main (the language decides how; see ILanguageHostFactory.CodeForKind) — one replacement, so a
+    // single Undo brings the old code back. Code that already fits the kind is left alone, and so is
+    // every switch away from Program.
+    private void ApplyKindTemplate(RpadKind kind)
+    {
+        if (_registry.GetCodeForKind(ResolveLanguageId(), State.Editor.Text, kind) is not { } code) return;
+        var (text, caret) = CodeTemplate.TakeCaret(code);
+        var document = State.Editor.Document;
+        document.Replace(0, document.TextLength, text);
+        State.Editor.CaretOffset = Math.Max(0, caret);
+        State.Editor.TextArea.Caret.BringCaretToView();
+    }
+
+    // The front matter's targetSdk is the source of truth, like Kind: picking an SDK in the toolbar
+    // writes it — "latest (…)" as `latest`, any other entry as its version (net8.0). Selecting what the
+    // file already says when it opens (SetDocumentContent, _syncingSdk) isn't an edit.
+    private bool _syncingSdk;
+
+    private void OnSelectedSdkChanged(DotnetSdk? sdk)
+    {
+        RefreshIntelliSensePackages();
+        if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
+
+        var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
+        if (target == rpad.FrontMatter.TargetSdk) return;
+        rpad.FrontMatter.TargetSdk = target;
+        UpdateProjectInfoBlock();
         CommitMetadataChange();
     }
 
@@ -1742,8 +1856,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // called on open (SetDocumentContent) and again whenever the kind combobox changes it.
     private void UpdateProjectInfoBlock()
         => ProjectInfoBlock.Text = State.RpadDocument is { } rpad
-            ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}"
+            ? $"{rpad.FrontMatter.Kind} · {rpad.FrontMatter.TargetSdk}{NotInstalledSuffix(rpad.FrontMatter.TargetSdk)}"
             : "";
+
+    // The script runs on another SDK than its targetSdk names (RunAsync prints the warning).
+    private string NotInstalledSuffix(TargetSdk target)
+        => _vm.SelectedSdk is { } sdk && TargetSdkResolver.Warning(target, sdk) is not null ? " (not installed)" : "";
 
     // The click-time half of
     // the lightbulb (both diagnostic fixes and refactorings feed the same CodeFixEntry.Key/

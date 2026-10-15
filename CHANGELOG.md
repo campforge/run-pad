@@ -3,6 +3,78 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.5.0] — 2026-10-15
+
+### Added
+
+- A Program script's `Main` can take the command-line arguments and a cancellation token —
+  `Main(string[] args)`, `Main(CancellationToken ct)` or `Main(string[] args, CancellationToken ct)` —
+  and can return `int` or `Task<int>` as the exit code. With several `Main` overloads, the one that
+  takes the most is called.
+- `Util.CancellationToken`, cancelled when you press **Stop**. A script that uses it — or a `Main`
+  that takes a token — gets up to 3 seconds to close files, connections and child processes before
+  RunPad ends it; other scripts still stop at once.
+- A new Program script starts with a `Main` method, with the caret inside it. Switching a script
+  to **Program** wraps its code in `Main` — `async Task Main()` when the code awaits — and keeps
+  methods and types after it; one **Undo** brings the old code back. Visual Basic scripts get a
+  `Module` with `Sub Main()`.
+- An **Examples** tab next to **Queries** in the panel on the left, with sample scripts that come
+  with RunPad. Clicking one opens it as a new, unsaved script: it does not run, and nothing is
+  written until you save it, which asks where to put the copy.
+
+### Changed
+
+- A script runs on the .NET version its `targetSdk` names, in the RunPad window and the
+  command-line runner alike. The toolbar's SDK list shows it — **latest (.NET 10.0.100)** keeps
+  `targetSdk: latest`, any other entry writes its version — and a version that isn't installed runs on
+  the newest SDK with a warning in Results and *(not installed)* in the status bar. Before, `targetSdk`
+  was only shown and the newest SDK always ran. New scripts get `targetSdk: latest`.
+- The File menu's import command is now called **Import .linq Query...**.
+- A new Statements or Expression script created from the file tree starts empty, like one created
+  with **File → New File**.
+- The editor's gutter is more compact and calmer: a thin line separates it from the code, the current
+  line's row is highlighted, and breakpoints and the lightbulb are sized to the text. Fold arrows of
+  open blocks appear while the pointer is over the fold column; collapsed blocks always show theirs.
+  On a wrapped line, its number, breakpoint, lightbulb and fold arrow sit next to its first row — the
+  lightbulb used to appear lower, in the middle of the whole line.
+- With the caret at a brace, both braces of the pair are highlighted in the theme's colors, and the
+  guide between them is emphasized in the code and in the gutter.
+- The panel on the left has **Queries** and **Examples** tabs, styled like the editor's document tabs,
+  instead of the *FILES* heading; the file tree is on **Queries**, with everything it did before.
+- The lightbulb's column is narrower: just wide enough for the icon, which keeps its size and its
+  click area around it.
+
+### Fixed
+
+- When the debugger stops on an exception, RunPad now says so: the status bar shows
+  *Paused on FormatException* instead of a plain *Paused*, and the **Debugger** tab shows the
+  exception's type, message and stack trace, and whether anything catches it. Stepping from an
+  exception nothing catches no longer leaves the debugger waiting with no reply: you are told the
+  step isn't possible there and can **Continue** or **Stop**. A debug run that ends with such an
+  exception finishes as *Unhandled FormatException*, not *Success*.
+- A script's `args` no longer contains RunPad's own internal arguments (`--pid …`); it is empty.
+- A .NET SDK installed by the first-run setup is found again after RunPad restarts — on macOS,
+  also when RunPad is started from Finder or the Dock. Its path is now saved in
+  **Preferences → Languages → .NET**.
+- **Cancel** in the first-run setup stops the installer instead of leaving it running in the
+  background, so a second install can no longer start next to the first.
+- Braces opened and closed on the same line, such as `if (ok) { Run(); }`, no longer get a fold
+  marker in the editor's margin; braces spanning several lines fold as before.
+- The quick-fix lightbulb is easier to click: an invisible square around it, larger than the icon,
+  opens its menu, and it stays the right size when you zoom. Clicks beside the square no longer do,
+  and its menu now opens right below the lightbulb — on macOS it could appear in the top-left corner
+  of the screen instead.
+- Completion, error highlighting and automatic `using`s now see the types of NuGet packages
+  added as `latest`, with a floating version (`1.*`) or with a version range: they used to work
+  only for an exact version, although such scripts compiled and ran. After a run, the editor uses
+  the versions the restore actually chose, including the packages they depend on.
+- Code is shown in a real monospace font on macOS: the editor's default font resolved to
+  Helvetica there. With **Preferences → Editor → Font family** left at `monospace`, RunPad now uses
+  a fixed-width font that comes with the system — Menlo on macOS, Cascadia Mono or Consolas on
+  Windows, DejaVu Sans Mono or a similar font on Linux — in the editor, the quick-fix menu, the IL
+  view and the breakpoint condition, rename and package dialogs. A font you chose yourself is kept;
+  one that isn't installed falls back to that default. Font sizes are unchanged.
+
 ## [0.4.2] — 2026-10-14
 
 A new main menu, the same on every system, and shortcuts you can change for every command. On
@@ -17,7 +89,7 @@ macOS, RunPad starts again: the 0.4.1 app quit as soon as it was opened.
 - Every keyboard shortcut can be changed in **Preferences → Keyboard**: the page now lists all
   commands — including the editor's (completion, Go to Definition…) and the Assembly Explorer's —
   grouped by area, with **Reset** and a warning when two commands share a key.
-- New default shortcuts follow LINQPad: **Stop** is **Shift+F5** (was Esc), **Run to Cursor** is
+- New default shortcuts follow common IDE conventions: **Stop** is **Shift+F5** (was Esc), **Run to Cursor** is
   **Ctrl+F10** and **Ctrl+R** shows or hides the output panel. Shortcuts you changed before are kept.
 - On macOS, shortcuts use the Command key where that is the Mac convention (⌘S, ⌘N, ⌘W, ⌘, for
   Preferences…), and ⌘ + mouse wheel zooms the editor.
@@ -102,10 +174,10 @@ The first public release.
   (Used By, Uses, Instantiated By, Implemented By, Overridden By and more).
 - **Runtime helpers:** interactive input (`Util.ReadLine`, `Util.GetPassword`),
   `Util.ProgressBar`, `Util.Cache`/`CacheAsync`, file helpers (`Util.SaveString`, `LoadString`, …),
-  `Util.CurrentQueryPath` and wider LINQPad compatibility.
-- **LINQPad import:** File → Import LINQPad Query... and `runpad convert` turn `.linq` files into
+  `Util.CurrentQueryPath` and wider compatibility with imported `.linq` scripts.
+- **`.linq` import:** a File menu command and `runpad convert` turn `.linq` files into
   `.rpad` scripts.
-- **NuGet manager** in the style of LINQPad's, with package source configuration and authentication.
+- **NuGet manager** with package source configuration and authentication.
 - **First-run setup** that finds or installs the .NET SDK and the netcoredbg debugger.
 - **Installers:** MSI for Windows, `.deb` and AppImage for Linux, unsigned DMG images for Apple
   Silicon and Intel Macs, and portable archives.
@@ -143,7 +215,7 @@ The first public release.
   filtering inside generic arguments, and snippets.
 - Formatting and navigation commands with keyboard shortcuts.
 - **Command-line runner** (`RunPad.Cli`) for running `.rpad` files from a terminal.
-- `.Dump()` overloads compatible with LINQPad and documented `DumpOptions`.
+- More `.Dump()` overloads and documented `DumpOptions`.
 - Path macros in references, such as `$(CurrentQueryPath)`.
 - File tree with New Folder and per-language icons; New RPad File for C# and Visual Basic.
 - Save, Save As (Ctrl+Shift+S), confirmation before closing unsaved tabs, restoring open tabs on
@@ -193,6 +265,7 @@ Even this groundwork showed how large the rest of the changes would be — the d
 features had not been started yet — so writing a new application from scratch turned out to be the
 better choice. RunPad began as DotPad two days after the last commit to the fork.
 
+[0.5.0]: https://github.com/campforge/run-pad/releases/tag/v0.5.0
 [0.4.2]: https://github.com/campforge/run-pad/releases/tag/v0.4.2
 [0.4.1]: https://github.com/campforge/run-pad/releases/tag/v0.4.1
 [0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0

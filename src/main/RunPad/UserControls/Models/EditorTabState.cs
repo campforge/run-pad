@@ -30,6 +30,11 @@ internal sealed class EditorTabState
     public CancellationTokenSource? RunCts { get; set; }
     public ILanguageHost? RunningHost { get; set; }
     public IBreakpointHitContext? CurrentDebugCtx { get; set; }
+
+    // The unhandled exception the current debug run stopped on: continuing from it ends the script
+    // with that exception, which netcoredbg still reports as exit code 0 — so the run's end status
+    // comes from here instead of looking like a success.
+    public DebugExceptionInfo? UnhandledDebugException { get; set; }
     public readonly Stopwatch RunStopwatch = new();
 
     // Set when the active file is an .rpad document; null for untitled tabs

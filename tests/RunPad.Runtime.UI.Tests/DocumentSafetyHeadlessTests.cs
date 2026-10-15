@@ -71,7 +71,7 @@ public class DocumentSafetyHeadlessTests
         Harness h, string name)
     {
         var path = Path.Combine(h.Root, name);
-        File.WriteAllText(path, RpadWriter.NewFile(Path.GetFileNameWithoutExtension(name)));
+        File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", Path.GetFileNameWithoutExtension(name)));
         h.MainVm.OpenTab(path);
         var tab = h.MainVm.Tabs.Single(t => t.FilePath == path);
         var ctrl = await FindControlAsync(h.Window, tab);

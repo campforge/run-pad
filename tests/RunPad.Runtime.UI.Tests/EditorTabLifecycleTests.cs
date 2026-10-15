@@ -100,7 +100,7 @@ public class EditorTabLifecycleTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
             var (ctrl, vm) = CreateControl(filePath);
 
             ctrl.State.Editor.Text = "Console.WriteLine(2);";
@@ -215,7 +215,7 @@ public class EditorTabLifecycleTests
         try
         {
             var original = Path.Combine(rootFolder, "Query 1.rpad");
-            File.WriteAllText(original, RpadWriter.NewFile("Query 1"));
+            File.WriteAllText(original, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Query 1"));
 
             var (mainVm, _, _) = CreateMainVm(rootFolder);
             mainVm.OpenTab(original);

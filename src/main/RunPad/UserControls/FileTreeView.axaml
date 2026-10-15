@@ -5,22 +5,13 @@
              x:Class="RunPad.UserControls.FileTreeView"
              x:DataType="models:FileTreeViewModel">
 
-    <Grid RowDefinitions="Auto,*">
-        <TextBlock Grid.Row="0"
-                   Text="FILES"
-                   FontSize="11"
-                   FontWeight="Medium"
-                   LetterSpacing="1.0"
-                   Margin="12,6,8,2"
-                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                   Opacity="0.6" />
-
-        <TreeView Grid.Row="1"
-                  Name="FileTree"
+    <!-- The sidebar's Queries tab names this panel (MainWindow), so it has no heading of its own. -->
+    <Grid>
+        <TreeView Name="FileTree"
                   ItemsSource="{Binding Nodes}"
                   Background="Transparent"
                   BorderThickness="0"
-                  Padding="4,2,4,8"
+                  Padding="4,4,4,8"
                   SelectionMode="Single"
                   KeyDown="FileTree_KeyDown"
                   SelectionChanged="FileTree_SelectionChanged">

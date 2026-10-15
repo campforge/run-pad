@@ -1,0 +1,35 @@
+---
+version: "1.0"
+language: csharp
+targetSdk: latest
+kind: Statements
+---
+
+# Debugging loop
+
+A short, safe script for practising the debugger. The loop runs exactly five times and
+the script only writes to the output panel.
+
+Suggested breakpoints (line numbers count from the first line of the code block):
+
+- line 4 (`var square = Square(i);`) — a plain breakpoint;
+- the same line with the condition `i == 3`;
+- line 13 (`var result = value * value;`) — reached with **Step Into** (F11).
+
+```csharp run
+var total = 0;
+for (var i = 1; i <= 5; i++)
+{
+    var square = Square(i);
+    total += square;
+    Console.WriteLine($"i = {i}, square = {square}, running total = {total}");
+}
+
+total.Dump("Sum of squares 1..5");
+
+int Square(int value)
+{
+    var result = value * value;
+    return result;
+}
+```

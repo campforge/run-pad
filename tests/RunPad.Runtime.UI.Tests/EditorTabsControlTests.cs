@@ -32,7 +32,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -97,7 +97,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo"));
+            File.WriteAllText(filePath, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo"));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -240,7 +240,7 @@ public class EditorTabsControlTests
         try
         {
             var filePath = Path.Combine(tmpDir, "demo.rpad");
-            File.WriteAllText(filePath, RpadWriter.NewFile("Demo", kind: RpadKind.Program));
+            File.WriteAllText(filePath, RpadWriter.NewFile("void Main()\n{\n    \n}\n", "Demo", kind: RpadKind.Program));
 
             var prefs = new Mock<IPreferencesService>();
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings());
@@ -379,7 +379,7 @@ public class EditorTabsControlTests
             for (var i = 0; i < tabCount; i++)
             {
                 var path = Path.Combine(tmpDir, $"Query {i}.rpad");
-                File.WriteAllText(path, RpadWriter.NewFile($"Query {i}"));
+                File.WriteAllText(path, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", $"Query {i}"));
                 paths.Add(path);
             }
 
