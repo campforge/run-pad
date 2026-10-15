@@ -64,6 +64,24 @@ public sealed class DapSession : IDapSession
     // undeclared "unhandled" with 0x80070057). Empty until the response arrives.
     private IReadOnlyList<string> _declaredExceptionFilters = [];
 
+    // The adapter's "supportsExceptionInfoRequest" capability: exception stops ask it for the
+    // exception's type, message and stack trace; without it only the stop's own text is shown.
+    private bool _supportsExceptionInfo;
+
+    // The stop last presented to the caller. A rejected resume request (netcoredbg answers "next"
+    // from an unhandled-exception stop with a failure and never moves) leaves execution right here,
+    // so the stop is presented again instead of waiting for a "stopped" event that will never come.
+    private (int ThreadId, DebugStopReason Reason, string? Text)? _lastStop;
+
+    // Resume requests whose failure leaves the debuggee stopped, and how the error names them.
+    private static readonly Dictionary<string, string> ResumeCommandNames = new()
+    {
+        ["continue"] = "continue",
+        ["next"] = "step over",
+        ["stepIn"] = "step into",
+        ["stepOut"] = "step out",
+    };
+
     // Requests whose failure means the debuggee will never start — reported as an exception instead
     // of leaving the session waiting forever for events that can't come.
     private static readonly HashSet<string> FatalCommands = ["initialize", "launch", "configurationDone"];
@@ -286,7 +304,12 @@ public sealed class DapSession : IDapSession
             if (msgType == "response" && !launchSent && GetStr(root, "command") == "initialize")
             {
                 if (root.TryGetProperty("body", out var capabilities))
+                {
                     _declaredExceptionFilters = ReadExceptionFilterIds(capabilities);
+                    _supportsExceptionInfo = capabilities.ValueKind == JsonValueKind.Object
+                        && capabilities.TryGetProperty("supportsExceptionInfoRequest", out var exceptionInfo)
+                        && exceptionInfo.ValueKind == JsonValueKind.True;
+                }
 
                 await SendAsync(new LaunchRequest { seq = NextSeq(), arguments = BuildLaunchArguments() }, ct);
                 launchSent = true;
@@ -300,6 +323,16 @@ public sealed class DapSession : IDapSession
             else if (msgType == "response" && GetStr(root, "command") == "setBreakpoints")
             {
                 ReportVerification(doc, _breakpoints);
+            }
+            else if (msgType == "response" && !IsSuccess(root) && _lastStop is { } stop
+                     && GetStr(root, "command") is { } command && ResumeCommandNames.TryGetValue(command, out var commandName))
+            {
+                var message = GetStr(root, "message") ?? "unknown error";
+                _logger.LogWarning("Debugger request '{Command}' failed: {Message}", command, message);
+                _isPaused = true;
+                await HandleStoppedAsync(stop.ThreadId, stop.Reason, stop.Text,
+                    $"The debugger couldn't {commandName}: {message}", ct);
+                _isPaused = false;
             }
             else if (msgType == "event")
             {
@@ -322,13 +355,20 @@ public sealed class DapSession : IDapSession
             case "stopped":
                 var body = root.GetProperty("body");
                 var threadId = body.TryGetProperty("threadId", out var tid) ? tid.GetInt32() : 1;
-                var reason = GetStr(body, "reason");
                 _activeThreadId = threadId;
                 _isPaused = true;
-                if (reason is "breakpoint" or "step" or "pause" or "exception" or "entry")
-                    await HandleStoppedAsync(threadId, ct);
+                if (ToStopReason(GetStr(body, "reason")) is { } reason)
+                {
+                    // "text" is netcoredbg's (and vsdbg's) one-line description of an exception
+                    // stop: "An unhandled exception of type '...' occurred in ...".
+                    var text = GetStr(body, "text") ?? GetStr(body, "description");
+                    _lastStop = (threadId, reason, text);
+                    await HandleStoppedAsync(threadId, reason, text, resumeError: null, ct);
+                }
                 else
+                {
                     await SendContinueAsync(threadId, ct);
+                }
                 _isPaused = false;
                 break;
 
@@ -355,13 +395,27 @@ public sealed class DapSession : IDapSession
 
     // ─── Stopped: gather context → notify caller → wait for Resume ───────────
 
-    private async Task HandleStoppedAsync(int threadId, CancellationToken ct)
+    private static DebugStopReason? ToStopReason(string? reason) => reason switch
+    {
+        "breakpoint" => DebugStopReason.Breakpoint,
+        "step" => DebugStopReason.Step,
+        "pause" => DebugStopReason.Pause,
+        "exception" => DebugStopReason.Exception,
+        "entry" => DebugStopReason.Entry,
+        _ => null,
+    };
+
+    private async Task HandleStoppedAsync(
+        int threadId, DebugStopReason reason, string? stopText, string? resumeError, CancellationToken ct)
     {
         var threads = await QueryThreadsAsync(ct);
         var frames = await QueryStackTraceAsync(threadId, ct);
         var vars = frames.Count > 0
             ? await QueryAllScopesAsync(frames[0].id, ct)
             : (IReadOnlyList<IVariableInfo>)[];
+        var exception = reason == DebugStopReason.Exception
+            ? await QueryExceptionAsync(threadId, stopText, vars, ct)
+            : null;
 
         var topFrame = frames.Count > 0 ? frames[0] : null;
         var topFrameUserLine = (topFrame?.line ?? 0) - _lineOffset;
@@ -369,19 +423,25 @@ public sealed class DapSession : IDapSession
         // Matching on Line alone would misattribute a hit to the wrong breakpoint if two source
         // files coincidentally used the same line number (won't happen with a single script file,
         // but IBreakpoint.FileName is now populated, so verify it when both sides have one).
+        // An exception thrown on a breakpoint's line is not a hit of that breakpoint (nor does it
+        // reach a run-to-cursor target), so it never matches one.
+        bool isException = reason == DebugStopReason.Exception;
         IBreakpoint matched =
-            _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine
+            (isException ? null : _breakpoints.FirstOrDefault(bp => bp.Line == topFrameUserLine
                 && (string.IsNullOrEmpty(bp.FileName) || topFrameSourcePath is null
-                    || DebugSourcePath.AreSame(bp.FileName, topFrameSourcePath)))
+                    || DebugSourcePath.AreSame(bp.FileName, topFrameSourcePath))))
             ?? new SyntheticBreakpoint(topFrameSourcePath ?? "", topFrameUserLine);
 
-        bool wasRunToCursor = _runToCursorLines.Remove(topFrameUserLine);
+        bool wasRunToCursor = !isException && _runToCursorLines.Remove(topFrameUserLine);
         _currentFrameId = topFrame?.id ?? 0;
 
         var context = new DapBreakpointHitContext
         {
             Breakpoint = matched,
             ThreadId = threadId,
+            StopReason = reason,
+            Exception = exception,
+            ResumeError = resumeError,
             LocalVariables = vars,
             GetChildrenFunc = FetchChildrenAsync,
             RunToCursorFunc = RegisterRunToCursorAsync,
@@ -464,6 +524,69 @@ public sealed class DapSession : IDapSession
     }
 
     // ─── DAP request helpers ─────────────────────────────────────────────────
+
+    // Asks for the exception's details when the adapter supports it. Only the stop's text and the
+    // "$exception" local's type (netcoredbg lists the in-flight exception among the top frame's
+    // locals) remain when it doesn't, or when the request fails.
+    private async Task<DebugExceptionInfo> QueryExceptionAsync(
+        int threadId, string? stopText, IReadOnlyList<IVariableInfo> locals, CancellationToken ct)
+    {
+        var fallbackType = locals.FirstOrDefault(v => v.Name == "$exception")?.TypeName;
+        if (_supportsExceptionInfo)
+        {
+            await SendAsync(new ExceptionInfoRequest
+            {
+                seq = NextSeq(),
+                arguments = new ExceptionInfoArguments { threadId = threadId },
+            }, ct);
+            using var doc = await ReadResponseForCommandAsync("exceptionInfo", ct);
+            if (doc is not null && IsSuccess(doc.RootElement) && doc.RootElement.TryGetProperty("body", out var body))
+            {
+                try
+                {
+                    if (body.Deserialize<ExceptionInfoResponseBody>(_jsonOpts) is { } info)
+                        return ToExceptionInfo(info, stopText, fallbackType);
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Unreadable exceptionInfo response");
+                }
+            }
+            else if (doc is not null)
+            {
+                _logger.LogWarning("Debugger request 'exceptionInfo' failed: {Message}", GetStr(doc.RootElement, "message"));
+            }
+        }
+
+        return new DebugExceptionInfo(fallbackType, null, stopText, null, IsUnhandled: false);
+    }
+
+    private static DebugExceptionInfo ToExceptionInfo(ExceptionInfoResponseBody info, string? stopText, string? fallbackType)
+    {
+        var details = info.details;
+        return new DebugExceptionInfo(
+            TypeName: NullIfEmpty(details?.fullTypeName) ?? NullIfEmpty(details?.typeName) ?? NullIfEmpty(info.exceptionId) ?? fallbackType,
+            Message: NullIfEmpty(details?.message) ?? NullIfEmpty(info.description),
+            Description: stopText,
+            StackTrace: NullIfEmpty(details?.stackTrace),
+            IsUnhandled: info.breakMode is "unhandled" or "userUnhandled",
+            InnerException: ToInnerException(details?.innerException, depth: 0));
+    }
+
+    // Only the first inner exception per level, and only a few levels: enough to explain the stop.
+    private static DebugExceptionInfo? ToInnerException(List<ExceptionDetails>? inner, int depth)
+    {
+        if (depth >= 8 || inner is not [var d, ..]) return null;
+        return new DebugExceptionInfo(
+            NullIfEmpty(d.fullTypeName) ?? NullIfEmpty(d.typeName),
+            NullIfEmpty(d.message),
+            Description: null,
+            NullIfEmpty(d.stackTrace),
+            IsUnhandled: false,
+            ToInnerException(d.innerException, depth + 1));
+    }
+
+    private static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private async Task<List<DapThread>> QueryThreadsAsync(CancellationToken ct)
     {

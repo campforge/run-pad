@@ -56,7 +56,7 @@ public class RealNetcoredbgDebugTests : IDisposable
         public string? HitCondition => null;
     }
 
-    private CSharpLanguageHost CreateHost(string netcoredbg)
+    private CSharpLanguageHost CreateHost(string netcoredbg, RpadKind kind = RpadKind.Program, int? breakpointLine = BreakpointLine)
     {
         var sdk = new DotnetSdkProvider().Get().First();
         var options = new CompiledDotnetLanguageHostOptions
@@ -70,11 +70,12 @@ public class RealNetcoredbgDebugTests : IDisposable
             },
             OutputDirectory = _aliasOutputDir,
             RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
-            Kind = RpadKind.Program,
+            Kind = kind,
         };
         var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
         // Same path EditorTabItemControl gives its ScriptBreakpoints: OutputDirectory/RunPadQuery.cs.
-        host.AddBreakpoint(new TestBreakpoint(Path.Combine(_aliasOutputDir, "RunPadQuery.cs"), BreakpointLine));
+        if (breakpointLine is { } line)
+            host.AddBreakpoint(new TestBreakpoint(Path.Combine(_aliasOutputDir, "RunPadQuery.cs"), line));
         return host;
     }
 
@@ -133,5 +134,50 @@ public class RealNetcoredbgDebugTests : IDisposable
         if (runTask.IsFaulted)
             Assert.IsAssignableFrom<OperationCanceledException>(runTask.Exception!.InnerException);
         lock (output) Assert.DoesNotContain(output, o => o.Contains("value=42"));
+    }
+
+    // A Statements script whose first statement throws and nothing catches it: netcoredbg stops on
+    // the exception (reported with its details), rejects stepping from there without moving, and
+    // Continue ends the script with the exception. The second statement can never run.
+    [Fact]
+    public async Task RunDebugAsync_Should_ReportAnUnhandledExceptionStop_SurviveARejectedStep_AndEndOnContinue()
+    {
+        var netcoredbg = RequireNetcoredbg();
+        await using var host = CreateHost(netcoredbg, RpadKind.Statements, breakpointLine: null);
+        var output = new List<string>();
+        var stops = new List<IBreakpointHitContext>();
+        host.BreakpointHit += ctx =>
+        {
+            lock (stops) stops.Add(ctx);
+            ctx.Resume(ctx.ResumeError is null ? DebugAction.StepOver : DebugAction.Continue);
+        };
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(2));
+        const string code = """
+            var number = int.Parse("not-a-number");
+            Console.WriteLine($"unreachable {number}");
+            """;
+        await host.RunDebugAsync(code, (data, _) => { lock (output) output.Add(data); }, timeout.Token);
+
+        string AllOutput() { lock (output) return string.Join('\n', output); }
+        Assert.False(timeout.IsCancellationRequested, "The session didn't end. Output:\n" + AllOutput());
+        lock (stops)
+        {
+            Assert.Equal(2, stops.Count);
+            Assert.All(stops, s =>
+            {
+                Assert.Equal(DebugStopReason.Exception, s.StopReason);
+                Assert.Equal(1, s.CallStack[0].Line);
+                Assert.Equal("System.FormatException", s.Exception?.TypeName);
+                Assert.Contains("not-a-number", s.Exception?.Message);
+                Assert.True(s.Exception?.IsUnhandled);
+            });
+            Assert.Null(stops[0].ResumeError);
+            Assert.StartsWith("The debugger couldn't step over:", stops[1].ResumeError);
+        }
+
+        Assert.Contains("Unhandled exception. System.FormatException", AllOutput());
+        Assert.DoesNotContain("unreachable", AllOutput());
     }
 }

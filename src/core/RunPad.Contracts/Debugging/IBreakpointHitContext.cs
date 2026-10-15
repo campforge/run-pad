@@ -16,4 +16,16 @@ public interface IBreakpointHitContext
     /// Returns null if the debugger doesn't support evaluation or the session has since resumed.
     /// </summary>
     Task<IVariableInfo?> EvaluateAsync(string expression, CancellationToken ct = default);
+
+    /// <summary>Why execution stopped here.</summary>
+    DebugStopReason StopReason => DebugStopReason.Breakpoint;
+
+    /// <summary>The exception execution stopped on; set only when <see cref="StopReason"/> is <see cref="DebugStopReason.Exception"/>.</summary>
+    DebugExceptionInfo? Exception => null;
+
+    /// <summary>
+    /// Set when the debugger rejected the previous <see cref="Resume"/> — for example a step from an
+    /// exception stop. Execution never left the stop, so this context presents the same one again.
+    /// </summary>
+    string? ResumeError => null;
 }

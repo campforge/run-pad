@@ -294,6 +294,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         State.CurrentDebugCtx?.Resume(DebugAction.Continue);
         State.CurrentDebugCtx = null;
+        _vm.DebugPanel.ClearStop();
         State.RunCts?.Cancel();
     }
 
@@ -317,6 +318,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         s.Output.Clear();
         s.DumpContainerBlocks.Clear();
         s.HadRunError = false;
+        s.UnhandledDebugException = null;
+        _vm.DebugPanel.ClearStop();
         s.ElapsedText = "";
         IlOutput.Text = "";
         SetStatus("Process", "RunPad.Status.RunningBrush");
@@ -426,9 +429,15 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             s.RunStopwatch.Stop();
             s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
+            _vm.DebugPanel.ClearStop();
             if (cancelled)
             {
                 SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+            }
+            else if (s.UnhandledDebugException is { } unhandled)
+            {
+                s.HadRunError = true;
+                SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
             }
             else if (runResult is { Succeeded: false } failed)
             {
@@ -519,6 +528,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.CurrentDebugCtx = null;
             _vm.RunState = RunState.RunDebug;
             State.Editor.DebugCurrentLine = null;
+            _vm.DebugPanel.ClearStop();
             SetStatus("Process", "RunPad.Status.RunningBrush");
             UpdateOutputUi();
             await ctx.RunToCursorAsync(line);
@@ -839,6 +849,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _vm.RunState = RunState.RunDebug;
         State.Editor.DebugCurrentLine = null;
+        _vm.DebugPanel.ClearStop();
         SetStatus("Process", "RunPad.Status.RunningBrush");
         var ctx = State.CurrentDebugCtx;
         State.CurrentDebugCtx = null;
@@ -1048,7 +1059,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         host.RemoveBreakpoint(new ScriptBreakpoint(path, e.Line, null));
     }
 
-    private void OnBreakpointHit(IBreakpointHitContext context)
+    internal void OnBreakpointHit(IBreakpointHitContext context)
     {
         var s = State;
         s.CurrentDebugCtx = context;
@@ -1077,7 +1088,18 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // for the new stop — stale values from the previous breakpoint hit would be misleading.
         foreach (var w in _vm.DebugPanel.WatchExpressions) _ = EvaluateWatchAsync(w);
 
-        SetStatus("Paused", "RunPad.Status.PausedBrush");
+        _vm.DebugPanel.ShowStop(context);
+        if (context.StopReason == DebugStopReason.Exception)
+        {
+            if (context.Exception is { IsUnhandled: true } unhandled)
+                s.UnhandledDebugException = unhandled;
+            SetStatus($"Paused on {DebugPanelViewModel.ShortTypeName(context.Exception)}", "RunPad.Status.ErrorBrush");
+        }
+        else
+        {
+            SetStatus("Paused", "RunPad.Status.PausedBrush");
+        }
+
         UpdateOutputUi();
     }
 

@@ -13,6 +13,9 @@ public sealed class DapBreakpointHitContext : IBreakpointHitContext
     public IReadOnlyList<IVariableInfo> LocalVariables { get; init; } = [];
     public IReadOnlyList<IStackFrame> CallStack { get; init; } = [];
     public IReadOnlyList<IThreadInfo> Threads { get; init; } = [];
+    public DebugStopReason StopReason { get; init; } = DebugStopReason.Breakpoint;
+    public DebugExceptionInfo? Exception { get; init; }
+    public string? ResumeError { get; init; }
 
     internal Func<int, CancellationToken, Task<IReadOnlyList<IVariableInfo>>>? GetChildrenFunc { get; set; }
     internal Func<int, CancellationToken, Task>? RunToCursorFunc { get; set; }

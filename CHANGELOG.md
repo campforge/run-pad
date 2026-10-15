@@ -46,6 +46,12 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- When the debugger stops on an exception, RunPad now says so: the status bar shows
+  *Paused on FormatException* instead of a plain *Paused*, and the **Debugger** tab shows the
+  exception's type, message and stack trace, and whether anything catches it. Stepping from an
+  exception nothing catches no longer leaves the debugger waiting with no reply: you are told the
+  step isn't possible there and can **Continue** or **Stop**. A debug run that ends with such an
+  exception finishes as *Unhandled FormatException*, not *Success*.
 - A script's `args` no longer contains RunPad's own internal arguments (`--pid …`); it is empty.
 - A .NET SDK installed by the first-run setup is found again after RunPad restarts — on macOS,
   also when RunPad is started from Finder or the Dock. Its path is now saved in
