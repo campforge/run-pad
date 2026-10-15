@@ -25,6 +25,9 @@ namespace RunPad.Debug;
 /// assembly as its first <c>args</c> entry; otherwise netcoredbg turns a bare <c>.dll</c> program into
 /// a PATH lookup of <c>dotnet</c>, which fails (0x80070002) for a macOS GUI app whose launchd PATH
 /// doesn't include the SDK directory. <see langword="null"/>/empty keeps that legacy behavior.</param>
+/// <param name="ExceptionInfoTimeout">How long an exception stop waits for the optional
+/// <c>exceptionInfo</c> details before it is shown with only the stop's own text;
+/// <see langword="null"/> uses the session's default.</param>
 public sealed record DapSessionOptions(
     string ProgramPath,
     string WorkingDirectory,
@@ -35,4 +38,5 @@ public sealed record DapSessionOptions(
     bool BreakOnUncaughtExceptions = true,
     bool JustMyCode = false,
     string? CurrentQueryPath = null,
-    string? RuntimePath = null);
+    string? RuntimePath = null,
+    TimeSpan? ExceptionInfoTimeout = null);

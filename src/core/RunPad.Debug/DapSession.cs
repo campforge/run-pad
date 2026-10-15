@@ -37,6 +37,10 @@ public sealed class DapSession : IDapSession
     // which command/event a log line is about, short enough not to dump entire variable trees.
     private const int LogSnippetLength = 200;
 
+    // The exception details are optional: an adapter that declares exceptionInfo but never answers
+    // it must not keep the stop from being shown.
+    private static readonly TimeSpan DefaultExceptionInfoTimeout = TimeSpan.FromSeconds(2);
+
     private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         IncludeFields = true,
@@ -58,6 +62,14 @@ public sealed class DapSession : IDapSession
     private readonly bool _justMyCode;
     private readonly string? _currentQueryPath;
     private readonly string? _runtimePath;
+    private readonly TimeSpan _exceptionInfoTimeout;
+
+    // The one read of the debugger's output in progress, if any. Every reader takes its message from
+    // here; a reader that stops waiting (timeout or its own cancellation) leaves the read running for
+    // the next one instead of abandoning it halfway through a message, which would break the
+    // Content-Length framing for every message after it. Runs on the session's token.
+    private Task<JsonDocument?>? _pendingRead;
+    private CancellationToken _sessionToken;
 
     // exceptionBreakpointFilters ids the adapter declared in its "initialize" response — filters
     // must come from this list (netcoredbg 3.x declares "user-unhandled"/"all" and rejects the
@@ -153,6 +165,7 @@ public sealed class DapSession : IDapSession
         _justMyCode = options.JustMyCode;
         _currentQueryPath = options.CurrentQueryPath;
         _runtimePath = options.RuntimePath;
+        _exceptionInfoTimeout = options.ExceptionInfoTimeout ?? DefaultExceptionInfoTimeout;
     }
 
     // ─── External control ────────────────────────────────────────────────────
@@ -222,6 +235,7 @@ public sealed class DapSession : IDapSession
         // later out of RunProtocolAsync's first read/write attempt.
         if (!_process.Start())
             throw new InvalidOperationException("Failed to start the debugger process.");
+        _sessionToken = ct;
         var stderrTask = DrainStderrAsync(ct);
         try
         {
@@ -248,6 +262,10 @@ public sealed class DapSession : IDapSession
 
             // Kill if still running (forced cancel or disconnect timeout).
             _process.Kill();
+            // A read still in flight (say, for an exceptionInfo answer that never came) ends with the
+            // process's output; release whatever message it still brings.
+            _ = _pendingRead?.ContinueWith(
+                static r => { if (r.IsCompletedSuccessfully) r.Result?.Dispose(); }, TaskScheduler.Default);
             try { await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false); }
             catch { }
             try { await stderrTask.ConfigureAwait(false); }
@@ -292,7 +310,7 @@ public sealed class DapSession : IDapSession
 
         while (!ct.IsCancellationRequested && !_processExited)
         {
-            using var doc = await ReadMessageAsync(ct);
+            using var doc = await NextMessageAsync(ct);
             if (doc is null) break;
 
             var root = doc.RootElement;
@@ -534,13 +552,20 @@ public sealed class DapSession : IDapSession
         var fallbackType = locals.FirstOrDefault(v => v.Name == "$exception")?.TypeName;
         if (_supportsExceptionInfo)
         {
-            await SendAsync(new ExceptionInfoRequest
+            var request = new ExceptionInfoRequest
             {
                 seq = NextSeq(),
                 arguments = new ExceptionInfoArguments { threadId = threadId },
-            }, ct);
-            using var doc = await ReadResponseForCommandAsync("exceptionInfo", ct);
-            if (doc is not null && IsSuccess(doc.RootElement) && doc.RootElement.TryGetProperty("body", out var body))
+            };
+            await SendAsync(request, ct);
+            // Matched by request_seq: an answer that comes after its timeout is skipped by whichever
+            // reader meets it — never taken for the answer to a later stop's own exceptionInfo.
+            using var doc = await ReadResponseForCommandAsync("exceptionInfo", ct, request.seq, _exceptionInfoTimeout);
+            if (doc is null && !ct.IsCancellationRequested && !_processExited)
+            {
+                _logger.LogWarning("Debugger request 'exceptionInfo' got no answer within {Timeout}", _exceptionInfoTimeout);
+            }
+            else if (doc is not null && IsSuccess(doc.RootElement) && doc.RootElement.TryGetProperty("body", out var body))
             {
                 try
                 {
@@ -1029,17 +1054,22 @@ public sealed class DapSession : IDapSession
     /// Reads messages until the response for <paramref name="command"/> arrives.
     /// Output events are forwarded; exited/terminated cause a null return.
     /// </summary>
-    private async Task<JsonDocument?> ReadResponseForCommandAsync(string command, CancellationToken ct)
+    private async Task<JsonDocument?> ReadResponseForCommandAsync(
+        string command, CancellationToken ct, int? requestSeq = null, TimeSpan? timeout = null)
     {
+        var deadline = timeout is { } t ? DateTime.UtcNow + t : (DateTime?)null;
         while (!ct.IsCancellationRequested)
         {
-            var doc = await ReadMessageAsync(ct);
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero) return null;
+            var doc = await NextMessageAsync(ct, remaining);
             if (doc is null) return null;
 
             var root = doc.RootElement;
             var msgType = GetStr(root, "type");
 
-            if (msgType == "response" && GetStr(root, "command") == command)
+            if (msgType == "response" && GetStr(root, "command") == command
+                && (requestSeq is null || (root.TryGetProperty("request_seq", out var rs) && rs.TryGetInt32(out var seq) && seq == requestSeq)))
                 return doc;
 
             // netcoredbg answers "launch" only after "initialized", so its (possibly failed)
@@ -1067,6 +1097,30 @@ public sealed class DapSession : IDapSession
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The next message from the debugger, or null at its end, on cancellation of
+    /// <paramref name="ct"/>, or when <paramref name="timeout"/> passes first. Giving up never cancels
+    /// the read itself (see <see cref="_pendingRead"/>): the next caller gets that message.
+    /// </summary>
+    private async Task<JsonDocument?> NextMessageAsync(CancellationToken ct, TimeSpan? timeout = null)
+    {
+        var read = _pendingRead ??= ReadMessageAsync(_sessionToken);
+        if (!read.IsCompleted)
+        {
+            try
+            {
+                await (timeout is { } t ? read.WaitAsync(t, ct) : read.WaitAsync(ct)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
+            {
+                return null;
+            }
+        }
+
+        _pendingRead = null;
+        return await read.ConfigureAwait(false);
     }
 
     /// <summary>
