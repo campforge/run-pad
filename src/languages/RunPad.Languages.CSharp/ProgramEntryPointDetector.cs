@@ -24,30 +24,88 @@ namespace RunPad.Languages.CSharp;
 /// </summary>
 internal static class ProgramEntryPointDetector
 {
-    // Found is false for a still-empty/Main-less script — IsStatic/ReturnsTask both default to false
-    // in that case, matching RpadKindTransform's existing fallback (non-static, non-await call shape).
-    public readonly record struct MainSignature(bool Found, bool IsStatic, bool ReturnsTask);
+    /// <summary>What <c>Main</c> takes: nothing, the command-line arguments, a token that is cancelled
+    /// when the user presses Stop (<c>Util.CancellationToken</c>), or both.</summary>
+    public enum MainParameters { None, Args, Token, ArgsAndToken }
 
+    // Found is false for a still-empty/Main-less script — every other member then has its default,
+    // matching RpadKindTransform's fallback (non-static, no-argument, no-await call shape).
+    // ReturnsInt: int or Task<int>, which becomes the process exit code.
+    public readonly record struct MainSignature(
+        bool Found, bool IsStatic, bool ReturnsTask, bool ReturnsInt = false, MainParameters Parameters = MainParameters.None);
+
+    // When a script declares several Main overloads, the one taking the most is called: arguments
+    // and a cancellation token over a token alone, over arguments alone, over none. A Main with a
+    // parameter list RunPad can't supply is only picked when it's the only one — the compiler then
+    // reports why it can't be called.
     public static MainSignature DetectMain(string code)
     {
         var root = CSharpSyntaxTree.ParseText(code).GetRoot();
-        var mainFunction = root.DescendantNodes()
+        var mains = root.DescendantNodes()
             .OfType<LocalFunctionStatementSyntax>()
-            .FirstOrDefault(f => f.Identifier.Text == "Main");
+            .Where(f => f.Identifier.Text == "Main")
+            .ToList();
+        if (mains.Count == 0) return default;
 
-        return mainFunction is null
-            ? default
-            : new MainSignature(
-                Found: true,
-                IsStatic: mainFunction.Modifiers.Any(m => m.RawKind == (int)SyntaxKind.StaticKeyword),
-                ReturnsTask: IsTaskReturning(mainFunction.ReturnType));
+        var chosen = mains
+            .Select(f => (Function: f, Parameters: ParametersOf(f)))
+            .Where(m => m.Parameters is not null)
+            .OrderByDescending(m => m.Parameters)
+            .Select(m => ((LocalFunctionStatementSyntax Function, MainParameters Parameters)?)(m.Function, m.Parameters!.Value))
+            .FirstOrDefault() ?? (mains[0], MainParameters.None);
+
+        return new MainSignature(
+            Found: true,
+            IsStatic: chosen.Function.Modifiers.Any(m => m.RawKind == (int)SyntaxKind.StaticKeyword),
+            ReturnsTask: IsTaskReturning(chosen.Function.ReturnType),
+            ReturnsInt: IsIntReturning(chosen.Function.ReturnType),
+            Parameters: chosen.Parameters);
     }
+
+    // Null for a parameter list RunPad doesn't know how to fill.
+    private static MainParameters? ParametersOf(LocalFunctionStatementSyntax main)
+    {
+        var types = main.ParameterList.Parameters.Select(p => p.Type).ToList();
+        return types switch
+        {
+            [] => MainParameters.None,
+            [var a] when IsStringArray(a) => MainParameters.Args,
+            [var a] when IsCancellationToken(a) => MainParameters.Token,
+            [var a, var b] when IsStringArray(a) && IsCancellationToken(b) => MainParameters.ArgsAndToken,
+            _ => null,
+        };
+    }
+
+    private static bool IsStringArray(TypeSyntax? type) => type is ArrayTypeSyntax
+    {
+        ElementType: PredefinedTypeSyntax { Keyword.Text: "string" } or IdentifierNameSyntax { Identifier.Text: "String" }
+                     or QualifiedNameSyntax { Right.Identifier.Text: "String" },
+        RankSpecifiers.Count: 1,
+    };
+
+    private static bool IsCancellationToken(TypeSyntax? type) => type switch
+    {
+        IdentifierNameSyntax { Identifier.Text: "CancellationToken" } => true,
+        QualifiedNameSyntax q => q.Right.Identifier.Text == "CancellationToken",
+        AliasQualifiedNameSyntax a => a.Name.Identifier.Text == "CancellationToken",
+        _ => false,
+    };
 
     private static bool IsTaskReturning(TypeSyntax returnType) => returnType switch
     {
         IdentifierNameSyntax { Identifier.Text: "Task" } => true,
         GenericNameSyntax { Identifier.Text: "Task" } => true,
         QualifiedNameSyntax q => IsTaskReturning(q.Right),
+        _ => false,
+    };
+
+    // int, or Task<int>.
+    private static bool IsIntReturning(TypeSyntax returnType) => returnType switch
+    {
+        PredefinedTypeSyntax { Keyword.Text: "int" } => true,
+        IdentifierNameSyntax { Identifier.Text: "Int32" } => true,
+        GenericNameSyntax { Identifier.Text: "Task", TypeArgumentList.Arguments: [var argument] } => IsIntReturning(argument),
+        QualifiedNameSyntax q => IsIntReturning(q.Right),
         _ => false,
     };
 }

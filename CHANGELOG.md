@@ -7,6 +7,13 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Added
 
+- A Program script's `Main` can take the command-line arguments and a cancellation token —
+  `Main(string[] args)`, `Main(CancellationToken ct)` or `Main(string[] args, CancellationToken ct)` —
+  and can return `int` or `Task<int>` as the exit code. With several `Main` overloads, the one that
+  takes the most is called.
+- `Util.CancellationToken`, cancelled when you press **Stop**. A script that uses it — or a `Main`
+  that takes a token — gets up to 3 seconds to close files, connections and child processes before
+  RunPad ends it; other scripts still stop at once.
 - A new Program script starts with a `Main` method, with the caret inside it. Switching a script
   to **Program** wraps its code in `Main` — `async Task Main()` when the code awaits — and keeps
   methods and types after it; one **Undo** brings the old code back. Visual Basic scripts get a
@@ -27,6 +34,7 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- A script's `args` no longer contains RunPad's own internal arguments (`--pid …`); it is empty.
 - A .NET SDK installed by the first-run setup is found again after RunPad restarts — on macOS,
   also when RunPad is started from Finder or the Dock. Its path is now saved in
   **Preferences → Languages → .NET**.
