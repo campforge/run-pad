@@ -100,7 +100,7 @@ public class CodeFixMargin : AbstractMargin
         context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         GutterMetrics.DrawCurrentLineRow(context, TextView, _caretLine, Bounds.Width);
 
-        if (BulbLayout() is not var (severity, yTop, lineH)) return;
+        if (BulbLayout() is not var (severity, yTop, rowHeight)) return;
 
         _bulbGeo ??= LoadResource<StreamGeometry>("Icon.Lightbulb");
         if (_bulbGeo is null) return;
@@ -108,13 +108,13 @@ public class CodeFixMargin : AbstractMargin
         // Only the glyph: the square around it is an invisible click target (HitTarget), with no
         // frame or background, not even on hover.
         var brush = LoadThemedResource<IBrush>(SeverityBrushKey(severity));
-        DrawCentered(context, _bulbGeo, brush, yTop, lineH);
+        DrawCentered(context, _bulbGeo, brush, yTop, rowHeight);
     }
 
     // Where the bulb is: the caret's line, when it has a fix and is on screen — the worst severity
-    // there, and the line's top and height in this margin's coordinates. Shared by Render and the
-    // click target, so a click hits exactly what is drawn.
-    private (CodeFixSeverity Severity, double YTop, double LineHeight)? BulbLayout()
+    // there, and the top and height of the line's first rendered row in this margin's coordinates.
+    // Shared by Render and the click target, so a click hits exactly what is drawn.
+    private (CodeFixSeverity Severity, double YTop, double RowHeight)? BulbLayout()
     {
         if (TextView is null || !TextView.VisualLinesValid || TextView.VisualLines.Count == 0 || _fixes.Count == 0)
             return null;

@@ -607,6 +607,49 @@ public class CodeFixMarginTests
         }
     }
 
+    // The same through the editor's own zoom — real Cmd/Ctrl+wheel events over the text — in both
+    // directions: after each step the glyph is still centered on the wrapped line's first row.
+    [AvaloniaFact]
+    public void AfterZoomingWithTheWheel_TheGlyph_Should_StayOnTheWrappedLinesFirstRow()
+    {
+        _ = typeof(RunPad.App).Assembly; // avares://RunPad/ resolves only once the RunPad assembly is loaded
+        var icons = new global::Avalonia.Markup.Xaml.Styling.ResourceInclude(new Uri("avares://RunPad/"))
+        {
+            Source = new Uri("avares://RunPad/Resources/Icons.axaml"),
+        };
+        Application.Current!.Resources.MergedDictionaries.Add(icons);
+        try
+        {
+            var (window, editor, margin) = CreateEditor("short\n" + string.Join(' ', Enumerable.Repeat("wrapped", 80)) + "\nshort\n");
+            window.Width = 300;
+            editor.WordWrap = true;
+            MarginWithFixOnCaretLine(editor, margin, 2);
+            var command = editor.CommandModifier == KeyModifiers.Meta ? RawInputModifiers.Meta : RawInputModifiers.Control;
+            var overText = editor.TextArea.TextView.TranslatePoint(new Point(40, 5), window)!.Value;
+            var startSize = editor.FontSize;
+
+            foreach (var (steps, delta) in new[] { (6, 1.0), (10, -1.0) })
+            {
+                for (var i = 0; i < steps; i++) window.MouseWheel(overText, new Vector(0, delta), command);
+                Settle(editor);
+
+                var vl = margin.TextView.VisualLines.First(v => v.FirstDocumentLine.LineNumber == 2);
+                Assert.True(vl.TextLines.Count > 1, $"font {editor.FontSize}: {vl.TextLines.Count} rows");
+                var offset = margin.TextView.VerticalOffset;
+                var rowTop = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineTop) - offset;
+                var rowBottom = vl.GetTextLineVisualYPosition(vl.TextLines[0], AvaloniaEdit.Rendering.VisualYPosition.LineBottom) - offset;
+                var glyph = Assert.NotNull(margin.GlyphBounds());
+                Assert.InRange(glyph.Center.Y, (rowTop + rowBottom) / 2 - 0.5, (rowTop + rowBottom) / 2 + 0.5);
+                Assert.Equal((rowTop + rowBottom) / 2, margin.HitTarget()!.Value.Center.Y, 3);
+            }
+            Assert.Equal(startSize - 4, editor.FontSize); // the wheel really zoomed: +6, then -10
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(icons);
+        }
+    }
+
     // A large font makes the glyph bigger than 24 px: the square grows with it, still inside the column.
     [AvaloniaFact]
     public void WithALargeFont_TheSquare_Should_StayLargerThanTheGlyph()
