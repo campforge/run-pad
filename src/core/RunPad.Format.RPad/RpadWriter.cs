@@ -19,41 +19,21 @@ public static class RpadWriter
         return $"---\n{yaml}\n---\n{doc.BodyBeforeCode}{code}{doc.BodyAfterCode}";
     }
 
-    /// <summary>Generates the content for a brand-new .rpad file.</summary>
-    // Language param added so "new file" can produce a .vb script too; the
-    // enum member's own lowercased name is both the YAML `language:` value and the code-fence tag
-    // (see RpadLanguage.cs), so it doubles as languageId here.
+    // A new .rpad document around <code>: front matter for the language/kind, a title heading and
+    // the run block. The code is whatever the caller wants the script to start with — the language
+    // decides that (ILanguageHostFactory.CodeForKind), not the file format.
     public static string NewFile(
+        string code,
         string title = "Untitled",
         string targetSdk = "net10.0",
         RpadKind kind = RpadKind.Statements,
-        RpadLanguage language = RpadLanguage.CSharp,
-        // Overrides the per-kind/language "Hello, RPad!" sample below with caller-supplied code
-        // (e.g. empty string) — used for a brand-new, never-saved tab (see
-        // MainWindowViewModel.NewRpadFile), which should start genuinely empty rather than with
-        // boilerplate the user didn't ask for. null (default) preserves the sample for every other
-        // caller (CLI/tests/the pre-deferred-creation "New RPad File" menu behavior).
-        string? code = null)
+        RpadLanguage language = RpadLanguage.CSharp)
     {
         var languageId = language.ToLanguageId();
 
-        code ??= (language, kind) switch
-        {
-            (RpadLanguage.Vb, RpadKind.Program) =>
-                "Module Program\nSub Main()\n\nEnd Sub\nEnd Module\n\n' You can define other methods, fields, classes and namespaces here\n",
-            (RpadLanguage.Vb, RpadKind.Expression) => "\"Hello, RPad!\"\n",
-            (RpadLanguage.Vb, _) => "Console.WriteLine(\"Hello, RPad!\")\n",
-            (_, RpadKind.Program) => "void Main()\n{\n\n}\n\n// You can define other methods, fields, classes and namespaces here\n",
-            (_, RpadKind.Expression) => "\"Hello, RPad!\"\n",
-            _ => "Console.WriteLine(\"Hello, RPad!\");\n",
-        };
-
-        // Every built-in sample above already ends with '\n', but a caller-supplied override (e.g.
-        // "" for a brand-new empty tab) might not — without a trailing newline (even an empty code
-        // block needs one), the closing fence below lands glued onto the same physical line as the
-        // code instead of starting its own line, which RpadParser.FindClosingFence requires to
-        // recognize it as a closing fence at all. Same guard Write() already applies to RunCode for
-        // the same reason.
+        // Even an empty code block needs its own line: without a trailing newline the closing fence
+        // lands on the code's line, and RpadParser.FindClosingFence only recognizes a fence that
+        // starts a line. Write() applies the same guard to RunCode.
         if (!code.EndsWith('\n')) code += "\n";
         return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }

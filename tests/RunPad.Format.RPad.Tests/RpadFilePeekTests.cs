@@ -14,7 +14,7 @@ public class RpadFilePeekTests
         var file = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(file, RpadWriter.NewFile("Demo", kind: RpadKind.Statements));
+            File.WriteAllText(file, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\");\n", "Demo", kind: RpadKind.Statements));
             Assert.Equal(RpadLanguage.CSharp, RpadFilePeek.PeekLanguage(file));
         }
         finally { File.Delete(file); }
@@ -61,7 +61,7 @@ public class RpadFilePeekTests
         var file = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(file, RpadWriter.NewFile("Demo", language: RpadLanguage.Vb));
+            File.WriteAllText(file, RpadWriter.NewFile("Console.WriteLine(\"Hello, RPad!\")\n", "Demo", language: RpadLanguage.Vb));
             Assert.Equal(RpadLanguage.Vb, RpadFilePeek.PeekDocumentLanguage(file));
         }
         finally { File.Delete(file); }

@@ -100,7 +100,7 @@ public class RpadParserWriterTests
     [InlineData(RpadKind.Expression)]
     public void NewFile_ThenParse_ProducesRequestedKind(RpadKind kind)
     {
-        var text = RpadWriter.NewFile("Untitled", "net10.0", kind);
+        var text = RpadWriter.NewFile("var x = 1;\n", "Untitled", "net10.0", kind);
 
         var parsed = RpadParser.TryParse(text);
 
@@ -108,8 +108,7 @@ public class RpadParserWriterTests
         Assert.Equal(kind, parsed!.FrontMatter.Kind);
     }
 
-    // A brand-new, never-saved tab wants genuinely empty code
-    // (not the "Hello, RPad!" sample below), via NewFile's optional code override. An empty code
+    // A brand-new, never-saved Statements tab starts with genuinely empty code. An empty code
     // block glues the closing fence onto the same line as the (empty) code instead of its own line —
     // RpadParser.FindClosingFence requires a closing fence to start its own line, so without
     // RpadWriter.NewFile normalizing a trailing newline the same way Write() already does for
@@ -122,7 +121,7 @@ public class RpadParserWriterTests
     [InlineData(RpadKind.Expression)]
     public void NewFile_WithEmptyCodeOverride_ThenParse_RoundTripsCleanlyThroughWrite(RpadKind kind)
     {
-        var text = RpadWriter.NewFile("Untitled", "net10.0", kind, code: "");
+        var text = RpadWriter.NewFile("", "Untitled", "net10.0", kind);
 
         var parsed = RpadParser.TryParse(text);
         Assert.NotNull(parsed);
@@ -161,7 +160,7 @@ public class RpadParserWriterTests
     [InlineData(RpadKind.Expression)]
     public void NewFile_WithVbLanguage_ThenParse_ProducesVbLanguageAndFence(RpadKind kind)
     {
-        var text = RpadWriter.NewFile("Untitled", "net10.0", kind, RpadLanguage.Vb);
+        var text = RpadWriter.NewFile("Dim x = 1\n", "Untitled", "net10.0", kind, RpadLanguage.Vb);
 
         Assert.Contains("```vb run", text);
         var parsed = RpadParser.TryParse(text);
@@ -172,24 +171,27 @@ public class RpadParserWriterTests
     }
 
     [Fact]
-    public void NewFile_DefaultsToCSharp_UnchangedFromBeforeTheLanguageParameterExisted()
+    public void NewFile_DefaultsToCSharp()
     {
-        var text = RpadWriter.NewFile("Untitled", "net10.0", RpadKind.Statements);
+        var text = RpadWriter.NewFile("var x = 1;\n");
 
         Assert.Contains("language: csharp", text);
         Assert.Contains("```csharp run", text);
-        Assert.Contains("Console.WriteLine(\"Hello, RPad!\");", text);
     }
 
-    // VB has no statement-terminating semicolon — a C#-shaped default snippet would be a syntax
-    // error the very first time a new VB file is run.
-    [Fact]
-    public void NewFile_WithVbLanguage_StatementsDefault_HasNoTrailingSemicolon()
+    // The format writes the caller's code as it is: what a new script starts with is the language's
+    // business (ILanguageHostFactory.CodeForKind), not the file format's.
+    [Theory]
+    [InlineData("Console.WriteLine(1);\n")]
+    [InlineData("void Main()\n{\n}\n")]
+    [InlineData("no trailing newline")]
+    public void NewFile_Should_PutTheGivenCodeInTheRunBlock(string code)
     {
-        var text = RpadWriter.NewFile("Untitled", "net10.0", RpadKind.Statements, RpadLanguage.Vb);
+        var parsed = RpadParser.TryParse(RpadWriter.NewFile(code, "Demo", kind: RpadKind.Program));
 
-        Assert.Contains("Console.WriteLine(\"Hello, RPad!\")\n", text);
-        Assert.DoesNotContain("Console.WriteLine(\"Hello, RPad!\");", text);
+        Assert.NotNull(parsed);
+        Assert.Equal(code.TrimEnd('\n') + "\n", parsed!.RunCode);
+        Assert.Equal(RpadKind.Program, parsed.FrontMatter.Kind);
     }
 
     // ── Malformed / missing values ────────────────────────────────────────────

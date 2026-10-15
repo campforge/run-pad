@@ -47,7 +47,7 @@ public class MainWindowViewModelNewFileTests
             vm.NewRpadFile();
 
             fileSystem.Verify(
-                f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<RpadLanguage>(), It.IsAny<RpadKind>()),
+                f => f.CreateNewFile(It.IsAny<string>(), It.IsAny<RpadLanguage>(), It.IsAny<RpadKind>(), It.IsAny<string>()),
                 Times.Never);
             Assert.Empty(Directory.GetFiles(rootFolder));
         }

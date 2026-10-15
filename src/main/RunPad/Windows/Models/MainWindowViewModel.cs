@@ -21,6 +21,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly IFileSystemService _fileSystemService;
     private readonly IWindowService _windowService;
     private readonly IPreferencesService _prefs;
+    private readonly ILanguageHostRegistry _languageRegistry;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
@@ -600,7 +601,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public async Task<string> CreateFileAsync(string? contextPath, RpadLanguage language, RpadKind kind)
     {
         var parentDir = ResolveParentDir(contextPath);
-        var path = _fileSystemService.CreateNewFile(parentDir, language, kind);
+        var code = CodeTemplate.TakeCaret(_languageRegistry.NewScriptCode(language, kind)).Text;
+        var path = _fileSystemService.CreateNewFile(parentDir, language, kind, code);
         await RefreshNodesAsync();
         OpenTab(path);
         return path;
@@ -652,6 +654,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
         // constructor body.
+        _languageRegistry = languageRegistry;
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
