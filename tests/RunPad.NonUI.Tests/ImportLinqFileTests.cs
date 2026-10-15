@@ -9,7 +9,7 @@ using Xunit;
 namespace RunPad.Runtime.UI.Tests;
 
 // MainWindowViewModel.ImportLinqFileAsync, the "File →
-// Import LINQPad Query..." entry point around LinqConverter (see LinqConverterTests.cs in
+// Import .linq Query..." entry point around LinqConverter (see LinqConverterTests.cs in
 // RunPad.Format.RPad.Tests for the conversion logic itself, not re-tested here).
 public class ImportLinqFileTests
 {
