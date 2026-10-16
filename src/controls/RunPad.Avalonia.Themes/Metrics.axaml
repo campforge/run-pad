@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Existing compact dimensions, named by role; code fonts and UI scaling are independent. -->
+    <x:Double x:Key="RunPad.Type.Body">13</x:Double>
+    <x:Double x:Key="RunPad.Type.Caption">12</x:Double>
+    <x:Double x:Key="RunPad.Space.Tight">4</x:Double>
+    <x:Double x:Key="RunPad.Space.Control">8</x:Double>
+    <x:Double x:Key="RunPad.Space.Section">16</x:Double>
+    <x:Double x:Key="RunPad.Size.PanelTab">28</x:Double>
+    <x:Double x:Key="RunPad.Size.NestedTab">24</x:Double>
+    <x:Double x:Key="RunPad.Size.IconButton">26</x:Double>
+    <x:Double x:Key="RunPad.Size.ToolbarIcon">16</x:Double>
+    <Thickness x:Key="RunPad.Padding.IconButton">4</Thickness>
+    <CornerRadius x:Key="RunPad.Radius.Control">4</CornerRadius>
+    <CornerRadius x:Key="RunPad.Radius.Selection">5</CornerRadius>
+</ResourceDictionary>
