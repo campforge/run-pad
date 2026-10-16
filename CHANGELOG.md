@@ -3,7 +3,7 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.6.0] — 2026-10-16
 
 ### Added
 
@@ -339,3 +339,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
 [0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
 [0.2.0]: https://github.com/campforge/run-pad/releases/tag/v0.2.0
+
+[0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
