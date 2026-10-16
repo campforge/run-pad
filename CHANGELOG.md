@@ -27,6 +27,10 @@ Notable changes in each RunPad release. Downloads are on the
 - **Queries** no longer lists folders whose names start with a dot, such as `.obsidian` or `.git`,
   or anything inside them, so a queries folder that is also an Obsidian vault or a Git repository
   shows only your scripts. Folders and files on disk are not touched.
+- **Queries** now updates when a folder is created, renamed, moved in or deleted outside RunPad —
+  in Finder, a terminal or Obsidian — also for folder names with a dot, such as `project.v2`. Before,
+  only changes to `.rpad` files were noticed. Changes inside dot folders such as `.obsidian` and
+  to other kinds of files no longer cause a refresh.
 
 ## [0.5.0] — 2026-10-15
 

@@ -38,6 +38,11 @@ public sealed class FileSystemService : IFileSystemService
     private readonly string _rootFolder;
 
     private readonly FileSystemWatcher _watcher = new();
+
+    // Folders listed by the last tree walk. A deleted path can't be asked whether it was a folder,
+    // and a folder's name may have a dot in it (project.v2), so this is how a deletion or a rename
+    // away of a listed folder is recognised.
+    private volatile HashSet<string> _knownFolders = new(StringComparer.Ordinal);
     private readonly ILogger<FileSystemService> _logger;
 
     public event EventHandler<FileSystemEventArgs>? WatcherEvent;
@@ -51,6 +56,13 @@ public sealed class FileSystemService : IFileSystemService
     {
         _logger = logger;
         _rootFolder = GetOrCreateDefaultFolder();
+    }
+
+    // Tests: a service over a temporary folder instead of Documents/RunPad Queries.
+    internal FileSystemService(ILogger<FileSystemService> logger, string rootFolder)
+    {
+        _logger = logger;
+        _rootFolder = rootFolder;
     }
 
     private static string GetOrCreateDefaultFolder()
@@ -133,7 +145,9 @@ public sealed class FileSystemService : IFileSystemService
         {
             try
             {
-                return GetFilesTreeInternal(_rootFolder, _logger, ct);
+                var tree = GetFilesTreeInternal(_rootFolder, _logger, ct);
+                _knownFolders = CollectFolders(tree);
+                return tree;
             }
             catch (OperationCanceledException)
             {
@@ -187,7 +201,10 @@ public sealed class FileSystemService : IFileSystemService
     public void StartWatcher()
     {
         _watcher.Path = _rootFolder;
-        _watcher.Filter = $"*{FileExtension}";
+        // Everything: a "*.rpad" filter is applied by the system watcher to folder names too, so a
+        // folder created or renamed outside RunPad (project.v2, Imported) never raised an event.
+        // Which changes matter is decided in IsRelevant.
+        _watcher.Filter = "";
         _watcher.IncludeSubdirectories = true;
         _watcher.NotifyFilter =
             NotifyFilters.FileName | NotifyFilters.DirectoryName |
@@ -207,7 +224,10 @@ public sealed class FileSystemService : IFileSystemService
 
     private void OnFileEvent(object source, FileSystemEventArgs e)
     {
-        if (!IsRelevant(e.FullPath))
+        // A folder's own "changed" (its contents or times changed) never alters the tree: whatever
+        // changed inside raises an event of its own.
+        if (e.ChangeType == WatcherChangeTypes.Changed && Directory.Exists(e.FullPath)
+            || !IsRelevant(e.FullPath))
         {
             return;
         }
@@ -227,12 +247,39 @@ public sealed class FileSystemService : IFileSystemService
         WatcherEvent?.Invoke(source, e);
     }
 
-    // Fire for: .rpad files or items with no extension (directories)
-    private static bool IsRelevant(string fullPath)
+    // Whether a change at this path can change the Queries tree: a script, or a listed folder (one
+    // that exists now, or that the last tree walk listed — a deleted or renamed-away one). Nothing
+    // inside a dot folder is listed, nor is a dot-named folder itself; other files never are.
+    private bool IsRelevant(string fullPath)
     {
-        var ext = Path.GetExtension(fullPath);
-        return string.IsNullOrEmpty(ext)
-               || ext.Equals(FileExtension, StringComparison.OrdinalIgnoreCase);
+        var relative = Path.GetRelativePath(_rootFolder, fullPath);
+        if (relative == "." || relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+            return false;
+        var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (parts[..^1].Any(p => p.StartsWith('.')))
+            return false;
+
+        if (Path.GetExtension(fullPath).Equals(FileExtension, StringComparison.OrdinalIgnoreCase)
+            && !Directory.Exists(fullPath))
+            return true;
+        if (parts[^1].StartsWith('.'))
+            return false;
+        return Directory.Exists(fullPath) || _knownFolders.Contains(Path.TrimEndingDirectorySeparator(fullPath));
+    }
+
+    private static HashSet<string> CollectFolders(IEnumerable<FileSystemItem> items)
+    {
+        var folders = new HashSet<string>(StringComparer.Ordinal);
+        void Walk(IEnumerable<FileSystemItem> level)
+        {
+            foreach (var item in level.Where(i => i.IsDirectory))
+            {
+                folders.Add(Path.TrimEndingDirectorySeparator(item.FilePath));
+                Walk(item.Children ?? []);
+            }
+        }
+        Walk(items);
+        return folders;
     }
 
     public void OpenFolder(string filePath)
