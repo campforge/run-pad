@@ -53,15 +53,9 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <!-- Tab look: TabControl.panel in RunPadTheme. -->
         <Style Selector="TabControl.OutputTabs">
             <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
-            <Setter Property="Padding"    Value="0"/>
-        </Style>
-        <Style Selector="TabControl.OutputTabs > TabItem">
-            <Setter Property="FontSize"  Value="13"/>
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Height"    Value="28"/>
-            <Setter Property="Padding"   Value="12,0"/>
         </Style>
     </UserControl.Styles>
 
@@ -212,7 +206,7 @@
                       HorizontalAlignment="Stretch"/>
 
         <!-- Row 3: Output tabs -->
-        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">
+        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel">
 
             <TabItem Header="Results">
                 <uc:OutputHtmlView x:Name="ResultsOutput"/>

@@ -7,15 +7,9 @@
 
     <UserControl.Styles>
 
-        <Style Selector="TabControl">
+        <!-- Tab look: TabControl.panel.nested in RunPadTheme. -->
+        <Style Selector="TabControl.panel">
             <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
-            <Setter Property="Padding"    Value="0"/>
-        </Style>
-        <Style Selector="TabItem">
-            <Setter Property="FontSize"   Value="12"/>
-            <Setter Property="MinHeight"  Value="24"/>
-            <Setter Property="Height"     Value="24"/>
-            <Setter Property="Padding"    Value="10,0"/>
         </Style>
 
         <Style Selector="DataGrid">
@@ -99,7 +93,7 @@
                              Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
     </Border>
 
-    <TabControl>
+    <TabControl Classes="panel nested">
 
         <!-- ── Threads ─────────────────────────────────────────────────────── -->
         <TabItem Header="Threads">

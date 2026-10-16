@@ -135,4 +135,82 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
+    <!-- ── Panel tabs ─────────────────────────────────────────────────────── -->
+    <!-- Tabs of a panel (Results/Debugger/IL, and the Debugger's own Threads/Locals/…), drawn like
+         the document tabs above the editor: inactive tabs on the panel colour, the selected tab in
+         the colour of its content so the two join, a separator after each tab, the hover brush on
+         hover, no accent line, a thin accent frame for keyboard focus. TabControl.Background is the
+         content's colour. "nested" is the smaller row inside a panel. -->
+    <Style Selector="TabControl.panel">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TabControl">
+                <DockPanel>
+                    <Border x:Name="PART_Strip" DockPanel.Dock="Top"
+                            Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
+                        <ItemsPresenter Name="PART_ItemsPresenter"
+                                        ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                    </Border>
+                    <Border Background="{TemplateBinding Background}">
+                        <ContentPresenter Name="PART_SelectedContentHost"
+                                          Content="{TemplateBinding SelectedContent}"
+                                          ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem">
+        <Setter Property="FontSize"   Value="13"/>
+        <Setter Property="MinHeight"  Value="28"/>
+        <Setter Property="Height"     Value="28"/>
+        <Setter Property="Padding"    Value="12,0"/>
+        <Setter Property="Margin"     Value="0"/>
+        <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="TabItem">
+                <!-- Transparent: the whole tab takes clicks whatever brush the theme supplies. -->
+                <Panel Background="Transparent">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+                            BorderThickness="0,0,1,0"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <Border x:Name="FocusFrame" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem:selected">
+        <Setter Property="Background" Value="{Binding $parent[TabControl].Background}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel > TabItem:focus-visible /template/ Border#FocusFrame">
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
+    </Style>
+    <Style Selector="TabControl.panel.nested > TabItem">
+        <Setter Property="FontSize"  Value="12"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Height"    Value="24"/>
+        <Setter Property="Padding"   Value="10,0"/>
+    </Style>
+
 </Styles>
