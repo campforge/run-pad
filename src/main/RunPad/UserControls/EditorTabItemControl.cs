@@ -1699,8 +1699,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // keystroke; for a file with front-matter packages/usings, spurious "type not found"
         // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
-        if (rpad?.FrontMatter.Packages is { Count: > 0 })
-            RefreshIntelliSensePackages();
+        RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
@@ -1741,7 +1740,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
         intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile));
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath));
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
