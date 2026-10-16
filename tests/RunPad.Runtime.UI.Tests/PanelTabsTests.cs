@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -129,8 +130,8 @@ public class PanelTabsTests
     {
         var tabs = DebuggerTabs(out var host);
         var items = Items(tabs);
-        Border Frame(TabItem i) => i.GetVisualDescendants().OfType<Border>().First(b => b.Name == "FocusFrame");
-        var accent = Resource(tabs, "RunPad.Tab.AccentBrush");
+        // The keyboard-focus frame is Fluent's focus adorner, as on every other control.
+        bool Framed(TabItem i) => FocusFrames.IsShown(i);
 
         // A click anywhere on the tab, its padding included, selects it — no focus frame.
         var watch = items[2];
@@ -138,14 +139,14 @@ public class PanelTabsTests
         host.MouseUp(watch.TranslatePoint(new Point(2, 2), host)!.Value, MouseButton.Left);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(2, tabs.SelectedIndex);
-        Assert.NotEqual(accent, ColorOf(Frame(watch).BorderBrush));
+        Assert.False(Framed(watch));
 
         // Keyboard: Right/Left move the selection; the tab reached by the keyboard shows the frame.
         host.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, "");
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(3, tabs.SelectedIndex);
-        Assert.Equal(accent, ColorOf(Frame(items[3]).BorderBrush));
-        Assert.NotEqual(accent, ColorOf(Frame(watch).BorderBrush));
+        Assert.True(Framed(items[3]));
+        Assert.False(Framed(watch));
         host.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, "");
         host.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, "");
         Dispatcher.UIThread.RunJobs();

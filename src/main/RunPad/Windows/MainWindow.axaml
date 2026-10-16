@@ -23,8 +23,8 @@
         <!-- Sidebar tabs (Queries / Examples), styled like the code-document tabs (EditorTabsControl):
              the strip and inactive tabs in the editor background, the selected tab in the colour of
              what it opens onto (here the side panel, as a document tab takes the editor's), a 1 px
-             separator after each tab, the hover brush on hover. No accent line; keyboard focus gets a
-             thin accent frame. -->
+             separator after each tab, the hover brush on hover. No accent line; keyboard focus shows
+             Fluent's focus frame, as everywhere else. -->
         <Style Selector="TabStrip.sidebar">
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
@@ -51,7 +51,6 @@
                                               VerticalAlignment="Center"
                                               TextBlock.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
-                        <Border x:Name="FocusFrame" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
                     </Panel>
                 </ControlTemplate>
             </Setter>
@@ -62,9 +61,6 @@
         </Style>
         <Style Selector="TabStrip.sidebar > TabStripItem:pointerover /template/ Border#Root">
             <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-        </Style>
-        <Style Selector="TabStrip.sidebar > TabStripItem:focus-visible /template/ Border#FocusFrame">
-            <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
         </Style>
         <Style Selector="ListBox.examples > ListBoxItem">
             <Setter Property="FontSize" Value="13"/>
