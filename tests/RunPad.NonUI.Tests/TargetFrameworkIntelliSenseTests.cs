@@ -25,6 +25,7 @@ namespace RunPad.Runtime.UI.Tests;
 public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
 {
     private const string OlderTarget = "net9.0";
+    private const string FixturePackVersion = "9.0.99999";
     private const string OnlyInNewer = "var o = System.Text.Json.JsonSerializerOptions.Web;\n";
     private const string OnlyInOlder = "var t = typeof(System.Text.Json.OnlyInOlderTarget);\n";
 
@@ -60,10 +61,13 @@ public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
         var current = TargetingPack.Find(_currentTarget, "dotnet", null);
         Assert.NotNull(current);
         var reference = Directory.CreateDirectory(Path.Combine(_packages, TargetingPack.PackageId.ToLowerInvariant(),
-            "9.0.0", "ref", OlderTarget)).FullName;
+            FixturePackVersion, "ref", OlderTarget)).FullName;
         foreach (var dll in current.ReferenceAssemblies)
             File.Copy(dll, Path.Combine(reference, Path.GetFileName(dll)));
         File.Copy(Json("9.0.0.0", "public static class OnlyInOlderTarget { }"), Path.Combine(reference, "System.Text.Json.dll"), overwrite: true);
+        // Lookup takes the highest patch from installed packs and the cache. Keep this fixture
+        // ahead of installed .NET 9 packs so the machine cannot silently replace its APIs.
+        Assert.Equal(reference, TargetingPack.Find(OlderTarget, "dotnet", _packages)?.ReferenceDirectory);
     }
 
     private string Json(string assemblyVersion, string extraCode = "") =>
