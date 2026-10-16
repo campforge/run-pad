@@ -87,4 +87,52 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
     </Style>
 
+    <!-- ── Default dialog button ──────────────────────────────────────────── -->
+    <!-- The button a dialog's Enter presses (IsDefault) is its primary action and looks like it:
+         theme accent with white text. Disabled keeps Fluent's own look. -->
+    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
+    </Style>
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
+    </Style>
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
+    </Style>
+
+    <!-- Keyboard focus: a ring in the button's text colour inside the accent, visible whatever
+         the focus adorner around the button shows. -->
+    <Style Selector="Button[IsDefault=True]:not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush"     Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+
+    <!-- ── Thin splitter ──────────────────────────────────────────────────── -->
+    <!-- A splitter that shows a 1-DIP line in the middle of its (wider, transparent) drag area:
+         the area, cursor and dragging stay those of GridSplitter. -->
+    <Style Selector="GridSplitter.thin">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="GridSplitter">
+                <Panel Background="{TemplateBinding Background}">
+                    <Border x:Name="PART_Line" Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="GridSplitter.thin[ResizeDirection=Columns] /template/ Border#PART_Line">
+        <Setter Property="Width" Value="1"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="GridSplitter.thin[ResizeDirection=Rows] /template/ Border#PART_Line">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
 </Styles>

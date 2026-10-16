@@ -207,9 +207,9 @@
 
         <!-- Row 2: GridSplitter -->
         <GridSplitter Grid.Row="2"
+                      Classes="thin"
                       ResizeDirection="Rows"
-                      HorizontalAlignment="Stretch"
-                      Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+                      HorizontalAlignment="Stretch"/>
 
         <!-- Row 3: Output tabs -->
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">

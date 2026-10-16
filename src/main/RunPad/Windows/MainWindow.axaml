@@ -190,7 +190,7 @@
                 </Panel>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource RunPad.Separator.BackgroundBrush}" ResizeDirection="Columns"/>
+            <GridSplitter Grid.Column="1" Width="5" Classes="thin" ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
             <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>
