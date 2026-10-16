@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Data;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -26,7 +27,7 @@ using Xunit;
 namespace RunPad.Runtime.UI.Tests;
 
 /// <summary>
-/// Fluent's keyboard-focus frame (its focus adorner) around a control — or around one of its own
+/// The theme's keyboard-focus frame (its focus adorner) around a control — or around one of its own
 /// parts: a tree item frames its row, not its children.
 /// </summary>
 internal static class FocusFrames
@@ -39,7 +40,7 @@ internal static class FocusFrames
     public static bool IsShown(Control control) => Of(control).Any(a => a.IsVisible);
 }
 
-// One keyboard-focus look: Fluent's frame (white in dark themes, black in light ones), shown when a
+// One keyboard-focus look from the active theme, shown when a
 // control is reached with the keyboard and not when it is clicked. Before, combo boxes filled
 // themselves with the accent instead and the side panel's and panels' tabs drew a second, accent
 // frame inside Fluent's. Real windows and real keyboard and mouse input.
@@ -108,12 +109,17 @@ public class KeyboardFocusTests
         ((ISolidColorBrush)FocusFrames.Of(c).SelectMany(a => new[] { (Visual)a }.Concat(a.GetVisualDescendants())).OfType<Border>().First().BorderBrush!).Color;
 
     // Tab goes through the side panel, the tree, the document tab and the toolbar: every stop shows
-    // exactly one frame — Fluent's — in the theme's focus colour, and nothing draws a second one.
+    // exactly one frame in the theme's focus colour, and nothing draws a second one.
     [AvaloniaTheory]
-    [InlineData("VsCodeDark", "#FFFFFFFF")]
-    [InlineData("VsCodeLight", "#FF000000")]
-    [InlineData("RunPadWarmLight", "#FF000000")]
-    public async Task EveryKeyboardStop_InTheMainWindow_Should_ShowOneFrame(string theme, string expected)
+    [InlineData("VsCodeDark")]
+    [InlineData("VsCodeLight")]
+    [InlineData("RunPadWarmLight")]
+    [InlineData("RiderDark")]
+    [InlineData("RiderLight")]
+    [InlineData("Vs2022Dark")]
+    [InlineData("Vs2022Light")]
+    [InlineData("RunPadMidnight")]
+    public async Task EveryKeyboardStop_InTheMainWindow_Should_ShowOneFrame(string theme)
     {
         var window = MainWindow(theme, out var vm);
         window.Show();
@@ -132,7 +138,8 @@ public class KeyboardFocusTests
             seen.Add(focused.GetType().Name);
             Assert.True(FocusFrames.IsShown(focused), $"{focused.GetType().Name} has no keyboard-focus frame");
             Assert.Single(FocusFrames.Of(focused));
-            Assert.Equal(Color.Parse(expected), FrameColor(focused));
+            focused.TryFindResource("RunPad.Focus.BorderBrush", focused.ActualThemeVariant, out var brush);
+            Assert.Equal(((ISolidColorBrush)brush!).Color, FrameColor(focused));
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "FocusFrame");
             // and no second, filled focus look (Fluent's ComboBox accent fill)
             Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Border>(), b => b.Name == "HighlightBackground" && b.IsEffectivelyVisible);
@@ -199,7 +206,7 @@ public class KeyboardFocusTests
             if (focused is Button)
                 Assert.True(FocusFrames.IsShown(focused), $"{((Button)focused).Content} has no frame");
             else
-                Assert.False(FocusFrames.IsShown(focused)); // text fields: their own focused border
+                Assert.True(FocusFrames.IsShown(focused)); // text fields share the same ring
         }
 
         Assert.Equal([typeof(TextBox), typeof(TextBox), typeof(Button), typeof(Button)], reached.Select(c => c.GetType()));
@@ -236,5 +243,147 @@ public class KeyboardFocusTests
         Assert.True(FocusFrames.IsShown(combo));
         Assert.False(Filled());
         window.Close();
+    }
+    [AvaloniaTheory]
+    [InlineData("VsCodeDark")]
+    [InlineData("VsCodeLight")]
+    [InlineData("RiderDark")]
+    [InlineData("RiderLight")]
+    [InlineData("Vs2022Dark")]
+    [InlineData("Vs2022Light")]
+    [InlineData("RunPadMidnight")]
+    [InlineData("RunPadWarmLight")]
+    public void Controls_Should_ShareThemeGeometry_AndKeepTheRingVisible(string theme)
+    {
+        var controls = new Control[]
+        {
+            new Button { Content = "Action" },
+            new Button { Content = "Default", IsDefault = true },
+            new ToggleButton { Content = "Toggle" },
+            new CheckBox { Content = "Check" },
+            new RadioButton { Content = "Radio" },
+            new ComboBox { ItemsSource = new[] { "One", "Two" }, SelectedIndex = 0 },
+            new TextBox { Text = "Input" },
+            new NumericUpDown { Value = 12 },
+        };
+        var panel = new StackPanel();
+        foreach (var control in controls) panel.Children.Add(control);
+        var window = Themed(new Window { Width = 400, Height = 500, Content = panel }, theme);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        object Resource(string key)
+        {
+            Assert.True(window.TryFindResource(key, window.ActualThemeVariant, out var value), key);
+            return value!;
+        }
+        var primary = ((ISolidColorBrush)Resource("RunPad.Focus.BorderBrush")).Color;
+        var contrast = ((ISolidColorBrush)Resource("RunPad.Focus.ContrastBrush")).Color;
+        var radius = (CornerRadius)Resource("RunPad.Focus.CornerRadius");
+        var thickness = (Thickness)Resource("RunPad.Focus.Thickness");
+        controls[0].Focus(NavigationMethod.Tab);
+        foreach (var control in controls)
+        {
+            var focused = (Control)window.FocusManager!.GetFocusedElement()!;
+            Assert.True(control == focused || focused.GetVisualAncestors().Contains(control));
+            var frames = FocusFrames.Of(focused).ToArray();
+            Assert.Single(frames);
+            var ring = frames[0].GetVisualDescendants().Prepend(frames[0]).OfType<Border>().Single(b => b.Name == "FocusRingPrimary");
+            Assert.Equal(primary, ((ISolidColorBrush)ring.BorderBrush!).Color);
+            Assert.Equal(radius, ring.CornerRadius);
+            Assert.Equal(thickness, ring.BorderThickness);
+            Tab(window);
+        }
+        foreach (var background in new[] { "Panel.BackgroundBrush", "Sidebar.BackgroundBrush", "Editor.BackgroundBrush",
+            "Output.BackgroundBrush", "Toolbar.BackgroundBrush", "Accent.BackgroundBrush", "Button.Primary.BackgroundBrush",
+            "Button.Primary.HoverBrush", "Button.Primary.PressedBrush" })
+        {
+            var colour = ((ISolidColorBrush)Resource("RunPad." + background)).Color;
+            Assert.True(Math.Max(Contrast(primary, colour), Contrast(contrast, colour)) >= 3,
+                $"Focus ring is lost on {theme}/{background}");
+        }
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void FocusedControls_Should_FollowThemeChangesAndResourceOverrides()
+    {
+        var button = new Button { Content = "Action" };
+        var window = Themed(new Window { Width = 400, Height = 200, Content = button }, "VsCodeLight");
+        window.Show();
+        button.Focus(NavigationMethod.Tab);
+        Dispatcher.UIThread.RunJobs();
+        var light = FrameColor(button);
+        window.RequestedThemeVariant = RunPadThemeVariants.RiderDark;
+        Dispatcher.UIThread.RunJobs();
+        Assert.NotEqual(light, FrameColor(button));
+        window.TryFindResource("RunPad.Focus.BorderBrush", window.ActualThemeVariant, out var themed);
+        Assert.Equal(((ISolidColorBrush)themed!).Color, FrameColor(button));
+
+        window.Resources["RunPad.Focus.BorderBrush"] = new SolidColorBrush(Colors.Orange);
+        window.Resources["RunPad.Focus.Thickness"] = new Thickness(3);
+        window.Resources["RunPad.Focus.CornerRadius"] = new CornerRadius(6);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(Colors.Orange, FrameColor(button));
+        var ring = FocusFrames.Of(button).SelectMany(f => f.GetVisualDescendants().Prepend(f)).OfType<Border>().Single(b => b.Name == "FocusRingPrimary");
+        Assert.Equal(new Thickness(3), ring.BorderThickness);
+        Assert.Equal(new CornerRadius(6), ring.CornerRadius);
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("VsCodeDark")]
+    [InlineData("VsCodeLight")]
+    public async Task GridCells_Should_UseTheSameRing_WithoutSquareFocusRectangles(string theme)
+    {
+        var grid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            ItemsSource = new[] { new KeyValuePair<string, string>("One", "Two") },
+            IsReadOnly = true,
+        };
+        grid.Columns.Add(new DataGridTextColumn { Header = "Key", Binding = new Binding("Key") });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Value", Binding = new Binding("Value") });
+        var window = new Window { Width = 500, Height = 250, Content = grid };
+        var gridStyles = new StyleInclude(new Uri("avares://Avalonia.Controls.DataGrid/"))
+        {
+            Source = new Uri("avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"),
+        };
+        Application.Current!.Styles.Add(gridStyles);
+        try
+        {
+            Themed(window, theme);
+            Assert.True(window.TryFindResource(typeof(DataGrid), window.RequestedThemeVariant, out var gridTheme), "DataGrid theme was not loaded");
+            grid.Theme = Assert.IsType<ControlTheme>(gridTheme);
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            await SettleAsync();
+            var cells = grid.GetVisualDescendants().OfType<DataGridCell>().ToArray();
+            Assert.True(cells.Length >= 2, $"cells={cells.Length}, columns={grid.Columns.Count}, bounds={grid.Bounds}, visuals={string.Join(",", grid.GetVisualDescendants().Take(10).Select(v => v.GetType().Name))}");
+            Click(window, cells[0]);
+            Assert.False(FocusFrames.IsShown(cells[0]));
+            Assert.True(cells[1].Focus(NavigationMethod.Tab));
+            Dispatcher.UIThread.RunJobs();
+            var focused = (Control)window.FocusManager!.GetFocusedElement()!;
+            Assert.IsType<DataGridCell>(focused);
+            Assert.True(FocusFrames.IsShown(focused));
+            Assert.DoesNotContain(focused.GetVisualDescendants().OfType<Grid>(), g => g.Name == "FocusVisual" && g.IsEffectivelyVisible);
+            window.TryFindResource("RunPad.Focus.BorderBrush", window.ActualThemeVariant, out var brush);
+            Assert.Equal(((ISolidColorBrush)brush!).Color, FrameColor(focused));
+        }
+        finally
+        {
+            window.Close();
+            Application.Current.Styles.Remove(gridStyles);
+        }
+    }
+
+    private static double Contrast(Color a, Color b)
+    {
+        static double L(Color c)
+        {
+            static double Linear(byte v) { var s = v / 255d; return s <= 0.04045 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4); }
+            return 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
+        }
+        return (Math.Max(L(a), L(b)) + 0.05) / (Math.Min(L(a), L(b)) + 0.05);
     }
 }

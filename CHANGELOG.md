@@ -15,11 +15,12 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Keyboard focus now uses one rounded theme-defined ring across buttons, tabs, dropdowns, trees
+  and text fields. Each theme controls its colours, thickness and corner radius independently
+  of selection colours; primary buttons no longer add a second focus border.
+
 - Editor preferences are grouped into font and zoom, display, editing, and new-file defaults,
   with aligned fields and the same settings and keyboard behavior.
-
-- Keyboard navigation uses one consistent focus frame on tabs, buttons, trees and dropdowns.
-  Dropdown text stays readable when focused, and clicking a tab no longer adds a second frame.
 
 - Code zoom (**View → Zoom In/Out**, Ctrl+wheel or Cmd+wheel on macOS, and the percentage in the
   status bar) is now one setting for all editors: every open tab and every tab opened later shows
