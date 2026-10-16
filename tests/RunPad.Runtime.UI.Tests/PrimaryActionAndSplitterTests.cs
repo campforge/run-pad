@@ -121,12 +121,12 @@ public class PrimaryActionAndSplitterTests
         owner.Close();
     }
 
-    // A thin splitter keeps the drag area of an ordinary splitter in the same place (and its resize
-    // cursor), draws only a 1-DIP centred line, and still resizes the columns/rows when dragged.
+    // The seam reserves one DIP in layout. Its five-DIP target overlaps both panels and still
+    // resizes from the edge of that target with either the mouse or keyboard.
     [AvaloniaTheory]
     [InlineData(GridResizeDirection.Columns)]
     [InlineData(GridResizeDirection.Rows)]
-    public void AThinSplitter_Should_KeepItsDragArea_DrawOneDipLine_AndResize(GridResizeDirection direction)
+    public void ASeam_Should_ReserveOneDip_OverlapThePanels_AndResize(GridResizeDirection direction)
     {
         var columns = direction == GridResizeDirection.Columns;
         var plain = SplitterIn(new GridSplitter { ResizeDirection = direction }, columns, out var plainWindow);
@@ -135,11 +135,13 @@ public class PrimaryActionAndSplitterTests
         var plainCursor = plain.Cursor;
         plainWindow.Close();
 
-        var splitter = SplitterIn(new GridSplitter { Classes = { "thin" }, ResizeDirection = direction }, columns, out var window);
+        var splitter = SplitterIn(new GridSplitter { Classes = { "seam" }, ResizeDirection = direction }, columns, out var window);
         var grid = (Grid)splitter.Parent!;
         var line = splitter.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_Line");
         var area = columns ? splitter.Bounds.Width : splitter.Bounds.Height;
-        Assert.Equal(plainArea, splitter.Bounds);
+        Assert.True(columns ? plainArea.Width >= 5 : plainArea.Height >= 5);
+        Assert.Equal(1, columns ? grid.ColumnDefinitions[1].ActualWidth : grid.RowDefinitions[1].ActualHeight);
+        Assert.Equal(198, columns ? splitter.Bounds.X : splitter.Bounds.Y);
         Assert.True(area >= 5, $"drag area {area}");
         Assert.Equal(1, columns ? line.Bounds.Width : line.Bounds.Height);
         Assert.Equal(Math.Floor((area - 1) / 2), columns ? line.Bounds.X : line.Bounds.Y, 0);
@@ -159,6 +161,12 @@ public class PrimaryActionAndSplitterTests
 
         var size = columns ? grid.ColumnDefinitions[0].ActualWidth : grid.RowDefinitions[0].ActualHeight;
         Assert.InRange(size, 239, 241);
+        splitter.Focus(NavigationMethod.Tab);
+        window.KeyPress(columns ? Key.Right : Key.Down, RawInputModifiers.None,
+            columns ? PhysicalKey.ArrowRight : PhysicalKey.ArrowDown, "");
+        Dispatcher.UIThread.RunJobs();
+        var afterKey = columns ? grid.ColumnDefinitions[0].ActualWidth : grid.RowDefinitions[0].ActualHeight;
+        Assert.True(afterKey > size, "Keyboard resizing must still move the seam.");
         window.Close();
     }
 
@@ -174,13 +182,13 @@ public class PrimaryActionAndSplitterTests
         var first = new Border();
         if (columns)
         {
-            grid.ColumnDefinitions = new ColumnDefinitions("200,5,*");
+            grid.ColumnDefinitions = new ColumnDefinitions("200,1,*");
             Grid.SetColumn(splitter, 1);
-            splitter.Width = 5;
+            if (!splitter.Classes.Contains("seam")) splitter.Width = 5;
         }
         else
         {
-            grid.RowDefinitions = new RowDefinitions("200,5,*");
+            grid.RowDefinitions = new RowDefinitions("200,1,*");
             Grid.SetRow(splitter, 1);
             splitter.HorizontalAlignment = HorizontalAlignment.Stretch;
         }

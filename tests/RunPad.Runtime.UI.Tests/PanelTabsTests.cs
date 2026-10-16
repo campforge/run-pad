@@ -153,4 +153,30 @@ public class PanelTabsTests
         Assert.Equal(1, tabs.SelectedIndex);
         host.Close();
     }
+    [AvaloniaTheory]
+    [InlineData(260)]
+    [InlineData(350)]
+    [InlineData(500)]
+    public void NarrowPanel_Should_KeepEveryHeaderVisibleAndClickable(int width)
+    {
+        var tabs = DebuggerTabs(out var host);
+        host.Width = width;
+        Dispatcher.UIThread.RunJobs();
+        var items = Items(tabs);
+        foreach (var item in items)
+        {
+            var origin = item.TranslatePoint(default, host)!.Value;
+            Assert.InRange(origin.X, 0, width - item.Bounds.Width);
+            Assert.InRange(origin.Y, 0, host.Bounds.Height - item.Bounds.Height);
+            var point = item.TranslatePoint(new Point(4, 4), host)!.Value;
+            host.MouseDown(point, MouseButton.Left);
+            host.MouseUp(point, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(item, items[tabs.SelectedIndex]);
+        }
+        host.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, "");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(items.Count - 2, tabs.SelectedIndex);
+        host.Close();
+    }
 }
