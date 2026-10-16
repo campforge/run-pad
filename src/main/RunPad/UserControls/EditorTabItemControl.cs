@@ -104,16 +104,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         InitializeComponent();
 
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
-        if (_outputTabsControl?.Tag is Button exceptionSettings)
-        {
-            exceptionSettings.IsVisible = _outputTabsControl.SelectedIndex == 1;
-            _outputTabsControl.SelectionChanged += (_, _) =>
-                exceptionSettings.IsVisible = _outputTabsControl.SelectedIndex == 1;
-            _outputTabsControl.SizeChanged += (_, e) =>
-                exceptionSettings.Content = e.NewSize.Width < 400 ? "⋯" : "Exceptions…";
-        }
-
-
         var editor = new CodeTextEditor { Background = _themeService.GetBrush("RunPad.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
         ResultsOutput.DataContext = State.Output;
