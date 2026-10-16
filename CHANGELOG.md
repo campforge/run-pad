@@ -22,6 +22,12 @@ Notable changes in each RunPad release. Downloads are on the
   the menu. **Preferences → Editor → Code zoom** shows it and resets it on its own. Files opened in
   their own editor window now use the editor font, size and zoom too.
 
+### Fixed
+
+- **Queries** no longer lists folders whose names start with a dot, such as `.obsidian` or `.git`,
+  or anything inside them, so a queries folder that is also an Obsidian vault or a Git repository
+  shows only your scripts. Folders and files on disk are not touched.
+
 ## [0.5.0] — 2026-10-15
 
 ### Added
