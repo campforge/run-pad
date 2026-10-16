@@ -21,6 +21,10 @@ Notable changes in each RunPad release. Downloads are on the
   scale — 100% is the interface-scaled font size — and the wheel moves through the same steps as
   the menu. **Preferences → Editor → Code zoom** shows it and resets it on its own. Files opened in
   their own editor window now use the editor font, size and zoom too.
+- In dialogs, the button that **Enter** presses (OK, Save, Rename…) is now shown in the theme's
+  accent colour, with a visible ring when it has keyboard focus, so the main action stands out;
+  **Enter** and **Escape** work as before. The dividers between the side panel, the editor and the
+  Results panel are now thin lines; they are dragged in the same place as before.
 
 ### Fixed
 
@@ -35,7 +39,8 @@ Notable changes in each RunPad release. Downloads are on the
   cut off, a long version in **About RunPad** ends with "…" and shows in full as a tooltip, error
   messages name what failed and show the details in normal text instead of all red, and grey
   secondary text is a little darker in the VS Code, Rider, Visual Studio and RunPad Warm light
-  themes so that it stays readable.
+  themes so that it stays readable. Selected items in Rider Light, RunPad Midnight and RunPad Warm
+  Light are easier to read as well.
 
 ## [0.5.0] — 2026-10-15
 
