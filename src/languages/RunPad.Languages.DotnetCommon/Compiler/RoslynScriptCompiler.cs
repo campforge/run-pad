@@ -41,8 +41,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     private const string CompilerRevision = "3";
     private const string BinDir = "bin";
 
-    // csc/vbc run by the SDK with /preferreduilang:en-US: messages are English whatever the OS language.
-    protected static readonly CultureInfo MessageCulture = CultureInfo.GetCultureInfo("en-US");
+    // Messages are English whatever the OS language, like the SDK's csc/vbc with /preferreduilang:en-US.
+    protected static readonly CultureInfo MessageCulture = RoslynMessageCulture.Culture;
 
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), MetadataReference> References = new();
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), ImmutableArray<ISourceGenerator>> Generators = new();

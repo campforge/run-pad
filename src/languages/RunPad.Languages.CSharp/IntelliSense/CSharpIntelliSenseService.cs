@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
@@ -439,7 +440,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<ICompletionList?> GetCompletionsAsync(
         string code, int position, CompletionTrigger trigger = default, CancellationToken ct = default)
-        => Task.Run(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
 
     private async Task<ICompletionList?> TryGetCompletionsAsync(
         string code, int position, CompletionTrigger trigger, CancellationToken ct)
@@ -1065,7 +1066,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<ISignatureHelpResult?> GetSignatureHelpAsync(
         string code, int position, char? triggerCharacter = null, CancellationToken ct = default)
-        => Task.Run(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
 
     private async Task<ISignatureHelpResult?> TryGetSignatureHelpAsync(string code, int position, CancellationToken ct)
     {
@@ -1305,7 +1306,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IQuickInfoResult?> GetQuickInfoAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IQuickInfoResult?)await TryGetQuickInfoAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IQuickInfoResult?)await TryGetQuickInfoAsync(code, position, ct), ct);
 
     private async Task<IQuickInfoResult?> TryGetQuickInfoAsync(string code, int position, CancellationToken ct)
     {
@@ -1348,7 +1349,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // identifier token in the document for one that resolves to the same symbol.
     public Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<IDocumentHighlightSpan>?> TryGetDocumentHighlightsAsync(
         string code, int position, CancellationToken ct)
@@ -1365,7 +1366,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ── Rename ────────────────────────────────────────────────────────────────────
 
     public Task<IRenameInfo?> GetRenameInfoAsync(string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
 
     private async Task<IRenameInfo?> TryGetRenameInfoAsync(string code, int position, CancellationToken ct)
     {
@@ -1389,7 +1390,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ── Go to Definition (F12) ───────────────────────────────────────────────────
 
     public Task<IDefinitionResult?> GetDefinitionAsync(string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
 
     private async Task<IDefinitionResult?> TryGetDefinitionAsync(string code, int position, CancellationToken ct)
     {
@@ -1470,7 +1471,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<IImplementationLocation>?> TryGetImplementationsAsync(
         string code, int position, CancellationToken ct)
@@ -1616,7 +1617,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<ICodeFixInfo>?> TryGetRefactoringsAsync(string code, int position, CancellationToken ct)
     {
@@ -1645,7 +1646,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // when it was registered), so materializing it needs nothing from the live workspace at all, only
     // the code/preamble metrics needed for the relocating-preamble math.
     public Task<IMaterializedFix?> MaterializeFixAsync(string code, string key, CancellationToken ct = default)
-        => Task.Run(async () => (IMaterializedFix?)await TryMaterializeFixAsync(code, key, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IMaterializedFix?)await TryMaterializeFixAsync(code, key, ct), ct);
 
     private async Task<IMaterializedFix?> TryMaterializeFixAsync(string code, string key, CancellationToken ct)
     {
@@ -1667,7 +1668,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // call this doesn't need) are relevant: CS0246 ("type or namespace not found") and CS0103 ("name
     // does not exist") are the two Roslyn actually attaches an "Add using X;" fix to.
     public Task<IMaterializedFix> ResolveAllMissingUsingsAsync(string code, CancellationToken ct = default)
-        => Task.Run(async () => (IMaterializedFix)await TryResolveAllMissingUsingsAsync(code, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IMaterializedFix)await TryResolveAllMissingUsingsAsync(code, ct), ct);
 
     private async Task<IMaterializedFix> TryResolveAllMissingUsingsAsync(string code, CancellationToken ct)
     {
@@ -1719,7 +1720,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
-        _backgroundAnalysisTask = Task.Run(async () =>
+        _backgroundAnalysisTask = RoslynMessageCulture.RunAsync(async () =>
         {
             try
             {
@@ -1876,7 +1877,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 RoslynSeverity.Warning => ContractSeverity.Warning,
                 _ => ContractSeverity.Info,
             };
-            visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
+            visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture), severity));
         }
 
         DiagnosticsChanged?.Invoke(code, visible);

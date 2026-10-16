@@ -44,6 +44,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Editor diagnostics, quick fixes and refactoring titles stay in English, matching the interface,
+  instead of following the operating system language.
+
 - Panel dividers now meet their adjacent panels without empty bands on either side of the line,
   including in Preferences. The invisible drag target still extends over both panel edges.
 - Debugger tabs wrap when the panel is narrow, keeping every tab visible and clickable.
