@@ -274,9 +274,9 @@
               ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Background="{DynamicResource RunPad.StatusBar.BackgroundBrush}">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="8,0,12,0" VerticalAlignment="Center">
-                <Ellipse x:Name="ExecStatusIndicator" Width="6" Height="6" VerticalAlignment="Center"/>
+                <Ellipse Fill="{DynamicResource RunPad.Text.SecondaryBrush}" x:Name="ExecStatusIndicator" Width="6" Height="6" VerticalAlignment="Center"/>
                 <TextBlock x:Name="ExecStatusBlock"
-                       Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
+                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                        VerticalAlignment="Center"
                        FontSize="11"
                        Text="Ready"/>

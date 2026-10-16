@@ -136,40 +136,14 @@ public class PanelTabsTests
         Assert.True(threadGrid.IsReadOnly);
         var threadBottom = threadGrid.TranslatePoint(new Point(0, threadGrid.Bounds.Height), host)!.Value.Y;
         Assert.True(threadBottom < stack.TranslatePoint(default, host)!.Value.Y);
-        var threadSection = panel.FindControl<Expander>("ThreadsSection")!;
-        var stackSection = panel.FindControl<Expander>("CallStackSection")!;
-        Assert.True(threadSection.IsExpanded);
-        Assert.True(stackSection.IsExpanded);
+        Assert.DoesNotContain(panel.GetVisualDescendants(), v => v is Expander);
         var splitter = panel.FindControl<GridSplitter>("ThreadsStackSplitter")!;
-        Assert.Equal(GridResizeDirection.Rows, splitter.ResizeDirection);
-        var sections = panel.FindControl<Grid>("StackSections")!;
-        sections.RowDefinitions[0].Height = new GridLength(2, GridUnitType.Star);
-        sections.RowDefinitions[2].Height = new GridLength(3, GridUnitType.Star);
-        Dispatcher.UIThread.RunJobs();
-        var originalStackHeight = stack.Bounds.Height;
-        var header = threadSection.GetVisualDescendants().OfType<ToggleButton>().Single();
-        var headerPoint = header.TranslatePoint(new Point(8, 8), host)!.Value;
-        host.MouseDown(headerPoint, MouseButton.Left);
-        host.MouseUp(headerPoint, MouseButton.Left);
-        Dispatcher.UIThread.RunJobs();
-        Assert.False(threadSection.IsExpanded);
-        Assert.False(splitter.IsVisible);
-        Assert.True(stack.Bounds.Height > originalStackHeight);
-        header.Focus(NavigationMethod.Tab);
-        host.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
-        host.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
-        Dispatcher.UIThread.RunJobs();
-        Assert.True(threadSection.IsExpanded);
-        Assert.Equal(new GridLength(2, GridUnitType.Star), sections.RowDefinitions[0].Height);
-        Assert.Equal(new GridLength(3, GridUnitType.Star), sections.RowDefinitions[2].Height);
-        stackSection.IsExpanded = false;
-        Dispatcher.UIThread.RunJobs();
-        Assert.True(threadGrid.Bounds.Height > 0);
-        Assert.False(splitter.IsVisible);
-        stackSection.IsExpanded = true;
-        Dispatcher.UIThread.RunJobs();
         Assert.True(splitter.IsVisible);
-
+        Assert.Equal(GridResizeDirection.Rows, splitter.ResizeDirection);
+        var headings = panel.GetVisualDescendants().OfType<TextBlock>()
+            .Where(t => t.Text is "Threads" or "Call Stack").ToArray();
+        Assert.Equal(2, headings.Length);
+        Assert.All(headings, h => Assert.Equal(new Thickness(6, 2), h.Padding));
         exceptions.Flyout!.ShowAt(exceptions);
         Dispatcher.UIThread.RunJobs();
         var flyout = Assert.IsType<Flyout>(exceptions.Flyout);
@@ -256,9 +230,11 @@ public class PanelTabsTests
         var background = Resource(text, "RunPad.StatusBar.BackgroundBrush");
         Assert.Equal(Resource(text, "RunPad.Panel.BackgroundBrush"), background);
         Assert.True(Contrast(ColorOf(text.Foreground), background) >= 4.5);
+        Assert.Equal(Resource(text, "RunPad.Text.SecondaryBrush"), ColorOf(text.Foreground));
         foreach (var state in new[] { "Running", "Cancelled", "Success", "Error", "Paused" })
             Assert.True(Contrast(Resource(text, $"RunPad.Status.{state}Brush"), background) >= 3, theme + "/" + state);
         Assert.Equal("Ready", text.Text);
+        Assert.Equal(Resource(text, "RunPad.Text.SecondaryBrush"), ColorOf(indicator.Fill));
         control.ResumeDebug(RunPad.Contracts.Models.DebugAction.Continue);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("Process", text.Text);

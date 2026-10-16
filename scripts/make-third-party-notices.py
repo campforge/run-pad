@@ -43,6 +43,9 @@ SOURCE_COMPONENTS = [
      "MIT", "Copyright (c) 2014 Steven Kirk",
      "https://github.com/AvaloniaUI/Avalonia.HtmlRenderer",
      "src/controls/RunPad.Avalonia.HtmlRenderer/LICENSE"),
+    ("Google Material Design Icons — settings (24px)", "src/main/RunPad/Resources/Icons.axaml",
+     "Apache-2.0", "Copyright Google LLC",
+     "https://github.com/google/material-design-icons", "scripts/third-party/Apache-2.0.txt"),
 ]
 
 # Packages that point to a license URL or file instead of an SPDX expression.
