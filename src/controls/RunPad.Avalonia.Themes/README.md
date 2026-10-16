@@ -19,3 +19,7 @@ own caret/selection behavior. Keyboard navigation shows the ring; pointer focus 
 When changing ring colours, keep at least one edge at 3:1 contrast against panel, editor,
 selection and primary-button surfaces, including hover and pressed states. Update both radii
 when changing the total border thickness to keep the edges concentric.
+
+Tool-panel selectors use `RunPad.ToolTab.SelectedBackgroundBrush`,
+`RunPad.ToolTab.SelectedForegroundBrush` and `RunPad.ToolTab.SelectedBorderBrush`.
+These are separate from row/document selection accents so tool views can use a softer highlight.

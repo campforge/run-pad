@@ -28,6 +28,9 @@
                     <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#9B9B9B" />
                     <SolidColorBrush x:Key="RunPad.Accent.BackgroundBrush"            Color="#264F78" />
                     <SolidColorBrush x:Key="RunPad.Accent.ForegroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedBackgroundBrush" Color="#3A333E" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedForegroundBrush" Color="#DCDCDC" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedBorderBrush" Color="#71587E" />
                     <!-- Default (primary) dialog button: white text at least 4.5:1 in every state. -->
                     <SolidColorBrush x:Key="RunPad.Button.Primary.BackgroundBrush"     Color="#68217A" />
                     <SolidColorBrush x:Key="RunPad.Button.Primary.HoverBrush"          Color="#5A1D6A" />

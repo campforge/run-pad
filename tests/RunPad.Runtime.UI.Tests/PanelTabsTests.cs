@@ -90,8 +90,8 @@ public class PanelTabsTests
             Assert.Contains("tool", tabs.Classes);
             var items = Items(tabs);
             var selected = items[tabs.SelectedIndex];
-            Assert.Equal(Resource(tabs, "RunPad.Accent.BackgroundBrush"), ColorOf(Root(selected).Background));
-            Assert.Equal(Resource(tabs, "RunPad.Accent.ForegroundBrush"), ColorOf(selected.Foreground));
+            Assert.Equal(Resource(tabs, "RunPad.ToolTab.SelectedBackgroundBrush"), ColorOf(Root(selected).Background));
+            Assert.Equal(Resource(tabs, "RunPad.ToolTab.SelectedForegroundBrush"), ColorOf(selected.Foreground));
             Assert.All(items, i => Assert.Equal(new CornerRadius(4), Root(i).CornerRadius));
         }
         outputHost.Close();
@@ -124,6 +124,19 @@ public class PanelTabsTests
         }
         Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
         var exceptions = tabs.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ExceptionsButton");
+        var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), tabs)!.Value;
+        Assert.InRange(trailing.X, tabs.Bounds.Width - 1, tabs.Bounds.Width + 1);
+        Assert.Equal(width < 500 ? "⋯" : "Exceptions…", exceptions.Content);
+        var threadButton = panel.FindControl<Button>("ThreadsButton")!;
+        Assert.InRange(threadButton.Bounds.Height, 20, 30);
+        Assert.DoesNotContain(panel.GetVisualDescendants(), v => v is Expander);
+        threadButton.Flyout!.ShowAt(threadButton);
+        Dispatcher.UIThread.RunJobs();
+        var threadFlyout = Assert.IsType<Flyout>(threadButton.Flyout);
+        var threadGrid = Assert.IsType<DataGrid>(threadFlyout.Content);
+        Assert.Same(vm.DebugThreads, threadGrid.ItemsSource);
+        Assert.True(threadGrid.IsReadOnly);
+        threadFlyout.Hide();
         exceptions.Flyout!.ShowAt(exceptions);
         Dispatcher.UIThread.RunJobs();
         var flyout = Assert.IsType<Flyout>(exceptions.Flyout);
@@ -210,6 +223,7 @@ public class PanelTabsTests
         Assert.True(Contrast(ColorOf(text.Foreground), background) >= 4.5);
         foreach (var state in new[] { "Running", "Cancelled", "Success", "Error", "Paused" })
             Assert.True(Contrast(Resource(text, $"RunPad.Status.{state}Brush"), background) >= 3, theme + "/" + state);
+        Assert.Equal("Ready", text.Text);
         control.ResumeDebug(RunPad.Contracts.Models.DebugAction.Continue);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("Process", text.Text);

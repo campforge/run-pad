@@ -271,10 +271,10 @@
         <Setter Property="BorderBrush" Value="Transparent"/>
     </Style>
     <Style Selector="TabControl.panel.tool > TabItem:selected">
-        <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
-        <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
     </Style>
     <Style Selector="TabControl.panel.tool > TabItem:selected /template/ Border#Root">
-        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.ToolTab.SelectedBorderBrush}"/>
     </Style>
 </Styles>
