@@ -10,6 +10,14 @@
     <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RunPadMidnight.axaml" />
     <StyleInclude Source="avares://RunPad.Avalonia.Themes/Themes/RunPadWarmLight.axaml" />
 
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
     <!-- ── DataGrid ─────────────────────────────────────────────────────── -->
     <Style Selector="DataGrid">
         <Setter Property="Background"               Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
@@ -24,7 +32,7 @@
         <Setter Property="Background"     Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
         <Setter Property="Foreground"     Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
         <Setter Property="SeparatorBrush" Value="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
-        <Setter Property="FontSize"       Value="12"/>
+        <Setter Property="FontSize"       Value="{DynamicResource RunPad.Type.Caption}"/>
         <Setter Property="MinHeight"      Value="28"/>
     </Style>
     <Style Selector="DataGridColumnHeader:pointerover /template/ Grid#PART_ColumnHeaderRoot">
@@ -58,7 +66,7 @@
 
     <Style Selector="DataGridCell">
         <Setter Property="Foreground"     Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-        <Setter Property="FontSize"       Value="13"/>
+        <Setter Property="FontSize"       Value="{DynamicResource RunPad.Type.Body}"/>
         <Setter Property="MinHeight"      Value="24"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>
@@ -202,8 +210,8 @@
         </Setter>
     </Style>
     <Style Selector="TabControl.panel > TabItem">
-        <Setter Property="FontSize"   Value="13"/>
-        <Setter Property="MinHeight"  Value="28"/>
+        <Setter Property="FontSize"   Value="{DynamicResource RunPad.Type.Body}"/>
+        <Setter Property="MinHeight"  Value="{DynamicResource RunPad.Size.PanelTab}"/>
         <Setter Property="Height"     Value="28"/>
         <Setter Property="Padding"    Value="12,0"/>
         <Setter Property="Margin"     Value="0"/>
@@ -237,9 +245,9 @@
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
     </Style>
     <Style Selector="TabControl.panel.nested > TabItem">
-        <Setter Property="FontSize"  Value="12"/>
-        <Setter Property="MinHeight" Value="24"/>
-        <Setter Property="Height"    Value="24"/>
+        <Setter Property="FontSize"  Value="{DynamicResource RunPad.Type.Caption}"/>
+        <Setter Property="MinHeight" Value="{DynamicResource RunPad.Size.NestedTab}"/>
+        <Setter Property="Height"    Value="{DynamicResource RunPad.Size.NestedTab}"/>
         <Setter Property="Padding"   Value="10,0"/>
     </Style>
 
