@@ -84,45 +84,59 @@ public class PanelTabsTests
     [InlineData("VsCodeLight")]
     [InlineData("RiderDark")]
     [InlineData("RunPadWarmLight")]
-    public void BothTabRows_Should_LookLikeDocumentTabs(string theme)
+    public void ToolSelectors_Should_UseSoftSelectionAndThemeColours(string theme)
     {
         var outputTabs = OutputTabs(out var outputHost, theme);
         var debuggerTabs = DebuggerTabs(out var debuggerHost, theme);
         foreach (var tabs in new[] { outputTabs, debuggerTabs })
         {
-            Assert.Contains("panel", tabs.Classes);
+            Assert.Contains("tool", tabs.Classes);
             var items = Items(tabs);
             var selected = items[tabs.SelectedIndex];
-            var content = Resource(tabs, "RunPad.Output.BackgroundBrush");
-            var strip = Resource(tabs, "RunPad.Panel.BackgroundBrush");
-
-            Assert.Equal(content, ColorOf(Root(selected).Background));
-            Assert.Equal(content, ColorOf(tabs.Background));
-            Assert.All(items.Where(i => i != selected), i => Assert.Equal(strip, ColorOf(Root(i).Background)));
-            Assert.Equal(strip, ColorOf(tabs.GetVisualDescendants().OfType<Border>().First(b => b.Name == "PART_Strip").Background));
-            Assert.All(items, i => Assert.Equal(new Thickness(0, 0, 1, 0), Root(i).BorderThickness));
-            // No accent line anywhere in the row while nothing has keyboard focus.
-            var accent = Resource(tabs, "RunPad.Tab.AccentBrush");
-            Assert.DoesNotContain(items.SelectMany(i => i.GetVisualDescendants().OfType<Border>()),
-                b => b.Background is ISolidColorBrush bg && bg.Color == accent || b.BorderBrush is ISolidColorBrush bb && bb.Color == accent);
-            Assert.Equal(Resource(tabs, "RunPad.Text.PrimaryBrush"), ColorOf(selected.Foreground));
-            Assert.All(items.Where(i => i != selected), i => Assert.Equal(Resource(tabs, "RunPad.Text.SecondaryBrush"), ColorOf(i.Foreground)));
+            Assert.Equal(Resource(tabs, "RunPad.Accent.BackgroundBrush"), ColorOf(Root(selected).Background));
+            Assert.Equal(Resource(tabs, "RunPad.Accent.ForegroundBrush"), ColorOf(selected.Foreground));
+            Assert.All(items, i => Assert.Equal(new CornerRadius(4), Root(i).CornerRadius));
         }
         outputHost.Close();
         debuggerHost.Close();
     }
 
-    // The Debugger's own row stays the smaller one inside the panel row.
-    [AvaloniaFact]
-    public void TheNestedRow_Should_BeSmallerThanThePanelRow()
+    [AvaloniaTheory]
+    [InlineData(500)]
+    [InlineData(900)]
+    public void StackAndVariables_Should_BeVisibleTogether_WhileSwitchingViews(int width)
     {
-        var outer = Items(OutputTabs(out var outputHost));
-        var inner = Items(DebuggerTabs(out var debuggerHost));
-
-        Assert.All(outer, i => Assert.Equal((28d, 13d), (i.Bounds.Height, i.FontSize)));
-        Assert.All(inner, i => Assert.Equal((24d, 12d), (i.Bounds.Height, i.FontSize)));
-        outputHost.Close();
-        debuggerHost.Close();
+        var vm = new DebugPanelViewModel();
+        var panel = new DebugPanel { DataContext = vm };
+        var host = Host(panel);
+        host.Width = width;
+        Dispatcher.UIThread.RunJobs();
+        var stack = panel.FindControl<DataGrid>("CallStackGrid")!;
+        var tabs = panel.FindControl<TabControl>("VariableTabs")!;
+        var stackOrigin = stack.TranslatePoint(default, host)!.Value;
+        var tabsOrigin = tabs.TranslatePoint(default, host)!.Value;
+        Assert.True(stackOrigin.X + stack.Bounds.Width <= tabsOrigin.X);
+        foreach (var index in new[] { 0, 1, 0 })
+        {
+            tabs.SelectedIndex = index;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(stack.IsEffectivelyVisible);
+            Assert.True(stack.Bounds.Width > 0);
+            Assert.True(tabs.Bounds.Width > 0);
+        }
+        Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
+        var exceptions = tabs.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ExceptionsButton");
+        exceptions.Flyout!.ShowAt(exceptions);
+        Dispatcher.UIThread.RunJobs();
+        var flyout = Assert.IsType<Flyout>(exceptions.Flyout);
+        var checks = ((Control)flyout.Content!).GetVisualDescendants().OfType<CheckBox>().ToArray();
+        Assert.Equal(2, checks.Length);
+        Assert.True(checks[0].IsChecked);
+        checks[1].IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(vm.BreakOnAllExceptions);
+        flyout.Hide();
+        host.Close();
     }
 
     [AvaloniaFact]
@@ -134,23 +148,22 @@ public class PanelTabsTests
         bool Framed(TabItem i) => FocusFrames.IsShown(i);
 
         // A click anywhere on the tab, its padding included, selects it — no focus frame.
-        var watch = items[2];
+        var watch = items[0];
         host.MouseDown(watch.TranslatePoint(new Point(2, 2), host)!.Value, MouseButton.Left);
         host.MouseUp(watch.TranslatePoint(new Point(2, 2), host)!.Value, MouseButton.Left);
         Dispatcher.UIThread.RunJobs();
-        Assert.Equal(2, tabs.SelectedIndex);
+        Assert.Equal(0, tabs.SelectedIndex);
         Assert.False(Framed(watch));
 
         // Keyboard: Right/Left move the selection; the tab reached by the keyboard shows the frame.
         host.KeyPress(Key.Right, RawInputModifiers.None, PhysicalKey.ArrowRight, "");
         Dispatcher.UIThread.RunJobs();
-        Assert.Equal(3, tabs.SelectedIndex);
-        Assert.True(Framed(items[3]));
+        Assert.Equal(1, tabs.SelectedIndex);
+        Assert.True(Framed(items[1]));
         Assert.False(Framed(watch));
         host.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, "");
-        host.KeyPress(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, "");
         Dispatcher.UIThread.RunJobs();
-        Assert.Equal(1, tabs.SelectedIndex);
+        Assert.Equal(0, tabs.SelectedIndex);
         host.Close();
     }
     [AvaloniaTheory]
@@ -178,5 +191,45 @@ public class PanelTabsTests
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(items.Count - 2, tabs.SelectedIndex);
         host.Close();
+    }
+    [AvaloniaTheory]
+    [InlineData("VsCodeDark")]
+    [InlineData("VsCodeLight")]
+    [InlineData("RiderDark")]
+    [InlineData("RiderLight")]
+    [InlineData("Vs2022Dark")]
+    [InlineData("Vs2022Light")]
+    [InlineData("RunPadMidnight")]
+    [InlineData("RunPadWarmLight")]
+    public void StatusStrip_Should_KeepTextReadable_AndIndicateStateWithoutColouringText(string theme)
+    {
+        var tabs = OutputTabs(out var host, theme);
+        var control = tabs.GetVisualAncestors().OfType<EditorsTabItemControl>().First();
+        var text = control.FindControl<TextBlock>("ExecStatusBlock")!;
+        var indicator = control.FindControl<global::Avalonia.Controls.Shapes.Ellipse>("ExecStatusIndicator")!;
+        var background = Resource(text, "RunPad.StatusBar.BackgroundBrush");
+        Assert.Equal(Resource(text, "RunPad.Panel.BackgroundBrush"), background);
+        Assert.True(Contrast(ColorOf(text.Foreground), background) >= 4.5);
+        foreach (var state in new[] { "Running", "Cancelled", "Success", "Error", "Paused" })
+            Assert.True(Contrast(Resource(text, $"RunPad.Status.{state}Brush"), background) >= 3, theme + "/" + state);
+        control.ResumeDebug(RunPad.Contracts.Models.DebugAction.Continue);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Process", text.Text);
+        Assert.Equal(Resource(text, "RunPad.Status.RunningBrush"), ColorOf(indicator.Fill));
+        host.RequestedThemeVariant = RunPadThemeVariants.RiderLight;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(Resource(text, "RunPad.Status.RunningBrush"), ColorOf(indicator.Fill));
+        Assert.Equal(Resource(text, "RunPad.StatusBar.ForegroundBrush"), ColorOf(text.Foreground));
+        host.Close();
+    }
+
+    private static double Contrast(Color a, Color b)
+    {
+        static double L(Color c)
+        {
+            static double Linear(byte v) { var s = v / 255d; return s <= 0.04045 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4); }
+            return 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
+        }
+        return (Math.Max(L(a), L(b)) + 0.05) / (Math.Min(L(a), L(b)) + 0.05);
     }
 }

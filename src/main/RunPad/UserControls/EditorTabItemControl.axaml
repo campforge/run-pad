@@ -206,7 +206,7 @@
                       HorizontalAlignment="Stretch"/>
 
         <!-- Row 3: Output tabs -->
-        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel">
+        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel tool">
 
             <TabItem Header="Results">
                 <uc:OutputHtmlView x:Name="ResultsOutput"/>
@@ -254,17 +254,18 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
+        <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right -->
         <Grid Grid.Row="5"
               ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Background="{DynamicResource RunPad.StatusBar.BackgroundBrush}">
-            <TextBlock x:Name="ExecStatusBlock"
-                       Grid.Column="0"
-                       FontWeight="SemiBold"
-                       Margin="8,0,12,0"
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="8,0,12,0" VerticalAlignment="Center">
+                <Ellipse x:Name="ExecStatusIndicator" Width="6" Height="6" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ExecStatusBlock"
+                       Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                        VerticalAlignment="Center"
                        FontSize="11"
                        Text="Ready"/>
+            </StackPanel>
             <TextBlock x:Name="ElapsedBlock"
                        Grid.Column="1"
                        Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
