@@ -15,6 +15,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Keyboard navigation uses one consistent focus frame on tabs, buttons, trees and dropdowns.
+  Dropdown text stays readable when focused, and clicking a tab no longer adds a second frame.
+
 - Code zoom (**View → Zoom In/Out**, Ctrl+wheel or Cmd+wheel on macOS, and the percentage in the
   status bar) is now one setting for all editors: every open tab and every tab opened later shows
   code at the same zoom, and it is kept when RunPad restarts. It works on top of the interface

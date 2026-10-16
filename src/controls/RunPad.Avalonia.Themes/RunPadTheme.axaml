@@ -135,11 +135,34 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
+    <!-- ── Keyboard focus ─────────────────────────────────────────────────── -->
+    <!-- One keyboard-focus look: Fluent's focus frame (white in dark themes, black in light ones),
+         shown when a control is reached with the keyboard and not when it is clicked. Fluent's
+         ComboBox is the exception — it fills itself with the accent instead (over its text) — so a
+         combo box gets the same frame as everything else and no fill. Text fields keep their own
+         focused border, shown with the caret. -->
+    <Style Selector="ComboBox">
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Border BorderThickness="{DynamicResource SystemControlFocusVisualPrimaryThickness}"
+                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
+                        CornerRadius="4">
+                    <Border BorderThickness="1"
+                            BorderBrush="{DynamicResource SystemControlFocusVisualSecondaryBrush}"
+                            CornerRadius="3"/>
+                </Border>
+            </FocusAdornerTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+
     <!-- ── Panel tabs ─────────────────────────────────────────────────────── -->
     <!-- Tabs of a panel (Results/Debugger/IL, and the Debugger's own Threads/Locals/…), drawn like
          the document tabs above the editor: inactive tabs on the panel colour, the selected tab in
          the colour of its content so the two join, a separator after each tab, the hover brush on
-         hover, no accent line, a thin accent frame for keyboard focus. TabControl.Background is the
+         hover, no accent line; keyboard focus shows Fluent's focus frame. TabControl.Background is the
          content's colour. "nested" is the smaller row inside a panel. -->
     <Style Selector="TabControl.panel">
         <Setter Property="Padding" Value="0"/>
@@ -191,7 +214,6 @@
                                           VerticalAlignment="Center"
                                           TextBlock.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
-                    <Border x:Name="FocusFrame" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
                 </Panel>
             </ControlTemplate>
         </Setter>
@@ -202,9 +224,6 @@
     </Style>
     <Style Selector="TabControl.panel > TabItem:pointerover /template/ Border#Root">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-    </Style>
-    <Style Selector="TabControl.panel > TabItem:focus-visible /template/ Border#FocusFrame">
-        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Tab.AccentBrush}"/>
     </Style>
     <Style Selector="TabControl.panel.nested > TabItem">
         <Setter Property="FontSize"  Value="12"/>
