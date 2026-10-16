@@ -77,6 +77,40 @@ public sealed class ScriptCompilerTests : IAsyncDisposable
 
     private static string Errors(ProcessCompilerResult result) => string.Join("\n", result.Errors.Select(e => $"{e.Code} {e.Message}"));
 
+    // Compiler errors stay English on a Russian OS, for both languages, like the SDK with
+    // /preferreduilang:en-US. The collection runs alone, so changing the process cultures is safe.
+    [Theory]
+    [InlineData(false, "CS0103", "The name 'missing' does not exist in the current context")]
+    [InlineData(true, "BC30451", "'missing' is not declared.")]
+    public async Task CompileErrors_Should_BeInEnglish_UnderARussianUiCulture(bool vb, string code, string message)
+    {
+        var (culture, uiCulture) = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
+        var (defaultCulture, defaultUiCulture) = (CultureInfo.DefaultThreadCurrentCulture, CultureInfo.DefaultThreadCurrentUICulture);
+        var russian = CultureInfo.GetCultureInfo("ru-RU");
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = russian;
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = russian;
+            using var compiler = vb ? Vb(Options()) : CSharp(Options());
+
+            var result = await compiler.Compilation(
+                vb ? "Module Program\nSub Main()\nConsole.WriteLine(missing)\nEnd Sub\nEnd Module\n" : "Console.WriteLine(missing);\n",
+                TestContext.Current.CancellationToken);
+
+            var error = Assert.Single(result.Errors);
+            Assert.Equal(code, error.Code);
+            Assert.Contains(message, error.Message, StringComparison.Ordinal);
+            Assert.Equal("ru-RU", CultureInfo.CurrentUICulture.Name);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = uiCulture;
+            CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = defaultUiCulture;
+        }
+    }
+
     // Document paths recorded in the PDB, and whether each one's source is embedded.
     private static List<(string Name, bool Embedded)> PdbDocuments(string pdbPath)
     {
