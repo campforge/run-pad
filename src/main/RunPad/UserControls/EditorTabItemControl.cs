@@ -1741,7 +1741,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
         intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile));
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger.DotnetPath));
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
