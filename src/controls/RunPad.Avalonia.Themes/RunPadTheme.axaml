@@ -113,11 +113,14 @@
         <Setter Property="BorderThickness" Value="2"/>
     </Style>
 
-    <!-- ── Thin splitter ──────────────────────────────────────────────────── -->
-    <!-- A splitter that shows a 1-DIP line in the middle of its (wider, transparent) drag area:
-         the area, cursor and dragging stay those of GridSplitter. -->
-    <Style Selector="GridSplitter.thin">
+    <!-- ── Panel seam ──────────────────────────────────────────────────── -->
+    <!-- A one-DIP layout seam with a five-DIP transparent drag target overlapping the adjacent
+         panels. The hit area does not reserve a blank band on either side of the line. -->
+    <Style Selector="GridSplitter.seam">
         <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="ZIndex" Value="10"/>
         <Setter Property="Template">
             <ControlTemplate TargetType="GridSplitter">
                 <Panel Background="{TemplateBinding Background}">
@@ -126,11 +129,19 @@
             </ControlTemplate>
         </Setter>
     </Style>
-    <Style Selector="GridSplitter.thin[ResizeDirection=Columns] /template/ Border#PART_Line">
+    <Style Selector="GridSplitter.seam[ResizeDirection=Columns]">
+        <Setter Property="Width" Value="5"/>
+        <Setter Property="Margin" Value="-2,0"/>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Rows]">
+        <Setter Property="Height" Value="5"/>
+        <Setter Property="Margin" Value="0,-2"/>
+    </Style>
+    <Style Selector="GridSplitter.seam[ResizeDirection=Columns] /template/ Border#PART_Line">
         <Setter Property="Width" Value="1"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
-    <Style Selector="GridSplitter.thin[ResizeDirection=Rows] /template/ Border#PART_Line">
+    <Style Selector="GridSplitter.seam[ResizeDirection=Rows] /template/ Border#PART_Line">
         <Setter Property="Height" Value="1"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -168,7 +179,7 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="ItemsPanel">
             <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal"/>
+                <WrapPanel Orientation="Horizontal"/>
             </ItemsPanelTemplate>
         </Setter>
         <Setter Property="Template">

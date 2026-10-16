@@ -34,6 +34,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Panel dividers now meet their adjacent panels without empty bands on either side of the line,
+  including in Preferences. The invisible drag target still extends over both panel edges.
+- Debugger tabs wrap when the panel is narrow, keeping every tab visible and clickable.
+
 - **Queries** no longer lists folders whose names start with a dot, such as `.obsidian` or `.git`,
   or anything inside them, so a queries folder that is also an Obsidian vault or a Git repository
   shows only your scripts. Folders and files on disk are not touched.

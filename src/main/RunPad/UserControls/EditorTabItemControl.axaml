@@ -63,7 +63,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="5"/>
+            <RowDefinition Height="1"/>
             <RowDefinition Height="{Binding OutputPanel.Size, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="22"/>
@@ -201,7 +201,7 @@
 
         <!-- Row 2: GridSplitter -->
         <GridSplitter Grid.Row="2"
-                      Classes="thin"
+                      Classes="seam"
                       ResizeDirection="Rows"
                       HorizontalAlignment="Stretch"/>
 

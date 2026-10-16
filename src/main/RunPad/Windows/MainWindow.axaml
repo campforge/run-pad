@@ -150,7 +150,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="{Binding Sidebar.Size, Mode=TwoWay}" MinWidth="0" MaxWidth="600"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="1"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -186,7 +186,7 @@
                 </Panel>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="5" Classes="thin" ResizeDirection="Columns"/>
+            <GridSplitter Grid.Column="1" Classes="seam" ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
             <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>
