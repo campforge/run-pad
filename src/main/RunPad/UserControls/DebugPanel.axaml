@@ -220,8 +220,12 @@
             <TabItem Header="Watch"><Grid RowDefinitions="Auto,*">
                 <StackPanel Grid.Row="0" Orientation="Horizontal"
                             Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
-                    <tc:IconButton Command="{Binding AddWatchCommand}" IconData="{StaticResource Icon.Plus}" ToolTip.Tip="Add watch" AutomationProperties.Name="Add watch"/>
-                    <tc:IconButton Command="{Binding RemoveWatchCommand}" IconData="{StaticResource Icon.Minus}" ToolTip.Tip="Remove watch" AutomationProperties.Name="Remove watch"/>
+                    <tc:IconButton Width="24" Height="24" Padding="6" Command="{Binding AddWatchCommand}" IconData="{StaticResource Icon.Plus}" ToolTip.Tip="Add watch" AutomationProperties.Name="Add watch">
+                        <tc:IconButton.Resources><x:Double x:Key="RunPad.Size.ToolbarIcon">12</x:Double></tc:IconButton.Resources>
+                    </tc:IconButton>
+                    <tc:IconButton Width="24" Height="24" Padding="6" Command="{Binding RemoveWatchCommand}" IconData="{StaticResource Icon.Minus}" ToolTip.Tip="Remove watch" AutomationProperties.Name="Remove watch">
+                        <tc:IconButton.Resources><x:Double x:Key="RunPad.Size.ToolbarIcon">12</x:Double></tc:IconButton.Resources>
+                    </tc:IconButton>
                 </StackPanel>
                 <DataGrid Grid.Row="1"
                           ItemsSource="{Binding WatchExpressions}"

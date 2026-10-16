@@ -128,7 +128,7 @@ public class PanelTabsTests
         }
         Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
         var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), output)!.Value;
-        Assert.InRange(trailing.X, output.Bounds.Width - 1, output.Bounds.Width + 1);
+        Assert.InRange(trailing.X, output.Bounds.Width - 9, output.Bounds.Width - 7);
         Assert.IsType<RunPad.TemplatedControls.IconButton>(exceptions);
         var threadGrid = panel.FindControl<DataGrid>("ThreadsGrid")!;
         Assert.True(threadGrid.IsEffectivelyVisible);
