@@ -5,6 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -345,7 +346,9 @@ public class InterfaceScalingTests
             var chrome = new Size(frame.Width - window.ClientSize.Width, frame.Height - window.ClientSize.Height);
             Assert.True(window.MinWidth + chrome.Width <= workArea.Width && window.MinHeight + chrome.Height <= workArea.Height,
                 $"minimum {window.MinWidth}×{window.MinHeight} (+ frame {chrome}) exceeds the {workArea} work area");
-            Assert.True(window.Width + chrome.Width <= workArea.Width && window.Height + chrome.Height <= workArea.Height,
+            // Strictly smaller: a window exactly filling the work area counts as zoomed on macOS and
+            // would then be left out of later scale changes.
+            Assert.True(window.Width + chrome.Width < workArea.Width && window.Height + chrome.Height < workArea.Height,
                 $"size {window.Width}×{window.Height} (+ frame {chrome}) exceeds the {workArea} work area");
             Assert.Equal(2, InterfaceScaling.ScaleOf(window));
 
@@ -355,10 +358,10 @@ public class InterfaceScalingTests
             Assert.True(scroller.Extent.Height > scroller.Viewport.Height, $"extent {scroller.Extent}, viewport {scroller.Viewport}");
             Assert.True(scroller.Extent.Width >= 640 && scroller.Extent.Height >= 420, $"extent {scroller.Extent}");
 
-            // 150% fits that screen: scaled sizes, no scrolling.
+            // 150% fits that screen (its 720 height just meets the edge margin): no scrolling.
             prefs.Scale.SetInterfaceScalePercent(150);
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal((960, 630, 1140, 720), (window.MinWidth, window.MinHeight, window.Width, window.Height));
+            Assert.Equal((960, 630, 1140, 719), (window.MinWidth, window.MinHeight, window.Width, window.Height));
             Assert.False(InterfaceScaling.IsContentScrolling(window));
 
             prefs.Scale.ResetInterfaceScale();
@@ -373,6 +376,45 @@ public class InterfaceScalingTests
         {
             InterfaceScaling.Detach();
             InterfaceScaling.WorkAreaOverride = null;
+        }
+    }
+
+    // A window is resized in a dispatcher job of its own, after the change that caused it (a key
+    // press in Preferences, each step of a held arrow key) is over — resized inside that chain, a
+    // macOS window could keep a drawing surface of its old size. The content's transform follows at
+    // once; quick successive changes resize the window once, to the last scale.
+    [AvaloniaFact]
+    public void LiveScaleChanges_Should_ResizeWindowsLater_AndOnlyToTheLastScale()
+    {
+        var prefs = new Prefs();
+        InterfaceScaling.Attach(prefs.Scale);
+        try
+        {
+            var text = new TextBlock { Text = "Scaled" };
+            var window = new Window { Width = 400, Height = 300, MinWidth = 200, MinHeight = 100, Content = text };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var resizes = new List<Size>();
+            window.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Layoutable.WidthProperty) resizes.Add(new Size(window.Width, window.Height));
+            };
+
+            prefs.Scale.SetInterfaceScalePercent(110);
+            prefs.Scale.SetInterfaceScalePercent(125);
+
+            Assert.Equal(1.25, text.TransformToVisual(window)!.Value.M11, 6);
+            Assert.Equal((400, 300), (window.Width, window.Height));
+            Assert.Empty(resizes);
+
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal((500, 375, 250, 125), (window.Width, window.Height, window.MinWidth, window.MinHeight));
+            Assert.Single(resizes);
+            window.Close();
+        }
+        finally
+        {
+            InterfaceScaling.Detach();
         }
     }
 }
