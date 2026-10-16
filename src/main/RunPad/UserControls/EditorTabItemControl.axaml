@@ -53,15 +53,9 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <!-- Tab look: TabControl.panel in RunPadTheme. -->
         <Style Selector="TabControl.OutputTabs">
             <Setter Property="Background" Value="{DynamicResource RunPad.Output.BackgroundBrush}"/>
-            <Setter Property="Padding"    Value="0"/>
-        </Style>
-        <Style Selector="TabControl.OutputTabs > TabItem">
-            <Setter Property="FontSize"  Value="13"/>
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Height"    Value="28"/>
-            <Setter Property="Padding"   Value="12,0"/>
         </Style>
     </UserControl.Styles>
 
@@ -69,7 +63,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="5"/>
+            <RowDefinition Height="1"/>
             <RowDefinition Height="{Binding OutputPanel.Size, Mode=TwoWay}" MinHeight="0" MaxHeight="600"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="22"/>
@@ -207,12 +201,30 @@
 
         <!-- Row 2: GridSplitter -->
         <GridSplitter Grid.Row="2"
+                      Classes="seam"
                       ResizeDirection="Rows"
-                      HorizontalAlignment="Stretch"
-                      Background="{DynamicResource RunPad.Separator.BackgroundBrush}"/>
+                      HorizontalAlignment="Stretch"/>
 
         <!-- Row 3: Output tabs -->
-        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs">
+        <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel tool">
+            <TabControl.Tag>
+                            <tc:IconButton x:Name="ExceptionsButton" Width="24" Height="24" Padding="6" Margin="0,0,8,0" IconData="{StaticResource Icon.Settings}"
+                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" ToolTip.Tip="Exception break settings" AutomationProperties.Name="Exception break settings">
+                                <tc:IconButton.Resources>
+                                    <x:Double x:Key="RunPad.Size.ToolbarIcon">12</x:Double>
+                                </tc:IconButton.Resources>
+                                <tc:IconButton.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="6" MaxWidth="320">
+                                            <CheckBox IsChecked="{Binding DebugPanel.BreakOnUncaughtExceptions, Mode=TwoWay}"
+                                                      Content="Break on unhandled exceptions"/>
+                                            <CheckBox IsChecked="{Binding DebugPanel.BreakOnAllExceptions, Mode=TwoWay}"
+                                                      Content="Break on all exceptions (including caught)"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </tc:IconButton.Flyout>
+                            </tc:IconButton>
+            </TabControl.Tag>
 
             <TabItem Header="Results">
                 <uc:OutputHtmlView x:Name="ResultsOutput"/>
@@ -260,17 +272,18 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right (LINQPad-style) -->
+        <!-- Row 5: Status strip — status/elapsed on the left, caret position on the right -->
         <Grid Grid.Row="5"
               ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Background="{DynamicResource RunPad.StatusBar.BackgroundBrush}">
-            <TextBlock x:Name="ExecStatusBlock"
-                       Grid.Column="0"
-                       FontWeight="SemiBold"
-                       Margin="8,0,12,0"
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="8,0,12,0" VerticalAlignment="Center">
+                <Ellipse Fill="{DynamicResource RunPad.Text.SecondaryBrush}" x:Name="ExecStatusIndicator" Width="6" Height="6" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ExecStatusBlock"
+                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                        VerticalAlignment="Center"
                        FontSize="11"
                        Text="Ready"/>
+            </StackPanel>
             <TextBlock x:Name="ElapsedBlock"
                        Grid.Column="1"
                        Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
@@ -285,8 +298,9 @@
                        VerticalAlignment="Center"
                        FontSize="12"/>
 
-            <!-- Editor zoom (Ctrl+wheel changes it too) — percent of the Preferences font size,
-                 kept in sync by UpdateZoomButton. Presets carry their percent in Tag. -->
+            <!-- Code zoom, shared by every editor (Ctrl/Cmd+wheel and View → Zoom change it too) —
+                 percent on top of the interface scale, kept in sync by UpdateZoomButton. Presets
+                 carry their percent in Tag. -->
             <Button x:Name="ZoomButton"
                     Grid.Column="4"
                     Background="Transparent"
@@ -298,7 +312,7 @@
                     VerticalContentAlignment="Center"
                     Foreground="{DynamicResource RunPad.StatusBar.ForegroundBrush}"
                     FontSize="12"
-                    ToolTip.Tip="Editor zoom"
+                    ToolTip.Tip="Code zoom in all editors, on top of the interface scale"
                     Content="100%">
                 <Button.Flyout>
                     <MenuFlyout Placement="TopEdgeAlignedRight">

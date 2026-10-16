@@ -1,11 +1,18 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:templatedControls="clr-namespace:RunPad.TemplatedControls">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
     <Style Selector="StackPanel.Toolbar ComboBox">
-        <Setter Property="FontSize"        Value="12"/>
+        <Setter Property="FontSize"        Value="{DynamicResource RunPad.Type.Caption}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Background"      Value="Transparent"/>
-        <Setter Property="CornerRadius"    Value="4"/>
+        <Setter Property="CornerRadius"    Value="{DynamicResource RunPad.Radius.Control}"/>
 
         <Style Selector="^/template/ Border#Background">
             <Setter Property="Background"      Value="Transparent"/>

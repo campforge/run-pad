@@ -60,6 +60,23 @@ public class EditorTabPackageReferencesTests
         return (ctrl, intelliSense);
     }
 
+    [AvaloniaFact]
+    public void ANewTabWithoutPackages_Should_SetItsTargetReferences_BeforeAnyRun()
+    {
+        var (ctrl, intelliSense) = CreateControl(RunResult.Exited(0), compiled: false);
+        try
+        {
+            intelliSense.Verify(s => s.UpdatePackageReferences(
+                It.Is<IReadOnlyDictionary<string, Package>>(p => p.Count == 0),
+                It.Is<PackageReferenceContext>(c => c.TargetFramework == "net10.0")), Times.AtLeastOnce());
+        }
+        finally
+        {
+            ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
+            ctrl.Dispose();
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData(true)]   // compiled and ran
     [InlineData(false)]  // the restore ran, but the script did not compile

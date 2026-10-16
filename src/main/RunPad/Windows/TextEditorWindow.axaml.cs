@@ -3,6 +3,8 @@ using Avalonia.Input;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Services;
 using RunPad.Services.Preferences;
+using RunPad.Services.Scaling;
+using RunPad.UserControls;
 using RunPad.Windows.Models;
 
 namespace RunPad.Windows;
@@ -55,6 +57,30 @@ public partial class TextEditorWindow : Window
         {
             preferences.Changed += ApplyKeyBindings;
             Closed += (_, _) => preferences.Changed -= ApplyKeyBindings;
+
+            // Code here looks like code in the main window: the same font, size and shared code zoom.
+            var viewScale = ViewScale.For(preferences);
+            void ApplyCodeFont()
+            {
+                if (preferences.Editor is not { } settings) return;
+                editor.FontFamily = MonospaceFont.Resolve(settings.FontFamily);
+                editor.FontSize = EditorsTabItemControl.CodeFontSize(settings, viewScale.CodeZoom);
+            }
+            void OnZoomRequested(int direction)
+            {
+                if (direction > 0) viewScale.ZoomIn();
+                else viewScale.ZoomOut();
+            }
+            ApplyCodeFont();
+            preferences.Changed += ApplyCodeFont;
+            viewScale.Changed += ApplyCodeFont;
+            editor.ZoomRequested += OnZoomRequested;
+            Closed += (_, _) =>
+            {
+                preferences.Changed -= ApplyCodeFont;
+                viewScale.Changed -= ApplyCodeFont;
+                editor.ZoomRequested -= OnZoomRequested;
+            };
         }
 
         Closing += async (_, e) =>

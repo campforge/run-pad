@@ -15,8 +15,8 @@
                     <SolidColorBrush x:Key="RunPad.Output.ErrorForeground"            Color="#F14C4C" />
                     <SolidColorBrush x:Key="RunPad.Output.StackTraceForeground"       Color="#CD9591" />
                     <SolidColorBrush x:Key="RunPad.Panel.BackgroundBrush"             Color="#252526" />
-                    <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#68217A" />
-                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#252526" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#DCDCDC" />
                     <SolidColorBrush x:Key="RunPad.Status.RunningBrush"               Color="#4FC1FF" />
                     <SolidColorBrush x:Key="RunPad.Status.CancelledBrush"             Color="#9E9E9E" />
                     <SolidColorBrush x:Key="RunPad.Status.SuccessBrush"               Color="#4EC94E" />
@@ -28,6 +28,21 @@
                     <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#9B9B9B" />
                     <SolidColorBrush x:Key="RunPad.Accent.BackgroundBrush"            Color="#264F78" />
                     <SolidColorBrush x:Key="RunPad.Accent.ForegroundBrush"            Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedBackgroundBrush" Color="#3A333E" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedForegroundBrush" Color="#DCDCDC" />
+                    <SolidColorBrush x:Key="RunPad.ToolTab.SelectedBorderBrush" Color="#71587E" />
+                    <!-- Default (primary) dialog button: white text at least 4.5:1 in every state. -->
+                    <SolidColorBrush x:Key="RunPad.Button.Primary.BackgroundBrush"     Color="#68217A" />
+                    <SolidColorBrush x:Key="RunPad.Button.Primary.HoverBrush"          Color="#5A1D6A" />
+                    <SolidColorBrush x:Key="RunPad.Button.Primary.PressedBrush"        Color="#4D185A" />
+                    <SolidColorBrush x:Key="RunPad.Button.Primary.ForegroundBrush"     Color="#FFFFFF" />
+                    <!-- Shared keyboard-focus ring; independent of selection and primary actions. -->
+                    <SolidColorBrush x:Key="RunPad.Focus.BorderBrush"                  Color="#BD8AD5" />
+                    <SolidColorBrush x:Key="RunPad.Focus.ContrastBrush"                Color="#111111" />
+                    <Thickness        x:Key="RunPad.Focus.Thickness">2</Thickness>
+                    <Thickness        x:Key="RunPad.Focus.ContrastThickness">1</Thickness>
+                    <CornerRadius     x:Key="RunPad.Focus.CornerRadius">4</CornerRadius>
+                    <CornerRadius     x:Key="RunPad.Focus.InnerCornerRadius">2</CornerRadius>
                     <SolidColorBrush x:Key="RunPad.Tab.AccentBrush"                    Color="#68217A" />
                     <Color             x:Key="RunPad.Tab.AccentColor"                               >#68217A</Color>
                     <SolidColorBrush x:Key="RunPad.Tab.DirtyBrush"                     Color="#D7BA7D" />

@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
@@ -6,6 +7,7 @@ using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
 using RunPad.Languages.DotnetCommon.Compiler;
 using Xunit;
+using MetadataReference = Microsoft.CodeAnalysis.MetadataReference;
 
 namespace RunPad.Runtime.UI.Tests;
 
@@ -46,7 +48,17 @@ public sealed class NuGetIntelliSenseReferencesTests : IAsyncDisposable
     private string Library(string assemblyName, string code, params string[] references)
     {
         var dir = Directory.CreateDirectory(Path.Combine(_root, "build", (++_builds).ToString())).FullName;
-        return ScriptCompilerTests.CompileLibrary(dir, assemblyName, code, references);
+        // The package's lib/net8.0 assets must reference the same framework as the consumer.
+        // CI can have a real .NET 8 pack even when the test runner itself uses .NET 10.
+        var framework = TargetingPack.Find(Tfm, "dotnet", null)?.ReferenceAssemblies
+            ?? new CSharpReferenceService().GetDefault();
+        var metadata = framework.Concat(references).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create(assemblyName, [CSharpSyntaxTree.ParseText(code)], metadata,
+            new CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+        var path = Path.Combine(dir, assemblyName + ".dll");
+        var emit = compilation.Emit(path);
+        Assert.True(emit.Success, string.Join("\n", emit.Diagnostics));
+        return path;
     }
 
     // An already extracted package in the global packages folder, as NuGet leaves it.
@@ -247,14 +259,16 @@ public sealed class NuGetIntelliSenseReferencesTests : IAsyncDisposable
 
         const string code = "var s = Feed.Greeting.Greeter.";
         var completions = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
-        Assert.Contains(completions!.Items, i => i.DisplayText == "Hi");
+        Assert.NotNull(completions);
+        Assert.Contains(completions.Items, i => i.DisplayText == "Hi");
 
         Assert.Empty(Errors(await DiagnosticsAsync(service, "var s = Feed.Greeting.Greeter.Hi();")));
 
         // auto-import: the type is offered with the using that brings it in
         const string unimported = "Greet";
         var importable = await service.GetCompletionsAsync(unimported, unimported.Length, ct: TestContext.Current.CancellationToken);
-        Assert.Contains(importable!.Items, i => i.DisplayText == "Greeter" && i.UsingsToAdd.Contains("Feed.Greeting"));
+        Assert.NotNull(importable);
+        Assert.Contains(importable.Items, i => i.DisplayText == "Greeter" && i.UsingsToAdd.Contains("Feed.Greeting"));
     }
 
     // After a build restores a different version (here: the range now resolves to 2.0.0 on the feed),

@@ -8,8 +8,10 @@ using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using NuGet.Configuration;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
@@ -167,6 +169,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // fix without a real Windows run.
     internal string FormattingNewLineOptionForTests
         => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
+    // The references the service was created with (the framework's, RunPad.Runtime): package updates
+    // select from these again, so a framework assembly a package displaced comes back with it. The
+    // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
+    // target's reference assemblies when its targeting pack is found, as the build compiles against it.
+    private readonly List<string> _baseReferencePaths = [];
+    private readonly List<string> _defaultFrameworkPaths = [];
+    private readonly List<string> _otherBaseReferencePaths = [];
+    private IReadOnlyList<string> _frameworkPaths = [];
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -240,10 +250,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var refs = new List<MetadataReference>();
         foreach (var path in referencePaths)
             if (File.Exists(path) && seen.Add(path))
-                refs.Add(CreateReference(path));
+                _baseReferencePaths.Add(path);
+        var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+        var frameworkDirectory = _baseReferencePaths
+            .Where(p => string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetDirectoryName).FirstOrDefault();
+        foreach (var path in _baseReferencePaths)
+            (frameworkDirectory is not null && Path.GetDirectoryName(path) == frameworkDirectory
+                ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
+        _frameworkPaths = _defaultFrameworkPaths;
 
         _workspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
 
@@ -439,7 +456,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<ICompletionList?> GetCompletionsAsync(
         string code, int position, CompletionTrigger trigger = default, CancellationToken ct = default)
-        => Task.Run(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (ICompletionList?)await TryGetCompletionsAsync(code, position, trigger, ct), ct);
 
     private async Task<ICompletionList?> TryGetCompletionsAsync(
         string code, int position, CompletionTrigger trigger, CancellationToken ct)
@@ -1065,7 +1082,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<ISignatureHelpResult?> GetSignatureHelpAsync(
         string code, int position, char? triggerCharacter = null, CancellationToken ct = default)
-        => Task.Run(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (ISignatureHelpResult?)await TryGetSignatureHelpAsync(code, position, ct), ct);
 
     private async Task<ISignatureHelpResult?> TryGetSignatureHelpAsync(string code, int position, CancellationToken ct)
     {
@@ -1305,7 +1322,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IQuickInfoResult?> GetQuickInfoAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IQuickInfoResult?)await TryGetQuickInfoAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IQuickInfoResult?)await TryGetQuickInfoAsync(code, position, ct), ct);
 
     private async Task<IQuickInfoResult?> TryGetQuickInfoAsync(string code, int position, CancellationToken ct)
     {
@@ -1348,7 +1365,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // identifier token in the document for one that resolves to the same symbol.
     public Task<IReadOnlyList<IDocumentHighlightSpan>?> GetDocumentHighlightsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<IDocumentHighlightSpan>?)await TryGetDocumentHighlightsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<IDocumentHighlightSpan>?> TryGetDocumentHighlightsAsync(
         string code, int position, CancellationToken ct)
@@ -1365,7 +1382,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ── Rename ────────────────────────────────────────────────────────────────────
 
     public Task<IRenameInfo?> GetRenameInfoAsync(string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IRenameInfo?)await TryGetRenameInfoAsync(code, position, ct), ct);
 
     private async Task<IRenameInfo?> TryGetRenameInfoAsync(string code, int position, CancellationToken ct)
     {
@@ -1389,7 +1406,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // ── Go to Definition (F12) ───────────────────────────────────────────────────
 
     public Task<IDefinitionResult?> GetDefinitionAsync(string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IDefinitionResult?)await TryGetDefinitionAsync(code, position, ct), ct);
 
     private async Task<IDefinitionResult?> TryGetDefinitionAsync(string code, int position, CancellationToken ct)
     {
@@ -1470,7 +1487,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IReadOnlyList<IImplementationLocation>?> GetImplementationsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<IImplementationLocation>?)await TryGetImplementationsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<IImplementationLocation>?> TryGetImplementationsAsync(
         string code, int position, CancellationToken ct)
@@ -1616,7 +1633,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     public Task<IReadOnlyList<ICodeFixInfo>?> GetRefactoringsAsync(
         string code, int position, CancellationToken ct = default)
-        => Task.Run(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IReadOnlyList<ICodeFixInfo>?)await TryGetRefactoringsAsync(code, position, ct), ct);
 
     private async Task<IReadOnlyList<ICodeFixInfo>?> TryGetRefactoringsAsync(string code, int position, CancellationToken ct)
     {
@@ -1645,7 +1662,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // when it was registered), so materializing it needs nothing from the live workspace at all, only
     // the code/preamble metrics needed for the relocating-preamble math.
     public Task<IMaterializedFix?> MaterializeFixAsync(string code, string key, CancellationToken ct = default)
-        => Task.Run(async () => (IMaterializedFix?)await TryMaterializeFixAsync(code, key, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IMaterializedFix?)await TryMaterializeFixAsync(code, key, ct), ct);
 
     private async Task<IMaterializedFix?> TryMaterializeFixAsync(string code, string key, CancellationToken ct)
     {
@@ -1667,7 +1684,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // call this doesn't need) are relevant: CS0246 ("type or namespace not found") and CS0103 ("name
     // does not exist") are the two Roslyn actually attaches an "Add using X;" fix to.
     public Task<IMaterializedFix> ResolveAllMissingUsingsAsync(string code, CancellationToken ct = default)
-        => Task.Run(async () => (IMaterializedFix)await TryResolveAllMissingUsingsAsync(code, ct), ct);
+        => RoslynMessageCulture.RunAsync(async () => (IMaterializedFix)await TryResolveAllMissingUsingsAsync(code, ct), ct);
 
     private async Task<IMaterializedFix> TryResolveAllMissingUsingsAsync(string code, CancellationToken ct)
     {
@@ -1719,7 +1736,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         _diagnosticsCts = new CancellationTokenSource();
         var ct = _diagnosticsCts.Token;
 
-        _backgroundAnalysisTask = Task.Run(async () =>
+        _backgroundAnalysisTask = RoslynMessageCulture.RunAsync(async () =>
         {
             try
             {
@@ -1876,7 +1893,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 RoslynSeverity.Warning => ContractSeverity.Warning,
                 _ => ContractSeverity.Info,
             };
-            visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(), severity));
+            visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture), severity));
         }
 
         DiagnosticsChanged?.Invoke(code, visible);
@@ -1911,11 +1928,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         => UpdatePackageReferences(packages,
             new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null));
 
-    // The same assemblies a build compiles against: the last restore's selection while it still matches
-    // the packages (resolved versions, transitive packages, the target framework's compile assets), else
-    // the best local match by NuGet's version rules — never a restore, which would need the network.
+    // The same assemblies a build compiles against: the target framework's reference assemblies, and the
+    // last restore's selection while it still matches the packages (resolved versions, transitive
+    // packages, the target framework's compile assets), else the best local match by NuGet's version
+    // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
+        var frameworkPaths = TargetFrameworkReferences(context);
         var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
                 packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
                 context.TargetFramework,
@@ -1929,19 +1948,19 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // under it, and both sides must see one consistent "current" solution.
         lock (_syncLock)
         {
-            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)) return;
+            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
+                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)) return;
 
-            var newRefs = newPaths
-                .Select(p => (MetadataReference)CreateReference(p))
-                .ToList();
+            // Rebuilt from the base references every time, so stale package ones (a removed package, an
+            // older resolved version) go away. A package assembly the framework also has is resolved as
+            // the build resolves it: referencing both would make every one of its types ambiguous
+            // (CS0433) in the editor while the build compiles.
+            var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(
+                frameworkPaths.Concat(_otherBaseReferencePaths), newPaths);
+            var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+            var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
-
-            // Keep base BCL refs, replace NuGet refs with the new set — stale ones (a removed package, an
-            // older resolved version) go away with it.
-            var baseRefs = project.MetadataReferences
-                .Where(r => !_nugetRefs.Contains(r))
-                .ToList();
 
             if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
@@ -1949,15 +1968,49 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _nugetRefs.Clear();
             _nugetRefs.AddRange(newRefs);
             _nugetPaths = newPaths;
+            _frameworkPaths = frameworkPaths;
             // force re-sync on next analysis pass
             _lastCode = "";
         }
     }
 
-    // Test-only (InternalsVisibleTo): the package assemblies the workspace currently references.
+    // The targeting pack the build would use for the target, among the installed and already downloaded
+    // ones; without one (or with a malformed NuGet configuration), the references the service was
+    // created with, as before.
+    private IReadOnlyList<string> TargetFrameworkReferences(PackageReferenceContext context)
+    {
+        try
+        {
+            var settings = NuGetRestorer.LoadSettings(context.NuGetConfigFile,
+                context.OutputDirectory is { } output ? RoslynScriptCompiler.ObjDirectory(output) : Path.GetTempPath());
+            var pack = TargetingPack.Find(context.TargetFramework, context.DotnetExecutable,
+                SettingsUtility.GetGlobalPackagesFolder(settings));
+            if (pack is not null)
+                return pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NuGetConfigurationException)
+        {
+            _logger.LogDebug(ex, "No targeting pack for {TargetFramework}", context.TargetFramework);
+        }
+        return _defaultFrameworkPaths;
+    }
+
+    // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
+    // references them unless the framework provides the same assembly at a higher version.
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
         get { lock (_syncLock) return _nugetPaths; }
+    }
+
+    // Test-only (InternalsVisibleTo): every assembly the workspace currently references.
+    internal IReadOnlyList<string> ReferencePathsForTests
+    {
+        get
+        {
+            lock (_syncLock)
+                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.MetadataReferences
+                    .OfType<PortableExecutableReference>().Select(r => r.FilePath!).ToList();
+        }
     }
 
     // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can

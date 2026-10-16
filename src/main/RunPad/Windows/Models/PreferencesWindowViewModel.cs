@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reactive;
 using System.Runtime.CompilerServices;
 using ReactiveUI;
 using RunPad.Avalonia.Themes;
@@ -6,6 +7,7 @@ using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Preferences;
+using RunPad.Services.Scaling;
 using RunPad.Shared;
 
 namespace RunPad.Windows.Models;
@@ -33,6 +35,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
 
     private readonly IThemeService _themeService;
     private readonly IPreferencesService _prefs;
+    private readonly ViewScale _viewScale;
 
     // Built once from the registry in the constructor, not a static — unlike the language-agnostic
     // nodes above, this genuinely depends on which languages are registered (used
@@ -56,6 +59,11 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         _themeService = themeService;
         _prefs = prefs;
+        _viewScale = ViewScale.For(prefs);
+        _viewScale.Changed += OnViewScaleChanged;
+        InterfaceScaleOptions = [.. ScalePercent.InterfacePresets.Append(_viewScale.InterfaceScalePercent).Distinct().Order()];
+        ResetInterfaceScaleCommand = ReactiveCommand.Create(_viewScale.ResetInterfaceScale);
+        ResetCodeZoomCommand = ReactiveCommand.Create(_viewScale.ResetCodeZoom);
 
         // Every registered language today is .NET-based (C#, VB),
         // so they all nest under one ".NET" runtime-family group carrying the
@@ -196,6 +204,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _themeService.ThemeChanged -= OnThemeChanged;
+        _viewScale.Changed -= OnViewScaleChanged;
         GC.SuppressFinalize(this);
     }
 
@@ -323,6 +332,32 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     {
         get => _prefs.Editor.CommitCharactersEnabled;
         set => SetPref(_prefs.Editor.CommitCharactersEnabled, value, v => _prefs.Editor.CommitCharactersEnabled = v);
+    }
+
+    // ── Interface scale and code zoom ─────────────────────────────────────────
+
+    /// <summary>
+    /// The presets, plus the value at opening when a settings file holds another one. Built once:
+    /// a new list while the window is open made the combo box re-select, and write back, the old value.
+    /// </summary>
+    public IReadOnlyList<int> InterfaceScaleOptions { get; }
+
+    public int InterfaceScalePercent
+    {
+        get => _viewScale.InterfaceScalePercent;
+        set => _viewScale.SetInterfaceScalePercent(value);
+    }
+
+    public int CodeZoomPercent => _viewScale.CodeZoomPercent;
+
+    public ReactiveCommand<Unit, Unit> ResetInterfaceScaleCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> ResetCodeZoomCommand { get; }
+
+    private void OnViewScaleChanged()
+    {
+        this.RaisePropertyChanged(nameof(InterfaceScalePercent));
+        this.RaisePropertyChanged(nameof(CodeZoomPercent));
     }
 
     public double FontSize

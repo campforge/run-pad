@@ -151,4 +151,92 @@ public class FileSystemServiceTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    // A queries folder that is also an Obsidian vault (or a Git repository) has .obsidian/.git
+    // folders full of tool files: folders whose own name starts with a dot are not listed, at any
+    // depth, and nothing inside them is walked. Files keep their current rule (*.rpad, any name).
+    [Fact]
+    public void GetFilesTreeInternal_Should_HideDotFolders_AtEveryDepth_AndKeepEverythingElse()
+    {
+        var root = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, ".obsidian", "plugins"));
+            File.WriteAllText(Path.Combine(root, ".obsidian", "inside.rpad"), "");
+            File.WriteAllText(Path.Combine(root, ".obsidian", "plugins", "deep.rpad"), "");
+            Directory.CreateDirectory(Path.Combine(root, ".git"));
+            Directory.CreateDirectory(Path.Combine(root, "Notes", ".trash"));
+            File.WriteAllText(Path.Combine(root, "Notes", ".trash", "old.rpad"), "");
+            File.WriteAllText(Path.Combine(root, "Notes", "kept.rpad"), "");
+            Directory.CreateDirectory(Path.Combine(root, "Empty"));
+            Directory.CreateDirectory(Path.Combine(root, "project.v2"));
+            File.WriteAllText(Path.Combine(root, "project.v2", "script.rpad"), "");
+            File.WriteAllText(Path.Combine(root, ".dotted.rpad"), "");
+
+            var tree = FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken);
+
+            Assert.Equal([".dotted.rpad", "Empty", "Notes", "project.v2"], tree.Select(i => i.Name).Order(StringComparer.Ordinal));
+            var notes = tree.Single(i => i.Name == "Notes");
+            Assert.Equal(["kept.rpad"], notes.Children!.Select(i => i.Name));
+            Assert.Equal(["script.rpad"], tree.Single(i => i.Name == "project.v2").Children!.Select(i => i.Name));
+            Assert.DoesNotContain(Flatten(tree), i => i.FilePath.Contains(".obsidian") || i.FilePath.Contains(".git") || i.FilePath.Contains(".trash"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // The folder the user chose is listed from even when its own name (or a parent's) starts with a
+    // dot — only folders below it are judged by their names.
+    [Fact]
+    public void GetFilesTreeInternal_Should_ListADotNamedRootFolder()
+    {
+        var parent = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
+        try
+        {
+            var root = Path.Combine(parent, ".hidden-parent", ".queries");
+            Directory.CreateDirectory(Path.Combine(root, "Scripts"));
+            File.WriteAllText(Path.Combine(root, "Scripts", "a.rpad"), "");
+            Directory.CreateDirectory(Path.Combine(root, ".cache"));
+
+            var tree = FileSystemService.GetFilesTreeInternal(root + Path.DirectorySeparatorChar, ct: TestContext.Current.CancellationToken);
+
+            var scripts = Assert.Single(tree);
+            Assert.Equal("Scripts", scripts.Name);
+            Assert.Equal(["a.rpad"], scripts.Children!.Select(i => i.Name));
+        }
+        finally { Directory.Delete(parent, recursive: true); }
+    }
+
+    // Renaming a folder to a dot name hides it on the next refresh, and back shows it again.
+    [Fact]
+    public void GetFilesTreeInternal_Should_FollowRenamesIntoAndOutOfADotName()
+    {
+        var root = Directory.CreateTempSubdirectory("runpad-filesystem-test").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "Drafts"));
+            File.WriteAllText(Path.Combine(root, "Drafts", "d.rpad"), "");
+            List<string> Names() => [.. FileSystemService.GetFilesTreeInternal(root, ct: TestContext.Current.CancellationToken).Select(i => i.Name)];
+
+            Assert.Equal(["Drafts"], Names());
+            Directory.Move(Path.Combine(root, "Drafts"), Path.Combine(root, ".Drafts"));
+            Assert.Empty(Names());
+            Directory.Move(Path.Combine(root, ".Drafts"), Path.Combine(root, "Drafts"));
+            Assert.Equal(["Drafts"], Names());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(".obsidian", true)]
+    [InlineData(".git/", true)]
+    [InlineData("project.v2", false)]
+    [InlineData("Notes", false)]
+    [InlineData("a.b", false)]
+    public void IsDotDirectory_Should_JudgeTheFoldersOwnName(string name, bool expected)
+    {
+        Assert.Equal(expected, FileSystemService.IsDotDirectory(Path.Combine(Path.GetTempPath(), "parent.d", name)));
+    }
+
+    private static IEnumerable<FileSystemItem> Flatten(IEnumerable<FileSystemItem> items) =>
+        items.SelectMany(i => new[] { i }.Concat(Flatten(i.Children ?? [])));
 }

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -18,6 +19,9 @@ public partial class AboutWindow : Window
         var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
 
         VersionBlock.Text = $"Version {version}";
+        // The whole version, for when the line is cut short.
+        ToolTip.SetTip(VersionBlock, VersionBlock.Text);
+        AutomationProperties.SetHelpText(VersionBlock, VersionBlock.Text);
         AuthorsBlock.Text = string.IsNullOrEmpty(authors) ? "" : $"By {authors}";
         AuthorsBlock.IsVisible = !string.IsNullOrEmpty(authors);
         CopyrightBlock.Text = copyright ?? "";

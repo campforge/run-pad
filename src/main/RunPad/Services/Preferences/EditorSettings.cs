@@ -1,5 +1,6 @@
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Format.RPad;
+using RunPad.Services.Scaling;
 
 namespace RunPad.Services.Preferences;
 
@@ -18,6 +19,16 @@ public sealed class EditorSettings
     // denser reference) — 14 was the one outlier default nobody had touched; 12 is what testing it
     // live actually settled on.
     public double FontSize { get; set; } = 12;
+
+    /// <summary>
+    /// Extra zoom of code in percent, on top of the interface scale (100 = the interface-scaled
+    /// <see cref="FontSize"/>). Shared by every editor and kept across restarts.
+    /// </summary>
+    public double ZoomPercent
+    {
+        get;
+        set => field = ScalePercent.NormalizeCodeZoom(value);
+    } = ScalePercent.Default;
 
     // The code editor never set FontFamily at all before this — it inherited whatever
     // FluentTheme's own default font resolved to for the current OS, entirely outside RunPad's

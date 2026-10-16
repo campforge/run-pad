@@ -1,4 +1,5 @@
 using RunPad.Avalonia.Themes;
+using RunPad.Services.Scaling;
 
 namespace RunPad.Services.Preferences;
 
@@ -9,4 +10,14 @@ public sealed class AppearanceSettings
     public string LightInterfaceTheme { get; set; } = "VS Code Light";
     public string DarkEditorTheme { get; set; } = "Dark+";
     public string LightEditorTheme { get; set; } = "Light+";
+
+    /// <summary>
+    /// Size of the whole interface, code included, in percent (100 = as designed). Missing in older
+    /// settings files, which therefore load at 100%.
+    /// </summary>
+    public double InterfaceScalePercent
+    {
+        get;
+        set => field = ScalePercent.NormalizeInterface(value);
+    } = ScalePercent.Default;
 }

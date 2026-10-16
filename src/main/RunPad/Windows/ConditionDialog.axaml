@@ -4,13 +4,21 @@
         x:Class="RunPad.Windows.ConditionDialog"
         Icon="/Assets/icon.ico"
         Title="Conditional Breakpoint"
-        Width="440" Height="250"
+        Width="440"
         MinWidth="320" MinHeight="230"
         CanResize="False"
-        SizeToContent="Manual"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
 
@@ -21,26 +29,27 @@
 
         <TextBlock Grid.Row="1"
                    Text="Break when this condition is true:"
-                   FontSize="12"
+                   FontSize="{DynamicResource RunPad.Type.Caption}"
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>
 
         <TextBox x:Name="ConditionBox"
                  Grid.Row="2"
-                 FontSize="13"
+                 FontSize="{DynamicResource RunPad.Type.Body}"
                  FontFamily="{x:Static cte:MonospaceFont.Default}"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
 
         <TextBlock Grid.Row="3"
                    Text="Break only when the hit count matches (optional, e.g. &quot;= 5&quot;, &quot;&gt;= 3&quot;, &quot;% 2&quot;):"
-                   FontSize="12"
+                   TextWrapping="Wrap"
+                   FontSize="{DynamicResource RunPad.Type.Caption}"
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>
 
         <TextBox x:Name="HitConditionBox"
                  Grid.Row="4"
-                 FontSize="13"
+                 FontSize="{DynamicResource RunPad.Type.Body}"
                  FontFamily="{x:Static cte:MonospaceFont.Default}"
                  Padding="6,4"
                  Margin="0,0,0,12"/>
@@ -48,7 +57,7 @@
         <StackPanel Grid.Row="5"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Spacing="8">
+                    Spacing="{DynamicResource RunPad.Space.Control}">
             <Button Content="OK"
                     Width="80"
                     Click="OkButton_Click"

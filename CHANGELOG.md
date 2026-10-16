@@ -3,6 +3,74 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.6.0] — 2026-10-17
+
+### Added
+
+- **Preferences → Interface → Interface scale** makes everything in RunPad's windows larger or
+  smaller — text, icons, spacing and click targets of the panels, tabs, results, debugger, dialogs,
+  menus, tooltips and code completion, and the code itself. Choose 90% to 200%; **Reset to 100%**
+  brings back the usual size. The menu bar at the top of the screen on macOS stays as the system
+  draws it.
+
+### Changed
+
+- The debugger keeps Threads and Call Stack in permanent tables with compact text headings and
+  a draggable divider, beside Locals and Watch.
+  An always-visible settings button opens exception break options. Panel views use soft
+  theme-defined selectors. Watch actions use compact plus/minus buttons with tooltips; the settings
+  icon has a trailing inset.
+- The status bar uses a neutral theme background and readable text, with a small coloured state
+  indicator. Light themes use darker status colours. Scripts that have not run yet show Ready
+  with neutral grey text and indicator.
+
+- Keyboard focus now uses one rounded theme-defined ring across buttons, tabs, dropdowns, trees
+  and text fields. Each theme controls its colours, thickness and corner radius independently
+  of selection colours; primary buttons no longer add a second focus border.
+
+- Editor preferences are grouped into font and zoom, display, editing, and new-file defaults,
+  with aligned fields and the same settings and keyboard behavior.
+
+- Code zoom (**View → Zoom In/Out**, Ctrl+wheel or Cmd+wheel on macOS, and the percentage in the
+  status bar) is now one setting for all editors: every open tab and every tab opened later shows
+  code at the same zoom, and it is kept when RunPad restarts. It works on top of the interface
+  scale — 100% is the interface-scaled font size — and the wheel moves through the same steps as
+  the menu. **Preferences → Editor → Code zoom** shows it and resets it on its own. Files opened in
+  their own editor window now use the editor font, size and zoom too.
+- In dialogs, the button that **Enter** presses (OK, Save, Rename…) is now shown in the theme's
+  accent colour, with a visible ring when it has keyboard focus, so the main action stands out;
+  **Enter** and **Escape** work as before. The dividers between the side panel, the editor and the
+  Results panel are now thin lines; they are dragged in the same place as before.
+
+### Fixed
+
+- IntelliSense checks framework APIs against the script's selected .NET target when its reference
+  pack is available, including when a script without packages is first opened, before any run.
+
+- IntelliSense no longer reports duplicate-type errors when a NuGet package includes an assembly
+  also provided by the framework; package updates use the same overlap selection as compilation.
+
+- Editor diagnostics, quick fixes and refactoring titles stay in English, matching the interface,
+  instead of following the operating system language.
+
+- Panel dividers now meet their adjacent panels without empty bands on either side of the line,
+  including in Preferences. The invisible drag target still extends over both panel edges.
+- Debugger tabs wrap when the panel is narrow, keeping every tab visible and clickable.
+
+- **Queries** no longer lists folders whose names start with a dot, such as `.obsidian` or `.git`,
+  or anything inside them, so a queries folder that is also an Obsidian vault or a Git repository
+  shows only your scripts. Folders and files on disk are not touched.
+- **Queries** now updates when a folder is created, renamed, moved in or deleted outside RunPad —
+  in Finder, a terminal or Obsidian — also for folder names with a dot, such as `project.v2`. Before,
+  only changes to `.rpad` files were noticed. Changes inside dot folders such as `.obsidian` and
+  to other kinds of files no longer cause a refresh.
+- Easier to read: the hit-count hint of the breakpoint condition dialog wraps instead of being
+  cut off, a long version in **About RunPad** ends with "…" and shows in full as a tooltip, error
+  messages name what failed and show the details in normal text instead of all red, and grey
+  secondary text is a little darker in the VS Code, Rider, Visual Studio and RunPad Warm light
+  themes so that it stays readable. Selected items in Rider Light, RunPad Midnight and RunPad Warm
+  Light are easier to read as well.
+
 ## [0.5.0] — 2026-10-15
 
 ### Added
@@ -271,3 +339,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.4.0]: https://github.com/campforge/run-pad/releases/tag/v0.4.0
 [0.3.0]: https://github.com/campforge/run-pad/releases/tag/v0.3.0
 [0.2.0]: https://github.com/campforge/run-pad/releases/tag/v0.2.0
+
+[0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
