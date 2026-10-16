@@ -25,7 +25,7 @@
                     <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#E7E7E7" />
                     <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#DDDDDD" />
                     <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#383838" />
-                    <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#717171" />
+                    <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#6D6D6D" />
                     <SolidColorBrush x:Key="RunPad.Accent.BackgroundBrush"            Color="#C8EBFB" />
                     <SolidColorBrush x:Key="RunPad.Accent.ForegroundBrush"            Color="#005FB8" />
                     <SolidColorBrush x:Key="RunPad.Tab.AccentBrush"                    Color="#007ACC" />

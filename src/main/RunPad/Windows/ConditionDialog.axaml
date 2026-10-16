@@ -4,10 +4,10 @@
         x:Class="RunPad.Windows.ConditionDialog"
         Icon="/Assets/icon.ico"
         Title="Conditional Breakpoint"
-        Width="440" Height="250"
+        Width="440"
         MinWidth="320" MinHeight="230"
         CanResize="False"
-        SizeToContent="Manual"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
@@ -34,6 +34,7 @@
 
         <TextBlock Grid.Row="3"
                    Text="Break only when the hit count matches (optional, e.g. &quot;= 5&quot;, &quot;&gt;= 3&quot;, &quot;% 2&quot;):"
+                   TextWrapping="Wrap"
                    FontSize="12"
                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
                    Margin="0,0,0,6"/>

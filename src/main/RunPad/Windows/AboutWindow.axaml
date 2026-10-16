@@ -13,14 +13,17 @@
 
     <StackPanel Margin="24" Spacing="4">
 
-        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
-            <Image Source="/Assets/icon.ico" Width="32" Height="32"/>
-            <StackPanel Spacing="0" VerticalAlignment="Center">
+        <!-- A Grid, not a horizontal StackPanel: the text column gets the width that is left, so a
+             long version (it carries the commit) is cut with an ellipsis instead of at the edge. -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,12">
+            <Image Grid.Column="0" Source="/Assets/icon.ico" Width="32" Height="32"/>
+            <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center">
                 <TextBlock Text="RunPad" FontSize="18" FontWeight="Bold"/>
                 <TextBlock x:Name="VersionBlock" FontSize="12"
+                           TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
             </StackPanel>
-        </StackPanel>
+        </Grid>
 
         <TextBlock Text="A desktop C# scratchpad/scripting IDE." FontSize="12" TextWrapping="Wrap"/>
         <TextBlock x:Name="AuthorsBlock" FontSize="12"
