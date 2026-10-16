@@ -191,6 +191,55 @@ public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
         Assert.Empty(await EditorErrorsAsync(service, OnlyInOlder));
     }
 
+    [Fact]
+    public async Task SwitchingTheTarget_Should_ApplyTheCompilersLanguageVersion()
+    {
+        const string code = """
+            Console.WriteLine("hello".Size);
+            public static class TextExtensions
+            {
+                extension(string value)
+                {
+                    public int Size => value.Length;
+                }
+            }
+            """;
+        Assert.NotEmpty(await BuildErrorsAsync(OlderTarget, code, Output("language-older")));
+        Assert.Empty(await BuildErrorsAsync(_currentTarget, code, Output("language-current")));
+
+        using var service = CreateService();
+        var packages = new Dictionary<string, Package>();
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.NotEmpty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(_currentTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.NotEmpty(await EditorErrorsAsync(service, code));
+    }
+
+    [Fact]
+    public async Task SwitchingTheTarget_Should_ApplyTheCompilersConditionalSymbols()
+    {
+        const string code = """
+            #if NET9_0 && NET9_0_OR_GREATER && !NET10_0_OR_GREATER && DEBUG && TRACE
+            Console.WriteLine("older target");
+            #else
+            #error Expected the .NET 9 compiler symbols
+            #endif
+            """;
+        Assert.Empty(await BuildErrorsAsync(OlderTarget, code, Output("symbols-older")));
+        Assert.Contains("CS1029", await BuildErrorsAsync(_currentTarget, code, Output("symbols-current")));
+
+        using var service = CreateService();
+        var packages = new Dictionary<string, Package>();
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(_currentTarget));
+        Assert.NotEmpty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+    }
+
     // A target with no targeting pack anywhere keeps the references the editor already has.
     [Fact]
     public async Task ATargetWithoutAPack_Should_KeepTheCurrentReferences()

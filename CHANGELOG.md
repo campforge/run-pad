@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
+  compilation symbols, matching compilation when switching targets.
+
 ## [0.6.0] — 2026-10-17
 
 ### Added

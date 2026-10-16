@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
@@ -177,6 +178,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly List<string> _defaultFrameworkPaths = [];
     private readonly List<string> _otherBaseReferencePaths = [];
     private IReadOnlyList<string> _frameworkPaths = [];
+    private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -296,7 +298,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             compilationOptions: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable),
-            parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
+            parseOptions: _parseOptions,
             metadataReferences: refs);
 
         _workspace.AddProject(projectInfo);
@@ -1611,6 +1613,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         try
         {
+            CSharpParseOptions parseOptions;
+            lock (_syncLock) parseOptions = _parseOptions;
             using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
             formatWorkspace.AddProject(ProjectInfo.Create(
@@ -1619,7 +1623,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 name: "Format",
                 assemblyName: "Format",
                 language: LanguageNames.CSharp,
-                parseOptions: new CSharpParseOptions(LanguageVersion.Latest)));
+                parseOptions: parseOptions));
 
             var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
             var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
@@ -1935,6 +1939,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
         var frameworkPaths = TargetFrameworkReferences(context);
+        var parseOptions = TargetFramework.TryParse(context.TargetFramework, out var major, out var minor)
+            ? CSharpScriptCompiler.ParseOptions(major, minor)
+            : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
         var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
                 packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
                 context.TargetFramework,
@@ -1949,7 +1956,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         lock (_syncLock)
         {
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
-                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)) return;
+                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
+                && parseOptions.Equals(_parseOptions)) return;
 
             // Rebuilt from the base references every time, so stale package ones (a removed package, an
             // older resolved version) go away. A package assembly the framework also has is resolved as
@@ -1962,13 +1970,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
 
-            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution))
+            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).WithParseOptions(parseOptions).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
 
             _nugetRefs.Clear();
             _nugetRefs.AddRange(newRefs);
             _nugetPaths = newPaths;
             _frameworkPaths = frameworkPaths;
+            _parseOptions = parseOptions;
             // force re-sync on next analysis pass
             _lastCode = "";
         }
