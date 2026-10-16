@@ -168,6 +168,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // fix without a real Windows run.
     internal string FormattingNewLineOptionForTests
         => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
+    // The references the service was created with (the framework's, RunPad.Runtime): package updates
+    // select from these again, so a framework assembly a package displaced comes back with it.
+    private readonly List<string> _baseReferencePaths = [];
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -241,10 +244,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var refs = new List<MetadataReference>();
         foreach (var path in referencePaths)
             if (File.Exists(path) && seen.Add(path))
-                refs.Add(CreateReference(path));
+                _baseReferencePaths.Add(path);
+        var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
         _workspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
 
@@ -1932,17 +1935,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)) return;
 
-            var newRefs = newPaths
-                .Select(p => (MetadataReference)CreateReference(p))
-                .ToList();
+            // Rebuilt from the base references every time, so stale package ones (a removed package, an
+            // older resolved version) go away. A package assembly the framework also has is resolved as
+            // the build resolves it: referencing both would make every one of its types ambiguous
+            // (CS0433) in the editor while the build compiles.
+            var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(_baseReferencePaths, newPaths);
+            var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+            var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
-
-            // Keep base BCL refs, replace NuGet refs with the new set — stale ones (a removed package, an
-            // older resolved version) go away with it.
-            var baseRefs = project.MetadataReferences
-                .Where(r => !_nugetRefs.Contains(r))
-                .ToList();
 
             if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
@@ -1955,10 +1956,22 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         }
     }
 
-    // Test-only (InternalsVisibleTo): the package assemblies the workspace currently references.
+    // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
+    // references them unless the framework provides the same assembly at a higher version.
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
         get { lock (_syncLock) return _nugetPaths; }
+    }
+
+    // Test-only (InternalsVisibleTo): every assembly the workspace currently references.
+    internal IReadOnlyList<string> ReferencePathsForTests
+    {
+        get
+        {
+            lock (_syncLock)
+                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.MetadataReferences
+                    .OfType<PortableExecutableReference>().Select(r => r.FilePath!).ToList();
+        }
     }
 
     // Cancel() alone only *requests* cooperative cancellation — NotifyTextChanged's Task.Run body can
