@@ -9,6 +9,14 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
 
     <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
 
@@ -16,14 +24,14 @@
              a whole paragraph in the error colour was hard to read in light themes. -->
         <SelectableTextBlock x:Name="TitleBlock"
                              Grid.Row="0"
-                             FontSize="13"
+                             FontSize="{DynamicResource RunPad.Type.Body}"
                              FontWeight="SemiBold"
                              TextWrapping="Wrap"
                              Margin="0,0,0,6"/>
 
         <SelectableTextBlock x:Name="MessageBlock"
                              Grid.Row="1"
-                             FontSize="13"
+                             FontSize="{DynamicResource RunPad.Type.Body}"
                              TextWrapping="Wrap"
                              Margin="0,0,0,16"/>
 
