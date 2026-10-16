@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+using NuGet.Configuration;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
@@ -169,8 +170,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     internal string FormattingNewLineOptionForTests
         => _workspace.CurrentSolution.Options.GetOption(FormattingOptions.NewLine, LanguageNames.CSharp);
     // The references the service was created with (the framework's, RunPad.Runtime): package updates
-    // select from these again, so a framework assembly a package displaced comes back with it.
+    // select from these again, so a framework assembly a package displaced comes back with it. The
+    // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
+    // target's reference assemblies when its targeting pack is found, as the build compiles against it.
     private readonly List<string> _baseReferencePaths = [];
+    private readonly List<string> _defaultFrameworkPaths = [];
+    private readonly List<string> _otherBaseReferencePaths = [];
+    private IReadOnlyList<string> _frameworkPaths = [];
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -248,6 +254,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (File.Exists(path) && seen.Add(path))
                 _baseReferencePaths.Add(path);
         var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+        var frameworkDirectory = _baseReferencePaths
+            .Where(p => string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetDirectoryName).FirstOrDefault();
+        foreach (var path in _baseReferencePaths)
+            (frameworkDirectory is not null && Path.GetDirectoryName(path) == frameworkDirectory
+                ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
+        _frameworkPaths = _defaultFrameworkPaths;
 
         _workspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
 
@@ -1915,11 +1928,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         => UpdatePackageReferences(packages,
             new PackageReferenceContext($"net{Environment.Version.Major}.{Environment.Version.Minor}", null, null));
 
-    // The same assemblies a build compiles against: the last restore's selection while it still matches
-    // the packages (resolved versions, transitive packages, the target framework's compile assets), else
-    // the best local match by NuGet's version rules — never a restore, which would need the network.
+    // The same assemblies a build compiles against: the target framework's reference assemblies, and the
+    // last restore's selection while it still matches the packages (resolved versions, transitive
+    // packages, the target framework's compile assets), else the best local match by NuGet's version
+    // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
+        var frameworkPaths = TargetFrameworkReferences(context);
         var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
                 packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
                 context.TargetFramework,
@@ -1933,13 +1948,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // under it, and both sides must see one consistent "current" solution.
         lock (_syncLock)
         {
-            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)) return;
+            if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
+                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)) return;
 
             // Rebuilt from the base references every time, so stale package ones (a removed package, an
             // older resolved version) go away. A package assembly the framework also has is resolved as
             // the build resolves it: referencing both would make every one of its types ambiguous
             // (CS0433) in the editor while the build compiles.
-            var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(_baseReferencePaths, newPaths);
+            var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(
+                frameworkPaths.Concat(_otherBaseReferencePaths), newPaths);
             var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
             var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
@@ -1951,9 +1968,31 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _nugetRefs.Clear();
             _nugetRefs.AddRange(newRefs);
             _nugetPaths = newPaths;
+            _frameworkPaths = frameworkPaths;
             // force re-sync on next analysis pass
             _lastCode = "";
         }
+    }
+
+    // The targeting pack the build would use for the target, among the installed and already downloaded
+    // ones; without one (or with a malformed NuGet configuration), the references the service was
+    // created with, as before.
+    private IReadOnlyList<string> TargetFrameworkReferences(PackageReferenceContext context)
+    {
+        try
+        {
+            var settings = NuGetRestorer.LoadSettings(context.NuGetConfigFile,
+                context.OutputDirectory is { } output ? RoslynScriptCompiler.ObjDirectory(output) : Path.GetTempPath());
+            var pack = TargetingPack.Find(context.TargetFramework, context.DotnetExecutable,
+                SettingsUtility.GetGlobalPackagesFolder(settings));
+            if (pack is not null)
+                return pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NuGetConfigurationException)
+        {
+            _logger.LogDebug(ex, "No targeting pack for {TargetFramework}", context.TargetFramework);
+        }
+        return _defaultFrameworkPaths;
     }
 
     // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
