@@ -22,7 +22,7 @@ internal sealed class EditorTabState
     public Dictionary<string, string> DumpContainerBlocks { get; } = new();
 
     // Status bar state (restored when tab becomes active)
-    public string ExecStatusText { get; set; } = "";
+    public string ExecStatusText { get; set; } = "Ready";
     public string ExecStatusColor { get; set; } = "";
     public string ElapsedText { get; set; } = "";
 
