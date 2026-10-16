@@ -41,8 +41,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     private const string CompilerRevision = "3";
     private const string BinDir = "bin";
 
-    // csc/vbc run by the SDK with /preferreduilang:en-US: messages are English whatever the OS language.
-    protected static readonly CultureInfo MessageCulture = CultureInfo.GetCultureInfo("en-US");
+    // Messages are English whatever the OS language, like the SDK's csc/vbc with /preferreduilang:en-US.
+    protected static readonly CultureInfo MessageCulture = RoslynMessageCulture.Culture;
 
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), MetadataReference> References = new();
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), ImmutableArray<ISourceGenerator>> Generators = new();
@@ -134,7 +134,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         Directory.CreateDirectory(_binDir);
         var userReferences = ResolveUserReferences();
-        var (frameworkReferences, packageReferences) = ResolveConflicts(pack.ReferenceAssemblies.ToList(), packages.CompileReferences);
+        var (frameworkReferences, packageReferences) = ResolveConflicts(pack.ReferenceAssemblies, packages.CompileReferences);
         var runtimeFiles = packages.RuntimeFiles.Where(f => !IsProvidedByFramework(f, pack)).ToList();
         var generatorPaths = pack.GeneratorAssemblies(LanguageFolder).Concat(packages.GeneratorAssemblies).ToList();
 
@@ -272,9 +272,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     // A package can ship an assembly the framework already has (System.Text.Json, ...): like the SDK's
     // conflict resolution, the higher assembly version wins and the other one isn't referenced.
-    private static (List<string> Framework, List<string> Packages) ResolveConflicts(
-        List<string> framework, IReadOnlyList<string> packages)
+    // IntelliSense selects its references with it too, so the editor reports what the build reports.
+    public static (List<string> Framework, List<string> Packages) ResolveConflicts(
+        IEnumerable<string> frameworkReferences, IReadOnlyList<string> packages)
     {
+        var framework = frameworkReferences.ToList();
         var frameworkByName = framework.ToDictionary(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase);
         var keptPackages = new List<string>();
         foreach (var package in packages)

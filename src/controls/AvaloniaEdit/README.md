@@ -11,7 +11,8 @@ control for Avalonia, itself a port of AvalonEdit from the SharpDevelop project.
 - **Why a fork:** RunPad's editor needs changes to the control itself that could not wait for
   upstream releases. RunPad references both projects directly instead of the NuGet packages.
 - **What RunPad changed:** completion-list behavior (soft selection, commit on Tab and Enter), font
-  rendering, clipboard handling on macOS, and keeping TextMate highlighting on the UI dispatcher.
+  rendering, clipboard handling on macOS, keeping TextMate highlighting on the UI dispatcher, and
+  completion/insight popups that take the transform of the editor they open from.
   `git log -- src/controls/AvaloniaEdit src/controls/AvaloniaEdit.TextMate` shows every change.
 - **Tests:** the upstream NUnit suite is kept unchanged in
   [`tests/AvaloniaEdit.Tests`](../../../tests/AvaloniaEdit.Tests); RunPad's own tests for the fork live

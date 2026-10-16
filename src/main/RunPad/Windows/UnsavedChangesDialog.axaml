@@ -10,19 +10,27 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
 
     <Grid RowDefinitions="Auto,Auto" Margin="16">
 
         <TextBlock x:Name="MessageBlock"
                    Grid.Row="0"
-                   FontSize="13"
+                   FontSize="{DynamicResource RunPad.Type.Body}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,16"/>
 
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Spacing="8">
+                    Spacing="{DynamicResource RunPad.Space.Control}">
             <Button Content="Save"
                     Width="80"
                     Click="SaveButton_Click"

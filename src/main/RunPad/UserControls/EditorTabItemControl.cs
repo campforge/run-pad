@@ -24,6 +24,7 @@ using RunPad.Resources;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
+using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
 
@@ -58,9 +59,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // see OnDependenciesEdited. Not "what's on disk": a failed write keeps the tab dirty instead.
     private string _metadataBaseline = "";
 
-    // Editor FontSize relative to the Preferences font size (see EditorZoom) — kept so a Preferences
-    // change, which re-applies the base FontSize, doesn't silently reset the user's zoom.
-    private double _zoomFactor = 1;
+    // The code zoom shared by every editor of the app (and kept in the preferences).
+    private readonly ViewScale _viewScale;
 
     // Debounce before firing a Quick Info request after the pointer stops moving — long enough
     // that just passing over a symbol doesn't spam requests, short enough to still feel responsive
@@ -104,23 +104,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         InitializeComponent();
 
         _outputTabsControl = this.FindControl<TabControl>("OutputTabsControl");
-
         var editor = new CodeTextEditor { Background = _themeService.GetBrush("RunPad.Editor.BackgroundBrush") };
         State = new EditorTabState(editor);
         ResultsOutput.DataContext = State.Output;
         State.Output.Css = HtmlThemeStylesheet.Generate(themeService.CurrentTheme.Interface.Variant,
             themeService.CurrentTheme.Interface.IsDark);
 
-        ApplyEditorSettings(editor, prefs.Editor);
+        _viewScale = ViewScale.For(prefs);
+        ApplyEditorSettings(editor, prefs.Editor, _viewScale.CodeZoom);
         prefs.Keyboard.ApplyTo(editor);
         prefs.Changed += OnPreferencesChanged;
 
-        // Ctrl+wheel (inside CodeTextEditor) and the status-bar zoom menu both just change FontSize.
-        editor.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == CodeTextEditor.FontSizeProperty) OnEditorFontSizeChanged();
-        };
-        OnEditorFontSizeChanged();
+        // Ctrl+wheel, the status-bar zoom menu and View → Zoom all change the one shared code zoom;
+        // every editor then follows it in OnViewScaleChanged.
+        editor.ZoomRequested += OnEditorZoomRequested;
+        _viewScale.Changed += OnViewScaleChanged;
+        UpdateZoomButton();
 
         _intelliSense = intelliSense;
         _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
@@ -458,6 +457,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
+        _viewScale.Changed -= OnViewScaleChanged;
+        State.Editor.ZoomRequested -= OnEditorZoomRequested;
         _selectedKindSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
@@ -860,9 +861,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void UpdateOutputUi()
     {
         ExecStatusBlock.Text = State.ExecStatusText;
-        ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
-            ? Brushes.Transparent
-            : _themeService.GetBrush(State.ExecStatusColor) ?? Brushes.Transparent;
+        ExecStatusBlock.Bind(TextBlock.ForegroundProperty, ExecStatusBlock.GetResourceObservable(
+            State.ExecStatusColor == "RunPad.Text.SecondaryBrush"
+                ? "RunPad.Text.SecondaryBrush" : "RunPad.StatusBar.ForegroundBrush"));
+        if (string.IsNullOrEmpty(State.ExecStatusColor))
+            ExecStatusIndicator.Fill = Brushes.Transparent;
+        else
+            ExecStatusIndicator.Bind(global::Avalonia.Controls.Shapes.Shape.FillProperty,
+                ExecStatusIndicator.GetResourceObservable(State.ExecStatusColor));
         ElapsedBlock.Text = State.ElapsedText;
     }
 
@@ -1120,8 +1126,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void OnPreferencesChanged()
         => Dispatcher.Post(() =>
         {
-            var zoomFactor = _zoomFactor;
-            ApplyEditorSettings(State.Editor, _prefs.Editor);
+            ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             _prefs.Keyboard.ApplyTo(State.Editor);
             if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
             {
@@ -1129,8 +1134,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 _intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
                 _intelliSense?.NotifyTextChanged(State.Editor.Text);
             }
-            if (zoomFactor != 1)
-                State.Editor.FontSize = Math.Max(1, _prefs.Editor.FontSize * zoomFactor);
 
             if (_inlayHintRenderer is { } renderer && renderer.IsEnabled != _prefs.CSharp.InlayHintsEnabled)
             {
@@ -1147,30 +1150,41 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // ── Editor zoom ───────────────────────────────────────────────────────────
 
-    private void OnEditorFontSizeChanged()
+    // The editor's own font size: the configured size times the code zoom. The interface scale is
+    // not part of it — the window's layout transform already applies that to everything inside.
+    internal static double CodeFontSize(EditorSettings s, double codeZoom) => Math.Max(1, s.FontSize * codeZoom);
+
+    private void OnViewScaleChanged()
     {
-        var baseFontSize = _prefs.Editor.FontSize;
-        _zoomFactor = baseFontSize > 0 ? State.Editor.FontSize / baseFontSize : 1;
-        ZoomButton.Content = $"{EditorZoom.ToPercent(State.Editor.FontSize, baseFontSize)}%";
+        State.Editor.FontSize = CodeFontSize(_prefs.Editor, _viewScale.CodeZoom);
+        UpdateZoomButton();
+    }
+
+    private void UpdateZoomButton() => ZoomButton.Content = $"{_viewScale.CodeZoomPercent}%";
+
+    private void OnEditorZoomRequested(int direction)
+    {
+        if (direction > 0) _viewScale.ZoomIn();
+        else _viewScale.ZoomOut();
     }
 
     private void SetZoomPercent(int percent)
     {
-        State.Editor.FontSize = EditorZoom.ToFontSize(percent, _prefs.Editor.FontSize);
+        _viewScale.SetCodeZoomPercent(percent);
         State.Editor.Focus();
     }
 
-    private int CurrentZoomPercent => EditorZoom.ToPercent(State.Editor.FontSize, _prefs.Editor.FontSize);
+    private void ZoomIn_Click(object? sender, RoutedEventArgs e)
+    {
+        _viewScale.ZoomIn();
+        State.Editor.Focus();
+    }
 
-    public void ZoomIn() => SetZoomPercent(EditorZoom.NextStep(CurrentZoomPercent));
-
-    public void ZoomOut() => SetZoomPercent(EditorZoom.PreviousStep(CurrentZoomPercent));
-
-    public void ResetZoom() => SetZoomPercent(100);
-
-    private void ZoomIn_Click(object? sender, RoutedEventArgs e) => ZoomIn();
-
-    private void ZoomOut_Click(object? sender, RoutedEventArgs e) => ZoomOut();
+    private void ZoomOut_Click(object? sender, RoutedEventArgs e)
+    {
+        _viewScale.ZoomOut();
+        State.Editor.Focus();
+    }
 
     private void ZoomPreset_Click(object? sender, RoutedEventArgs e)
     {
@@ -1226,11 +1240,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Test-only observability (InternalsVisibleTo), same "internal test hook" pattern used elsewhere
     // in the solution — lets a test confirm settings (notably FontFamily) actually reach
     // the real CodeTextEditor without needing to construct a whole EditorTabItemControl.
-    internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s)
+    internal static void ApplyEditorSettings(CodeTextEditor editor, EditorSettings s, double codeZoom = 1)
     {
         editor.ShowLineNumberText = s.ShowLineNumbers;
         editor.ShowFolding = s.ShowFolding;
-        editor.FontSize = s.FontSize;
+        editor.FontSize = CodeFontSize(s, codeZoom);
         editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
         editor.WordWrap = s.WordWrap;
         editor.Options.ShowTabs = s.ShowTabs;
@@ -1685,8 +1699,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // keystroke; for a file with front-matter packages/usings, spurious "type not found"
         // squiggles for anything only resolvable through them.
         RefreshIntelliSenseKind();
-        if (rpad?.FrontMatter.Packages is { Count: > 0 })
-            RefreshIntelliSensePackages();
+        RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
@@ -1727,7 +1740,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             return;
         }
         intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile));
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath));
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
