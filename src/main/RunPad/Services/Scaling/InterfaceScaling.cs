@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace RunPad.Services.Scaling;
 
@@ -76,6 +77,12 @@ public static class InterfaceScaling
     // frame size is unknown.
     private static readonly Size EstimatedChrome = new(16, 40);
 
+    // Kept free around a fitted window. One that exactly fills the work area is taken by macOS for a
+    // zoomed (maximized) window, and a maximized window is left alone by later scale changes.
+    private const double EdgeMargin = 16;
+
+    private static bool _resizePending;
+
     // Replaces the screen's work area (in DIPs) in tests.
     internal static Func<Window, Size?>? WorkAreaOverride { get; set; }
 
@@ -112,6 +119,7 @@ public static class InterfaceScaling
         if (_popupStyle is not null) Application.Current?.Styles.Remove(_popupStyle);
         _popupStyle = null;
         ScaledWindows.Clear();
+        _resizePending = false;
         Scale = 1;
     }
 
@@ -152,8 +160,21 @@ public static class InterfaceScaling
         {
             if (window.Content is ScaleRoot root)
                 root.LayoutTransform = new ScaleTransform(Scale, Scale);
-            ResizeWindow(window, Scale, IsMainWindow(window));
         }
+
+        // The windows are resized in a dispatcher job of their own, after the change that caused it
+        // (a key press or click in Preferences, each step of a held arrow key) and its layout pass
+        // are over. Resized from inside that chain, a macOS window could keep a drawing surface of
+        // its old size — the content then showed stretched, clipped or shrunk until the window was
+        // reopened. Several quick changes are resized once, to the last scale.
+        if (_resizePending) return;
+        _resizePending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _resizePending = false;
+            foreach (var window in ScaledWindows.ToList())
+                ResizeWindow(window, Scale, IsMainWindow(window));
+        }, DispatcherPriority.Background);
     }
 
     // Fixed sizes from XAML (a dialog's Width/Height) and the minimum/maximum sizes follow the scale,
@@ -197,7 +218,9 @@ public static class InterfaceScaling
         var chrome = window.IsVisible && window.FrameSize is { } frame
             ? new Size(Math.Max(0, frame.Width - window.ClientSize.Width), Math.Max(0, frame.Height - window.ClientSize.Height))
             : EstimatedChrome;
-        return new Size(Math.Max(1, area.Width - chrome.Width), Math.Max(1, area.Height - chrome.Height));
+        return new Size(
+            Math.Max(1, area.Width - chrome.Width - EdgeMargin),
+            Math.Max(1, area.Height - chrome.Height - EdgeMargin));
     }
 
     // A dialog that grew may now reach past the edge of its screen: it is moved back inside the work
