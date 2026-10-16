@@ -18,7 +18,8 @@ Notable changes in each RunPad release. Downloads are on the
 - The debugger keeps Threads and Call Stack in permanent tables with compact text headings and
   a draggable divider, beside Locals and Watch.
   An always-visible settings button opens exception break options. Panel views use soft
-  theme-defined selectors. Watch actions use compact plus/minus buttons with tooltips.
+  theme-defined selectors. Watch actions use compact plus/minus buttons with tooltips; the settings
+  icon has a trailing inset.
 - The status bar uses a neutral theme background and readable text, with a small coloured state
   indicator. Light themes use darker status colours. Scripts that have not run yet show Ready
   with neutral grey text and indicator.

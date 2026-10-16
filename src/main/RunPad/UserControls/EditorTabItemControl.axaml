@@ -208,8 +208,11 @@
         <!-- Row 3: Output tabs -->
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel tool">
             <TabControl.Tag>
-                            <tc:IconButton x:Name="ExceptionsButton" IconData="{StaticResource Icon.Settings}"
+                            <tc:IconButton x:Name="ExceptionsButton" Width="24" Height="24" Padding="6" Margin="0,0,8,0" IconData="{StaticResource Icon.Settings}"
                                     Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" ToolTip.Tip="Exception break settings" AutomationProperties.Name="Exception break settings">
+                                <tc:IconButton.Resources>
+                                    <x:Double x:Key="RunPad.Size.ToolbarIcon">12</x:Double>
+                                </tc:IconButton.Resources>
                                 <tc:IconButton.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
                                         <StackPanel Spacing="6" MaxWidth="320">
