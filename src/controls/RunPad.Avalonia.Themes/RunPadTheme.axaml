@@ -201,8 +201,11 @@
                 <DockPanel>
                     <Border x:Name="PART_Strip" DockPanel.Dock="Top"
                             Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
-                        <ItemsPresenter Name="PART_ItemsPresenter"
-                                        ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Tag}"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
                     </Border>
                     <Border Background="{TemplateBinding Background}">
                         <ContentPresenter Name="PART_SelectedContentHost"

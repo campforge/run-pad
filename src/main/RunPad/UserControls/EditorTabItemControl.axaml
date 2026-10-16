@@ -207,6 +207,21 @@
 
         <!-- Row 3: Output tabs -->
         <TabControl x:Name="OutputTabsControl" Grid.Row="3" Classes="OutputTabs panel tool">
+            <TabControl.Tag>
+                            <Button x:Name="ExceptionsButton" Content="Exceptions…"
+                                    Background="Transparent" BorderThickness="0" MinHeight="0" Height="24" Padding="8,0" FontSize="12" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}" ToolTip.Tip="Exception break settings">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="6" MaxWidth="320">
+                                            <CheckBox IsChecked="{Binding DebugPanel.BreakOnUncaughtExceptions, Mode=TwoWay}"
+                                                      Content="Break on unhandled exceptions"/>
+                                            <CheckBox IsChecked="{Binding DebugPanel.BreakOnAllExceptions, Mode=TwoWay}"
+                                                      Content="Break on all exceptions (including caught)"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+            </TabControl.Tag>
 
             <TabItem Header="Results">
                 <uc:OutputHtmlView x:Name="ResultsOutput"/>

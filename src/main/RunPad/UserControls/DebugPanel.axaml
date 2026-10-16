@@ -53,34 +53,6 @@
             <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
-        <Style Selector="TabControl.debug-variables">
-            <Setter Property="Template">
-                <ControlTemplate TargetType="TabControl">
-                    <DockPanel>
-                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
-                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
-                            <Button x:Name="ExceptionsButton" Grid.Column="1" Content="Exceptions…"
-                                    Classes="WatchBtn" ToolTip.Tip="Exception break settings">
-                                <Button.Flyout>
-                                    <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Spacing="6" MaxWidth="320">
-                                            <CheckBox IsChecked="{Binding BreakOnUncaughtExceptions, Mode=TwoWay}"
-                                                      Content="Break on unhandled exceptions"/>
-                                            <CheckBox IsChecked="{Binding BreakOnAllExceptions, Mode=TwoWay}"
-                                                      Content="Break on all exceptions (including caught)"/>
-                                        </StackPanel>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
-                        </Grid>
-                        <ContentPresenter Name="PART_SelectedContentHost"
-                                          Content="{TemplateBinding SelectedContent}"
-                                          ContentTemplate="{TemplateBinding SelectedContentTemplate}"
-                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
-                    </DockPanel>
-                </ControlTemplate>
-            </Setter>
-        </Style>
     </UserControl.Styles>
 
     <DockPanel>
