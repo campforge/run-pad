@@ -89,6 +89,12 @@ public sealed class FileSystemService : IFileSystemService
         // child is dropped, an unreadable one is still listed but with no children.
         foreach (var dir in Directory.GetDirectories(folder).OrderBy(d => d))
         {
+            // Folders whose own name starts with a dot belong to tools, not scripts (.git, .obsidian
+            // of a vault kept in the queries folder, .vscode): neither they nor anything inside them
+            // is listed or walked. Only the name counts — the root folder itself is always listed
+            // from, even when it or one of its parents has such a name.
+            if (IsDotDirectory(dir)) continue;
+
             IReadOnlyList<FileSystemItem> children;
             try
             {
@@ -118,6 +124,9 @@ public sealed class FileSystemService : IFileSystemService
 
         return result;
     }
+
+    internal static bool IsDotDirectory(string path) =>
+        Path.GetFileName(Path.TrimEndingDirectorySeparator(path)).StartsWith('.');
 
     public Task<IReadOnlyList<FileSystemItem>> GetFilesTreeAsync(CancellationToken ct = default) =>
         Task.Run(() =>
