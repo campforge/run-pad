@@ -106,8 +106,8 @@ public class PanelTabsTests
     {
         var output = OutputTabs(out var host);
         host.Width = width;
-        var exceptions = Assert.IsType<Button>(output.Tag);
-        Assert.False(exceptions.IsVisible);
+        var exceptions = Assert.IsAssignableFrom<Button>(output.Tag);
+        Assert.True(exceptions.IsVisible);
         output.SelectedIndex = 1;
         Dispatcher.UIThread.RunJobs();
         Assert.True(exceptions.IsVisible);
@@ -129,17 +129,47 @@ public class PanelTabsTests
         Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
         var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), output)!.Value;
         Assert.InRange(trailing.X, output.Bounds.Width - 1, output.Bounds.Width + 1);
-        Assert.Equal(width < 500 ? "⋯" : "Exceptions…", exceptions.Content);
-        var threadButton = panel.FindControl<Button>("ThreadsButton")!;
-        Assert.InRange(threadButton.Bounds.Height, 20, 30);
-        Assert.DoesNotContain(panel.GetVisualDescendants(), v => v is Expander);
-        threadButton.Flyout!.ShowAt(threadButton);
-        Dispatcher.UIThread.RunJobs();
-        var threadFlyout = Assert.IsType<Flyout>(threadButton.Flyout);
-        var threadGrid = Assert.IsType<DataGrid>(threadFlyout.Content);
+        Assert.IsType<RunPad.TemplatedControls.IconButton>(exceptions);
+        var threadGrid = panel.FindControl<DataGrid>("ThreadsGrid")!;
+        Assert.True(threadGrid.IsEffectivelyVisible);
         Assert.Same(vm.DebugThreads, threadGrid.ItemsSource);
         Assert.True(threadGrid.IsReadOnly);
-        threadFlyout.Hide();
+        var threadBottom = threadGrid.TranslatePoint(new Point(0, threadGrid.Bounds.Height), host)!.Value.Y;
+        Assert.True(threadBottom < stack.TranslatePoint(default, host)!.Value.Y);
+        var threadSection = panel.FindControl<Expander>("ThreadsSection")!;
+        var stackSection = panel.FindControl<Expander>("CallStackSection")!;
+        Assert.True(threadSection.IsExpanded);
+        Assert.True(stackSection.IsExpanded);
+        var splitter = panel.FindControl<GridSplitter>("ThreadsStackSplitter")!;
+        Assert.Equal(GridResizeDirection.Rows, splitter.ResizeDirection);
+        var sections = panel.FindControl<Grid>("StackSections")!;
+        sections.RowDefinitions[0].Height = new GridLength(2, GridUnitType.Star);
+        sections.RowDefinitions[2].Height = new GridLength(3, GridUnitType.Star);
+        Dispatcher.UIThread.RunJobs();
+        var originalStackHeight = stack.Bounds.Height;
+        var header = threadSection.GetVisualDescendants().OfType<ToggleButton>().Single();
+        var headerPoint = header.TranslatePoint(new Point(8, 8), host)!.Value;
+        host.MouseDown(headerPoint, MouseButton.Left);
+        host.MouseUp(headerPoint, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(threadSection.IsExpanded);
+        Assert.False(splitter.IsVisible);
+        Assert.True(stack.Bounds.Height > originalStackHeight);
+        header.Focus(NavigationMethod.Tab);
+        host.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+        host.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(threadSection.IsExpanded);
+        Assert.Equal(new GridLength(2, GridUnitType.Star), sections.RowDefinitions[0].Height);
+        Assert.Equal(new GridLength(3, GridUnitType.Star), sections.RowDefinitions[2].Height);
+        stackSection.IsExpanded = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(threadGrid.Bounds.Height > 0);
+        Assert.False(splitter.IsVisible);
+        stackSection.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(splitter.IsVisible);
+
         exceptions.Flyout!.ShowAt(exceptions);
         Dispatcher.UIThread.RunJobs();
         var flyout = Assert.IsType<Flyout>(exceptions.Flyout);
@@ -151,7 +181,7 @@ public class PanelTabsTests
         Assert.True(vm.BreakOnAllExceptions);
         flyout.Hide();
         output.SelectedIndex = 0;
-        Assert.False(exceptions.IsVisible);
+        Assert.True(exceptions.IsVisible);
         host.Close();
     }
 

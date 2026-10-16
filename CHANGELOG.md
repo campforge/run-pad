@@ -15,9 +15,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
-- The debugger keeps the call stack beside Locals and Watch, with threads in a collapsible list
-  and exception break settings in a compact menu. Panel views use soft theme-defined selectors;
-  the thread list opens from a compact header instead of occupying the stack area.
+- The debugger keeps Threads and Call Stack in compact collapsible sections with a draggable
+  divider, beside Locals and Watch. Both sections start expanded.
+  An always-visible settings button opens exception break options. Panel views use soft
+  theme-defined selectors.
 - The status bar uses a neutral theme background and readable text, with a small coloured state
   indicator. Light themes use darker status colours. Scripts that have not run yet show Ready.
 
