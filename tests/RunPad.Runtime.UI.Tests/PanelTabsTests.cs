@@ -104,11 +104,15 @@ public class PanelTabsTests
     [InlineData(900)]
     public void StackAndVariables_Should_BeVisibleTogether_WhileSwitchingViews(int width)
     {
-        var vm = new DebugPanelViewModel();
-        var panel = new DebugPanel { DataContext = vm };
-        var host = Host(panel);
+        var output = OutputTabs(out var host);
         host.Width = width;
+        var exceptions = Assert.IsType<Button>(output.Tag);
+        Assert.False(exceptions.IsVisible);
+        output.SelectedIndex = 1;
         Dispatcher.UIThread.RunJobs();
+        Assert.True(exceptions.IsVisible);
+        var panel = output.GetVisualDescendants().OfType<DebugPanel>().Single();
+        var vm = Assert.IsType<DebugPanelViewModel>(panel.DataContext);
         var stack = panel.FindControl<DataGrid>("CallStackGrid")!;
         var tabs = panel.FindControl<TabControl>("VariableTabs")!;
         var stackOrigin = stack.TranslatePoint(default, host)!.Value;
@@ -123,9 +127,8 @@ public class PanelTabsTests
             Assert.True(tabs.Bounds.Width > 0);
         }
         Assert.Equal(new[] { "Locals", "Watch" }, Items(tabs).Select(t => t.Header));
-        var exceptions = tabs.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ExceptionsButton");
-        var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), tabs)!.Value;
-        Assert.InRange(trailing.X, tabs.Bounds.Width - 1, tabs.Bounds.Width + 1);
+        var trailing = exceptions.TranslatePoint(new Point(exceptions.Bounds.Width, 0), output)!.Value;
+        Assert.InRange(trailing.X, output.Bounds.Width - 1, output.Bounds.Width + 1);
         Assert.Equal(width < 500 ? "⋯" : "Exceptions…", exceptions.Content);
         var threadButton = panel.FindControl<Button>("ThreadsButton")!;
         Assert.InRange(threadButton.Bounds.Height, 20, 30);
@@ -147,6 +150,8 @@ public class PanelTabsTests
         Dispatcher.UIThread.RunJobs();
         Assert.True(vm.BreakOnAllExceptions);
         flyout.Hide();
+        output.SelectedIndex = 0;
+        Assert.False(exceptions.IsVisible);
         host.Close();
     }
 
