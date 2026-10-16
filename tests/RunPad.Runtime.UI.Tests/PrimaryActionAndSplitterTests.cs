@@ -86,12 +86,11 @@ public class PrimaryActionAndSplitterTests
         ((IPseudoClasses)ok.Classes).Remove(":pressed");
         ((IPseudoClasses)ok.Classes).Remove(":pointerover");
 
-        // Keyboard focus: a ring in the text colour inside the accent.
-        ((IPseudoClasses)ok.Classes).Add(":focus-visible");
+        // Default actions use the same external keyboard ring, without an extra white inner border.
+        ok.Focus(NavigationMethod.Tab);
         Dispatcher.UIThread.RunJobs();
-        Assert.Same(Brush("RunPad.Button.Primary.ForegroundBrush"), Presenter(ok).BorderBrush);
-        Assert.Equal(new Thickness(2), Presenter(ok).BorderThickness);
-        ((IPseudoClasses)ok.Classes).Remove(":focus-visible");
+        Assert.True(FocusFrames.IsShown(ok));
+        Assert.Same(Brush("RunPad.Button.Primary.BackgroundBrush"), Presenter(ok).BorderBrush);
 
         // Disabled keeps the ordinary (Fluent) disabled look instead of a live-looking accent.
         ok.IsEnabled = false;

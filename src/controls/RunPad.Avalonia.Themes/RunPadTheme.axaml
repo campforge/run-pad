@@ -15,6 +15,17 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <FocusAdornerTemplate x:Key="RunPad.Focus.Adorner">
+                <Border Name="FocusRingPrimary"
+                        BorderBrush="{DynamicResource RunPad.Focus.BorderBrush}"
+                        BorderThickness="{DynamicResource RunPad.Focus.Thickness}"
+                        CornerRadius="{DynamicResource RunPad.Focus.CornerRadius}">
+                    <Border Name="FocusRingContrast"
+                            BorderBrush="{DynamicResource RunPad.Focus.ContrastBrush}"
+                            BorderThickness="{DynamicResource RunPad.Focus.ContrastThickness}"
+                            CornerRadius="{DynamicResource RunPad.Focus.InnerCornerRadius}"/>
+                </Border>
+            </FocusAdornerTemplate>
         </ResourceDictionary>
     </Styles.Resources>
 
@@ -114,13 +125,6 @@
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
     </Style>
 
-    <!-- Keyboard focus: a ring in the button's text colour inside the accent, visible whatever
-         the focus adorner around the button shows. -->
-    <Style Selector="Button[IsDefault=True]:not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="BorderBrush"     Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
-        <Setter Property="BorderThickness" Value="2"/>
-    </Style>
-
     <!-- ── Panel seam ──────────────────────────────────────────────────── -->
     <!-- A one-DIP layout seam with a five-DIP transparent drag target overlapping the adjacent
          panels. The hit area does not reserve a blank band on either side of the line. -->
@@ -154,34 +158,36 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- ── Keyboard focus ─────────────────────────────────────────────────── -->
-    <!-- One keyboard-focus look: Fluent's focus frame (white in dark themes, black in light ones),
-         shown when a control is reached with the keyboard and not when it is clicked. Fluent's
-         ComboBox is the exception — it fills itself with the accent instead (over its text) — so a
-         combo box gets the same frame as everything else and no fill. Text fields keep their own
-         focused border, shown with the caret. -->
-    <Style Selector="ComboBox">
-        <Setter Property="FocusAdorner">
-            <FocusAdornerTemplate>
-                <Border BorderThickness="{DynamicResource SystemControlFocusVisualPrimaryThickness}"
-                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
-                        CornerRadius="4">
-                    <Border BorderThickness="1"
-                            BorderBrush="{DynamicResource SystemControlFocusVisualSecondaryBrush}"
-                            CornerRadius="3"/>
-                </Border>
-            </FocusAdornerTemplate>
-        </Setter>
+    <!-- One focus geometry for shell controls, including the tree's template focus target.
+         The contrasting inner edge keeps the ring visible on selected rows and primary buttons.
+         Code editors keep their own caret/selection behavior. All dimensions and brushes are theme
+         resources; neither a system accent nor a control's shape decides the focus appearance. -->
+    <Style Selector=":is(Button), :is(ComboBox), TabItem, TabStripItem, ListBoxItem, TextBox, TreeViewItem, :is(TreeView), :is(ListBox), GridSplitter, DataGridCell, DataGridColumnHeader">
+        <Setter Property="FocusAdorner" Value="{StaticResource RunPad.Focus.Adorner}"/>
+    </Style>
+    <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+        <Setter Property="FocusAdorner" Value="{StaticResource RunPad.Focus.Adorner}"/>
     </Style>
     <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
         <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <!-- DataGrid has its own square focus rectangles in addition to Control.FocusAdorner. -->
+    <Style Selector="DataGridCell:focus /template/ Grid#FocusVisual, DataGridColumnHeader:focus-visible /template/ Grid#FocusVisual">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <!-- TextBox normally draws a separate accent border on focus. Keep its ordinary border and
+         caret; keyboard focus is indicated by the same adorner as the other controls. Error borders
+         retain their validation meaning. Pointer focus does not add a keyboard-focus ring. -->
+    <Style Selector="TextBox:focus:not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{Binding $parent[TextBox].BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="{Binding $parent[TextBox].BorderThickness}"/>
     </Style>
 
     <!-- ── Panel tabs ─────────────────────────────────────────────────────── -->
     <!-- Tabs of a panel (Results/Debugger/IL, and the Debugger's own Threads/Locals/…), drawn like
          the document tabs above the editor: inactive tabs on the panel colour, the selected tab in
          the colour of its content so the two join, a separator after each tab, the hover brush on
-         hover, no accent line; keyboard focus shows Fluent's focus frame. TabControl.Background is the
+         hover, no accent line; keyboard focus uses the shared theme ring. TabControl.Background is the
          content's colour. "nested" is the smaller row inside a panel. -->
     <Style Selector="TabControl.panel">
         <Setter Property="Padding" Value="0"/>
