@@ -41,11 +41,11 @@ Notable changes in each RunPad release. Downloads are on the
   accent colour, with a visible ring when it has keyboard focus, so the main action stands out;
   **Enter** and **Escape** work as before. The dividers between the side panel, the editor and the
   Results panel are now thin lines; they are dragged in the same place as before.
-- The **Results**, **Debugger** and **IL** tabs and the debugger's **Threads**, **Locals**, **Watch**,
-  **Call Stack** and **Exceptions** tabs look like the editor's document tabs: the selected tab joins
-  the panel below it, without the blue underline. Keyboard focus shows as a thin frame.
 
 ### Fixed
+
+- IntelliSense checks framework APIs against the script's selected .NET target when its reference
+  pack is available, including when a script without packages is first opened, before any run.
 
 - IntelliSense no longer reports duplicate-type errors when a NuGet package includes an assembly
   also provided by the framework; package updates use the same overlap selection as compilation.
