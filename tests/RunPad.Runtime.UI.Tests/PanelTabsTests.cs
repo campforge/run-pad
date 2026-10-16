@@ -23,10 +23,7 @@ using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
 
-// Results/Debugger/IL and the Debugger's Threads/Locals/… tabs share the document tabs' look: inactive
-// tabs on the panel colour, the selected one in its content's colour (so they join), no accent line,
-// a frame only for keyboard focus; the Debugger's row is the smaller, nested one. Clicking and the
-// arrow keys still switch tabs. Real controls with the real RunPadTheme.
+// Compact tool selectors, simultaneous stack/variables and theme-aware status presentation.
 public class PanelTabsTests
 {
     private static Window Host(Control content, string theme = "VsCodeDark")
@@ -102,6 +99,7 @@ public class PanelTabsTests
     }
 
     [AvaloniaTheory]
+    [InlineData(260)]
     [InlineData(500)]
     [InlineData(900)]
     public void StackAndVariables_Should_BeVisibleTogether_WhileSwitchingViews(int width)
