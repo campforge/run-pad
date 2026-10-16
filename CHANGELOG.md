@@ -31,6 +31,11 @@ Notable changes in each RunPad release. Downloads are on the
   in Finder, a terminal or Obsidian — also for folder names with a dot, such as `project.v2`. Before,
   only changes to `.rpad` files were noticed. Changes inside dot folders such as `.obsidian` and
   to other kinds of files no longer cause a refresh.
+- Easier to read: the hit-count hint of the breakpoint condition dialog wraps instead of being
+  cut off, a long version in **About RunPad** ends with "…" and shows in full as a tooltip, error
+  messages name what failed and show the details in normal text instead of all red, and grey
+  secondary text is a little darker in the VS Code, Rider, Visual Studio and RunPad Warm light
+  themes so that it stays readable.
 
 ## [0.5.0] — 2026-10-15
 

@@ -9,6 +9,7 @@ public partial class ErrorDialog : Window
     {
         InitializeComponent();
         Title = title;
+        TitleBlock.Text = title;
         MessageBlock.Text = message;
     }
 
