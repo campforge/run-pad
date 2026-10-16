@@ -15,6 +15,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Editor preferences are grouped into font and zoom, display, editing, and new-file defaults,
+  with aligned fields and the same settings and keyboard behavior.
+
 - Keyboard navigation uses one consistent focus frame on tabs, buttons, trees and dropdowns.
   Dropdown text stays readable when focused, and clicking a tab no longer adds a second frame.
 

@@ -17,7 +17,24 @@
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
         >
 
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Window.Styles>
+        <Style Selector="TextBlock.settings-heading">
+            <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="TextBlock.settings-help">
+            <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Caption}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
         <Style Selector="TreeViewItem">
             <Setter Property="Padding" Value="6,0,6,0"/>
             <Setter Property="MinHeight" Value="27"/>
@@ -27,11 +44,11 @@
         </Style>
         <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
             <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Selection}"/>
         </Style>
         <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
             <Setter Property="Background" Value="{DynamicResource RunPad.Accent.BackgroundBrush}"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource RunPad.Radius.Selection}"/>
         </Style>
         <Style Selector="TreeViewItem:selected /template/ Border#SelectionIndicator">
             <Setter Property="IsVisible" Value="False"/>
@@ -144,54 +161,67 @@
 
                 </StackPanel>
 
-                <StackPanel IsVisible="{Binding IsEditorSelected}" Spacing="4">
-                    <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
-                    <CheckBox IsChecked="{Binding ShowFolding}"     Content="Show code folding"/>
-                    <CheckBox IsChecked="{Binding ShowTabs}"        Content="Show tabs"/>
-                    <CheckBox IsChecked="{Binding ShowSpaces}"      Content="Show spaces"/>
-                    <CheckBox IsChecked="{Binding ShowEndOfLine}"   Content="Show end of line"/>
-                    <CheckBox IsChecked="{Binding ShowColumnRuler}" Content="Show column ruler (col 80)"/>
-                    <CheckBox IsChecked="{Binding WordWrap}"        Content="Word wrap"/>
-                    <CheckBox IsChecked="{Binding CommitCharactersEnabled}"
-                              Content="Accept completion when typing punctuation"/>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-                        <TextBlock Grid.Column="0" Text="Font size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <NumericUpDown Grid.Column="1"
-                                       Value="{Binding FontSize}"
-                                       Minimum="8" Maximum="32" Increment="1"
-                                       FormatString="0"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,6,0,0">
-                        <TextBlock Grid.Column="0" Text="Code zoom:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock Grid.Column="1" x:Name="CodeZoomText" VerticalAlignment="Center" Margin="0,0,8,0"
-                                   Text="{Binding CodeZoomPercent, StringFormat={}{0}%}"/>
-                        <Button Grid.Column="2" Content="Reset to 100%" HorizontalAlignment="Left"
-                                Command="{Binding ResetCodeZoomCommand}"/>
-                    </Grid>
-                    <TextBlock Text="Extra size of code in every editor, on top of the interface scale. Also Ctrl+wheel (Cmd+wheel on macOS) and View → Zoom."
-                               TextWrapping="Wrap" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-                        <TextBlock Grid.Column="0" Text="Font family:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
-                                 PlaceholderText="monospace"/>
-                    </Grid>
+                <StackPanel x:Name="EditorSettingsPage" IsVisible="{Binding IsEditorSelected}"
+                            Spacing="{DynamicResource RunPad.Space.Section}">
+                    <StackPanel Spacing="{DynamicResource RunPad.Space.Control}">
+                        <TextBlock Classes="settings-heading" Text="Font and zoom"/>
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Font family:" VerticalAlignment="Center"/>
+                            <TextBox x:Name="EditorFontFamilyBox" Grid.Column="1"
+                                     Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                                     PlaceholderText="monospace"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Font size:" VerticalAlignment="Center"/>
+                            <NumericUpDown x:Name="EditorFontSizeBox" Grid.Column="1"
+                                           Value="{Binding FontSize}" Minimum="8" Maximum="32"
+                                           Increment="1" FormatString="0" Width="120" HorizontalAlignment="Left"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Code zoom:" VerticalAlignment="Center"/>
+                            <WrapPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBlock x:Name="CodeZoomText" VerticalAlignment="Center" Margin="0,0,8,0"
+                                           Text="{Binding CodeZoomPercent, StringFormat={}{0}%}"/>
+                                <Button Content="Reset to 100%" Command="{Binding ResetCodeZoomCommand}"/>
+                            </WrapPanel>
+                        </Grid>
+                        <TextBlock Classes="settings-help"
+                                   Text="Code zoom applies to every editor on top of the interface scale. Use View → Zoom or Ctrl+wheel (Cmd+wheel on macOS)."/>
+                    </StackPanel>
 
-                    <TextBlock Text="New file defaults (File → New File):" Margin="0,10,0,2" FontWeight="SemiBold"/>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4">
-                        <TextBlock Grid.Column="0" Text="Language:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AvailableNewFileLanguages}"
-                                  SelectedItem="{Binding NewFileLanguage}"
-                                  HorizontalAlignment="Stretch"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="Kind:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AvailableNewFileKinds}"
-                                  SelectedItem="{Binding NewFileKind}"
-                                  HorizontalAlignment="Stretch"/>
-                    </Grid>
+                    <StackPanel Spacing="{DynamicResource RunPad.Space.Tight}">
+                        <TextBlock Classes="settings-heading" Text="Display"/>
+                        <CheckBox IsChecked="{Binding ShowLineNumbers}" Content="Show line numbers"/>
+                        <CheckBox IsChecked="{Binding ShowFolding}" Content="Show code folding"/>
+                        <CheckBox IsChecked="{Binding ShowTabs}" Content="Show tabs"/>
+                        <CheckBox IsChecked="{Binding ShowSpaces}" Content="Show spaces"/>
+                        <CheckBox IsChecked="{Binding ShowEndOfLine}" Content="Show end of line"/>
+                        <CheckBox IsChecked="{Binding ShowColumnRuler}" Content="Show column ruler (col 80)"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="{DynamicResource RunPad.Space.Tight}">
+                        <TextBlock Classes="settings-heading" Text="Editing"/>
+                        <CheckBox IsChecked="{Binding WordWrap}" Content="Word wrap"/>
+                        <CheckBox IsChecked="{Binding CommitCharactersEnabled}">
+                            <TextBlock Text="Accept completion when typing punctuation" TextWrapping="Wrap"/>
+                        </CheckBox>
+                    </StackPanel>
+
+                    <StackPanel Spacing="{DynamicResource RunPad.Space.Control}">
+                        <TextBlock Classes="settings-heading" Text="New files"/>
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Language:" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="NewFileLanguageBox" Grid.Column="1"
+                                      ItemsSource="{Binding AvailableNewFileLanguages}"
+                                      SelectedItem="{Binding NewFileLanguage}" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="100,*">
+                            <TextBlock Text="Kind:" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="NewFileKindBox" Grid.Column="1"
+                                      ItemsSource="{Binding AvailableNewFileKinds}"
+                                      SelectedItem="{Binding NewFileKind}" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel IsVisible="{Binding IsDotnetSelected}" Spacing="4">
