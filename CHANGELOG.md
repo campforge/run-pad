@@ -46,6 +46,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- IntelliSense no longer reports duplicate-type errors when a NuGet package includes an assembly
+  also provided by the framework; package updates use the same overlap selection as compilation.
+
 - Editor diagnostics, quick fixes and refactoring titles stay in English, matching the interface,
   instead of following the operating system language.
 
