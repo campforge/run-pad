@@ -16,13 +16,13 @@
                     <SolidColorBrush x:Key="RunPad.Output.ErrorForeground"            Color="#CC0000" />
                     <SolidColorBrush x:Key="RunPad.Output.StackTraceForeground"       Color="#A31515" />
                     <SolidColorBrush x:Key="RunPad.Panel.BackgroundBrush"             Color="#F5F5F5" />
-                    <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#EBEBEB" />
-                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#6C6C6C" />
-                    <SolidColorBrush x:Key="RunPad.Status.RunningBrush"               Color="#0078D4" />
-                    <SolidColorBrush x:Key="RunPad.Status.CancelledBrush"             Color="#767676" />
-                    <SolidColorBrush x:Key="RunPad.Status.SuccessBrush"               Color="#267F26" />
-                    <SolidColorBrush x:Key="RunPad.Status.ErrorBrush"                 Color="#D00000" />
-                    <SolidColorBrush x:Key="RunPad.Status.PausedBrush"                Color="#B35C00" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#F5F5F5" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#1A1A1A" />
+                    <SolidColorBrush x:Key="RunPad.Status.RunningBrush"               Color="#005FB8" />
+                    <SolidColorBrush x:Key="RunPad.Status.CancelledBrush"             Color="#62666C" />
+                    <SolidColorBrush x:Key="RunPad.Status.SuccessBrush"               Color="#23723B" />
+                    <SolidColorBrush x:Key="RunPad.Status.ErrorBrush"                 Color="#B42332" />
+                    <SolidColorBrush x:Key="RunPad.Status.PausedBrush"                Color="#895200" />
                     <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#DBDBDB" />
                     <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#CBCBCB" />
                     <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#1A1A1A" />

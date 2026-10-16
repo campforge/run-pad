@@ -53,6 +53,34 @@
             <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
         </Style>
 
+        <Style Selector="TabControl.debug-variables">
+            <Setter Property="Template">
+                <ControlTemplate TargetType="TabControl">
+                    <DockPanel>
+                        <WrapPanel DockPanel.Dock="Top" Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
+                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                            <Button x:Name="ExceptionsButton" Content="Exceptions…"
+                                    Classes="WatchBtn" ToolTip.Tip="Exception break settings">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="6" MaxWidth="320">
+                                            <CheckBox IsChecked="{Binding BreakOnUncaughtExceptions, Mode=TwoWay}"
+                                                      Content="Break on unhandled exceptions"/>
+                                            <CheckBox IsChecked="{Binding BreakOnAllExceptions, Mode=TwoWay}"
+                                                      Content="Break on all exceptions (including caught)"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                        </WrapPanel>
+                        <ContentPresenter Name="PART_SelectedContentHost"
+                                          Content="{TemplateBinding SelectedContent}"
+                                          ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter>
+        </Style>
     </UserControl.Styles>
 
     <DockPanel>
@@ -93,11 +121,12 @@
                              Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
     </Border>
 
-    <TabControl Classes="panel nested">
-
-        <!-- ── Threads ─────────────────────────────────────────────────────── -->
-        <TabItem Header="Threads">
-            <DataGrid ItemsSource="{Binding DebugThreads}"
+    <Grid x:Name="DebugWorkspace" ColumnDefinitions="2*,1,3*">
+        <DockPanel Grid.Column="0" MinWidth="0">
+            <Expander x:Name="ThreadsExpander" DockPanel.Dock="Top" Header="Threads"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      ToolTip.Tip="Threads reported at the current stop">
+                <DataGrid MaxHeight="110" ItemsSource="{Binding DebugThreads}"
                       AutoGenerateColumns="False"
                       IsReadOnly="True">
                 <DataGrid.Columns>
@@ -121,11 +150,47 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-        </TabItem>
-
-        <!-- ── Locals ──────────────────────────────────────────────────────── -->
-        <TabItem Header="Locals">
-            <Grid RowDefinitions="22,*">
+            </Expander>
+            <TextBlock DockPanel.Dock="Top" Text="Call Stack" Padding="8,5" FontSize="12"
+                       Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+            <DataGrid x:Name="CallStackGrid" ItemsSource="{Binding DebugCallStack}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Method" Width="2*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding MethodName}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="File" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FileName}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Line" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Line}"
+                                           Padding="8,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+        <GridSplitter Grid.Column="1" Classes="seam vertical" ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"/>
+        <TabControl x:Name="VariableTabs" Grid.Column="2" Classes="panel nested tool debug-variables" MinWidth="0">
+            <TabItem Header="Locals"><Grid RowDefinitions="22,*">
 
                 <!-- Column header row -->
                 <Grid Grid.Row="0"
@@ -172,12 +237,8 @@
                     </TreeView.ItemTemplate>
                 </TreeView>
 
-            </Grid>
-        </TabItem>
-
-        <!-- ── Watch ───────────────────────────────────────────────────────── -->
-        <TabItem Header="Watch">
-            <Grid RowDefinitions="Auto,*">
+            </Grid></TabItem>
+            <TabItem Header="Watch"><Grid RowDefinitions="Auto,*">
                 <StackPanel Grid.Row="0" Orientation="Horizontal"
                             Background="{DynamicResource RunPad.Panel.BackgroundBrush}">
                     <Button Classes="WatchBtn" Command="{Binding AddWatchCommand}"    Content="+ Add"/>
@@ -223,58 +284,8 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
-            </Grid>
-        </TabItem>
-
-        <!-- ── Call Stack ──────────────────────────────────────────────────── -->
-        <TabItem Header="Call Stack">
-            <DataGrid ItemsSource="{Binding DebugCallStack}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="Method" Width="2*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding MethodName}"
-                                           Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="File" Width="*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding FileName}"
-                                           Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Line" Width="60">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Line}"
-                                           Padding="8,0" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </TabItem>
-
-        <!-- ── Exceptions ───────────────────────────────────────────────────── -->
-        <TabItem Header="Exceptions">
-            <StackPanel Margin="8,8,8,4" Spacing="6">
-                <CheckBox IsChecked="{Binding BreakOnUncaughtExceptions}"
-                          Content="Break on unhandled exceptions"
-                          FontSize="12"/>
-                <CheckBox IsChecked="{Binding BreakOnAllExceptions}"
-                          Content="Break on all exceptions (including caught)"
-                          FontSize="12"/>
-            </StackPanel>
-        </TabItem>
-
-    </TabControl>
+            </Grid></TabItem>
+        </TabControl>
+    </Grid>
     </DockPanel>
 </UserControl>

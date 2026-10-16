@@ -862,9 +862,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void UpdateOutputUi()
     {
         ExecStatusBlock.Text = State.ExecStatusText;
-        ExecStatusBlock.Foreground = string.IsNullOrEmpty(State.ExecStatusColor)
-            ? Brushes.Transparent
-            : _themeService.GetBrush(State.ExecStatusColor) ?? Brushes.Transparent;
+        if (string.IsNullOrEmpty(State.ExecStatusColor))
+            ExecStatusIndicator.Fill = Brushes.Transparent;
+        else
+            ExecStatusIndicator.Bind(global::Avalonia.Controls.Shapes.Shape.FillProperty,
+                ExecStatusIndicator.GetResourceObservable(State.ExecStatusColor));
         ElapsedBlock.Text = State.ElapsedText;
     }
 

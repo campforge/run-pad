@@ -17,7 +17,7 @@
                     <SolidColorBrush x:Key="RunPad.Output.StackTraceForeground"       Color="#CD9591" />
                     <SolidColorBrush x:Key="RunPad.Panel.BackgroundBrush"             Color="#2B2D30" />
                     <SolidColorBrush x:Key="RunPad.StatusBar.BackgroundBrush"         Color="#2B2D30" />
-                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#9AA7B0" />
+                    <SolidColorBrush x:Key="RunPad.StatusBar.ForegroundBrush"         Color="#DFE1E5" />
                     <SolidColorBrush x:Key="RunPad.Status.RunningBrush"               Color="#4FC1FF" />
                     <SolidColorBrush x:Key="RunPad.Status.CancelledBrush"             Color="#9E9E9E" />
                     <SolidColorBrush x:Key="RunPad.Status.SuccessBrush"               Color="#4EC94E" />
