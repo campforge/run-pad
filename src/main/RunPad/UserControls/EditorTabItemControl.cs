@@ -861,6 +861,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void UpdateOutputUi()
     {
         ExecStatusBlock.Text = State.ExecStatusText;
+        ExecStatusBlock.Bind(TextBlock.ForegroundProperty, ExecStatusBlock.GetResourceObservable(
+            State.ExecStatusColor == "RunPad.Text.SecondaryBrush"
+                ? "RunPad.Text.SecondaryBrush" : "RunPad.StatusBar.ForegroundBrush"));
         if (string.IsNullOrEmpty(State.ExecStatusColor))
             ExecStatusIndicator.Fill = Brushes.Transparent;
         else
