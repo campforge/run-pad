@@ -45,7 +45,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     protected static readonly CultureInfo MessageCulture = RoslynMessageCulture.Culture;
 
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), MetadataReference> References = new();
-    private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), ImmutableArray<ISourceGenerator>> Generators = new();
+    private static readonly ConcurrentDictionary<(string Path, DateTime Stamp, string Language), ImmutableArray<ISourceGenerator>> Generators = new();
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), Version?> AssemblyVersions = new();
 
     private readonly ILogger _logger;
@@ -321,16 +321,20 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     private static MetadataReference GetReference(string path) =>
         References.GetOrAdd((path, File.GetLastWriteTimeUtc(path)), key => MetadataReference.CreateFromFile(key.Path));
 
-    private ImmutableArray<ISourceGenerator> GetGenerators(string path) =>
-        Generators.GetOrAdd((path, File.GetLastWriteTimeUtc(path)), key =>
+    private ImmutableArray<ISourceGenerator> GetGenerators(string path) => LoadGenerators(path, LanguageName, _logger);
+
+    // The source generators of one assembly for one language, loaded once per file version. IntelliSense
+    // runs the same instances as the build, so both generate the same code.
+    public static ImmutableArray<ISourceGenerator> LoadGenerators(string path, string language, ILogger logger) =>
+        Generators.GetOrAdd((path, File.GetLastWriteTimeUtc(path), language), key =>
         {
             try
             {
-                return new AnalyzerFileReference(key.Path, GeneratorAssemblyLoader.Instance).GetGenerators(LanguageName);
+                return new AnalyzerFileReference(key.Path, GeneratorAssemblyLoader.Instance).GetGenerators(key.Language);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Couldn't load source generators from {Path}", key.Path);
+                logger.LogWarning(ex, "Couldn't load source generators from {Path}", key.Path);
                 return [];
             }
         });

@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
@@ -178,6 +180,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private readonly List<string> _defaultFrameworkPaths = [];
     private readonly List<string> _otherBaseReferencePaths = [];
     private IReadOnlyList<string> _frameworkPaths = [];
+    // The target pack's source generators ([GeneratedRegex], System.Text.Json, [LibraryImport]), which
+    // the build runs too. The workspace runs them while compiling for analysis, off the UI thread.
+    private IReadOnlyList<string> _generatorPaths = [];
     private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
@@ -1938,7 +1943,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
-        var frameworkPaths = TargetFrameworkReferences(context);
+        var (frameworkPaths, generatorPaths) = TargetFrameworkReferences(context);
         var parseOptions = TargetFramework.TryParse(context.TargetFramework, out var major, out var minor)
             ? CSharpScriptCompiler.ParseOptions(major, minor)
             : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
@@ -1957,7 +1962,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
                 && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
-                && parseOptions.Equals(_parseOptions)) return;
+                && parseOptions.Equals(_parseOptions)
+                && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)) return;
 
             // Rebuilt from the base references every time, so stale package ones (a removed package, an
             // older resolved version) go away. A package assembly the framework also has is resolved as
@@ -1968,9 +1974,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
             var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
+            // Replaced as a whole: another target's generators never linger next to the new ones.
+            var generatorRefs = generatorPaths.Select(p => (AnalyzerReference)new GeneratorReference(p, _logger)).ToList();
+
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
 
-            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).WithParseOptions(parseOptions).Solution))
+            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList())
+                    .WithParseOptions(parseOptions).WithAnalyzerReferences(generatorRefs).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
 
             _nugetRefs.Clear();
@@ -1978,15 +1988,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _nugetPaths = newPaths;
             _frameworkPaths = frameworkPaths;
             _parseOptions = parseOptions;
+            _generatorPaths = generatorPaths;
             // force re-sync on next analysis pass
             _lastCode = "";
         }
     }
 
     // The targeting pack the build would use for the target, among the installed and already downloaded
-    // ones; without one (or with a malformed NuGet configuration), the references the service was
-    // created with, as before.
-    private IReadOnlyList<string> TargetFrameworkReferences(PackageReferenceContext context)
+    // ones: its reference assemblies and C# source generators. Without one (or with a malformed NuGet
+    // configuration), the references the service was created with and no generators, as before.
+    private (IReadOnlyList<string> References, IReadOnlyList<string> Generators) TargetFrameworkReferences(PackageReferenceContext context)
     {
         try
         {
@@ -1995,13 +2006,31 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var pack = TargetingPack.Find(context.TargetFramework, context.DotnetExecutable,
                 SettingsUtility.GetGlobalPackagesFolder(settings));
             if (pack is not null)
-                return pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList();
+                return (pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList(),
+                    pack.GeneratorAssemblies("cs").Order(StringComparer.OrdinalIgnoreCase).ToList());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NuGetConfigurationException)
         {
             _logger.LogDebug(ex, "No targeting pack for {TargetFramework}", context.TargetFramework);
         }
-        return _defaultFrameworkPaths;
+        return (_defaultFrameworkPaths, []);
+    }
+
+    // Exposes only the source generators of an assembly: the analyzers and code fixes that ship next to
+    // them are not part of the build's diagnostics either. Loaded when the workspace first asks, while
+    // compiling for analysis — not on the thread that changes the target. The path is the identity, so
+    // an unchanged generator is recognized by the workspace across updates.
+    private sealed class GeneratorReference(string path, ILogger logger) : AnalyzerReference
+    {
+        public override string FullPath => path;
+        public override string Display => Path.GetFileNameWithoutExtension(path);
+        public override object Id => path;
+        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzers(string language) => [];
+        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzersForAllLanguages() => [];
+        public override ImmutableArray<ISourceGenerator> GetGenerators(string language) =>
+            language == LanguageNames.CSharp ? GetGeneratorsForAllLanguages() : [];
+        public override ImmutableArray<ISourceGenerator> GetGeneratorsForAllLanguages() =>
+            RoslynScriptCompiler.LoadGenerators(path, LanguageNames.CSharp, logger);
     }
 
     // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
@@ -2009,6 +2038,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
         get { lock (_syncLock) return _nugetPaths; }
+    }
+
+    // Test-only (InternalsVisibleTo): the source generator assemblies the workspace runs.
+    internal IReadOnlyList<string> GeneratorPathsForTests
+    {
+        get
+        {
+            lock (_syncLock)
+                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.AnalyzerReferences
+                    .Select(r => r.FullPath!).ToList();
+        }
     }
 
     // Test-only (InternalsVisibleTo): every assembly the workspace currently references.
