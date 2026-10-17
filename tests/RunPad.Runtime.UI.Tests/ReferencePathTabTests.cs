@@ -62,7 +62,7 @@ public class ReferencePathTabTests : IDisposable
         Directory.Delete(_root, recursive: true);
     }
 
-    private (EditorsTabItemControl Ctrl, EditorTabItemViewModel Vm, MainWindowViewModel Shell, Window Host) Open()
+    private (EditorsTabItemControl Ctrl, EditorTabItemViewModel Vm, MainWindowViewModel Shell, Window Host) Open(bool untitled = false)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
@@ -88,7 +88,7 @@ public class ReferencePathTabTests : IDisposable
         registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()))
             .Callback<string, ILanguageHostOptions>((_, o) => _runOptions = o).Returns(host.Object);
 
-        var vm = new EditorTabItemViewModel(_script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
+        var vm = new EditorTabItemViewModel(untitled ? null : _script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
         var buildCache = new Mock<IBuildCacheService>();
         var output = Path.Combine(_root, "build");
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
@@ -214,6 +214,60 @@ public class ReferencePathTabTests : IDisposable
             Assert.Equal(_script, vm.FilePath);
             Assert.Equal(References, ctrl.State.RpadDocument!.FrontMatter.References);
             Assert.True(vm.IsDirty);
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    // An untitled tab's relative references have no folder until its first Save As: once saved, the
+    // editor must check the script against the files next to it straight away, without an edit.
+    [AvaloniaFact]
+    public async Task TheFirstSaveAs_OfAnUntitledTab_Should_GiveIntelliSenseItsReferences_AndReanalyse()
+    {
+        var calls = new List<string>();
+        _intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
+            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) =>
+                calls.Add("context " + string.Join(",", c.AssemblyReferences ?? [])));
+        _intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(_ => calls.Add("analyse"));
+        var (ctrl, vm, _, window) = Open(untitled: true);
+        try
+        {
+            ctrl.State.RpadDocument!.FrontMatter.References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"];
+            Assert.Empty(ReferencePathResolver.Resolve(ctrl.State.RpadDocument.FrontMatter.References, vm.FilePath).Assemblies);
+            _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(_script);
+            calls.Clear();
+
+            await vm.SaveAsCommand.Execute();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(_script, vm.FilePath);
+            // Nothing to rebase from: the references are written as they are, now relative to this folder.
+            Assert.Equal(["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"], ReferencesIn(_script));
+            var context = calls.FindLastIndex(c => c == $"context {_library},{_library}");
+            Assert.True(context >= 0, string.Join(" | ", calls));
+            Assert.Contains("analyse", calls.Skip(context + 1));
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ACancelledFirstSaveAs_Should_NotGiveIntelliSenseAnyReference()
+    {
+        var contexts = new List<PackageReferenceContext>();
+        _intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
+            .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => contexts.Add(c));
+        var (ctrl, vm, _, window) = Open(untitled: true);
+        try
+        {
+            ctrl.State.RpadDocument!.FrontMatter.References = ["lib/Greeter.dll"];
+            _windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((string?)null);
+            contexts.Clear();
+
+            await vm.SaveAsCommand.Execute();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Null(vm.FilePath);
+            Assert.DoesNotContain(contexts, c => c.AssemblyReferences?.Count > 0);
+            Assert.Equal(["lib/Greeter.dll"], ctrl.State.RpadDocument.FrontMatter.References);
         }
         finally { window.Close(); ctrl.Dispose(); }
     }
