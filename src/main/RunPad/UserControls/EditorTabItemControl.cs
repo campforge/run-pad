@@ -253,40 +253,47 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Deliberately a no-op for a tab with no FilePath yet ("tab lifecycle") — an
     // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
     // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
-    internal void SaveIfNeeded()
+    internal void SaveIfNeeded() => _ = SaveAsync();
+
+    // Explicit Save and in-place metadata edits (tab close/app exit/rename resolve unsaved content
+    // themselves first). A file changed by another program is only replaced on the user's choice
+    // (InPlaceSave). A write failure (disk full, permissions, file locked externally) and a declined
+    // save are both shown in the status strip RunAsync uses, so the user knows the file wasn't
+    // written; either way the tab stays unsaved.
+    internal async Task SaveAsync()
     {
         if (_vm.FilePath is null) return;
-        try
-        {
-            WriteFile(_vm.FilePath);
-            _vm.IsDirty = false;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Called for explicit Save and in-place metadata edits (tab close/app exit/rename resolve
-            // unsaved content themselves first) — silently eating a real write
-            // failure (disk full, permissions, file deleted/locked externally) meant the user never
-            // found out their edits weren't persisted. Surface it via the same status indicator
-            // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
-            SetStatus($"Save failed: {ex.Message}", "RunPad.Status.ErrorBrush");
-        }
+        var result = await InPlaceSave.SaveAsync(_vm, _windowService, async () => await _vm.SaveAsCommand.Execute());
+        if (_disposed) return;
+        if (result.Status == InPlaceSaveStatus.Failed)
+            SetStatus($"Save failed: {result.Error.Replace('\n', ' ')}", "RunPad.Status.ErrorBrush");
+        else if (result.Status == InPlaceSaveStatus.Cancelled && _vm.IsDirty)
+            SetStatus("Not saved: the file was changed by another program", "RunPad.Status.CancelledBrush");
+        UpdateOutputUi();
     }
 
     // internal (not private): reused by MainWindowViewModel.SaveTabAsAsync/DuplicateTab (via
     // EditorTabsControl, which wires the tab's SaveAsCommand/DuplicateCommand to it) to write this
     // tab's current content to a path other than _vm.FilePath — the exact same serialization
     // SaveIfNeeded already uses for the normal save path, just parameterized on the target path.
+    // The bytes written are remembered (EditorTabItemViewModel.LastWrite) so a later in-place save
+    // can tell its own last write apart from another program's change.
     internal void WriteFile(string path)
     {
+        byte[] bytes;
         if (State.RpadDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
-            File.WriteAllText(path, RpadWriter.Write(rpad), Encoding.UTF8);
+            // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
+            bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(RpadWriter.Write(rpad))];
         }
         else
         {
-            File.WriteAllText(path, State.Editor.Text);
+            // As File.WriteAllText(path, text) did: UTF-8 without a byte order mark.
+            bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(State.Editor.Text);
         }
+        File.WriteAllBytes(path, bytes);
+        _vm.LastWrite = (path, ScriptFileState.Of(bytes));
     }
 
     internal void Cancel()
@@ -1646,7 +1653,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         else if (File.Exists(filePath))
         {
-            var raw = File.ReadAllText(filePath);
+            // Decoded as File.ReadAllText does; the exact bytes are what later saves compare with.
+            var bytes = File.ReadAllBytes(filePath);
+            _vm.DiskState = ScriptFileState.Of(bytes);
+            string raw;
+            using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+                raw = reader.ReadToEnd();
             var parsed = RpadParser.Parse(raw);
             rpad = parsed.Document;
             // Invalid document: show the whole file as-is instead of default metadata —
@@ -1667,6 +1679,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         else
         {
             content = "";
+            // A file that appears later was made by someone else: saving must not replace it unasked.
+            if (filePath is not null) _vm.DiskState = ScriptFileState.Absent;
         }
 
         State.RpadDocument = rpad;

@@ -100,6 +100,15 @@ public sealed class WindowService : IWindowService
         return result ?? UnsavedChangesResult.Cancel;
     }
 
+    public async Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName)
+    {
+        var owner = MainWindow;
+        if (owner is null) return SaveConflictChoice.Cancel;
+
+        var result = await new SaveConflictDialog(fileName).ShowDialog<SaveConflictChoice?>(owner);
+        return result ?? SaveConflictChoice.Cancel;
+    }
+
     public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
     {
         var owner = MainWindow;

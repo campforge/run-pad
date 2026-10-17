@@ -21,6 +21,9 @@ Notable changes in each RunPad release. Downloads are on the
   expression no longer indent the code they change one level too deep.
 - Clicking a lightbulb entry no longer occasionally does nothing when the analysis of an earlier
   edit finishes after the list was shown.
+- Saving no longer silently replaces a script that another program changed after RunPad opened or
+  last saved it. RunPad asks whether to save under another name, overwrite the file or cancel, also
+  when changing the script's settings, closing, quitting, or renaming, moving or deleting it.
 
 ## [0.6.0] — 2026-10-17
 
