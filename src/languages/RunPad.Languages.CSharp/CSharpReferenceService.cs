@@ -1,14 +1,12 @@
-using System.Reflection;
 using System.Reflection.PortableExecutable;
+using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.CSharp;
 
 public sealed class CSharpReferenceService
 {
-    public string GetExtensionReference()
-    {
-        return typeof(ObjectExtensions).GetTypeInfo().Assembly.Location;
-    }
+    // The same RunPad.Runtime assembly the script is compiled against (see DotnetRuntimeReferenceLocator).
+    public string GetExtensionReference() => DotnetRuntimeReferenceLocator.RuntimeAssemblyPath;
 
     public string[] GetDefault()
     {

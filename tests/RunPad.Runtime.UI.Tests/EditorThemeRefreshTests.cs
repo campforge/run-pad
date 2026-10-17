@@ -11,6 +11,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -65,7 +66,7 @@ public class EditorThemeRefreshTests : IDisposable
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var shell = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(_theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, () => _intelliSense.Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            prefs.Object, () => _intelliSense.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
         var host = new Window { Width = 900, Height = 700, Content = tabs };
         host.Show();
         tabs.Attach(shell);

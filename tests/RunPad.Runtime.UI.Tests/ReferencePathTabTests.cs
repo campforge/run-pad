@@ -94,7 +94,7 @@ public class ReferencePathTabTests : IDisposable
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(() => Directory.CreateDirectory(output).FullName);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, registry.Object, prefs.Object,
-            _intelliSense.Object, new CSharpReferenceService(), buildCache.Object);
+            _intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
         var window = new Window { Content = ctrl };
         window.Show();
         Dispatcher.UIThread.RunJobs();

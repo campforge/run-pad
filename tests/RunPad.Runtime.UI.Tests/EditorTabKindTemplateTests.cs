@@ -9,6 +9,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.VB;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
@@ -136,7 +137,7 @@ public class EditorTabKindTemplateTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-            () => new Mock<IIntelliSenseService>().Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            () => new Mock<IIntelliSenseService>().Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
 
         new Window { Content = editorTabs }.Show();
         editorTabs.Attach(mainVm); // opens the initial blank tab

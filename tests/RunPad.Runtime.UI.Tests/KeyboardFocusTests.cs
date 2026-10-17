@@ -15,6 +15,7 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -66,7 +67,7 @@ public class KeyboardFocusTests
             new InterfaceTheme("Test", ThemeVariant.Dark, true), new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         vm = new MainWindowViewModel([], fs.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(themeService.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, () => new Mock<IIntelliSenseService>().Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            prefs.Object, () => new Mock<IIntelliSenseService>().Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
         var window = new MainWindow(prefs.Object, tabs, vm) { Width = 1100, Height = 700 };
         Themed(window, theme);
         foreach (var x in new[] { "TemplatedControls/IconButton.axaml", "TemplatedControls/IconToggleButton.axaml", "TemplatedControls/ToolbarComboBox.axaml" })

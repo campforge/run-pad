@@ -80,7 +80,7 @@ public class RunSaveConflictTests : IDisposable
 
         var vm = new EditorTabItemViewModel(_script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, registry.Object, prefs.Object,
-            intelliSense: null, new CSharpReferenceService(), buildCache.Object);
+            intelliSense: null, new DotnetRuntimeReferenceLocator(), buildCache.Object);
         var window = new Window { Content = ctrl };
         window.Show();
         Dispatcher.UIThread.RunJobs();

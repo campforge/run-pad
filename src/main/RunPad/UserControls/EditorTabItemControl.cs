@@ -19,7 +19,6 @@ using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
-using RunPad.Languages.VB;
 using RunPad.Resources;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
@@ -49,7 +48,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // filtering happens at render time instead of once when each list is produced.
     private List<CodeFixEntry> _diagnosticFixEntries = [];
     private List<CodeFixEntry> _refactoringFixEntries = [];
-    private readonly CSharpReferenceService _referenceService;
+    private readonly IRuntimeReferenceLocator _runtimeReferences;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -93,14 +92,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
-        CSharpReferenceService referenceService,
+        IRuntimeReferenceLocator runtimeReferences,
         IBuildCacheService buildCache)
     {
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
-        _referenceService = referenceService;
+        _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
         _vm = vm;
         _vm.WriteToFile = WriteFile;
@@ -2112,7 +2111,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Platform = platform,
             ExecutionOptions = executionOptions,
             OutputDirectory = State.OutputDirectory,
-            RuntimeLibPath = _referenceService.GetExtensionReference(),
+            RuntimeLibPath = _runtimeReferences.GetRuntimeAssemblyPath(),
             BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
             Kind = kind,

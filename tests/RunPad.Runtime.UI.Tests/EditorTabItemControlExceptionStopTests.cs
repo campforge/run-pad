@@ -9,6 +9,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -69,7 +70,7 @@ public class EditorTabItemControlExceptionStopTests
         var vm = new EditorTabItemViewModel(
             filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var control = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            registry.Object, prefs.Object, intelliSense: null, new CSharpReferenceService(),
+            registry.Object, prefs.Object, intelliSense: null, new DotnetRuntimeReferenceLocator(),
             new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = control, Width = 1000, Height = 800 };
         host.Show();
