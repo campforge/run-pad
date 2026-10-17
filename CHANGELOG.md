@@ -10,6 +10,8 @@ Notable changes in each RunPad release. Downloads are on the
 - Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
   compilation symbols, matching compilation when switching targets, and update as soon as another
   SDK is selected instead of after the next edit.
+- The editor no longer reports errors for code completed by the .NET source generators, such as
+  `[GeneratedRegex]` methods and System.Text.Json serializer contexts, and completes their members.
 
 ## [0.6.0] — 2026-10-17
 
