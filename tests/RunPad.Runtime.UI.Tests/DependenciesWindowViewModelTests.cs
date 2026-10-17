@@ -191,7 +191,7 @@ public class DependenciesWindowViewModelTests
             Assert.False(Find<Button>(window, "OkButton").IsEnabled);
 
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            Choose(SaveQuestion(window), "Don't Save");
+            Choose(SaveQuestion(window), "Don’t Save");
             await WaitUntilAsync(() => !window.IsVisible);
 
             Assert.Equal(namespacesBefore, rpad.FrontMatter.Namespaces ?? []);
@@ -235,7 +235,7 @@ public class DependenciesWindowViewModelTests
     }
 
     [AvaloniaTheory]
-    [InlineData("Don't Save", false, false)]
+    [InlineData("Don’t Save", false, false)]
     [InlineData("Save", false, true)]
     [InlineData("Cancel", true, false)]
     public async Task CancelWithChanges_Should_AskToSave(string answer, bool staysOpen, bool applied)
