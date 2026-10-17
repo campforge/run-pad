@@ -14,6 +14,8 @@ Notable changes in each RunPad release. Downloads are on the
   `[GeneratedRegex]` methods and System.Text.Json serializer contexts, and completes their members.
   The errors and warnings those generators report themselves, such as an invalid regex pattern, are
   now shown in the editor and listed with their line in the build output.
+- In Program-kind scripts, lightbulb actions such as Add braces or Add accessibility modifiers no
+  longer indent the code they change one level too deep.
 
 ## [0.6.0] — 2026-10-17
 

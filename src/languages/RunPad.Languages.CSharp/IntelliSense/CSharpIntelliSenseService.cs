@@ -1679,12 +1679,78 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             var headerLength = HeaderLength(code);
             var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
-            return materialized is null
-                ? null
-                : new SimpleMaterializedFix(materialized.Value.NewCode, materialized.Value.UsingsToAdd);
+            if (materialized is null) return null;
+            var newCode = _kind == RpadKind.Program && materialized.Value.NewCode != code
+                ? await ReindentOutsideTheWrapperAsync(code, materialized.Value.NewCode, ct)
+                : materialized.Value.NewCode;
+            return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "MaterializeFixAsync failed"); return null; }
+    }
+
+    // The Program kind analyses the user's members inside the hidden wrapper class while they sit at
+    // column 0 of the editor, so the formatter behind a code action indents what it writes one level
+    // deeper than the visible code (braces under an `if`, a member's own line, a wrapped expression).
+    // The lines the action changed are formatted again where the two agree: every user line one level
+    // in, inside a class. Lines aligned to a token's column stay aligned, lines the action left alone
+    // are not touched, and the extra level is then taken off again.
+    private async Task<string> ReindentOutsideTheWrapperAsync(string code, string newCode, CancellationToken ct)
+    {
+        var changed = ChangedLines(code.Split('\n'), newCode.Split('\n'));
+        if (changed.Count == 0) return newCode;
+
+        var options = _workspace.CurrentSolution.Options;
+        var unit = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp)
+            ? "\t"
+            : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
+
+        const string header = "class __RunPadIndent\n{\n";
+        var lines = newCode.Split('\n');
+        var text = new StringBuilder(header);
+        var spans = new List<TextSpan>();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var start = text.Length;
+            if (lines[i].Length > 0) text.Append(unit);
+            text.Append(lines[i]);
+            if (changed.Contains(i)) spans.Add(TextSpan.FromBounds(start, text.Length));
+            if (i < lines.Length - 1) text.Append('\n');
+        }
+        text.Append("\n}\n");
+
+        using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
+        var projectId = ProjectId.CreateNewId("Indent");
+        formatWorkspace.AddProject(ProjectInfo.Create(projectId, VersionStamp.Create(), "Indent", "Indent",
+            LanguageNames.CSharp, parseOptions: _parseOptions));
+        var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(text.ToString(), Encoding.UTF8));
+        var formatted = await Formatter.FormatAsync(document, spans, options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n"), ct);
+        var result = (await formatted.GetTextAsync(ct)).ToString();
+        if (!result.StartsWith(header, StringComparison.Ordinal) || !result.EndsWith("\n}\n", StringComparison.Ordinal))
+            return newCode;
+
+        var body = result[header.Length..^"\n}\n".Length].Split('\n');
+        return string.Join('\n', body.Select(l => l.StartsWith(unit, StringComparison.Ordinal) ? l[unit.Length..] : l));
+    }
+
+    // Indexes of the lines of `after` that are not part of a longest common subsequence with `before`:
+    // the ones a code action added or changed.
+    private static HashSet<int> ChangedLines(string[] before, string[] after)
+    {
+        var lengths = new int[before.Length + 1, after.Length + 1];
+        for (var i = before.Length - 1; i >= 0; i--)
+            for (var j = after.Length - 1; j >= 0; j--)
+                lengths[i, j] = before[i] == after[j] ? lengths[i + 1, j + 1] + 1 : Math.Max(lengths[i + 1, j], lengths[i, j + 1]);
+
+        var changed = new HashSet<int>();
+        int x = 0, y = 0;
+        while (y < after.Length)
+        {
+            if (x < before.Length && before[x] == after[y]) { x++; y++; }
+            else if (x < before.Length && lengths[x + 1, y] >= lengths[x, y + 1]) x++;
+            else changed.Add(y++);
+        }
+        return changed;
     }
 
     // ReSharper-style "resolve all missing usings" — see IIntelliSenseService's own doc comment for
