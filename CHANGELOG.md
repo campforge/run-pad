@@ -5,6 +5,22 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- A script's command-line arguments can be set with `args:` in its header. The script reads them
+  from `args` — in C# scripts, in `Main(string[] args)` and in Visual Basic scripts of statements —
+  when it runs in RunPad, under the debugger and from the `runpad` command-line runner.
+- `runpad` understands the command lines of LINQPad's `lprun` and NetPad's `npad`: `runpad script.rpad
+  Hello World` passes `Hello` and `World` to the script (everything after `--` as it is), `run` may
+  come first, and `-lang=e`/`--kind expression`, `-s`/`--sdk 9` and `-compileonly` override the
+  script's kind and SDK or only compile it. Options it can't handle yet, such as `-format` or `-e`,
+  are reported instead of being passed to the script.
+
+### Changed
+
+- `runpad` exits with code 2 instead of 1 when the script did not run — a bad command line or
+  file, no .NET SDK, or a compile error — the same code as NetPad's `npad`.
+
 ### Fixed
 
 - Fixed a startup crash in self-contained macOS builds when framework assemblies appeared more
