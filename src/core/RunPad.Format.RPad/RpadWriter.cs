@@ -7,9 +7,12 @@ public static class RpadWriter
 {
     /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
     /// <summary>Serializes the document back to .rpad file content.</summary>
-    public static string Write(RpadDocument doc)
+    public static string Write(RpadDocument doc) => Write(doc, OperatingSystem.IsWindows());
+
+    /// <param name="windowsPaths">Whether <c>\</c> in a reference can only be a separator (see ReferencePath.Canonical).</param>
+    public static string Write(RpadDocument doc, bool windowsPaths)
     {
-        var yaml = SerializeFm(doc.FrontMatter);
+        var yaml = SerializeFm(doc.FrontMatter, windowsPaths);
         // A truly empty block stays empty rather than gaining a blank code line; the
         // closing fence already starts its own line after the opening fence's newline.
         var code = doc.RunCode.Length == 0 || doc.RunCode.EndsWith('\n') ? doc.RunCode : doc.RunCode + "\n";
@@ -39,7 +42,7 @@ public static class RpadWriter
         return $"---\nversion: \"1.0\"\nlanguage: {languageId}\ntargetSdk: {targetSdk}\nkind: {kind}\n---\n\n# {title}\n\n```{languageId} run\n{code}```\n";
     }
 
-    private static string SerializeFm(RpadFrontMatter fm)
+    private static string SerializeFm(RpadFrontMatter fm, bool windowsPaths)
     {
         // Explicit '\n' throughout, not StringBuilder.AppendLine (which appends the *running
         // machine's* Environment.NewLine) — otherwise the very same document produced identical
@@ -65,7 +68,7 @@ public static class RpadWriter
                 // Unescaped, a reference path containing ": " or starting with a YAML-special
                 // character (e.g. one that happens to start with '#') broke the round trip
                 // — same escaping already applied to packages: above.
-                sb.Append('\n').Append("  - ").Append(YamlEscape(r));
+                sb.Append('\n').Append("  - ").Append(YamlEscape(ReferencePath.Canonical(r, windowsPaths)));
         }
 
         if (fm.Namespaces?.Count > 0)

@@ -39,7 +39,10 @@ public class CliRunnerTests
         Assert.Equal(RpadKind.Program, csharpOptions.Kind);
         Assert.Equal("13.0.3", csharpOptions.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], csharpOptions.Usings);
-        Assert.Equal(["Some.Native.dll"], csharpOptions.AssemblyReferences);
+        // No script path: a relative reference has no folder to be relative to.
+        Assert.Empty(csharpOptions.AssemblyReferences);
+        Assert.Contains("'Some.Native.dll' is relative to the script's folder: save the script first",
+            Assert.Single(csharpOptions.ReferenceErrors));
         Assert.Equal(["Some.Project.csproj", "Some.Vb.vbproj"], csharpOptions.ProjectReferences);
         Assert.False(string.IsNullOrEmpty(csharpOptions.RuntimeLibPath));
     }
@@ -73,32 +76,37 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ExpandCurrentQueryPathMacro_InReferences()
     {
-        // Path.GetDirectoryName normalizes to the platform's own separator (backslashes on
-        // Windows) — computing the expected directory the same way, rather than hardcoding a
-        // forward-slash-only "/home/user/..." literal, keeps this correct on every CI OS.
-        var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
-        var expectedDir = Path.GetDirectoryName(currentQueryPath);
-        var frontMatter = new RpadFrontMatter
+        var dir = Directory.CreateTempSubdirectory("runpad-cli-references").FullName;
+        try
         {
-            References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
-        };
+            File.WriteAllText(Path.Combine(dir, "Lib.dll"), "");
+            var currentQueryPath = Path.Combine(dir, "query.rpad");
+            var frontMatter = new RpadFrontMatter
+            {
+                References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
+            };
 
-        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", currentQueryPath);
+            var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", currentQueryPath);
 
-        var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
-        Assert.Equal([expectedDir + "/Lib.dll"], csharpOptions.AssemblyReferences);
-        Assert.Equal([expectedDir + "/Shared.csproj"], csharpOptions.ProjectReferences);
+            var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
+            Assert.Equal([Path.Combine(dir, "Lib.dll")], csharpOptions.AssemblyReferences);
+            Assert.Equal([dir + "/Shared.csproj"], csharpOptions.ProjectReferences);
+            Assert.Empty(csharpOptions.ReferenceErrors);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 
+    // Untitled: $(CurrentQueryPath) has nothing to stand for — reported, not passed on unexpanded.
     [Fact]
-    public void BuildOptions_Should_LeaveCurrentQueryPathMacroUnexpanded_WhenNoFilePathGiven()
+    public void BuildOptions_Should_ReportTheCurrentQueryPathMacro_WhenNoFilePathGiven()
     {
         var frontMatter = new RpadFrontMatter { References = ["$(CurrentQueryPath)/Lib.dll"] };
 
         var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out");
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
-        Assert.Equal(["$(CurrentQueryPath)/Lib.dll"], csharpOptions.AssemblyReferences);
+        Assert.Empty(csharpOptions.AssemblyReferences);
+        Assert.Contains("uses $(CurrentQueryPath), the script's folder: save the script first", Assert.Single(csharpOptions.ReferenceErrors));
     }
 
     // Distinct from the $(CurrentQueryPath)

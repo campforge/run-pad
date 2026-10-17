@@ -16,7 +16,8 @@ public sealed class ReferenceScalarRoundTripTests
     [InlineData("null")]
     [InlineData("~")]
     [InlineData("dir/it's.dll")]
-    [InlineData("C:\\lib\\test.dll")]
+    // A Windows drive path is saved with '/' separators: see ReferencePathTests.
+    [InlineData("C:/lib/test.dll")]
     [InlineData("日本語/🌍.dll")]
     [InlineData("tab\tname.dll")]
     [InlineData("line\nname.dll")]
