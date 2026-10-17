@@ -1856,6 +1856,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void OnSelectedSdkChanged(DotnetSdk? sdk)
     {
         RefreshIntelliSensePackages();
+        // The new target's references, C# version and symbols apply to the text already in the
+        // editor: analyse it again now, as the squiggles would otherwise wait for the next edit.
+        if (!_disposed) _intelliSense?.NotifyTextChanged(State.Editor.Text);
         if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
 
         var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
