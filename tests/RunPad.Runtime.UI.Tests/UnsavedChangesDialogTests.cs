@@ -43,6 +43,63 @@ public class UnsavedChangesDialogTests
         Assert.Null(await AnswerAsync(d => d.Close()));
     }
 
+    // Keyboard traversal starts on a safe action: nothing is focused when the dialog opens, and Enter
+    // presses the focused button, so the first Tab (or Shift+Tab) decides what Enter does next.
+    private static async Task<(UnsavedChangesResult? Result, List<string> Focus)> KeysAsync(params (PhysicalKey Key, RawInputModifiers Modifiers)[] keys)
+    {
+        var focus = new List<string>();
+        var result = await AnswerAsync(d =>
+        {
+            foreach (var (key, modifiers) in keys)
+            {
+                d.KeyPressQwerty(key, modifiers);
+                Dispatcher.UIThread.RunJobs();
+                focus.Add((d.FocusManager?.GetFocusedElement() as Button)?.Name ?? "(none)");
+            }
+        });
+        return (result, focus);
+    }
+
+    private static readonly (PhysicalKey, RawInputModifiers) Tab = (PhysicalKey.Tab, RawInputModifiers.None);
+    private static readonly (PhysicalKey, RawInputModifiers) ShiftTab = (PhysicalKey.Tab, RawInputModifiers.Shift);
+    private static readonly (PhysicalKey, RawInputModifiers) Enter = (PhysicalKey.Enter, RawInputModifiers.None);
+
+    [AvaloniaFact]
+    public async Task TheFirstTab_ThenEnter_Should_Save()
+    {
+        var (result, focus) = await KeysAsync(Tab, Enter);
+
+        Assert.Equal("SaveButton", focus[0]);
+        Assert.Equal(UnsavedChangesResult.Save, result);
+    }
+
+    [AvaloniaFact]
+    public async Task TheFirstShiftTab_ThenEnter_Should_Cancel()
+    {
+        var (result, focus) = await KeysAsync(ShiftTab, Enter);
+
+        Assert.Equal("CancelButton", focus[0]);
+        Assert.Equal(UnsavedChangesResult.Cancel, result);
+    }
+
+    // Don't Save is still reachable from the keyboard, deliberately: only after the safe first stop.
+    [AvaloniaFact]
+    public async Task DontSave_Should_BeReachable_AsTheSecondStop()
+    {
+        var (result, focus) = await KeysAsync(Tab, Tab, Enter);
+
+        Assert.Equal(["SaveButton", "DontSaveButton", "(none)"], focus);
+        Assert.Equal(UnsavedChangesResult.DontSave, result);
+    }
+
+    [AvaloniaFact]
+    public async Task Tab_Should_CycleThroughEveryAction()
+    {
+        var (_, focus) = await KeysAsync(Tab, Tab, Tab, Tab, (PhysicalKey.Escape, RawInputModifiers.None));
+
+        Assert.Equal(["SaveButton", "DontSaveButton", "CancelButton", "SaveButton"], focus.Take(4));
+    }
+
     [AvaloniaFact]
     public void LongFileName_Should_WrapAndKeepActionsInsideWindow()
     {

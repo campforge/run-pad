@@ -8,14 +8,14 @@
     <local:DialogLayout x:Name="Layout" Heading="Save changes before closing?"
                         Message="Your changes will be lost if you don’t save.">
         <local:DialogLayout.LeadingActions>
-            <Button x:Name="DontSaveButton" Content="Don’t Save" MinWidth="88"
+            <Button x:Name="DontSaveButton" Content="Don’t Save" MinWidth="88" TabIndex="1"
                     Click="DontSaveButton_Click"/>
         </local:DialogLayout.LeadingActions>
         <local:DialogLayout.Actions>
             <StackPanel Orientation="Horizontal" Spacing="{DynamicResource RunPad.Space.Control}">
-                <Button x:Name="CancelButton" Content="Cancel" MinWidth="72"
+                <Button x:Name="CancelButton" Content="Cancel" MinWidth="72" TabIndex="2"
                         Click="CancelButton_Click" IsCancel="True"/>
-                <Button x:Name="SaveButton" Content="Save" MinWidth="72"
+                <Button x:Name="SaveButton" Content="Save" MinWidth="72" TabIndex="0"
                         Click="SaveButton_Click" IsDefault="True"/>
             </StackPanel>
         </local:DialogLayout.Actions>
