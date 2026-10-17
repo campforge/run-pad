@@ -97,7 +97,7 @@ public class CompiledDotnetLanguageHostTerminateAsyncTests
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", true, [], []));
         var host = new CSharpLanguageHost(
             options, NullLoggerFactory.Instance, (_, _, _) => compiler,
-            executionProcessFactory: (_, _, _, _) => new FakeChildProcess());
+            executionProcessFactory: (_, _, _, _, _) => new FakeChildProcess());
         return (host, outputDir);
     }
 

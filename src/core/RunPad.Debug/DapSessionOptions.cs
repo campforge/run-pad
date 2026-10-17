@@ -28,6 +28,8 @@ namespace RunPad.Debug;
 /// <param name="ExceptionInfoTimeout">How long an exception stop waits for the optional
 /// <c>exceptionInfo</c> details before it is shown with only the stop's own text;
 /// <see langword="null"/> uses the session's default.</param>
+/// <param name="Arguments">The script's command-line arguments (its <c>args</c>), passed after the
+/// assembly in the launch request's <c>args</c>.</param>
 public sealed record DapSessionOptions(
     string ProgramPath,
     string WorkingDirectory,
@@ -39,4 +41,5 @@ public sealed record DapSessionOptions(
     bool JustMyCode = false,
     string? CurrentQueryPath = null,
     string? RuntimePath = null,
-    TimeSpan? ExceptionInfoTimeout = null);
+    TimeSpan? ExceptionInfoTimeout = null,
+    IReadOnlyList<string>? Arguments = null);
