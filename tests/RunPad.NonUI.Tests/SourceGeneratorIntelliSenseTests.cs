@@ -69,6 +69,29 @@ public sealed class SourceGeneratorIntelliSenseTests : IAsyncDisposable
         return result.Errors.Select(e => $"{e.Code} {e.Message}").ToList();
     }
 
+    // Every error and warning of a real build, with its position in the script.
+    private async Task<List<(string Code, uint Line, uint Column, string Message)>> BuildDiagnosticsAsync(string code)
+    {
+        var output = Directory.CreateDirectory(Path.Combine(_root, $"out{++_dirs}")).FullName;
+        var options = new CompiledDotnetLanguageHostOptions
+        {
+            Platform = new DotnetSdk(_target, _target, _target[3..] + ".0", _target),
+            ExecutionOptions = new ExecutionOptions
+            {
+                WorkingDirectory = output,
+                Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
+                Debugger = new DebuggerOptions { DebuggerPath = "" },
+            },
+            OutputDirectory = output,
+            RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+            Kind = RpadKind.Statements,
+        };
+        using var compiler = new CSharpScriptCompiler(options, NullLogger.Instance);
+        var result = await compiler.Compilation(code, TestContext.Current.CancellationToken);
+        return result.Errors.Concat(result.Warnings)
+            .Select(e => (e.Code, e.LineSymbol.Line, e.LineSymbol.Symbol, e.Message)).ToList();
+    }
+
     private CSharpIntelliSenseService CreateService()
     {
         var referenceService = new CSharpReferenceService();
@@ -79,6 +102,25 @@ public sealed class SourceGeneratorIntelliSenseTests : IAsyncDisposable
         };
         service.UpdatePackageReferences(new Dictionary<string, Package>(), new PackageReferenceContext(_target, null, null, "dotnet"));
         return service;
+    }
+
+    private static async Task<IReadOnlyList<IDiagnosticInfo>> EditorDiagnosticsAsync(CSharpIntelliSenseService service, string code)
+    {
+        var result = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnDiagnostics(string analyzed, IReadOnlyList<IDiagnosticInfo> diagnostics)
+        {
+            if (analyzed == code) result.TrySetResult(diagnostics);
+        }
+        service.DiagnosticsChanged += OnDiagnostics;
+        try
+        {
+            service.NotifyTextChanged(code);
+            return await result.Task.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            service.DiagnosticsChanged -= OnDiagnostics;
+        }
     }
 
     private static async Task<List<string>> EditorErrorsAsync(CSharpIntelliSenseService service, string code)
@@ -100,6 +142,77 @@ public sealed class SourceGeneratorIntelliSenseTests : IAsyncDisposable
             service.DiagnosticsChanged -= OnDiagnostics;
         }
     }
+
+    private static string RegexWithPattern(string pattern) => $$"""
+        Console.WriteLine(Patterns.Digits().IsMatch("123"));
+
+        static partial class Patterns
+        {
+            [System.Text.RegularExpressions.GeneratedRegex(@"{{pattern}}")]
+            public static partial System.Text.RegularExpressions.Regex Digits();
+        }
+        """;
+
+    // What the generators themselves report: an invalid [GeneratedRegex] pattern is SYSLIB1042 at the
+    // attribute (line 5, column 5) in the build, and the editor marks the same place — on the user's
+    // own text — and drops it again once the pattern is fixed.
+    [Fact]
+    public async Task AnInvalidGeneratedRegex_Should_ReportTheGeneratorsError_AtTheAttribute_InBuildAndEditor()
+    {
+        var valid = RegexWithPattern(@"\d+");
+        var invalid = RegexWithPattern("(");
+        const string invalidPattern = "The specified regex is invalid.";
+
+        Assert.Contains(await BuildDiagnosticsAsync(invalid),
+            d => d.Code == "SYSLIB1042" && d.Line == 5 && d.Column == 5 && d.Message.Contains(invalidPattern, StringComparison.Ordinal));
+
+        using var service = CreateService();
+        Assert.Empty(Errors(await EditorDiagnosticsAsync(service, valid)));
+
+        var error = Assert.Single(await EditorDiagnosticsAsync(service, invalid),
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains(invalidPattern, StringComparison.Ordinal));
+        var attribute = invalid.IndexOf("[System.Text.RegularExpressions.GeneratedRegex", StringComparison.Ordinal);
+        Assert.Equal(attribute, error.StartOffset);
+        Assert.InRange(error.EndOffset, attribute + 1, invalid.Length);
+
+        Assert.Empty(Errors(await EditorDiagnosticsAsync(service, valid)));
+    }
+
+    // A System.Text.Json generator warning (SYSLIB1038, a [JsonInclude] member it can't access) is on
+    // the member's name in both, without making the build fail.
+    [Fact]
+    public async Task AJsonGeneratorWarning_Should_MarkTheMemberName_InBuildAndEditor()
+    {
+        const string code = """
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new Item(), ItemContext.Default.Item));
+
+            public class Item
+            {
+                [System.Text.Json.Serialization.JsonInclude]
+                private int Hidden { get; set; }
+                public int Shown { get; set; }
+            }
+
+            [System.Text.Json.Serialization.JsonSerializable(typeof(Item))]
+            partial class ItemContext : System.Text.Json.Serialization.JsonSerializerContext
+            {
+            }
+            """;
+        const string notVisible = "has been annotated with the JsonIncludeAttribute but is not visible to the source generator";
+
+        Assert.Empty(await BuildErrorsAsync(code));
+        Assert.Contains(await BuildDiagnosticsAsync(code), d => d.Code == "SYSLIB1038" && d.Line == 6 && d.Column == 17);
+
+        using var service = CreateService();
+        var diagnostics = await EditorDiagnosticsAsync(service, code);
+        Assert.Empty(Errors(diagnostics));
+        var warning = Assert.Single(diagnostics, d => d.Message.Contains(notVisible, StringComparison.Ordinal));
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal("Hidden", code[warning.StartOffset..warning.EndOffset]);
+    }
+
+    private static List<IDiagnosticInfo> Errors(IReadOnlyList<IDiagnosticInfo> diagnostics) =>
+        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
     [Fact]
     public async Task AGeneratedRegex_Should_HaveNoEditorErrors_WhenItCompiles()
