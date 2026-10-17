@@ -276,7 +276,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     public static (List<string> Framework, List<string> Packages) ResolveConflicts(
         IEnumerable<string> frameworkReferences, IReadOnlyList<string> packages)
     {
-        var framework = frameworkReferences.ToList();
+        // A self-contained application can contribute an app-local framework assembly beside the
+        // selected targeting pack's copy. Keep the first reference (the selected pack comes first)
+        // before indexing by name. A newer app-local runtime must not replace an older target's
+        // reference assembly and expose APIs that the selected target does not support.
+        var framework = frameworkReferences.DistinctBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase).ToList();
         var frameworkByName = framework.ToDictionary(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase);
         var keptPackages = new List<string>();
         foreach (var package in packages)

@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Fixed a startup crash in self-contained macOS builds when framework assemblies appeared more
+  than once while opening a script or selecting its .NET target.
+
 - Saving a script preserves reference paths containing YAML punctuation, whitespace and Unicode
   characters instead of corrupting the file or changing the path.
 
