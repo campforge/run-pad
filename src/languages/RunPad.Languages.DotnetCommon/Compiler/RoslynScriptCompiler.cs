@@ -426,7 +426,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         {
             var message = d.GetMessage(MessageCulture);
             ResultItem item;
-            if (d.Location.IsInSource)
+            // Source generators report at external-file locations (a path and a span) rather than in
+            // a syntax tree; they still point into the script.
+            if (d.Location.IsInSource || d.Location.Kind == LocationKind.ExternalFile)
             {
                 var span = d.Location.GetMappedLineSpan();
                 item = new ResultItem(d.Id, span.Path.Replace(outputDir, ""),

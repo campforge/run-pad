@@ -1905,10 +1905,63 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture), severity));
         }
 
+        // Diagnostics the source generators report themselves (an invalid [GeneratedRegex] pattern, a
+        // member System.Text.Json can't see) are part of the build's output but of no semantic model.
+        // Only those inside the user's own text are shown; none take part in code fixes.
+        if (compilation is not null)
+        {
+            var seen = new HashSet<(string, int, int)>();
+            foreach (var (d, span) in await GeneratorDiagnosticsAsync(document, compilation, model.SyntaxTree, ct))
+            {
+                if (d.Severity is RoslynSeverity.Hidden or RoslynSeverity.Info) continue;
+                var start = span.Start - headerLength;
+                var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+                if (start < 0 || start >= end || !seen.Add((d.Id, start, end))) continue;
+                visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture),
+                    d.Severity == RoslynSeverity.Error ? ContractSeverity.Error : ContractSeverity.Warning));
+            }
+        }
+
         DiagnosticsChanged?.Invoke(code, visible);
 
         var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, headerLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
+    }
+
+    // The workspace runs the project's generators but keeps what they report to itself, so they are
+    // run once more for that, on the compilation without their output: the same instances and parse
+    // options, cancelled with the analysis pass. A location is used only when it is in the user's
+    // document — generators report at external-file locations naming that document's path — never
+    // in generated code, which isn't part of that compilation.
+    private static async Task<List<(Diagnostic Diagnostic, TextSpan Span)>> GeneratorDiagnosticsAsync(
+        Document document, Compilation compilation, SyntaxTree userTree, CancellationToken ct)
+    {
+        var generators = document.Project.AnalyzerReferences
+            .SelectMany(r => r.GetGenerators(LanguageNames.CSharp)).ToImmutableArray();
+        if (generators.IsEmpty) return [];
+
+        var generated = await document.Project.GetSourceGeneratedDocumentsAsync(ct);
+        var generatedTrees = new List<SyntaxTree>();
+        foreach (var g in generated)
+            generatedTrees.Add(await g.GetSyntaxTreeAsync(ct) ?? throw new InvalidOperationException());
+        var withoutGenerated = compilation.RemoveSyntaxTrees(generatedTrees);
+
+        var run = CSharpGeneratorDriver
+            .Create(generators, parseOptions: (CSharpParseOptions?)document.Project.ParseOptions)
+            .RunGenerators(withoutGenerated, ct)
+            .GetRunResult();
+
+        var result = new List<(Diagnostic, TextSpan)>();
+        foreach (var d in run.Diagnostics)
+        {
+            var location = d.Location;
+            var inUserTree = location.IsInSource
+                ? location.SourceTree == userTree
+                : location.Kind == LocationKind.ExternalFile && location.GetLineSpan().Path == userTree.FilePath;
+            if (inUserTree && location.SourceSpan.End <= userTree.Length)
+                result.Add((d, location.SourceSpan));
+        }
+        return result;
     }
 
     private static SemanticTokenKind ClassifySpan(string type) => type switch

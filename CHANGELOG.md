@@ -12,6 +12,8 @@ Notable changes in each RunPad release. Downloads are on the
   SDK is selected instead of after the next edit.
 - The editor no longer reports errors for code completed by the .NET source generators, such as
   `[GeneratedRegex]` methods and System.Text.Json serializer contexts, and completes their members.
+  The errors and warnings those generators report themselves, such as an invalid regex pattern, are
+  now shown in the editor and listed with their line in the build output.
 
 ## [0.6.0] — 2026-10-17
 
