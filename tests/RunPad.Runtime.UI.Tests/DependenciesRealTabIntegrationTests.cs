@@ -10,6 +10,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -57,7 +58,6 @@ public class DependenciesRealTabIntegrationTests
             var buildCache = new Mock<IBuildCacheService>();
             buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Path.Combine(tmpDir, "out"));
-            var referenceService = new CSharpReferenceService();
             var intelliSense = new Mock<IIntelliSenseService>();
 
             var search = new Mock<IPackageSearchService>();
@@ -90,7 +90,7 @@ public class DependenciesRealTabIntegrationTests
 
             var editorTabs = new EditorTabsControl(
                 theme, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-                () => intelliSense.Object, referenceService, buildCache.Object);
+                () => intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             DependenciesWindow? depsWindow = null;

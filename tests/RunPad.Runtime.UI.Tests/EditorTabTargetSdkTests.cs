@@ -10,6 +10,7 @@ using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -157,7 +158,7 @@ public class EditorTabTargetSdkTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-            () => new Mock<IIntelliSenseService>().Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            () => new Mock<IIntelliSenseService>().Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
 
         new Window { Content = editorTabs }.Show();
         editorTabs.Attach(mainVm);

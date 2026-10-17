@@ -1,13 +1,10 @@
 using System.Text;
-using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Build.Core.Models;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
-using RunPad.Languages.VB;
 using Spectre.Console;
 
 namespace RunPad.Cli;
@@ -21,8 +18,12 @@ namespace RunPad.Cli;
 // plain text (user request — see DumpHtmlSpectreRenderer).
 public static class CliRunner
 {
-    public static async Task<int> RunAsync(
+    public static Task<int> RunAsync(
         string[] args, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
+        => RunAsync(args, CliServices.CreateDefault(), stdout, stderr, cancellationToken);
+
+    public static async Task<int> RunAsync(
+        string[] args, CliServices services, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
     {
         if (args.Length == 0)
         {
@@ -85,10 +86,7 @@ public static class CliRunner
 
         var languageId = document.FrontMatter.Language.ToLanguageId();
 
-        var registry = new LanguageHostRegistry();
-        registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
-        registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
-
+        var registry = services.Registry;
         if (!registry.IsRegistered(languageId))
         {
             stderr.WriteLine($"No runner registered for language '{languageId}'.");
@@ -96,7 +94,7 @@ public static class CliRunner
         }
 
         // The SDK the script's targetSdk names — the same rule as the RunPad window.
-        var platform = TargetSdkResolver.Resolve(new DotnetSdkProvider().Get(), document.FrontMatter.TargetSdk);
+        var platform = TargetSdkResolver.Resolve(services.Sdks.Get(), document.FrontMatter.TargetSdk);
         if (platform is null)
         {
             stderr.WriteLine("No .NET SDK found (checked `dotnet --list-sdks`).");
@@ -109,7 +107,8 @@ public static class CliRunner
         try
         {
             var options = BuildOptions(
-                document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments);
+                document.FrontMatter, platform, outputDirectory, services.RuntimeReferences.GetRuntimeAssemblyPath(),
+                filePath, cli.ScriptArguments);
 
             RunResult result;
             await using var host = registry.Create(languageId, options);
@@ -233,10 +232,9 @@ public static class CliRunner
     // options type; the caller still resolves it separately to pick the
     // ILanguageHostFactory itself (see registry.Create above).
     internal static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string? currentQueryPath = null,
-        IReadOnlyList<string>? arguments = null)
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
+        string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
     {
-        var runtimeLibPath = new CSharpReferenceService().GetExtensionReference();
         var executionOptions = new ExecutionOptions
         {
             WorkingDirectory = outputDirectory,

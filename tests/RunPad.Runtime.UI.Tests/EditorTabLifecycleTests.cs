@@ -6,6 +6,7 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -51,7 +52,7 @@ public class EditorTabLifecycleTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense: null, new CSharpReferenceService(), buildCache.Object);
+            intelliSense: null, new DotnetRuntimeReferenceLocator(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
         return (ctrl, vm);

@@ -8,7 +8,6 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -33,7 +32,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly ILanguageHostRegistry? _registry;
     private readonly IPreferencesService? _prefs;
     private readonly Func<IIntelliSenseService>? _intelliSenseFactory;
-    private readonly CSharpReferenceService? _referenceService;
+    private readonly IRuntimeReferenceLocator? _runtimeReferences;
     private readonly IBuildCacheService? _buildCache;
 
     // ── Empty ctor: used by XAML previewer only ───────────────────────────────
@@ -51,7 +50,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         Func<IIntelliSenseService> intelliSenseFactory,
-        CSharpReferenceService referenceService,
+        IRuntimeReferenceLocator runtimeReferences,
         IBuildCacheService buildCache)
     {
         InitializeComponent();
@@ -60,7 +59,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _registry = registry;
         _prefs = prefs;
         _intelliSenseFactory = intelliSenseFactory;
-        _referenceService = referenceService;
+        _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
         _themeService.ThemeChanged += OnThemeChanged;
     }
@@ -447,7 +446,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _registry!,
             _prefs!,
             intelliSense,
-            _referenceService!,
+            _runtimeReferences!,
             _buildCache!
         );
     }

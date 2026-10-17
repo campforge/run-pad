@@ -8,6 +8,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -84,7 +85,7 @@ public class EditorTabItemControlRefactoringsTests
         }
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense.Object, new CSharpReferenceService(), buildCache.Object);
+            intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
         var host = new Window { Content = ctrl };
         try
         {

@@ -9,7 +9,8 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
-using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Languages.VB;
 using RunPad.Logging;
 using RunPad.Services;
@@ -126,6 +127,7 @@ public class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFileSystemService, FileSystemService>();
         services.AddSingleton<ISdkProvider, DotnetSdkProvider>();
+        services.AddSingleton<IRuntimeReferenceLocator, DotnetRuntimeReferenceLocator>();
         services.AddSingleton<INuGetSourceStore, RunPadNuGetConfigStore>();
         services.AddSingleton<IPackageSearchService, NuGetPackageSearchService>();
         services.AddSingleton<ILocalPackageCacheService, LocalPackageCacheService>();
@@ -157,7 +159,8 @@ public class App : Application
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var refService = sp.GetRequiredService<CSharpReferenceService>();
-            var refs = refService.GetDefault().Append(refService.GetExtensionReference());
+            var runtime = sp.GetRequiredService<IRuntimeReferenceLocator>();
+            var refs = refService.GetDefault().Append(runtime.GetRuntimeAssemblyPath());
             return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
         });
 

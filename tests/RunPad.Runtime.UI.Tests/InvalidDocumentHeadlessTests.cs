@@ -9,6 +9,7 @@ using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -74,7 +75,7 @@ public class InvalidDocumentHeadlessTests
         var intelliSense = new Mock<IIntelliSenseService>();
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            () => intelliSense.Object, new CSharpReferenceService(), buildCache.Object);
+            () => intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
         window.Show();

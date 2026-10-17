@@ -8,6 +8,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -24,7 +25,9 @@ public class EditorTabRunResultTests
 {
     private static readonly DotnetSdk Sdk = new("10.0.100", "net10.0", "10.0.0", ".NET 10.0");
 
-    private static EditorsTabItemControl CreateControl(RunResult result, string stderrLine = "")
+    private static EditorsTabItemControl CreateControl(
+        RunResult result, string stderrLine = "", IRuntimeReferenceLocator? runtimeReferences = null,
+        RpadLanguage language = RpadLanguage.CSharp, List<(string Language, ILanguageHostOptions? Options)>? created = null)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
@@ -49,12 +52,14 @@ public class EditorTabRunResultTests
             });
         host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
         var registry = new Mock<ILanguageHostRegistry>();
-        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>())).Returns(host.Object);
+        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()))
+            .Callback((string id, ILanguageHostOptions? options) => created?.Add((id, options)))
+            .Returns(host.Object);
 
         var vm = new EditorTabItemViewModel(
-            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
+            null, [], prefs.Object, new Mock<IEditorTabActions>().Object, language, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense: null, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            intelliSense: null, runtimeReferences ?? new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();
         return ctrl;
     }
@@ -111,5 +116,39 @@ public class EditorTabRunResultTests
 
         Assert.Equal("Error", ctrl.State.ExecStatusText);
         Assert.Contains("Failed to start the compiled script.", ctrl.State.Output.Content);
+    }
+
+    // The tab only knows the runtime-library contract: whatever locator it is given supplies the
+    // RunPad.Runtime path compiled into the script, the same one for C# and Visual Basic.
+    [AvaloniaTheory]
+    [InlineData(RpadLanguage.CSharp, "csharp")]
+    [InlineData(RpadLanguage.Vb, "vb")]
+    public async Task TheRun_Should_ReferenceTheRuntimeLibrary_FromTheGivenLocator(RpadLanguage language, string languageId)
+    {
+        var created = new List<(string Language, ILanguageHostOptions? Options)>();
+        var ctrl = CreateControl(RunResult.Exited(0), runtimeReferences: new FixedRuntimeReferenceLocator("/fake/RunPad.Runtime.dll"),
+            language: language, created: created);
+
+        await RunAsync(ctrl);
+
+        var (id, options) = Assert.Single(created);
+        Assert.Equal(languageId, id);
+        Assert.Equal("/fake/RunPad.Runtime.dll", Assert.IsType<CompiledDotnetLanguageHostOptions>(options).RuntimeLibPath);
+    }
+
+    [Fact]
+    public void TheShippedLocator_Should_FindTheRunPadRuntimeAssembly()
+    {
+        var path = new DotnetRuntimeReferenceLocator().GetRuntimeAssemblyPath();
+
+        Assert.Equal("RunPad.Runtime.dll", Path.GetFileName(path));
+        Assert.True(File.Exists(path), path);
+        // The C# editor's IntelliSense references the very same assembly the run compiles against.
+        Assert.Equal(path, new CSharpReferenceService().GetExtensionReference());
+    }
+
+    private sealed class FixedRuntimeReferenceLocator(string path) : IRuntimeReferenceLocator
+    {
+        public string GetRuntimeAssemblyPath() => path;
     }
 }
