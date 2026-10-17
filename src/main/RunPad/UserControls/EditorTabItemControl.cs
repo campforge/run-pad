@@ -53,6 +53,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
+    // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
+    private bool _savingBeforeRun;
     private string? _filePath;
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
@@ -264,16 +266,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // (InPlaceSave). A write failure (disk full, permissions, file locked externally) and a declined
     // save are both shown in the status strip RunAsync uses, so the user knows the file wasn't
     // written; either way the tab stays unsaved.
-    internal async Task SaveAsync()
+    internal async Task SaveAsync() => await SaveWithResultAsync();
+
+    private async Task<InPlaceSaveResult> SaveWithResultAsync()
     {
-        if (_vm.FilePath is null) return;
+        if (_vm.FilePath is null) return InPlaceSaveResult.Cancelled;
         var result = await InPlaceSave.SaveAsync(_vm, _windowService, async () => await _vm.SaveAsCommand.Execute());
-        if (_disposed) return;
+        if (_disposed) return result;
         if (result.Status == InPlaceSaveStatus.Failed)
             SetStatus($"Save failed: {result.Error.Replace('\n', ' ')}", "RunPad.Status.ErrorBrush");
         else if (result.Status == InPlaceSaveStatus.Cancelled && _vm.IsDirty)
             SetStatus("Not saved: the file was changed by another program", "RunPad.Status.CancelledBrush");
         UpdateOutputUi();
+        return result;
     }
 
     // internal (not private): reused by MainWindowViewModel.SaveTabAsAsync/DuplicateTab (via
@@ -356,7 +361,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
         var s = State;
-        if (s.RunCts is { IsCancellationRequested: false }) return;
+        if (s.RunCts is { IsCancellationRequested: false } || _savingBeforeRun) return;
 
         // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -367,6 +372,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
             UpdateOutputUi();
             return;
+        }
+
+        // A script is saved before it runs, like any save: a file changed by another program is only
+        // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
+        // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
+        // did save runs the script from its new file. An untitled script runs without being saved.
+        if (_vm.FilePath is { } path)
+        {
+            InPlaceSaveResult saved;
+            _savingBeforeRun = true;
+            try
+            {
+                saved = await SaveWithResultAsync();
+            }
+            finally
+            {
+                _savingBeforeRun = false;
+            }
+            if (_disposed) return;
+            if (saved.Status == InPlaceSaveStatus.Failed)
+            {
+                s.Output.Clear();
+                AppendError(new IOException($"Cannot save '{Path.GetFileName(path)}': {saved.Error.Replace('\n', ' ')}"));
+                UpdateOutputUi();
+                return;
+            }
+            if (saved.Status != InPlaceSaveStatus.Saved) return;
         }
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
@@ -382,23 +414,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
             s.Output.Append($"\n<div>warning: {HttpUtility.HtmlEncode(sdkWarning)}</div>");
         UpdateOutputUi();
-
-        if (_vm.FilePath is not null)
-        {
-            try
-            {
-                WriteFile(_vm.FilePath);
-                _vm.IsDirty = false;
-            }
-            catch (Exception ex)
-            {
-                AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
-                _vm.RunState = RunState.Idle;
-                s.RunStopwatch.Stop();
-                UpdateOutputUi();
-                return;
-            }
-        }
 
         s.RunCts?.Dispose();
         s.RunCts = new CancellationTokenSource();
