@@ -1681,7 +1681,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
             if (materialized is null) return null;
             var newCode = _kind == RpadKind.Program && materialized.Value.NewCode != code
-                ? await ReindentOutsideTheWrapperAsync(code, materialized.Value.NewCode, ct)
+                ? await ReindentOutsideTheWrapperAsync(materialized.Value.NewCode, materialized.Value.ChangedSpans, ct)
                 : materialized.Value.NewCode;
             return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
@@ -1692,29 +1692,53 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // The Program kind analyses the user's members inside the hidden wrapper class while they sit at
     // column 0 of the editor, so the formatter behind a code action indents what it writes one level
     // deeper than the visible code (braces under an `if`, a member's own line, a wrapped expression).
-    // The lines the action changed are formatted again where the two agree: every user line one level
-    // in, inside a class. Lines aligned to a token's column stay aligned, lines the action left alone
-    // are not touched, and the extra level is then taken off again.
-    private async Task<string> ReindentOutsideTheWrapperAsync(string code, string newCode, CancellationToken ct)
+    // Only the lines the action's own text changes touch are corrected, found from those changes
+    // rather than by comparing the whole script, so a large script costs what its text costs.
+    //  - A continuation line the action broke off (its line break and indentation are the action's
+    //    own text) loses the extra level, unless it starts at a token column of the line above:
+    //    then the action aligned it there, and the column is the same in the editor.
+    //  - The touched lines are then formatted again where the wrapper and the user's columns agree —
+    //    every line one level in, inside a class — and that level is taken off again. Lines aligned
+    //    to a token stay aligned; lines the action left alone are not touched.
+    internal async Task<string> ReindentOutsideTheWrapperAsync(string newCode, IReadOnlyList<TextSpan> changedSpans, CancellationToken ct)
     {
-        var changed = ChangedLines(code.Split('\n'), newCode.Split('\n'));
-        if (changed.Count == 0) return newCode;
+        if (changedSpans.Count == 0) return newCode;
 
         var options = _workspace.CurrentSolution.Options;
-        var unit = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp)
-            ? "\t"
-            : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
+        var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
+        var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
+        CSharpParseOptions parseOptions;
+        lock (_syncLock) parseOptions = _parseOptions;
+
+        var lines = newCode.Split('\n');
+        var lineStarts = new int[lines.Length];
+        for (int i = 0, offset = 0; i < lines.Length; offset += lines[i].Length + 1, i++)
+            lineStarts[i] = offset;
+
+        var touched = new SortedSet<int>();
+        foreach (var span in changedSpans)
+        {
+            ct.ThrowIfCancellationRequested();
+            var first = LineOf(lineStarts, span.Start);
+            var last = LineOf(lineStarts, Math.Max(span.Start, span.End - 1));
+            for (var line = first; line <= last; line++)
+            {
+                touched.Add(line);
+                if (!useTabs && line > 0 && lineStarts[line] > span.Start && lineStarts[line] <= span.End)
+                    lines[line] = WithoutWrapperLevel(lines[line], lines[line - 1], unit);
+            }
+        }
 
         const string header = "class __RunPadIndent\n{\n";
-        var lines = newCode.Split('\n');
-        var text = new StringBuilder(header);
-        var spans = new List<TextSpan>();
+        var text = new StringBuilder(header, header.Length + newCode.Length + lines.Length * unit.Length + 4);
+        var spans = new List<TextSpan>(touched.Count);
         for (var i = 0; i < lines.Length; i++)
         {
+            if ((i & 1023) == 0) ct.ThrowIfCancellationRequested();
             var start = text.Length;
             if (lines[i].Length > 0) text.Append(unit);
             text.Append(lines[i]);
-            if (changed.Contains(i)) spans.Add(TextSpan.FromBounds(start, text.Length));
+            if (touched.Contains(i)) spans.Add(TextSpan.FromBounds(start, text.Length));
             if (i < lines.Length - 1) text.Append('\n');
         }
         text.Append("\n}\n");
@@ -1722,7 +1746,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
         var projectId = ProjectId.CreateNewId("Indent");
         formatWorkspace.AddProject(ProjectInfo.Create(projectId, VersionStamp.Create(), "Indent", "Indent",
-            LanguageNames.CSharp, parseOptions: _parseOptions));
+            LanguageNames.CSharp, parseOptions: parseOptions));
         var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(text.ToString(), Encoding.UTF8));
         var formatted = await Formatter.FormatAsync(document, spans, options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n"), ct);
         var result = (await formatted.GetTextAsync(ct)).ToString();
@@ -1733,24 +1757,22 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         return string.Join('\n', body.Select(l => l.StartsWith(unit, StringComparison.Ordinal) ? l[unit.Length..] : l));
     }
 
-    // Indexes of the lines of `after` that are not part of a longest common subsequence with `before`:
-    // the ones a code action added or changed.
-    private static HashSet<int> ChangedLines(string[] before, string[] after)
+    private static int LineOf(int[] lineStarts, int position)
     {
-        var lengths = new int[before.Length + 1, after.Length + 1];
-        for (var i = before.Length - 1; i >= 0; i--)
-            for (var j = after.Length - 1; j >= 0; j--)
-                lengths[i, j] = before[i] == after[j] ? lengths[i + 1, j + 1] + 1 : Math.Max(lengths[i + 1, j], lengths[i, j + 1]);
+        var index = Array.BinarySearch(lineStarts, position);
+        return index >= 0 ? index : ~index - 1;
+    }
 
-        var changed = new HashSet<int>();
-        int x = 0, y = 0;
-        while (y < after.Length)
-        {
-            if (x < before.Length && before[x] == after[y]) { x++; y++; }
-            else if (x < before.Length && lengths[x + 1, y] >= lengths[x, y + 1]) x++;
-            else changed.Add(y++);
-        }
-        return changed;
+    // One indentation level less for a continuation line of spaces, unless its first character sits
+    // under the start of a token of the line above (an alignment).
+    private static string WithoutWrapperLevel(string line, string above, string unit)
+    {
+        var indent = 0;
+        while (indent < line.Length && line[indent] == ' ') indent++;
+        if (indent < unit.Length || indent == line.Length || line[indent] == '\t') return line;
+        var alignedToToken = indent < above.Length && !char.IsWhiteSpace(above[indent])
+            && (char.IsWhiteSpace(above[indent - 1]) || !char.IsLetterOrDigit(above[indent - 1]) || !char.IsLetterOrDigit(above[indent]));
+        return alignedToToken ? line : line[unit.Length..];
     }
 
     // ReSharper-style "resolve all missing usings" — see IIntelliSenseService's own doc comment for

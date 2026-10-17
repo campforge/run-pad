@@ -310,7 +310,7 @@ internal sealed class RoslynCodeFixEngine
     // already replaced the cache it came from (the code changed enough since the candidate was
     // listed that re-materializing against stale state wouldn't be meaningful) — same "gracefully do
     // nothing" contract as every other IntelliSense failure path in this codebase.
-    public async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> MaterializeAsync(
+    public async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd, IReadOnlyList<TextSpan> ChangedSpans)?> MaterializeAsync(
         string key, string userCode, int preambleLength, CancellationToken ct)
     {
         CodeAction? action;
@@ -326,7 +326,7 @@ internal sealed class RoslynCodeFixEngine
         var materialized = await TryMaterializeAsync(action, document, preambleLength, userCode.Length, ct);
         if (materialized is null) return null;
 
-        var (newCode, usingsToAdd) = materialized.Value;
+        var (newCode, usingsToAdd, _) = materialized.Value;
         if (newCode == userCode && usingsToAdd.Count == 0)
         {
             _logger.LogDebug("Discarding fix {Title}: materialized to a no-op (NewCode == userCode, no usings)", action.Title);
@@ -401,7 +401,7 @@ internal sealed class RoslynCodeFixEngine
     // looks IDENTICAL to "no fix existed" from the outside. Logs the raw TextChanges unconditionally
     // now, before anything can discard them, since that's the one piece of data neither round of
     // logging so far has captured.
-    private async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd)?> TryMaterializeAsync(
+    private async Task<(string NewCode, IReadOnlyList<string> UsingsToAdd, IReadOnlyList<TextSpan> ChangedSpans)?> TryMaterializeAsync(
         CodeAction action, Document originalDocument, int preambleLength, int userCodeLength, CancellationToken ct)
     {
         try
@@ -482,7 +482,7 @@ internal sealed class RoslynCodeFixEngine
     // meaningful user content, so silently dropping it from what gets deleted/replaced is safe —
     // NewText itself is untouched, only how much of the (synthetic-only) tail end of the input span
     // gets consumed is shortened.
-    private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyRelocatingPreambleEdits(
+    private (string NewCode, IReadOnlyList<string> UsingsToAdd, IReadOnlyList<TextSpan> ChangedSpans)? ApplyRelocatingPreambleEdits(
         List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {
         var usingsToAdd = new List<string>();
@@ -531,7 +531,22 @@ internal sealed class RoslynCodeFixEngine
         }
 
         var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
-        return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd);
+        return (userText.WithChanges(userCodeChanges).ToString(), usingsToAdd, ChangedSpans(userCodeChanges));
+    }
+
+    // Where each change ended up in the changed text: its replacement's span, shifted by what the
+    // earlier changes added or removed. A deletion leaves an empty span where its text was.
+    private static List<TextSpan> ChangedSpans(IEnumerable<TextChange> changes)
+    {
+        var spans = new List<TextSpan>();
+        var shift = 0;
+        foreach (var change in changes.OrderBy(c => c.Span.Start))
+        {
+            var length = change.NewText?.Length ?? 0;
+            spans.Add(new TextSpan(change.Span.Start + shift, length));
+            shift += length - change.Span.Length;
+        }
+        return spans;
     }
 
     // The namespaces a fix adds to the hidden preamble, or null if its preamble changes do anything
@@ -574,7 +589,7 @@ internal sealed class RoslynCodeFixEngine
     // order (a pure line deletion), deleted preamble lines are ignored — the preamble is regenerated
     // on every sync and leaving an unneeded using there can't change what the user's code means —
     // and only deleted user-code lines are applied. Anything that isn't whole-line deletion bails out.
-    private (string NewCode, IReadOnlyList<string> UsingsToAdd)? ApplyLineDeletionsAcrossPreamble(
+    private (string NewCode, IReadOnlyList<string> UsingsToAdd, IReadOnlyList<TextSpan> ChangedSpans)? ApplyLineDeletionsAcrossPreamble(
         List<TextChange> changes, SourceText originalFullText, int preambleLength, int userCodeLength)
     {
         var originalText = originalFullText.ToString();
@@ -608,7 +623,7 @@ internal sealed class RoslynCodeFixEngine
         }
 
         var userText = originalFullText.GetSubText(new TextSpan(preambleLength, userCodeLength));
-        return (userText.WithChanges(userCodeChanges).ToString(), []);
+        return (userText.WithChanges(userCodeChanges).ToString(), [], ChangedSpans(userCodeChanges));
     }
 
     private static List<string> SplitLinesKeepingTerminators(string text)
