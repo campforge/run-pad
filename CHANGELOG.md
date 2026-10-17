@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- The unsaved-changes dialog separates the file name from its explanation and gives Save, Cancel
+  and Don’t Save clearer, consistent actions in light and dark themes.
+
 - Fixed a startup crash in self-contained macOS builds when framework assemblies appeared more
   than once while opening a script or selecting its .NET target.
 

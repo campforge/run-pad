@@ -13,4 +13,6 @@
     <Thickness x:Key="RunPad.Padding.IconButton">4</Thickness>
     <CornerRadius x:Key="RunPad.Radius.Control">4</CornerRadius>
     <CornerRadius x:Key="RunPad.Radius.Selection">5</CornerRadius>
+    <Thickness x:Key="RunPad.Dialog.Padding">24</Thickness>
+    <Thickness x:Key="RunPad.Dialog.ActionsMargin">0,24,0,0</Thickness>
 </ResourceDictionary>
