@@ -273,6 +273,16 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
         if (newPath is null) return; // cancelled
 
+        // Choosing the tab's own file again is an in-place save: the picker's own "replace?" question
+        // is about overwriting a file, not about one changed by another program meanwhile.
+        if (vm.FilePath is { } ownPath && string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(ownPath), FilePathComparison))
+        {
+            var result = await InPlaceSave.CheckAndWriteAsync(vm, _windowService, () => SaveTabAsAsync(vm, writeToPath));
+            if (result.Status == InPlaceSaveStatus.Failed)
+                await _windowService.ShowErrorAsync("Save Failed", result.Error);
+            return;
+        }
+
         try
         {
             writeToPath(newPath);
@@ -286,6 +296,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         if (vm.FilePath is { } oldPath) _openTabs.Remove(oldPath);
         vm.FilePath = newPath;
+        vm.AcceptWrittenState(newPath);
         vm.IsDirty = false;
         _openTabs[newPath] = vm;
         RefreshNodes();
@@ -382,8 +393,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
         if (vm.FilePath is not null)
         {
-            if (TryWriteInPlace(vm, out var error)) return true;
-            await _windowService.ShowErrorAsync("Save Failed", error);
+            // A declined save (the file changed on disk and the user cancelled) stops the close too.
+            var result = await SaveInPlaceAsync(vm);
+            if (result.Status == InPlaceSaveStatus.Saved) return true;
+            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
+            await _windowService.ShowErrorAsync("Save Failed", result.Error);
         }
 
         var choice = await ConfirmDiscardUnsavedChangesAsync(vm.FileName);
@@ -394,41 +408,27 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return !vm.IsDirty;
     }
 
-    // Writes a dirty named tab to its own path (the same serializer explicit Save uses,
-    // via vm.WriteToFile). A clean or untitled tab is a successful no-op. Fails closed: a dirty
-    // named tab whose editor isn't wired up (no WriteToFile) can't be written, so it must not be
-    // reported as saved and then discarded.
-    private static bool TryWriteInPlace(EditorTabItemViewModel vm, out string error)
+    // Writes a dirty named tab to its own path (the same serializer explicit Save uses, via
+    // vm.WriteToFile), asking first if the file changed on disk (InPlaceSave). A clean or untitled tab
+    // is a successful no-op. Fails closed: a dirty named tab whose editor isn't wired up (no
+    // WriteToFile) can't be written, so it must not be reported as saved and then discarded.
+    private Task<InPlaceSaveResult> SaveInPlaceAsync(EditorTabItemViewModel vm)
     {
-        error = "";
-        if (!vm.IsDirty || vm.FilePath is not { } path) return true;
-        if (vm.WriteToFile is not { } write)
-        {
-            error = $"Could not save '{Path.GetFileName(path)}': the editor is not ready.";
-            return false;
-        }
-
-        try
-        {
-            write(path);
-            vm.IsDirty = false;
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            error = $"Could not save '{Path.GetFileName(path)}':\n{ex.Message}";
-            return false;
-        }
+        if (!vm.IsDirty || vm.FilePath is null) return Task.FromResult(InPlaceSaveResult.Saved);
+        return InPlaceSave.SaveAsync(vm, _windowService, () => ((IEditorTabActions)this).SaveAsAsync(vm));
     }
 
     // Rename/move/delete flush every affected dirty tab first and abort the whole
-    // operation (nothing closed, nothing touched on disk) if any of them can't be written.
-    private bool TrySaveTabsBeforeFileOperation(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
+    // operation (nothing closed, nothing touched on disk) if any of them can't be written or the
+    // user declines to replace a file changed on disk.
+    private async Task<bool> TrySaveTabsBeforeFileOperationAsync(IEnumerable<EditorTabItemViewModel> tabs, string errorTitle)
     {
         foreach (var tab in tabs)
         {
-            if (TryWriteInPlace(tab, out var error)) continue;
-            _ = _windowService.ShowErrorAsync(errorTitle, error);
+            var result = await SaveInPlaceAsync(tab);
+            if (result.Status == InPlaceSaveStatus.Saved) continue;
+            if (result.Status == InPlaceSaveStatus.Failed)
+                _ = _windowService.ShowErrorAsync(errorTitle, result.Error);
             return false;
         }
 
@@ -521,7 +521,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         return _openTabs.Where(kv => kv.Key.StartsWith(prefix, FilePathComparison)).ToList();
     }
 
-    public void DeleteFile(string filePath)
+    // Completes at once unless a tab has to be saved first and the user is asked about it.
+    public async Task DeleteFile(string filePath)
     {
         // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
         // throws (silently swallowed below, before this fix), so a folder never actually left disk
@@ -533,7 +534,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // actually succeeded, so a failed delete leaves the very same tabs (editor state included)
         // open instead of closing and reloading them from disk.
         var affectedTabs = FindAffectedTabs(filePath, isDirectory);
-        if (!TrySaveTabsBeforeFileOperation(affectedTabs, "Delete Failed")) return;
+        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, "Delete Failed")) return;
 
         try
         {
@@ -557,7 +558,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         FileTree.RemoveByPath(filePath);
     }
 
-    public void RenameFile(string filePath, string newName)
+    public Task RenameFile(string filePath, string newName)
     {
         // Directory.Exists/File.Move are NOT interchangeable — File.Move on a directory path throws,
         // so renaming a folder always failed before this fix.
@@ -568,7 +569,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var newFileName = newName + ext;
         var newPath = Path.Combine(dir, newFileName);
 
-        MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
+        return MoveOrRenameOnDisk(filePath, newPath, "Rename Failed", "rename", $"to '{newFileName}'");
     }
 
     // File tree drag-and-drop — moves a node into a different folder (or the tree's
@@ -579,29 +580,29 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // node back onto where it already lives looks like; dropping a folder onto its own descendant is
     // still a real error (Directory.Move already throws a sensible message for that on its own, no
     // separate check needed).
-    public void MoveFileOrFolder(string sourcePath, string? contextPath)
+    public Task MoveFileOrFolder(string sourcePath, string? contextPath)
     {
         var targetDir = ResolveParentDir(contextPath);
         var name = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var newPath = Path.Combine(targetDir, name);
 
         if (string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(sourcePath), StringComparison.Ordinal))
-            return;
+            return Task.CompletedTask;
 
-        MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
+        return MoveOrRenameOnDisk(sourcePath, newPath, "Move Failed", "move", $"into '{Path.GetFileName(targetDir)}'");
     }
 
     // Shared by RenameFile (same directory, new name) and MoveFileOrFolder (new directory, same
     // name). Affected tab(s) are flushed to the OLD path first (a failed write aborts
     // the operation), and only closed/reopened at the new path once the move succeeded — a failed
     // move leaves the very same tabs open rather than closing and reloading them from disk.
-    private void MoveOrRenameOnDisk(
+    private async Task MoveOrRenameOnDisk(
         string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
     {
         var isDirectory = Directory.Exists(sourcePath);
 
         var affectedTabs = FindAffectedTabs(sourcePath, isDirectory);
-        if (!TrySaveTabsBeforeFileOperation(affectedTabs, errorTitle)) return;
+        if (!await TrySaveTabsBeforeFileOperationAsync(affectedTabs, errorTitle)) return;
 
         try
         {

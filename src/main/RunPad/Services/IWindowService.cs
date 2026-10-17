@@ -78,4 +78,10 @@ public interface IWindowService
     /// couldn't even be shown) is treated as Cancel — the safe default when nothing else is known.
     /// </summary>
     Task<UnsavedChangesResult> ShowUnsavedChangesDialogAsync(string fileName);
+
+    /// <summary>
+    /// Asks what to do when saving would replace a file changed by another program since RunPad
+    /// last read or wrote it. Closing the dialog, or no window to show it on, is Cancel.
+    /// </summary>
+    Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName);
 }

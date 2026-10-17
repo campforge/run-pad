@@ -52,6 +52,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
+    private IDisposable? _filePathSub;
+    // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
+    private bool _savingBeforeRun;
+    private string? _filePath;
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
 
@@ -129,6 +133,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
+        _filePath = _vm.FilePath;
+        _filePathSub = _vm.WhenAnyValue(x => x.FilePath).Skip(1).Subscribe(OnFilePathChanged);
         // Another target framework can mean other compile assets of the same packages.
         _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(OnSelectedSdkChanged);
 
@@ -253,40 +259,95 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Deliberately a no-op for a tab with no FilePath yet ("tab lifecycle") — an
     // untitled, never-saved tab has nowhere to write to; it only gets a path (and starts being
     // covered by this method) via Save As (MainWindowViewModel.SaveTabAsAsync), never implicitly.
-    internal void SaveIfNeeded()
+    internal void SaveIfNeeded() => _ = SaveAsync();
+
+    // Explicit Save and in-place metadata edits (tab close/app exit/rename resolve unsaved content
+    // themselves first). A file changed by another program is only replaced on the user's choice
+    // (InPlaceSave). A write failure (disk full, permissions, file locked externally) and a declined
+    // save are both shown in the status strip RunAsync uses, so the user knows the file wasn't
+    // written; either way the tab stays unsaved.
+    internal async Task SaveAsync() => await SaveWithResultAsync();
+
+    private async Task<InPlaceSaveResult> SaveWithResultAsync()
     {
-        if (_vm.FilePath is null) return;
-        try
-        {
-            WriteFile(_vm.FilePath);
-            _vm.IsDirty = false;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Called for explicit Save and in-place metadata edits (tab close/app exit/rename resolve
-            // unsaved content themselves first) — silently eating a real write
-            // failure (disk full, permissions, file deleted/locked externally) meant the user never
-            // found out their edits weren't persisted. Surface it via the same status indicator
-            // RunAsync uses for Success/Error/Cancelled, rather than losing it entirely.
-            SetStatus($"Save failed: {ex.Message}", "RunPad.Status.ErrorBrush");
-        }
+        if (_vm.FilePath is null) return InPlaceSaveResult.Cancelled;
+        var result = await InPlaceSave.SaveAsync(_vm, _windowService, async () => await _vm.SaveAsCommand.Execute());
+        if (_disposed) return result;
+        if (result.Status == InPlaceSaveStatus.Failed)
+            SetStatus($"Save failed: {result.Error.Replace('\n', ' ')}", "RunPad.Status.ErrorBrush");
+        else if (result.Status == InPlaceSaveStatus.Cancelled && _vm.IsDirty)
+            SetStatus("Not saved: the file was changed by another program", "RunPad.Status.CancelledBrush");
+        UpdateOutputUi();
+        return result;
     }
 
     // internal (not private): reused by MainWindowViewModel.SaveTabAsAsync/DuplicateTab (via
     // EditorTabsControl, which wires the tab's SaveAsCommand/DuplicateCommand to it) to write this
     // tab's current content to a path other than _vm.FilePath — the exact same serialization
     // SaveIfNeeded already uses for the normal save path, just parameterized on the target path.
+    // The bytes written are remembered (EditorTabItemViewModel.LastWrite) so a later in-place save
+    // can tell its own last write apart from another program's change.
     internal void WriteFile(string path)
     {
+        byte[] bytes;
         if (State.RpadDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
-            File.WriteAllText(path, RpadWriter.Write(rpad), Encoding.UTF8);
+            // A script written to another folder (Save As) gets its relative references rewritten so
+            // they still reach the same files; the tab adopts them only once it really moved there
+            // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
+            var references = rpad.FrontMatter.References;
+            if (references is not null && RebasedReferences(references, _vm.FilePath, path) is { } rebased)
+                rpad.FrontMatter.References = rebased;
+            try
+            {
+                // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
+                bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(RpadWriter.Write(rpad))];
+            }
+            finally
+            {
+                rpad.FrontMatter.References = references;
+            }
         }
         else
         {
-            File.WriteAllText(path, State.Editor.Text);
+            // As File.WriteAllText(path, text) did: UTF-8 without a byte order mark.
+            bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(State.Editor.Text);
         }
+        File.WriteAllBytes(path, bytes);
+        _vm.LastWrite = (path, ScriptFileState.Of(bytes));
+    }
+
+    // The references as written for the script saved at newPath instead of oldPath, or null if
+    // nothing changes (same folder, an untitled tab whose relative references had no folder yet, or
+    // nothing relative).
+    private static List<string>? RebasedReferences(List<string> references, string? oldPath, string newPath)
+    {
+        if (oldPath is null) return null;
+        var oldDirectory = Path.GetDirectoryName(Path.GetFullPath(oldPath))!;
+        var newDirectory = Path.GetDirectoryName(Path.GetFullPath(newPath))!;
+        var rebased = references.Select(r => ReferencePath.Rebase(r, oldDirectory, newDirectory, OperatingSystem.IsWindows())).ToList();
+        return rebased.SequenceEqual(references, StringComparer.Ordinal) ? null : rebased;
+    }
+
+    // Save As rebinds the tab to its new file: the references written there become its own, and
+    // IntelliSense resolves relative ones against the new folder — also the first Save As of an
+    // untitled tab, whose relative references only now have a folder (nothing to rebase there) — and
+    // checks the unchanged text again at once, as nothing else would until the next edit.
+    private void OnFilePathChanged(string? newPath)
+    {
+        var oldPath = _filePath;
+        _filePath = newPath;
+        if (_disposed || newPath is null || oldPath == newPath) return;
+        if (oldPath is not null
+            && State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
+            && RebasedReferences(references, oldPath, newPath) is { } rebased)
+        {
+            frontMatter.References = rebased;
+            _metadataBaseline = FrontMatterSnapshot();
+        }
+        RefreshIntelliSensePackages();
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
     }
 
     internal void Cancel()
@@ -300,7 +361,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
         var s = State;
-        if (s.RunCts is { IsCancellationRequested: false }) return;
+        if (s.RunCts is { IsCancellationRequested: false } || _savingBeforeRun) return;
 
         // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -311,6 +372,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
             UpdateOutputUi();
             return;
+        }
+
+        // A script is saved before it runs, like any save: a file changed by another program is only
+        // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
+        // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
+        // did save runs the script from its new file. An untitled script runs without being saved.
+        if (_vm.FilePath is { } path)
+        {
+            InPlaceSaveResult saved;
+            _savingBeforeRun = true;
+            try
+            {
+                saved = await SaveWithResultAsync();
+            }
+            finally
+            {
+                _savingBeforeRun = false;
+            }
+            if (_disposed) return;
+            if (saved.Status == InPlaceSaveStatus.Failed)
+            {
+                s.Output.Clear();
+                AppendError(new IOException($"Cannot save '{Path.GetFileName(path)}': {saved.Error.Replace('\n', ' ')}"));
+                UpdateOutputUi();
+                return;
+            }
+            if (saved.Status != InPlaceSaveStatus.Saved) return;
         }
 
         _vm.RunState = debug ? RunState.RunDebug : RunState.Run;
@@ -326,23 +414,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (s.RpadDocument is { } doc && TargetSdkResolver.Warning(doc.FrontMatter.TargetSdk, platform) is { } sdkWarning)
             s.Output.Append($"\n<div>warning: {HttpUtility.HtmlEncode(sdkWarning)}</div>");
         UpdateOutputUi();
-
-        if (_vm.FilePath is not null)
-        {
-            try
-            {
-                WriteFile(_vm.FilePath);
-                _vm.IsDirty = false;
-            }
-            catch (Exception ex)
-            {
-                AppendError(new IOException($"Cannot save '{Path.GetFileName(_vm.FilePath)}': {ex.Message}", ex));
-                _vm.RunState = RunState.Idle;
-                s.RunStopwatch.Stop();
-                UpdateOutputUi();
-                return;
-            }
-        }
 
         s.RunCts?.Dispose();
         s.RunCts = new CancellationTokenSource();
@@ -460,6 +531,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _viewScale.Changed -= OnViewScaleChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
         _selectedKindSub?.Dispose();
+        _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
@@ -1646,7 +1718,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         else if (File.Exists(filePath))
         {
-            var raw = File.ReadAllText(filePath);
+            // Decoded as File.ReadAllText does; the exact bytes are what later saves compare with.
+            var bytes = File.ReadAllBytes(filePath);
+            _vm.DiskState = ScriptFileState.Of(bytes);
+            string raw;
+            using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+                raw = reader.ReadToEnd();
             var parsed = RpadParser.Parse(raw);
             rpad = parsed.Document;
             // Invalid document: show the whole file as-is instead of default metadata —
@@ -1667,6 +1744,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         else
         {
             content = "";
+            // A file that appears later was made by someone else: saving must not replace it unasked.
+            if (filePath is not null) _vm.DiskState = ScriptFileState.Absent;
         }
 
         State.RpadDocument = rpad;
@@ -1739,8 +1818,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             intelliSense.UpdatePackageReferences(packages);
             return;
         }
+        var references = ReferencePathResolver.Resolve(State.RpadDocument?.FrontMatter.References, _vm.FilePath);
         intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath));
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath,
+            references.Assemblies));
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
@@ -1856,6 +1937,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private void OnSelectedSdkChanged(DotnetSdk? sdk)
     {
         RefreshIntelliSensePackages();
+        // The new target's references, C# version and symbols apply to the text already in the
+        // editor: analyse it again now, as the squiggles would otherwise wait for the next edit.
+        if (!_disposed) _intelliSense?.NotifyTextChanged(State.Editor.Text);
         if (_syncingSdk || sdk is null || State.RpadDocument is not { } rpad) return;
 
         var target = ReferenceEquals(sdk, _vm.LatestSdk) ? TargetSdk.Default : TargetSdkResolver.ToTarget(sdk);
@@ -1986,19 +2070,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
         var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
         var usings = rpad?.FrontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — expanded
-        // here so both the debug and non-debug run paths get them, since they share this method.
-        var assemblyReferences = rpad?.FrontMatter.References?
-            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
-            .ToList() ?? [];
-        // Project references aren't supported any more (scripts compile in-process, no MSBuild): they're
-        // still collected so the compiler reports them as an error instead of silently ignoring them.
-        var projectReferences = rpad?.FrontMatter.References?
-            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                        || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
-            .ToList() ?? [];
+        // Relative to the script's folder, macros expanded — the same resolution the CLI and
+        // IntelliSense use. Project references aren't supported any more (scripts compile in-process,
+        // no MSBuild): they're still collected so the compiler reports them as an error.
+        var references = ReferencePathResolver.Resolve(rpad?.FrontMatter.References, _vm.FilePath);
 
         // One options type for every compiled .NET language — used to be a
         // per-language if/else building two byte-for-byte identical option objects under different
@@ -2014,8 +2089,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Kind = kind,
             Packages = packages,
             Usings = usings,
-            AssemblyReferences = assemblyReferences,
-            ProjectReferences = projectReferences,
+            AssemblyReferences = references.Assemblies,
+            ProjectReferences = references.Projects,
+            ReferenceErrors = references.Errors,
+            ReferenceWarnings = references.Warnings,
             CurrentQueryPath = _vm.FilePath,
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };

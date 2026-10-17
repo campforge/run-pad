@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using ReactiveUI;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.Shared;
@@ -23,6 +24,22 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // implementations read this instead of taking it as a parameter, so this ViewModel's commands
     // can delegate straight to _actions without waiting for the View to hand a callback down first.
     internal Action<string>? WriteToFile { get; set; }
+
+    // What this tab's file held when the tab last read it or wrote it itself; null while unknown (a
+    // tab whose content never came from disk). An in-place save compares the file with it first.
+    internal ScriptFileState? DiskState { get; set; }
+
+    // The last file WriteToFile wrote and what it wrote there. It becomes DiskState only when that
+    // write was a save of this tab to its own file (in place or Save As), never for Duplicate.
+    internal (string Path, ScriptFileState State)? LastWrite { get; set; }
+
+    internal void AcceptWrittenState(string path)
+    {
+        if (LastWrite is { } written && written.Path == path) DiskState = written.State;
+    }
+
+    // An in-place save still waiting for the user's choice (see InPlaceSave).
+    internal Task<InPlaceSaveResult>? PendingSave { get; set; }
 
     // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
     // give a previously untitled tab a real path in place, instead of needing to close/reopen a new

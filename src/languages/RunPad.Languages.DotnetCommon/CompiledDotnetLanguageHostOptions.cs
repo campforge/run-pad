@@ -36,6 +36,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// </summary>
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
 
+    // References that couldn't be resolved (ReferencePathResolver): errors fail the build, warnings
+    // (a file that isn't there) are reported with its result.
+    public IReadOnlyList<string> ReferenceErrors { get; init; } = [];
+    public IReadOnlyList<string> ReferenceWarnings { get; init; } = [];
+
     /// <summary>NuGet.Config the in-process package restore uses (RunPad's own source list); null = the user's NuGet settings.</summary>
     public string? NuGetConfigFile { get; init; }
 

@@ -191,6 +191,87 @@ public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
         Assert.Empty(await EditorErrorsAsync(service, OnlyInOlder));
     }
 
+    [Fact]
+    public async Task SwitchingTheTarget_Should_ApplyTheCompilersLanguageVersion()
+    {
+        const string code = """
+            Console.WriteLine("hello".Size);
+            public static class TextExtensions
+            {
+                extension(string value)
+                {
+                    public int Size => value.Length;
+                }
+            }
+            """;
+        // C# 13 reports the extension block as a language-version error (CS9260), among follow-up
+        // syntax errors; the build and the editor must both report that one.
+        const string notInCSharp13 = "Feature 'extensions' is not available in C# 13.0";
+        Assert.Contains("CS9260", await BuildErrorsAsync(OlderTarget, code, Output("language-older")));
+        Assert.Empty(await BuildErrorsAsync(_currentTarget, code, Output("language-current")));
+
+        using var service = CreateService();
+        var packages = new Dictionary<string, Package>();
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Contains(await EditorErrorsAsync(service, code), m => m.Contains(notInCSharp13, StringComparison.Ordinal));
+        service.UpdatePackageReferences(packages, Context(_currentTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Contains(await EditorErrorsAsync(service, code), m => m.Contains(notInCSharp13, StringComparison.Ordinal));
+    }
+
+    // Only the C# version changes: neither target has a targeting pack anywhere (no .NET 9.9 or
+    // 10.9 was ever released), so both keep the references the editor started with. The update must
+    // still apply the new parse settings rather than treat the context as unchanged.
+    [Fact]
+    public async Task ATargetChangeWithTheSameReferences_Should_StillApplyItsLanguageVersion()
+    {
+        const string csharp13 = "net9.9";
+        const string csharp14 = "net10.9";
+        Assert.Null(TargetingPack.Find(csharp13, null, _packages));
+        Assert.Null(TargetingPack.Find(csharp14, null, _packages));
+        const string code = "var c = new Box();\nc?.Value = 1;\nclass Box { public int? Value; }\n";
+        const string notInCSharp13 = "Feature 'null conditional assignment' is not available in C# 13.0";
+
+        using var service = CreateService();
+        var references = service.ReferencePathsForTests.ToList();
+        var packages = new Dictionary<string, Package>();
+
+        service.UpdatePackageReferences(packages, Context(csharp13));
+        Assert.Equal(references, service.ReferencePathsForTests);
+        Assert.Contains(await EditorErrorsAsync(service, code), m => m.Contains(notInCSharp13, StringComparison.Ordinal));
+
+        service.UpdatePackageReferences(packages, Context(csharp14));
+        Assert.Equal(references, service.ReferencePathsForTests);
+        Assert.Empty(await EditorErrorsAsync(service, code));
+
+        service.UpdatePackageReferences(packages, Context(csharp13));
+        Assert.Contains(await EditorErrorsAsync(service, code), m => m.Contains(notInCSharp13, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SwitchingTheTarget_Should_ApplyTheCompilersConditionalSymbols()
+    {
+        const string code = """
+            #if NET9_0 && NET9_0_OR_GREATER && !NET10_0_OR_GREATER && DEBUG && TRACE
+            Console.WriteLine("older target");
+            #else
+            #error Expected the .NET 9 compiler symbols
+            #endif
+            """;
+        Assert.Empty(await BuildErrorsAsync(OlderTarget, code, Output("symbols-older")));
+        Assert.Contains("CS1029", await BuildErrorsAsync(_currentTarget, code, Output("symbols-current")));
+
+        using var service = CreateService();
+        var packages = new Dictionary<string, Package>();
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(_currentTarget));
+        Assert.NotEmpty(await EditorErrorsAsync(service, code));
+        service.UpdatePackageReferences(packages, Context(OlderTarget));
+        Assert.Empty(await EditorErrorsAsync(service, code));
+    }
+
     // A target with no targeting pack anywhere keeps the references the editor already has.
     [Fact]
     public async Task ATargetWithoutAPack_Should_KeepTheCurrentReferences()

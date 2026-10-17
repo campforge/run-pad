@@ -3,6 +3,41 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- The unsaved-changes dialog separates the file name from its explanation and gives Save, Cancel
+  and Don’t Save clearer, consistent actions in light and dark themes.
+
+- Fixed a startup crash in self-contained macOS builds when framework assemblies appeared more
+  than once while opening a script or selecting its .NET target.
+
+- Saving a script preserves reference paths containing YAML punctuation, whitespace and Unicode
+  characters instead of corrupting the file or changing the path.
+
+- Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
+  compilation symbols, matching compilation when switching targets, and update as soon as another
+  SDK is selected instead of after the next edit.
+- The editor no longer reports errors for code completed by the .NET source generators, such as
+  `[GeneratedRegex]` methods and System.Text.Json serializer contexts, and completes their members.
+  The errors and warnings those generators report themselves, such as an invalid regex pattern, are
+  now shown in the editor and listed with their line in the build output.
+- In Program-kind scripts, lightbulb actions such as Add braces, Add accessibility modifiers or Wrap
+  expression no longer indent the code they change one level too deep.
+- Clicking a lightbulb entry no longer occasionally does nothing when the analysis of an earlier
+  edit finishes after the list was shown.
+- Saving no longer silently replaces a script that another program changed after RunPad opened or
+  last saved it. RunPad asks whether to save under another name, overwrite the file or cancel, also
+  when changing the script's settings, running or debugging it, closing, quitting, or renaming,
+  moving or deleting it; a script that wasn't saved that way doesn't run.
+- A script's relative `references:` are found next to the script itself, the same way when running
+  in RunPad, with the `runpad` command and in the editor, which now also knows their types. Paths
+  are saved with `/` on every system, Windows paths are still read, and a reference that can't be
+  used here (a Windows path on macOS or Linux, `C:lib/...`, or a relative path in an unsaved script)
+  is reported instead of silently ignored. Save As into another folder keeps relative references
+  pointing at the same files.
+
 ## [0.6.0] — 2026-10-17
 
 ### Added
