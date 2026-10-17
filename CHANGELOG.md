@@ -8,7 +8,8 @@ Notable changes in each RunPad release. Downloads are on the
 ### Fixed
 
 - Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
-  compilation symbols, matching compilation when switching targets.
+  compilation symbols, matching compilation when switching targets, and update as soon as another
+  SDK is selected instead of after the next edit.
 
 ## [0.6.0] — 2026-10-17
 
