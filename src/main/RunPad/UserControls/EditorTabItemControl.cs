@@ -53,6 +53,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
+    private ActiveTheme? _pendingTheme;
     // A Run/Debug waiting for its save (possibly for the user's answer): another one doesn't start.
     private bool _savingBeforeRun;
     private string? _filePath;
@@ -163,13 +164,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ApplyEditorLanguageProfile(editor,
             _registry.GetEditorProfile(ResolveLanguageId()) ?? new EditorLanguageProfile());
 
-        var themeName = themeService.CurrentTheme.Editor.TextMateName;
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
         onAttached = (s, _) =>
         {
             editor.AttachedToVisualTree -= onAttached;
             var langExt = LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
-            editor.SetLanguage(themeName, langExt);
+            // The palette current when the tab is first shown — not the one when it was created: a
+            // tab restored at startup may only be opened after the theme changed.
+            editor.SetLanguage(_themeService!.CurrentTheme.Editor.TextMateName, langExt);
             ApplySelectionColor(editor);
         };
         editor.AttachedToVisualTree += onAttached;
@@ -240,7 +242,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
+    // A tab that isn't shown (another tab is selected, so it is out of the visual tree) only keeps
+    // the latest theme, and applies it when it is shown again, before it is drawn: hidden editors
+    // aren't recoloured on every switch, and the one the user returns to has the current palette.
     internal void ApplyTheme(ActiveTheme theme)
+    {
+        if (VisualRoot is null)
+        {
+            _pendingTheme = theme;
+            return;
+        }
+        _pendingTheme = null;
+        ApplyThemeNow(theme);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (_pendingTheme is { } theme)
+        {
+            _pendingTheme = null;
+            ApplyThemeNow(theme);
+        }
+    }
+
+    // Test-only (InternalsVisibleTo): the theme waiting for the tab to be shown.
+    internal ActiveTheme? PendingThemeForTests => _pendingTheme;
+
+    private void ApplyThemeNow(ActiveTheme theme)
     {
         State.Editor.SetTheme(theme.Editor.TextMateName);
         _semanticHighlighter?.SetDark(theme.Editor.IsDark);

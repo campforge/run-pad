@@ -23,6 +23,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Switching the theme recolours keywords, strings and semantic colours in every open script and code
+  window: at once in the one shown, and in other tabs when they are next shown. A tab opened only
+  after the switch no longer appears in the previous theme's colours.
 - The unsaved-changes dialog separates the file name from its explanation and gives Save, Cancel
   and Don’t Save clearer, consistent actions in light and dark themes.
 
