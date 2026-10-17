@@ -2095,6 +2095,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             ReferenceWarnings = references.Warnings,
             CurrentQueryPath = _vm.FilePath,
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
+            Arguments = rpad?.FrontMatter.Args ?? [],
         };
     }
 

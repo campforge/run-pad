@@ -32,4 +32,7 @@ public sealed class RpadFrontMatter
     public Dictionary<string, Package> Packages { get; set; } = new();
     public List<string>? References { get; set; }
     public List<string>? Namespaces { get; set; }
+
+    /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs.</summary>
+    public List<string>? Args { get; set; }
 }

@@ -57,7 +57,8 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
     private static (CSharpLanguageHost Host, string OutputDir) CreateHost(
         ExecutionChildProcessFactory? executionProcessFactory = null,
         DebuggerChildProcessFactory? debuggerProcessFactory = null,
-        string? currentQueryPath = null)
+        string? currentQueryPath = null,
+        IReadOnlyList<string>? arguments = null)
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "runpad-tests-" + Guid.NewGuid());
         var options = new CompiledDotnetLanguageHostOptions
@@ -73,6 +74,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             RuntimeLibPath = "RunPad.Runtime.dll",
             Kind = RpadKind.Statements,
             CurrentQueryPath = currentQueryPath,
+            Arguments = arguments ?? [],
         };
 
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", true, [], []));
@@ -86,7 +88,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
     {
         FakeChildProcess? received = null;
         string? receivedAssemblyPath = null;
-        ExecutionChildProcessFactory factory = (options, assemblyPath, _, _) =>
+        ExecutionChildProcessFactory factory = (options, assemblyPath, _, _, _) =>
         {
             receivedAssemblyPath = assemblyPath;
             return received = new FakeChildProcess();
@@ -112,7 +114,7 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
     public async Task RunAsync_Should_PassCurrentQueryPath_ToTheExecutionProcessFactory()
     {
         string? received = null;
-        ExecutionChildProcessFactory factory = (_, _, _, currentQueryPath) =>
+        ExecutionChildProcessFactory factory = (_, _, _, currentQueryPath, _) =>
         {
             received = currentQueryPath;
             return new FakeChildProcess();
@@ -124,6 +126,26 @@ public class CompiledDotnetLanguageHostProcessFactoryTests
             await host.RunAsync("int x = 1;", cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal("/root/a.rpad", received);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task RunAsync_Should_PassTheScriptArguments_ToTheExecutionProcessFactory()
+    {
+        IReadOnlyList<string>? received = null;
+        ExecutionChildProcessFactory factory = (_, _, _, _, arguments) =>
+        {
+            received = arguments;
+            return new FakeChildProcess();
+        };
+
+        var (host, outputDir) = CreateHost(executionProcessFactory: factory, arguments: ["a", "b c"]);
+        try
+        {
+            await host.RunAsync("int x = 1;", cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(["a", "b c"], received);
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
