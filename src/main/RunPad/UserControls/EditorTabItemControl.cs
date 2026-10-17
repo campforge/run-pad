@@ -326,19 +326,23 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // Save As rebinds the tab to its new file: the references written there become its own, and
-    // IntelliSense resolves relative ones against the new folder.
+    // IntelliSense resolves relative ones against the new folder — also the first Save As of an
+    // untitled tab, whose relative references only now have a folder (nothing to rebase there) — and
+    // checks the unchanged text again at once, as nothing else would until the next edit.
     private void OnFilePathChanged(string? newPath)
     {
         var oldPath = _filePath;
         _filePath = newPath;
-        if (_disposed || newPath is null || oldPath is null || oldPath == newPath) return;
-        if (State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
+        if (_disposed || newPath is null || oldPath == newPath) return;
+        if (oldPath is not null
+            && State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
             && RebasedReferences(references, oldPath, newPath) is { } rebased)
         {
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
         }
         RefreshIntelliSensePackages();
+        _intelliSense?.NotifyTextChanged(State.Editor.Text);
     }
 
     internal void Cancel()
