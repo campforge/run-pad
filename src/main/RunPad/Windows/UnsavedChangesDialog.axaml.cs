@@ -10,7 +10,6 @@ public partial class UnsavedChangesDialog : RunPadDialogWindow
         : this()
     {
         Layout.FileName = fileName;
-        Layout.ShowFileName = true;
     }
 
     private UnsavedChangesDialog() => InitializeComponent();

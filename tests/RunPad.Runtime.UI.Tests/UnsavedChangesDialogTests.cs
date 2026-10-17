@@ -127,6 +127,58 @@ public class UnsavedChangesDialogTests
         finally { dialog.Close(); }
     }
 
+    // The heading reads as the title, larger than the file name; the file line follows the file name.
+    [AvaloniaFact]
+    public void TheHeading_Should_BeTheTitle_AndTheFileLine_FollowTheFileName()
+    {
+        var dialog = new UnsavedChangesDialog("demo.rpad");
+        dialog.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            var layout = dialog.FindControl<DialogLayout>("Layout")!;
+            var heading = layout.FindControl<TextBlock>("HeadingBlock")!;
+            var file = layout.FindControl<TextBlock>("FileNameBlock")!;
+            Assert.True(heading.FontSize > file.FontSize);
+            Assert.True(file.IsVisible);
+
+            layout.FileName = null;
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(file.IsVisible);
+            Assert.False(layout.ShowFileName);
+        }
+        finally { dialog.Close(); }
+    }
+
+    // The badge says what kind of dialog it is, in the theme's colours, and is not read out.
+    [AvaloniaTheory]
+    [InlineData(DialogKind.Question, "?", "RunPad.Button.Primary.BackgroundBrush")]
+    [InlineData(DialogKind.Warning, "!", "RunPad.Status.PausedBrush")]
+    [InlineData(DialogKind.Error, "×", "RunPad.Status.ErrorBrush")]
+    public void TheBadge_Should_FollowTheKind(DialogKind kind, string glyph, string brushKey)
+    {
+        var dialog = new UnsavedChangesDialog("demo.rpad");
+        // The test application has no RunPad theme: give each role its own brush to tell them apart.
+        var brushes = new[] { "RunPad.Button.Primary.BackgroundBrush", "RunPad.Status.PausedBrush", "RunPad.Status.ErrorBrush" }
+            .ToDictionary(k => k, _ => (global::Avalonia.Media.IBrush)new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Colors.Transparent));
+        foreach (var (key, brush) in brushes) dialog.Resources[key] = brush;
+        dialog.Show();
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            var layout = dialog.FindControl<DialogLayout>("Layout")!;
+            Assert.Equal(DialogKind.Question, layout.Kind);
+            layout.Kind = kind;
+            Dispatcher.UIThread.RunJobs();
+
+            var badge = layout.FindControl<Border>("KindBadge")!;
+            Assert.Equal(glyph, layout.FindControl<TextBlock>("KindGlyph")!.Text);
+            Assert.Same(brushes[brushKey], badge.Background);
+            Assert.Equal(global::Avalonia.Automation.AccessibilityView.Raw, global::Avalonia.Automation.AutomationProperties.GetAccessibilityView(badge));
+        }
+        finally { dialog.Close(); }
+    }
+
     [AvaloniaFact]
     public void NonFilePrompt_Should_NotShowInventedFileName()
     {
