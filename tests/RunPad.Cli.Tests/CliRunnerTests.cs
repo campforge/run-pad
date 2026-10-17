@@ -350,6 +350,44 @@ public class CliRunnerTests
         finally { File.Delete(path); }
     }
 
+    // A missing or unreadable SDK value is a command-line error: nothing compiles or runs. A valid SDK
+    // that isn't installed still runs, on the newest SDK, with a warning.
+    [Theory]
+    [Trait("Category", "RealBuild")]
+    [InlineData(new[] { "--sdk", "--compile-only" }, "The option 'sdk' needs a value.")]
+    [InlineData(new[] { "-s", "-compileonly" }, "The option 's' needs a value.")]
+    [InlineData(new[] { "--sdk", "banana" }, "Unsupported SDK 'banana'.")]
+    [InlineData(new[] { "-s=" }, "The option 's' needs a value.")]
+    [InlineData(new[] { "--sdk", "1" }, null)]
+    public async Task RunAsync_Should_RunTheScript_OnlyForAValidSdk(string[] options, string? error)
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-sdk-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path, "---\nlanguage: csharp\nkind: Statements\n---\n\n```csharp run\nConsole.WriteLine(\"SCRIPT_EXECUTED\");\n```\n");
+            var stdout = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync([.. options, path], stdout, stderr, CancellationToken.None);
+
+            var log = $"exit code {exitCode}\nstdout:\n{stdout.Output}\nstderr:\n{stderr.Output}";
+            if (error is null)
+            {
+                Assert.True(exitCode == 0, log);
+                Assert.Contains("SCRIPT_EXECUTED", stdout.Output);
+                Assert.Contains("targetSdk net1.0 is not installed", stderr.Output);
+            }
+            else
+            {
+                Assert.True(exitCode == CliRunner.NotRunExitCode, log);
+                Assert.DoesNotContain("SCRIPT_EXECUTED", stdout.Output);
+                Assert.Contains(error, stderr.Output);
+            }
+        }
+        finally { File.Delete(path); }
+    }
+
     [Fact]
     [Trait("Category", "RealBuild")]
     public async Task RunAsync_Should_ReportCompileErrors_WithCompileOnly()
@@ -383,6 +421,8 @@ public class CliRunnerTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Usage: runpad", stdout.Output);
+        // Runner options are read wherever they appear until "--", even after the script.
+        Assert.Contains("until --", stdout.Output);
     }
 
     [Theory]

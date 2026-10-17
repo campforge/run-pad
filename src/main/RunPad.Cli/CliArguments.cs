@@ -125,7 +125,9 @@ internal sealed record CliArguments
                 {
                     if (!TryTakeValue(name, inlineValue, args, ref index, out var value, out var error))
                         return (null, error);
-                    return (current with { TargetSdk = ParseSdk(value) }, null);
+                    return ParseSdk(value) is { } sdk
+                        ? (current with { TargetSdk = sdk }, null)
+                        : (null, $"Unsupported SDK '{value}'. Use a .NET version such as 9 or 9.0, a target framework such as net9.0, or latest.");
                 }
         }
 
@@ -144,7 +146,9 @@ internal sealed record CliArguments
         {
             value = inlineValue;
         }
-        else if (index + 1 < args.Count)
+        // Another option (or "--") is never the value: "--sdk --compile-only a.rpad" lacks the SDK
+        // rather than naming one called "--compile-only" and running the script.
+        else if (index + 1 < args.Count && args[index + 1] != "--" && !TrySplitOption(args[index + 1], out _, out _))
         {
             value = args[++index];
         }
@@ -178,10 +182,15 @@ internal sealed record CliArguments
     }
 
     // npad takes a bare version ("9", "9.0"); targetSdk values ("net9.0", "latest") work as they are.
-    private static TargetSdk ParseSdk(string value)
+    // Anything else is null: an unreadable value would otherwise count as "latest" and run silently.
+    // A well-formed version that isn't installed is fine here; the runner falls back with a warning.
+    private static TargetSdk? ParseSdk(string value)
     {
-        if (value.Length > 0 && char.IsDigit(value[0]))
-            value = "net" + (value.Contains('.') ? value : value + ".0");
-        return RunPad.Format.RPad.TargetSdk.Parse(value);
+        if (string.Equals(value, "latest", StringComparison.OrdinalIgnoreCase))
+            return RunPad.Format.RPad.TargetSdk.Default;
+        var version = value.StartsWith("net", StringComparison.OrdinalIgnoreCase) ? value[3..] : value;
+        var parts = version.Split('.');
+        if (parts.Length > 2 || !parts.All(p => p.Length > 0 && p.All(char.IsAsciiDigit))) return null;
+        return new RunPad.Format.RPad.TargetSdk("net", parts.Length == 1 ? version + ".0" : version);
     }
 }

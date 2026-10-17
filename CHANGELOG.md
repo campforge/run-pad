@@ -11,10 +11,12 @@ Notable changes in each RunPad release. Downloads are on the
   from `args` — in C# scripts, in `Main(string[] args)` and in Visual Basic scripts of statements —
   when it runs in RunPad, under the debugger and from the `runpad` command-line runner.
 - `runpad` understands the command lines of LINQPad's `lprun` and NetPad's `npad`: `runpad script.rpad
-  Hello World` passes `Hello` and `World` to the script (everything after `--` as it is), `run` may
-  come first, and `-lang=e`/`--kind expression`, `-s`/`--sdk 9` and `-compileonly` override the
-  script's kind and SDK or only compile it. Options it can't handle yet, such as `-format` or `-e`,
-  are reported instead of being passed to the script.
+  Hello World` passes `Hello` and `World` to the script, `run` may come first, and
+  `-lang=e`/`--kind expression`, `-s`/`--sdk 9` and `-compileonly` override the script's kind and SDK
+  or only compile it. These options are read even after the script, up to `--`; everything after
+  `--` goes to the script as it is. A missing or unrecognized `--sdk` or `--kind` value stops the run
+  with an error, and options it can't handle yet, such as `-format` or `-e`, are reported instead of
+  being passed to the script.
 
 ### Changed
 

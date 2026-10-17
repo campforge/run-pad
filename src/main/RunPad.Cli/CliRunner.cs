@@ -176,7 +176,8 @@ public static class CliRunner
         console.WriteLine("  -h, --help                        Show this help");
         console.WriteLine("  --version                         Show the version");
         console.WriteLine();
-        console.WriteLine("Everything after the script is passed to it as args; after -- even what looks like an option.");
+        console.WriteLine("What follows the script is passed to it as args, but the options above are");
+        console.WriteLine("still read there until --; everything after -- goes to the script as it is.");
     }
 
     private static string FormatDiagnostic(IDiagnostic d)
