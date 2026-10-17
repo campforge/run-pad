@@ -53,6 +53,29 @@ public class RpadParserWriterTests
     }
 
     [Fact]
+    public void Write_ThenParse_RoundTripsArgs()
+    {
+        var doc = new RpadDocument
+        {
+            FrontMatter = new RpadFrontMatter { Args = ["plain", "with space", "--flag", "quote\"d", "# not a comment"] },
+            RunCode = "args.Dump();\n",
+        };
+
+        var parsed = RpadParser.TryParse(RpadWriter.Write(doc));
+
+        Assert.Equal(["plain", "with space", "--flag", "quote\"d", "# not a comment"], parsed!.FrontMatter.Args);
+    }
+
+    [Fact]
+    public void TryParse_WithoutArgs_GivesAnEmptyList_AndWriteOmitsTheKey()
+    {
+        var parsed = RpadParser.TryParse("---\nlanguage: csharp\nargs:\n---\n\n```csharp run\n1.Dump();\n```\n");
+
+        Assert.Empty(parsed!.FrontMatter.Args!);
+        Assert.DoesNotContain("args:", RpadWriter.Write(parsed));
+    }
+
+    [Fact]
     public void TryParse_ReadmeFrontMatterExample_ParsesAllFieldsWithoutResetting()
     {
         // Mirrors the front-matter example from src/core/RunPad.Format.RPad/README.md verbatim.

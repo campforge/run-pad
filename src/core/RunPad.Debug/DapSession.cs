@@ -62,6 +62,7 @@ public sealed class DapSession : IDapSession
     private readonly bool _justMyCode;
     private readonly string? _currentQueryPath;
     private readonly string? _runtimePath;
+    private readonly IReadOnlyList<string> _arguments;
     private readonly TimeSpan _exceptionInfoTimeout;
 
     // The one read of the debugger's output in progress, if any. Every reader takes its message from
@@ -165,6 +166,7 @@ public sealed class DapSession : IDapSession
         _justMyCode = options.JustMyCode;
         _currentQueryPath = options.CurrentQueryPath;
         _runtimePath = options.RuntimePath;
+        _arguments = options.Arguments ?? [];
         _exceptionInfoTimeout = options.ExceptionInfoTimeout ?? DefaultExceptionInfoTimeout;
     }
 
@@ -941,7 +943,7 @@ public sealed class DapSession : IDapSession
         return new LaunchRequestArguments
         {
             program = viaRuntime ? _runtimePath : _programPath,
-            args = viaRuntime ? [_programPath] : null,
+            args = viaRuntime ? [_programPath, .. _arguments] : _arguments.Count > 0 ? [.. _arguments] : null,
             cwd = _workingDirectory,
             stopAtEntry = false,
             justMyCode = _justMyCode,

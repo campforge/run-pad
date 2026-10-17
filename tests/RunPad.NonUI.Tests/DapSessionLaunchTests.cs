@@ -125,7 +125,8 @@ public class DapSessionLaunchTests
         string? runtimePath = null,
         bool breakOnAll = false,
         bool breakOnUncaught = true,
-        List<(string Data, OutputKind Kind)>? output = null)
+        List<(string Data, OutputKind Kind)>? output = null,
+        IReadOnlyList<string>? arguments = null)
     {
         var options = new DapSessionOptions(
             ProgramPath: "/tmp/q/bin/RunPadQuery.dll",
@@ -135,7 +136,8 @@ public class DapSessionLaunchTests
             LineOffset: 0,
             BreakOnAllExceptions: breakOnAll,
             BreakOnUncaughtExceptions: breakOnUncaught,
-            RuntimePath: runtimePath);
+            RuntimePath: runtimePath,
+            Arguments: arguments);
 
         return new DapSession(
             process, options,
@@ -176,6 +178,25 @@ public class DapSessionLaunchTests
         var args = launch.GetProperty("arguments");
         Assert.Equal("/tmp/q/bin/RunPadQuery.dll", args.GetProperty("program").GetString());
         Assert.False(args.TryGetProperty("args", out _));
+
+        process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
+        await runTask;
+    }
+
+    [Theory]
+    [InlineData("/usr/local/share/dotnet/dotnet", new[] { "/tmp/q/bin/RunPadQuery.dll", "a b", "--x" })]
+    [InlineData(null, new[] { "a b", "--x" })]
+    public async Task RunAsync_Should_PassTheScriptArguments_AfterTheAssembly(string? runtimePath, string[] expected)
+    {
+        var process = new FakeChildProcess();
+        await using var session = CreateSession(process, runtimePath: runtimePath, arguments: ["a b", "--x"]);
+
+        var runTask = session.RunAsync(TestContext.Current.CancellationToken);
+        process.Output.Push(Frame(InitializeResponse("user-unhandled", "all")));
+        var launch = await WaitForRequestAsync(process.Input, "launch");
+
+        var args = launch.GetProperty("arguments");
+        Assert.Equal(expected, args.GetProperty("args").EnumerateArray().Select(a => a.GetString()));
 
         process.Output.Push(Frame(new { seq = 2, type = "event", @event = "exited" }));
         await runTask;
