@@ -183,6 +183,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // The target pack's source generators ([GeneratedRegex], System.Text.Json, [LibraryImport]), which
     // the build runs too. The workspace runs them while compiling for analysis, off the UI thread.
     private IReadOnlyList<string> _generatorPaths = [];
+    // The script's own .dll references with the same-folder dependencies the build adds.
+    private IReadOnlyList<string> _userReferencePaths = [];
     private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
@@ -2085,6 +2087,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
         var (frameworkPaths, generatorPaths) = TargetFrameworkReferences(context);
+        var userReferencePaths = RoslynScriptCompiler.WithSameFolderDependencies(context.AssemblyReferences ?? []);
         var parseOptions = TargetFramework.TryParse(context.TargetFramework, out var major, out var minor)
             ? CSharpScriptCompiler.ParseOptions(major, minor)
             : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
@@ -2104,7 +2107,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
                 && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
                 && parseOptions.Equals(_parseOptions)
-                && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)) return;
+                && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)
+                && userReferencePaths.SequenceEqual(_userReferencePaths, StringComparer.OrdinalIgnoreCase)) return;
 
             // Rebuilt from the base references every time, so stale package ones (a removed package, an
             // older resolved version) go away. A package assembly the framework also has is resolved as
@@ -2112,7 +2116,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // (CS0433) in the editor while the build compiles.
             var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(
                 frameworkPaths.Concat(_otherBaseReferencePaths), newPaths);
-            var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+            // In the build's order: the framework (and RunPad.Runtime), the script's own assemblies, packages.
+            var baseRefs = basePaths.Concat(userReferencePaths).Select(p => (MetadataReference)CreateReference(p)).ToList();
             var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
 
             // Replaced as a whole: another target's generators never linger next to the new ones.
@@ -2130,6 +2135,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             _frameworkPaths = frameworkPaths;
             _parseOptions = parseOptions;
             _generatorPaths = generatorPaths;
+            _userReferencePaths = userReferencePaths;
             // force re-sync on next analysis pass
             _lastCode = "";
         }

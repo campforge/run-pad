@@ -114,6 +114,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         if (Options.Usings.Count > 0)
             code = string.Join("\n", Options.Usings.Select(FormatImport)) + "\n" + code;
 
+        if (Options.ReferenceErrors.Count > 0)
+            return new ProcessCompilerResult(_dllPath, false, [.. Options.ReferenceErrors.Select(e => Message("", e))], ReferenceWarnings());
+
         var tfm = Options.Platform.TargetFrameworkMoniker;
         if (!TargetFramework.TryParse(tfm, out var major, out var minor))
             return Failed(Message("", $"'{tfm}' is not a supported target framework."));
@@ -130,7 +133,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var packages = await NuGetRestorer.RestoreAsync(Options.Packages, tfm, LanguageFolder, _objDir, Options.NuGetConfigFile, ct);
         if (packages.Errors.Count > 0)
-            return new ProcessCompilerResult(_dllPath, false, packages.Errors, packages.Warnings);
+            return new ProcessCompilerResult(_dllPath, false, packages.Errors, [.. ReferenceWarnings(), .. packages.Warnings]);
 
         Directory.CreateDirectory(_binDir);
         var userReferences = ResolveUserReferences();
@@ -149,7 +152,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var key = Fingerprint(code, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
-            return new ProcessCompilerResult(_dllPath, true, [], packages.Warnings);
+            return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
 
         // The script file itself — what breakpoints and the debugger's source view point at.
         if (!File.Exists(_sourcePath) || await File.ReadAllTextAsync(_sourcePath, ct) != code)
@@ -185,7 +188,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         diagnostics.AddRange(emit.Diagnostics);
 
         var errors = ToResultItems(diagnostics, RoslynSeverity.Error, outputDir);
-        var warnings = packages.Warnings.Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();
+        var warnings = ReferenceWarnings().Concat(packages.Warnings).Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();
         if (!emit.Success)
         {
             // Like a failed `dotnet build`: no stale binary from an earlier run is left to execute.
@@ -223,17 +226,22 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     private ProcessCompilerResult Failed(ResultItem error) => new(_dllPath, false, [error], []);
 
+    private List<ResultItem> ReferenceWarnings() => [.. Options.ReferenceWarnings.Select(w => Message("", w))];
+
     protected static ResultItem Message(string code, string text) => new(code, "", new LineSymbol(0, 0), text);
 
     // ── References ───────────────────────────────────────────────────────────
 
     // Front-matter .dll references plus the dependencies `dotnet build` would find next to them
     // (ResolveAssemblyReference's FindDependencies): same folder, recursively.
-    private List<string> ResolveUserReferences()
+    private List<string> ResolveUserReferences() => WithSameFolderDependencies(Options.AssemblyReferences);
+
+    // IntelliSense references the same assemblies for the same front matter.
+    public static List<string> WithSameFolderDependencies(IEnumerable<string> assemblyReferences)
     {
         var result = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var pending = new Queue<string>(Options.AssemblyReferences.Where(File.Exists).Select(Path.GetFullPath));
+        var pending = new Queue<string>(assemblyReferences.Where(File.Exists).Select(Path.GetFullPath));
         while (pending.Count > 0)
         {
             var path = pending.Dequeue();

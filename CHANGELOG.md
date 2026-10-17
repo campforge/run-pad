@@ -30,6 +30,12 @@ Notable changes in each RunPad release. Downloads are on the
 - Saving no longer silently replaces a script that another program changed after RunPad opened or
   last saved it. RunPad asks whether to save under another name, overwrite the file or cancel, also
   when changing the script's settings, closing, quitting, or renaming, moving or deleting it.
+- A script's relative `references:` are found next to the script itself, the same way when running
+  in RunPad, with the `runpad` command and in the editor, which now also knows their types. Paths
+  are saved with `/` on every system, Windows paths are still read, and a reference that can't be
+  used here (a Windows path on macOS or Linux, `C:lib/...`, or a relative path in an unsaved script)
+  is reported instead of silently ignored. Save As into another folder keeps relative references
+  pointing at the same files.
 
 ## [0.6.0] — 2026-10-17
 

@@ -52,6 +52,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private readonly CSharpReferenceService _referenceService;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
+    private IDisposable? _filePathSub;
+    private string? _filePath;
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
 
@@ -129,6 +131,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.BreakpointRemoved += OnGutterBreakpointRemoved;
 
         _selectedKindSub = _vm.WhenAnyValue(x => x.SelectedKind).Subscribe(OnSelectedKindChanged);
+        _filePath = _vm.FilePath;
+        _filePathSub = _vm.WhenAnyValue(x => x.FilePath).Skip(1).Subscribe(OnFilePathChanged);
         // Another target framework can mean other compile assets of the same packages.
         _selectedSdkSub = _vm.WhenAnyValue(x => x.SelectedSdk).Skip(1).Subscribe(OnSelectedSdkChanged);
 
@@ -284,8 +288,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RpadDocument is { } rpad)
         {
             rpad.RunCode = State.Editor.Text;
-            // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
-            bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(RpadWriter.Write(rpad))];
+            // A script written to another folder (Save As) gets its relative references rewritten so
+            // they still reach the same files; the tab adopts them only once it really moved there
+            // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
+            var references = rpad.FrontMatter.References;
+            if (references is not null && RebasedReferences(references, _vm.FilePath, path) is { } rebased)
+                rpad.FrontMatter.References = rebased;
+            try
+            {
+                // As File.WriteAllText(path, text, Encoding.UTF8) did: with the UTF-8 byte order mark.
+                bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(RpadWriter.Write(rpad))];
+            }
+            finally
+            {
+                rpad.FrontMatter.References = references;
+            }
         }
         else
         {
@@ -294,6 +311,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         File.WriteAllBytes(path, bytes);
         _vm.LastWrite = (path, ScriptFileState.Of(bytes));
+    }
+
+    // The references as written for the script saved at newPath instead of oldPath, or null if
+    // nothing changes (same folder, an untitled tab whose relative references had no folder yet, or
+    // nothing relative).
+    private static List<string>? RebasedReferences(List<string> references, string? oldPath, string newPath)
+    {
+        if (oldPath is null) return null;
+        var oldDirectory = Path.GetDirectoryName(Path.GetFullPath(oldPath))!;
+        var newDirectory = Path.GetDirectoryName(Path.GetFullPath(newPath))!;
+        var rebased = references.Select(r => ReferencePath.Rebase(r, oldDirectory, newDirectory, OperatingSystem.IsWindows())).ToList();
+        return rebased.SequenceEqual(references, StringComparer.Ordinal) ? null : rebased;
+    }
+
+    // Save As rebinds the tab to its new file: the references written there become its own, and
+    // IntelliSense resolves relative ones against the new folder.
+    private void OnFilePathChanged(string? newPath)
+    {
+        var oldPath = _filePath;
+        _filePath = newPath;
+        if (_disposed || newPath is null || oldPath is null || oldPath == newPath) return;
+        if (State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
+            && RebasedReferences(references, oldPath, newPath) is { } rebased)
+        {
+            frontMatter.References = rebased;
+            _metadataBaseline = FrontMatterSnapshot();
+        }
+        RefreshIntelliSensePackages();
     }
 
     internal void Cancel()
@@ -467,6 +512,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _viewScale.Changed -= OnViewScaleChanged;
         State.Editor.ZoomRequested -= OnEditorZoomRequested;
         _selectedKindSub?.Dispose();
+        _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
@@ -1753,8 +1799,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             intelliSense.UpdatePackageReferences(packages);
             return;
         }
+        var references = ReferencePathResolver.Resolve(State.RpadDocument?.FrontMatter.References, _vm.FilePath);
         intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath));
+            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath,
+            references.Assemblies));
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
@@ -2003,19 +2051,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
         var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
         var usings = rpad?.FrontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — expanded
-        // here so both the debug and non-debug run paths get them, since they share this method.
-        var assemblyReferences = rpad?.FrontMatter.References?
-            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
-            .ToList() ?? [];
-        // Project references aren't supported any more (scripts compile in-process, no MSBuild): they're
-        // still collected so the compiler reports them as an error instead of silently ignoring them.
-        var projectReferences = rpad?.FrontMatter.References?
-            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                        || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, _vm.FilePath))
-            .ToList() ?? [];
+        // Relative to the script's folder, macros expanded — the same resolution the CLI and
+        // IntelliSense use. Project references aren't supported any more (scripts compile in-process,
+        // no MSBuild): they're still collected so the compiler reports them as an error.
+        var references = ReferencePathResolver.Resolve(rpad?.FrontMatter.References, _vm.FilePath);
 
         // One options type for every compiled .NET language — used to be a
         // per-language if/else building two byte-for-byte identical option objects under different
@@ -2031,8 +2070,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             Kind = kind,
             Packages = packages,
             Usings = usings,
-            AssemblyReferences = assemblyReferences,
-            ProjectReferences = projectReferences,
+            AssemblyReferences = references.Assemblies,
+            ProjectReferences = references.Projects,
+            ReferenceErrors = references.Errors,
+            ReferenceWarnings = references.Warnings,
             CurrentQueryPath = _vm.FilePath,
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };

@@ -180,18 +180,8 @@ public static class CliRunner
 
         var packages = frontMatter.Packages.ToDictionary(p => p.Key, p => p.Value.Version);
         var usings = frontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — must stay
-        // equivalent to EditorTabItemControl.BuildRunOptions's own expansion (see CliRunnerTests.cs).
-        var assemblyReferences = frontMatter.References?
-            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
-            .ToList() ?? [];
-        // Not supported any more — collected only so the compiler reports them (see EditorTabItemControl).
-        var projectReferences = frontMatter.References?
-            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
-            .ToList() ?? [];
+        // Relative to the script's folder and with macros expanded, exactly as the GUI does.
+        var references = ReferencePathResolver.Resolve(frontMatter.References, currentQueryPath);
 
         // One options type for every compiled .NET language — languageId no
         // longer needs to select between two identical option-object shapes here.
@@ -204,8 +194,10 @@ public static class CliRunner
             Kind = frontMatter.Kind,
             Packages = packages,
             Usings = usings,
-            AssemblyReferences = assemblyReferences,
-            ProjectReferences = projectReferences,
+            AssemblyReferences = references.Assemblies,
+            ReferenceErrors = references.Errors,
+            ReferenceWarnings = references.Warnings,
+            ProjectReferences = references.Projects,
             CurrentQueryPath = currentQueryPath,
             // Same source list as the GUI once its NuGet configurator has created RunPad's NuGet.Config.
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
