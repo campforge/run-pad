@@ -16,6 +16,8 @@ Notable changes in each RunPad release. Downloads are on the
   now shown in the editor and listed with their line in the build output.
 - In Program-kind scripts, lightbulb actions such as Add braces or Add accessibility modifiers no
   longer indent the code they change one level too deep.
+- Clicking a lightbulb entry no longer occasionally does nothing when the analysis of an earlier
+  edit finishes after the list was shown.
 
 ## [0.6.0] — 2026-10-17
 

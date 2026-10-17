@@ -167,8 +167,32 @@ internal sealed class RoslynCodeFixEngine
         var seen = new HashSet<(int Line, string Title)>();
         result = result.Where(fix => seen.Add((fix.Line, fix.Title))).ToList();
 
-        lock (_cacheLock) { _fixDocument = document; _fixActions = cache; }
+        PublishFixes(document, cache, ct);
         return result;
+    }
+
+    // A superseded pass (cancelled by the next keystroke, its results ignored by the editor) must not
+    // replace the cache the entries on screen point into, or clicking one silently does nothing.
+    // Checked under the lock: once the newer pass has cancelled this one, it can only be overwritten by
+    // that newer pass.
+    private void PublishFixes(Document document, Dictionary<string, CodeAction> cache, CancellationToken ct)
+    {
+        lock (_cacheLock)
+        {
+            ct.ThrowIfCancellationRequested();
+            _fixDocument = document;
+            _fixActions = cache;
+        }
+    }
+
+    private void PublishRefactorings(Document document, Dictionary<string, CodeAction> cache, CancellationToken ct)
+    {
+        lock (_cacheLock)
+        {
+            ct.ThrowIfCancellationRequested();
+            _refactoringDocument = document;
+            _refactoringActions = cache;
+        }
     }
 
     // ReSharper-style "resolve all missing usings" — for each
@@ -237,7 +261,7 @@ internal sealed class RoslynCodeFixEngine
         var cache = new Dictionary<string, CodeAction>();
         if (userLine < 1)
         {
-            lock (_cacheLock) { _refactoringDocument = document; _refactoringActions = cache; }
+            PublishRefactorings(document, cache, ct);
             return result;
         }
 
@@ -275,7 +299,7 @@ internal sealed class RoslynCodeFixEngine
             }
         }
 
-        lock (_cacheLock) { _refactoringDocument = document; _refactoringActions = cache; }
+        PublishRefactorings(document, cache, ct);
         return result;
     }
 
