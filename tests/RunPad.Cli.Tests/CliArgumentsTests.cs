@@ -44,10 +44,50 @@ public class CliArgumentsTests
     [InlineData("10.0", "net10.0")]
     [InlineData("net8.0", "net8.0")]
     [InlineData("latest", "latest")]
+    [InlineData("LATEST", "latest")]
+    [InlineData("net9", "net9.0")]
+    [InlineData("1", "net1.0")]   // valid, if not installed: the runner falls back with a warning
     public void Parse_Should_ReadTheSdk(string value, string expected)
     {
         Assert.Equal(expected, CliArguments.Parse(["--sdk", value, "a.rpad"]).TargetSdk?.ToString());
         Assert.Equal(expected, CliArguments.Parse(["a.rpad", "-s", value]).TargetSdk?.ToString());
+        Assert.Equal(expected, CliArguments.Parse([$"--sdk={value}", "a.rpad"]).TargetSdk?.ToString());
+    }
+
+    // A missing value must not take the next option (or "--") as the SDK: "--sdk --compile-only a.rpad"
+    // would otherwise run the script on the newest SDK instead of only compiling it.
+    [Theory]
+    [InlineData("--sdk --compile-only a.rpad")]
+    [InlineData("-s -compileonly a.rpad")]
+    [InlineData("--sdk --help a.rpad")]
+    [InlineData("a.rpad -s -- x")]
+    [InlineData("--kind --compile-only a.rpad")]
+    [InlineData("--sdk= a.rpad")]
+    [InlineData("-s= a.rpad")]
+    [InlineData("a.rpad --sdk")]
+    public void Parse_Should_RejectAMissingValue_WithoutTakingTheNextOption(string commandLine)
+    {
+        var cli = CliArguments.Parse(commandLine.Split(' '));
+
+        Assert.NotNull(cli.Error);
+        Assert.Contains("needs a value", cli.Error);
+    }
+
+    [Theory]
+    [InlineData("banana")]
+    [InlineData("net")]
+    [InlineData("9x")]
+    [InlineData("net9.0-windows")]
+    [InlineData("v9")]
+    public void Parse_Should_RejectAnSdkItCannotRead(string value)
+    {
+        foreach (var args in new[] { new[] { "--sdk", value, "a.rpad" }, ["a.rpad", $"-s={value}"] })
+        {
+            var cli = CliArguments.Parse(args);
+
+            Assert.NotNull(cli.Error);
+            Assert.Contains($"'{value}'", cli.Error);
+        }
     }
 
     [Theory]
