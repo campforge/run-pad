@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
@@ -28,7 +29,8 @@ public sealed class CodeActionWrapperIndentationTests
 
     // The lightbulb action with this title — a code fix of the background analysis, or else the
     // refactoring offered at the first position that has it — applied.
-    private static async Task<string> ApplyAsync(CSharpIntelliSenseService service, string code, string title, int from = 0)
+    private static async Task<string> ApplyAsync(CSharpIntelliSenseService service, string code, string title, int from = 0,
+        long? allocationBudget = null)
     {
         var listed = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnFixes(string analyzed, IReadOnlyList<ICodeFixInfo> fixes)
@@ -43,8 +45,12 @@ public sealed class CodeActionWrapperIndentationTests
                 .FirstOrDefault(f => f.Title == title);
             if (codeFix is not null)
             {
+                var before = GC.GetTotalAllocatedBytes(precise: true);
                 var applied = await service.MaterializeFixAsync(code, codeFix.Key, TestContext.Current.CancellationToken);
+                var allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
                 Assert.NotNull(applied);
+                if (allocationBudget is { } budget)
+                    Assert.True(allocated < budget, $"applying the fix allocated {allocated:N0} bytes");
                 return applied.NewCode;
             }
         }
@@ -99,6 +105,72 @@ public sealed class CodeActionWrapperIndentationTests
         var aligned = await ApplyAsync(service, code, "Wrap and align expression", code.IndexOf("return v", StringComparison.Ordinal));
 
         Assert.Equal(code.Replace("    return v * 2;", "    return v\n           * 2;"), aligned);
+    }
+
+    // The continuation line Wrap expression breaks off is indented like the Statements kind's — at
+    // the method's level and one block deeper — while the aligned variant keeps its column.
+    [Theory]
+    [InlineData("    ", "        ")]
+    [InlineData("        ", "            ")]
+    public async Task WrapExpression_InTheProgramKind_Should_MatchTheStatementsKind(string statementIndent, string continuationIndent)
+    {
+        var body = statementIndent == "    "
+            ? "    return v * 2;\n"
+            : "    if (v > 0)\n    {\n        return v * 2;\n    }\n    return 0;\n";
+        var program = "void Main()\n{\n    Console.WriteLine(Twice(2));\n}\n\nint Twice(int v)\n{\n" + body + "}\n";
+        var statements = "Console.WriteLine(Twice(2));\n\nint Twice(int v)\n{\n" + body + "}\n";
+        var from = program.IndexOf("return v", StringComparison.Ordinal);
+
+        using var programService = CreateService(RpadKind.Program);
+        using var statementsService = CreateService(RpadKind.Statements);
+        var expected = (await ApplyAsync(statementsService, statements, "Wrap expression", statements.IndexOf("return v", StringComparison.Ordinal)))
+            .Replace("Console.WriteLine(Twice(2));\n\n", "");
+        Assert.Contains("\n" + statementIndent + "return v\n" + continuationIndent + "* 2;\n", expected);
+
+        var wrapped = await ApplyAsync(programService, program, "Wrap expression", from);
+
+        Assert.Equal("void Main()\n{\n    Console.WriteLine(Twice(2));\n}\n\n" + expected, wrapped);
+    }
+
+    // Lines the action did not touch keep tabs as the user wrote them.
+    [Fact]
+    public async Task AddBraces_InTheProgramKind_Should_KeepUntouchedTabIndentedLines()
+    {
+        const string code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1);\n}\n\nint Other()\n{\n\treturn 1;\n}\n";
+        using var service = CreateService(RpadKind.Program);
+
+        var result = await ApplyAsync(service, code, "Add braces");
+
+        Assert.Equal("void Main()\n{\n    if (DateTime.Now.Year > 2000)\n    {\n        Console.WriteLine(1);\n    }\n}\n\nint Other()\n{\n\treturn 1;\n}\n", result);
+    }
+
+    // A one-line fix in a large script: only that place changes, and correcting it costs memory in
+    // proportion to the script, not to its square (a line-by-line comparison table for 10,000 lines
+    // took about 400 MB).
+    [Fact]
+    public async Task AFixInALargeProgramScript_Should_ChangeOnlyItsLines_WithBoundedMemory()
+    {
+        var members = string.Concat(Enumerable.Range(0, 2_500).Select(i => $"int Value{i}()\n{{\n    return {i};\n}}\n"));
+        var code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1);\n}\n" + members;
+        Assert.True(code.Split('\n').Length > 10_000);
+        using var service = CreateService(RpadKind.Program);
+
+        var result = await ApplyAsync(service, code, "Add braces", allocationBudget: 150_000_000);
+
+        Assert.Equal("void Main()\n{\n    if (DateTime.Now.Year > 2000)\n    {\n        Console.WriteLine(1);\n    }\n}\n" + members, result);
+    }
+
+    // The correction stops when the request is cancelled, like the rest of the fix.
+    [Fact]
+    public async Task Reindenting_Should_StopWhenCancelled()
+    {
+        using var service = CreateService(RpadKind.Program);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        var code = string.Concat(Enumerable.Range(0, 5_000).Select(i => $"int Value{i}() => {i};\n"));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.ReindentOutsideTheWrapperAsync(code, [new TextSpan(0, 5)], cancelled.Token));
     }
 
     // Nothing changes for the Statements kind, which has no hidden class.
