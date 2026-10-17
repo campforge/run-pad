@@ -47,7 +47,8 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     //                newline, not ';'.
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
-        RpadKind.Statements => $"Module Program\nSub Main()\n{code}\nEnd Sub\nEnd Module\n",
+        // args As String(): the script's command-line arguments, as C# top-level statements have them.
+        RpadKind.Statements => $"Module Program\nSub Main(args As String())\n{code}\nEnd Sub\nEnd Module\n",
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump()\n",
         _ => code,
     };
@@ -59,7 +60,7 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     // component alone (see CSharpLanguageHost.CalcKindOffset's identical fix).
     public override int CalcKindOffset() => Options.Usings.Count + (Options.Kind switch
     {
-        RpadKind.Statements => 2, // "Module Program" + "Sub Main()"
+        RpadKind.Statements => 2, // "Module Program" + "Sub Main(args As String())"
         RpadKind.Expression => 1, // "("
         _ => 0,
     });

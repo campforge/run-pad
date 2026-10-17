@@ -62,6 +62,7 @@ public static class RpadParser
             fm.Packages ??= [];
             fm.References ??= [];
             fm.Namespaces ??= [];
+            fm.Args ??= [];
             if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
             if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
         }

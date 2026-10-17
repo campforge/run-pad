@@ -79,7 +79,7 @@ public class CompiledDotnetLanguageHostRunResultTests
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", compiles, [], []));
         var host = new CSharpLanguageHost(
             options, NullLoggerFactory.Instance, (_, _, _) => compiler,
-            (_, _, _, _) =>
+            (_, _, _, _, _) =>
             {
                 onProcessCreated?.Invoke();
                 return process;
