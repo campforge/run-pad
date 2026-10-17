@@ -13,6 +13,7 @@ namespace RunPad.Runtime.UI.Tests;
 // writes one level deeper than the visible code: braces added under an `if` at the wrong depth, the
 // method's own closing brace moved, a member line shifted right. The result must be what the same
 // action gives for the same code without the hidden class.
+[Collection(CodeActionAllocationCollection.Name)]
 public sealed class CodeActionWrapperIndentationTests
 {
     private static CSharpIntelliSenseService CreateService(RpadKind kind)
@@ -184,4 +185,12 @@ public sealed class CodeActionWrapperIndentationTests
 
         Assert.Equal("if (DateTime.Now.Year > 2000)\n{\n    Console.WriteLine(1);\n}\n\nConsole.WriteLine(2);\n", result);
     }
+}
+
+// The memory regression measures process-wide allocations across an awaited code action.
+// Other test collections must not contribute their allocations to that measurement.
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class CodeActionAllocationCollection
+{
+    public const string Name = "CodeActionAllocation";
 }
