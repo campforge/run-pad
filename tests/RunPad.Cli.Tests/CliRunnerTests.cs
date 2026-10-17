@@ -140,10 +140,12 @@ public class CliRunnerTests
 
         var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out");
 
+        // A resolved reference is a full path in the platform's own spelling ('\\' on Windows): the
+        // stored "/" separator is not what the build receives.
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
-        var expanded = Assert.Single(csharpOptions.AssemblyReferences);
-        Assert.DoesNotContain("$(RuntimeDirectory)", expanded);
-        Assert.EndsWith("/System.dll", expanded);
+        var expected = Path.GetFullPath(Path.Combine(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory(), "System.dll"));
+        Assert.Equal([expected], csharpOptions.AssemblyReferences);
+        Assert.Empty(csharpOptions.ReferenceErrors);
     }
 
     [Fact]
