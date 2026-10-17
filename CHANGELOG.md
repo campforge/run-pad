@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Saving a script preserves reference paths containing YAML punctuation, whitespace and Unicode
+  characters instead of corrupting the file or changing the path.
+
 - Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
   compilation symbols, matching compilation when switching targets, and update as soon as another
   SDK is selected instead of after the next edit.

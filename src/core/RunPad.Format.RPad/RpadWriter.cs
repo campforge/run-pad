@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace RunPad.Format.RPad;
 
@@ -77,14 +78,8 @@ public static class RpadWriter
         return sb.ToString();
     }
 
-    // Wraps value in single quotes if it contains YAML-special characters.
-    // Single quotes inside the value are escaped by doubling them ('').
-    private static string YamlEscape(string value)
-    {
-        if (value.Length == 0) return "''";
-        bool needsQuote = value[0] is ':' or '#' or '&' or '*' or '!' or '|' or '>' or '\'' or '"' or '%' or '@' or '`' or '{'
-            || value.Contains(": ") || value.Contains(" #") || value.Contains('\n') || value.Contains('\r');
-        if (!needsQuote) return value;
-        return "'" + value.Replace("'", "''") + "'";
-    }
+    // Quoting every string avoids YAML's plain-scalar indicators and implicit null values.
+    // JSON double-quoted strings are also YAML scalars and preserve line breaks/control characters,
+    // which YAML single-quoted multiline scalars would fold into spaces.
+    private static string YamlEscape(string value) => JsonSerializer.Serialize(value);
 }
