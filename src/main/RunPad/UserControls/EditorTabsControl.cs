@@ -175,6 +175,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // ── Theme ──────────────────────────────────────────────────────────────────
 
+    // Test-only (InternalsVisibleTo): the control showing a tab.
+    internal EditorsTabItemControl? ControlForTests(EditorTabItemViewModel vm) => _tabs.TryGetValue(vm, out var entry) ? entry.Control : null;
+
     private void OnThemeChanged(ActiveTheme theme)
     {
         foreach (var (_, ctrl) in _tabs.Values)
