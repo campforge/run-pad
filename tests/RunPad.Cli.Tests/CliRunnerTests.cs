@@ -146,7 +146,7 @@ public class CliRunnerTests
 
         var exitCode = await CliRunner.RunAsync([], stdout, stderr, CancellationToken.None);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(CliRunner.NotRunExitCode, exitCode);
         Assert.Contains("Usage:", stderr.Output);
     }
 
@@ -159,7 +159,7 @@ public class CliRunnerTests
         var exitCode = await CliRunner.RunAsync(
             ["/no/such/file.rpad"], stdout, stderr, CancellationToken.None);
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(CliRunner.NotRunExitCode, exitCode);
         Assert.Contains("File not found", stderr.Output);
     }
 
@@ -176,7 +176,7 @@ public class CliRunnerTests
             var exitCode = await CliRunner.RunAsync(
                 [path], stdout, stderr, CancellationToken.None);
 
-            Assert.Equal(1, exitCode);
+            Assert.Equal(CliRunner.NotRunExitCode, exitCode);
             Assert.Contains("Failed to parse", stderr.Output);
         }
         finally { File.Delete(path); }
@@ -199,7 +199,7 @@ public class CliRunnerTests
             var exitCode = await CliRunner.RunAsync(
                 [path], stdout, stderr, CancellationToken.None);
 
-            Assert.Equal(1, exitCode);
+            Assert.Equal(CliRunner.NotRunExitCode, exitCode);
             Assert.Contains("Failed to parse", stderr.Output);
             Assert.Contains("Invalid YAML front matter (line 3)", stderr.Output);
             Assert.Contains("nonsense", stderr.Output);
@@ -224,7 +224,7 @@ public class CliRunnerTests
             var exitCode = await CliRunner.RunAsync(
                 [path], stdout, stderr, CancellationToken.None);
 
-            Assert.Equal(1, exitCode);
+            Assert.Equal(CliRunner.NotRunExitCode, exitCode);
             Assert.Contains("Failed to parse", stderr.Output);
             Assert.Contains(expected, stderr.Output);
         }
@@ -237,9 +237,9 @@ public class CliRunnerTests
     [InlineData(RunOutcome.Exited, 0, 0)]
     [InlineData(RunOutcome.Exited, 7, 7)]
     [InlineData(RunOutcome.Exited, -1, -1)]
-    [InlineData(RunOutcome.CompilationFailed, null, 1)]
-    [InlineData(RunOutcome.StartFailed, null, 1)]
-    public void ExitCodeFor_Should_BeTheScriptsOwnExitCode_Or1WhenItNeverRan(RunOutcome outcome, int? exitCode, int expected)
+    [InlineData(RunOutcome.CompilationFailed, null, 2)]
+    [InlineData(RunOutcome.StartFailed, null, 2)]
+    public void ExitCodeFor_Should_BeTheScriptsOwnExitCode_Or2WhenItNeverRan(RunOutcome outcome, int? exitCode, int expected)
     {
         Assert.Equal(expected, CliRunner.ExitCodeFor(new RunResult(outcome, exitCode)));
     }
@@ -249,7 +249,7 @@ public class CliRunnerTests
     [Trait("Category", "RealBuild")]
     [InlineData("Console.WriteLine(\"done\");\nEnvironment.Exit(7);", 7)]
     [InlineData("Console.Error.WriteLine(\"just a warning\");", 0)]
-    [InlineData("int x = \"not an int\";", 1)]
+    [InlineData("int x = \"not an int\";", 2)]
     public async Task RunAsync_Should_ReturnTheScriptsExitCode(string code, int expected)
     {
         if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
@@ -265,6 +265,129 @@ public class CliRunnerTests
             Assert.True(expected == exitCode, $"exit code {exitCode}\nstdout:\n{stdout.Output}\nstderr:\n{stderr.Output}");
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void BuildOptions_Should_UseTheFrontMatterArgs_UnlessTheCommandLineGivesSome()
+    {
+        var frontMatter = CreateFrontMatter();
+        frontMatter.Args = ["from", "file"];
+
+        var fromFile = Assert.IsType<CompiledDotnetLanguageHostOptions>(
+            CliRunner.BuildOptions(frontMatter, Platform, Path.GetTempPath()));
+        var fromCommandLine = Assert.IsType<CompiledDotnetLanguageHostOptions>(
+            CliRunner.BuildOptions(frontMatter, Platform, Path.GetTempPath(), arguments: ["cli"]));
+
+        Assert.Equal(["from", "file"], fromFile.Arguments);
+        Assert.Equal(["cli"], fromCommandLine.Arguments);
+    }
+
+    // Real compile + real script process: args reach C# top-level statements, a Program's
+    // Main(string[] args) and Visual Basic scripts.
+    [Theory]
+    [Trait("Category", "RealBuild")]
+    [InlineData("csharp", "Statements", "Console.WriteLine(string.Join(\"|\", args));")]
+    [InlineData("csharp", "Program", "void Main(string[] args) => Console.WriteLine(string.Join(\"|\", args));")]
+    [InlineData("vb", "Statements", "Console.WriteLine(String.Join(\"|\", args))")]
+    [InlineData("vb", "Program", "Module Program\nSub Main(args As String())\nConsole.WriteLine(String.Join(\"|\", args))\nEnd Sub\nEnd Module")]
+    public async Task RunAsync_Should_PassTheArguments_ToTheScript(string language, string kind, string code)
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-args-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                $"---\nlanguage: {language}\nkind: {kind}\nargs:\n  - \"from file\"\n---\n\n```{language} run\n{code}\n```\n");
+
+            var fromFile = new TestConsole();
+            var fromCommandLine = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var fileExit = await CliRunner.RunAsync([path], fromFile, stderr, CancellationToken.None);
+            var cliExit = await CliRunner.RunAsync(["run", path, "a b", "--", "-x"], fromCommandLine, stderr, CancellationToken.None);
+
+            Assert.True(fileExit == 0 && cliExit == 0, $"exit codes {fileExit}/{cliExit}\nstderr:\n{stderr.Output}");
+            Assert.Equal("from file", fromFile.Output.Trim());
+            Assert.Equal("a b|-x", fromCommandLine.Output.Trim());
+        }
+        finally { File.Delete(path); }
+    }
+
+    // lprun's -lang and npad's --kind/--sdk override the front matter; -compileonly never runs it.
+    [Theory]
+    [Trait("Category", "RealBuild")]
+    [InlineData(new[] { "-lang=e" }, "6", 0)]
+    [InlineData(new[] { "--kind", "expression", "--sdk", "latest" }, "6", 0)]
+    [InlineData(new[] { "-lang=e", "-compileonly" }, "", 0)]
+    [InlineData(new[] { "-lang=VBExpression" }, "", 2)]
+    public async Task RunAsync_Should_ApplyTheOptions(string[] options, string expectedOutput, int expectedExit)
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-options-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            // As statements this doesn't compile (CS0201), as an expression it dumps 6.
+            await File.WriteAllTextAsync(path, "---\nlanguage: csharp\nkind: Statements\n---\n\n```csharp run\n1 + 5\n```\n");
+            var stdout = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync([.. options, path], stdout, stderr, CancellationToken.None);
+
+            Assert.True(expectedExit == exitCode, $"exit code {exitCode}\nstdout:\n{stdout.Output}\nstderr:\n{stderr.Output}");
+            // An expression's dump is titled with the expression; the value is the last line.
+            Assert.Equal(expectedOutput, stdout.Output.Trim().Split('\n')[^1]);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    [Trait("Category", "RealBuild")]
+    public async Task RunAsync_Should_ReportCompileErrors_WithCompileOnly()
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return; // no .NET SDK to compile with
+        var path = Path.Combine(Path.GetTempPath(), $"runpad-cli-compile-{Guid.NewGuid():N}.rpad");
+        try
+        {
+            await File.WriteAllTextAsync(path, "---\nlanguage: csharp\n---\n\n```csharp run\nConsole.WriteLine(\"ran\");\nint x = \"no\";\n```\n");
+            var stdout = new TestConsole();
+            var stderr = new TestConsole().Width(1000);
+
+            var exitCode = await CliRunner.RunAsync([path, "-compileonly"], stdout, stderr, CancellationToken.None);
+
+            Assert.Equal(CliRunner.NotRunExitCode, exitCode);
+            Assert.Contains("CS0029", stderr.Output);
+            Assert.DoesNotContain("ran", stdout.Output);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    public async Task RunAsync_Should_PrintUsage_ForHelp(string option)
+    {
+        var stdout = new TestConsole();
+        var stderr = new TestConsole();
+
+        var exitCode = await CliRunner.RunAsync([option], stdout, stderr, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Usage: runpad", stdout.Output);
+    }
+
+    [Theory]
+    [InlineData("-format=html")]
+    [InlineData("--eval")]
+    [InlineData("--bogus")]
+    public async Task RunAsync_Should_RejectOptions_ItDoesNotSupport(string option)
+    {
+        var stdout = new TestConsole();
+        var stderr = new TestConsole();
+
+        var exitCode = await CliRunner.RunAsync([option, "a.rpad"], stdout, stderr, CancellationToken.None);
+
+        Assert.Equal(CliRunner.NotRunExitCode, exitCode);
+        Assert.NotEmpty(stderr.Output);
     }
 
     // ── convert ────────────────────────────────────────────────────

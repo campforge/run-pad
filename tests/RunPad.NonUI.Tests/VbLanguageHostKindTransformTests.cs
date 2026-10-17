@@ -36,7 +36,7 @@ public class VbLanguageHostKindTransformTests
     }
 
     [Theory]
-    [InlineData(RpadKind.Statements, "Dim x = 1", "Module Program\nSub Main()\nDim x = 1\nEnd Sub\nEnd Module\n")]
+    [InlineData(RpadKind.Statements, "Dim x = 1", "Module Program\nSub Main(args As String())\nDim x = 1\nEnd Sub\nEnd Module\n")]
     [InlineData(RpadKind.Program, "Module Program\nSub Main()\nEnd Sub\nEnd Module", "Module Program\nSub Main()\nEnd Sub\nEnd Module")]
     [InlineData(RpadKind.Expression, "1 + 1", "(\n1 + 1\n).Dump()\n")]
     public void ApplyKindTransform_Should_ProduceExpectedText(RpadKind kind, string code, string expected)

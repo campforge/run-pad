@@ -75,6 +75,13 @@ public static class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(u));
         }
 
+        if (fm.Args?.Count > 0)
+        {
+            sb.Append('\n').Append("args:");
+            foreach (var a in fm.Args)
+                sb.Append('\n').Append("  - ").Append(YamlEscape(a));
+        }
+
         return sb.ToString();
     }
 

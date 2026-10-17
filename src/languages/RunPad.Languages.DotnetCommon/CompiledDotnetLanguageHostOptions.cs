@@ -49,4 +49,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     // ProcessStartInfo.Environment on netcoredbg's own process wouldn't reach it) — either way read
     // back the same way by RunPad.Runtime.Util.CurrentQueryPath.
     public string? CurrentQueryPath { get; init; }
+
+    /// <summary>
+    /// The script's command-line arguments (<c>args</c>), from the front matter's <c>args:</c> or the
+    /// <c>runpad</c> command line. Passed to the script's process for a run and in the DAP launch
+    /// request for a debug session.
+    /// </summary>
+    public IReadOnlyList<string> Arguments { get; init; } = [];
 }
