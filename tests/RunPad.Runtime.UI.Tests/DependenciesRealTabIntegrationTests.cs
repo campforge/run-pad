@@ -90,7 +90,7 @@ public class DependenciesRealTabIntegrationTests
 
             var editorTabs = new EditorTabsControl(
                 theme, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             DependenciesWindow? depsWindow = null;

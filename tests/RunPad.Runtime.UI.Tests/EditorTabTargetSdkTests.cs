@@ -158,7 +158,7 @@ public class EditorTabTargetSdkTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-            new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            new Mock<IBuildCacheService>().Object);
 
         new Window { Content = editorTabs }.Show();
         editorTabs.Attach(mainVm);

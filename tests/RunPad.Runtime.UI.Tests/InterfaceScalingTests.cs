@@ -64,8 +64,7 @@ public class InterfaceScalingTests
         var vm = new EditorTabItemViewModel(
             filePath: null, [], prefs.Mock.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var tab = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().Object, prefs.Mock.Object, intelliSense: null, new DotnetRuntimeReferenceLocator(),
-            new Mock<IBuildCacheService>().Object);
+            new Mock<ILanguageHostRegistry>().Object, prefs.Mock.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = tab, Width = 900, Height = 600 };
         host.Show();
         Dispatcher.UIThread.RunJobs();

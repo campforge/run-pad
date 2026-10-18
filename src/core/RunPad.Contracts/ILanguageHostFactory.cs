@@ -1,4 +1,5 @@
 using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts;
@@ -54,6 +55,11 @@ public interface ILanguageHostFactory
     void WarmUpIntelliSense() { }
 
     ILanguageHost Create(ILanguageHostOptions? options = null);
+
+    // A host for what the run asks for (see ExecutionRequest): the language's backend builds its own
+    // options from it — references, macros, package sources, its runtime library — so callers never do.
+    ILanguageHost Create(ExecutionRequest request)
+        => throw new NotSupportedException($"The {DisplayName} language does not run execution requests.");
 }
 
 /// <summary>A registered language as the app offers it.</summary>
@@ -87,4 +93,7 @@ public interface ILanguageHostRegistry
     void WarmUpIntelliSense();
 
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
+
+    // See ILanguageHostFactory.Create(ExecutionRequest).
+    ILanguageHost Create(string language, ExecutionRequest request);
 }

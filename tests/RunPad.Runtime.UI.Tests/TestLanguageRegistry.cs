@@ -1,7 +1,9 @@
 using Moq;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Runtime.UI.Tests;
 
@@ -10,10 +12,27 @@ namespace RunPad.Runtime.UI.Tests;
 internal static class TestLanguageRegistry
 {
     // C# tabs get what create returns; tabs in any other language get none, as with the real modules.
+    // C# tabs are highlighted as C#, with an otherwise empty editor profile.
     public static ILanguageHostRegistry WithCSharpIntelliSense(this Mock<ILanguageHostRegistry> registry, Func<IIntelliSenseService> create)
     {
         registry.Setup(r => r.CreateIntelliSense("csharp", It.IsAny<CancellationToken>())).Returns(create);
+        registry.Setup(r => r.GetEditorProfile("csharp")).Returns(new EditorLanguageProfile { SourceFileExtension = ".cs" });
         return registry.Object;
+    }
+
+    // A fake editor service that reads the tab's execution request the way the C# service does
+    // (DotnetPackageReferenceContext), so a test can check the references and target it ends up with.
+    public static Mock<IIntelliSenseService> ForwardingExecutionContext(this Mock<IIntelliSenseService> service)
+    {
+        service.Setup(s => s.UpdateExecutionContext(It.IsAny<ExecutionRequest>())).Callback<ExecutionRequest>(request =>
+        {
+            var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
+            if (DotnetPackageReferenceContext.For(request) is { } context)
+                service.Object.UpdatePackageReferences(packages, context);
+            else
+                service.Object.UpdatePackageReferences(packages);
+        });
+        return service;
     }
 
     // A real language whose editor services are replaced, everything else unchanged.
@@ -30,5 +49,6 @@ internal static class TestLanguageRegistry
         public string? CodeForKind(string code, RpadKind kind) => inner.CodeForKind(code, kind);
         public IIntelliSenseService? CreateIntelliSense(CancellationToken cancellationToken) => create();
         public ILanguageHost Create(ILanguageHostOptions? options = null) => inner.Create(options);
+        public ILanguageHost Create(ExecutionRequest request) => inner.Create(request);
     }
 }

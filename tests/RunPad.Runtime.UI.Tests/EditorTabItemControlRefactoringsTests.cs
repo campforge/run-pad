@@ -85,7 +85,7 @@ public class EditorTabItemControlRefactoringsTests
         }
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            intelliSense.Object, buildCache.Object);
         var host = new Window { Content = ctrl };
         try
         {

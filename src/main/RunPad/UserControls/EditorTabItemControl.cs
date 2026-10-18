@@ -14,12 +14,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
-using RunPad.Build.Core.Models;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Resources;
 using RunPad.Services;
@@ -51,7 +49,6 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // filtering happens at render time instead of once when each list is produced.
     private List<CodeFixEntry> _diagnosticFixEntries = [];
     private List<CodeFixEntry> _refactoringFixEntries = [];
-    private readonly IRuntimeReferenceLocator _runtimeReferences;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -98,14 +95,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
-        IRuntimeReferenceLocator runtimeReferences,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
     {
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
-        _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
         _runLogger = runLogger ?? NullLogger<EditorsTabItemControl>.Instance;
         _vm = vm;
@@ -174,10 +169,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         onAttached = (s, _) =>
         {
             editor.AttachedToVisualTree -= onAttached;
-            var langExt = LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
+            // The grammar of the tab's language (untitled tabs default to C#, see ResolveLanguageId);
+            // plain text when its profile names no source extension the editor has a grammar for.
             // The palette current when the tab is first shown — not the one when it was created: a
             // tab restored at startup may only be opened after the theme changed.
-            editor.SetLanguage(_themeService!.CurrentTheme.Editor.TextMateName, langExt);
+            editor.TrySetLanguage(_themeService!.CurrentTheme.Editor.TextMateName,
+                _registry.GetEditorProfile(ResolveLanguageId())?.SourceFileExtension ?? "");
             ApplySelectionColor(editor);
         };
         editor.AttachedToVisualTree += onAttached;
@@ -489,18 +486,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         try
         {
             var workDir = EnsureWorkDirectory();
-            var options = BuildRunOptions(platform, workDir);
+            var request = BuildRunRequest(platform, workDir);
             var script = s.Editor.Text;
-            // Matches the path the language's compiler writes the source to and its DapSession
-            // expects it at (OutputDirectory/{OutputName}.{extension}) — see ScriptBreakpoint below.
-            var sourceFilePath = Path.Combine(
-                State.OutputDirectory!, $"{LanguageHostOptionsDefaults.OutputName}{SourceExtension()}");
-            s.SourceFilePath = sourceFilePath;
-            var breakpoints = s.Editor.Breakpoints
+            // Read on the UI thread; they name the host's source file once it exists (see below).
+            var enabledBreakpoints = s.Editor.Breakpoints
                 .Where(bp =>
                     bp.IsEnabled) // Disabled breakpoints stay in the gutter but never reach the debugger
-                .Select(bp =>
-                    (Contracts.IBreakpoint)new ScriptBreakpoint(sourceFilePath, bp.Line, bp.Condition, bp.HitCondition))
+                .Select(bp => (bp.Line, bp.Condition, bp.HitCondition))
                 .ToList();
             // Reset to Pending — stale Verified/Unverified color from a previous run shouldn't linger
             // in the margin until the new session's setBreakpoints response arrives.
@@ -513,8 +505,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
             await Task.Run(async () =>
             {
-                await using var host = _registry.Create(ResolveLanguageId(), options);
+                await using var host = _registry.Create(ResolveLanguageId(), request);
                 s.RunningHost = host;
+                // The file the host compiles and its debugger reports (see ScriptBreakpoint).
+                var sourceFilePath = host.SourceFilePath ?? "";
+                s.SourceFilePath = sourceFilePath;
                 host.Compiled += binaryPath =>
                 {
                     if (_disposed || generation != _runGeneration) return;
@@ -528,7 +523,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
-                    foreach (var bp in breakpoints) host.AddBreakpoint(bp);
+                    foreach (var (line, condition, hitCondition) in enabledBreakpoints)
+                        host.AddBreakpoint(new ScriptBreakpoint(sourceFilePath, line, condition, hitCondition));
                     host.BreakpointHit += ctx =>
                         PostRun(() => OnBreakpointHit(ctx));
                     host.BreakpointVerified += (bp, verified, message) =>
@@ -1900,17 +1896,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal void RefreshIntelliSensePackages()
     {
         if (_disposed || _intelliSense is not { } intelliSense) return;
-        var packages = State.RpadDocument?.FrontMatter.Packages ?? new Dictionary<string, Package>();
-        var targetFramework = (_vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault())?.TargetFrameworkMoniker;
-        if (targetFramework is null)
+        // The same request a run makes, so the editor reads the references and packages as the build does.
+        intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
         {
-            intelliSense.UpdatePackageReferences(packages);
-            return;
-        }
-        var references = ReferencePathResolver.Resolve(State.RpadDocument?.FrontMatter.References, _vm.FilePath);
-        intelliSense.UpdatePackageReferences(packages, new PackageReferenceContext(
-            targetFramework, State.OutputDirectory, RunPadNuGetConfigStore.ExistingDefaultConfigFile, _prefs.Debugger?.DotnetPath,
-            references.Assemblies));
+            Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
+            OutputDirectory = State.OutputDirectory,
+            RuntimePath = _prefs.Debugger?.DotnetPath,
+        });
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
@@ -2102,17 +2094,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _ => CodeFixSeverity.Info,
     };
 
-    private static string LangToExtension(string? language) => language?.ToLowerInvariant() switch
-    {
-        "vb" => ".vb",
-        _ => ".cs",
-    };
-
     // Defaults to C# for untitled tabs (no RpadDocument yet — see SetDocumentContent).
     private string ResolveLanguageId()
         => (State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp).ToLanguageId();
-
-    private string SourceExtension() => LangToExtension(State.RpadDocument?.FrontMatter.Language.ToString());
 
     private static string FormatElapsed(TimeSpan t) => t switch
     {
@@ -2128,7 +2112,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return dir;
     }
 
-    private ILanguageHostOptions BuildRunOptions(DotnetSdk platform, string workDir)
+    // What this tab's run asks for; its language's backend builds the host's own options from it.
+    private ExecutionRequest BuildRunRequest(DotnetSdk platform, string workDir)
     {
         var rpad = State.RpadDocument;
 
@@ -2147,44 +2132,19 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             State.OutputDirectory ??= Path.Combine(workDir, Path.GetRandomFileName());
         }
 
-        var executionOptions = new ExecutionOptions
-        {
-            WorkingDirectory = workDir,
-            Runtime = new RuntimeOptions { RuntimePath = _prefs.Debugger.DotnetPath },
-            Debugger = new DebuggerOptions { DebuggerPath = _prefs.Debugger.DebuggerPath },
-        };
-
-        // rpad is null for an untitled tab that's never been saved (see SetDocumentContent) —
-        // fall back to the same defaults RpadWriter.NewFile/RpadParser use for a fresh document.
-        var kind = rpad?.FrontMatter.Kind ?? RpadKind.Statements;
-        var packages = rpad?.FrontMatter.Packages.ToDictionary(v => v.Key, v => v.Value.Version) ?? [];
-        var usings = rpad?.FrontMatter.Namespaces ?? [];
-        // Relative to the script's folder, macros expanded — the same resolution the CLI and
-        // IntelliSense use. Project references aren't supported any more (scripts compile in-process,
-        // no MSBuild): they're still collected so the compiler reports them as an error.
-        var references = ReferencePathResolver.Resolve(rpad?.FrontMatter.References, _vm.FilePath);
-
-        // One options type for every compiled .NET language — used to be a
-        // per-language if/else building two byte-for-byte identical option objects under different
-        // type names.
-        return new CompiledDotnetLanguageHostOptions
+        // rpad is null for an untitled tab that's never been saved (see SetDocumentContent): the
+        // request then has the defaults a fresh document has. The references are passed as written —
+        // the backend resolves them relative to the script's folder with macros, as the CLI's and
+        // IntelliSense's are.
+        return ExecutionRequest.For(rpad?.FrontMatter, _vm.FilePath) with
         {
             Platform = platform,
-            ExecutionOptions = executionOptions,
             OutputDirectory = State.OutputDirectory,
-            RuntimeLibPath = _runtimeReferences.GetRuntimeAssemblyPath(),
+            WorkingDirectory = workDir,
+            RuntimePath = _prefs.Debugger.DotnetPath,
+            DebuggerPath = _prefs.Debugger.DebuggerPath,
             BreakOnAllExceptions = _vm.DebugPanel.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
-            Kind = kind,
-            Packages = packages,
-            Usings = usings,
-            AssemblyReferences = references.Assemblies,
-            ProjectReferences = references.Projects,
-            ReferenceErrors = references.Errors,
-            ReferenceWarnings = references.Warnings,
-            CurrentQueryPath = _vm.FilePath,
-            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
-            Arguments = rpad?.FrontMatter.Args ?? [],
         };
     }
 

@@ -77,6 +77,11 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     /// <summary>This language's project-file/import-syntax conventions — see <see cref="DotnetLanguageProjectProfile"/>.</summary>
     protected abstract DotnetLanguageProjectProfile ProjectProfile { get; }
 
+    // Where RoslynScriptCompiler writes the source and the DAP session expects breakpoints:
+    // OutputDirectory/{OutputName}{the language's extension}.
+    public override string SourceFilePath =>
+        Path.Combine(_options.OutputDirectory, _options.OutputName + ProjectProfile.SourceFileExtension);
+
     /// <summary>
     /// Rewrites the user's code per <see cref="RpadKind"/> before compiling — public (not just
     /// protected) so it stays directly unit-testable against a concrete host the way it always was,

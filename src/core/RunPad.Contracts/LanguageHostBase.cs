@@ -103,6 +103,8 @@ public abstract class LanguageHostBase : ILanguageHost
         remove => _breakpointVerified -= value;
     }
 
+    public virtual string? SourceFilePath => null;
+
     // --- Memory dump ---
 
     public virtual Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken)

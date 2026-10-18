@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp.IntelliSense;
 using RunPad.Languages.DotnetCommon;
@@ -65,6 +66,7 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         IndentationStrategy = IndentationStrategyKind.CStyle,
         // File tree's per-language icon — pictogrammers.com/library/mdi/icon/language-csharp.
         IconResourceKey = "Icon.LanguageCSharp",
+        SourceFileExtension = CSharpProjectProfile.Instance.SourceFileExtension,
     };
 
     // The framework's assemblies and, given apart so that a target's reference assemblies never
@@ -81,6 +83,11 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
     // A throwaway instance: the expensive part (RunPadRoslynHost.HostServices, the MEF composition) is a
     // process-wide lazy singleton every instance shares, and its first analysis loads the references.
     public void WarmUpIntelliSense() => CreateIntelliSense(CancellationToken.None)?.NotifyTextChanged("");
+
+    public CompiledDotnetLanguageHostOptions CreateOptions(ExecutionRequest request)
+        => CompiledDotnetLanguageHostOptions.From(request, _runtimeReferences.GetRuntimeAssemblyPath());
+
+    public ILanguageHost Create(ExecutionRequest request) => Create(CreateOptions(request));
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {

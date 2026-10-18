@@ -165,7 +165,7 @@ public class EditorDecorationTrackingTests
         var vm = new EditorTabItemViewModel(
             null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var control = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense, new Mock<IBuildCacheService>().Object);
         new Window { Content = control }.Show();
         var editor = control.State.Editor;
         var highlighter = control.SemanticHighlighterForTests!;

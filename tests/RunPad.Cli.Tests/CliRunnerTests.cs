@@ -17,6 +17,13 @@ public class CliRunnerTests
     private static readonly DotnetSdk Platform = new("net10.0", "10.0.100", ".NET 10.0.100", ".NET 10");
     private const string RuntimeLib = "/runpad/RunPad.Runtime.dll";
 
+    // The options the runner's request gets from the .NET backend: what its run is built with.
+    private static ILanguageHostOptions BuildOptions(
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
+        string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
+        => CompiledDotnetLanguageHostOptions.From(
+            CliRunner.BuildRequest(frontMatter, platform, outputDirectory, currentQueryPath, arguments), runtimeLibPath);
+
     private static RpadFrontMatter CreateFrontMatter(RpadLanguage language = RpadLanguage.CSharp) => new()
     {
         Language = language,
@@ -33,7 +40,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ReturnExpectedOptions_ForCSharp()
     {
-        var options = CliRunner.BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Equal(Platform, csharpOptions.Platform);
@@ -52,7 +59,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_ReturnExpectedOptions_ForVb()
     {
-        var options = CliRunner.BuildOptions(CreateFrontMatter(RpadLanguage.Vb), Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(CreateFrontMatter(RpadLanguage.Vb), Platform, "/tmp/out", RuntimeLib);
 
         var vbOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Equal(Platform, vbOptions.Platform);
@@ -90,7 +97,7 @@ public class CliRunnerTests
         {
             await File.WriteAllTextAsync(path, "---\nlanguage: vb\n---\n\n```vb run\nConsole.WriteLine(1)\n```\n");
             var sdks = new FakeSdkProvider();
-            var services = new CliServices(new LanguageHostRegistry(), sdks, new DotnetRuntimeReferenceLocator());
+            var services = new CliServices(new LanguageHostRegistry(), sdks);
             var stderr = new TestConsole();
 
             var exitCode = await CliRunner.RunAsync([path], services, new TestConsole(), stderr, CancellationToken.None);
@@ -103,15 +110,58 @@ public class CliRunnerTests
     }
 
     [Fact]
-    public void CreateDefault_Should_RegisterCSharpAndVb_WithTheShippedRuntimeLibrary()
+    public void CreateDefault_Should_RegisterCSharpAndVb()
     {
         var services = CliServices.CreateDefault();
 
-        Assert.True(services.Registry.IsRegistered("csharp"));
-        Assert.True(services.Registry.IsRegistered("vb"));
-        var runtime = services.RuntimeReferences.GetRuntimeAssemblyPath();
-        Assert.Equal("RunPad.Runtime.dll", Path.GetFileName(runtime));
-        Assert.True(File.Exists(runtime), runtime);
+        Assert.Equal(["csharp", "vb"], services.Registry.SupportedLanguages);
+    }
+
+    // The runner's request is the window's: the shared front-matter mapping, built in the temporary
+    // build folder, with the PATH's dotnet and no debugger; command-line arguments replace args:.
+    [Fact]
+    public void BuildRequest_Should_CarryTheScriptsMetadata_AsWritten()
+    {
+        var frontMatter = CreateFrontMatter();
+        frontMatter.Args = ["from", "file"];
+
+        var request = CliRunner.BuildRequest(frontMatter, Platform, "/tmp/out", "/scripts/a.rpad", ["cli"]);
+
+        Assert.Same(Platform, request.Platform);
+        Assert.Equal("/tmp/out", request.OutputDirectory);
+        Assert.Equal("/tmp/out", request.WorkingDirectory);
+        Assert.Equal("/scripts/a.rpad", request.CurrentQueryPath);
+        Assert.Equal(RpadKind.Program, request.Kind);
+        Assert.Equal("13.0.3", request.Packages["Newtonsoft.Json"]);
+        Assert.Equal(["System.Text"], request.Usings);
+        Assert.Equal(["Some.Native.dll", "Some.Project.csproj", "Some.Vb.vbproj"], request.References);
+        Assert.Equal(["cli"], request.Arguments);
+        Assert.Null(request.RuntimePath);
+        Assert.Null(request.DebuggerPath);
+    }
+
+    // The runner only builds a plain ExecutionRequest: no code in it builds the .NET backend's host
+    // options or resolves references (CliServices registers the concrete languages, nothing more).
+    [Fact]
+    public void TheRunner_Should_NotBuildTheBackendsHostOptions()
+    {
+        string[] backendTypes =
+        [
+            "RunPad.Languages.DotnetCommon.CompiledDotnetLanguageHostOptions",
+            "RunPad.Languages.DotnetCommon.ReferencePathResolver",
+            "RunPad.Languages.DotnetCommon.RunPadNuGetConfigStore",
+            "RunPad.Build.Core.Models.ExecutionOptions",
+            "RunPad.Build.Core.Models.RuntimeOptions",
+            "RunPad.Build.Core.Models.DebuggerOptions",
+        ];
+        using var stream = File.OpenRead(typeof(CliRunner).Assembly.Location);
+        using var pe = new System.Reflection.PortableExecutable.PEReader(stream);
+        var metadata = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe);
+        var referenced = metadata.TypeReferences
+            .Select(h => metadata.GetTypeReference(h))
+            .Select(t => metadata.GetString(t.Namespace) + "." + metadata.GetString(t.Name));
+
+        Assert.DoesNotContain(referenced, backendTypes.Contains);
     }
 
     private sealed class FakeSdkProvider : ISdkProvider
@@ -130,7 +180,7 @@ public class CliRunnerTests
     {
         var frontMatter = new RpadFrontMatter(); // Namespaces/References both null by default
 
-        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Empty(csharpOptions.Usings);
@@ -154,7 +204,7 @@ public class CliRunnerTests
                 References = ["$(CurrentQueryPath)/Lib.dll", "$(CurrentQueryPath)/Shared.csproj"],
             };
 
-            var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib, currentQueryPath);
+            var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib, currentQueryPath);
 
             var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
             Assert.Equal([Path.Combine(dir, "Lib.dll")], csharpOptions.AssemblyReferences);
@@ -170,7 +220,7 @@ public class CliRunnerTests
     {
         var frontMatter = new RpadFrontMatter { References = ["$(CurrentQueryPath)/Lib.dll"] };
 
-        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Empty(csharpOptions.AssemblyReferences);
@@ -186,7 +236,7 @@ public class CliRunnerTests
     {
         var currentQueryPath = Path.Combine("home", "user", "scripts", "query.rpad");
 
-        var options = CliRunner.BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib, currentQueryPath);
+        var options = BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib, currentQueryPath);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Equal(currentQueryPath, csharpOptions.CurrentQueryPath);
@@ -195,7 +245,7 @@ public class CliRunnerTests
     [Fact]
     public void BuildOptions_Should_LeaveCurrentQueryPathNull_WhenNoFilePathGiven()
     {
-        var options = CliRunner.BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(CreateFrontMatter(), Platform, "/tmp/out", RuntimeLib);
 
         var csharpOptions = Assert.IsType<CompiledDotnetLanguageHostOptions>(options);
         Assert.Null(csharpOptions.CurrentQueryPath);
@@ -206,7 +256,7 @@ public class CliRunnerTests
     {
         var frontMatter = new RpadFrontMatter { References = ["$(RuntimeDirectory)/System.dll"] };
 
-        var options = CliRunner.BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
+        var options = BuildOptions(frontMatter, Platform, "/tmp/out", RuntimeLib);
 
         // A resolved reference is a full path in the platform's own spelling ('\\' on Windows): the
         // stored "/" separator is not what the build receives.
@@ -352,9 +402,9 @@ public class CliRunnerTests
         frontMatter.Args = ["from", "file"];
 
         var fromFile = Assert.IsType<CompiledDotnetLanguageHostOptions>(
-            CliRunner.BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib));
+            BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib));
         var fromCommandLine = Assert.IsType<CompiledDotnetLanguageHostOptions>(
-            CliRunner.BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib, arguments: ["cli"]));
+            BuildOptions(frontMatter, Platform, Path.GetTempPath(), RuntimeLib, arguments: ["cli"]));
 
         Assert.Equal(["from", "file"], fromFile.Arguments);
         Assert.Equal(["cli"], fromCommandLine.Arguments);

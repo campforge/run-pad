@@ -3,7 +3,7 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.7.0] — 2026-10-18
 
 ### Added
 
@@ -24,6 +24,9 @@ Notable changes in each RunPad release. Downloads are on the
   file, no .NET SDK, or a compile error — the same code as NetPad's `npad`.
 
 ### Fixed
+
+- Closing a running script no longer faults while cancellation finishes; unexpected run and stop
+  errors are logged and reported without escaping the editor action.
 
 - In the installed RunPad app, the editor no longer marks `.Dump()` as an error once it has loaded the
   script's .NET target, while the script itself runs fine.
@@ -48,8 +51,7 @@ Notable changes in each RunPad release. Downloads are on the
   now shown in the editor and listed with their line in the build output.
 - In Program-kind scripts, lightbulb actions such as Add braces, Add accessibility modifiers or Wrap
   expression no longer indent the code they change one level too deep.
-- Clicking a lightbulb entry no longer occasionally does nothing when the analysis of an earlier
-  edit finishes after the list was shown.
+- A cancelled analysis no longer leaves cached lightbulb actions from an earlier edit.
 - Saving no longer silently replaces a script that another program changed after RunPad opened or
   last saved it. RunPad asks whether to save under another name, overwrite the file or cancel, also
   when changing the script's settings, running or debugging it, closing, quitting, or renaming,
@@ -101,9 +103,6 @@ Notable changes in each RunPad release. Downloads are on the
   Results panel are now thin lines; they are dragged in the same place as before.
 
 ### Fixed
-
-- Closing a running script no longer faults while cancellation finishes; unexpected run and stop
-  errors are logged and reported without escaping the editor action.
 
 - IntelliSense checks framework APIs against the script's selected .NET target when its reference
   pack is available, including when a script without packages is first opened, before any run.
@@ -402,3 +401,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.2.0]: https://github.com/campforge/run-pad/releases/tag/v0.2.0
 
 [0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
+
+[0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0

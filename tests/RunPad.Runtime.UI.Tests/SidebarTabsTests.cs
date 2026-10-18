@@ -67,7 +67,7 @@ public sealed class SidebarTabsTests : IDisposable
             languageRegistry: new LanguageHostRegistry());
         var editorTabs = new EditorTabsControl(
             theme.Object, windowService.Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object), prefs.Object,
-            new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            new Mock<IBuildCacheService>().Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, vm) { Width = 1000, Height = 600 };
         window.Show();

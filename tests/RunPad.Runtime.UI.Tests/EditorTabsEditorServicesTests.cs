@@ -81,7 +81,7 @@ public sealed class EditorTabsEditorServicesTests : IDisposable
         foreach (var language in languages) registry.Register(language);
         var shell = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-            new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            new Mock<IBuildCacheService>().Object);
         var host = new Window { Width = 900, Height = 700, Content = tabs };
         host.Show();
         return (tabs, shell, host);
