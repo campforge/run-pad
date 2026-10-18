@@ -330,12 +330,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         if (filePath is not null)
         {
             _openTabs[filePath] = vm;
-            RememberRecentFile(filePath);
         }
         AddTab(vm);
 
         if (blankToClose is not null)
             CloseTab(blankToClose);
+        if (filePath is not null) RememberRecentFile(filePath);
     }
 
     private void AddTab(EditorTabItemViewModel vm)

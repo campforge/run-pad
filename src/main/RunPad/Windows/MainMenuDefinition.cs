@@ -57,7 +57,7 @@ internal static class MainMenuDefinition
         return menu;
     }
 
-    private static NativeMenuItemBase ToNativeMenuItem(MainMenuEntry entry) => entry switch
+    internal static NativeMenuItemBase ToNativeMenuItem(MainMenuEntry entry) => entry switch
     {
         MainMenuSeparator => new NativeMenuItemSeparator(),
         MainMenuGroup group => new NativeMenuItem(StripAccessKey(group.Header)) { Menu = ToNativeMenu(group.Items) },
