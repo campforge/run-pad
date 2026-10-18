@@ -23,6 +23,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Opening or reloading scripts preserves literal `${0}` text. Reload and Revert to Saved leave
+  tabs alone if a run or save starts, or their saved version changes, while a dialog is open.
+
 - Opening a script no longer fails while Recent Files refreshes the native macOS menu.
 - Input sent to a script handles failures after Stop or process exit without leaving an unobserved
   task error. Hidden input fields are cleared, and late submissions cannot change a newer prompt.
