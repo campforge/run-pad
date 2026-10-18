@@ -2071,9 +2071,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RpadDocument?.FrontMatter is not { } fm) return "";
         return System.Text.Json.JsonSerializer.Serialize(new
         {
-            fm.Version, fm.Language, fm.TargetSdk, fm.Kind,
+            fm.Version,
+            fm.Language,
+            fm.TargetSdk,
+            fm.Kind,
             Packages = fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),
-            fm.References, fm.Namespaces, fm.Args,
+            fm.References,
+            fm.Namespaces,
+            fm.Args,
         });
     }
 
