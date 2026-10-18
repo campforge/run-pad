@@ -1844,7 +1844,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         ApplyDocument(rpad);
 
-        if (_vm.Example is not null && filePath is null)
+        if (filePath is not null)
+        {
+            editor.Document = new TextDocument(content);
+        }
+        else if (_vm.Example is not null)
         {
             // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
             editor.Document = new TextDocument(content);
@@ -1960,7 +1964,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         RefreshIntelliSenseUsings();
 
         var editor = State.Editor;
-        var (text, _) = CodeTemplate.TakeCaret(content);
+        var text = content;
         if (editor.Document.Text != text)
         {
             var caret = editor.CaretOffset;

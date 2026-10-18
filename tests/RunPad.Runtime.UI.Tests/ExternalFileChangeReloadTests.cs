@@ -280,6 +280,75 @@ public class ExternalFileChangeReloadTests
         Assert.False(vm.IsDirty);
     }
 
+    [AvaloniaFact]
+    public async Task Reload_Should_PreserveLiteralCaretMarker()
+    {
+        using var h = new Harness();
+        var (_, ctrl) = await h.OpenAsync();
+        const string code = "Console.WriteLine(\"${0}\");";
+        WriteExternally(h.Path, code);
+        await h.Tabs.CheckFilesChangedOnDiskAsync();
+        Assert.Equal(code, ctrl.State.Editor.Text.Trim());
+    }
+
+    [AvaloniaFact]
+    public async Task Reload_Should_NotReplaceTabThatStartedRunningDuringPrompt()
+    {
+        using var h = new Harness();
+        var (vm, ctrl) = await h.OpenAsync();
+        ctrl.State.Editor.Text = EditedHere + "\n";
+        WriteExternally(h.Path, External);
+        h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
+            .Returns(() => { vm.RunState = RunState.Run; return Task.FromResult(true); });
+        await h.Tabs.CheckFilesChangedOnDiskAsync();
+        Assert.Equal(EditedHere, ctrl.State.Editor.Text.Trim());
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Reload_Should_IgnoreDecisionAfterBaselineChanges(bool accept)
+    {
+        using var h = new Harness();
+        var (vm, ctrl) = await h.OpenAsync();
+        ctrl.State.Editor.Text = EditedHere + "\n";
+        WriteExternally(h.Path, External);
+        h.Windows.Setup(w => w.ShowReloadChangedFileDialogAsync(It.IsAny<string>()))
+            .Returns(() => { vm.DiskState = ScriptFileState.Read(h.Path); return Task.FromResult(accept); });
+        await h.Tabs.CheckFilesChangedOnDiskAsync();
+        Assert.Equal(EditedHere, ctrl.State.Editor.Text.Trim());
+        Assert.Null(vm.DeclinedDiskState);
+    }
+
+    [AvaloniaFact]
+    public async Task Revert_Should_LeaveTabAloneWhenSaveStartsDuringPrompt()
+    {
+        using var h = new Harness();
+        var (vm, ctrl) = await h.OpenAsync();
+        ctrl.State.Editor.Text = EditedHere + "\n";
+        var saving = new TaskCompletionSource<InPlaceSaveResult>();
+        h.Windows.Setup(w => w.ShowRevertFileDialogAsync(It.IsAny<string>()))
+            .Returns(() => { vm.PendingSave = saving.Task; return Task.FromResult(true); });
+        await h.Tabs.RevertActiveAsync();
+        Assert.Equal(EditedHere, ctrl.State.Editor.Text.Trim());
+        vm.PendingSave = null;
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OpenAndReload_Should_KeepLiteralMarkerInValidAndRawFiles(bool raw)
+    {
+        using var h = new Harness();
+        const string code = "Console.WriteLine(\"${0}\");";
+        File.WriteAllText(h.Path, raw ? code : RpadWriter.NewFile(code + "\n", "Demo"));
+        var (_, ctrl) = await h.OpenAsync();
+        Assert.Equal(code, ctrl.State.Editor.Text.Trim());
+        File.WriteAllText(h.Path, raw ? code + " // changed" : RpadWriter.NewFile(code + " // changed\n", "Demo"));
+        await h.Tabs.CheckFilesChangedOnDiskAsync();
+        Assert.Equal(code + " // changed", ctrl.State.Editor.Text.Trim());
+    }
+
     // ── The dialog ───────────────────────────────────────────────────────────
 
     private static async Task<bool?> AnswerAsync(ReloadFileDialog dialog, Action<ReloadFileDialog> answer)

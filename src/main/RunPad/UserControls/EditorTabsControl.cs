@@ -299,13 +299,15 @@ public partial class EditorTabsControl : UserControl, IDisposable
     internal async Task RevertActiveAsync()
     {
         if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null) return;
+        if (!CanReload(vm, path, vm.DiskState)) return;
+        var known = vm.DiskState;
         if (!File.Exists(path))
         {
             await _windowService.ShowErrorAsync("Revert Failed", $"'{Path.GetFileName(path)}' no longer exists on disk.");
             return;
         }
         if (vm.IsDirty && !await _windowService.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
-        if (_vm.ActiveTab != vm) return;
+        if (_vm.ActiveTab != vm || !CanReload(vm, path, known)) return;
         await ReloadAsync(vm, "Revert Failed");
     }
 
@@ -372,16 +374,24 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
             if (vm.IsDirty)
             {
-                if (!await _windowService.ShowReloadChangedFileDialogAsync(Path.GetFileName(path)))
+                var reload = await _windowService.ShowReloadChangedFileDialogAsync(Path.GetFileName(path));
+                if (!CanReload(vm, path, known)) continue;
+                if (!reload)
                 {
                     vm.DeclinedDiskState = onDisk;
                     continue;
                 }
-                if (!_tabs.ContainsKey(vm) || vm.FilePath != path) continue;
+
             }
             await ReloadAsync(vm, "Reload Failed");
         }
     }
+
+    // A dialog yields to saves, runs and tab removal; its decision belongs to the old baseline.
+    private bool CanReload(EditorTabItemViewModel vm, string path, ScriptFileState? known)
+        => !_disposed && _tabs.ContainsKey(vm) && vm.FilePath == path
+            && ReferenceEquals(vm.DiskState, known) && vm.RunState == RunState.Idle
+            && vm.PendingSave is not { IsCompleted: false };
 
     private async Task ReloadAsync(EditorTabItemViewModel vm, string errorTitle)
     {
