@@ -120,7 +120,8 @@
     <Setter Property="Padding" Value="12,8" />
     <Setter Property="Margin" Value="0,4" />
   </Style>
-  <Style Selector="Border.markdown-code-block > TextBlock">
+  <!-- Any depth: a lazy code block holds its lines in several text blocks. -->
+  <Style Selector="Border.markdown-code-block TextBlock">
     <Setter Property="FontFamily" Value="Cascadia Code, Consolas, Courier New, monospace" />
     <Setter Property="FontSize" Value="13" />
     <Setter Property="Foreground" Value="{DynamicResource MarkdownCodeBlockForeground}" />
