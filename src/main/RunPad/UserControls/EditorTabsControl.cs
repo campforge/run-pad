@@ -35,7 +35,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly IWindowService? _windowService;
     private readonly ILanguageHostRegistry? _registry;
     private readonly IPreferencesService? _prefs;
-    private readonly IRuntimeReferenceLocator? _runtimeReferences;
     private readonly IBuildCacheService? _buildCache;
 
     // ── Empty ctor: used by XAML previewer only ───────────────────────────────
@@ -52,7 +51,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        IRuntimeReferenceLocator runtimeReferences,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
     {
         InitializeComponent();
@@ -60,7 +58,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
-        _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
         _runLogger = runLogger;
         _themeService.ThemeChanged += OnThemeChanged;
@@ -469,7 +466,6 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _registry!,
             _prefs!,
             intelliSense,
-            _runtimeReferences!,
             _buildCache!, _runLogger
         );
     }

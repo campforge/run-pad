@@ -59,4 +59,8 @@ public sealed class EditorLanguageProfile
     // via ResourceKeyToGeometryConverter); null means "no icon for this language yet" — the file tree
     // falls back to its generic file icon (FileTreeViewNode.ShowGenericFileIcon).
     public string? IconResourceKey { get; init; }
+
+    // The file extension of the language's source (".cs", ".vb"): it picks the editor's syntax
+    // grammar, so the editor needs no list of languages. Null for none: plain text.
+    public string? SourceFileExtension { get; init; }
 }

@@ -1,4 +1,5 @@
 using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts;
@@ -60,6 +61,9 @@ public sealed class LanguageHostRegistry : ILanguageHostRegistry
 
     public ILanguageHost Create(string language, ILanguageHostOptions? options = null) =>
         GetFactory(language).Create(options);
+
+    public ILanguageHost Create(string language, ExecutionRequest request) =>
+        GetFactory(language).Create(request);
 
     private ILanguageHostFactory GetFactory(string language)
     {

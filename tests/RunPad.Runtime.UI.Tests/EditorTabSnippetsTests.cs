@@ -161,7 +161,7 @@ public class EditorTabSnippetsTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();

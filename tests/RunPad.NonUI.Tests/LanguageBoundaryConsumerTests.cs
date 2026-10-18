@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using RunPad.Languages.CSharp;
 using RunPad.UserControls;
 using RunPad.UserControls.Models;
@@ -38,6 +40,37 @@ public class LanguageBoundaryConsumerTests
                 "LeakyConsumer.references: System.Func`1[RunPad.Languages.CSharp.CSharpReferenceService]",
             ],
             LanguageTypesIn(typeof(LeakyConsumer)));
+    }
+
+    // Running a script only asks the language for a host with a plain ExecutionRequest: nothing in the
+    // app — tab, window or composition — builds the .NET backend's host options or resolves
+    // references itself, not even inside a method body, so the check reads the assembly's references.
+    [Fact]
+    public void TheApp_Should_NotBuildTheBackendsHostOptions()
+    {
+        Assert.Empty(BackendTypesReferencedBy(typeof(EditorTabsControl).Assembly));
+    }
+
+    internal static readonly string[] BackendExecutionTypes =
+    [
+        "RunPad.Languages.DotnetCommon.CompiledDotnetLanguageHostOptions",
+        "RunPad.Languages.DotnetCommon.ReferencePathResolver",
+        "RunPad.Build.Core.Models.ExecutionOptions",
+        "RunPad.Build.Core.Models.RuntimeOptions",
+        "RunPad.Build.Core.Models.DebuggerOptions",
+    ];
+
+    internal static IEnumerable<string> BackendTypesReferencedBy(Assembly assembly)
+    {
+        using var stream = File.OpenRead(assembly.Location);
+        using var pe = new PEReader(stream);
+        var metadata = pe.GetMetadataReader();
+        return metadata.TypeReferences
+            .Select(h => metadata.GetTypeReference(h))
+            .Select(t => metadata.GetString(t.Namespace) + "." + metadata.GetString(t.Name))
+            .Where(BackendExecutionTypes.Contains)
+            .Distinct()
+            .ToList();
     }
 
     internal static IEnumerable<string> LanguageTypesIn(Type type)

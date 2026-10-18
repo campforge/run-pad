@@ -62,7 +62,7 @@ public class EditorTabItemControlExceptionStopTests
         prefs.Setup(p => p.Debugger).Returns(new DebuggerSettings());
         var registry = new Mock<ILanguageHostRegistry>();
         if (languageHost is not null)
-            registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>())).Returns(languageHost);
+            registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>())).Returns(languageHost);
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(
             new InterfaceTheme("Test", ThemeVariant.Dark, true),
@@ -70,8 +70,7 @@ public class EditorTabItemControlExceptionStopTests
         var vm = new EditorTabItemViewModel(
             filePath: null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var control = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
-            registry.Object, prefs.Object, intelliSense: null, new DotnetRuntimeReferenceLocator(),
-            new Mock<IBuildCacheService>().Object);
+            registry.Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = control, Width = 1000, Height = 800 };
         host.Show();
         return (control, vm, host);

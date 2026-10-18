@@ -33,7 +33,7 @@ public class RunSaveConflictTests : IDisposable
     private readonly string _root = Directory.CreateTempSubdirectory("runpad-run-save").FullName;
     private readonly string _script;
     private readonly Mock<IWindowService> _windows = new();
-    private readonly List<ILanguageHostOptions> _runs = [];
+    private readonly List<ExecutionRequest> _runs = [];
 
     public RunSaveConflictTests()
     {
@@ -72,15 +72,15 @@ public class RunSaveConflictTests : IDisposable
             .ReturnsAsync(RunResult.Exited(0));
         host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
         var registry = new Mock<ILanguageHostRegistry>();
-        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()))
-            .Callback<string, ILanguageHostOptions>((_, o) => _runs.Add(o)).Returns(host.Object);
+        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
+            .Callback<string, ExecutionRequest>((_, request) => _runs.Add(request)).Returns(host.Object);
         var buildCache = new Mock<IBuildCacheService>();
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(() => Directory.CreateDirectory(Path.Combine(_root, "build")).FullName);
 
         var vm = new EditorTabItemViewModel(_script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, registry.Object, prefs.Object,
-            intelliSense: null, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            intelliSense: null, buildCache.Object);
         var window = new Window { Content = ctrl };
         window.Show();
         Dispatcher.UIThread.RunJobs();
@@ -180,7 +180,7 @@ public class RunSaveConflictTests : IDisposable
             await ctrl.RunAsync(debug: false, Sdk);
 
             Assert.Equal(other, vm.FilePath);
-            Assert.Equal(other, Assert.IsType<CompiledDotnetLanguageHostOptions>(Assert.Single(_runs)).CurrentQueryPath);
+            Assert.Equal(other, Assert.Single(_runs).CurrentQueryPath);
             Assert.Equal(External, CodeIn(_script));
             Assert.False(vm.IsDirty);
         }

@@ -3,7 +3,7 @@ using System.Xml.Linq;
 using NuGet.Configuration;
 using RunPad.Contracts;
 
-namespace RunPad.Languages.CSharp;
+namespace RunPad.Languages.DotnetCommon;
 
 // RunPad's own NuGet.Config (ApplicationData/RunPad/NuGet.Config, next to settings.json). Package
 // search reads it and every script build restores with it (RestoreConfigFile), so the sources the

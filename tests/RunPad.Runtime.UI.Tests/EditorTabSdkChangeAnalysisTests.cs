@@ -57,7 +57,7 @@ public class EditorTabSdkChangeAnalysisTests
         var vm = new EditorTabItemViewModel(
             null, [Current, Older], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, intelliSense, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            prefs.Object, intelliSense, new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();
         return (ctrl, vm);
     }
@@ -74,7 +74,7 @@ public class EditorTabSdkChangeAnalysisTests
     public void SelectingAnotherSdk_Should_ReanalyseTheUnchangedText_AfterApplyingItsContext()
     {
         var calls = new List<string>();
-        var intelliSense = new Mock<IIntelliSenseService>();
+        var intelliSense = new Mock<IIntelliSenseService>().ForwardingExecutionContext();
         intelliSense.Setup(s => s.UpdatePackageReferences(It.IsAny<IReadOnlyDictionary<string, Package>>(), It.IsAny<PackageReferenceContext>()))
             .Callback<IReadOnlyDictionary<string, Package>, PackageReferenceContext>((_, c) => calls.Add("context " + c.TargetFramework));
         intelliSense.Setup(s => s.NotifyTextChanged(It.IsAny<string>())).Callback<string>(t => calls.Add("analyse " + t));
