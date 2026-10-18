@@ -42,6 +42,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private SemanticHighlighter? _semanticHighlighter;
     private InlayHintRenderer? _inlayHintRenderer;
     private IIntelliSenseService? _intelliSense;
+    internal IIntelliSenseService? IntelliSenseForTests => _intelliSense;
     private bool _runPadAnalyzers;
 
     // Raw (unfiltered) lightbulb candidate lists — see UpdateLightbulb's own doc comment for why
@@ -554,6 +555,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     public void Dispose()
     {
+        // Once: the editor services it owns must not be disposed twice.
+        if (_disposed) return;
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _viewScale.Changed -= OnViewScaleChanged;
@@ -564,7 +567,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
         State.RunCts?.Dispose();
-        _intelliSense?.Dispose(); // owned by this tab now — see EditorTabsControl.CreateControl
+        _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
 

@@ -6,12 +6,14 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.VB;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -30,6 +32,14 @@ public class MainWindowChromeTests
 {
     private static MainWindow CreateMainWindow(IWindowService? windowService = null)
         => CreateMainWindow(new KeyboardSettings(), new Mock<IPreferencesService>(), windowService);
+
+    // The languages the app registers, in its order.
+    private static LanguageHostRegistry Languages(params ILanguageHostFactory[] factories)
+    {
+        var registry = new LanguageHostRegistry();
+        foreach (var factory in factories) registry.Register(factory);
+        return registry;
+    }
 
     private static MainWindow CreateMainWindow(
         KeyboardSettings keyboard, Mock<IPreferencesService> prefs, IWindowService? windowService = null)
@@ -58,10 +68,11 @@ public class MainWindowChromeTests
             fileSystemService: fileSystem.Object,
             windowService: windowService ?? new Mock<IWindowService>().Object,
             prefs: prefs.Object,
-            languageRegistry: new LanguageHostRegistry());
+            languageRegistry: Languages(new CSharpLanguageHostFactory(NullLoggerFactory.Instance),
+                new VbLanguageHostFactory(NullLoggerFactory.Instance)));
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
             new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
         return new MainWindow(prefs.Object, editorTabs, mainVm);

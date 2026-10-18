@@ -60,7 +60,7 @@ public class EditorTabsControlTabActionsWiringTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
             new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
         var host = new Window { Content = editorTabs };

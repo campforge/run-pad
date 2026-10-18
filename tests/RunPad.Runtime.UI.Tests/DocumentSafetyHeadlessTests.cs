@@ -60,8 +60,8 @@ public class DocumentSafetyHeadlessTests
 
         var intelliSense = new Mock<IIntelliSenseService>();
         var editorTabs = new EditorTabsControl(
-            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object, prefs.Object,
-            () => intelliSense.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
+            new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
         window.Show();

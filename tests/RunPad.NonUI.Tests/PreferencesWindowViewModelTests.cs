@@ -45,6 +45,17 @@ public class PreferencesWindowViewModelTests
         return registry;
     }
 
+    // The default new-file language offers the registered languages, in their order, as before.
+    [Fact]
+    public void TheNewFileLanguageChoices_Should_FollowTheRegisteredLanguages()
+    {
+        Assert.Equal([RpadLanguage.CSharp, RpadLanguage.Vb], CreateViewModel(CreateRealRegistry()).AvailableNewFileLanguages);
+
+        var vbOnly = new LanguageHostRegistry();
+        vbOnly.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
+        Assert.Equal([RpadLanguage.Vb], CreateViewModel(vbOnly).AvailableNewFileLanguages);
+    }
+
     // The Keyboard page lists every command of the catalog; editing a row writes the binding to
     // the same KeyboardSettings object MainWindow/FileTreeView read from, and saves.
     [Fact]

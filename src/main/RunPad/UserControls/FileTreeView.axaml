@@ -29,20 +29,11 @@
                         </MenuItem.Icon>
                     </MenuItem>
                     <Separator />
-                    <MenuItem Header="New File">
+                    <!-- One item per registered language, added by FileTreeView.OnDataContextChanged. -->
+                    <MenuItem Name="NewFileMenu" Header="New File">
                         <MenuItem.Icon>
                             <PathIcon Data="{StaticResource Icon.Plus}" Width="16" Height="16" />
                         </MenuItem.Icon>
-                        <MenuItem Header="C#" Click="ContextCreateFileCSharp_Click">
-                            <MenuItem.Icon>
-                                <PathIcon Data="{StaticResource Icon.LanguageCSharp}" Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
-                        <MenuItem Header="Visual Basic" Click="ContextCreateFileVb_Click">
-                            <MenuItem.Icon>
-                                <PathIcon Data="{StaticResource Icon.LanguageVb}" Width="16" Height="16" />
-                            </MenuItem.Icon>
-                        </MenuItem>
                     </MenuItem>
                     <MenuItem Header="New Folder" Click="ContextCreateFolder_Click">
                         <MenuItem.Icon>

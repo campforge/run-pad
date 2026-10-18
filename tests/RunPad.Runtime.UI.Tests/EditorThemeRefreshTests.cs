@@ -65,8 +65,8 @@ public class EditorThemeRefreshTests : IDisposable
         fileSystem.Setup(f => f.Folder).Returns(_root);
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var shell = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
-        var tabs = new EditorTabsControl(_theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, () => _intelliSense.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+        var tabs = new EditorTabsControl(_theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => _intelliSense.Object),
+            prefs.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
         var host = new Window { Width = 900, Height = 700, Content = tabs };
         host.Show();
         tabs.Attach(shell);
@@ -170,6 +170,29 @@ public class EditorThemeRefreshTests : IDisposable
             Assert.Equal(darkString, await WaitForColorAsync(editor, StringLiteral, darkString));
             Assert.Equal(Semantic(dark: true), await WaitForColorAsync(editor, ClassName, Semantic(dark: true)));
             Assert.Equal(Code, editor.Text);
+        }
+        finally { host.Close(); }
+    }
+
+    // A theme switch recolours the editor; it never recreates or replaces the tab's editor services.
+    [AvaloniaFact]
+    public async Task AThemeSwitch_Should_KeepTheTabsEditorServices()
+    {
+        var (tabs, shell, host) = Open();
+        try
+        {
+            shell.OpenTab(Script("services.rpad"));
+            var ctrl = await ShownAsync(tabs, shell.ActiveTab!);
+            var services = ctrl.IntelliSenseForTests;
+            Assert.Same(_intelliSense.Object, services);
+            // Every tab here shares this one fake: the initial blank tab disposed it when it closed.
+            var disposals = _intelliSense.Invocations.Count(i => i.Method.Name == nameof(IDisposable.Dispose));
+
+            SwitchTo(Dark);
+            SwitchTo(Light);
+
+            Assert.Same(services, ctrl.IntelliSenseForTests);
+            Assert.Equal(disposals, _intelliSense.Invocations.Count(i => i.Method.Name == nameof(IDisposable.Dispose)));
         }
         finally { host.Close(); }
     }

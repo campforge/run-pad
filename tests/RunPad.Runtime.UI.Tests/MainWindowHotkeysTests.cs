@@ -76,7 +76,7 @@ public class MainWindowHotkeysTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object, () => intelliSense.Object,
+            theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
             new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
@@ -327,8 +327,8 @@ public class MainWindowHotkeysTests
             languageRegistry: new LanguageHostRegistry());
 
         var editorTabs = new EditorTabsControl(
-            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, () => new Mock<IIntelliSenseService>().Object,
+            theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => new Mock<IIntelliSenseService>().Object),
+            prefs.Object,
             new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);

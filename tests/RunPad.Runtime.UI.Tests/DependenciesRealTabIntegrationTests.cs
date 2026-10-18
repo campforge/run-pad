@@ -89,8 +89,8 @@ public class DependenciesRealTabIntegrationTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-                () => intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                theme, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
+                new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             DependenciesWindow? depsWindow = null;

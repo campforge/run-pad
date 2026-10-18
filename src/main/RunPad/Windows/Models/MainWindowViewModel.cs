@@ -221,7 +221,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // empty and in-memory-only; it only becomes a real file the first time the user does Save or
     // Save As (SaveTabAsAsync below). language/kind are carried on the tab itself
     // (EditorTabItemViewModel.NewFileLanguage/NewFileKind) since there's no front matter on disk yet
-    // for EditorsTabItemControl.SetDocumentContent/EditorTabsControl.CreateControlAsync to read them
+    // for EditorsTabItemControl.SetDocumentContent/EditorTabsControl.CreateIntelliSenseAsync to read them
     // from.
     public void NewRpadFile(RpadLanguage language = RpadLanguage.CSharp, RpadKind kind = RpadKind.Statements)
     {
@@ -234,6 +234,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // never has to show NewFileKindDialog. The explicit File > New RPad File submenu (still asking via
     // the dialog) and the file tree's own "New File" (writes to disk immediately) are
     // both untouched — this only adds a third, dialog-free entry point.
+    // File > New RPad File's choices: the registered languages.
+    public IReadOnlyList<NewFileLanguageChoice> NewFileLanguages { get; }
+
     public void NewRpadFileWithDefaults() => NewRpadFile(_prefs.Editor.NewFileLanguage, _prefs.Editor.NewFileKind);
 
     public void OpenTab(string? filePath)
@@ -711,6 +714,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // property initializer (which would run before _prefs is assigned above) into the
         // constructor body.
         _languageRegistry = languageRegistry;
+        NewFileLanguages = NewFileLanguageChoice.From(languageRegistry);
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
