@@ -193,7 +193,7 @@ public class EditorTabItemControlInputPromptTests
         var log = Assert.Single(logger.Invocations, i => i.Method.Name == "Log");
         Assert.Equal(LogLevel.Error, log.Arguments[0]);
         Assert.Null(log.Arguments[3]);
-        Assert.DoesNotContain("private-password", log.Arguments[2].ToString());
+        Assert.DoesNotContain("private-password", log.Arguments[2]?.ToString());
         Assert.Equal("", ctrl.InputPromptBoxText);
         ctrl.Dispose();
     }
