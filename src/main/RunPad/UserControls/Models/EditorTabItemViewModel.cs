@@ -83,7 +83,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     public ReactiveCommand<Unit, Unit> OpenContainingFolderCommand { get; }
 
     // Reactive (rather than a plain auto-property) because tab creation loads the Roslyn
-    // workspace/BCL metadata off the UI thread (see EditorTabsControl.CreateControlAsync) — the tab
+    // workspace/BCL metadata off the UI thread (see EditorTabsControl.CreateIntelliSenseAsync) — the tab
     // becomes ActiveTab and is clickable before this is set. Without change notification, opening the
     // Dependencies window (WindowService.ShowDependenciesAsync) during that window would take a
     // one-time null snapshot and the "+" buttons would stay disabled for the rest of that dialog's

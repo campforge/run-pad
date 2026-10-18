@@ -393,13 +393,32 @@ public partial class FileTreeView : UserControl
         => RaiseEvent(new FileTreeCreateFolderEventArgs(
             CreateFolderEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath));
 
-    private void ContextCreateFileCSharp_Click(object? sender, RoutedEventArgs e)
-        => RaiseEvent(new FileTreeCreateFileEventArgs(
-            CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, RpadLanguage.CSharp));
+    private void ContextCreateFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: RpadLanguage language })
+            RaiseEvent(new FileTreeCreateFileEventArgs(
+                CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, language));
+    }
 
-    private void ContextCreateFileVb_Click(object? sender, RoutedEventArgs e)
-        => RaiseEvent(new FileTreeCreateFileEventArgs(
-            CreateFileEvent, (_fileTree.SelectedItem as FileTreeViewNode)?.FilePath, RpadLanguage.Vb));
+    // The New File submenu offers the registered languages, with their own names and icons.
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        var menu = this.FindControl<MenuItem>("NewFileMenu")!;
+        menu.Items.Clear();
+        if (DataContext is not FileTreeViewModel vm) return;
+        foreach (var language in vm.NewFileLanguages)
+        {
+            var item = new MenuItem { Header = language.DisplayName, Tag = language.Language };
+            // The data context can arrive before the view is in a window: then only the app has the icons.
+            if (language.IconResourceKey is { } key
+                && (this.TryFindResource(key, out var icon) || Application.Current?.TryFindResource(key, out icon) == true)
+                && icon is Geometry data)
+                item.Icon = new PathIcon { Data = data, Width = 16, Height = 16 };
+            item.Click += ContextCreateFile_Click;
+            menu.Items.Add(item);
+        }
+    }
 
     /// <summary>Enters rename mode for the node at <paramref name="filePath"/>, if it's currently in
     /// the tree — called back from MainWindow right after CreateFolder completes, so a freshly

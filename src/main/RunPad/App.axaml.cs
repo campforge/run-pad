@@ -6,9 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using RunPad.Contracts;
-using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.IntelliSense;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Languages.VB;
@@ -144,24 +142,9 @@ public class App : Application
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             LanguageHostRegistry registry = new();
-            registry.Register(new CSharpLanguageHostFactory(loggerFactory));
+            registry.Register(new CSharpLanguageHostFactory(loggerFactory, sp.GetRequiredService<IRuntimeReferenceLocator>()));
             registry.Register(new VbLanguageHostFactory(loggerFactory));
             return registry;
-        });
-
-        // ToDo: some stuff here that should move directly into the language implementation
-        services.AddSingleton<CSharpReferenceService>();
-        // One IIntelliSenseService instance per tab, not a shared singleton: each open script can
-        // reference different NuGet packages, and CSharpIntelliSenseService is stateful (one
-        // AdhocWorkspace/document per instance). A shared instance would let one tab's package
-        // references and last-synced text stomp another tab's — see EditorTabsControl.CreateControl.
-        services.AddSingleton<Func<IIntelliSenseService>>(sp => () =>
-        {
-            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var refService = sp.GetRequiredService<CSharpReferenceService>();
-            var runtime = sp.GetRequiredService<IRuntimeReferenceLocator>();
-            return new CSharpIntelliSenseService(refService.GetDefault(), loggerFactory.CreateLogger<CSharpIntelliSenseService>(),
-                additionalReferencePaths: [runtime.GetRuntimeAssemblyPath()]);
         });
 
         services.AddTransient<MainWindow>();
@@ -175,17 +158,15 @@ public class App : Application
         services.AddSingleton<EditorTabsControl>();
 
         // WindowService's own Func<TWindow> factories (a fresh Transient instance
-        // each time a dialog is shown, same reasoning as Func<IIntelliSenseService> above).
+        // each time a dialog is shown).
         services.AddSingleton<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
         services.AddSingleton<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
 
         var provider = services.BuildServiceProvider();
 
         // ToDo: split this out into a dedicated app warmup service
-        // Kick off Roslyn warmup in the background so the first tab's completion is fast.
-        // Uses a throwaway instance — the expensive part (RunPadRoslynHost.HostServices / MEF
-        // composition) is a process-wide lazy singleton shared by every instance the factory creates.
-        _ = Task.Run(() => provider.GetRequiredService<Func<IIntelliSenseService>>()().NotifyTextChanged(""));
+        // Each language prepares its editor services in the background so the first tab's completion is fast.
+        _ = Task.Run(() => provider.GetRequiredService<ILanguageHostRegistry>().WarmUpIntelliSense());
 
         // Reclaim build-cache directories for files that haven't been run in a while, so
         // %TEMP%\RunPad doesn't grow unbounded now that directories persist across restarts.

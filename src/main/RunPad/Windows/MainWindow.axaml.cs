@@ -248,8 +248,8 @@ public sealed partial class MainWindow : Window, IDisposable
                 Item("_New File", KeyCommands.NewFile),
                 new MainMenuGroup("New _RPad File",
                 [
-                    new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
-                    new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
+                    .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
+                        l.DisplayName, ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(l.Language)))),
                 ]),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import .linq Query...", vm.ImportLinqFileCommand),

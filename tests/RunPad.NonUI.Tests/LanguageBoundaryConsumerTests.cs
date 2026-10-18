@@ -1,13 +1,16 @@
 using System.Reflection;
 using RunPad.Languages.CSharp;
 using RunPad.UserControls;
+using RunPad.UserControls.Models;
+using RunPad.Windows;
+using RunPad.Windows.Models;
 using Xunit;
 
 namespace RunPad.NonUI.Tests;
 
-// The editor tabs get what they need from the language modules through contracts, so neither tab
-// control's constructor, fields or method signatures may name a type from a concrete language
-// assembly. Registering those modules is the composition root's job (App).
+// The editor tabs and the language menus get what they need from the language modules through
+// contracts, so none of these consumers' constructors, fields or method signatures may name a type
+// from a concrete language assembly. Registering those modules is the composition root's job (App).
 public class LanguageBoundaryConsumerTests
 {
     private static readonly string[] LanguageAssemblies = ["RunPad.Languages.CSharp", "RunPad.Languages.VB"];
@@ -15,6 +18,11 @@ public class LanguageBoundaryConsumerTests
     [Theory]
     [InlineData(typeof(EditorsTabItemControl))]
     [InlineData(typeof(EditorTabsControl))]
+    [InlineData(typeof(MainWindow))]
+    [InlineData(typeof(MainWindowViewModel))]
+    [InlineData(typeof(FileTreeView))]
+    [InlineData(typeof(FileTreeViewModel))]
+    [InlineData(typeof(PreferencesWindowViewModel))]
     public void TheTabControls_Should_NotDependOnAConcreteLanguage(Type type)
     {
         Assert.Empty(LanguageTypesIn(type));

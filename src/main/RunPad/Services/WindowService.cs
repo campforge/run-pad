@@ -13,8 +13,7 @@ namespace RunPad.Services;
 
 // Used to take the whole IServiceProvider and resolve dependencies inside each method
 // (Service Locator — DIP violation, constructor didn't document real dependencies, hard to test in
-// isolation). Explicit Func<TWindow> factories instead — same technique already used for
-// Func<IIntelliSenseService> in App.axaml.cs's ConfigureServices, registered there the same way.
+// isolation). Explicit Func<TWindow> factories instead, registered in App.axaml.cs's ConfigureServices.
 // DependenciesWindow/PreferencesWindow are DI-registered as Transient (a fresh instance each time
 // they're shown), so a Func<T> factory — not a direct T — is the right shape for both.
 public sealed class WindowService : IWindowService

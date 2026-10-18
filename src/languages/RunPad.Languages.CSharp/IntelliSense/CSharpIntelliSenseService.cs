@@ -242,7 +242,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private Task? _backgroundAnalysisTask;
 
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
-    // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
+    // CreateIntelliSenseAsync) — MetadataReferences are immutable and safe to share across unrelated
     // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
     // for the same ~167 default BCL reference assemblies from scratch.
     internal static readonly ConcurrentDictionary<string, MetadataReference> ReferenceCache =
