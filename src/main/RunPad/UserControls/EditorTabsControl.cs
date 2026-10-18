@@ -78,7 +78,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         // Restores the previous session's open tabs
         // (in order) + active tab instead of always starting from one blank tab.
-        vm.RestoreSession();
+        _ = vm.RestoreSessionAsync();
     }
 
     // Dependencies window copies its draft into the active tab's RpadFrontMatter only on OK.
@@ -443,7 +443,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // A creation cancelled because the tab closed comes back as null.
     private async Task<IIntelliSenseService?> CreateIntelliSenseAsync(EditorTabItemViewModel vm, CancellationToken cancellationToken)
     {
-        var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekDocumentLanguage(vm.FilePath);
+        var language = vm.RestoredRecovery is { } recovered
+            ? recovered.Document?.FrontMatter.Language
+            : vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekDocumentLanguage(vm.FilePath);
         if (_registry is not { } registry || language is not { } known || known == RpadLanguage.Unknown) return null;
         var id = known.ToLanguageId();
         try

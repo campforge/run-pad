@@ -7,6 +7,7 @@ using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Shared;
 
 namespace RunPad.UserControls.Models;
@@ -23,6 +24,12 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // constructed by MainWindowViewModel BEFORE its control). IEditorTabActions' Save/Duplicate
     // implementations read this instead of taking it as a parameter, so this ViewModel's commands
     // can delegate straight to _actions without waiting for the View to hand a callback down first.
+    internal Guid RecoveryId { get; init; } = Guid.NewGuid();
+    internal RecoveryTab? RestoredRecovery { get; init; }
+    internal Func<RecoveryTab>? CaptureRecovery { get; set; }
+    internal TaskCompletionSource RecoveryReady { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal bool RequiresBaselineConfirmation { get; set; }
+
     internal Action<string>? WriteToFile { get; set; }
 
     // What this tab's file held when the tab last read it or wrote it itself; null while unknown (a
@@ -35,7 +42,11 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     internal void AcceptWrittenState(string path)
     {
-        if (LastWrite is { } written && written.Path == path) DiskState = written.State;
+        if (LastWrite is { } written && written.Path == path)
+        {
+            DiskState = written.State;
+            RequiresBaselineConfirmation = false;
+        }
     }
 
     // An in-place save still waiting for the user's choice (see InPlaceSave).

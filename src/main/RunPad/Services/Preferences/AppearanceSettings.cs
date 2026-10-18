@@ -5,6 +5,7 @@ namespace RunPad.Services.Preferences;
 
 public sealed class AppearanceSettings
 {
+    public bool RestoreUnsavedTabs { get; set; } = true;
     public ThemeMode Mode { get; set; } = ThemeMode.System;
     public string DarkInterfaceTheme { get; set; } = "VS Code Dark";
     public string LightInterfaceTheme { get; set; } = "VS Code Light";

@@ -12,7 +12,7 @@ public sealed record RecoveryTab
     public bool IsDirty { get; init; }
     public bool BaselineKnown { get; init; }
     public byte[]? DiskHash { get; init; }
-    public string MetadataBaseline { get; init; } = "";
+    public string? MetadataBaseline { get; init; }
     public int CaretOffset { get; init; }
     public int SelectionStart { get; init; }
     public int SelectionLength { get; init; }
@@ -29,6 +29,7 @@ public sealed record RecoverySnapshot
 
 public interface IRecoveryStore : IDisposable
 {
+    string? Warning => null;
     Task<RecoverySnapshot?> LoadAsync();
     Task CommitAsync(RecoverySnapshot snapshot);
 }

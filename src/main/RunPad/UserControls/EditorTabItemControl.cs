@@ -23,6 +23,7 @@ using RunPad.Resources;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
@@ -185,6 +186,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+        _vm.CaptureRecovery = CaptureRecovery;
+        _vm.RecoveryReady.TrySetResult();
 
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
@@ -1795,12 +1798,38 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
+    internal RecoveryTab CaptureRecovery() => new()
+    {
+        Id = _vm.RecoveryId,
+        FilePath = _vm.FilePath,
+        EditorText = State.Editor.Text,
+        Document = State.RpadDocument?.CaptureSnapshot(),
+        ParseError = State.DocumentParseError,
+        IsDirty = _vm.IsDirty || FrontMatterSnapshot() != _metadataBaseline,
+        BaselineKnown = !_vm.RequiresBaselineConfirmation && _vm.DiskState is not null,
+        DiskHash = _vm.DiskState?.Hash?.ToArray(),
+        MetadataBaseline = _metadataBaseline,
+        CaretOffset = State.Editor.CaretOffset,
+        SelectionStart = State.Editor.SelectionStart,
+        SelectionLength = State.Editor.SelectionLength,
+    };
+
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {
         string content;
         RpadDocument? rpad = null;
 
-        if (filePath is null && _vm.Example is { } example)
+        if (_vm.RestoredRecovery is { } recovered)
+        {
+            rpad = recovered.Document is null ? null : RpadDocument.FromSnapshot(recovered.Document);
+            content = recovered.EditorText;
+            State.DocumentParseError = recovered.ParseError;
+            _vm.DiskState = recovered.BaselineKnown ? new ScriptFileState(recovered.DiskHash?.ToArray()) : null;
+            _vm.RequiresBaselineConfirmation = !recovered.BaselineKnown;
+            if (filePath is not null)
+                State.OutputDirectory = _buildCache.EnsureOutputDirectory(filePath, EnsureWorkDirectory());
+        }
+        else if (filePath is null && _vm.Example is { } example)
         {
             // An example: an untitled, editable copy of its whole document — the code, its front
             // matter and the Markdown around it, which Save As writes out — never the original.
@@ -1888,7 +1917,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
 
-        if (_vm.Example is not null && filePath is null)
+        if (_vm.RestoredRecovery is { } snapshot)
+        {
+            // A recovery payload is exact editor text, never a template: even ${0} is literal.
+            editor.Document = new TextDocument(content);
+            _metadataBaseline = snapshot.MetadataBaseline ?? FrontMatterSnapshot();
+            _vm.IsDirty = snapshot.IsDirty;
+            editor.Select(Math.Clamp(snapshot.SelectionStart, 0, content.Length),
+                Math.Clamp(snapshot.SelectionLength, 0, content.Length - Math.Clamp(snapshot.SelectionStart, 0, content.Length)));
+            editor.CaretOffset = Math.Clamp(snapshot.CaretOffset, 0, content.Length);
+        }
+        else if (filePath is not null)
+        {
+            editor.Document = new TextDocument(content);
+        }
+        else if (_vm.Example is not null && filePath is null)
         {
             // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
             editor.Document = new TextDocument(content);
@@ -1955,12 +1998,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private string FrontMatterSnapshot()
     {
         if (State.RpadDocument?.FrontMatter is not { } fm) return "";
-        var packages = fm.Packages is null
-            ? ""
-            : string.Join(";", fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value.Version}"));
-        return string.Join("\n",
-            fm.Version, fm.Language, fm.TargetSdk, fm.Kind, packages,
-            string.Join(";", fm.References ?? []), string.Join(";", fm.Namespaces ?? []));
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            fm.Version, fm.Language, fm.TargetSdk, fm.Kind,
+            Packages = fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),
+            fm.References, fm.Namespaces, fm.Args,
+        });
     }
 
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
