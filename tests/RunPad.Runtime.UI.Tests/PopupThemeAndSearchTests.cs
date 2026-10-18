@@ -73,6 +73,12 @@ public class PopupThemeAndSearchTests
             var input = search.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "PART_searchTextBox");
             var replace = search.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "PART_replaceTextBox");
             Assert.True(replace.IsEffectivelyVisible);
+            var close = search.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "CloseSearchButton");
+            Assert.True(close.TranslatePoint(default, host)!.Value.X >= input.TranslatePoint(default, host)!.Value.X + input.Bounds.Width);
+            Assert.True(close.TranslatePoint(default, host)!.Value.X + close.Bounds.Width <= host.ClientSize.Width);
+            Assert.Equal(input.Bounds.Width, replace.Bounds.Width, 1);
+            Assert.True(input.Bounds.Width >= (width >= 700 ? 360 : 200));
+            Assert.Equal(input.TranslatePoint(default, host)!.Value.X, replace.TranslatePoint(default, host)!.Value.X, 1);
             Assert.True(replace.TranslatePoint(default, host)!.Value.Y > input.TranslatePoint(default, host)!.Value.Y);
             search.ReplacePattern = "three";
             search.ReplaceAll();
