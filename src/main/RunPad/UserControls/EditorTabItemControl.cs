@@ -1829,24 +1829,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         else if (File.Exists(filePath))
         {
-            // Decoded as File.ReadAllText does; the exact bytes are what later saves compare with.
-            var bytes = File.ReadAllBytes(filePath);
-            _vm.DiskState = ScriptFileState.Of(bytes);
-            string raw;
-            using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
-                raw = reader.ReadToEnd();
-            var parsed = RpadParser.Parse(raw);
-            rpad = parsed.Document;
-            // Invalid document: show the whole file as-is instead of default metadata —
-            // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
-            content = rpad?.RunCode ?? raw;
-            State.DocumentParseError = parsed.Error;
-            if (parsed.Error is { } error)
-            {
-                State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(error))}</div>");
-                SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
-                UpdateOutputUi();
-            }
+            (content, rpad) = ReadScript(File.ReadAllBytes(filePath));
 
             // Allocate/reuse this file's persistent build directory now, at open time, rather than
             // lazily on first Run — see EnsureWorkDirectory/BuildRunOptions for how it's consumed.
@@ -1859,39 +1842,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (filePath is not null) _vm.DiskState = ScriptFileState.Absent;
         }
 
-        State.RpadDocument = rpad;
-        _metadataBaseline = FrontMatterSnapshot();
-        _vm.FrontMatter = rpad?.FrontMatter;
-        _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
-        // The toolbar shows the SDK the script's targetSdk names: "latest (…)" for `latest`, else that
-        // version (or the newest, when it isn't installed — RunAsync then says so).
-        var targetSdk = rpad?.FrontMatter.TargetSdk ?? TargetSdk.Default;
-        _syncingSdk = true;
-        try
-        {
-            _vm.SelectedSdk = TargetSdkResolver.IsLatest(targetSdk)
-                ? _vm.LatestSdk
-                : TargetSdkResolver.Resolve(_vm.AvailableSdks, targetSdk);
-        }
-        finally
-        {
-            _syncingSdk = false;
-        }
-
-        // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
-        // editor.Document below fires TextChanged synchronously, which is what actually triggers the
-        // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
-        // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
-        // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
-        // UpdateGlobalUsings only invalidate the cached analysis document, they don't themselves
-        // trigger a fresh pass. For a Program-kind file, that meant a spurious "declared but never
-        // used" CS8321 on the user's own Main sitting in the diagnostics panel until their next
-        // keystroke; for a file with front-matter packages/usings, spurious "type not found"
-        // squiggles for anything only resolvable through them.
-        RefreshIntelliSenseKind();
-        RefreshIntelliSensePackages();
-        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
-            RefreshIntelliSenseUsings();
+        ApplyDocument(rpad);
 
         if (_vm.Example is not null && filePath is null)
         {
@@ -1911,6 +1862,120 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // having to open the front matter by hand. Was left commented out with the XAML control
         // itself missing — both restored.
         UpdateProjectInfoBlock();
+    }
+
+    // The script in a file's exact bytes, which become what later saves compare the file with. An
+    // invalid document comes back as the whole file and no RpadDocument, and says why in the output.
+    private (string Content, RpadDocument? Document) ReadScript(byte[] bytes)
+    {
+        _vm.DiskState = ScriptFileState.Of(bytes);
+        var raw = DecodeScript(bytes);
+        var parsed = RpadParser.Parse(raw);
+        // Invalid document: show the whole file as-is instead of default metadata —
+        // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
+        State.DocumentParseError = parsed.Error;
+        if (parsed.Error is { } error)
+        {
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(error))}</div>");
+            SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+        }
+        return (parsed.Document?.RunCode ?? raw, parsed.Document);
+    }
+
+    // Decoded as File.ReadAllText does.
+    private static string DecodeScript(byte[] bytes)
+    {
+        using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    // Makes rpad the tab's document: the toolbar, IntelliSense and the baseline that tells a
+    // front-matter edit apart follow its header. The editor's text is the caller's to set.
+    private void ApplyDocument(RpadDocument? rpad)
+    {
+        State.RpadDocument = rpad;
+        _metadataBaseline = FrontMatterSnapshot();
+        _vm.FrontMatter = rpad?.FrontMatter;
+        _vm.SelectedKind = rpad?.FrontMatter.Kind.ToString() ?? "Statements";
+        // The toolbar shows the SDK the script's targetSdk names: "latest (…)" for `latest`, else that
+        // version (or the newest, when it isn't installed — RunAsync then says so).
+        var targetSdk = rpad?.FrontMatter.TargetSdk ?? TargetSdk.Default;
+        _syncingSdk = true;
+        try
+        {
+            _vm.SelectedSdk = TargetSdkResolver.IsLatest(targetSdk)
+                ? _vm.LatestSdk
+                : TargetSdkResolver.Resolve(_vm.AvailableSdks, targetSdk);
+        }
+        finally
+        {
+            _syncingSdk = false;
+        }
+
+        // Push kind/packages/usings into IntelliSense BEFORE the caller hands the editor its text:
+        // setting editor.Document fires TextChanged synchronously, which is what actually triggers the
+        // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
+        // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
+        // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
+        // UpdateGlobalUsings only invalidate the cached analysis document, they don't themselves
+        // trigger a fresh pass. For a Program-kind file, that meant a spurious "declared but never
+        // used" CS8321 on the user's own Main sitting in the diagnostics panel until their next
+        // keystroke; for a file with front-matter packages/usings, spurious "type not found"
+        // squiggles for anything only resolvable through them.
+        RefreshIntelliSenseKind();
+        RefreshIntelliSensePackages();
+        if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
+            RefreshIntelliSenseUsings();
+    }
+
+    /// <summary>
+    /// Replaces the tab's script with what its file holds now — the code as one undoable edit, so
+    /// Undo brings back the text it replaced — and leaves the tab saved. The caller decides whether
+    /// unsaved edits may go.
+    /// </summary>
+    internal DiskReload ReloadFromDisk()
+    {
+        if (_disposed || _vm.FilePath is not { } path) return DiskReload.Unavailable;
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DiskReload.Unavailable;
+        }
+
+        // This tab's editor services, grammar and snippets are its language's; a script that is now
+        // in another language needs a tab of its own.
+        var language = State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp;
+        if (RpadParser.TryParse(DecodeScript(bytes))?.FrontMatter.Language is { } newLanguage && newLanguage != language)
+            return DiskReload.OtherLanguage;
+
+        var (content, rpad) = ReadScript(bytes);
+        _vm.DeclinedDiskState = null;
+        ApplyDocument(rpad);
+        // Usings that are gone from the header must leave IntelliSense too.
+        RefreshIntelliSenseUsings();
+
+        var editor = State.Editor;
+        var (text, _) = CodeTemplate.TakeCaret(content);
+        if (editor.Document.Text != text)
+        {
+            var caret = editor.CaretOffset;
+            editor.Document.Replace(0, editor.Document.TextLength, text);
+            editor.CaretOffset = Math.Min(caret, editor.Document.TextLength);
+        }
+        else
+        {
+            // Only the header changed; the text edit that would analyse the code again never came.
+            _intelliSense?.NotifyTextChanged(text);
+        }
+        _vm.IsDirty = false;
+        UpdateProjectInfoBlock();
+        UpdatePreviewNow();
+        return DiskReload.Reloaded;
     }
 
     /// <summary>
@@ -2187,4 +2252,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         public string? Condition { get; } = condition;
         public string? HitCondition { get; } = hitCondition;
     }
+}
+
+/// <summary>How <see cref="EditorsTabItemControl.ReloadFromDisk"/> ended.</summary>
+internal enum DiskReload
+{
+    Reloaded,
+    /// <summary>The file is gone or can't be read; the tab is left as it was.</summary>
+    Unavailable,
+    /// <summary>The file now holds a script in another language; the tab is left as it was.</summary>
+    OtherLanguage,
 }

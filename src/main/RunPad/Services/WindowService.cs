@@ -123,6 +123,19 @@ public sealed class WindowService : IWindowService
         return result ?? SaveConflictChoice.Cancel;
     }
 
+    public Task<bool> ShowReloadChangedFileDialogAsync(string fileName)
+        => ShowReloadDialogAsync(ReloadFileDialog.ChangedOnDisk(fileName));
+
+    public Task<bool> ShowRevertFileDialogAsync(string fileName)
+        => ShowReloadDialogAsync(ReloadFileDialog.Revert(fileName));
+
+    private async Task<bool> ShowReloadDialogAsync(ReloadFileDialog dialog)
+    {
+        var owner = MainWindow;
+        if (owner is null) return false;
+        return await dialog.ShowDialog<bool?>(owner) == true;
+    }
+
     public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)
     {
         var owner = MainWindow;

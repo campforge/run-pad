@@ -154,6 +154,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;
 
+    /// <summary>A script or folder in the scripts folder changed on disk (raised on the UI thread).</summary>
+    public event Action? ScriptsFolderChanged;
+
     public void OpenDependenciesWindow() => _ = OpenDependenciesWindowAsync();
 
     private async Task OpenDependenciesWindowAsync()
@@ -590,6 +593,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             PersistSession(); // ActiveTab unchanged, so its setter won't fire — persist explicitly
     }
 
+    // A new tab for the same file in vm's place — for a script whose language changed on disk,
+    // which vm's editor services can't show. vm must have nothing unsaved.
+    internal void ReopenTab(EditorTabItemViewModel vm)
+    {
+        var index = Tabs.IndexOf(vm);
+        if (vm.FilePath is not { } path || index < 0) return;
+        var wasActive = ActiveTab == vm;
+        _openTabs.Remove(path);
+        Tabs.RemoveAt(index);
+        var reopened = new EditorTabItemViewModel(path, AvailableSdks, _prefs, this);
+        _openTabs[path] = reopened;
+        Tabs.Insert(index, reopened);
+        if (wasActive)
+            ActiveTab = reopened; // also persists the session (see the setter)
+        else
+            PersistSession();
+    }
+
     // ── File tree operations ──────────────────────────────────────────────────
 
     // Tabs for files living inside filePath — used when filePath is a FOLDER being deleted/renamed,
@@ -853,7 +874,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
-                _dispatcher.Post(RefreshNodes);
+                _dispatcher.Post(() =>
+                {
+                    RefreshNodes();
+                    if (!_disposed) ScriptsFolderChanged?.Invoke();
+                });
         });
     }
 
