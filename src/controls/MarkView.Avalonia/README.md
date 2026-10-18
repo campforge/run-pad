@@ -18,7 +18,10 @@ TextMate highlighting for code blocks.
   or lock files), CRLF line endings and RunPad's formatting rules, the fork's new path in one
   test that reads the theme file from disk, and the source line of each rendered block
   (`AvaloniaRenderer.SourceBlocks`, `MarkdownViewer.GetSourceLineAtTop`/`ScrollToSourceLine` and
-  its `ScrollChanged` event), which lets the preview scroll with the editor. `git log --
+  its `ScrollChanged` event), which lets the preview scroll with the editor, and lazy code blocks
+  (`MarkdownViewer.LazyCodeBlocks`, `LazyCodeLines`): a long code block is split into chunks of
+  plain text that are highlighted only near the viewport, so the theme's code-block text style
+  applies to any `TextBlock` inside the block. `git log --
   src/controls/MarkView.Avalonia src/controls/MarkView.Avalonia.SyntaxHighlighting` shows every
   change.
 - **Tests:** the upstream xunit v3 suites are kept in

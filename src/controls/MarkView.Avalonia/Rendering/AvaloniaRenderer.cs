@@ -87,6 +87,13 @@ public class AvaloniaRenderer : RendererBase
     public ICodeHighlighter? CodeHighlighter { get; set; }
 
     /// <summary>
+    /// When <c>true</c>, code blocks show their lines through <see cref="LazyCodeLines"/>, which
+    /// highlights each chunk of lines only when it comes near the viewport, instead of one text
+    /// block highlighted up front.
+    /// </summary>
+    public bool LazyCodeBlocks { get; set; }
+
+    /// <summary>
     /// When <c>true</c>, the next <see cref="TaskListRenderer"/> call is skipped
     /// and this flag is reset to <c>false</c>.  Set by <see cref="ListRenderer"/>
     /// when it has already placed the checkbox in the list-item grid's column 0.
@@ -198,7 +205,7 @@ public class AvaloniaRenderer : RendererBase
     private static SourceBlock ToSourceBlock(Block block, Control control)
     {
         // A code block maps line for line onto its text, leaving out the fences.
-        if (block is CodeBlock { Lines.Count: > 0 } code && control is Decorator { Child: TextBlock text })
+        if (block is CodeBlock { Lines.Count: > 0 } code && control is Decorator { Child: Control text })
         {
             var lines = code.Lines.Lines;
             return new SourceBlock(text, lines[0].Line, lines[code.Lines.Count - 1].Line + 1);

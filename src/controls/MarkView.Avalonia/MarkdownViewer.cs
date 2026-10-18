@@ -38,6 +38,12 @@ public partial class MarkdownViewer : ContentControl
     private DocumentSelectionLayer? _selectionLayer;
     private ScrollViewer? _scrollViewer;
     private IReadOnlyList<SourceBlock> _sourceBlocks = [];
+
+    /// <summary>
+    /// Whether code blocks highlight their lines only as they come near the viewport (see
+    /// <see cref="LazyCodeLines"/>), which keeps long code blocks fast. Read when the document renders.
+    /// </summary>
+    public bool LazyCodeBlocks { get; set; }
     private bool _isDragging;
     private Point _dragStart;
     private const double DragThreshold = 3.0;
@@ -309,6 +315,7 @@ public partial class MarkdownViewer : ContentControl
         {
             BaseUri = BaseUri ?? InferBaseUri(Source),
             ImageResizeMode = ImageResizeMode,
+            LazyCodeBlocks = LazyCodeBlocks,
         };
         renderer.LinkClicked += OnLinkClicked;
 
@@ -387,6 +394,12 @@ public partial class MarkdownViewer : ContentControl
                         codeTb.Inlines != null
                             ? MarkdownSelectableTextBlock.ExtractPlainText(codeTb.Inlines)
                             : codeTb.Text ?? string.Empty, "\n"));
+                    break;
+                case Border { Child: LazyCodeLines lazy } border
+                    when border.Classes.Contains("markdown-code-block"):
+                    var index = 0;
+                    foreach (var chunk in lazy.Chunks)
+                        layer.Register(new IndexEntry(chunk, lazy.ChunkText(index++), "\n"));
                     break;
                 case Panel listPanel when listPanel.Classes.Contains("markdown-list"):
                     RegisterListItems(layer, listPanel);

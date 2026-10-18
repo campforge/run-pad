@@ -56,7 +56,8 @@ public partial class EditorsTabItemControl
             : null;
         if (shown && _preview is null)
         {
-            _preview = new MarkdownViewer { Padding = new(16, 8) };
+            // A script is mostly one code block, often long: it is highlighted as it scrolls into view.
+            _preview = new MarkdownViewer { Padding = new(16, 8), LazyCodeBlocks = true };
             _preview.ScrollChanged += OnPreviewScrolled;
             ApplyPreviewTheme();
             ApplyPreviewCodeFont();
@@ -158,7 +159,7 @@ public partial class EditorsTabItemControl
         if (_preview is null) return;
         var font = State.Editor.FontFamily;
         _preview.Styles.Clear();
-        _preview.Styles.Add(new Style(x => x.OfType<Border>().Class("markdown-code-block").Child().OfType<TextBlock>())
+        _preview.Styles.Add(new Style(x => x.OfType<Border>().Class("markdown-code-block").Descendant().OfType<TextBlock>())
         {
             Setters = { new Setter(TextBlock.FontFamilyProperty, font) },
         });
