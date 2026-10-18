@@ -30,6 +30,16 @@ public class PopupThemeAndSearchTests
         {
             host.Show();
             editor.SearchPanel.Open();
+            host.UpdateLayout();
+            Assert.Equal(6, editor.SearchPanel.Margin.Left);
+            Assert.Equal(6, editor.SearchPanel.Margin.Right);
+            var options = editor.SearchPanel.GetVisualDescendants().OfType<ToggleButton>()
+                .Where(t => t.Classes.Contains("searchOption")).ToArray();
+            Assert.Equal(3, options.Length);
+            foreach (var option in options) option.IsChecked = true;
+            Assert.True(editor.SearchPanel.MatchCase);
+            Assert.True(editor.SearchPanel.WholeWords);
+            Assert.True(editor.SearchPanel.UseRegex);
             foreach (var variant in new[] { RunPadThemeVariants.RunPadMidnight, RunPadThemeVariants.RunPadWarmLight,
                 RunPadThemeVariants.RiderDark, RunPadThemeVariants.RiderLight, RunPadThemeVariants.VsCodeDark,
                 RunPadThemeVariants.VsCodeLight, RunPadThemeVariants.Vs2022Dark, RunPadThemeVariants.Vs2022Light })
@@ -44,6 +54,15 @@ public class PopupThemeAndSearchTests
                 Assert.Equal(background.Color, Assert.IsAssignableFrom<ISolidColorBrush>(menu.Background).Color);
                 Assert.Equal(background.Color, Assert.IsAssignableFrom<ISolidColorBrush>(editor.SearchPanel.Background).Color);
                 Assert.Equal(foreground.Color, Assert.IsAssignableFrom<ISolidColorBrush>(menu.Foreground).Color);
+                var selected = Assert.IsAssignableFrom<ISolidColorBrush>(Get("RunPad.ToolTab.SelectedBackgroundBrush"));
+                var accent = Assert.IsAssignableFrom<ISolidColorBrush>(Get("RunPad.Tab.AccentBrush"));
+                foreach (var option in options)
+                {
+                    Assert.Equal(selected.Color, Assert.IsAssignableFrom<ISolidColorBrush>(option.Background).Color);
+                    Assert.Equal(accent.Color, Assert.IsAssignableFrom<ISolidColorBrush>(option.BorderBrush).Color);
+                    var outline = option.GetVisualDescendants().OfType<Border>().First();
+                    Assert.Equal(accent.Color, Assert.IsAssignableFrom<ISolidColorBrush>(outline.BorderBrush).Color);
+                }
             }
         }
         finally { host.Close(); app.Styles.Remove(styles); app.Styles.Remove(theme); }
