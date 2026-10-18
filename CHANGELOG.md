@@ -25,6 +25,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- In the installed RunPad app, the editor no longer marks `.Dump()` as an error once it has loaded the
+  script's .NET target, while the script itself runs fine.
 - Switching the theme recolours keywords, strings and semantic colours in every open script and code
   window: at once in the one shown, and in other tabs when they are next shown. A tab opened only
   after the switch no longer appears in the previous theme's colours.

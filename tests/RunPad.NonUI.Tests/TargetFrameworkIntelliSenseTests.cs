@@ -191,6 +191,55 @@ public sealed class TargetFrameworkIntelliSenseTests : IAsyncDisposable
         Assert.Empty(await EditorErrorsAsync(service, OnlyInOlder));
     }
 
+    // A self-contained RunPad ships the runtime's own assemblies and RunPad.Runtime.dll in one folder,
+    // the folder System.Runtime.dll is in. Copied here: every managed assembly of the running runtime
+    // (with System.Private.CoreLib) and RunPad.Runtime.dll next to them.
+    private (IReadOnlyList<string> Framework, string Runtime) SelfContainedLayout()
+    {
+        var bundle = Directory.CreateDirectory(Path.Combine(_root, "bundle")).FullName;
+        var framework = new List<string>();
+        foreach (var dll in Directory.GetFiles(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "*.dll"))
+        {
+            if (!CSharpReferenceService.IsManagedAssembly(dll)) continue;
+            var copy = Path.Combine(bundle, Path.GetFileName(dll));
+            File.Copy(dll, copy);
+            framework.Add(copy);
+        }
+        var runtime = Path.Combine(bundle, "RunPad.Runtime.dll");
+        File.Copy(new CSharpReferenceService().GetExtensionReference(), runtime);
+        return (framework, runtime);
+    }
+
+    // The editor keeps RunPad.Runtime when the target's reference assemblies replace the framework
+    // ones, even where the runtime library sits in the framework's folder: .Dump() stays known on
+    // opening, on the target's first refresh and across SDK changes, as it is to the build. The
+    // service is created as RunPad creates it, the runtime library given apart from the framework.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task TheDumpMethod_Should_StayKnown_AcrossTargetRefreshes(bool selfContained)
+    {
+        const string code = "1.Dump();\nConsole.WriteLine(Environment.Version);\n";
+        var (framework, runtime) = selfContained
+            ? SelfContainedLayout()
+            : (new CSharpReferenceService().GetDefault(), new DotnetRuntimeReferenceLocator().GetRuntimeAssemblyPath());
+        if (selfContained) Assert.Equal(Path.GetDirectoryName(runtime), Path.GetDirectoryName(Assert.Single(framework,
+            p => Path.GetFileName(p) == "System.Runtime.dll")));
+        using var service = new CSharpIntelliSenseService(framework, NullLogger<CSharpIntelliSenseService>.Instance,
+            additionalReferencePaths: [runtime])
+        {
+            BackgroundAnalysisDebounce = TimeSpan.Zero,
+        };
+
+        Assert.Empty(await EditorErrorsAsync(service, code));
+        foreach (var target in new[] { _currentTarget, OlderTarget, _currentTarget })
+        {
+            service.UpdatePackageReferences(new Dictionary<string, Package>(), Context(target));
+            Assert.Empty(await EditorErrorsAsync(service, code));
+            Assert.Contains(runtime, service.ReferencePathsForTests);
+        }
+    }
+
     [Fact]
     public async Task SwitchingTheTarget_Should_ApplyTheCompilersLanguageVersion()
     {
