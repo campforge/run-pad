@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Local fork of the MarkView.Avalonia.SyntaxHighlighting 12.3.0 NuGet package; see
+         ../MarkView.Avalonia/README.md. -->
+    <RootNamespace>MarkView.Avalonia.SyntaxHighlighting</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TextMateSharp" />
+    <PackageReference Include="TextMateSharp.Grammars" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkView.Avalonia\MarkView.Avalonia.csproj" />
+  </ItemGroup>
+
+</Project>
