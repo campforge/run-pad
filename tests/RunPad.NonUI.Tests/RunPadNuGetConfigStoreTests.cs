@@ -1,6 +1,6 @@
 using NuGet.Configuration;
 using RunPad.Contracts;
-using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using Xunit;
 
 namespace RunPad.NonUI.Tests;

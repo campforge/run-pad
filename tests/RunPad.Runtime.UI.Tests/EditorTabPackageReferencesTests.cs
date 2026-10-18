@@ -50,13 +50,13 @@ public class EditorTabPackageReferencesTests
             });
         host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
         var registry = new Mock<ILanguageHostRegistry>();
-        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>())).Returns(host.Object);
+        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>())).Returns(host.Object);
 
-        var intelliSense = new Mock<IIntelliSenseService>();
+        var intelliSense = new Mock<IIntelliSenseService>().ForwardingExecutionContext();
         var vm = new EditorTabItemViewModel(
             null, [Sdk], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            intelliSense.Object, new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();
         return (ctrl, intelliSense);
     }

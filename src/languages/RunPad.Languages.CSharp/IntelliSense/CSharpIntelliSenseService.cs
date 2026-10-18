@@ -17,6 +17,7 @@ using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
+using ExecutionRequest = RunPad.Contracts.Models.ExecutionRequest;
 using RoslynSeverity = Microsoft.CodeAnalysis.DiagnosticSeverity;
 
 namespace RunPad.Languages.CSharp.IntelliSense;
@@ -2085,6 +2086,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     };
 
     // ── Package references ────────────────────────────────────────────────────
+
+    // The build's own reading of the request (see DotnetPackageReferenceContext). Without an SDK
+    // yet, the runtime IntelliSense itself runs on.
+    public void UpdateExecutionContext(ExecutionRequest request)
+    {
+        var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
+        if (DotnetPackageReferenceContext.For(request) is { } context)
+            UpdatePackageReferences(packages, context);
+        else
+            UpdatePackageReferences(packages);
+    }
 
     // Without a build context: the runtime IntelliSense itself runs on, the user's NuGet settings.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages)

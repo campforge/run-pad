@@ -52,7 +52,7 @@ public class EditorTabLifecycleTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense: null, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            intelliSense: null, buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
         return (ctrl, vm);

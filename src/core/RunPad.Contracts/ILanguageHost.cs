@@ -86,4 +86,10 @@ public interface ILanguageHost : IAsyncDisposable
     /// dump). Requires <see cref="LanguageHostCapabilities.MemoryDump"/>.
     /// </summary>
     Task<IMemoryDump> GetMemoryDumpAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The file the host writes the script's source to before compiling it: the one breakpoints and
+    /// the debugger's stack frames name. Null for a host that writes none.
+    /// </summary>
+    string? SourceFilePath => null;
 }

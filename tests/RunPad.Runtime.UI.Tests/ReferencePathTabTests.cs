@@ -36,13 +36,14 @@ public class ReferencePathTabTests : IDisposable
     private readonly string _library;
     private readonly Mock<IWindowService> _windows = new();
     private readonly Mock<IIntelliSenseService> _intelliSense = new();
-    private ILanguageHostOptions? _runOptions;
+    private ExecutionRequest? _runRequest;
 
     private static readonly string[] References =
         ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "$(MyDocuments)/Shared/Other.dll"];
 
     public ReferencePathTabTests()
     {
+        _intelliSense.ForwardingExecutionContext();
         _oldDir = Directory.CreateDirectory(Path.Combine(_root, "old")).FullName;
         _newDir = Directory.CreateDirectory(Path.Combine(_root, "new", "deeper")).FullName;
         _library = Path.Combine(Directory.CreateDirectory(Path.Combine(_oldDir, "lib")).FullName, "Greeter.dll");
@@ -85,8 +86,8 @@ public class ReferencePathTabTests : IDisposable
             .ReturnsAsync(RunResult.Exited(0));
         host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
         var registry = new Mock<ILanguageHostRegistry>();
-        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()))
-            .Callback<string, ILanguageHostOptions>((_, o) => _runOptions = o).Returns(host.Object);
+        registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
+            .Callback<string, ExecutionRequest>((_, request) => _runRequest = request).Returns(host.Object);
 
         var vm = new EditorTabItemViewModel(untitled ? null : _script, [Sdk], prefs.Object, shell, RpadLanguage.CSharp, RpadKind.Statements);
         var buildCache = new Mock<IBuildCacheService>();
@@ -94,7 +95,7 @@ public class ReferencePathTabTests : IDisposable
         buildCache.Setup(b => b.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(() => Directory.CreateDirectory(output).FullName);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, registry.Object, prefs.Object,
-            _intelliSense.Object, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            _intelliSense.Object, buildCache.Object);
         var window = new Window { Content = ctrl };
         window.Show();
         Dispatcher.UIThread.RunJobs();
@@ -116,7 +117,8 @@ public class ReferencePathTabTests : IDisposable
 
             await ctrl.RunAsync(debug: false, Sdk);
 
-            var options = Assert.IsType<CompiledDotnetLanguageHostOptions>(_runOptions);
+            // The options the backend builds from the tab's request, as the run gets them.
+            var options = CompiledDotnetLanguageHostOptions.From(Assert.IsType<ExecutionRequest>(_runRequest), "RunPad.Runtime.dll");
             Assert.Equal([_library, _library], options.AssemblyReferences);
             Assert.Empty(options.ReferenceErrors);
         }

@@ -61,7 +61,7 @@ public class EditorTabsControlTabActionsWiringTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-            new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            buildCache.Object);
 
         var host = new Window { Content = editorTabs };
         host.Show();

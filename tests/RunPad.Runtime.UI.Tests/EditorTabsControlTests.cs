@@ -64,7 +64,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();
@@ -129,7 +129,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();
@@ -200,7 +200,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();
@@ -272,7 +272,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();
@@ -332,7 +332,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => { intelliSenseFactoryCalls++; return intelliSense.Object; }), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();
@@ -412,7 +412,7 @@ public class EditorTabsControlTests
 
             var editorTabs = new EditorTabsControl(
                 theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-                new DotnetRuntimeReferenceLocator(), buildCache.Object);
+                buildCache.Object);
 
             // Narrow enough that 25 tab headers can't possibly fit on one screen's width unscrolled —
             // the point is to force the overflow condition deterministically, not to match a real

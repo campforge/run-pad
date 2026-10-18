@@ -73,7 +73,7 @@ public class MainWindowChromeTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-            new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            buildCache.Object);
 
         return new MainWindow(prefs.Object, editorTabs, mainVm);
     }

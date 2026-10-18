@@ -59,7 +59,7 @@ public class MainWindowClosingTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-            new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            buildCache.Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
         window.Show();
