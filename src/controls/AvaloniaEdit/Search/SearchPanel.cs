@@ -24,7 +24,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
-
+using Avalonia.VisualTree;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
@@ -62,6 +62,27 @@ public class SearchPanel : TemplatedControl, IRoutedCommandBindable
         if (double.IsFinite(availableSize.Width))
             SearchFieldWidth = Math.Clamp(availableSize.Width - 220, 160, 370);
         return base.MeasureOverride(availableSize);
+    }
+
+    private readonly Dictionary<RoutedCommand, KeyGesture> _gestureOverrides = new();
+    private readonly Dictionary<RoutedCommand, string> _shortcutHints = new();
+
+    /// <summary>Overrides one instance's shortcut; null removes its keyboard assignment.</summary>
+    public void ConfigureShortcut(RoutedCommand command, KeyGesture gesture, string hint)
+    {
+        _gestureOverrides[command] = gesture;
+        _shortcutHints[command] = hint;
+        UpdateShortcutHints();
+    }
+
+    internal KeyGesture GestureFor(RoutedCommand command)
+        => _gestureOverrides.TryGetValue(command, out var gesture) ? gesture : command.Gesture;
+
+    private void UpdateShortcutHints()
+    {
+        foreach (var button in this.GetVisualDescendants().OfType<Button>())
+            if (button.Command is RoutedCommand command && _shortcutHints.TryGetValue(command, out var hint))
+                ToolTip.SetTip(button, hint);
     }
 
     #region DependencyProperties
@@ -293,6 +314,7 @@ public class SearchPanel : TemplatedControl, IRoutedCommandBindable
         _replaceTextBox = e.NameScope.Find<TextBox>("PART_replaceTextBox");
         _messageView = e.NameScope.Find<Panel>("PART_MessageView");
         _messageViewContent = e.NameScope.Find<TextBlock>("PART_MessageContent");
+        UpdateShortcutHints();
     }
 
     /// <summary>

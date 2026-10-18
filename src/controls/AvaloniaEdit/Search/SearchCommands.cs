@@ -86,6 +86,8 @@ internal class SearchInputHandler : TextAreaInputHandler
         commandBindings.Add(new RoutedCommandBinding(SearchCommands.CloseSearchPanel, ExecuteCloseSearchPanel, CanExecuteWithOpenSearchPanel));
     }
 
+    protected override KeyGesture GestureFor(RoutedCommand command) => _panel.GestureFor(command);
+
     private readonly SearchPanel _panel;
 
     private void ExecuteFind(object sender, ExecutedRoutedEventArgs e)

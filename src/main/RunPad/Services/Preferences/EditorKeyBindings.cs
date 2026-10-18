@@ -1,4 +1,6 @@
 using Avalonia.Input;
+using AvaloniaEdit;
+using AvaloniaEdit.Search;
 using RunPad.Avalonia.CodeTextEditor;
 
 namespace RunPad.Services.Preferences;
@@ -16,5 +18,18 @@ public static class EditorKeyBindings
         editor.GoToDefinitionGesture = keyboard.GestureFor(KeyCommands.GoToDefinition);
         editor.FindReferencesGesture = keyboard.GestureFor(KeyCommands.FindReferences);
         editor.CommandModifier = keyboard.CommandModifier;
+        Configure(ApplicationCommands.Find, KeyCommands.FindText);
+        Configure(ApplicationCommands.Replace, KeyCommands.ReplaceText);
+        Configure(SearchCommands.FindNext, KeyCommands.FindNext);
+        Configure(SearchCommands.FindPrevious, KeyCommands.FindPrevious);
+        Configure(SearchCommands.ReplaceNext, KeyCommands.ReplaceNext);
+        Configure(SearchCommands.ReplaceAll, KeyCommands.ReplaceAll);
+
+        void Configure(RoutedCommand routed, KeyCommand command)
+        {
+            var key = keyboard.KeyFor(command);
+            var hint = string.IsNullOrEmpty(key) ? command.Title : $"{command.Title} ({key})";
+            editor.ConfigureSearchShortcut(routed, keyboard.GestureFor(command), hint);
+        }
     }
 }

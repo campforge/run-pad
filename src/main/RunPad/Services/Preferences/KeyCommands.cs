@@ -55,6 +55,13 @@ public static class KeyCommands
     public static readonly KeyCommand Pause = new("run.pause", Run, "Pause", "");
     public static readonly KeyCommand RunToCursor = new("run.runToCursor", Run, "Run to Cursor", "Ctrl+F10", "Cmd+F10");
 
+    public static readonly KeyCommand FindText = new("editor.find", Editor, "Find", "Ctrl+F", "Cmd+F");
+    public static readonly KeyCommand ReplaceText = new("editor.replace", Editor, "Replace", "Ctrl+H", "Cmd+Alt+F");
+    public static readonly KeyCommand FindNext = new("editor.findNext", Editor, "Find Next", "F3");
+    public static readonly KeyCommand FindPrevious = new("editor.findPrevious", Editor, "Find Previous", "Shift+F3");
+    public static readonly KeyCommand ReplaceNext = new("editor.replaceNext", Editor, "Replace Next", "Alt+R");
+    public static readonly KeyCommand ReplaceAll = new("editor.replaceAll", Editor, "Replace All", "Alt+A");
+
     public static readonly KeyCommand TriggerCompletion = new("editor.completion", Editor, "Show Completion", "Ctrl+Space");
     public static readonly KeyCommand SignatureHelp = new("editor.signatureHelp", Editor, "Signature Help", "Ctrl+Shift+Space", "Cmd+Shift+Space");
     public static readonly KeyCommand GoToDefinition = new("editor.goToDefinition", Editor, "Go to Definition", "F12");
@@ -81,6 +88,7 @@ public static class KeyCommands
         NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,
         Format, GoToLine, ResolveAllUsings,
         RenameFile, DeleteFile,
@@ -102,7 +110,8 @@ public static class KeyCommands
     // The keys the code editor control handles itself (EditorKeyBindings.ApplyTo), in every window
     // that has one.
     private static readonly HashSet<KeyCommand> CodeEditorCommands =
-        [TriggerCompletion, SignatureHelp, JumpToBracket, RenameSymbol, GoToDefinition, FindReferences];
+        [TriggerCompletion, SignatureHelp, JumpToBracket, RenameSymbol, GoToDefinition, FindReferences,
+            FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll];
 
     /// <summary>Where <paramref name="command"/>'s key is handled: the main window dispatches General
     /// and Run keys (and Format, Go to Line, Resolve All Usings) wherever its focus is; the code
