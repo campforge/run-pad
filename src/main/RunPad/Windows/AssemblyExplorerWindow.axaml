@@ -59,11 +59,11 @@
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4">
             <Button x:Name="BackButton" IsEnabled="False"
-                    ToolTip.Tip="Back (Alt+Left)" AutomationProperties.Name="Back">
+                    ToolTip.Tip="Back" AutomationProperties.Name="Back">
                 <PathIcon Data="{StaticResource Icon.ChevronLeft}" Width="14" Height="14"/>
             </Button>
             <Button x:Name="ForwardButton" IsEnabled="False"
-                    ToolTip.Tip="Forward (Alt+Right)" AutomationProperties.Name="Forward">
+                    ToolTip.Tip="Forward" AutomationProperties.Name="Forward">
                 <PathIcon Data="{StaticResource Icon.ChevronRight}" Width="14" Height="14"/>
             </Button>
             <Button x:Name="BrowseButton" Content="Browse..." Margin="8,0,0,0"/>

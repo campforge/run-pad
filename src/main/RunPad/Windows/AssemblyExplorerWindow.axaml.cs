@@ -101,6 +101,8 @@ public partial class AssemblyExplorerWindow : Window
 
     private void ShowKeyHints()
     {
+        ToolTip.SetTip(BackButton, WithKey("Back", KeyCommands.ExplorerBack));
+        ToolTip.SetTip(ForwardButton, WithKey("Forward", KeyCommands.ExplorerForward));
         ToolTip.SetTip(SaveCodeButton, WithKey("Save the shown code", KeyCommands.Save));
         SearchBox.PlaceholderText = WithKey("Search types and members", KeyCommands.ExplorerSearch);
     }

@@ -297,6 +297,15 @@ public class TextEditor : TemplatedControl, ITextEditorComponent
     #region TextArea / ScrollViewer properties
     private readonly TextArea textArea;
     private SearchPanel searchPanel;
+    private readonly Dictionary<RoutedCommand, (KeyGesture Gesture, string Hint)> _searchShortcuts = new();
+
+    /// <summary>Configures this editor's search keys before or after its template is applied.</summary>
+    public void ConfigureSearchShortcut(RoutedCommand command, KeyGesture gesture, string hint)
+    {
+        _searchShortcuts[command] = (gesture, hint);
+        searchPanel?.ConfigureShortcut(command, gesture, hint);
+    }
+
     private bool wasSearchPanelOpened;
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
@@ -305,7 +314,10 @@ public class TextEditor : TemplatedControl, ITextEditorComponent
         ScrollViewer = (ScrollViewer)e.NameScope.Find("PART_ScrollViewer");
         ScrollViewer.Content = TextArea;
 
+        searchPanel?.Uninstall();
         searchPanel = SearchPanel.Install(this);
+        foreach (var (command, shortcut) in _searchShortcuts)
+            searchPanel.ConfigureShortcut(command, shortcut.Gesture, shortcut.Hint);
     }
 
     protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)

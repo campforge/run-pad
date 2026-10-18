@@ -26,6 +26,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Search and replacement shortcuts can be changed or disabled in Preferences, and their button
+  hints follow the assigned keys. Assembly Explorer navigation hints follow your keys too.
+
 - Selected result text can be copied with the system keyboard shortcut, including Cmd+C on
   macOS; Select All also follows the platform shortcut.
 
