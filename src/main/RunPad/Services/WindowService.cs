@@ -74,6 +74,21 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    public async Task<string?> ShowOpenScriptFileDialogAsync(string startFolder)
+    {
+        var owner = MainWindow;
+        if (owner is null) return null;
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open Script",
+            AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = [new FilePickerFileType("RPad Script") { Patterns = ["*.rpad"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
     public async Task<string?> ShowOpenLinqFileDialogAsync(string startFolder)
     {
         var owner = MainWindow;

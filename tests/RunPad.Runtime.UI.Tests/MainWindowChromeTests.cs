@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -122,6 +123,9 @@ public class MainWindowChromeTests
         "File/New RPad File",
         "File/New RPad File/C#",
         "File/New RPad File/Visual Basic",
+        "File/Open...",
+        "File/Recent Files",
+        "File/Recent Files/Clear Recent Files",
         "File/Open Text File...",
         "File/Import .linq Query...",
         "File/---",
@@ -449,5 +453,35 @@ public class MainWindowChromeTests
         var appIcon = window.FindControl<Image>("AppIconImage");
         Assert.NotNull(appIcon);
         Assert.True(appIcon!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task RecentMenu_Should_RefreshBothProjections_AndKeepTheExactPathParameter()
+    {
+        using var window = CreateMainWindow();
+        var vm = (MainWindowViewModel)window.DataContext!;
+        var folder = Directory.CreateTempSubdirectory("runpad-recent-menu").FullName;
+        var path = Path.Combine(folder, "file_with_underscores.rpad");
+        try
+        {
+            File.WriteAllText(path, RunPad.Format.RPad.RpadWriter.NewFile("1.Dump();", "test"));
+            await vm.OpenScriptAsync(path);
+            var group = window.MainMenuEntries[0].Items.OfType<MainMenuGroup>().Single(g => g.Header == "Recent _Files");
+            var entry = Assert.IsType<MainMenuCommand>(group.Items[0]);
+            Assert.Equal(path, entry.Parameter);
+            Assert.Equal(path, MainMenuDefinition.StripAccessKey(entry.Header));
+            var native = MainMenuDefinition.ToNativeMenu([group]);
+            var item = Assert.IsType<NativeMenuItem>(Assert.IsType<NativeMenuItem>(native.Items[0]).Menu!.Items[0]);
+            Assert.Equal(path, item.Header);
+            Assert.Equal(path, item.CommandParameter);
+            var inWindow = Describe(window.FindControl<Menu>("MainMenu")!.Items, "").ToList();
+            var projected = Describe(MainMenuDefinition.ToNativeMenu(window.MainMenuEntries), "").ToList();
+            Assert.Equal(inWindow.Select(n => n.Path), projected.Select(n => n.Path));
+            await vm.ClearRecentFilesCommand.Execute();
+            group = window.MainMenuEntries[0].Items.OfType<MainMenuGroup>().Single(g => g.Header == "Recent _Files");
+            Assert.Single(group.Items);
+            Assert.False(vm.HasRecentFiles);
+        }
+        finally { Directory.Delete(folder, true); }
     }
 }
