@@ -61,6 +61,10 @@ public sealed partial class MainWindow : Window, IDisposable
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
 
+        // Coming back to RunPad from another program is when its files were most likely changed
+        // there; scripts outside the watched scripts folder are only noticed this way.
+        Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
+
         Closing += OnClosing;
     }
 
@@ -137,6 +141,7 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
+            [KeyCommands.RevertFile] = tabs.RevertActive,
             [KeyCommands.CloseTab] = tabs.CloseActiveTab,
             // Close(), as the window's close button: unsaved tabs are asked about first.
             [KeyCommands.Exit] = Close,
@@ -306,6 +311,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 new MainMenuSeparator(),
                 Item("_Save", KeyCommands.Save),
                 Item("Save _As...", KeyCommands.SaveAs),
+                Item("Re_vert to Saved", KeyCommands.RevertFile),
                 new MainMenuSeparator(),
                 Item("_Close Tab", KeyCommands.CloseTab),
                 new MainMenuSeparator(),

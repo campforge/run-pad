@@ -87,4 +87,16 @@ public interface IWindowService
     /// last read or wrote it. Closing the dialog, or no window to show it on, is Cancel.
     /// </summary>
     Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName);
+
+    /// <summary>
+    /// Asks whether a tab with unsaved changes should reload its file, which another program
+    /// changed. True reloads; keeping the changes, closing the dialog or no window to show it on is false.
+    /// </summary>
+    Task<bool> ShowReloadChangedFileDialogAsync(string fileName);
+
+    /// <summary>
+    /// Asks before File → Revert to Saved drops a tab's unsaved changes. True reverts; Cancel,
+    /// closing the dialog or no window to show it on is false.
+    /// </summary>
+    Task<bool> ShowRevertFileDialogAsync(string fileName);
 }
