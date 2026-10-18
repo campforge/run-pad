@@ -47,6 +47,23 @@ public class SearchPanel : TemplatedControl, IRoutedCommandBindable
     private Border _border;
     private int _currentSearchResultIndex = -1;
 
+    /// <summary>The shared search/replace field width, reduced only for narrow editor panes.</summary>
+    public static readonly StyledProperty<double> SearchFieldWidthProperty =
+        AvaloniaProperty.Register<SearchPanel, double>(nameof(SearchFieldWidth), 370);
+
+    public double SearchFieldWidth
+    {
+        get => GetValue(SearchFieldWidthProperty);
+        private set => SetValue(SearchFieldWidthProperty, value);
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (double.IsFinite(availableSize.Width))
+            SearchFieldWidth = Math.Clamp(availableSize.Width - 220, 160, 370);
+        return base.MeasureOverride(availableSize);
+    }
+
     #region DependencyProperties
     /// <summary>
     /// Dependency property for <see cref="UseRegex"/>.

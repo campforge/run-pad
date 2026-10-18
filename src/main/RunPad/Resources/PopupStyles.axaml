@@ -38,4 +38,12 @@
         <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
     </Style>
+    <Style Selector="search|SearchPanel /template/ TextBox:focus-within">
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Focus.BorderBrush}"/>
+    </Style>
+    <Style Selector="search|SearchPanel /template/ Button.replaceAction">
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
 </Styles>

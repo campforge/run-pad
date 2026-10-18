@@ -162,4 +162,6 @@
   <data name="SearchUseRegexText" xml:space="preserve">
     <value>Use regular expressions</value>
   </data>
+  <data name="SearchReplaceButton" xml:space="preserve"><value>Replace</value></data>
+  <data name="SearchReplaceAllButton" xml:space="preserve"><value>Replace All</value></data>
 </root>
