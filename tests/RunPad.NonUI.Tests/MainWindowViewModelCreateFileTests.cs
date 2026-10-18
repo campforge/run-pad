@@ -104,6 +104,6 @@ public class MainWindowViewModelCreateFileTests
 
         await vm.CreateFileAsync(null, RpadLanguage.CSharp, RpadKind.Statements);
 
-        Assert.Equal("/root/Query 1.rpad", vm.ActiveTab?.FilePath);
+        Assert.Equal(Path.GetFullPath("/root/Query 1.rpad"), vm.ActiveTab?.FilePath);
     }
 }
