@@ -33,11 +33,13 @@ public partial class EditorsTabItemControl
         _previewTheme = _themeService.CurrentTheme.Editor.TextMateName;
         State.Editor.TextChanged += OnEditorTextChangedForPreview;
         _previewModeSub = _vm.WhenAnyValue(x => x.PreviewMode).Subscribe(ApplyPreviewMode);
+        SetupPreviewScrollSync();
     }
 
     private void DisposePreview()
     {
         State.Editor.TextChanged -= OnEditorTextChangedForPreview;
+        DisposePreviewScrollSync();
         _previewModeSub?.Dispose();
         _previewUpdateCts?.Cancel();
         _previewUpdateCts?.Dispose();
@@ -48,9 +50,14 @@ public partial class EditorsTabItemControl
     private void ApplyPreviewMode(ScriptPreviewMode mode)
     {
         var shown = mode != ScriptPreviewMode.Off;
+        // Out of the preview alone, the editor picks up where the preview was read to.
+        var previewLine = _lastPreviewMode == ScriptPreviewMode.Full && mode != ScriptPreviewMode.Full
+            ? _preview?.GetSourceLineAtTop()
+            : null;
         if (shown && _preview is null)
         {
             _preview = new MarkdownViewer { Padding = new(16, 8) };
+            _preview.ScrollChanged += OnPreviewScrolled;
             ApplyPreviewTheme();
             ApplyPreviewCodeFont();
             PreviewHost.Content = _preview;
@@ -64,7 +71,13 @@ public partial class EditorsTabItemControl
         PreviewSplitter.IsVisible = mode == ScriptPreviewMode.Side;
         PreviewHost.IsVisible = shown;
 
-        if (shown) UpdatePreviewNow();
+        if (previewLine is { } line)
+        {
+            // The editor was hidden: it needs its size before it can scroll.
+            State.Editor.UpdateLayout();
+            ScrollEditorToLine(EditorLineFor(line));
+        }
+        if (shown) UpdatePreviewNow(previewLine);
         // Back from the preview alone, the editor was hidden and so lost the focus.
         else if (_lastPreviewMode == ScriptPreviewMode.Full) State.Editor.TextArea.Focus();
         _lastPreviewMode = mode;
@@ -97,18 +110,28 @@ public partial class EditorsTabItemControl
     }
 
     // Also after the front matter changed (kind, Dependencies), which the editor text doesn't show.
-    private void UpdatePreviewNow()
+    // A new document opens at the top, so the preview is scrolled back to where it was read: the
+    // editor's top line, or in the preview alone its own (previewLine, when the caller knows it).
+    private void UpdatePreviewNow(double? previewLine = null)
     {
         _previewUpdateCts?.Cancel();
         if (_preview is null || !PreviewShown) return;
+        if (previewLine is null && _vm.PreviewMode == ScriptPreviewMode.Full && _lastPreviewMode == ScriptPreviewMode.Full)
+            previewLine = _preview.GetSourceLineAtTop();
         _preview.BaseUri = PreviewBaseUri(_vm.FilePath);
-        _preview.Markdown = PreviewMarkdown();
+        _preview.Markdown = PreviewMarkdown(out _previewCodeLine);
+        _preview.ScrollToSourceLine(previewLine ?? PreviewLineFor(EditorTopLine()));
     }
 
+    internal string PreviewMarkdown() => PreviewMarkdown(out _);
+
     // A file that isn't a valid .rpad has no RpadDocument and is saved back verbatim; it is shown
-    // as the Markdown it is.
-    internal string PreviewMarkdown()
-        => State.RpadDocument is { } rpad ? RpadPreview.ToMarkdown(rpad, State.Editor.Text) : State.Editor.Text;
+    // as the Markdown it is, line for line.
+    private string PreviewMarkdown(out int codeLine)
+    {
+        codeLine = 0;
+        return State.RpadDocument is { } rpad ? RpadPreview.ToMarkdown(rpad, State.Editor.Text, out codeLine) : State.Editor.Text;
+    }
 
     // Relative image links resolve against the script's folder; an untitled tab has none.
     private static Uri? PreviewBaseUri(string? filePath)
@@ -123,8 +146,9 @@ public partial class EditorsTabItemControl
         ApplyPreviewTheme();
         if (!PreviewShown) return;
         // Extensions are read when the document renders; a new Markdown value renders it again.
+        var line = _vm.PreviewMode == ScriptPreviewMode.Full ? _preview.GetSourceLineAtTop() : null;
         _preview.Markdown = null;
-        UpdatePreviewNow();
+        UpdatePreviewNow(line);
     }
 
     // Code in the preview is in the editor's font, not the viewer's own list of code fonts, which may

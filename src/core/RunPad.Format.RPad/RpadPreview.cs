@@ -10,7 +10,13 @@ public static class RpadPreview
 {
     /// <param name="code">The run block's current code (the editor text), in place of
     /// <see cref="RpadDocument.RunCode"/>, which is only updated on save.</param>
-    public static string ToMarkdown(RpadDocument doc, string code)
+    public static string ToMarkdown(RpadDocument doc, string code) => ToMarkdown(doc, code, out _);
+
+    /// <param name="code">The run block's current code (the editor text), in place of
+    /// <see cref="RpadDocument.RunCode"/>, which is only updated on save.</param>
+    /// <param name="codeLine">The zero-based line of the Markdown where the code's first line is, so
+    /// that a line of the editor can be found in the preview.</param>
+    public static string ToMarkdown(RpadDocument doc, string code, out int codeLine)
     {
         var sb = new StringBuilder();
         AppendFrontMatterTable(sb, doc.FrontMatter);
@@ -18,11 +24,25 @@ public static class RpadPreview
         if (code.Length > 0 && !code.EndsWith('\n')) code += "\n";
         // A document built in code has no surrounding Markdown, so no run fence either (as in
         // RpadWriter.Write).
-        if (doc.BodyBeforeCode.Length == 0 && doc.BodyAfterCode.Length == 0)
-            sb.Append("```").Append(doc.FrontMatter.Language.ToLanguageId()).Append(" run\n").Append(code).Append("```\n");
-        else
-            sb.Append(doc.BodyBeforeCode).Append(code).Append(doc.BodyAfterCode);
+        var bare = doc.BodyBeforeCode.Length == 0 && doc.BodyAfterCode.Length == 0;
+        if (bare) sb.Append("```").Append(doc.FrontMatter.Language.ToLanguageId()).Append(" run\n");
+        else sb.Append(doc.BodyBeforeCode);
+        codeLine = CountLines(sb);
+        sb.Append(code);
+        sb.Append(bare ? "```\n" : doc.BodyAfterCode);
         return sb.ToString();
+    }
+
+    // Markdown ends a line at \n, \r\n or a lone \r.
+    private static int CountLines(StringBuilder sb)
+    {
+        var lines = 0;
+        for (var i = 0; i < sb.Length; i++)
+        {
+            if (sb[i] == '\n' || (sb[i] == '\r' && (i + 1 == sb.Length || sb[i + 1] != '\n')))
+                lines++;
+        }
+        return lines;
     }
 
     private static void AppendFrontMatterTable(StringBuilder sb, RpadFrontMatter fm)

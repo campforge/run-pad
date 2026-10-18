@@ -33,5 +33,10 @@ public static class TestAppBuilder
             .AfterSetup(_ => Application.Current!.Styles.Add(new StyleInclude(new Uri("avares://AvaloniaEdit/"))
             {
                 Source = new Uri("avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml"),
+            }))
+            // The Markdown preview's viewer, likewise: its scroll viewer is part of its template.
+            .AfterSetup(_ => Application.Current!.Styles.Add(new StyleInclude(new Uri("avares://MarkView.Avalonia/"))
+            {
+                Source = new Uri("avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml"),
             }));
 }

@@ -37,6 +37,7 @@ public partial class MarkdownViewer : ContentControl
     private List<(int Level, string Text, string Slug)> _headingEntries = [];
     private DocumentSelectionLayer? _selectionLayer;
     private ScrollViewer? _scrollViewer;
+    private IReadOnlyList<SourceBlock> _sourceBlocks = [];
     private bool _isDragging;
     private Point _dragStart;
     private const double DragThreshold = 3.0;
@@ -291,6 +292,7 @@ public partial class MarkdownViewer : ContentControl
             Content = null;
             _anchors = new(StringComparer.OrdinalIgnoreCase);
             _headingEntries = [];
+            _sourceBlocks = [];
             RebuildTableOfContents();
             _selectionLayer = null;
             return;
@@ -334,6 +336,7 @@ public partial class MarkdownViewer : ContentControl
 
         _anchors = new Dictionary<string, Control>(renderer.Anchors, StringComparer.OrdinalIgnoreCase);
         _headingEntries = [.. renderer.HeadingEntries];
+        _sourceBlocks = [.. renderer.SourceBlocks];
         RebuildTableOfContents();
 
         // Set up document-wide selection layer
@@ -655,7 +658,87 @@ public partial class MarkdownViewer : ContentControl
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
+        _scrollViewer?.ScrollChanged -= OnScrollViewerScrollChanged;
         _scrollViewer = e.NameScope.Find<ScrollViewer>("PART_ScrollViewer");
+        _scrollViewer?.ScrollChanged += OnScrollViewerScrollChanged;
+    }
+
+    /// <summary>
+    /// Raised when the document's own scroll viewer scrolls, by the user or by code (not the
+    /// scroll viewers of wide tables or code blocks inside it).
+    /// </summary>
+    public event EventHandler<ScrollChangedEventArgs>? ScrollChanged;
+
+    // The routed event also bubbles up from the scroll viewers inside the document.
+    private void OnScrollViewerScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, _scrollViewer))
+            ScrollChanged?.Invoke(this, e);
+    }
+
+    // ── Source line mapping ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// The source line at the top of the viewport, with the fraction of it scrolled past, or
+    /// <c>null</c> when nothing is rendered or the template has no scroll viewer. Between blocks
+    /// it is the start of the next one.
+    /// </summary>
+    public double? GetSourceLineAtTop()
+    {
+        if (_scrollViewer is null || _sourceBlocks.Count == 0)
+            return null;
+        var top = _scrollViewer.Offset.Y;
+        foreach (var block in _sourceBlocks)
+        {
+            if (BlockBounds(block) is not (double blockTop, double blockBottom))
+                continue;
+            if (top < blockTop)
+                return block.StartLine;
+            if (top < blockBottom)
+                return block.StartLine + (top - blockTop) / (blockBottom - blockTop) * (block.EndLine - block.StartLine);
+        }
+        return _sourceBlocks[^1].EndLine;
+    }
+
+    /// <summary>
+    /// Scrolls so that the given source line (with a fraction, as <see cref="GetSourceLineAtTop"/>
+    /// returns it) is at the top of the viewport. A line between blocks, such as a blank one, scrolls
+    /// to the end of the block before it, and the first block's first line or any line before it to
+    /// the very top.
+    /// </summary>
+    public void ScrollToSourceLine(double line)
+    {
+        if (_scrollViewer is null)
+            return;
+        // Right after a render the new blocks have no position yet.
+        _scrollViewer.UpdateLayout();
+
+        double y = 0;
+        foreach (var block in _sourceBlocks)
+        {
+            if (block.StartLine > line || (block == _sourceBlocks[0] && line <= block.StartLine))
+                break;
+            if (BlockBounds(block) is not (double blockTop, double blockBottom))
+                continue;
+            y = line < block.EndLine
+                ? blockTop + (line - block.StartLine) / (block.EndLine - block.StartLine) * (blockBottom - blockTop)
+                : blockBottom;
+        }
+        _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, Math.Max(0, y));
+    }
+
+    // The block's top and bottom in the scroll viewer's extent, the coordinates of its Offset, or null
+    // when it is not laid out (not attached, or collapsed). Measured from the scroll viewer's content,
+    // which moves with the blocks, the position holds even before a new offset is arranged; the
+    // content's margin (the theme's Padding) is the space above it in the extent.
+    private (double Top, double Bottom)? BlockBounds(SourceBlock block)
+    {
+        if (_scrollViewer?.Content is not Control content
+            || block.Control.TranslatePoint(new Point(0, 0), content) is not { } point
+            || block.Control.Bounds.Height <= 0)
+            return null;
+        var top = content.Margin.Top + point.Y;
+        return (top, top + block.Control.Bounds.Height);
     }
 
     public void ScrollToAnchor(string anchorId)
