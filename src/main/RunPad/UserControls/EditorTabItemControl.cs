@@ -185,6 +185,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+        SetupPreview();
 
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
@@ -287,6 +288,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ApplySelectionColor(State.Editor);
         State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
         UpdateOutputUi();
+        ApplyPreviewThemeNow(theme);
     }
 
     // Deliberately a no-op for a tab with no FilePath yet ("tab lifecycle") — an
@@ -381,6 +383,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         RefreshIntelliSensePackages();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        UpdatePreviewNow();
     }
 
     internal void Cancel()
@@ -617,6 +620,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
+        DisposePreview();
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
@@ -1306,6 +1310,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             _prefs.Keyboard.ApplyTo(State.Editor);
+            ApplyPreviewCodeFont();
             if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
             {
                 _runPadAnalyzers = !_runPadAnalyzers;
@@ -1936,6 +1941,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _metadataBaseline = FrontMatterSnapshot();
         _vm.IsDirty = true;
+        UpdatePreviewNow();
         SaveIfNeeded();
     }
 
