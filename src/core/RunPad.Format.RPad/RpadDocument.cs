@@ -24,9 +24,14 @@ public sealed class RpadDocument
 
     private static RpadFrontMatter CloneMetadata(RpadFrontMatter source) => new()
     {
-        Version = source.Version, Language = source.Language, TargetSdk = source.TargetSdk, Kind = source.Kind,
+        Version = source.Version,
+        Language = source.Language,
+        TargetSdk = source.TargetSdk,
+        Kind = source.Kind,
         Packages = source.Packages.ToDictionary(p => p.Key, p => p.Value),
-        References = source.References?.ToList(), Namespaces = source.Namespaces?.ToList(), Args = source.Args?.ToList(),
+        References = source.References?.ToList(),
+        Namespaces = source.Namespaces?.ToList(),
+        Args = source.Args?.ToList(),
     };
 }
 

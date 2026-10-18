@@ -33,7 +33,8 @@ public sealed class TabRecoveryTests : IDisposable
         theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(new InterfaceTheme("Test", ThemeVariant.Dark, true),
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(path, [], prefs.Object, new Mock<IEditorTabActions>().Object,
-            RpadLanguage.CSharp, RpadKind.Statements) { RestoredRecovery = snapshot };
+            RpadLanguage.CSharp, RpadKind.Statements)
+        { RestoredRecovery = snapshot };
         var ctrl = new EditorsTabItemControl(vm, theme.Object, _windows.Object, new Mock<ILanguageHostRegistry>().Object,
             prefs.Object, null, new Mock<IBuildCacheService>().Object);
         var window = new Window { Content = ctrl };

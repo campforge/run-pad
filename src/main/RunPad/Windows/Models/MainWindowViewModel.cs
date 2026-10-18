@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
@@ -13,7 +14,6 @@ using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
-using System.Text;
 using RunPad.Shared;
 using RunPad.UserControls.Models;
 
@@ -59,8 +59,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                         var parsed = RpadParser.Parse(text);
                         frame = tab with
                         {
-                            EditorText = parsed.Document?.RunCode ?? text, Document = parsed.Document?.CaptureSnapshot(),
-                            ParseError = parsed.Error, BaselineKnown = true, DiskHash = ScriptFileState.Of(bytes).Hash,
+                            EditorText = parsed.Document?.RunCode ?? text,
+                            Document = parsed.Document?.CaptureSnapshot(),
+                            ParseError = parsed.Error,
+                            BaselineKnown = true,
+                            DiskHash = ScriptFileState.Of(bytes).Hash,
                             MetadataBaseline = null,
                         };
                     }
@@ -84,7 +87,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                         frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
                         frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
                     {
-                        RecoveryId = frame.Id, RestoredRecovery = frame,
+                        RecoveryId = frame.Id,
+                        RestoredRecovery = frame,
                     };
                     if (frame.FilePath is not null) _openTabs[frame.FilePath] = vm;
                     AddTab(vm);
