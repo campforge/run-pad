@@ -339,4 +339,18 @@ public class MainWindowHotkeysTests
         var newTab = Assert.Single(mainVm.Tabs, t => t.FilePath is null && t.NewFileLanguage == RpadLanguage.Vb);
         Assert.Equal(RpadKind.Program, newTab.NewFileKind);
     }
+
+    [AvaloniaFact]
+    public void OpenScript_Should_UseCtrlO_AndFollowRebinding()
+    {
+        var keys = new KeyboardSettings { IsMac = false };
+        var (window, _, service) = CreateMainWindow(keys);
+        window.KeyPress(Key.O, RawInputModifiers.Control, PhysicalKey.O, null);
+        service.Verify(w => w.ShowOpenScriptFileDialogAsync(It.IsAny<string>()), Times.Once);
+        keys.SetKey(KeyCommands.OpenFile, "Ctrl+Shift+O");
+        window.KeyPress(Key.O, RawInputModifiers.Control, PhysicalKey.O, null);
+        service.Verify(w => w.ShowOpenScriptFileDialogAsync(It.IsAny<string>()), Times.Once);
+        window.KeyPress(Key.O, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.O, null);
+        service.Verify(w => w.ShowOpenScriptFileDialogAsync(It.IsAny<string>()), Times.Exactly(2));
+    }
 }

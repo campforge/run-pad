@@ -21,6 +21,9 @@ public interface IWindowService
     /// </summary>
     Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder);
 
+    /// <summary>Native picker for a local .rpad script; null on cancellation.</summary>
+    Task<string?> ShowOpenScriptFileDialogAsync(string startFolder);
+
     /// <summary>
     /// Shows a native Open dialog filtered to <c>.linq</c> files, defaulting to
     /// <paramref name="startFolder"/> ("File → Import LINQPad Query..."). Returns the

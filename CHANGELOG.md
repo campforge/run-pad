@@ -5,6 +5,12 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- File > Open (Ctrl+O, or Cmd+O on macOS) opens .rpad scripts from any folder. Recent Files keeps
+  the last 50 paths across restarts and can be cleared without deleting files. Opening an already
+  open script activates its tab and preserves unsaved edits.
+
 ### Fixed
 
 - Input sent to a script handles failures after Stop or process exit without leaving an unobserved

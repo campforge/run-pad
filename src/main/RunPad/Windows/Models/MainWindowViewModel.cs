@@ -67,6 +67,72 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private bool _disposed;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    private bool _restoringSession;
+    private bool _openingFile;
+    public event Action? RecentFilesChanged;
+    public IReadOnlyList<string> RecentFiles => _prefs.Session.RecentFiles;
+    public bool HasRecentFiles => RecentFiles.Count > 0;
+    public ReactiveCommand<Unit, Unit> OpenFileCommand { get; }
+    public ReactiveCommand<string, Unit> OpenRecentFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearRecentFilesCommand { get; }
+
+    private async Task OpenFileAsync()
+    {
+        if (_disposed || _openingFile) return;
+        _openingFile = true;
+        try
+        {
+            var folder = ActiveTab?.FilePath is { } current ? Path.GetDirectoryName(current)! : _fileSystemService.Folder;
+            var path = await _windowService.ShowOpenScriptFileDialogAsync(folder);
+            if (path is not null) await OpenScriptAsync(path);
+        }
+        finally { _openingFile = false; }
+    }
+
+    internal async Task OpenScriptAsync(string path)
+    {
+        if (_disposed) return;
+        try
+        {
+            path = Path.GetFullPath(path);
+            if (!string.Equals(Path.GetExtension(path), ".rpad", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Choose a .rpad script.");
+            // An already-open dirty tab remains usable even if its file was removed elsewhere.
+            if (!_openTabs.ContainsKey(path))
+            {
+                using var readable = File.OpenRead(path);
+            }
+            OpenTab(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            await _windowService.ShowErrorAsync("Open Failed", $"Could not open '{path}':\n{ex.Message}");
+        }
+    }
+
+    private void RememberRecentFile(string path)
+    {
+        if (_restoringSession) return;
+        _prefs.Session.RecentFiles = RecentFiles.Where(p => !FilePathComparer.Equals(p, path)).Prepend(path).Take(50).ToList();
+        RecentFilesUpdated();
+    }
+
+    private void SaveSessionSettings()
+    {
+        try { _prefs.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not save session and recent files");
+        }
+    }
+
+    private void RecentFilesUpdated()
+    {
+        SaveSessionSettings();
+        this.RaisePropertyChanged(nameof(HasRecentFiles));
+        RecentFilesChanged?.Invoke();
+    }
+
     // ── Window commands ───────────────────────────────────────────────────────
 
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
@@ -182,7 +248,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
         _prefs.Session.ActiveTabPath = ActiveTab?.FilePath;
-        _prefs.Save();
+        SaveSessionSettings();
     }
 
     // Replaces the old unconditional "open one blank tab" at startup (EditorTabsControl.Attach) —
@@ -200,12 +266,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var savedOpenTabs = _prefs.Session.OpenTabs.ToList();
 
         var restoredAny = false;
-        foreach (var path in savedOpenTabs)
+        _restoringSession = true;
+        try
         {
-            if (!File.Exists(path)) continue;
-            OpenTab(path);
-            restoredAny = true;
+            foreach (var path in savedOpenTabs)
+            {
+                if (!File.Exists(path)) continue;
+                OpenTab(path);
+                restoredAny = true;
+            }
         }
+        finally { _restoringSession = false; }
 
         if (!restoredAny)
         {
@@ -241,9 +312,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     public void OpenTab(string? filePath)
     {
+        if (filePath is not null) filePath = Path.GetFullPath(filePath);
         if (filePath is not null && _openTabs.TryGetValue(filePath, out var existing))
         {
             ActiveTab = existing;
+            RememberRecentFile(filePath!);
             return;
         }
 
@@ -254,7 +327,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this);
-        if (filePath is not null) _openTabs[filePath] = vm;
+        if (filePath is not null)
+        {
+            _openTabs[filePath] = vm;
+            RememberRecentFile(filePath);
+        }
         AddTab(vm);
 
         if (blankToClose is not null)
@@ -302,6 +379,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         vm.AcceptWrittenState(newPath);
         vm.IsDirty = false;
         _openTabs[newPath] = vm;
+        RememberRecentFile(newPath);
         RefreshNodes();
         // Neither Tabs nor ActiveTab changed (same vm, same position) but the path list did —
         // PersistSession's usual triggers (the ActiveTab setter, CloseTab) won't fire here.
@@ -715,7 +793,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // constructor body.
         _languageRegistry = languageRegistry;
         NewFileLanguages = NewFileLanguageChoice.From(languageRegistry);
+        var recent = new List<string>();
+        foreach (var path in _prefs.Session.RecentFiles ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            try { recent.Add(Path.GetFullPath(path)); }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { }
+        }
+        _prefs.Session.RecentFiles = recent.Distinct(FilePathComparer).Take(50).ToList();
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
+        OpenFileCommand = ReactiveCommand.CreateFromTask(OpenFileAsync);
+        OpenRecentFileCommand = ReactiveCommand.CreateFromTask<string>(OpenScriptAsync);
+        ClearRecentFilesCommand = ReactiveCommand.Create(() =>
+        {
+            _prefs.Session.RecentFiles = [];
+            RecentFilesUpdated();
+        }, this.WhenAnyValue(x => x.HasRecentFiles));
+        OpenFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Opening script failed"));
+        OpenRecentFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Opening recent script failed"));
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);

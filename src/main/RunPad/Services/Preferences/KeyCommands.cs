@@ -26,6 +26,7 @@ public static class KeyCommands
     public const string AssemblyExplorer = "Assembly Explorer";
 
     public static readonly KeyCommand NewFile = new("file.new", General, "New File", "Ctrl+N", "Cmd+N");
+    public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
@@ -72,7 +73,7 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        NewFile, OpenFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,

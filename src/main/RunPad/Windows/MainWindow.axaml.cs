@@ -47,6 +47,8 @@ public sealed partial class MainWindow : Window, IDisposable
         foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
 
         ApplyPlatformChrome();
+        viewModel.RecentFilesChanged += OnRecentFilesChanged;
+        Closed += (_, _) => viewModel.RecentFilesChanged -= OnRecentFilesChanged;
 
         // A key rebound in Preferences shows in both menus at once (OnWindowKeyDown reads it anyway).
         _prefs.Changed += OnPreferencesChanged;
@@ -132,6 +134,7 @@ public sealed partial class MainWindow : Window, IDisposable
         return new()
         {
             [KeyCommands.NewFile] = vm.NewRpadFileWithDefaults,
+            [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
             [KeyCommands.CloseTab] = tabs.CloseActiveTab,
@@ -236,6 +239,30 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // A conventional IDE layout, the same on every OS. Every item calls the code behind the matching
     // toolbar button or shortcut (OnWindowKeyDown, EditorTabsControl.*Active), never a copy of it.
+    private MainMenuGroup CreateRecentFilesMenu()
+    {
+        var vm = GetViewModel();
+        var entries = vm.RecentFiles.Select(path => (MainMenuEntry)new MainMenuCommand(
+            path.Replace("_", "__"), vm.OpenRecentFileCommand, Parameter: path)).ToList();
+        if (entries.Count > 0) entries.Add(new MainMenuSeparator());
+        entries.Add(new MainMenuCommand("_Clear Recent Files", vm.ClearRecentFilesCommand));
+        return new MainMenuGroup("Recent _Files", entries);
+    }
+
+    private void OnRecentFilesChanged()
+    {
+        // Keep command instances and key bindings; replace only the dynamic submenu in the shared tree.
+        MainMenuEntries = MainMenuEntries.Select(group => group with
+        {
+            Items = group.Items.Select(entry => entry is MainMenuGroup { Header: "Recent _Files" }
+                ? CreateRecentFilesMenu() : entry).ToList(),
+        }).ToList();
+        _mainMenu.Items.Clear();
+        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
+        if (OperatingSystem.IsMacOS())
+            NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
+    }
+
     private IReadOnlyList<MainMenuGroup> CreateMainMenu()
     {
         var vm = GetViewModel();
@@ -251,6 +278,8 @@ public sealed partial class MainWindow : Window, IDisposable
                     .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
                         l.DisplayName, ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(l.Language)))),
                 ]),
+                new MainMenuCommand("_Open...", vm.OpenFileCommand, _prefs.Keyboard.GestureFor(KeyCommands.OpenFile), KeyCommands.OpenFile),
+                CreateRecentFilesMenu(),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import .linq Query...", vm.ImportLinqFileCommand),
                 new MainMenuSeparator(),
@@ -460,6 +489,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        GetViewModel().RecentFilesChanged -= OnRecentFilesChanged;
         _prefs.Changed -= OnPreferencesChanged;
         _editorTabs.Dispose();
         GC.SuppressFinalize(this);

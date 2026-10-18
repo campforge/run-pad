@@ -6,7 +6,6 @@ Planned work for RunPad. Missing something? [Open an issue](https://github.com/c
 
 - **Visual Basic editor intelligence** — completion, signature help, live diagnostics and quick fixes
   for VB, which today only compiles, runs and debugs.
-- **File → Open** — open a `.rpad` file from anywhere, not only from the scripts folder.
 
 ## Editor
 
