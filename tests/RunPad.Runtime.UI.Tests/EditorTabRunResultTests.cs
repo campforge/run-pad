@@ -28,7 +28,7 @@ public class EditorTabRunResultTests
 
     private static EditorsTabItemControl CreateControl(
         RunResult result, string stderrLine = "", IRuntimeReferenceLocator? runtimeReferences = null,
-        RpadLanguage language = RpadLanguage.CSharp, List<(string Language, ILanguageHostOptions? Options)>? created = null, Func<Task<RunResult>>? pending = null, ILogger<EditorsTabItemControl>? logger = null)
+        RpadLanguage language = RpadLanguage.CSharp, List<(string Language, ILanguageHostOptions? Options)>? created = null, Func<Task<RunResult>>? pending = null, ILogger<EditorsTabItemControl>? logger = null, Action<OutputReceivedHandler>? captureOutput = null)
     {
         var prefs = new Mock<IPreferencesService>();
         prefs.Setup(p => p.Editor).Returns(new EditorSettings());
@@ -47,6 +47,7 @@ public class EditorTabRunResultTests
         host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
             .Returns((string _, OutputReceivedHandler output, CancellationToken _) =>
             {
+                captureOutput?.Invoke(output);
                 output("script output", OutputKind.StandardOutput);
                 if (stderrLine.Length > 0) output(stderrLine, OutputKind.StandardError);
                 return pending?.Invoke() ?? Task.FromResult(result);
@@ -70,17 +71,29 @@ public class EditorTabRunResultTests
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource<RunResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ctrl = CreateControl(RunResult.Exited(0), pending: () => { started.TrySetResult(); return finish.Task; });
+        var created = new List<(string Language, ILanguageHostOptions? Options)>();
+        var ctrl = CreateControl(RunResult.Exited(0), created: created, pending: () => { started.TrySetResult(); return finish.Task; });
         var first = ctrl.RunAsync(false, Sdk);
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var original = ctrl.State.RunCts;
         ctrl.Cancel();
         var second = ctrl.RunAsync(false, Sdk);
-        try { Assert.Same(original, ctrl.State.RunCts); }
+        try
+        {
+            Assert.Same(original, ctrl.State.RunCts);
+            Assert.Single(created);
+        }
+        finally { finish.TrySetResult(RunResult.Exited(0)); }
+        try
+        {
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Null(ctrl.State.RunCts);
+            await ctrl.RunAsync(false, Sdk).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(2, created.Count);
+            Assert.Equal("Success", ctrl.State.ExecStatusText);
+        }
         finally
         {
-            finish.TrySetResult(RunResult.Exited(0));
-            try { await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10)); } catch { }
             ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
             ctrl.Dispose();
         }
@@ -112,16 +125,54 @@ public class EditorTabRunResultTests
         var ctrl = CreateControl(RunResult.Exited(0), pending: () => { started.TrySetResult(); return finish.Task; }, logger: logger.Object);
         var run = ctrl.RunAsync(false, Sdk);
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        ctrl.State.Editor.DebugCurrentLine = 5;
         using var registration = ctrl.State.RunCts!.Token.Register(() => throw new InvalidOperationException("cleanup sentinel"));
         finish.TrySetResult(RunResult.Exited(0));
         await run.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal("Error", ctrl.State.ExecStatusText);
         Assert.Contains("cleanup sentinel", ctrl.State.Output.Content);
         Assert.Null(ctrl.State.RunCts);
+        Assert.Null(ctrl.State.Editor.DebugCurrentLine);
+        Assert.False(ctrl.State.RunStopwatch.IsRunning);
         logger.Verify(l => l.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
             It.Is<Exception>(e => e.ToString().Contains("cleanup sentinel")), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
         ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
         ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public async Task LateOutput_Should_NotReachANewerRun_OrAClosedTab()
+    {
+        var secondStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<RunResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var outputs = new List<OutputReceivedHandler>();
+        var count = 0;
+        var ctrl = CreateControl(RunResult.Exited(0), captureOutput: outputs.Add, pending: () =>
+        {
+            if (Interlocked.Increment(ref count) == 1) return Task.FromResult(RunResult.Exited(0));
+            secondStarted.TrySetResult();
+            return finish.Task;
+        });
+        await ctrl.RunAsync(false, Sdk).WaitAsync(TimeSpan.FromSeconds(10));
+        Dispatcher.UIThread.RunJobs();
+        var second = ctrl.RunAsync(false, Sdk);
+        await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        outputs[0]("stale-run-output", OutputKind.StandardOutput);
+        outputs[1]("current-run-output", OutputKind.StandardOutput);
+        Dispatcher.UIThread.RunJobs();
+        try
+        {
+            Assert.DoesNotContain("stale-run-output", ctrl.State.Output.Content);
+            Assert.Contains("current-run-output", ctrl.State.Output.Content);
+            ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
+            ctrl.Dispose();
+            var before = ctrl.State.Output.Content;
+            outputs[1]("closed-tab-output", OutputKind.StandardOutput);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(before, ctrl.State.Output.Content);
+        }
+        finally { finish.TrySetResult(RunResult.Exited(0)); }
+        await second.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     private static async Task RunAsync(EditorsTabItemControl ctrl)
