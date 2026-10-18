@@ -440,8 +440,7 @@ public class CodeFixMarginTests
 
     private static void ScrollTo(CodeTextEditor editor, double offset)
     {
-        // TextEditor.ScrollToVerticalOffset does nothing in this AvaloniaEdit version: scroll its viewer.
-        editor.GetVisualDescendants().OfType<ScrollViewer>().First().Offset = new Vector(0, offset);
+        editor.ScrollToVerticalOffset(offset);
         Settle(editor);
     }
 

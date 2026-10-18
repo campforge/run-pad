@@ -7,11 +7,27 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Added
 
+- Draft recovery can keep open tabs and their unsaved text locally on normal exit, including
+  script arguments and references, without writing those changes to the original files.
+
 - File > Open (Ctrl+O, or Cmd+O on macOS) opens .rpad scripts from any folder. Recent Files keeps
   the last 50 paths across restarts and can be cleared without deleting files. Opening an already
   open script activates its tab and preserves unsaved edits.
+- A Markdown preview of the script, as in VS Code: View → Markdown Preview (Ctrl+Shift+V) shows the
+  whole document in place of the editor, and View → Markdown Preview to the Side (Ctrl+Alt+V) beside
+  it; a button on the tab's toolbar shows or hides it. The header is shown as a table of settings,
+  the text around the code as formatted Markdown and the code highlighted in the editor's colors;
+  the preview follows the text as you type. Side by side, the editor and the preview scroll together.
+- An open script follows its file when another program changes it. A tab without unsaved changes
+  reloads by itself when you come back to RunPad; one with unsaved changes asks whether to reload or
+  keep your version, and doesn't ask again about the same change. A reload can be undone with Undo.
+  File → Revert to Saved goes back to the script as saved on disk, asking first if that drops
+  unsaved changes.
 
 ### Fixed
+
+- Opening or reloading scripts preserves literal `${0}` text. Reload and Revert to Saved leave
+  tabs alone if a run or save starts, or their saved version changes, while a dialog is open.
 
 - Opening a script no longer fails while Recent Files refreshes the native macOS menu.
 - Input sent to a script handles failures after Stop or process exit without leaving an unobserved

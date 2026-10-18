@@ -29,6 +29,7 @@ public static class KeyCommands
     public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
+    public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
     // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
     public static readonly KeyCommand Exit = new("file.exit", General, "Exit", "", "Cmd+Q");
@@ -40,6 +41,10 @@ public static class KeyCommands
     public static readonly KeyCommand ZoomIn = new("view.zoomIn", General, "Zoom In", "");
     public static readonly KeyCommand ZoomOut = new("view.zoomOut", General, "Zoom Out", "");
     public static readonly KeyCommand ResetZoom = new("view.resetZoom", General, "Reset Zoom", "");
+    // VS Code's keys; its Ctrl+K V for the side preview is a two-key chord, which key bindings here
+    // can't express, so that one takes Alt instead of Shift.
+    public static readonly KeyCommand TogglePreview = new("view.togglePreview", General, "Toggle Markdown Preview", "Ctrl+Shift+V", "Cmd+Shift+V");
+    public static readonly KeyCommand TogglePreviewToSide = new("view.togglePreviewToSide", General, "Toggle Markdown Preview to the Side", "Ctrl+Alt+V", "Cmd+Alt+V");
 
     public static readonly KeyCommand RunOrContinue = new("run.run", Run, "Run / Continue", "F5");
     public static readonly KeyCommand Stop = new("run.stop", Run, "Stop", "Shift+F5");
@@ -73,8 +78,8 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, OpenFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
-        ToggleFileTree, ToggleOutputPanel, ZoomIn, ZoomOut, ResetZoom,
+        NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,
         Format, GoToLine, ResolveAllUsings,

@@ -14,6 +14,9 @@ namespace RunPad.UserControls.Models;
 
 public enum RunState { Idle, Run, RunDebug, Paused }
 
+// Where the tab shows its Markdown preview: not at all, beside the editor, or in its place.
+public enum ScriptPreviewMode { Off, Side, Full }
+
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
     private readonly IPreferencesService _prefs;
@@ -46,8 +49,13 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         {
             DiskState = written.State;
             RequiresBaselineConfirmation = false;
+            DeclinedDiskState = null;
         }
     }
+
+    // A version of the file another program wrote that the user chose not to reload over their
+    // unsaved edits: RunPad doesn't ask about that same version again. Saving or reloading forgets it.
+    internal ScriptFileState? DeclinedDiskState { get; set; }
 
     // An in-place save still waiting for the user's choice (see InPlaceSave).
     internal Task<InPlaceSaveResult>? PendingSave { get; set; }
@@ -141,6 +149,31 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
+
+    public ScriptPreviewMode PreviewMode
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(PreviewShown));
+        }
+    }
+
+    // The toolbar's preview button: lit while any preview shows, and it opens the side-by-side one.
+    public bool PreviewShown
+    {
+        get => PreviewMode != ScriptPreviewMode.Off;
+        set => PreviewMode = value ? ScriptPreviewMode.Side : ScriptPreviewMode.Off;
+    }
+
+    // As in VS Code: the same key opens the preview and goes back to the editor; the other key
+    // switches between the side-by-side preview and none.
+    public void TogglePreview()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Full ? ScriptPreviewMode.Off : ScriptPreviewMode.Full;
+
+    public void TogglePreviewToSide()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Side ? ScriptPreviewMode.Off : ScriptPreviewMode.Side;
 
     private RunState _runState;
     public RunState RunState
