@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.CSharp.IntelliSense;
 using RunPad.Languages.DotnetCommon;
 
 namespace RunPad.Languages.CSharp;
@@ -8,10 +10,13 @@ namespace RunPad.Languages.CSharp;
 public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
 {
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IRuntimeReferenceLocator _runtimeReferences;
+    private readonly CSharpReferenceService _references = new();
 
-    public CSharpLanguageHostFactory(ILoggerFactory loggerFactory)
+    public CSharpLanguageHostFactory(ILoggerFactory loggerFactory, IRuntimeReferenceLocator? runtimeReferences = null)
     {
         _loggerFactory = loggerFactory;
+        _runtimeReferences = runtimeReferences ?? new DotnetRuntimeReferenceLocator();
     }
 
     public string Language => "csharp";
@@ -61,6 +66,21 @@ public sealed class CSharpLanguageHostFactory : ILanguageHostFactory
         // File tree's per-language icon — pictogrammers.com/library/mdi/icon/language-csharp.
         IconResourceKey = "Icon.LanguageCSharp",
     };
+
+    // The framework's assemblies and, given apart so that a target's reference assemblies never
+    // replace it, RunPad.Runtime: a self-contained RunPad ships it in the framework's own folder.
+    public IIntelliSenseService? CreateIntelliSense(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var framework = _references.GetDefault();
+        cancellationToken.ThrowIfCancellationRequested();
+        return new CSharpIntelliSenseService(framework, _loggerFactory.CreateLogger<CSharpIntelliSenseService>(),
+            additionalReferencePaths: [_runtimeReferences.GetRuntimeAssemblyPath()]);
+    }
+
+    // A throwaway instance: the expensive part (RunPadRoslynHost.HostServices, the MEF composition) is a
+    // process-wide lazy singleton every instance shares, and its first analysis loads the references.
+    public void WarmUpIntelliSense() => CreateIntelliSense(CancellationToken.None)?.NotifyTextChanged("");
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {

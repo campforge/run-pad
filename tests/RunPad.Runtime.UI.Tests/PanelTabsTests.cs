@@ -14,6 +14,7 @@ using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -51,7 +52,7 @@ public class PanelTabsTests
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
         var vm = new EditorTabItemViewModel(null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var tab = new EditorsTabItemControl(vm, themeService.Object, new Mock<IWindowService>().Object,
-            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new CSharpReferenceService(),
+            new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new DotnetRuntimeReferenceLocator(),
             new Mock<IBuildCacheService>().Object);
         host = Host(tab, theme);
         return tab.GetVisualDescendants().OfType<TabControl>().Single(t => t.Name == "OutputTabsControl");

@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using ICSharpCode.Decompiler.CSharp;
 using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.Themes;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
@@ -421,6 +422,15 @@ public partial class AssemblyExplorerWindow : Window
 
         // Same reasoning as EditorTabItemControl's own onAttached dance: SetLanguage calls Redraw()
         // internally, which needs the editor already in the visual tree.
+        // A shown window: a theme change recolours its code at once.
+        void OnThemeChanged(ActiveTheme theme)
+        {
+            editor.SetTheme(theme.Editor.TextMateName);
+            editor.Background = themeService.GetBrush("RunPad.Editor.BackgroundBrush");
+        }
+        themeService.ThemeChanged += OnThemeChanged;
+        Closed += (_, _) => themeService.ThemeChanged -= OnThemeChanged;
+
         EventHandler<VisualTreeAttachmentEventArgs>? onAttached = null;
         onAttached = (_, _) =>
         {

@@ -248,8 +248,8 @@ public sealed partial class MainWindow : Window, IDisposable
                 Item("_New File", KeyCommands.NewFile),
                 new MainMenuGroup("New _RPad File",
                 [
-                    new MainMenuCommand("C#", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.CSharp))),
-                    new MainMenuCommand("Visual Basic", ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(RpadLanguage.Vb))),
+                    .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
+                        l.DisplayName, ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(l.Language)))),
                 ]),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import .linq Query...", vm.ImportLinqFileCommand),
@@ -423,11 +423,12 @@ public sealed partial class MainWindow : Window, IDisposable
     private void FileTree_Open(object? sender, FileTreeFileEventArgs e)
         => GetViewModel().OpenTab(e.FilePath);
 
+    // These complete without throwing (failures are shown as errors), so nothing is lost by not awaiting.
     private void FileTree_Delete(object? sender, FileTreeFileEventArgs e)
-        => GetViewModel().DeleteFile(e.FilePath);
+        => _ = GetViewModel().DeleteFile(e.FilePath);
 
     private void FileTree_Rename(object? sender, FileTreeRenameEventArgs e)
-        => GetViewModel().RenameFile(e.FilePath, e.NewName);
+        => _ = GetViewModel().RenameFile(e.FilePath, e.NewName);
 
     private void FileTree_OpenFolder(object? sender, FileTreeFileEventArgs e)
         => GetViewModel().OpenContainingFolder(e.FilePath);
@@ -448,7 +449,7 @@ public sealed partial class MainWindow : Window, IDisposable
     }
 
     private void FileTree_Move(object? sender, FileTreeMoveEventArgs e)
-        => GetViewModel().MoveFileOrFolder(e.SourcePath, e.TargetPath);
+        => _ = GetViewModel().MoveFileOrFolder(e.SourcePath, e.TargetPath);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

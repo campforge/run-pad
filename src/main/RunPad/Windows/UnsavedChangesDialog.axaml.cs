@@ -4,12 +4,12 @@ using RunPad.Services;
 
 namespace RunPad.Windows;
 
-public partial class UnsavedChangesDialog : Window
+public partial class UnsavedChangesDialog : RunPadDialogWindow
 {
     public UnsavedChangesDialog(string fileName)
         : this()
     {
-        MessageBlock.Text = $"\"{fileName}\" has unsaved changes. Save before closing?";
+        Layout.FileName = fileName;
     }
 
     private UnsavedChangesDialog() => InitializeComponent();
@@ -18,7 +18,8 @@ public partial class UnsavedChangesDialog : Window
     public static UnsavedChangesDialog WithMessage(string message)
     {
         var dialog = new UnsavedChangesDialog();
-        dialog.MessageBlock.Text = message;
+        dialog.Layout.Heading = "Save changes?";
+        dialog.Layout.Message = message;
         return dialog;
     }
 

@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
@@ -11,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
+using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
@@ -173,10 +176,18 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // select from these again, so a framework assembly a package displaced comes back with it. The
     // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
     // target's reference assemblies when its targeting pack is found, as the build compiles against it.
+    // The additional references are never part of it, wherever they are: a self-contained RunPad ships
+    // RunPad.Runtime.dll in the very folder its runtime's System.Runtime.dll is in.
     private readonly List<string> _baseReferencePaths = [];
     private readonly List<string> _defaultFrameworkPaths = [];
     private readonly List<string> _otherBaseReferencePaths = [];
     private IReadOnlyList<string> _frameworkPaths = [];
+    // The target pack's source generators ([GeneratedRegex], System.Text.Json, [LibraryImport]), which
+    // the build runs too. The workspace runs them while compiling for analysis, off the UI thread.
+    private IReadOnlyList<string> _generatorPaths = [];
+    // The script's own .dll references with the same-folder dependencies the build adds.
+    private IReadOnlyList<string> _userReferencePaths = [];
+    private CSharpParseOptions _parseOptions = CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
     private readonly List<MetadataReference> _nugetRefs = [];
     private IReadOnlyList<string> _nugetPaths = [];
     private readonly RoslynCodeFixEngine _codeFixEngine;
@@ -231,7 +242,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private Task? _backgroundAnalysisTask;
 
     // Shared across every CSharpIntelliSenseService instance (one per tab, see EditorTabsControl.
-    // CreateControlAsync) — MetadataReferences are immutable and safe to share across unrelated
+    // CreateIntelliSenseAsync) — MetadataReferences are immutable and safe to share across unrelated
     // workspaces/compilations, so without this every new tab redid the PE-header + XML-doc parsing
     // for the same ~167 default BCL reference assemblies from scratch.
     internal static readonly ConcurrentDictionary<string, MetadataReference> ReferenceCache =
@@ -244,21 +255,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         ReferenceCache.GetOrAdd(path,
             static p => MetadataReference.CreateFromFile(p, documentation: ReferenceDocumentation.Find(p)));
 
-    public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
+    /// <param name="referencePaths">The framework's assemblies, and others outside their folder.</param>
+    /// <param name="additionalReferencePaths">Assemblies kept whatever the script's target framework,
+    /// such as RunPad.Runtime.</param>
+    public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger,
+        IEnumerable<string>? additionalReferencePaths = null)
     {
         _logger = logger;
         RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var additional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in referencePaths)
             if (File.Exists(path) && seen.Add(path))
                 _baseReferencePaths.Add(path);
+        foreach (var path in additionalReferencePaths ?? [])
+            if (File.Exists(path) && additional.Add(path) && seen.Add(path))
+                _baseReferencePaths.Add(path);
         var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
         var frameworkDirectory = _baseReferencePaths
-            .Where(p => string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
+            .Where(p => !additional.Contains(p)
+                        && string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
             .Select(Path.GetDirectoryName).FirstOrDefault();
         foreach (var path in _baseReferencePaths)
-            (frameworkDirectory is not null && Path.GetDirectoryName(path) == frameworkDirectory
+            (frameworkDirectory is not null && !additional.Contains(path) && Path.GetDirectoryName(path) == frameworkDirectory
                 ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
         _frameworkPaths = _defaultFrameworkPaths;
 
@@ -296,7 +316,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             compilationOptions: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable),
-            parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
+            parseOptions: _parseOptions,
             metadataReferences: refs);
 
         _workspace.AddProject(projectInfo);
@@ -1611,6 +1631,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         try
         {
+            CSharpParseOptions parseOptions;
+            lock (_syncLock) parseOptions = _parseOptions;
             using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
             formatWorkspace.AddProject(ProjectInfo.Create(
@@ -1619,7 +1641,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 name: "Format",
                 assemblyName: "Format",
                 language: LanguageNames.CSharp,
-                parseOptions: new CSharpParseOptions(LanguageVersion.Latest)));
+                parseOptions: parseOptions));
 
             var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
             var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
@@ -1670,12 +1692,100 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             var headerLength = HeaderLength(code);
             var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
-            return materialized is null
-                ? null
-                : new SimpleMaterializedFix(materialized.Value.NewCode, materialized.Value.UsingsToAdd);
+            if (materialized is null) return null;
+            var newCode = _kind == RpadKind.Program && materialized.Value.NewCode != code
+                ? await ReindentOutsideTheWrapperAsync(materialized.Value.NewCode, materialized.Value.ChangedSpans, ct)
+                : materialized.Value.NewCode;
+            return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "MaterializeFixAsync failed"); return null; }
+    }
+
+    // The Program kind analyses the user's members inside the hidden wrapper class while they sit at
+    // column 0 of the editor, so the formatter behind a code action indents what it writes one level
+    // deeper than the visible code (braces under an `if`, a member's own line, a wrapped expression).
+    // Only the lines the action's own text changes touch are corrected, found from those changes
+    // rather than by comparing the whole script, so a large script costs what its text costs.
+    //  - A continuation line the action broke off (its line break and indentation are the action's
+    //    own text) loses the extra level, unless it starts at a token column of the line above:
+    //    then the action aligned it there, and the column is the same in the editor.
+    //  - The touched lines are then formatted again where the wrapper and the user's columns agree —
+    //    every line one level in, inside a class — and that level is taken off again. Lines aligned
+    //    to a token stay aligned; lines the action left alone are not touched.
+    internal async Task<string> ReindentOutsideTheWrapperAsync(string newCode, IReadOnlyList<TextSpan> changedSpans, CancellationToken ct)
+    {
+        if (changedSpans.Count == 0) return newCode;
+
+        var options = _workspace.CurrentSolution.Options;
+        var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
+        var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
+        CSharpParseOptions parseOptions;
+        lock (_syncLock) parseOptions = _parseOptions;
+
+        var lines = newCode.Split('\n');
+        var lineStarts = new int[lines.Length];
+        for (int i = 0, offset = 0; i < lines.Length; offset += lines[i].Length + 1, i++)
+            lineStarts[i] = offset;
+
+        var touched = new SortedSet<int>();
+        foreach (var span in changedSpans)
+        {
+            ct.ThrowIfCancellationRequested();
+            var first = LineOf(lineStarts, span.Start);
+            var last = LineOf(lineStarts, Math.Max(span.Start, span.End - 1));
+            for (var line = first; line <= last; line++)
+            {
+                touched.Add(line);
+                if (!useTabs && line > 0 && lineStarts[line] > span.Start && lineStarts[line] <= span.End)
+                    lines[line] = WithoutWrapperLevel(lines[line], lines[line - 1], unit);
+            }
+        }
+
+        const string header = "class __RunPadIndent\n{\n";
+        var text = new StringBuilder(header, header.Length + newCode.Length + lines.Length * unit.Length + 4);
+        var spans = new List<TextSpan>(touched.Count);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if ((i & 1023) == 0) ct.ThrowIfCancellationRequested();
+            var start = text.Length;
+            if (lines[i].Length > 0) text.Append(unit);
+            text.Append(lines[i]);
+            if (touched.Contains(i)) spans.Add(TextSpan.FromBounds(start, text.Length));
+            if (i < lines.Length - 1) text.Append('\n');
+        }
+        text.Append("\n}\n");
+
+        using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
+        var projectId = ProjectId.CreateNewId("Indent");
+        formatWorkspace.AddProject(ProjectInfo.Create(projectId, VersionStamp.Create(), "Indent", "Indent",
+            LanguageNames.CSharp, parseOptions: parseOptions));
+        var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(text.ToString(), Encoding.UTF8));
+        var formatted = await Formatter.FormatAsync(document, spans, options.WithChangedOption(FormattingOptions.NewLine, LanguageNames.CSharp, "\n"), ct);
+        var result = (await formatted.GetTextAsync(ct)).ToString();
+        if (!result.StartsWith(header, StringComparison.Ordinal) || !result.EndsWith("\n}\n", StringComparison.Ordinal))
+            return newCode;
+
+        var body = result[header.Length..^"\n}\n".Length].Split('\n');
+        return string.Join('\n', body.Select(l => l.StartsWith(unit, StringComparison.Ordinal) ? l[unit.Length..] : l));
+    }
+
+    private static int LineOf(int[] lineStarts, int position)
+    {
+        var index = Array.BinarySearch(lineStarts, position);
+        return index >= 0 ? index : ~index - 1;
+    }
+
+    // One indentation level less for a continuation line of spaces, unless its first character sits
+    // under the start of a token of the line above (an alignment).
+    private static string WithoutWrapperLevel(string line, string above, string unit)
+    {
+        var indent = 0;
+        while (indent < line.Length && line[indent] == ' ') indent++;
+        if (indent < unit.Length || indent == line.Length || line[indent] == '\t') return line;
+        var alignedToToken = indent < above.Length && !char.IsWhiteSpace(above[indent])
+            && (char.IsWhiteSpace(above[indent - 1]) || !char.IsLetterOrDigit(above[indent - 1]) || !char.IsLetterOrDigit(above[indent]));
+        return alignedToToken ? line : line[unit.Length..];
     }
 
     // ReSharper-style "resolve all missing usings" — see IIntelliSenseService's own doc comment for
@@ -1896,10 +2006,63 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture), severity));
         }
 
+        // Diagnostics the source generators report themselves (an invalid [GeneratedRegex] pattern, a
+        // member System.Text.Json can't see) are part of the build's output but of no semantic model.
+        // Only those inside the user's own text are shown; none take part in code fixes.
+        if (compilation is not null)
+        {
+            var seen = new HashSet<(string, int, int)>();
+            foreach (var (d, span) in await GeneratorDiagnosticsAsync(document, compilation, model.SyntaxTree, ct))
+            {
+                if (d.Severity is RoslynSeverity.Hidden or RoslynSeverity.Info) continue;
+                var start = span.Start - headerLength;
+                var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+                if (start < 0 || start >= end || !seen.Add((d.Id, start, end))) continue;
+                visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture),
+                    d.Severity == RoslynSeverity.Error ? ContractSeverity.Error : ContractSeverity.Warning));
+            }
+        }
+
         DiagnosticsChanged?.Invoke(code, visible);
 
         var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, headerLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
+    }
+
+    // The workspace runs the project's generators but keeps what they report to itself, so they are
+    // run once more for that, on the compilation without their output: the same instances and parse
+    // options, cancelled with the analysis pass. A location is used only when it is in the user's
+    // document — generators report at external-file locations naming that document's path — never
+    // in generated code, which isn't part of that compilation.
+    private static async Task<List<(Diagnostic Diagnostic, TextSpan Span)>> GeneratorDiagnosticsAsync(
+        Document document, Compilation compilation, SyntaxTree userTree, CancellationToken ct)
+    {
+        var generators = document.Project.AnalyzerReferences
+            .SelectMany(r => r.GetGenerators(LanguageNames.CSharp)).ToImmutableArray();
+        if (generators.IsEmpty) return [];
+
+        var generated = await document.Project.GetSourceGeneratedDocumentsAsync(ct);
+        var generatedTrees = new List<SyntaxTree>();
+        foreach (var g in generated)
+            generatedTrees.Add(await g.GetSyntaxTreeAsync(ct) ?? throw new InvalidOperationException());
+        var withoutGenerated = compilation.RemoveSyntaxTrees(generatedTrees);
+
+        var run = CSharpGeneratorDriver
+            .Create(generators, parseOptions: (CSharpParseOptions?)document.Project.ParseOptions)
+            .RunGenerators(withoutGenerated, ct)
+            .GetRunResult();
+
+        var result = new List<(Diagnostic, TextSpan)>();
+        foreach (var d in run.Diagnostics)
+        {
+            var location = d.Location;
+            var inUserTree = location.IsInSource
+                ? location.SourceTree == userTree
+                : location.Kind == LocationKind.ExternalFile && location.GetLineSpan().Path == userTree.FilePath;
+            if (inUserTree && location.SourceSpan.End <= userTree.Length)
+                result.Add((d, location.SourceSpan));
+        }
+        return result;
     }
 
     private static SemanticTokenKind ClassifySpan(string type) => type switch
@@ -1934,7 +2097,11 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // rules — never a restore or a targeting pack download, which would need the network.
     public void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
     {
-        var frameworkPaths = TargetFrameworkReferences(context);
+        var (frameworkPaths, generatorPaths) = TargetFrameworkReferences(context);
+        var userReferencePaths = RoslynScriptCompiler.WithSameFolderDependencies(context.AssemblyReferences ?? []);
+        var parseOptions = TargetFramework.TryParse(context.TargetFramework, out var major, out var minor)
+            ? CSharpScriptCompiler.ParseOptions(major, minor)
+            : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
         var newPaths = NuGetRestorer.CompileReferencesWithoutRestore(
                 packages.ToDictionary(p => p.Key, p => p.Value.Version, StringComparer.OrdinalIgnoreCase),
                 context.TargetFramework,
@@ -1949,7 +2116,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         lock (_syncLock)
         {
             if (newPaths.SequenceEqual(_nugetPaths, StringComparer.OrdinalIgnoreCase)
-                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)) return;
+                && frameworkPaths.SequenceEqual(_frameworkPaths, StringComparer.OrdinalIgnoreCase)
+                && parseOptions.Equals(_parseOptions)
+                && generatorPaths.SequenceEqual(_generatorPaths, StringComparer.OrdinalIgnoreCase)
+                && userReferencePaths.SequenceEqual(_userReferencePaths, StringComparer.OrdinalIgnoreCase)) return;
 
             // Rebuilt from the base references every time, so stale package ones (a removed package, an
             // older resolved version) go away. A package assembly the framework also has is resolved as
@@ -1957,27 +2127,35 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // (CS0433) in the editor while the build compiles.
             var (basePaths, packagePaths) = RoslynScriptCompiler.ResolveConflicts(
                 frameworkPaths.Concat(_otherBaseReferencePaths), newPaths);
-            var baseRefs = basePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+            // In the build's order: the framework (and RunPad.Runtime), the script's own assemblies, packages.
+            var baseRefs = basePaths.Concat(userReferencePaths).Select(p => (MetadataReference)CreateReference(p)).ToList();
             var newRefs = packagePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
+
+            // Replaced as a whole: another target's generators never linger next to the new ones.
+            var generatorRefs = generatorPaths.Select(p => (AnalyzerReference)new GeneratorReference(p, _logger)).ToList();
 
             var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
 
-            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList()).Solution))
+            if (!_workspace.TryApplyChanges(project.WithMetadataReferences(baseRefs.Concat(newRefs).ToList())
+                    .WithParseOptions(parseOptions).WithAnalyzerReferences(generatorRefs).Solution))
                 return; // the next update tries again: _nugetPaths still describes the workspace
 
             _nugetRefs.Clear();
             _nugetRefs.AddRange(newRefs);
             _nugetPaths = newPaths;
             _frameworkPaths = frameworkPaths;
+            _parseOptions = parseOptions;
+            _generatorPaths = generatorPaths;
+            _userReferencePaths = userReferencePaths;
             // force re-sync on next analysis pass
             _lastCode = "";
         }
     }
 
     // The targeting pack the build would use for the target, among the installed and already downloaded
-    // ones; without one (or with a malformed NuGet configuration), the references the service was
-    // created with, as before.
-    private IReadOnlyList<string> TargetFrameworkReferences(PackageReferenceContext context)
+    // ones: its reference assemblies and C# source generators. Without one (or with a malformed NuGet
+    // configuration), the references the service was created with and no generators, as before.
+    private (IReadOnlyList<string> References, IReadOnlyList<string> Generators) TargetFrameworkReferences(PackageReferenceContext context)
     {
         try
         {
@@ -1986,13 +2164,31 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var pack = TargetingPack.Find(context.TargetFramework, context.DotnetExecutable,
                 SettingsUtility.GetGlobalPackagesFolder(settings));
             if (pack is not null)
-                return pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList();
+                return (pack.ReferenceAssemblies.Order(StringComparer.OrdinalIgnoreCase).ToList(),
+                    pack.GeneratorAssemblies("cs").Order(StringComparer.OrdinalIgnoreCase).ToList());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NuGetConfigurationException)
         {
             _logger.LogDebug(ex, "No targeting pack for {TargetFramework}", context.TargetFramework);
         }
-        return _defaultFrameworkPaths;
+        return (_defaultFrameworkPaths, []);
+    }
+
+    // Exposes only the source generators of an assembly: the analyzers and code fixes that ship next to
+    // them are not part of the build's diagnostics either. Loaded when the workspace first asks, while
+    // compiling for analysis — not on the thread that changes the target. The path is the identity, so
+    // an unchanged generator is recognized by the workspace across updates.
+    private sealed class GeneratorReference(string path, ILogger logger) : AnalyzerReference
+    {
+        public override string FullPath => path;
+        public override string Display => Path.GetFileNameWithoutExtension(path);
+        public override object Id => path;
+        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzers(string language) => [];
+        public override ImmutableArray<DiagnosticAnalyzer> GetAnalyzersForAllLanguages() => [];
+        public override ImmutableArray<ISourceGenerator> GetGenerators(string language) =>
+            language == LanguageNames.CSharp ? GetGeneratorsForAllLanguages() : [];
+        public override ImmutableArray<ISourceGenerator> GetGeneratorsForAllLanguages() =>
+            RoslynScriptCompiler.LoadGenerators(path, LanguageNames.CSharp, logger);
     }
 
     // Test-only (InternalsVisibleTo): the package assemblies resolved for the packages — the workspace
@@ -2000,6 +2196,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     internal IReadOnlyList<string> PackageReferencePathsForTests
     {
         get { lock (_syncLock) return _nugetPaths; }
+    }
+
+    // Test-only (InternalsVisibleTo): the source generator assemblies the workspace runs.
+    internal IReadOnlyList<string> GeneratorPathsForTests
+    {
+        get
+        {
+            lock (_syncLock)
+                return _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!.AnalyzerReferences
+                    .Select(r => r.FullPath!).ToList();
+        }
     }
 
     // Test-only (InternalsVisibleTo): every assembly the workspace currently references.

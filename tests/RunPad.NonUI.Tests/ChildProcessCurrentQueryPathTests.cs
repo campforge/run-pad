@@ -35,4 +35,21 @@ public class ChildProcessCurrentQueryPathTests
 
         Assert.False(process.StartInfoForTests.Environment.ContainsKey(ChildProcess.CurrentQueryPathEnvVar));
     }
+
+    [Fact]
+    public void ForExecution_Should_PassTheScriptArguments_AfterTheAssembly_OneItemEach()
+    {
+        var process = ChildProcess.ForExecution(
+            CreateOptions(), "/tmp/my dir/out.dll", "123", arguments: ["a b", "c\"d", ""]);
+
+        Assert.Equal(["/tmp/my dir/out.dll", "a b", "c\"d", ""], process.StartInfoForTests.ArgumentList);
+    }
+
+    [Fact]
+    public void ForExecution_Should_PassOnlyTheAssembly_WhenThereAreNoArguments()
+    {
+        var process = ChildProcess.ForExecution(CreateOptions(), "out.dll", "123");
+
+        Assert.Equal(["out.dll"], process.StartInfoForTests.ArgumentList);
+    }
 }

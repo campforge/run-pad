@@ -1,4 +1,4 @@
-using RunPad.Languages.CSharp.Sdk;
+using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;

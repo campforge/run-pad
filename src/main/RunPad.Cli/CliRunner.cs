@@ -1,13 +1,10 @@
 using System.Text;
-using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Build.Core.Models;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
-using RunPad.Languages.VB;
 using Spectre.Console;
 
 namespace RunPad.Cli;
@@ -21,14 +18,17 @@ namespace RunPad.Cli;
 // plain text (user request — see DumpHtmlSpectreRenderer).
 public static class CliRunner
 {
-    public static async Task<int> RunAsync(
+    public static Task<int> RunAsync(
         string[] args, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
+        => RunAsync(args, CliServices.CreateDefault(), stdout, stderr, cancellationToken);
+
+    public static async Task<int> RunAsync(
+        string[] args, CliServices services, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: runpad <path-to.rpad>");
-            stderr.WriteLine("       runpad convert <input.linq> [output.rpad]");
-            return 1;
+            WriteUsage(stderr);
+            return NotRunExitCode;
         }
 
         // The GUI's "File → Import LINQPad Query..." equivalent
@@ -38,11 +38,33 @@ public static class CliRunner
         if (string.Equals(args[0], "convert", StringComparison.OrdinalIgnoreCase))
             return await ConvertLinqAsync(args, stdout, stderr, cancellationToken);
 
-        var filePath = Path.GetFullPath(args[0]);
+        var cli = CliArguments.Parse(args);
+        if (cli.Error is not null)
+        {
+            stderr.WriteLine(cli.Error);
+            return NotRunExitCode;
+        }
+        if (cli.ShowHelp)
+        {
+            WriteUsage(stdout);
+            return 0;
+        }
+        if (cli.ShowVersion)
+        {
+            stdout.WriteLine(typeof(CliRunner).Assembly.GetName().Version?.ToString(3) ?? "unknown");
+            return 0;
+        }
+        if (cli.ScriptPath is null)
+        {
+            WriteUsage(stderr);
+            return NotRunExitCode;
+        }
+
+        var filePath = Path.GetFullPath(cli.ScriptPath);
         if (!File.Exists(filePath))
         {
             stderr.WriteLine($"File not found: {filePath}");
-            return 1;
+            return NotRunExitCode;
         }
 
         var raw = await File.ReadAllTextAsync(filePath, cancellationToken);
@@ -50,29 +72,33 @@ public static class CliRunner
         if (!parsed.IsSuccess)
         {
             stderr.WriteLine($"Failed to parse '{filePath}' as a .rpad document: {parsed.Error}");
-            return 1;
+            return NotRunExitCode;
         }
 
         var document = parsed.Document;
+        if (cli.Language is { } language && language != document.FrontMatter.Language)
+        {
+            stderr.WriteLine($"'{filePath}' is a {document.FrontMatter.Language.ToLanguageId()} script, not {language.ToLanguageId()}.");
+            return NotRunExitCode;
+        }
+        if (cli.Kind is { } kind) document.FrontMatter.Kind = kind;
+        if (cli.TargetSdk is { } targetSdk) document.FrontMatter.TargetSdk = targetSdk;
 
         var languageId = document.FrontMatter.Language.ToLanguageId();
 
-        var registry = new LanguageHostRegistry();
-        registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
-        registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
-
+        var registry = services.Registry;
         if (!registry.IsRegistered(languageId))
         {
             stderr.WriteLine($"No runner registered for language '{languageId}'.");
-            return 1;
+            return NotRunExitCode;
         }
 
         // The SDK the script's targetSdk names — the same rule as the RunPad window.
-        var platform = TargetSdkResolver.Resolve(new DotnetSdkProvider().Get(), document.FrontMatter.TargetSdk);
+        var platform = TargetSdkResolver.Resolve(services.Sdks.Get(), document.FrontMatter.TargetSdk);
         if (platform is null)
         {
             stderr.WriteLine("No .NET SDK found (checked `dotnet --list-sdks`).");
-            return 1;
+            return NotRunExitCode;
         }
         if (TargetSdkResolver.Warning(document.FrontMatter.TargetSdk, platform) is { } sdkWarning)
             stderr.WriteLine("warning: " + sdkWarning);
@@ -80,15 +106,28 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
         {
-            var options = BuildOptions(document.FrontMatter, platform, outputDirectory, filePath);
+            var options = BuildOptions(
+                document.FrontMatter, platform, outputDirectory, services.RuntimeReferences.GetRuntimeAssemblyPath(),
+                filePath, cli.ScriptArguments);
 
             RunResult result;
             await using var host = registry.Create(languageId, options);
             try
             {
-                result = await host.RunAsync(document.RunCode, (data, kind) =>
+                if (cli.CompileOnly)
                 {
-                    switch (kind)
+                    var compilation = await host.CompileAsync(document.RunCode, cancellationToken);
+                    foreach (var diagnostic in compilation.Diagnostics)
+                    {
+                        var console = diagnostic.Severity == DiagnosticSeverity.Error ? stderr : stdout;
+                        console.WriteLine(FormatDiagnostic(diagnostic));
+                    }
+                    return compilation.Success ? 0 : NotRunExitCode;
+                }
+
+                result = await host.RunAsync(document.RunCode, (data, outputKind) =>
+                {
+                    switch (outputKind)
                     {
                         case OutputKind.StandardOutput:
                             stdout.WriteLine(data);
@@ -120,10 +159,37 @@ public static class CliRunner
         }
     }
 
+    // The exit code when the script never ran: a bad command line, file or SDK, or a compile error —
+    // the same 2 as NetPad's npad, so a caller can tell it from a script that ran and failed.
+    internal const int NotRunExitCode = 2;
+
+    private static void WriteUsage(IAnsiConsole console)
+    {
+        console.WriteLine("Usage: runpad [run] [options] <script.rpad> [--] [script arguments...]");
+        console.WriteLine("       runpad convert <input.linq> [output.rpad]");
+        console.WriteLine();
+        console.WriteLine("Options:");
+        console.WriteLine("  -lang=<kind>, -k, --kind <kind>   Statements, Program or Expression (s, p, e)");
+        console.WriteLine("  -s, --sdk <version>               The .NET SDK to run on, such as 9 or net9.0");
+        console.WriteLine("  -compileonly, --compile-only      Compile the script without running it");
+        console.WriteLine("  -h, --help                        Show this help");
+        console.WriteLine("  --version                         Show the version");
+        console.WriteLine();
+        console.WriteLine("What follows the script is passed to it as args, but the options above are");
+        console.WriteLine("still read there until --; everything after -- goes to the script as it is.");
+    }
+
+    private static string FormatDiagnostic(IDiagnostic d)
+    {
+        var position = d.Line > 0 ? $"({d.Line},{d.Column}): " : "";
+        var code = d.Code.Length > 0 ? $" {d.Code}" : "";
+        return $"{position}{d.Severity.ToString().ToLowerInvariant()}{code}: {d.Message}";
+    }
+
     // The script's own exit code is the CLI's, so `Environment.Exit(7)` gives 7 and text on
-    // stderr alone (a warning, a log line) doesn't fail the run. Not compiling or not starting is 1.
+    // stderr alone (a warning, a log line) doesn't fail the run. Not compiling or not starting is 2.
     internal static int ExitCodeFor(RunResult result)
-        => result.Outcome == RunOutcome.Exited ? result.ExitCode ?? 1 : 1;
+        => result.Outcome == RunOutcome.Exited ? result.ExitCode ?? 1 : NotRunExitCode;
 
     internal static async Task<int> ConvertLinqAsync(
         string[] args, IAnsiConsole stdout, IAnsiConsole stderr, CancellationToken cancellationToken)
@@ -166,9 +232,9 @@ public static class CliRunner
     // options type; the caller still resolves it separately to pick the
     // ILanguageHostFactory itself (see registry.Create above).
     internal static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string? currentQueryPath = null)
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
+        string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
     {
-        var runtimeLibPath = new CSharpReferenceService().GetExtensionReference();
         var executionOptions = new ExecutionOptions
         {
             WorkingDirectory = outputDirectory,
@@ -180,18 +246,8 @@ public static class CliRunner
 
         var packages = frontMatter.Packages.ToDictionary(p => p.Key, p => p.Value.Version);
         var usings = frontMatter.Namespaces ?? [];
-        // $(RuntimeDirectory)/$(MyDocuments)/$(CurrentQueryPath) macros — must stay
-        // equivalent to EditorTabItemControl.BuildRunOptions's own expansion (see CliRunnerTests.cs).
-        var assemblyReferences = frontMatter.References?
-            .Where(r => r.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
-            .ToList() ?? [];
-        // Not supported any more — collected only so the compiler reports them (see EditorTabItemControl).
-        var projectReferences = frontMatter.References?
-            .Where(r => r.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                || r.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
-            .Select(r => ReferencePathMacros.Expand(r, currentQueryPath))
-            .ToList() ?? [];
+        // Relative to the script's folder and with macros expanded, exactly as the GUI does.
+        var references = ReferencePathResolver.Resolve(frontMatter.References, currentQueryPath);
 
         // One options type for every compiled .NET language — languageId no
         // longer needs to select between two identical option-object shapes here.
@@ -204,9 +260,13 @@ public static class CliRunner
             Kind = frontMatter.Kind,
             Packages = packages,
             Usings = usings,
-            AssemblyReferences = assemblyReferences,
-            ProjectReferences = projectReferences,
+            AssemblyReferences = references.Assemblies,
+            ReferenceErrors = references.Errors,
+            ReferenceWarnings = references.Warnings,
+            ProjectReferences = references.Projects,
             CurrentQueryPath = currentQueryPath,
+            // Arguments given on the command line replace the front matter's.
+            Arguments = arguments ?? frontMatter.Args ?? [],
             // Same source list as the GUI once its NuGet configurator has created RunPad's NuGet.Config.
             NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
         };

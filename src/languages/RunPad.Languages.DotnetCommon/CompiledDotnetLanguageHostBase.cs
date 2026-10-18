@@ -26,7 +26,8 @@ public delegate IDotnetProcessCompiler DotnetProcessCompilerFactory(
 /// so tests can substitute a fake process instead of always shelling out to <c>dotnet</c>.
 /// </summary>
 public delegate IChildProcess ExecutionChildProcessFactory(
-    ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath);
+    ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath,
+    IReadOnlyList<string> arguments);
 
 /// <summary>
 /// Builds the <see cref="IChildProcess"/> a <see cref="CompiledDotnetLanguageHostBase"/> runs netcoredbg
@@ -101,7 +102,9 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         _options = options;
         _loggerFactory = loggerFactory;
         _compilerFactory = compilerFactory ?? ((_, o, lf) => CreateCompiler(o, lf));
-        _executionProcessFactory = executionProcessFactory ?? ChildProcess.ForExecution;
+        _executionProcessFactory = executionProcessFactory
+            ?? ((options, assemblyPath, parentPid, currentQueryPath, arguments)
+                => ChildProcess.ForExecution(options, assemblyPath, parentPid, currentQueryPath, arguments));
         _debuggerProcessFactory = debuggerProcessFactory ?? ChildProcess.ForDebugger;
         Directory.CreateDirectory(options.OutputDirectory);
     }
@@ -161,7 +164,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 _options.ExecutionOptions,
                 binaryPath,
                 Environment.ProcessId.ToString(),
-                _options.CurrentQueryPath);
+                _options.CurrentQueryPath,
+                _options.Arguments);
 
             if (!process.Start()) return RunResult.StartFailed;
             await using var stop = cancellationToken.Register(() => _ = StopAsync(process, cts));
@@ -247,7 +251,8 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
                 BreakOnAllExceptions: _options.BreakOnAllExceptions,
                 BreakOnUncaughtExceptions: _options.BreakOnUncaughtExceptions,
                 CurrentQueryPath: _options.CurrentQueryPath,
-                RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath);
+                RuntimePath: _options.ExecutionOptions.Runtime.RuntimePath,
+                Arguments: _options.Arguments);
             await using var session = new DapSession(
                 process,
                 sessionOptions,

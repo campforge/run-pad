@@ -76,6 +76,7 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
             .Select(lang => new SettingsNode(LanguageNodeIdPrefix + lang, languageRegistry.GetDisplayName(lang)))
             .ToList();
         var dotnetNode = new SettingsNode(DotnetNodeId, ".NET", languageNodes);
+        AvailableNewFileLanguages = [.. NewFileLanguageChoice.From(languageRegistry).Select(l => l.Language)];
         _languagesNode = new SettingsNode("languages", "Languages", [dotnetNode]);
         _fullTree = [InterfaceNode, EditorNode, KeyboardNode, _languagesNode, ExperimentalNode];
 
@@ -380,8 +381,8 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     // NewFileKindDialog, even for someone who creates the same combination every time. These are the
     // defaults Ctrl+N/File > New File use to skip that dialog (MainWindowViewModel.
     // NewRpadFileWithDefaults) — plain enum values, same ComboBox.ToString() display NewFileKindDialog
-    // itself already uses for RpadKind, not worth a converter for.
-    public static RpadLanguage[] AvailableNewFileLanguages { get; } = [RpadLanguage.CSharp, RpadLanguage.Vb];
+    // itself already uses for RpadKind, not worth a converter for. The languages are the registered ones.
+    public IReadOnlyList<RpadLanguage> AvailableNewFileLanguages { get; }
     public static RpadKind[] AvailableNewFileKinds { get; } = [RpadKind.Statements, RpadKind.Program, RpadKind.Expression];
 
     public RpadLanguage NewFileLanguage

@@ -5,9 +5,9 @@ using RunPad.Build.Core.ProcessRunners;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
+using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;
@@ -117,7 +117,7 @@ public class CompiledDotnetLanguageHostInputTests
         var compiler = new FakeCompiler(new ProcessCompilerResult("out.dll", true, [], []));
         var host = new CSharpLanguageHost(
             options, NullLoggerFactory.Instance, (_, _, _) => compiler,
-            executionProcessFactory: (_, _, _, _) => process);
+            executionProcessFactory: (_, _, _, _, _) => process);
         return (host, outputDir);
     }
 

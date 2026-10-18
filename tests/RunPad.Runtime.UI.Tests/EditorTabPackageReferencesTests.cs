@@ -9,6 +9,7 @@ using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -55,7 +56,7 @@ public class EditorTabPackageReferencesTests
         var vm = new EditorTabItemViewModel(
             null, [Sdk], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense.Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            intelliSense.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
         new Window { Content = ctrl }.Show();
         return (ctrl, intelliSense);
     }
