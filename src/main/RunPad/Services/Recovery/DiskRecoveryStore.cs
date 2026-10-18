@@ -161,13 +161,14 @@ public sealed class DiskRecoveryStore : IRecoveryStore
 
     private static void WriteDurably(string path, byte[] bytes)
     {
-        using var stream = new FileStream(path, new FileStreamOptions
+        var options = new FileStreamOptions
         {
             Mode = FileMode.CreateNew,
             Access = FileAccess.Write,
             Share = FileShare.None,
-            UnixCreateMode = OperatingSystem.IsWindows() ? null : UnixFileMode.UserRead | UnixFileMode.UserWrite,
-        });
+        };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using var stream = new FileStream(path, options);
         stream.Write(bytes);
         stream.Flush(flushToDisk: true);
     }

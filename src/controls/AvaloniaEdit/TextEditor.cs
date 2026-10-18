@@ -827,8 +827,8 @@ public class TextEditor : TemplatedControl, ITextEditorComponent
     public void ScrollToHorizontalOffset(double offset)
     {
         ApplyTemplate(); // ensure scrollViewer is created
-        //if (scrollViewer != null)
-        //    scrollViewer.ScrollToHorizontalOffset(offset);
+        if (ScrollViewer != null)
+            ScrollViewer.Offset = new Vector(offset, ScrollViewer.Offset.Y);
     }
 
     /// <summary>
@@ -837,8 +837,8 @@ public class TextEditor : TemplatedControl, ITextEditorComponent
     public void ScrollToVerticalOffset(double offset)
     {
         ApplyTemplate(); // ensure scrollViewer is created
-        //if (scrollViewer != null)
-        //    scrollViewer.ScrollToVerticalOffset(offset);
+        if (ScrollViewer != null)
+            ScrollViewer.Offset = new Vector(ScrollViewer.Offset.X, offset);
     }
 
     /// <summary>

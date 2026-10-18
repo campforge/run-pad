@@ -61,6 +61,8 @@
     <ProjectReference Include="..\..\controls\RunPad.Avalonia.CodeTextEditor\RunPad.Avalonia.CodeTextEditor.csproj"/>
     <ProjectReference Include="..\..\controls\RunPad.Avalonia.Themes\RunPad.Avalonia.Themes.csproj"/>
     <ProjectReference Include="..\..\controls\RunPad.Avalonia.HtmlRenderer\RunPad.Avalonia.HtmlRenderer.csproj"/>
+    <ProjectReference Include="..\..\controls\MarkView.Avalonia\MarkView.Avalonia.csproj"/>
+    <ProjectReference Include="..\..\controls\MarkView.Avalonia.SyntaxHighlighting\MarkView.Avalonia.SyntaxHighlighting.csproj"/>
     <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj"/>
     <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj"/>
     <ProjectReference Include="..\..\languages\RunPad.Languages.CSharp\RunPad.Languages.CSharp.csproj"/>

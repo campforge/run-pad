@@ -75,6 +75,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         vm.Tabs.CollectionChanged += OnTabsCollectionChanged;
         _activeTabSub = vm.WhenAnyValue(x => x.ActiveTab).Subscribe(OnActiveTabChanged);
         vm.DependenciesWindowClosed += OnDependenciesWindowClosed;
+        vm.ScriptsFolderChanged += OnScriptsFolderChanged;
 
         // Restores the previous session's open tabs
         // (in order) + active tab instead of always starting from one blank tab.
@@ -85,6 +86,8 @@ public partial class EditorTabsControl : UserControl, IDisposable
     // On close: if that changed anything, push the new packages/imports into that tab's own
     // IntelliSense instance and flush to disk immediately so the change survives an app
     // close/crash instead of waiting for the next Run or tab close.
+    private void OnScriptsFolderChanged() => _ = CheckFilesChangedOnDiskAsync();
+
     private void OnDependenciesWindowClosed()
     {
         GetActiveControl()?.OnDependenciesEdited();
@@ -129,7 +132,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
                 // From here on the tab owns the service and disposes it with itself.
                 var ctrl = CreateControl(vm, intelliSense);
 
-                var tab = AddTabItem(ctrl, vm, fileTabControl);
+                // Where vm is among the tabs already shown: the end, unless it took the place of one.
+                var position = _vm!.Tabs.TakeWhile(t => !ReferenceEquals(t, vm)).Count(_tabs.ContainsKey);
+                var tab = AddTabItem(ctrl, vm, fileTabControl, position);
                 _tabs[vm] = (tab, ctrl);
 
                 // ActiveTab may already have been set to vm (e.g. it's the tab that was just
@@ -247,6 +252,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
     public void ToggleOutputPanelActive()
         => _vm?.ActiveTab?.OutputPanel.ToggleCommand.Execute().Subscribe();
 
+    public void TogglePreviewActive() => _vm?.ActiveTab?.TogglePreview();
+
+    public void TogglePreviewToSideActive() => _vm?.ActiveTab?.TogglePreviewToSide();
+
     // View → Zoom changes the one code zoom every editor shares, also with no tab open.
     public void ZoomInActive() => CodeZoom?.ZoomIn();
 
@@ -281,6 +290,122 @@ public partial class EditorTabsControl : UserControl, IDisposable
     {
         if (_vm?.ActiveTab is not { } vm || GetActiveControl() is null) return;
         vm.SaveAsCommand.Execute().Subscribe();
+    }
+
+    // File → Revert to Saved: the active tab goes back to its file as it is on disk, asking first
+    // when that drops unsaved changes.
+    public void RevertActive() => _ = RevertActiveAsync();
+
+    internal async Task RevertActiveAsync()
+    {
+        if (_vm?.ActiveTab is not { FilePath: { } path } vm || GetActiveControl() is null || _windowService is null) return;
+        if (!CanReload(vm, path, vm.DiskState)) return;
+        var known = vm.DiskState;
+        if (!File.Exists(path))
+        {
+            await _windowService.ShowErrorAsync("Revert Failed", $"'{Path.GetFileName(path)}' no longer exists on disk.");
+            return;
+        }
+        if (vm.IsDirty && !await _windowService.ShowRevertFileDialogAsync(Path.GetFileName(path))) return;
+        if (_vm.ActiveTab != vm || !CanReload(vm, path, known)) return;
+        await ReloadAsync(vm, "Revert Failed");
+    }
+
+    // ── Files changed by other programs ───────────────────────────────────────
+
+    private bool _checkingDisk;
+    private bool _checkAgain;
+
+    /// <summary>
+    /// Brings open tabs up to date with files another program changed: a tab without unsaved
+    /// changes reloads quietly, one with unsaved changes asks first. A tab that is running, saving
+    /// or whose file is gone is left alone; so is a version of the file the user already chose to
+    /// keep their changes over. Runs when RunPad's window is activated and when the scripts folder
+    /// reports a change.
+    /// </summary>
+    public async Task CheckFilesChangedOnDiskAsync()
+    {
+        if (_checkingDisk)
+        {
+            // A dialog of the running check is open: look again once it is done.
+            _checkAgain = true;
+            return;
+        }
+        _checkingDisk = true;
+        try
+        {
+            do
+            {
+                _checkAgain = false;
+                await CheckFilesChangedOnDiskOnceAsync();
+            } while (_checkAgain && !_disposed);
+        }
+        finally
+        {
+            _checkingDisk = false;
+        }
+    }
+
+    private async Task CheckFilesChangedOnDiskOnceAsync()
+    {
+        if (_vm is null || _windowService is null) return;
+        var candidates = _vm.Tabs
+            .Where(vm => _tabs.ContainsKey(vm) && vm.FilePath is not null && vm.DiskState is not null)
+            .Select(vm => (Vm: vm, Path: vm.FilePath!, Known: vm.DiskState!))
+            .ToList();
+        if (candidates.Count == 0) return;
+
+        // Reading and hashing the files stays off the UI thread: a script folder can be on a slow drive.
+        var states = await Task.Run(() => candidates.Select(c =>
+        {
+            try { return ScriptFileState.Read(c.Path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        }).ToList());
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var (vm, path, known) = candidates[i];
+            if (_disposed) return;
+            if (states[i] is not { Hash: not null } onDisk) continue;
+            // Saved or reloaded meanwhile: what was read may be that very write, half done.
+            if (!_tabs.ContainsKey(vm) || vm.FilePath != path || !ReferenceEquals(vm.DiskState, known)) continue;
+            if (known.SameAs(onDisk) || vm.DeclinedDiskState?.SameAs(onDisk) == true) continue;
+            if (vm.RunState != RunState.Idle || vm.PendingSave is { IsCompleted: false }) continue;
+
+            if (vm.IsDirty)
+            {
+                var reload = await _windowService.ShowReloadChangedFileDialogAsync(Path.GetFileName(path));
+                if (!CanReload(vm, path, known)) continue;
+                if (!reload)
+                {
+                    vm.DeclinedDiskState = onDisk;
+                    continue;
+                }
+
+            }
+            await ReloadAsync(vm, "Reload Failed");
+        }
+    }
+
+    // A dialog yields to saves, runs and tab removal; its decision belongs to the old baseline.
+    private bool CanReload(EditorTabItemViewModel vm, string path, ScriptFileState? known)
+        => !_disposed && _tabs.ContainsKey(vm) && vm.FilePath == path
+            && ReferenceEquals(vm.DiskState, known) && vm.RunState == RunState.Idle
+            && vm.PendingSave is not { IsCompleted: false };
+
+    private async Task ReloadAsync(EditorTabItemViewModel vm, string errorTitle)
+    {
+        if (_vm is null || !_tabs.TryGetValue(vm, out var entry)) return;
+        switch (entry.Control.ReloadFromDisk())
+        {
+            case DiskReload.OtherLanguage:
+                // Its editor services are another language's: the script opens in a new tab in its place.
+                _vm.ReopenTab(vm);
+                break;
+            case DiskReload.Unavailable when _windowService is not null:
+                await _windowService.ShowErrorAsync(errorTitle, $"Could not read '{Path.GetFileName(vm.FilePath)}'.");
+                break;
+        }
     }
 
     public void FormatActive()
@@ -410,6 +535,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             _vm.Tabs.CollectionChanged -= OnTabsCollectionChanged;
             _vm.DependenciesWindowClosed -= OnDependenciesWindowClosed;
+            _vm.ScriptsFolderChanged -= OnScriptsFolderChanged;
         }
 
         _activeTabSub?.Dispose();
@@ -472,7 +598,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         );
     }
 
-    private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl)
+    private static TabItem AddTabItem(EditorsTabItemControl ctrl, EditorTabItemViewModel vm, TabControl tabControl, int position)
     {
         ctrl.Resources.TryGetResource("TabHeaderTemplate", null, out var tmpl);
         var tab = new TabItem
@@ -481,7 +607,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             HeaderTemplate = (IDataTemplate)tmpl!,
             Content = ctrl,
         };
-        tabControl.Items.Add(tab);
+        tabControl.Items.Insert(position, tab);
         return tab;
     }
 }

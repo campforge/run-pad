@@ -66,6 +66,15 @@ public class AvaloniaRenderer : RendererBase
     /// </summary>
     public IReadOnlyList<(int Level, string Text, string Slug)> HeadingEntries => _headingEntries;
 
+    private readonly List<SourceBlock> _sourceBlocks = [];
+    private int _rootChildrenBeforeBlock;
+
+    /// <summary>
+    /// The controls rendered for the document's top-level blocks, in document order, each with the
+    /// source lines it shows. Reset on each render.
+    /// </summary>
+    public IReadOnlyList<SourceBlock> SourceBlocks => _sourceBlocks;
+
     /// <summary>
     /// Records a heading's level, plain text, and anchor slug in document order.
     /// </summary>
@@ -76,6 +85,13 @@ public class AvaloniaRenderer : RendererBase
     /// Set by <see cref="IMarkViewExtension.Register"/> implementations.
     /// </summary>
     public ICodeHighlighter? CodeHighlighter { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, code blocks show their lines through <see cref="LazyCodeLines"/>, which
+    /// highlights each chunk of lines only when it comes near the viewport, instead of one text
+    /// block highlighted up front.
+    /// </summary>
+    public bool LazyCodeBlocks { get; set; }
 
     /// <summary>
     /// When <c>true</c>, the next <see cref="TaskListRenderer"/> call is skipped
@@ -118,12 +134,15 @@ public class AvaloniaRenderer : RendererBase
         RootPanel = new StackPanel { Spacing = 8 };
         _stack.Push(new BlockContainer(RootPanel));
         LoadRenderers();
+        ObjectWriteBefore += OnObjectWriteBefore;
+        ObjectWriteAfter += OnObjectWriteAfter;
     }
 
     public override object Render(MarkdownObject markdownObject)
     {
         _anchors.Clear();
         _headingEntries.Clear();
+        _sourceBlocks.Clear();
         SlugGenerator.Reset();
         Write(markdownObject);
         return RootPanel;
@@ -165,6 +184,38 @@ public class AvaloniaRenderer : RendererBase
         ObjectRenderers.Add(new TaskListRenderer());
         ObjectRenderers.Add(new FootnoteLinkRenderer());
         ObjectRenderers.Add(new AbbreviationInlineRenderer());
+    }
+
+    // Whatever renderer draws a top-level block (extensions included), the controls it adds to the
+    // root panel are the ones that show the block's lines.
+    private void OnObjectWriteBefore(IMarkdownRenderer renderer, MarkdownObject obj)
+    {
+        if (obj is Block { Parent: MarkdownDocument })
+            _rootChildrenBeforeBlock = RootPanel.Children.Count;
+    }
+
+    private void OnObjectWriteAfter(IMarkdownRenderer renderer, MarkdownObject obj)
+    {
+        if (obj is not Block { Parent: MarkdownDocument } block)
+            return;
+        for (var i = _rootChildrenBeforeBlock; i < RootPanel.Children.Count; i++)
+            _sourceBlocks.Add(ToSourceBlock(block, RootPanel.Children[i]));
+    }
+
+    private static SourceBlock ToSourceBlock(Block block, Control control)
+    {
+        // A code block maps line for line onto its text, leaving out the fences.
+        if (block is CodeBlock { Lines.Count: > 0 } code && control is Decorator { Child: Control text })
+        {
+            var lines = code.Lines.Lines;
+            return new SourceBlock(text, lines[0].Line, lines[code.Lines.Count - 1].Line + 1);
+        }
+        // Markdig records where a block starts but not where it ends (a paragraph's lines are gone
+        // once parsed into inlines): it runs up to the next block, blank lines between included.
+        var document = (MarkdownDocument)block.Parent!;
+        var index = document.IndexOf(block);
+        var end = index + 1 < document.Count ? document[index + 1].Line : document.LineCount;
+        return new SourceBlock(control, block.Line, Math.Max(block.Line + 1, end));
     }
 
     /// <summary>

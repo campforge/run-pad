@@ -61,6 +61,10 @@ public sealed partial class MainWindow : Window, IDisposable
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
         editorTabsCtrl.Attach(viewModel);
 
+        // Coming back to RunPad from another program is when its files were most likely changed
+        // there; scripts outside the watched scripts folder are only noticed this way.
+        Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
+
         Closing += OnClosing;
     }
 
@@ -141,6 +145,7 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
+            [KeyCommands.RevertFile] = tabs.RevertActive,
             [KeyCommands.CloseTab] = tabs.CloseActiveTab,
             // Close(), as the window's close button: unsaved tabs are asked about first.
             [KeyCommands.Exit] = Close,
@@ -149,6 +154,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
             [KeyCommands.ToggleFileTree] = () => vm.Sidebar.ToggleCommand.Execute().Subscribe(),
             [KeyCommands.ToggleOutputPanel] = tabs.ToggleOutputPanelActive,
+            [KeyCommands.TogglePreview] = tabs.TogglePreviewActive,
+            [KeyCommands.TogglePreviewToSide] = tabs.TogglePreviewToSideActive,
             [KeyCommands.ZoomIn] = tabs.ZoomInActive,
             [KeyCommands.ZoomOut] = tabs.ZoomOutActive,
             [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
@@ -308,6 +315,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 new MainMenuSeparator(),
                 Item("_Save", KeyCommands.Save),
                 Item("Save _As...", KeyCommands.SaveAs),
+                Item("Re_vert to Saved", KeyCommands.RevertFile),
                 new MainMenuSeparator(),
                 Item("_Close Tab", KeyCommands.CloseTab),
                 new MainMenuSeparator(),
@@ -333,6 +341,9 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("Toggle _File Tree", KeyCommands.ToggleFileTree),
                 Item("Toggle _Output Panel", KeyCommands.ToggleOutputPanel),
+                new MainMenuSeparator(),
+                Item("Markdown _Preview", KeyCommands.TogglePreview),
+                Item("Markdown Preview to the _Side", KeyCommands.TogglePreviewToSide),
                 new MainMenuSeparator(),
                 Item("Zoom _In", KeyCommands.ZoomIn),
                 Item("Zoom O_ut", KeyCommands.ZoomOut),

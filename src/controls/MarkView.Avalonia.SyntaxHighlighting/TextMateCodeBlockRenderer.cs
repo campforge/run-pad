@@ -49,8 +49,19 @@ public sealed class TextMateCodeBlockRenderer : AvaloniaObjectRenderer<CodeBlock
             lineTexts.Add(slice.Text.AsMemory(slice.Start, slice.Length));
         }
 
-        var isDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
-        BuildInlines(textBlock, renderer.CodeHighlighter, language, isDark, lineTexts);
+        var highlighter = renderer.CodeHighlighter;
+        LazyCodeLines? lazy = null;
+        if (renderer.LazyCodeBlocks)
+        {
+            // Each chunk is highlighted in the theme current when it is filled.
+            border.Child = lazy = new LazyCodeLines(lineTexts, (inlines, chunk) => BuildInlines(
+                inlines, highlighter, language, Application.Current?.ActualThemeVariant == ThemeVariant.Dark, chunk));
+        }
+        else
+        {
+            var isDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
+            BuildInlines(textBlock.Inlines!, highlighter, language, isDark, lineTexts);
+        }
 
         // If the highlighter is theme-aware, rebuild only TextBlock.Inlines when the
         // theme changes — the Border and its position in the document stay untouched.
@@ -59,9 +70,14 @@ public sealed class TextMateCodeBlockRenderer : AvaloniaObjectRenderer<CodeBlock
             void OnThemeChanged(object? s, AvaloniaPropertyChangedEventArgs e)
             {
                 if (e.Property.Name != nameof(Application.ActualThemeVariant)) return;
+                if (lazy is not null)
+                {
+                    lazy.Refill();
+                    return;
+                }
                 var newIsDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
                 textBlock.Inlines!.Clear();
-                BuildInlines(textBlock, themeAware, language, newIsDark, lineTexts);
+                BuildInlines(textBlock.Inlines!, themeAware, language, newIsDark, lineTexts);
             }
             Application.Current!.PropertyChanged += OnThemeChanged;
             border.DetachedFromLogicalTree += (_, _) => Application.Current?.PropertyChanged -= OnThemeChanged;
@@ -71,7 +87,7 @@ public sealed class TextMateCodeBlockRenderer : AvaloniaObjectRenderer<CodeBlock
     }
 
     private static void BuildInlines(
-        TextBlock textBlock,
+        InlineCollection inlines,
         ICodeHighlighter? highlighter,
         string? language,
         bool isDark,
@@ -79,7 +95,7 @@ public sealed class TextMateCodeBlockRenderer : AvaloniaObjectRenderer<CodeBlock
     {
         for (int i = 0; i < lineTexts.Count; i++)
         {
-            if (i > 0) textBlock.Inlines!.Add(new LineBreak());
+            if (i > 0) inlines.Add(new LineBreak());
 
             var lineText = lineTexts[i];
             var tokens = highlighter is IThemeAwareCodeHighlighter th
@@ -93,12 +109,12 @@ public sealed class TextMateCodeBlockRenderer : AvaloniaObjectRenderer<CodeBlock
                     var run = new Run(text);
                     if (foreground != null)
                         run.Foreground = foreground;
-                    textBlock.Inlines!.Add(run);
+                    inlines.Add(run);
                 }
             }
             else
             {
-                textBlock.Inlines!.Add(new Run(lineText.ToString()));
+                inlines.Add(new Run(lineText.ToString()));
             }
         }
     }
