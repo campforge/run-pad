@@ -251,16 +251,35 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnRecentFilesChanged()
     {
-        // Keep command instances and key bindings; replace only the dynamic submenu in the shared tree.
-        MainMenuEntries = MainMenuEntries.Select(group => group with
+        // The macOS exporter tracks the identity of each exported menu. Replacing the root (or
+        // submenu) while it handles a command invalidates that tracking; update only its items.
+        for (var groupIndex = 0; groupIndex < MainMenuEntries.Count; groupIndex++)
         {
-            Items = group.Items.Select(entry => entry is MainMenuGroup { Header: "Recent _Files" }
-                ? CreateRecentFilesMenu() : entry).ToList(),
-        }).ToList();
-        _mainMenu.Items.Clear();
-        foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
-        if (OperatingSystem.IsMacOS())
-            NativeMenu.SetMenu(this, MainMenuDefinition.ToNativeMenu(MainMenuEntries));
+            var group = MainMenuEntries[groupIndex];
+            for (var itemIndex = 0; itemIndex < group.Items.Count; itemIndex++)
+            {
+                if (group.Items[itemIndex] is not MainMenuGroup { Header: "Recent _Files" }) continue;
+                var recent = CreateRecentFilesMenu();
+                var groups = MainMenuEntries.ToArray();
+                var children = group.Items.ToArray();
+                children[itemIndex] = recent;
+                groups[groupIndex] = group with { Items = children };
+                MainMenuEntries = groups;
+
+                var menuItem = (MenuItem)((MenuItem)_mainMenu.Items[groupIndex]!).Items[itemIndex]!;
+                menuItem.Items.Clear();
+                foreach (var child in MainMenuDefinition.ToMenuItems(recent.Items)) menuItem.Items.Add(child);
+
+                if (NativeMenu.GetMenu(this) is { } nativeRoot)
+                {
+                    var nativeGroup = ((NativeMenuItem)nativeRoot.Items[groupIndex]).Menu!;
+                    var nativeRecent = ((NativeMenuItem)nativeGroup.Items[itemIndex]).Menu!;
+                    nativeRecent.Items.Clear();
+                    foreach (var child in recent.Items) nativeRecent.Add(MainMenuDefinition.ToNativeMenuItem(child));
+                }
+                return;
+            }
+        }
     }
 
     private IReadOnlyList<MainMenuGroup> CreateMainMenu()

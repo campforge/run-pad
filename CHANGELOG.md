@@ -13,6 +13,7 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Opening a script no longer fails while Recent Files refreshes the native macOS menu.
 - Input sent to a script handles failures after Stop or process exit without leaving an unobserved
   task error. Hidden input fields are cleared, and late submissions cannot change a newer prompt.
 

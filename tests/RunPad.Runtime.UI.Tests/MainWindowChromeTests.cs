@@ -460,6 +460,11 @@ public class MainWindowChromeTests
     {
         using var window = CreateMainWindow();
         var vm = (MainWindowViewModel)window.DataContext!;
+        var windowFile = (MenuItem)window.FindControl<Menu>("MainMenu")!.Items[0]!;
+        var windowRecent = windowFile.Items.OfType<MenuItem>().Single(i => (string?)i.Header == "Recent _Files");
+        var nativeRoot = NativeMenu.GetMenu(window);
+        var nativeFile = nativeRoot is null ? null : ((NativeMenuItem)nativeRoot.Items[0]).Menu;
+        var nativeRecent = nativeFile?.Items.OfType<NativeMenuItem>().Single(i => i.Header == "Recent Files").Menu;
         var folder = Directory.CreateTempSubdirectory("runpad-recent-menu").FullName;
         var path = Path.Combine(folder, "file_with_underscores.rpad");
         try
@@ -468,6 +473,14 @@ public class MainWindowChromeTests
             await vm.OpenScriptAsync(path);
             var group = window.MainMenuEntries[0].Items.OfType<MainMenuGroup>().Single(g => g.Header == "Recent _Files");
             var entry = Assert.IsType<MainMenuCommand>(group.Items[0]);
+            Assert.Same(windowFile, window.FindControl<Menu>("MainMenu")!.Items[0]);
+            Assert.Same(windowRecent, windowFile.Items.OfType<MenuItem>().Single(i => (string?)i.Header == "Recent _Files"));
+            if (nativeRoot is not null)
+            {
+                Assert.Same(nativeRoot, NativeMenu.GetMenu(window));
+                Assert.Same(nativeFile, ((NativeMenuItem)nativeRoot.Items[0]).Menu);
+                Assert.Same(nativeRecent, nativeFile!.Items.OfType<NativeMenuItem>().Single(i => i.Header == "Recent Files").Menu);
+            }
             Assert.Equal(path, entry.Parameter);
             Assert.Equal(path, MainMenuDefinition.StripAccessKey(entry.Header));
             var native = MainMenuDefinition.ToNativeMenu([group]);
@@ -480,6 +493,8 @@ public class MainWindowChromeTests
             await vm.ClearRecentFilesCommand.Execute();
             group = window.MainMenuEntries[0].Items.OfType<MainMenuGroup>().Single(g => g.Header == "Recent _Files");
             Assert.Single(group.Items);
+            Assert.Same(windowRecent, windowFile.Items.OfType<MenuItem>().Single(i => (string?)i.Header == "Recent _Files"));
+            if (nativeRoot is not null) Assert.Same(nativeRoot, NativeMenu.GetMenu(window));
             Assert.False(vm.HasRecentFiles);
         }
         finally { Directory.Delete(folder, true); }

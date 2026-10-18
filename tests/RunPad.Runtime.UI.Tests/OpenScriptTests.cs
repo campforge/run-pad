@@ -170,6 +170,21 @@ public sealed class OpenScriptTests : IDisposable
         Assert.Same(tab, vm.ActiveTab);
     }
 
+    [AvaloniaFact]
+    public async Task RecentNotification_Should_SeeAnAlreadyRegisteredVisibleTab()
+    {
+        var vm = Create();
+        var path = Script("visible-before-history");
+        vm.RecentFilesChanged += () =>
+        {
+            Assert.NotNull(vm.ActiveTab);
+            Assert.Contains(vm.ActiveTab, vm.Tabs);
+            Assert.Equal(path, vm.ActiveTab.FilePath);
+        };
+        await vm.OpenScriptAsync(path);
+        Assert.Single(vm.Tabs);
+    }
+
     public void Dispose()
     {
         foreach (var vm in _models) vm.Dispose();
