@@ -49,6 +49,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // filtering happens at render time instead of once when each list is produced.
     private List<CodeFixEntry> _diagnosticFixEntries = [];
     private List<CodeFixEntry> _refactoringFixEntries = [];
+    private long _inputPromptRevision;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -384,6 +385,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void Cancel()
     {
+        HideInputPrompt();
         try
         {
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
@@ -1160,6 +1162,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // real running script asking for input).
     internal void ShowInputPrompt(string? prompt, bool isPassword)
     {
+        if (_disposed) return;
+        ++_inputPromptRevision;
         InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
         InputPromptBox.PasswordChar = isPassword ? '●' : default;
         InputPromptBox.Text = "";
@@ -1169,6 +1173,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void HideInputPrompt()
     {
+        ++_inputPromptRevision;
+        InputPromptBox.Text = "";
         InputPromptBar.IsVisible = false;
     }
 
@@ -1191,18 +1197,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal async Task SubmitInputPromptAsync()
     {
-        if (State.RunningHost is not { } host) return;
+        if (_disposed || !IsInputPromptVisible || State.RunningHost is not { } host) return;
 
         var text = InputPromptBox.Text ?? "";
         var isPassword = InputPromptBox.PasswordChar != default;
-        HideInputPrompt();
+        var generation = _runGeneration;
+        var cancellation = State.RunCts?.Token ?? CancellationToken.None;
+        HideInputPrompt(); // Consumes this prompt before the first await and clears its text.
+        var revision = _inputPromptRevision;
+        try
+        {
+            await host.SendInputAsync(text, cancellation);
+            if (IsCurrentSubmission() && !isPassword)
+                AppendOutput(text, OutputKind.StandardOutput);
+        }
+        catch (Exception ex)
+        {
+            if (!IsCurrentSubmission()) return;
+            // A stream exception can contain the submitted value. Report only its type, never its
+            // message or exception object, so passwords cannot reach logs or the results panel.
+            _runLogger.LogError("Sending script input failed ({ErrorType})", ex.GetType().Name);
+            AppendError(new IOException("Could not send input to the script. Stop and run it again."));
+            UpdateOutputUi();
+        }
 
-        // Echo what was submitted into the output, the same way a real console would — except a
-        // password, which a real console never echoes either.
-        if (!isPassword)
-            AppendOutput(text, OutputKind.StandardOutput);
-
-        await host.SendInputAsync(text, CancellationToken.None);
+        bool IsCurrentSubmission() => !_disposed && !cancellation.IsCancellationRequested
+            && generation == _runGeneration && revision == _inputPromptRevision
+            && ReferenceEquals(host, State.RunningHost);
     }
 
     // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise
