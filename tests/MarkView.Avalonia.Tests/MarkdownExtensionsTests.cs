@@ -1,0 +1,111 @@
+// Copyright (c) Nicolas Musset
+// Distributed under the MIT license. See the LICENSE.md file in the project root for more information.
+
+using Avalonia.Controls;
+using Avalonia.Controls.Documents;
+using Avalonia.Headless.XUnit;
+using Markdig;
+using Markdig.Extensions.Tables;
+using MarkView.Avalonia.Rendering;
+using MarkView.Avalonia.Rendering.Inlines;
+using Xunit;
+
+namespace MarkView.Avalonia.Tests;
+
+public class MarkdownExtensionsTests : RenderTestBase
+{
+    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseSupportedExtensions().Build();
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_enables_task_lists()
+    {
+        var result = Render("- [x] done\n- [ ] todo", _pipeline);
+        var listPanel = Assert.IsType<StackPanel>(Assert.Single(result.Children));
+        Assert.Contains("markdown-list", listPanel.Classes);
+        Assert.Equal(2, listPanel.Children.Count);
+        // Task list items use unicode ☐/☑ TextBlock markers with class markdown-task-list
+        var marker = FindTaskMarker(listPanel);
+        Assert.NotNull(marker);
+    }
+
+    private static TextBlock? FindTaskMarker(Control root)
+    {
+        if (root is TextBlock tb && tb.Classes.Contains("markdown-task-list"))
+            return tb;
+        if (root is Panel panel)
+        {
+            foreach (var child in panel.Children)
+            {
+                var found = FindTaskMarker(child);
+                if (found != null) return found;
+            }
+        }
+        if (root is ContentControl cc && cc.Content is Control content)
+            return FindTaskMarker(content);
+        if (root is Decorator dec && dec.Child is Control decChild)
+            return FindTaskMarker(decChild);
+        return null;
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_enables_pipe_tables()
+    {
+        var result = Render("| A | B |\n|---|---|\n| 1 | 2 |", _pipeline);
+        var grid = Assert.IsType<Grid>(Assert.Single(result.Children));
+        Assert.Contains("markdown-table", grid.Classes);
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_forwards_pipe_table_options()
+    {
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseSupportedExtensions(new MarkdownExtensionsOptions
+            {
+                PipeTable = new PipeTableOptions { InferColumnWidthsFromSeparator = true },
+            })
+            .Build();
+
+        var result = Render("| A | B |\n|--|------|\n| 1 | 2 |", pipeline);
+        var grid = Assert.IsType<Grid>(Assert.Single(result.Children));
+
+        Assert.True(grid.ColumnDefinitions[1].Width.Value > grid.ColumnDefinitions[0].Width.Value);
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_enables_autolinks()
+    {
+        // UseAutoLinks turns bare URLs into MarkdownHyperlink spans
+        var result = Render("Visit https://example.com today", _pipeline);
+        var textBlock = Assert.IsType<MarkdownSelectableTextBlock>(Assert.Single(result.Children));
+        var inlines = textBlock.Inlines!.ToList();
+        Assert.Contains(inlines, i => i is MarkdownHyperlink);
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_hides_yaml_front_matter()
+    {
+        var result = Render("---\ntitle: Test\n---\n# Heading", _pipeline);
+        var textBlock = Assert.IsType<MarkdownSelectableTextBlock>(Assert.Single(result.Children));
+        var run = Assert.IsType<Run>(Assert.Single(textBlock.Inlines!));
+        Assert.Equal("Heading", run.Text);
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_renders_emoji_shortcode_as_unicode_glyph()
+    {
+        var result = Render("Launch :rocket: now", _pipeline);
+        var textBlock = Assert.IsType<MarkdownSelectableTextBlock>(Assert.Single(result.Children));
+        var runs = textBlock.Inlines!.OfType<Run>().ToList();
+        Assert.Contains(runs, r => r.Text == "\U0001F680"); // 🚀
+    }
+
+    [AvaloniaFact]
+    public void UseSupportedExtensions_does_not_convert_ascii_smileys()
+    {
+        // enableSmileys is explicitly false: only named :shortcode: emoji are recognized.
+        var result = Render("Great :) job", _pipeline);
+        var textBlock = Assert.IsType<MarkdownSelectableTextBlock>(Assert.Single(result.Children));
+        var run = Assert.IsType<Run>(Assert.Single(textBlock.Inlines!));
+        Assert.Equal("Great :) job", run.Text);
+    }
+}

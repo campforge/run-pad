@@ -52,6 +52,11 @@ RunPad, under the project's license and, if the licensing ever changes, under ot
   change — otherwise use `RunPad.Avalonia.CodeTextEditor`; keep upstream's style and license headers,
   and leave the upstream suite in `tests/AvaloniaEdit.Tests` as it is (RunPad's tests for the fork go
   to `tests/RunPad.Runtime.UI.Tests`).
+- **MarkView.Avalonia fork:** `src/controls/MarkView.Avalonia` and
+  `src/controls/MarkView.Avalonia.SyntaxHighlighting` are a fork of MarkView.Avalonia under its own MIT
+  license (see [their README](src/controls/MarkView.Avalonia/README.md)). The same rules as for the
+  AvaloniaEdit fork apply; its upstream suites live in `tests/MarkView.Avalonia.Tests` and
+  `tests/MarkView.Avalonia.SyntaxHighlighting.Tests`.
 - **MVVM:** ReactiveUI only (no CommunityToolkit.Mvvm); register services in `App.axaml.cs`.
 - **Packages:** versions live in `Directory.Packages.props`; a `.csproj` references packages by name only.
   A new package must have a license compatible with GPL-3.0; after adding, removing or updating one,

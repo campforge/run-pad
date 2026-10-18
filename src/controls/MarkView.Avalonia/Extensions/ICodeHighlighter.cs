@@ -1,0 +1,27 @@
+// Copyright (c) Nicolas Musset
+// Distributed under the MIT license. See the LICENSE.md file in the project root for more information.
+
+using Avalonia.Media;
+
+namespace MarkView.Avalonia.Extensions;
+
+/// <summary>
+/// Tokenises a single source-code line into coloured text segments.
+/// Return <c>null</c> to signal that the language is unsupported; the
+/// caller should fall back to plain monochrome rendering.
+/// An empty list means the language is supported but the line produces no tokens.
+/// </summary>
+public interface ICodeHighlighter
+{
+    IReadOnlyList<(string Text, IBrush? Foreground)>? Highlight(ReadOnlyMemory<char> line, string? language);
+}
+
+/// <summary>
+/// Extends <see cref="ICodeHighlighter"/> with explicit dark/light variant highlighting,
+/// enabling code block renderers to update token colours in-place when the theme changes
+/// without rebuilding the entire document.
+/// </summary>
+public interface IThemeAwareCodeHighlighter : ICodeHighlighter
+{
+    IReadOnlyList<(string Text, IBrush? Foreground)>? HighlightVariant(ReadOnlyMemory<char> line, string? language, bool isDark);
+}
