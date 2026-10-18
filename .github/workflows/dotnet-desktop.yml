@@ -97,7 +97,8 @@ jobs:
         run: |
           set -e
           for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
-                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests \
+                      tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
           dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \
@@ -325,7 +326,8 @@ jobs:
         run: |
           set -e
           for proj in tests/RunPad.Format.RPad.Tests tests/RunPad.Runtime.Tests \
-                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests; do
+                      tests/RunPad.Avalonia.HtmlRenderer.Tests tests/RunPad.Cli.Tests tests/AvaloniaEdit.Tests \
+                      tests/MarkView.Avalonia.Tests tests/MarkView.Avalonia.SyntaxHighlighting.Tests; do
             dotnet test "$proj" --no-build --configuration Release --verbosity normal
           done
           dotnet test tests/RunPad.NonUI.Tests --no-build --configuration Release --verbosity normal \

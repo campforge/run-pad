@@ -25,6 +25,11 @@ Avalonia.HtmlRenderer — MIT
   https://github.com/AvaloniaUI/Avalonia.HtmlRenderer
   In the RunPad source: src/controls/RunPad.Avalonia.HtmlRenderer (license: src/controls/RunPad.Avalonia.HtmlRenderer/LICENSE)
 
+MarkView.Avalonia and MarkView.Avalonia.SyntaxHighlighting — MIT
+  Copyright (c) 2026 Nicolas Musset
+  https://github.com/Kryptos-FR/MarkView.Avalonia
+  In the RunPad source: src/controls/MarkView.Avalonia, src/controls/MarkView.Avalonia.SyntaxHighlighting, tests/MarkView.Avalonia.Tests, tests/MarkView.Avalonia.SyntaxHighlighting.Tests (license: src/controls/MarkView.Avalonia/LICENSE.md)
+
 Google Material Design Icons — settings (24px) — Apache-2.0
   Copyright Google LLC
   https://github.com/google/material-design-icons
