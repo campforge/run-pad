@@ -79,12 +79,24 @@ itself can be changed for RunPad — completion behavior, font rendering, macOS 
 highlighting fixes. The fork keeps its upstream MIT license (`LICENSE` in each folder); its origin
 and changes are described in [`src/controls/AvaloniaEdit/README.md`](src/controls/AvaloniaEdit/README.md).
 
+## MarkView.Avalonia fork
+
+A **fork of [MarkView.Avalonia](https://github.com/Kryptos-FR/MarkView.Avalonia)** and its
+SyntaxHighlighting extension, taken from the 12.3.0 release, is kept in
+[`src/controls/MarkView.Avalonia`](src/controls/MarkView.Avalonia) and
+[`src/controls/MarkView.Avalonia.SyntaxHighlighting`](src/controls/MarkView.Avalonia.SyntaxHighlighting)
+for the planned Markdown preview of scripts. It keeps its upstream MIT license (`LICENSE.md` in each
+folder); its origin and changes are described in
+[`src/controls/MarkView.Avalonia/README.md`](src/controls/MarkView.Avalonia/README.md).
+
 ## Acknowledgements
 
 - [netcoredbg](https://github.com/Samsung/netcoredbg) — the debugger, driven over the Debug Adapter
   Protocol.
 - [Avalonia UI](https://avaloniaui.net/), and [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit)
   with its predecessor AvalonEdit from SharpDevelop — the editor RunPad's fork is based on.
+- [MarkView.Avalonia](https://github.com/Kryptos-FR/MarkView.Avalonia) and
+  [Markdig](https://github.com/xoofx/markdig) — the Markdown viewer RunPad's fork is based on.
 - [Roslyn](https://github.com/dotnet/roslyn) for compiling and IntelliSense;
   [ILSpy](https://github.com/icsharpcode/ILSpy) for decompiling;
   [Spectre.Console](https://spectreconsole.net/) for the command-line output.
@@ -103,7 +115,7 @@ RunPad assembly your scripts are compiled against and shipped with — is licens
 under any license. The installers show an [end-user agreement](installer/EULA.txt) that summarizes
 these terms; it adds no restrictions to the GPL-3.0.
 
-Third-party code keeps its own license: the [AvaloniaEdit fork](#avaloniaedit-fork) (MIT) and the
-HTML renderer in [`src/controls/RunPad.Avalonia.HtmlRenderer`](src/controls/RunPad.Avalonia.HtmlRenderer)
+Third-party code keeps its own license: the [AvaloniaEdit fork](#avaloniaedit-fork) (MIT), the
+[MarkView.Avalonia fork](#markviewavalonia-fork) (MIT) and the HTML renderer in [`src/controls/RunPad.Avalonia.HtmlRenderer`](src/controls/RunPad.Avalonia.HtmlRenderer)
 (BSD-3-Clause and MIT), with license files next to the code. Every third-party component RunPad ships,
 with its license text, is listed in [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt).
