@@ -53,7 +53,8 @@
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Template">
       <ControlTemplate>
-        <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
           <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
       </ControlTemplate>
@@ -86,7 +87,7 @@
     <Setter Property="CornerRadius" Value="0"/>
     <Setter Property="Template">
       <ControlTemplate>
-        <Border Name="PART_Border" BorderThickness="{TemplateBinding BorderThickness}"
+        <Border Name="PART_Border" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="{TemplateBinding BorderThickness}"
                 BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Top" Padding="6,5">
           <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
@@ -105,11 +106,11 @@
                          Width="{Binding SearchFieldWidth, RelativeSource={RelativeSource TemplatedParent}}" MinHeight="26" Padding="6,2" VerticalContentAlignment="Center"
                          Text="{Binding SearchPattern, RelativeSource={RelativeSource TemplatedParent}}"
                          AutomationProperties.Name="{x:Static ae:SR.SearchLabel}">
-                  <TextBox.InnerRightContent><StackPanel Orientation="Horizontal"><ToggleButton Theme="{StaticResource SearchPanelTextBoxButton}" Content="Cc" Width="24" Height="22"
+                  <TextBox.InnerRightContent><StackPanel Orientation="Horizontal"><ToggleButton Classes="searchOption" Theme="{StaticResource SearchPanelTextBoxButton}" Content="Cc" Width="24" Height="22"
                     IsChecked="{Binding $parent[search:SearchPanel].MatchCase, Mode=TwoWay}"
-                    ToolTip.Tip="{x:Static ae:SR.SearchMatchCaseText}" AutomationProperties.Name="{x:Static ae:SR.SearchMatchCaseText}"/><ToggleButton Theme="{StaticResource SearchPanelTextBoxButton}" Content="W" Width="24" Height="22"
+                    ToolTip.Tip="{x:Static ae:SR.SearchMatchCaseText}" AutomationProperties.Name="{x:Static ae:SR.SearchMatchCaseText}"/><ToggleButton Classes="searchOption" Theme="{StaticResource SearchPanelTextBoxButton}" Content="W" Width="24" Height="22"
                     IsChecked="{Binding $parent[search:SearchPanel].WholeWords, Mode=TwoWay}"
-                    ToolTip.Tip="{x:Static ae:SR.SearchMatchWholeWordsText}" AutomationProperties.Name="{x:Static ae:SR.SearchMatchWholeWordsText}"/><ToggleButton Theme="{StaticResource SearchPanelTextBoxButton}" Content=".*" Width="24" Height="22"
+                    ToolTip.Tip="{x:Static ae:SR.SearchMatchWholeWordsText}" AutomationProperties.Name="{x:Static ae:SR.SearchMatchWholeWordsText}"/><ToggleButton Classes="searchOption" Theme="{StaticResource SearchPanelTextBoxButton}" Content=".*" Width="24" Height="22"
                     IsChecked="{Binding $parent[search:SearchPanel].UseRegex, Mode=TwoWay}"
                     ToolTip.Tip="{x:Static ae:SR.SearchUseRegexText}" AutomationProperties.Name="{x:Static ae:SR.SearchUseRegexText}"/></StackPanel></TextBox.InnerRightContent>
                 </TextBox>
