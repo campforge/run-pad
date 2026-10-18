@@ -150,15 +150,13 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
 
+    public EditorLayoutState Layout { get; }
     public ScriptPreviewMode PreviewMode
     {
-        get;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref field, value);
-            this.RaisePropertyChanged(nameof(PreviewShown));
-        }
+        get => Layout.PreviewMode;
+        set => Layout.PreviewMode = value;
     }
+    private readonly IDisposable _layoutSubscription;
 
     // The toolbar's preview button: lit while any preview shows, and it opens the side-by-side one.
     public bool PreviewShown
@@ -277,14 +275,14 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         DuplicateCommand = ReactiveCommand.Create(() => _actions.Duplicate(this));
         OpenContainingFolderCommand = ReactiveCommand.Create(() => _actions.OpenContainingFolder(this));
 
-        OutputPanel = new CollapsiblePanelState(
-            _prefs.Layout.DebugPanelCollapsed, _prefs.Layout.DebugPanelHeight, defaultExpandedSize: 220,
-            onChanged: (collapsed, size) =>
-            {
-                _prefs.Layout.DebugPanelCollapsed = collapsed;
-                if (size > 0) _prefs.Layout.DebugPanelHeight = size;
-                _prefs.Save();
-            });
+        Layout = EditorLayoutState.For(prefs);
+        OutputPanel = Layout.OutputPanel;
+        DebugPanel.Layout = Layout;
+        _layoutSubscription = Layout.WhenAnyValue(x => x.PreviewMode).Subscribe(_ =>
+        {
+            this.RaisePropertyChanged(nameof(PreviewMode));
+            this.RaisePropertyChanged(nameof(PreviewShown));
+        });
 
         SyncTooltips();
         _prefs.Changed += OnPreferencesChanged;
@@ -309,6 +307,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public void Dispose()
     {
+        _layoutSubscription.Dispose();
         _prefs.Changed -= OnPreferencesChanged;
         GC.SuppressFinalize(this);
     }

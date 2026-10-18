@@ -22,6 +22,64 @@ namespace RunPad.Runtime.UI.Tests;
 // The Markdown preview beside the editor or in its place (EditorTabItemControl.Preview.cs).
 public class EditorTabItemControlPreviewTests
 {
+    [AvaloniaFact]
+    public void Tabs_Should_SharePreviewModeAndSplitterPositions_IncludingNewTabs()
+    {
+        var prefs = MakePrefs();
+        EditorTabItemViewModel Tab() => new(null, [], prefs.Object, new Mock<IEditorTabActions>().Object);
+        using var first = Tab();
+        using var second = Tab();
+        first.TogglePreviewToSide();
+        Assert.Equal(ScriptPreviewMode.Side, second.PreviewMode);
+        first.Layout.EditorWidth = new GridLength(3, GridUnitType.Star);
+        first.Layout.PreviewWidth = GridLength.Star;
+        first.OutputPanel.Size = new GridLength(310);
+        first.DebugPanel.Layout!.StackWidth = new GridLength(400);
+        first.DebugPanel.Layout.ThreadsHeight = new GridLength(110);
+        using var later = Tab();
+        Assert.Equal(first.Layout.EditorWidth, second.Layout.EditorWidth);
+        Assert.Equal(first.Layout.PreviewWidth, later.Layout.PreviewWidth);
+        Assert.Equal(310, second.OutputPanel.Size.Value);
+        Assert.Equal(400, later.DebugPanel.Layout!.StackWidth.Value);
+        Assert.Equal(110, second.DebugPanel.Layout!.ThreadsHeight.Value);
+        second.TogglePreview();
+        Assert.Equal(ScriptPreviewMode.Full, first.PreviewMode);
+        Assert.Equal(ScriptPreviewMode.Full, later.PreviewMode);
+        later.TogglePreview();
+        Assert.Equal(ScriptPreviewMode.Off, first.PreviewMode);
+        first.TogglePreviewToSide();
+        Assert.Equal(3, later.Layout.EditorWidth.Value);
+    }
+
+    [AvaloniaFact]
+    public void SharedPreview_Should_KeepBoundWidthsAcrossModeChanges()
+    {
+        var prefs = MakePrefs();
+        var (first, a) = CreateControl(out var one, prefs);
+        var (second, b) = CreateControl(out var two, prefs);
+        try
+        {
+            a.TogglePreviewToSide();
+            var grid = first.FindControl<Grid>("EditorArea")!;
+            grid.ColumnDefinitions[0].Width = new GridLength(3, GridUnitType.Star);
+            grid.ColumnDefinitions[2].Width = GridLength.Star;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ScriptPreviewMode.Side, b.PreviewMode);
+            Assert.True(second.FindControl<Control>("PreviewHost")!.IsVisible);
+            Assert.Equal(3, second.FindControl<Grid>("EditorArea")!.ColumnDefinitions[0].Width.Value);
+            b.TogglePreviewToSide();
+            a.TogglePreviewToSide();
+            one.UpdateLayout();
+            two.UpdateLayout();
+            Assert.Equal(3, grid.ColumnDefinitions[0].Width.Value);
+            Assert.True(first.FindControl<Control>("EditorHost")!.Bounds.Width > first.FindControl<Control>("PreviewHost")!.Bounds.Width);
+        }
+        finally
+        {
+            one.Close(); two.Close(); first.Dispose(); second.Dispose(); a.Dispose(); b.Dispose();
+        }
+    }
+
     private static Mock<IPreferencesService> MakePrefs()
     {
         var prefs = new Mock<IPreferencesService>();
@@ -38,9 +96,9 @@ public class EditorTabItemControlPreviewTests
 
     private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl() => CreateControl(out _);
 
-    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl(out Window window)
+    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl(out Window window, Mock<IPreferencesService>? sharedPrefs = null)
     {
-        var prefs = MakePrefs();
+        var prefs = sharedPrefs ?? MakePrefs();
         var vm = new EditorTabItemViewModel(
             null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var theme = new Mock<IThemeService>();
