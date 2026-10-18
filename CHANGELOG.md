@@ -53,6 +53,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Changed
 
+- Search uses a compact editor-wide strip with replacement on a second row. Search fields,
+  quick-fix menus, tooltips and flyouts now follow the selected interface palette.
+
 - `runpad` exits with code 2 instead of 1 when the script did not run — a bad command line or
   file, no .NET SDK, or a compile error — the same code as NetPad's `npad`.
 
