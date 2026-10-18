@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Input sent to a script handles failures after Stop or process exit without leaving an unobserved
+  task error. Hidden input fields are cleared, and late submissions cannot change a newer prompt.
+
 ## [0.7.0] — 2026-10-18
 
 ### Added
