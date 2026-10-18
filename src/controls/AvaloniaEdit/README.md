@@ -13,7 +13,8 @@ control for Avalonia, itself a port of AvalonEdit from the SharpDevelop project.
 - **What RunPad changed:** completion-list behavior (soft selection, commit on Tab and Enter), font
   rendering, clipboard handling on macOS, keeping TextMate highlighting on the UI dispatcher, and
   completion/insight popups that take the transform of the editor they open from, and
-  `TextEditor.ScrollToVerticalOffset`/`ScrollToHorizontalOffset`, which upstream leaves empty.
+  `TextEditor.ScrollToVerticalOffset`/`ScrollToHorizontalOffset`, which upstream leaves empty,
+  and a compact full-width search template with inline options and a second replacement row.
   `git log -- src/controls/AvaloniaEdit src/controls/AvaloniaEdit.TextMate` shows every change.
 - **Tests:** the upstream NUnit suite is kept unchanged in
   [`tests/AvaloniaEdit.Tests`](../../../tests/AvaloniaEdit.Tests); RunPad's own tests for the fork live

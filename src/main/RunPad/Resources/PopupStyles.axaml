@@ -1,0 +1,41 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:search="using:AvaloniaEdit.Search" x:Class="RunPad.Resources.PopupStyles">
+    <Style Selector="FlyoutPresenter, MenuFlyoutPresenter, ContextMenu, ToolTip">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource RunPad.Type.Body}"/>
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+    </Style>
+    <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="search|SearchPanel">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Panel.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
+    </Style>
+    <Style Selector="search|SearchPanel /template/ TextBox">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="search|SearchPanel /template/ Button, search|SearchPanel /template/ ToggleButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    </Style>
+    <Style Selector="search|SearchPanel /template/ Button:pointerover, search|SearchPanel /template/ ToggleButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="search|SearchPanel /template/ ToggleButton:checked">
+        <Setter Property="Background" Value="{DynamicResource RunPad.ToolTab.SelectedBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.ToolTab.SelectedForegroundBrush}"/>
+    </Style>
+</Styles>
