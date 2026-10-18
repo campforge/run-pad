@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
@@ -24,6 +25,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly Dictionary<EditorTabItemViewModel, CancellationTokenSource> _creating = new();
     private IDisposable? _activeTabSub;
     private bool _disposed;
+    private readonly ILogger<EditorsTabItemControl>? _runLogger;
 
     private MainWindowViewModel? _vm;
 
@@ -51,7 +53,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IRuntimeReferenceLocator runtimeReferences,
-        IBuildCacheService buildCache)
+        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
     {
         InitializeComponent();
         _themeService = themeService;
@@ -60,6 +62,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         _prefs = prefs;
         _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
+        _runLogger = runLogger;
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
@@ -467,7 +470,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _prefs!,
             intelliSense,
             _runtimeReferences!,
-            _buildCache!
+            _buildCache!, _runLogger
         );
     }
 
