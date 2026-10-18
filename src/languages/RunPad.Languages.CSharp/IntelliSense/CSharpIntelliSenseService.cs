@@ -176,6 +176,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // select from these again, so a framework assembly a package displaced comes back with it. The
     // framework part — the assemblies in System.Runtime.dll's directory — is replaced by the script
     // target's reference assemblies when its targeting pack is found, as the build compiles against it.
+    // The additional references are never part of it, wherever they are: a self-contained RunPad ships
+    // RunPad.Runtime.dll in the very folder its runtime's System.Runtime.dll is in.
     private readonly List<string> _baseReferencePaths = [];
     private readonly List<string> _defaultFrameworkPaths = [];
     private readonly List<string> _otherBaseReferencePaths = [];
@@ -253,21 +255,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         ReferenceCache.GetOrAdd(path,
             static p => MetadataReference.CreateFromFile(p, documentation: ReferenceDocumentation.Find(p)));
 
-    public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger)
+    /// <param name="referencePaths">The framework's assemblies, and others outside their folder.</param>
+    /// <param name="additionalReferencePaths">Assemblies kept whatever the script's target framework,
+    /// such as RunPad.Runtime.</param>
+    public CSharpIntelliSenseService(IEnumerable<string> referencePaths, ILogger<CSharpIntelliSenseService> logger,
+        IEnumerable<string>? additionalReferencePaths = null)
     {
         _logger = logger;
         RebuildPreamble();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var additional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in referencePaths)
             if (File.Exists(path) && seen.Add(path))
                 _baseReferencePaths.Add(path);
+        foreach (var path in additionalReferencePaths ?? [])
+            if (File.Exists(path) && additional.Add(path) && seen.Add(path))
+                _baseReferencePaths.Add(path);
         var refs = _baseReferencePaths.Select(p => (MetadataReference)CreateReference(p)).ToList();
         var frameworkDirectory = _baseReferencePaths
-            .Where(p => string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
+            .Where(p => !additional.Contains(p)
+                        && string.Equals(Path.GetFileName(p), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase))
             .Select(Path.GetDirectoryName).FirstOrDefault();
         foreach (var path in _baseReferencePaths)
-            (frameworkDirectory is not null && Path.GetDirectoryName(path) == frameworkDirectory
+            (frameworkDirectory is not null && !additional.Contains(path) && Path.GetDirectoryName(path) == frameworkDirectory
                 ? _defaultFrameworkPaths : _otherBaseReferencePaths).Add(path);
         _frameworkPaths = _defaultFrameworkPaths;
 

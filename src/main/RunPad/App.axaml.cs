@@ -160,8 +160,8 @@ public class App : Application
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var refService = sp.GetRequiredService<CSharpReferenceService>();
             var runtime = sp.GetRequiredService<IRuntimeReferenceLocator>();
-            var refs = refService.GetDefault().Append(runtime.GetRuntimeAssemblyPath());
-            return new CSharpIntelliSenseService(refs, loggerFactory.CreateLogger<CSharpIntelliSenseService>());
+            return new CSharpIntelliSenseService(refService.GetDefault(), loggerFactory.CreateLogger<CSharpIntelliSenseService>(),
+                additionalReferencePaths: [runtime.GetRuntimeAssemblyPath()]);
         });
 
         services.AddTransient<MainWindow>();
