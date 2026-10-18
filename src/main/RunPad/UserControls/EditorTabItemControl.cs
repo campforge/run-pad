@@ -405,7 +405,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
         try { await RunCoreAsync(debug, platform); }
-        catch (OperationCanceledException) when (_disposed || State.RunCts?.IsCancellationRequested == true) { }
+        catch (OperationCanceledException) when (_disposed) { }
         catch (Exception ex)
         {
             _runLogger.LogError(ex, "Script execution failed");
@@ -561,38 +561,41 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 s.RunningHost = null;
-                await runCts.CancelAsync();
-                if (!_disposed)
+                try { await runCts.CancelAsync(); }
+                finally
                 {
-                    HideInputPrompt();
+                    if (!_disposed)
+                    {
+                        HideInputPrompt();
 
-                    _vm.RunState = RunState.Idle;
-                    State.Editor.DebugCurrentLine = null;
-                    s.RunStopwatch.Stop();
-                    s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
+                        _vm.RunState = RunState.Idle;
+                        State.Editor.DebugCurrentLine = null;
+                        s.RunStopwatch.Stop();
+                        s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
-                    _vm.DebugPanel.ClearStop();
-                    if (cancelled)
-                    {
-                        SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
-                    }
-                    else if (s.UnhandledDebugException is { } unhandled)
-                    {
-                        s.HadRunError = true;
-                        SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
-                    }
-                    else if (runResult is { Succeeded: false } failed)
-                    {
-                        ReportRunFailure(failed);
-                    }
-                    else if (!s.HadRunError)
-                    {
-                        SetStatus("Success", "RunPad.Status.SuccessBrush");
-                    }
+                        _vm.DebugPanel.ClearStop();
+                        if (cancelled)
+                        {
+                            SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+                        }
+                        else if (s.UnhandledDebugException is { } unhandled)
+                        {
+                            s.HadRunError = true;
+                            SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
+                        }
+                        else if (runResult is { Succeeded: false } failed)
+                        {
+                            ReportRunFailure(failed);
+                        }
+                        else if (!s.HadRunError)
+                        {
+                            SetStatus("Success", "RunPad.Status.SuccessBrush");
+                        }
 
-                    UpdateOutputUi();
-                    // Also when the script itself failed to compile: the restore before it may have succeeded.
-                    RefreshIntelliSensePackages();
+                        UpdateOutputUi();
+                        // Also when the script itself failed to compile: the restore before it may have succeeded.
+                        RefreshIntelliSensePackages();
+                    }
                 }
             }
             finally
