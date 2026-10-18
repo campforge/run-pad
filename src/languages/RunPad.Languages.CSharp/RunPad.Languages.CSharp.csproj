@@ -30,7 +30,6 @@
     <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
     <ProjectReference Include="..\..\core\RunPad.Debug\RunPad.Debug.csproj" />
     <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
-    <ProjectReference Include="..\..\runtime\RunPad.Runtime\RunPad.Runtime.csproj" />
     <ProjectReference Include="..\RunPad.Languages.DotnetCommon\RunPad.Languages.DotnetCommon.csproj" />
   </ItemGroup>
 

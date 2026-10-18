@@ -3,6 +3,64 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Added
+
+- A script's command-line arguments can be set with `args:` in its header. The script reads them
+  from `args` — in C# scripts, in `Main(string[] args)` and in Visual Basic scripts of statements —
+  when it runs in RunPad, under the debugger and from the `runpad` command-line runner.
+- `runpad` understands the command lines of LINQPad's `lprun` and NetPad's `npad`: `runpad script.rpad
+  Hello World` passes `Hello` and `World` to the script, `run` may come first, and
+  `-lang=e`/`--kind expression`, `-s`/`--sdk 9` and `-compileonly` override the script's kind and SDK
+  or only compile it. These options are read even after the script, up to `--`; everything after
+  `--` goes to the script as it is. A missing or unrecognized `--sdk` or `--kind` value stops the run
+  with an error, and options it can't handle yet, such as `-format` or `-e`, are reported instead of
+  being passed to the script.
+
+### Changed
+
+- `runpad` exits with code 2 instead of 1 when the script did not run — a bad command line or
+  file, no .NET SDK, or a compile error — the same code as NetPad's `npad`.
+
+### Fixed
+
+- In the installed RunPad app, the editor no longer marks `.Dump()` as an error once it has loaded the
+  script's .NET target, while the script itself runs fine.
+- Switching the theme recolours keywords, strings and semantic colours in every open script and code
+  window: at once in the one shown, and in other tabs when they are next shown. A tab opened only
+  after the switch no longer appears in the previous theme's colours.
+- The unsaved-changes dialog separates the file name from its explanation and gives Save, Cancel
+  and Don’t Save clearer, consistent actions in light and dark themes.
+
+- Fixed a startup crash in self-contained macOS builds when framework assemblies appeared more
+  than once while opening a script or selecting its .NET target.
+
+- Saving a script preserves reference paths containing YAML punctuation, whitespace and Unicode
+  characters instead of corrupting the file or changing the path.
+
+- Editor diagnostics and refactorings use the selected .NET target's C# version and conditional
+  compilation symbols, matching compilation when switching targets, and update as soon as another
+  SDK is selected instead of after the next edit.
+- The editor no longer reports errors for code completed by the .NET source generators, such as
+  `[GeneratedRegex]` methods and System.Text.Json serializer contexts, and completes their members.
+  The errors and warnings those generators report themselves, such as an invalid regex pattern, are
+  now shown in the editor and listed with their line in the build output.
+- In Program-kind scripts, lightbulb actions such as Add braces, Add accessibility modifiers or Wrap
+  expression no longer indent the code they change one level too deep.
+- Clicking a lightbulb entry no longer occasionally does nothing when the analysis of an earlier
+  edit finishes after the list was shown.
+- Saving no longer silently replaces a script that another program changed after RunPad opened or
+  last saved it. RunPad asks whether to save under another name, overwrite the file or cancel, also
+  when changing the script's settings, running or debugging it, closing, quitting, or renaming,
+  moving or deleting it; a script that wasn't saved that way doesn't run.
+- A script's relative `references:` are found next to the script itself, the same way when running
+  in RunPad, with the `runpad` command and in the editor, which now also knows their types. Paths
+  are saved with `/` on every system, Windows paths are still read, and a reference that can't be
+  used here (a Windows path on macOS or Linux, `C:lib/...`, or a relative path in an unsaved script)
+  is reported instead of silently ignored. Save As into another folder keeps relative references
+  pointing at the same files.
+
 ## [0.6.0] — 2026-10-17
 
 ### Added
@@ -43,6 +101,9 @@ Notable changes in each RunPad release. Downloads are on the
   Results panel are now thin lines; they are dragged in the same place as before.
 
 ### Fixed
+
+- Closing a running script no longer faults while cancellation finishes; unexpected run and stop
+  errors are logged and reported without escaping the editor action.
 
 - IntelliSense checks framework APIs against the script's selected .NET target when its reference
   pack is available, including when a script without packages is first opened, before any run.

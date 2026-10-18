@@ -16,7 +16,11 @@ public class FileTreeViewModel
         _prefs = prefs;
         _languages = languages;
         Nodes = [];
+        NewFileLanguages = NewFileLanguageChoice.From(languages);
     }
+
+    // The context menu's New File choices: the registered languages.
+    public IReadOnlyList<NewFileLanguageChoice> NewFileLanguages { get; }
 
     public ObservableCollection<FileTreeViewNode> Nodes { get; }
 

@@ -3,7 +3,7 @@ using NuGet.Versioning;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 
-namespace RunPad.Languages.CSharp.Sdk;
+namespace RunPad.Languages.DotnetCommon.Sdk;
 
 public sealed class DotnetSdkProvider : ISdkProvider
 {

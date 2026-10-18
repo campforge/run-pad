@@ -10,5 +10,8 @@ namespace RunPad.Contracts.IntelliSense;
 /// <param name="NuGetConfigFile">The NuGet configuration the build uses, if any.</param>
 /// <param name="DotnetExecutable">The dotnet the build uses (a full path, or a name looked up on PATH),
 /// whose install provides the target framework's reference assemblies.</param>
+/// <param name="AssemblyReferences">Full paths of the script's own .dll references, resolved as the
+/// build resolves them.</param>
 public sealed record PackageReferenceContext(
-    string TargetFramework, string? OutputDirectory, string? NuGetConfigFile, string? DotnetExecutable = null);
+    string TargetFramework, string? OutputDirectory, string? NuGetConfigFile, string? DotnetExecutable = null,
+    IReadOnlyList<string>? AssemblyReferences = null);

@@ -1,3 +1,4 @@
+using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts;
@@ -42,12 +43,32 @@ public interface ILanguageHostFactory
     // when the code should stay as it is (it already fits the kind, or the language has no template).
     string? CodeForKind(string code, RpadKind kind) => null;
 
+    // Editor intelligence (completion, diagnostics, quick fixes...) for one open document, or null when
+    // the language has none. Every call creates a new, stateful service that the caller owns and
+    // disposes: one per tab, never shared. Creating it can take a while (it loads metadata), so callers
+    // run it off the UI thread. A cancelled token may end it early with OperationCanceledException;
+    // a service that is returned anyway still belongs to the caller.
+    IIntelliSenseService? CreateIntelliSense(CancellationToken cancellationToken) => null;
+
+    // Prepares what every CreateIntelliSense call shares, so the first document opens fast. Off the UI thread.
+    void WarmUpIntelliSense() { }
+
     ILanguageHost Create(ILanguageHostOptions? options = null);
 }
+
+/// <summary>A registered language as the app offers it.</summary>
+/// <param name="Id">The registry key, also the <c>language:</c> value of a .rpad file.</param>
+/// <param name="DisplayName">The name shown for it, such as "Visual Basic".</param>
+/// <param name="IconResourceKey">Its icon's resource key (see <see cref="EditorLanguageProfile"/>), or null.</param>
+public sealed record LanguageDescriptor(
+    string Id, string DisplayName, LanguageHostCapabilities Capabilities, string? IconResourceKey);
 
 public interface ILanguageHostRegistry
 {
     IReadOnlyList<string> SupportedLanguages { get; }
+
+    // In registration order: the order the app lists them in.
+    IReadOnlyList<LanguageDescriptor> Languages { get; }
 
     void Register(ILanguageHostFactory factory);
     void Unregister(string language);
@@ -58,5 +79,12 @@ public interface ILanguageHostRegistry
     EditorLanguageProfile GetEditorProfile(string language);
     string GetDisplayName(string language);
     string? GetCodeForKind(string language, string code, RpadKind kind);
+
+    // See ILanguageHostFactory.CreateIntelliSense; null for a language that isn't registered.
+    IIntelliSenseService? CreateIntelliSense(string language, CancellationToken cancellationToken);
+
+    // Every registered language's ILanguageHostFactory.WarmUpIntelliSense.
+    void WarmUpIntelliSense();
+
     ILanguageHost Create(string language, ILanguageHostOptions? options = null);
 }

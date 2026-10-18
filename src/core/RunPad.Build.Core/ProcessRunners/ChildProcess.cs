@@ -111,14 +111,14 @@ public sealed class ChildProcess : IChildProcess
     internal const string ParentProcessIdEnvVar = "RUNPAD_PARENT_PID";
 
     /// <summary>Creates a process for running a compiled .NET assembly.</summary>
+    /// <param name="arguments">The script's own command-line arguments, its <c>args</c>.</param>
     public static ChildProcess ForExecution(
-        ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath = null)
+        ExecutionOptions options, string assemblyPath, string parentPid, string? currentQueryPath = null,
+        IReadOnlyList<string>? arguments = null)
     {
         var startInfo = new ProcessStartInfo
         {
             FileName = options.Runtime.RuntimePath,
-            // Only the assembly: anything after it becomes the script's own `args`.
-            Arguments = $"\"{assemblyPath}\"",
             WorkingDirectory = options.WorkingDirectory,
             CreateNoWindow = !options.CreateWindow,
             UseShellExecute = false,
@@ -128,6 +128,11 @@ public sealed class ChildProcess : IChildProcess
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        // ArgumentList quotes each item for the platform, so an argument with spaces or quotes
+        // reaches the script unchanged. Everything after the assembly becomes the script's `args`.
+        startInfo.ArgumentList.Add(assemblyPath);
+        foreach (var argument in arguments ?? [])
+            startInfo.ArgumentList.Add(argument);
         if (currentQueryPath is not null)
             startInfo.Environment[CurrentQueryPathEnvVar] = currentQueryPath;
         startInfo.Environment[ParentProcessIdEnvVar] = parentPid;

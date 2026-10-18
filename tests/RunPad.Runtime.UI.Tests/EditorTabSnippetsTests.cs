@@ -10,6 +10,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.VB;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
@@ -145,12 +146,11 @@ public class EditorTabSnippetsTests
                 new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
 
             var loggerFactory = NullLoggerFactory.Instance;
-            var registry = new LanguageHostRegistry();
-            registry.Register(new CSharpLanguageHostFactory(loggerFactory));
-            registry.Register(new VbLanguageHostFactory(loggerFactory));
-
             var buildCache = new Mock<IBuildCacheService>();
             var intelliSense = new Mock<IIntelliSenseService>();
+            var registry = new LanguageHostRegistry();
+            registry.Register(new CSharpLanguageHostFactory(loggerFactory).WithIntelliSense(() => intelliSense.Object));
+            registry.Register(new VbLanguageHostFactory(loggerFactory));
 
             var mainVm = new MainWindowViewModel(
                 sdkProviders: [],
@@ -160,8 +160,8 @@ public class EditorTabSnippetsTests
                 languageRegistry: new LanguageHostRegistry());
 
             var editorTabs = new EditorTabsControl(
-                theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object, () => intelliSense.Object,
-                new CSharpReferenceService(), buildCache.Object);
+                theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
+                new DotnetRuntimeReferenceLocator(), buildCache.Object);
 
             var host = new Window { Content = editorTabs };
             host.Show();

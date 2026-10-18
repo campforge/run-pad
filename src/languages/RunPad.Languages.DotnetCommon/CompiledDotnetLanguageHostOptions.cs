@@ -36,6 +36,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// </summary>
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
 
+    // References that couldn't be resolved (ReferencePathResolver): errors fail the build, warnings
+    // (a file that isn't there) are reported with its result.
+    public IReadOnlyList<string> ReferenceErrors { get; init; } = [];
+    public IReadOnlyList<string> ReferenceWarnings { get; init; } = [];
+
     /// <summary>NuGet.Config the in-process package restore uses (RunPad's own source list); null = the user's NuGet settings.</summary>
     public string? NuGetConfigFile { get; init; }
 
@@ -49,4 +54,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     // ProcessStartInfo.Environment on netcoredbg's own process wouldn't reach it) — either way read
     // back the same way by RunPad.Runtime.Util.CurrentQueryPath.
     public string? CurrentQueryPath { get; init; }
+
+    /// <summary>
+    /// The script's command-line arguments (<c>args</c>), from the front matter's <c>args:</c> or the
+    /// <c>runpad</c> command line. Passed to the script's process for a run and in the DAP launch
+    /// request for a debug session.
+    /// </summary>
+    public IReadOnlyList<string> Arguments { get; init; } = [];
 }

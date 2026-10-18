@@ -10,6 +10,7 @@ using RunPad.Contracts;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.IntelliSense;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -69,7 +70,7 @@ public class EditorTabItemControlCodeFixApplyTests
         using var intelliSense = CreateRealIntelliSense();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, new CSharpReferenceService(), buildCache.Object);
+            intelliSense, new DotnetRuntimeReferenceLocator(), buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 

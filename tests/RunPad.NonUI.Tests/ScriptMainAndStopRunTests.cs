@@ -5,8 +5,8 @@ using RunPad.Build.Core.Models;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Runtime.UI.Tests;
 using Xunit;
 

@@ -18,4 +18,12 @@ public static class RpadLanguageExtensions
     // fact about RpadLanguage's own naming convention (see the enum's doc comment above), not
     // something each call site should re-derive.
     public static string ToLanguageId(this RpadLanguage language) => language.ToString().ToLowerInvariant();
+
+    // The member a language id names ("csharp", "vb"), ignoring case; false for Unknown or no member.
+    public static bool TryFromLanguageId(string id, out RpadLanguage language)
+    {
+        language = Enum.GetValues<RpadLanguage>()
+            .FirstOrDefault(l => l != RpadLanguage.Unknown && string.Equals(l.ToLanguageId(), id, StringComparison.OrdinalIgnoreCase));
+        return language != RpadLanguage.Unknown;
+    }
 }

@@ -2,13 +2,13 @@ using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -21,8 +21,11 @@ namespace RunPad.UserControls;
 public partial class EditorTabsControl : UserControl, IDisposable
 {
     private readonly Dictionary<EditorTabItemViewModel, (TabItem Tab, EditorsTabItemControl Control)> _tabs = new();
+    // Tabs whose editor services are still being created: closing one cancels its creation.
+    private readonly Dictionary<EditorTabItemViewModel, CancellationTokenSource> _creating = new();
     private IDisposable? _activeTabSub;
     private bool _disposed;
+    private readonly ILogger<EditorsTabItemControl>? _runLogger;
 
     private MainWindowViewModel? _vm;
 
@@ -32,8 +35,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private readonly IWindowService? _windowService;
     private readonly ILanguageHostRegistry? _registry;
     private readonly IPreferencesService? _prefs;
-    private readonly Func<IIntelliSenseService>? _intelliSenseFactory;
-    private readonly CSharpReferenceService? _referenceService;
+    private readonly IRuntimeReferenceLocator? _runtimeReferences;
     private readonly IBuildCacheService? _buildCache;
 
     // ── Empty ctor: used by XAML previewer only ───────────────────────────────
@@ -50,18 +52,17 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        Func<IIntelliSenseService> intelliSenseFactory,
-        CSharpReferenceService referenceService,
-        IBuildCacheService buildCache)
+        IRuntimeReferenceLocator runtimeReferences,
+        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
     {
         InitializeComponent();
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
         _prefs = prefs;
-        _intelliSenseFactory = intelliSenseFactory;
-        _referenceService = referenceService;
+        _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
+        _runLogger = runLogger;
         _themeService.ThemeChanged += OnThemeChanged;
     }
 
@@ -102,20 +103,34 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             foreach (EditorTabItemViewModel vm in e.NewItems)
             {
-                // The expensive part (Roslyn workspace + BCL metadata references — see
-                // CreateControlAsync) runs off the UI thread so opening a script doesn't freeze the
-                // app. By the time we get back here, the tab may already have been closed again
-                // (or the whole control torn down) — don't resurrect it in that case.
-                var ctrl = await CreateControlAsync(vm);
+                // The expensive part (the language's editor services — see CreateIntelliSenseAsync)
+                // runs off the UI thread so opening a script doesn't freeze the app. By the time we
+                // get back here, the tab may already have been closed again (or the whole control
+                // torn down) — don't resurrect it in that case.
+                using var creation = new CancellationTokenSource();
+                _creating[vm] = creation;
+                IIntelliSenseService? intelliSense;
+                try
+                {
+                    intelliSense = await CreateIntelliSenseAsync(vm, creation.Token);
+                }
+                finally
+                {
+                    _creating.Remove(vm);
+                }
                 if (_disposed || !(_vm?.Tabs.Contains(vm) ?? false))
                 {
-                    // Nobody else owns vm's disposal in this case: MainWindowViewModel.CloseTab
-                    // doesn't dispose it itself, it relies on the (normally synchronous) OldItems
-                    // branch below — which already ran and no-opped, since _tabs had no entry yet.
-                    ctrl.Dispose();
+                    // The tab never got the service, so it is still ours to dispose. Nobody else owns
+                    // vm's disposal in this case either: MainWindowViewModel.CloseTab doesn't dispose
+                    // it itself, it relies on the (normally synchronous) OldItems branch below —
+                    // which already ran and only cancelled the creation, since _tabs had no entry yet.
+                    intelliSense?.Dispose();
                     vm.Dispose();
                     continue;
                 }
+
+                // From here on the tab owns the service and disposes it with itself.
+                var ctrl = CreateControl(vm, intelliSense);
 
                 var tab = AddTabItem(ctrl, vm, fileTabControl);
                 _tabs[vm] = (tab, ctrl);
@@ -132,6 +147,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         {
             foreach (EditorTabItemViewModel vm in e.OldItems)
             {
+                if (_creating.TryGetValue(vm, out var creation)) creation.Cancel();
                 if (!_tabs.TryGetValue(vm, out var entry)) continue;
                 // No save here: a write failure discovered only now would have nowhere
                 // to go — the tab and its editor are being destroyed. Every removal path resolves
@@ -154,7 +170,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
         // tc.SelectedItem transiently goes null while Items is being mutated — e.g. OpenTab closing
         // the initial blank tab right after opening a real file removes the blank tab's TabItem
-        // before the new tab's own TabItem exists yet (CreateControlAsync is still loading it off
+        // before the new tab's own TabItem exists yet (CreateIntelliSenseAsync is still loading it off
         // the UI thread), leaving the TabControl briefly empty. That's not a real "no tab selected"
         // user action; nulling ActiveTab here would strand it permanently, since the code above that
         // would normally re-select the new tab once it finishes loading only does so
@@ -174,6 +190,9 @@ public partial class EditorTabsControl : UserControl, IDisposable
     }
 
     // ── Theme ──────────────────────────────────────────────────────────────────
+
+    // Test-only (InternalsVisibleTo): the control showing a tab.
+    internal EditorsTabItemControl? ControlForTests(EditorTabItemViewModel vm) => _tabs.TryGetValue(vm, out var entry) ? entry.Control : null;
 
     private void OnThemeChanged(ActiveTheme theme)
     {
@@ -397,6 +416,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
         }
 
         _activeTabSub?.Dispose();
+        foreach (var creation in _creating.Values) creation.Cancel();
 
         // No save here: unsaved content was already resolved by MainWindow's Closing
         // confirmation — saving again would overwrite a "Don't Save" choice and report a failure
@@ -412,40 +432,45 @@ public partial class EditorTabsControl : UserControl, IDisposable
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private async Task<EditorsTabItemControl> CreateControlAsync(EditorTabItemViewModel vm)
+    // Each tab gets its own editor services from its language's module: they are stateful (one
+    // workspace and document per instance — each script can reference different NuGet packages), so
+    // a shared instance would let one tab's references and last-synced text stomp another tab's.
+    // Creating one can be real disk/CPU work with no Avalonia dependency (C# loads metadata for every
+    // BCL assembly), so it runs off the UI thread instead of freezing the app on open.
+    //
+    // The language comes from the file's own front matter (the same cheap parse EditorsTabItemControl.
+    // SetDocumentContent does again later) or, for a brand-new, never-saved tab (vm.FilePath is null,
+    // nothing to peek), from the tab's own pending choice — a new VB tab must not get the services of
+    // the default language. An invalid document (PeekDocumentLanguage → null) opens as raw text, and a
+    // language without editor services gets none: both without any language-specific test here.
+    // A creation cancelled because the tab closed comes back as null.
+    private async Task<IIntelliSenseService?> CreateIntelliSenseAsync(EditorTabItemViewModel vm, CancellationToken cancellationToken)
     {
-        // Each tab gets its own IntelliSense instance — see the comment on the
-        // Func<IIntelliSenseService> registration in App.axaml.cs for why this can't be shared.
-        // Constructing it builds a fresh Roslyn AdhocWorkspace and loads metadata references for
-        // every BCL assembly (see CSharpReferenceService.GetDefault) — real disk/CPU work with no
-        // Avalonia dependency, so it runs off the UI thread instead of freezing the app on open.
-        //
-        // IntelliSense is C#-only today (see CSharpIntelliSenseService) — peek the file's own front
-        // matter here (the same cheap parse EditorsTabItemControl.SetDocumentContent does again
-        // later) so a non-C# tab never gets a C# IntelliSense instance built for it in the first
-        // place, rather than building one and leaving it unused. A brand-new, never-saved tab
-        // (vm.FilePath is null) has no file to peek — PeekLanguage(null) always answers C#, which
-        // used to be harmless only because "New File" wrote the real front matter to disk before
-        // ever opening a tab (see NewRpadFile's old eager-write). Now that creation is deferred (see
-        // NewRpadFile), a new VB tab would otherwise get a live C# IntelliSense instance wired up
-        // against VB source text until its first save — read the tab's own pending choice instead.
-        // An invalid document (PeekDocumentLanguage → null) opens as raw text — no IntelliSense.
         var language = vm.FilePath is null ? vm.NewFileLanguage : RpadFilePeek.PeekDocumentLanguage(vm.FilePath);
-        var factory = _intelliSenseFactory;
-        var intelliSense = factory is not null && language == RpadLanguage.CSharp
-            ? await Task.Run(factory.Invoke)
-            : null;
+        if (_registry is not { } registry || language is not { } known || known == RpadLanguage.Unknown) return null;
+        var id = known.ToLanguageId();
+        try
+        {
+            return await Task.Run(() => registry.CreateIntelliSense(id, cancellationToken), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
 
-        // Avalonia controls (CodeTextEditor, InitializeComponent, ...) must be constructed on the
-        // UI thread, so the control itself is still created here, synchronously.
+    // Avalonia controls (CodeTextEditor, InitializeComponent, ...) must be constructed on the
+    // UI thread, so the control itself is created here, synchronously.
+    private EditorsTabItemControl CreateControl(EditorTabItemViewModel vm, IIntelliSenseService? intelliSense)
+    {
         return new EditorsTabItemControl(vm,
             _themeService!,
             _windowService!,
             _registry!,
             _prefs!,
             intelliSense,
-            _referenceService!,
-            _buildCache!
+            _runtimeReferences!,
+            _buildCache!, _runLogger
         );
     }
 

@@ -9,6 +9,7 @@ using RunPad.Contracts;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.VB;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
@@ -124,7 +125,7 @@ public class EditorTabKindTemplateTests
             new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
 
         var registry = new LanguageHostRegistry();
-        registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance));
+        registry.Register(new CSharpLanguageHostFactory(NullLoggerFactory.Instance).WithIntelliSense(() => new Mock<IIntelliSenseService>().Object));
         registry.Register(new VbLanguageHostFactory(NullLoggerFactory.Instance));
 
         var mainVm = new MainWindowViewModel(
@@ -136,7 +137,7 @@ public class EditorTabKindTemplateTests
 
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry, prefs.Object,
-            () => new Mock<IIntelliSenseService>().Object, new CSharpReferenceService(), new Mock<IBuildCacheService>().Object);
+            new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
 
         new Window { Content = editorTabs }.Show();
         editorTabs.Attach(mainVm); // opens the initial blank tab

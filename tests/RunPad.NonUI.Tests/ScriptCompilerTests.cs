@@ -10,9 +10,9 @@ using RunPad.Debug;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.Compiler;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Compiler;
+using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Languages.VB;
 using Xunit;
 

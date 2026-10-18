@@ -45,7 +45,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     protected static readonly CultureInfo MessageCulture = RoslynMessageCulture.Culture;
 
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), MetadataReference> References = new();
-    private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), ImmutableArray<ISourceGenerator>> Generators = new();
+    private static readonly ConcurrentDictionary<(string Path, DateTime Stamp, string Language), ImmutableArray<ISourceGenerator>> Generators = new();
     private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), Version?> AssemblyVersions = new();
 
     private readonly ILogger _logger;
@@ -114,6 +114,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         if (Options.Usings.Count > 0)
             code = string.Join("\n", Options.Usings.Select(FormatImport)) + "\n" + code;
 
+        if (Options.ReferenceErrors.Count > 0)
+            return new ProcessCompilerResult(_dllPath, false, [.. Options.ReferenceErrors.Select(e => Message("", e))], ReferenceWarnings());
+
         var tfm = Options.Platform.TargetFrameworkMoniker;
         if (!TargetFramework.TryParse(tfm, out var major, out var minor))
             return Failed(Message("", $"'{tfm}' is not a supported target framework."));
@@ -130,7 +133,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var packages = await NuGetRestorer.RestoreAsync(Options.Packages, tfm, LanguageFolder, _objDir, Options.NuGetConfigFile, ct);
         if (packages.Errors.Count > 0)
-            return new ProcessCompilerResult(_dllPath, false, packages.Errors, packages.Warnings);
+            return new ProcessCompilerResult(_dllPath, false, packages.Errors, [.. ReferenceWarnings(), .. packages.Warnings]);
 
         Directory.CreateDirectory(_binDir);
         var userReferences = ResolveUserReferences();
@@ -149,7 +152,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var key = Fingerprint(code, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
-            return new ProcessCompilerResult(_dllPath, true, [], packages.Warnings);
+            return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
 
         // The script file itself — what breakpoints and the debugger's source view point at.
         if (!File.Exists(_sourcePath) || await File.ReadAllTextAsync(_sourcePath, ct) != code)
@@ -185,7 +188,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         diagnostics.AddRange(emit.Diagnostics);
 
         var errors = ToResultItems(diagnostics, RoslynSeverity.Error, outputDir);
-        var warnings = packages.Warnings.Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();
+        var warnings = ReferenceWarnings().Concat(packages.Warnings).Concat(ToResultItems(diagnostics, RoslynSeverity.Warning, outputDir)).ToList();
         if (!emit.Success)
         {
             // Like a failed `dotnet build`: no stale binary from an earlier run is left to execute.
@@ -223,17 +226,22 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     private ProcessCompilerResult Failed(ResultItem error) => new(_dllPath, false, [error], []);
 
+    private List<ResultItem> ReferenceWarnings() => [.. Options.ReferenceWarnings.Select(w => Message("", w))];
+
     protected static ResultItem Message(string code, string text) => new(code, "", new LineSymbol(0, 0), text);
 
     // ── References ───────────────────────────────────────────────────────────
 
     // Front-matter .dll references plus the dependencies `dotnet build` would find next to them
     // (ResolveAssemblyReference's FindDependencies): same folder, recursively.
-    private List<string> ResolveUserReferences()
+    private List<string> ResolveUserReferences() => WithSameFolderDependencies(Options.AssemblyReferences);
+
+    // IntelliSense references the same assemblies for the same front matter.
+    public static List<string> WithSameFolderDependencies(IEnumerable<string> assemblyReferences)
     {
         var result = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var pending = new Queue<string>(Options.AssemblyReferences.Where(File.Exists).Select(Path.GetFullPath));
+        var pending = new Queue<string>(assemblyReferences.Where(File.Exists).Select(Path.GetFullPath));
         while (pending.Count > 0)
         {
             var path = pending.Dequeue();
@@ -276,7 +284,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     public static (List<string> Framework, List<string> Packages) ResolveConflicts(
         IEnumerable<string> frameworkReferences, IReadOnlyList<string> packages)
     {
-        var framework = frameworkReferences.ToList();
+        // A self-contained application can contribute an app-local framework assembly beside the
+        // selected targeting pack's copy. Keep the first reference (the selected pack comes first)
+        // before indexing by name. A newer app-local runtime must not replace an older target's
+        // reference assembly and expose APIs that the selected target does not support.
+        var framework = frameworkReferences.DistinctBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase).ToList();
         var frameworkByName = framework.ToDictionary(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase);
         var keptPackages = new List<string>();
         foreach (var package in packages)
@@ -321,16 +333,20 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
     private static MetadataReference GetReference(string path) =>
         References.GetOrAdd((path, File.GetLastWriteTimeUtc(path)), key => MetadataReference.CreateFromFile(key.Path));
 
-    private ImmutableArray<ISourceGenerator> GetGenerators(string path) =>
-        Generators.GetOrAdd((path, File.GetLastWriteTimeUtc(path)), key =>
+    private ImmutableArray<ISourceGenerator> GetGenerators(string path) => LoadGenerators(path, LanguageName, _logger);
+
+    // The source generators of one assembly for one language, loaded once per file version. IntelliSense
+    // runs the same instances as the build, so both generate the same code.
+    public static ImmutableArray<ISourceGenerator> LoadGenerators(string path, string language, ILogger logger) =>
+        Generators.GetOrAdd((path, File.GetLastWriteTimeUtc(path), language), key =>
         {
             try
             {
-                return new AnalyzerFileReference(key.Path, GeneratorAssemblyLoader.Instance).GetGenerators(LanguageName);
+                return new AnalyzerFileReference(key.Path, GeneratorAssemblyLoader.Instance).GetGenerators(key.Language);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Couldn't load source generators from {Path}", key.Path);
+                logger.LogWarning(ex, "Couldn't load source generators from {Path}", key.Path);
                 return [];
             }
         });
@@ -422,7 +438,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         {
             var message = d.GetMessage(MessageCulture);
             ResultItem item;
-            if (d.Location.IsInSource)
+            // Source generators report at external-file locations (a path and a span) rather than in
+            // a syntax tree; they still point into the script.
+            if (d.Location.IsInSource || d.Location.Kind == LocationKind.ExternalFile)
             {
                 var span = d.Location.GetMappedLineSpan();
                 item = new ResultItem(d.Id, span.Path.Replace(outputDir, ""),

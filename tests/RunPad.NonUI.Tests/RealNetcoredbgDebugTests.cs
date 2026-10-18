@@ -4,8 +4,8 @@ using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
-using RunPad.Languages.CSharp.Sdk;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
 namespace RunPad.Runtime.UI.Tests;

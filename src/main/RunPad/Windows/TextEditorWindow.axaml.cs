@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using RunPad.Avalonia.CodeTextEditor;
+using RunPad.Avalonia.Themes;
 using RunPad.Services;
 using RunPad.Services.Preferences;
 using RunPad.Services.Scaling;
@@ -46,6 +47,15 @@ public partial class TextEditorWindow : Window
             editor.TrySetLanguage(themeService.CurrentTheme.Editor.TextMateName, Path.GetExtension(viewModel.FilePath));
         };
         editor.AttachedToVisualTree += onAttached;
+
+        // The window is always shown while open: a theme change recolours it at once.
+        void OnThemeChanged(ActiveTheme theme)
+        {
+            editor.SetTheme(theme.Editor.TextMateName);
+            editor.Background = themeService.GetBrush("RunPad.Editor.BackgroundBrush");
+        }
+        themeService.ThemeChanged += OnThemeChanged;
+        Closed += (_, _) => themeService.ThemeChanged -= OnThemeChanged;
 
         UpdateCaret();
         editor.TextArea.Caret.PositionChanged += (_, _) => UpdateCaret();

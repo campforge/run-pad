@@ -157,7 +157,7 @@ public class MainWindowViewModelDocumentSafetyTests
             Assert.Null(tab.WriteToFile);
 
             await ((IEditorTabActions)vm).CloseAsync(tab);
-            vm.RenameFile(file, "new");
+            await vm.RenameFile(file, "new");
 
             Assert.Contains(tab, vm.Tabs);
             Assert.True(tab.IsDirty);
