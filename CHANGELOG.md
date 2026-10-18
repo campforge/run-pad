@@ -13,7 +13,8 @@ Notable changes in each RunPad release. Downloads are on the
 - A Markdown preview of the script, as in VS Code: View → Markdown Preview (Ctrl+Shift+V) shows the
   whole document in place of the editor, and View → Markdown Preview to the Side (Ctrl+Alt+V) beside
   it. The header is shown as a table of settings, the text around the code as formatted Markdown and
-  the code highlighted in the editor's colors; the preview follows the text as you type.
+  the code highlighted in the editor's colors; the preview follows the text as you type. Side by
+  side, the editor and the preview scroll together.
 
 ### Fixed
 

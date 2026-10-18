@@ -101,4 +101,26 @@ public class RpadPreviewTests
         Assert.Contains("<code>two lines</code>", html);
         Assert.Equal(6, html.Split("<tr>").Length - 1); // header + Language, Kind, Target SDK, References, Arguments
     }
+
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    public void ToMarkdown_Should_GiveTheLineWhereTheCodeStarts(string newLine)
+    {
+        var doc = RpadParser.TryParse(File.ReplaceLineEndings(newLine))!;
+
+        var markdown = RpadPreview.ToMarkdown(doc, "void Main()\n{\n}\n", out var codeLine);
+
+        Assert.Equal("void Main()", markdown.ReplaceLineEndings("\n").Split('\n')[codeLine]);
+    }
+
+    [Fact]
+    public void ToMarkdown_Should_GiveTheLineAfterTheFence_OfADocumentWithoutABody()
+    {
+        var doc = new RpadDocument { FrontMatter = new RpadFrontMatter() };
+
+        var markdown = RpadPreview.ToMarkdown(doc, "Console.WriteLine(1);\n", out var codeLine);
+
+        Assert.Equal("Console.WriteLine(1);", markdown.Split('\n')[codeLine]);
+    }
 }

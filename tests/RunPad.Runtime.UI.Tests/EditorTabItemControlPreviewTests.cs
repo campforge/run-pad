@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Moq;
@@ -32,16 +35,22 @@ public class EditorTabItemControlPreviewTests
     private static ActiveTheme Theme(TextMateSharp.Grammars.ThemeName textMate) => new(
         new InterfaceTheme("Test", ThemeVariant.Dark, true), new EditorTheme("Test", textMate, true));
 
-    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl()
+    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl() => CreateControl(out _);
+
+    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm) CreateControl(out Window window)
     {
         var prefs = MakePrefs();
         var vm = new EditorTabItemViewModel(
             null, [], prefs.Object, new Mock<IEditorTabActions>().Object, RpadLanguage.CSharp, RpadKind.Statements);
         var theme = new Mock<IThemeService>();
         theme.Setup(t => t.CurrentTheme).Returns(Theme(TextMateSharp.Grammars.ThemeName.DarkPlus));
+        // The real theme gives the preview a background, which also makes its gaps between blocks
+        // take the mouse wheel.
+        theme.Setup(t => t.GetBrush(It.IsAny<string>())).Returns(Brushes.Black);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, new Mock<IWindowService>().Object,
             new Mock<ILanguageHostRegistry>().Object, prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
-        new Window { Content = ctrl }.Show();
+        window = new Window { Width = 1000, Height = 400, Content = ctrl };
+        window.Show();
         return (ctrl, vm);
     }
 
@@ -176,6 +185,115 @@ public class EditorTabItemControlPreviewTests
 
         Assert.NotSame(extension, Assert.Single(preview.Extensions));
         Assert.Contains("| Kind |", preview.Markdown);
+        ctrl.Dispose();
+    }
+
+    // ── Scrolling together ────────────────────────────────────────────────────
+
+    private static readonly string LongCode = string.Concat(Enumerable.Range(0, 200).Select(i => $"Console.WriteLine({i});\n"));
+
+    // Beside the editor, with a long script, laid out.
+    private static (EditorsTabItemControl Control, EditorTabItemViewModel Vm, Window Window) CreateSideBySide()
+    {
+        var (ctrl, vm) = CreateControl(out var window);
+        ctrl.State.Editor.Text = LongCode;
+        vm.TogglePreviewToSide();
+        Dispatcher.UIThread.RunJobs();
+        return (ctrl, vm, window);
+    }
+
+    private static int CodeLine(EditorsTabItemControl ctrl)
+    {
+        RpadPreview.ToMarkdown(ctrl.State.RpadDocument!, ctrl.State.Editor.Text, out var codeLine);
+        return codeLine;
+    }
+
+    private static double EditorTopLine(EditorsTabItemControl ctrl)
+    {
+        // The scroll viewer's offset: the text view only takes it on at the next layout pass.
+        return ctrl.State.Editor.VerticalOffset / ctrl.State.Editor.TextArea.TextView.DefaultLineHeight;
+    }
+
+    private static void ScrollEditorToLine(EditorsTabItemControl ctrl, int line)
+    {
+        ctrl.State.Editor.ScrollToVerticalOffset(line * ctrl.State.Editor.TextArea.TextView.DefaultLineHeight);
+        ctrl.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public async Task ScrollingTheEditor_Should_ScrollThePreviewToTheSameLine()
+    {
+        var (ctrl, _, _) = CreateSideBySide();
+
+        ScrollEditorToLine(ctrl, 100);
+
+        await WaitUntil(() => Math.Abs(ctrl.PreviewForTests!.GetSourceLineAtTop()!.Value - (CodeLine(ctrl) + 100)) < 0.5);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public void TheEditorAtTheTop_Should_ShowTheTopOfTheDocument()
+    {
+        var (ctrl, _, _) = CreateSideBySide();
+        ScrollEditorToLine(ctrl, 100);
+
+        ScrollEditorToLine(ctrl, 0);
+
+        Assert.Equal(0, ctrl.PreviewForTests!.GetSourceLineAtTop());
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public async Task ScrollingThePreview_Should_ScrollTheEditor()
+    {
+        var (ctrl, _, window) = CreateSideBySide();
+        var preview = ctrl.PreviewForTests!;
+        var overPreview = preview.TranslatePoint(new Point(preview.Bounds.Width / 2, preview.Bounds.Height / 2), window)!.Value;
+
+        for (var i = 0; i < 20; i++)
+        {
+            window.MouseWheel(overPreview, new Vector(0, -1));
+            window.UpdateLayout();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        }
+        Dispatcher.UIThread.RunJobs();
+
+        var previewLine = preview.GetSourceLineAtTop()!.Value;
+        Assert.True(previewLine > CodeLine(ctrl) + 10, $"the preview did not scroll far enough ({previewLine})");
+        await WaitUntil(() => Math.Abs(EditorTopLine(ctrl) - (previewLine - CodeLine(ctrl))) < 0.5);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public async Task Typing_Should_KeepThePreviewAtTheEditorsLine()
+    {
+        var (ctrl, _, _) = CreateSideBySide();
+        ScrollEditorToLine(ctrl, 100);
+        var before = ctrl.PreviewForTests!.Markdown;
+
+        ctrl.State.Editor.Document.Insert(ctrl.State.Editor.Document.GetOffset(150, 1), "// note\n");
+
+        await WaitUntil(() => ctrl.PreviewForTests!.Markdown != before);
+        Assert.Equal(CodeLine(ctrl) + 100, ctrl.PreviewForTests!.GetSourceLineAtTop()!.Value, 0.5);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public void LeavingThePreviewAlone_Should_OpenTheEditorWhereThePreviewWas()
+    {
+        var (ctrl, vm) = CreateControl();
+        ctrl.State.Editor.Text = LongCode;
+        vm.TogglePreview();
+        Dispatcher.UIThread.RunJobs();
+        ctrl.PreviewForTests!.ScrollToSourceLine(CodeLine(ctrl) + 60);
+        Dispatcher.UIThread.RunJobs();
+
+        vm.TogglePreviewToSide();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(60, EditorTopLine(ctrl), 0.5);
+        Assert.Equal(CodeLine(ctrl) + 60, ctrl.PreviewForTests!.GetSourceLineAtTop()!.Value, 0.5);
         ctrl.Dispose();
     }
 }
