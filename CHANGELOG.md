@@ -102,6 +102,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Closing a running script no longer faults while cancellation finishes; unexpected run and stop
+  errors are logged and reported without escaping the editor action.
+
 - IntelliSense checks framework APIs against the script's selected .NET target when its reference
   pack is available, including when a script without packages is first opened, before any run.
 
