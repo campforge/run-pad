@@ -9,6 +9,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ReactiveUI;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
@@ -58,6 +60,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private string? _filePath;
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
+    private bool _runInProgress;
+    private int _runGeneration;
+    private readonly ILogger<EditorsTabItemControl> _runLogger;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
     // see OnDependenciesEdited. Not "what's on disk": a failed write keeps the tab dirty instead.
@@ -93,7 +98,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         IRuntimeReferenceLocator runtimeReferences,
-        IBuildCacheService buildCache)
+        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
     {
         _themeService = themeService;
         _windowService = windowService;
@@ -101,6 +106,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _prefs = prefs;
         _runtimeReferences = runtimeReferences;
         _buildCache = buildCache;
+        _runLogger = runLogger ?? NullLogger<EditorsTabItemControl>.Instance;
         _vm = vm;
         _vm.WriteToFile = WriteFile;
         DataContext = _vm;
@@ -380,16 +386,40 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void Cancel()
     {
-        State.CurrentDebugCtx?.Resume(DebugAction.Continue);
-        State.CurrentDebugCtx = null;
-        _vm.DebugPanel.ClearStop();
-        State.RunCts?.Cancel();
+        try
+        {
+            State.CurrentDebugCtx?.Resume(DebugAction.Continue);
+            State.CurrentDebugCtx = null;
+            _vm.DebugPanel.ClearStop();
+            State.RunCts?.Cancel();
+        }
+        catch (Exception ex)
+        {
+            _runLogger.LogError(ex, "Stopping the script failed");
+            if (!_disposed) AppendError(ex);
+        }
     }
 
+    // All UI entry points await this boundary, including errors before execution and in cleanup.
     internal async Task RunAsync(bool debug, DotnetSdk platform)
     {
+        try { await RunCoreAsync(debug, platform); }
+        catch (OperationCanceledException) when (_disposed || State.RunCts?.IsCancellationRequested == true) { }
+        catch (Exception ex)
+        {
+            _runLogger.LogError(ex, "Script execution failed");
+            if (!_disposed)
+            {
+                _vm.RunState = RunState.Idle;
+                AppendError(ex);
+            }
+        }
+    }
+
+    private async Task RunCoreAsync(bool debug, DotnetSdk platform)
+    {
         var s = State;
-        if (s.RunCts is { IsCancellationRequested: false } || _savingBeforeRun) return;
+        if (_disposed || _runInProgress || _savingBeforeRun) return;
 
         // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -444,7 +474,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateOutputUi();
 
         s.RunCts?.Dispose();
-        s.RunCts = new CancellationTokenSource();
+        var runCts = new CancellationTokenSource();
+        s.RunCts = runCts;
+        _runInProgress = true;
+        var generation = ++_runGeneration;
+        void PostRun(Action action) => Dispatcher.Post(() =>
+        {
+            if (!_disposed && generation == _runGeneration) action();
+        });
 
         var cancelled = false;
         RunResult? runResult = null; // stays null for a debug run — DAP doesn't report an exit code here yet
@@ -479,34 +516,35 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 s.RunningHost = host;
                 host.Compiled += binaryPath =>
                 {
-                    UpdateIlOutput(binaryPath);
+                    if (_disposed || generation != _runGeneration) return;
+                    UpdateIlOutput(binaryPath, generation);
                     // The build has just restored the packages: completion and diagnostics now see the
                     // versions and transitive packages it resolved.
-                    Dispatcher.Post(RefreshIntelliSensePackages);
+                    PostRun(RefreshIntelliSensePackages);
                 };
                 host.InputRequested += (prompt, isPassword) =>
-                    Dispatcher.Post(() => ShowInputPrompt(prompt, isPassword));
+                    PostRun(() => ShowInputPrompt(prompt, isPassword));
 
                 if (debug && host.Supports(LanguageHostCapabilities.Debug))
                 {
                     foreach (var bp in breakpoints) host.AddBreakpoint(bp);
                     host.BreakpointHit += ctx =>
-                        Dispatcher.Post(() => OnBreakpointHit(ctx));
+                        PostRun(() => OnBreakpointHit(ctx));
                     host.BreakpointVerified += (bp, verified, message) =>
-                        Dispatcher.Post(() => OnBreakpointVerified(bp, verified, message));
+                        PostRun(() => OnBreakpointVerified(bp, verified, message));
                     await host.RunDebugAsync(
                         script,
-                        (data, kind) => Dispatcher.Post(() => AppendOutput(data, kind)),
-                        s.RunCts.Token);
+                        (data, kind) => PostRun(() => AppendOutput(data, kind)),
+                        runCts.Token);
                 }
                 else
                 {
                     runResult = await host.RunAsync(
                         script,
-                        (data, kind) => Dispatcher.Post(() => AppendOutput(data, kind)),
-                        s.RunCts.Token);
+                        (data, kind) => PostRun(() => AppendOutput(data, kind)),
+                        runCts.Token);
                 }
-            }, s.RunCts.Token);
+            }, runCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -514,46 +552,60 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            AppendError(ex);
+            _runLogger.LogError(ex, "Script host failed");
+            if (!_disposed) AppendError(ex);
         }
         finally
         {
-            s.RunningHost = null;
-            await s.RunCts.CancelAsync();
-            HideInputPrompt();
+            try
+            {
+                s.RunningHost = null;
+                await runCts.CancelAsync();
+                if (!_disposed)
+                {
+                    HideInputPrompt();
 
-            _vm.RunState = RunState.Idle;
-            State.Editor.DebugCurrentLine = null;
-            s.RunStopwatch.Stop();
-            s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
+                    _vm.RunState = RunState.Idle;
+                    State.Editor.DebugCurrentLine = null;
+                    s.RunStopwatch.Stop();
+                    s.ElapsedText = FormatElapsed(s.RunStopwatch.Elapsed);
 
-            _vm.DebugPanel.ClearStop();
-            if (cancelled)
-            {
-                SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
-            }
-            else if (s.UnhandledDebugException is { } unhandled)
-            {
-                s.HadRunError = true;
-                SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
-            }
-            else if (runResult is { Succeeded: false } failed)
-            {
-                ReportRunFailure(failed);
-            }
-            else if (!s.HadRunError)
-            {
-                SetStatus("Success", "RunPad.Status.SuccessBrush");
-            }
+                    _vm.DebugPanel.ClearStop();
+                    if (cancelled)
+                    {
+                        SetStatus("Cancelled", "RunPad.Status.CancelledBrush");
+                    }
+                    else if (s.UnhandledDebugException is { } unhandled)
+                    {
+                        s.HadRunError = true;
+                        SetStatus($"Unhandled {DebugPanelViewModel.ShortTypeName(unhandled)}", "RunPad.Status.ErrorBrush");
+                    }
+                    else if (runResult is { Succeeded: false } failed)
+                    {
+                        ReportRunFailure(failed);
+                    }
+                    else if (!s.HadRunError)
+                    {
+                        SetStatus("Success", "RunPad.Status.SuccessBrush");
+                    }
 
-            UpdateOutputUi();
-            // Also when the script itself failed to compile: the restore before it may have succeeded.
-            RefreshIntelliSensePackages();
+                    UpdateOutputUi();
+                    // Also when the script itself failed to compile: the restore before it may have succeeded.
+                    RefreshIntelliSensePackages();
+                }
+            }
+            finally
+            {
+                if (ReferenceEquals(s.RunCts, runCts)) s.RunCts = null;
+                runCts.Dispose();
+                _runInProgress = false;
+            }
         }
     }
 
     public void Dispose()
     {
+        if (_disposed) return;
         _disposed = true;
         _prefs.Changed -= OnPreferencesChanged;
         _viewScale.Changed -= OnViewScaleChanged;
@@ -563,7 +615,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
         Cancel();
-        State.RunCts?.Dispose();
+        // The run owns its CTS until its asynchronous cleanup has finished.
+        if (!_runInProgress) State.RunCts?.Dispose();
         _intelliSense?.Dispose(); // owned by this tab now — see EditorTabsControl.CreateControl
         GC.SuppressFinalize(this);
     }
@@ -1081,7 +1134,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // Runs on the ILanguageHost.Compiled event, itself raised on the RunAsync's own Task.Run
     // background thread (not the UI thread) — so the disassembly work below happens off-UI already;
     // only the resulting string needs to be marshalled back for display.
-    private void UpdateIlOutput(string binaryPath)
+    private void UpdateIlOutput(string binaryPath, int generation)
     {
         string il;
         try
@@ -1093,7 +1146,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
-        Dispatcher.Post(() => IlOutput.Text = il);
+        Dispatcher.Post(() =>
+        {
+            if (!_disposed && generation == _runGeneration) IlOutput.Text = il;
+        });
     }
 
     // ILanguageHost.InputRequested (Util.ReadLine/
