@@ -29,6 +29,7 @@ public static class KeyCommands
     public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
+    public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
     // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
     public static readonly KeyCommand Exit = new("file.exit", General, "Exit", "", "Cmd+Q");
@@ -77,7 +78,7 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, OpenFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
         RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,

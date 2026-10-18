@@ -38,8 +38,16 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     internal void AcceptWrittenState(string path)
     {
-        if (LastWrite is { } written && written.Path == path) DiskState = written.State;
+        if (LastWrite is { } written && written.Path == path)
+        {
+            DiskState = written.State;
+            DeclinedDiskState = null;
+        }
     }
+
+    // A version of the file another program wrote that the user chose not to reload over their
+    // unsaved edits: RunPad doesn't ask about that same version again. Saving or reloading forgets it.
+    internal ScriptFileState? DeclinedDiskState { get; set; }
 
     // An in-place save still waiting for the user's choice (see InPlaceSave).
     internal Task<InPlaceSaveResult>? PendingSave { get; set; }
