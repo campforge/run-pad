@@ -127,6 +127,15 @@
                         ToolTip.Tip="Toggle debug mode"
                        />
 
+                    <tc:IconToggleButton
+                        x:Name="PreviewButton"
+                        IconData="{StaticResource Icon.PreviewSide}"
+                        CheckedBrush="{DynamicResource RunPad.Icon.PlayBrush}"
+                        IsChecked="{Binding PreviewShown}"
+                        ToolTip.Tip="Show or hide the Markdown preview"
+                        AutomationProperties.Name="Markdown preview"
+                        />
+
                     <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
                         Command="{Binding OutputPanel.ToggleCommand}"
