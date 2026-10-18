@@ -15,6 +15,11 @@ Notable changes in each RunPad release. Downloads are on the
   it; a button on the tab's toolbar shows or hides it. The header is shown as a table of settings,
   the text around the code as formatted Markdown and the code highlighted in the editor's colors;
   the preview follows the text as you type. Side by side, the editor and the preview scroll together.
+- An open script follows its file when another program changes it. A tab without unsaved changes
+  reloads by itself when you come back to RunPad; one with unsaved changes asks whether to reload or
+  keep your version, and doesn't ask again about the same change. A reload can be undone with Undo.
+  File → Revert to Saved goes back to the script as saved on disk, asking first if that drops
+  unsaved changes.
 
 ### Fixed
 

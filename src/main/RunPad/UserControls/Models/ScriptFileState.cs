@@ -13,6 +13,14 @@ public sealed record ScriptFileState(byte[]? Hash)
 
     public static ScriptFileState Absent { get; } = new((byte[]?)null);
 
+    /// <summary>What <paramref name="path"/> holds now.</summary>
+    public static ScriptFileState Read(string path)
+        => File.Exists(path) ? Of(File.ReadAllBytes(path)) : Absent;
+
+    // The generated record equality compares the arrays by reference, not by content.
+    public bool SameAs(ScriptFileState other)
+        => Hash is null ? other.Hash is null : other.Hash is not null && Hash.AsSpan().SequenceEqual(other.Hash);
+
     /// <summary>
     /// Whether writing <paramref name="path"/> now would replace content this state doesn't know:
     /// the file differs from what was read or written, or appeared where there was none. A file
