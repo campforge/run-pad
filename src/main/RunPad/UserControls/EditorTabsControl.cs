@@ -247,6 +247,10 @@ public partial class EditorTabsControl : UserControl, IDisposable
     public void ToggleOutputPanelActive()
         => _vm?.ActiveTab?.OutputPanel.ToggleCommand.Execute().Subscribe();
 
+    public void TogglePreviewActive() => _vm?.ActiveTab?.TogglePreview();
+
+    public void TogglePreviewToSideActive() => _vm?.ActiveTab?.TogglePreviewToSide();
+
     // View → Zoom changes the one code zoom every editor shares, also with no tab open.
     public void ZoomInActive() => CodeZoom?.ZoomIn();
 

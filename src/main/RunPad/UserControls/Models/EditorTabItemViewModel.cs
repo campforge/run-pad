@@ -13,6 +13,9 @@ namespace RunPad.UserControls.Models;
 
 public enum RunState { Idle, Run, RunDebug, Paused }
 
+// Where the tab shows its Markdown preview: not at all, beside the editor, or in its place.
+public enum ScriptPreviewMode { Off, Side, Full }
+
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
     private readonly IPreferencesService _prefs;
@@ -130,6 +133,20 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
+
+    public ScriptPreviewMode PreviewMode
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    // As in VS Code: the same key opens the preview and goes back to the editor; the other key
+    // switches between the side-by-side preview and none.
+    public void TogglePreview()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Full ? ScriptPreviewMode.Off : ScriptPreviewMode.Full;
+
+    public void TogglePreviewToSide()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Side ? ScriptPreviewMode.Off : ScriptPreviewMode.Side;
 
     private RunState _runState;
     public RunState RunState

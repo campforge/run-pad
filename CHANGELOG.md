@@ -10,6 +10,10 @@ Notable changes in each RunPad release. Downloads are on the
 - File > Open (Ctrl+O, or Cmd+O on macOS) opens .rpad scripts from any folder. Recent Files keeps
   the last 50 paths across restarts and can be cleared without deleting files. Opening an already
   open script activates its tab and preserves unsaved edits.
+- A Markdown preview of the script, as in VS Code: View → Markdown Preview (Ctrl+Shift+V) shows the
+  whole document in place of the editor, and View → Markdown Preview to the Side (Ctrl+Alt+V) beside
+  it. The header is shown as a table of settings, the text around the code as formatted Markdown and
+  the code highlighted in the editor's colors; the preview follows the text as you type.
 
 ### Fixed
 
