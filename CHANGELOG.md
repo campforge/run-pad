@@ -26,6 +26,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Selected result text can be copied with the system keyboard shortcut, including Cmd+C on
+  macOS; Select All also follows the platform shortcut.
+
 - Markdown preview mode and editor, output and debugger split positions are shared across tabs,
   including newly opened tabs; toggling preview keeps the chosen split.
 
