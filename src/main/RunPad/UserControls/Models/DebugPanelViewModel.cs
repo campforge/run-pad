@@ -8,6 +8,8 @@ namespace RunPad.UserControls.Models;
 
 public sealed class DebugPanelViewModel : ReactiveObject
 {
+    public RunPad.Shared.EditorLayoutState? Layout { get; internal set; }
+
     public bool BreakOnAllExceptions
     {
         get;

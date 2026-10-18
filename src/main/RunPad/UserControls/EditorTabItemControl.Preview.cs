@@ -64,10 +64,10 @@ public partial class EditorsTabItemControl
             PreviewHost.Content = _preview;
         }
 
-        // Each mode starts from an even split; a dragged splitter only lasts until the next switch.
+        // Definitions retain the workspace split even while one pane is hidden.
         var columns = EditorArea.ColumnDefinitions;
-        columns[0].Width = mode == ScriptPreviewMode.Full ? new GridLength(0) : GridLength.Star;
-        columns[2].Width = shown ? GridLength.Star : new GridLength(0);
+        columns[0].MaxWidth = mode == ScriptPreviewMode.Full ? 0 : double.PositiveInfinity;
+        columns[2].MaxWidth = shown ? double.PositiveInfinity : 0;
         EditorHost.IsVisible = mode != ScriptPreviewMode.Full;
         PreviewSplitter.IsVisible = mode == ScriptPreviewMode.Side;
         PreviewHost.IsVisible = shown;
