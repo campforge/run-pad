@@ -137,7 +137,18 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     public ScriptPreviewMode PreviewMode
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(PreviewShown));
+        }
+    }
+
+    // The toolbar's preview button: lit while any preview shows, and it opens the side-by-side one.
+    public bool PreviewShown
+    {
+        get => PreviewMode != ScriptPreviewMode.Off;
+        set => PreviewMode = value ? ScriptPreviewMode.Side : ScriptPreviewMode.Off;
     }
 
     // As in VS Code: the same key opens the preview and goes back to the editor; the other key

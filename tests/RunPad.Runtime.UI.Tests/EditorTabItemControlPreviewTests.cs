@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -185,6 +186,41 @@ public class EditorTabItemControlPreviewTests
 
         Assert.NotSame(extension, Assert.Single(preview.Extensions));
         Assert.Contains("| Kind |", preview.Markdown);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public void ThePreviewButton_Should_OpenThePreviewToTheSide_AndCloseIt()
+    {
+        var (ctrl, vm) = CreateControl();
+        var button = ctrl.FindControl<ToggleButton>("PreviewButton")!;
+
+        Assert.False(button.IsChecked);
+        button.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(ScriptPreviewMode.Side, vm.PreviewMode);
+        Assert.True(Named(ctrl, "PreviewHost").IsVisible);
+
+        button.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(ScriptPreviewMode.Off, vm.PreviewMode);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public void ThePreviewButton_Should_ShowAnyPreview_AndCloseThePreviewAlone()
+    {
+        var (ctrl, vm) = CreateControl();
+        var button = ctrl.FindControl<ToggleButton>("PreviewButton")!;
+
+        vm.TogglePreview();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(button.IsChecked);
+
+        button.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(ScriptPreviewMode.Off, vm.PreviewMode);
+        Assert.True(Named(ctrl, "EditorHost").IsVisible);
         ctrl.Dispose();
     }
 
