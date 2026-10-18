@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using RunPad.Languages.DotnetCommon;
 
@@ -8,10 +9,12 @@ namespace RunPad.Languages.VB;
 public sealed class VbLanguageHostFactory : ILanguageHostFactory
 {
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IRuntimeReferenceLocator _runtimeReferences;
 
-    public VbLanguageHostFactory(ILoggerFactory loggerFactory)
+    public VbLanguageHostFactory(ILoggerFactory loggerFactory, IRuntimeReferenceLocator? runtimeReferences = null)
     {
         _loggerFactory = loggerFactory;
+        _runtimeReferences = runtimeReferences ?? new DotnetRuntimeReferenceLocator();
     }
 
     public string Language => "vb";
@@ -54,7 +57,13 @@ public sealed class VbLanguageHostFactory : ILanguageHostFactory
         // microsoft-visual-studio) — VB.NET only exists inside Visual Studio, so it's a real, if
         // not per-language, association rather than an invented glyph.
         IconResourceKey = "Icon.LanguageVb",
+        SourceFileExtension = VbProjectProfile.Instance.SourceFileExtension,
     };
+
+    public CompiledDotnetLanguageHostOptions CreateOptions(ExecutionRequest request)
+        => CompiledDotnetLanguageHostOptions.From(request, _runtimeReferences.GetRuntimeAssemblyPath());
+
+    public ILanguageHost Create(ExecutionRequest request) => Create(CreateOptions(request));
 
     public ILanguageHost Create(ILanguageHostOptions? options = null)
     {

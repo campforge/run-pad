@@ -142,8 +142,9 @@ public class App : Application
         {
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             LanguageHostRegistry registry = new();
-            registry.Register(new CSharpLanguageHostFactory(loggerFactory, sp.GetRequiredService<IRuntimeReferenceLocator>()));
-            registry.Register(new VbLanguageHostFactory(loggerFactory));
+            var runtimeReferences = sp.GetRequiredService<IRuntimeReferenceLocator>();
+            registry.Register(new CSharpLanguageHostFactory(loggerFactory, runtimeReferences));
+            registry.Register(new VbLanguageHostFactory(loggerFactory, runtimeReferences));
             return registry;
         });
 

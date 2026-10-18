@@ -1,10 +1,7 @@
 using System.Text;
-using RunPad.Build.Core.Models;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
-using RunPad.Languages.CSharp;
-using RunPad.Languages.DotnetCommon;
 using Spectre.Console;
 
 namespace RunPad.Cli;
@@ -106,12 +103,10 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
         {
-            var options = BuildOptions(
-                document.FrontMatter, platform, outputDirectory, services.RuntimeReferences.GetRuntimeAssemblyPath(),
-                filePath, cli.ScriptArguments);
+            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments);
 
             RunResult result;
-            await using var host = registry.Create(languageId, options);
+            await using var host = registry.Create(languageId, request);
             try
             {
                 if (cli.CompileOnly)
@@ -228,47 +223,18 @@ public static class CliRunner
         return 0;
     }
 
-    // languageId is no longer needed here — every compiled .NET language now shares the same
-    // options type; the caller still resolves it separately to pick the
-    // ILanguageHostFactory itself (see registry.Create above).
-    internal static ILanguageHostOptions BuildOptions(
-        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory, string runtimeLibPath,
+    // The run the script's front matter asks for, built as the window builds its own: the language's
+    // backend resolves its references (relative to the script, macros expanded) and package sources.
+    // Arguments given on the command line replace the front matter's. The process starts in the
+    // temporary build folder; the PATH's dotnet runs it, and there is no debugger on this path
+    // (ILanguageHost.RunAsync, not RunDebugAsync).
+    internal static ExecutionRequest BuildRequest(
+        RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory,
         string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
-    {
-        var executionOptions = new ExecutionOptions
-        {
-            WorkingDirectory = outputDirectory,
-            Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
-            // No debugger involved on this path (ILanguageHost.RunAsync, not RunDebugAsync) — left
-            // empty rather than probing for netcoredbg the GUI's preferences would otherwise supply.
-            Debugger = new DebuggerOptions { DebuggerPath = "" },
-        };
-
-        var packages = frontMatter.Packages.ToDictionary(p => p.Key, p => p.Value.Version);
-        var usings = frontMatter.Namespaces ?? [];
-        // Relative to the script's folder and with macros expanded, exactly as the GUI does.
-        var references = ReferencePathResolver.Resolve(frontMatter.References, currentQueryPath);
-
-        // One options type for every compiled .NET language — languageId no
-        // longer needs to select between two identical option-object shapes here.
-        return new CompiledDotnetLanguageHostOptions
+        => ExecutionRequest.For(frontMatter, currentQueryPath, arguments) with
         {
             Platform = platform,
-            ExecutionOptions = executionOptions,
             OutputDirectory = outputDirectory,
-            RuntimeLibPath = runtimeLibPath,
-            Kind = frontMatter.Kind,
-            Packages = packages,
-            Usings = usings,
-            AssemblyReferences = references.Assemblies,
-            ReferenceErrors = references.Errors,
-            ReferenceWarnings = references.Warnings,
-            ProjectReferences = references.Projects,
-            CurrentQueryPath = currentQueryPath,
-            // Arguments given on the command line replace the front matter's.
-            Arguments = arguments ?? frontMatter.Args ?? [],
-            // Same source list as the GUI once its NuGet configurator has created RunPad's NuGet.Config.
-            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
+            WorkingDirectory = outputDirectory,
         };
-    }
 }

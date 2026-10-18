@@ -75,7 +75,7 @@ public class InvalidDocumentHeadlessTests
         var intelliSense = new Mock<IIntelliSenseService>();
         var editorTabs = new EditorTabsControl(
             theme.Object, new Mock<IWindowService>().Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object,
-            new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            buildCache.Object);
 
         var window = new MainWindow(prefs.Object, editorTabs, mainVm);
         window.Show();
@@ -182,7 +182,7 @@ public class InvalidDocumentHeadlessTests
 
             await ctrl.RunAsync(debug, Sdk);
 
-            h.Registry.Verify(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()), Times.Never);
+            h.Registry.Verify(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()), Times.Never);
             Assert.Equal("Invalid document", ctrl.State.ExecStatusText);
             Assert.Equal(RunState.Idle, tab.RunState);
             Assert.Equal(MalformedVb, File.ReadAllText(path));
@@ -209,7 +209,7 @@ public class InvalidDocumentHeadlessTests
             await ctrl.RunAsync(false, Sdk);
             ctrl.SaveIfNeeded();
 
-            h.Registry.Verify(r => r.Create(It.IsAny<string>(), It.IsAny<ILanguageHostOptions>()), Times.Never);
+            h.Registry.Verify(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()), Times.Never);
             Assert.Equal("Invalid document", ctrl.State.ExecStatusText);
             Assert.Equal(original, File.ReadAllText(path));
         }
@@ -242,7 +242,7 @@ public class InvalidDocumentHeadlessTests
             Assert.Equal("Console.WriteLine(1)\n", reopenedCtrl.State.Editor.Text);
 
             await reopenedCtrl.RunAsync(false, Sdk);
-            h.Registry.Verify(r => r.Create("vb", It.IsAny<ILanguageHostOptions>()), Times.Once);
+            h.Registry.Verify(r => r.Create("vb", It.IsAny<ExecutionRequest>()), Times.Once);
         }
         finally { Cleanup(h); }
     }

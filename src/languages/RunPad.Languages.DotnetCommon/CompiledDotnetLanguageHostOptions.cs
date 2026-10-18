@@ -61,4 +61,43 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// request for a debug session.
     /// </summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
+
+    /// <summary>
+    /// The options a run asks for: <paramref name="request"/>'s references resolved relative to the
+    /// script's folder with macros expanded (as IntelliSense resolves them), RunPad's own NuGet.Config
+    /// once it exists, and the RunPad.Runtime library at <paramref name="runtimeLibPath"/>. The same for
+    /// every compiled .NET language and for the window and the command-line runner.
+    /// </summary>
+    public static CompiledDotnetLanguageHostOptions From(ExecutionRequest request, string runtimeLibPath)
+    {
+        var platform = request.Platform ?? throw new ArgumentException("A run needs an SDK.", nameof(request));
+        var outputDirectory = request.OutputDirectory ?? throw new ArgumentException("A run needs an output directory.", nameof(request));
+        // Project references aren't supported (scripts compile in-process, no MSBuild): they're still
+        // collected so the compiler reports them as an error.
+        var references = ReferencePathResolver.Resolve(request.References, request.CurrentQueryPath);
+        return new CompiledDotnetLanguageHostOptions
+        {
+            Platform = platform,
+            ExecutionOptions = new ExecutionOptions
+            {
+                WorkingDirectory = request.WorkingDirectory ?? outputDirectory,
+                Runtime = new RuntimeOptions { RuntimePath = request.RuntimePath ?? "dotnet" },
+                Debugger = new DebuggerOptions { DebuggerPath = request.DebuggerPath ?? "" },
+            },
+            OutputDirectory = outputDirectory,
+            RuntimeLibPath = runtimeLibPath,
+            BreakOnAllExceptions = request.BreakOnAllExceptions,
+            BreakOnUncaughtExceptions = request.BreakOnUncaughtExceptions,
+            Kind = request.Kind,
+            Packages = request.Packages,
+            Usings = request.Usings,
+            AssemblyReferences = references.Assemblies,
+            ProjectReferences = references.Projects,
+            ReferenceErrors = references.Errors,
+            ReferenceWarnings = references.Warnings,
+            CurrentQueryPath = request.CurrentQueryPath,
+            Arguments = request.Arguments,
+            NuGetConfigFile = RunPadNuGetConfigStore.ExistingDefaultConfigFile,
+        };
+    }
 }

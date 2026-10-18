@@ -65,7 +65,7 @@ public class EditorTabItemControlCodeFixSettingsTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense, new DotnetRuntimeReferenceLocator(), buildCache.Object);
+            intelliSense, buildCache.Object);
         var host = new Window { Content = ctrl };
         host.Show();
 

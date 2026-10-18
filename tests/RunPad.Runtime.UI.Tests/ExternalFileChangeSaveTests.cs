@@ -67,7 +67,7 @@ public class ExternalFileChangeSaveTests
         var actions = new Mock<IEditorTabActions>();
         var vm = new EditorTabItemViewModel(path, [], prefs.Object, actions.Object);
         var ctrl = new EditorsTabItemControl(vm, theme.Object, windows.Object, new Mock<ILanguageHostRegistry>().Object,
-            prefs.Object, intelliSense: null, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            prefs.Object, intelliSense: null, new Mock<IBuildCacheService>().Object);
         var host = new Window { Content = ctrl };
         host.Show();
         Dispatcher.UIThread.RunJobs();

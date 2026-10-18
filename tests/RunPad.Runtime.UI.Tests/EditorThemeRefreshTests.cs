@@ -66,7 +66,7 @@ public class EditorThemeRefreshTests : IDisposable
         fileSystem.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var shell = new MainWindowViewModel([], fileSystem.Object, new Mock<IWindowService>().Object, prefs.Object, new LanguageHostRegistry());
         var tabs = new EditorTabsControl(_theme.Object, new Mock<IWindowService>().Object, new Mock<ILanguageHostRegistry>().WithCSharpIntelliSense(() => _intelliSense.Object),
-            prefs.Object, new DotnetRuntimeReferenceLocator(), new Mock<IBuildCacheService>().Object);
+            prefs.Object, new Mock<IBuildCacheService>().Object);
         var host = new Window { Width = 900, Height = 700, Content = tabs };
         host.Show();
         tabs.Attach(shell);

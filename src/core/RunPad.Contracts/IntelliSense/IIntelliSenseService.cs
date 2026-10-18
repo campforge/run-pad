@@ -1,3 +1,4 @@
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts.IntelliSense;
@@ -132,6 +133,14 @@ public interface IIntelliSenseService : IDisposable
     /// </summary>
     void UpdatePackageReferences(IReadOnlyDictionary<string, Package> packages, PackageReferenceContext context)
         => UpdatePackageReferences(packages);
+
+    /// <summary>
+    /// The script's packages and references with where and on what it builds, as a run would ask for
+    /// them (see <see cref="ExecutionRequest"/>): the service interprets the references the way its
+    /// language's build does, so the editor and the build agree. Call on load, after each build,
+    /// when the packages or references change and when the SDK changes.
+    /// </summary>
+    void UpdateExecutionContext(ExecutionRequest request);
 
     // Call when the tab's .rpad front-matter `namespaces:` list changes (including once at initial
     // load) so completion/diagnostics/quick-fix ranking see the same global usings the compiler
