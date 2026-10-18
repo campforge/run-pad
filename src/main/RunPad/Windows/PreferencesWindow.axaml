@@ -102,6 +102,9 @@
             <Panel Margin="16">
 
                 <StackPanel IsVisible="{Binding IsInterfaceSelected}" Spacing="6">
+                    <CheckBox Content="Restore open tabs and unsaved changes" IsChecked="{Binding RestoreUnsavedTabs}"/>
+                    <TextBlock Text="Applies after restarting RunPad. Drafts are stored locally; source files are not auto-saved. Existing drafts are kept when disabled."
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <!-- Interface scale: everything in RunPad's windows, code included -->
                     <TextBlock Text="Interface scale:" FontWeight="SemiBold" Margin="0,0,0,2"/>

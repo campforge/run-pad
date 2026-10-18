@@ -12,6 +12,8 @@ using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
+using System.Text;
 using RunPad.Shared;
 using RunPad.UserControls.Models;
 
@@ -24,6 +26,118 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly IPreferencesService _prefs;
     private readonly ILanguageHostRegistry _languageRegistry;
     private readonly ILogger<MainWindowViewModel> _logger;
+    private readonly IRecoveryStore? _recovery;
+    private readonly bool _recoveryMode;
+    private readonly SemaphoreSlim _recoveryGate = new(1);
+    private Task? _restoreTask;
+    private long _recoveryRevision;
+    private bool _recoveryFailed;
+    public bool RestoresDrafts => _recovery is not null && _recoveryMode && !_recoveryFailed;
+
+    public Task RestoreSessionAsync() => _restoreTask ??= RestoreDraftsAsync();
+
+    private async Task RestoreDraftsAsync()
+    {
+        if (!RestoresDrafts) { RestoreSession(); return; }
+        try
+        {
+            var snapshot = await _recovery!.LoadAsync();
+            if (_disposed) return;
+            if (snapshot is null) { RestoreSession(); return; }
+            _recoveryRevision = snapshot.Revision;
+            var frames = new List<RecoveryTab>();
+            foreach (var tab in snapshot.Tabs)
+            {
+                var frame = tab;
+                if (!tab.IsDirty && tab.FilePath is { } path)
+                {
+                    try
+                    {
+                        var bytes = await Task.Run(() => File.ReadAllBytes(path));
+                        string text;
+                        using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true)) text = reader.ReadToEnd();
+                        var parsed = RpadParser.Parse(text);
+                        frame = tab with
+                        {
+                            EditorText = parsed.Document?.RunCode ?? text, Document = parsed.Document?.CaptureSnapshot(),
+                            ParseError = parsed.Error, BaselineKnown = true, DiskHash = ScriptFileState.Of(bytes).Hash,
+                            MetadataBaseline = null,
+                        };
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        frame = tab with { IsDirty = true };
+                    }
+                }
+                else if (tab.FilePath is null) frame = tab with { IsDirty = true };
+                frames.Add(frame);
+            }
+            if (_disposed) return;
+            if (frames.Where(t => t.FilePath is not null).Select(t => t.FilePath!).Distinct(FilePathComparer).Count()
+                != frames.Count(t => t.FilePath is not null)) throw new InvalidDataException("Duplicate recovery paths.");
+            _restoringSession = true;
+            try
+            {
+                foreach (var frame in frames)
+                {
+                    var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
+                        frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
+                        frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                    {
+                        RecoveryId = frame.Id, RestoredRecovery = frame,
+                    };
+                    if (frame.FilePath is not null) _openTabs[frame.FilePath] = vm;
+                    AddTab(vm);
+                }
+                ActiveTab = Tabs.FirstOrDefault(t => t.RecoveryId == snapshot.ActiveTab) ?? Tabs.FirstOrDefault();
+            }
+            finally { _restoringSession = false; }
+            PersistSession();
+            if (_recovery.Warning is { } warning) await _windowService.ShowErrorAsync("Draft Recovery", warning);
+        }
+        catch (Exception ex)
+        {
+            _recoveryFailed = true;
+            _logger.LogWarning("Could not restore drafts ({ErrorType})", ex.GetType().Name);
+            await _windowService.ShowErrorAsync("Draft Recovery Unavailable",
+                "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used.");
+            if (!_disposed && Tabs.Count == 0) RestoreSession();
+        }
+    }
+
+    public async Task<bool> CheckpointRecoveryAsync()
+    {
+        if (_restoreTask is { } restoring) await restoring;
+        if (!RestoresDrafts) return false;
+        await _recoveryGate.WaitAsync();
+        try { return await CheckpointRecoveryCoreAsync(); }
+        finally { _recoveryGate.Release(); }
+    }
+
+    private async Task<bool> CheckpointRecoveryCoreAsync(EditorTabItemViewModel? exclude = null)
+    {
+        try
+        {
+            var tabs = Tabs.Where(t => t != exclude).ToList();
+            // A closing window must not skip tabs whose per-language editor is still being created.
+            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+            var pendingSaves = tabs.Select(t => t.PendingSave).Where(t => t is not null).ToArray();
+            await Task.WhenAll(pendingSaves!);
+            var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
+                ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
+            var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
+            await _recovery!.CommitAsync(new RecoverySnapshot { Revision = ++_recoveryRevision, Tabs = frames, ActiveTab = active });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Could not checkpoint drafts ({ErrorType})", ex.GetType().Name);
+            await _windowService.ShowErrorAsync("Drafts Not Saved",
+                "Draft recovery could not be saved. Nothing has been closed. Check free space and permissions, then close again to retry, or save your files manually.");
+            return false;
+        }
+    }
+
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
@@ -246,6 +360,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
     {
+        if (_restoringSession) return;
         _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
         _prefs.Session.ActiveTabPath = ActiveTab?.FilePath;
         SaveSessionSettings();
@@ -453,8 +568,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // path the tab's own [x] button/Ctrl+W use, rather than a second, parallel way to trigger this.
     async Task IEditorTabActions.CloseAsync(EditorTabItemViewModel vm)
     {
-        if (!await ResolveUnsavedChangesBeforeCloseAsync(vm)) return;
-        CloseTab(vm);
+        await _recoveryGate.WaitAsync();
+        try
+        {
+            if (!await ResolveUnsavedChangesBeforeCloseAsync(vm)) return;
+            if (RestoresDrafts && !await CheckpointRecoveryCoreAsync(vm)) return;
+            CloseTab(vm);
+        }
+        finally { _recoveryGate.Release(); }
     }
 
     // The single "may this dirty tab's content be dropped now?" decision, shared by a
@@ -781,12 +902,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
         // provider regardless of the parameter having a default.
-        ILogger<MainWindowViewModel>? logger = null)
+        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
         _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
+        _recovery = recovery;
+        _recoveryMode = prefs.Appearance?.RestoreUnsavedTabs ?? true;
         // FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the

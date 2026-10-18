@@ -53,7 +53,7 @@ public static class InPlaceSave
 
         try
         {
-            if (tab.DiskState?.ConflictsWith(path) == true)
+            if ((tab.RequiresBaselineConfirmation && File.Exists(path)) || tab.DiskState?.ConflictsWith(path) == true)
             {
                 // From here on the tab's text differs from the file, whatever it showed before.
                 tab.IsDirty = true;

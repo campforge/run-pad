@@ -16,6 +16,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private string? _folder;
     private Pointer? _pointer;
     private long _revision = -1;
+    public string? Warning { get; private set; }
 
     public DiskRecoveryStore(string root) => _root = root;
     internal DiskRecoveryStore(string root, Action<string> fault) : this(root) => _fault = fault;
@@ -30,7 +31,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         Directory.CreateDirectory(_root);
         RestrictDirectory(_root);
         foreach (var folder in Directory.GetDirectories(_root)
-                     .Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _))
+                     .Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _)
+                         && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json"))))
                      .OrderByDescending(Directory.GetLastWriteTimeUtc))
         {
             try { _owner = Lock(folder); }
@@ -75,6 +77,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                         var snapshot = JsonSerializer.Deserialize<RecoverySnapshot>(File.ReadAllBytes(Path.Combine(_folder!, payload)))
                             ?? throw new InvalidDataException("Invalid recovery snapshot.");
                         Validate(snapshot);
+                        if (failure is not null) Warning = "An earlier draft checkpoint was recovered because the newer one was damaged.";
                         _pointer = new Pointer(1, payload, null);
                         _revision = snapshot.Revision;
                         return snapshot;
@@ -100,7 +103,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         if (snapshot.SchemaVersion != 1) throw new NotSupportedException("Unsupported recovery version. Data has been kept unchanged.");
         if (snapshot.Revision < 0 || snapshot.Tabs is null
             || snapshot.Tabs.Select(t => t.Id).Distinct().Count() != snapshot.Tabs.Count
-            || snapshot.Tabs.Any(t => t.Id == Guid.Empty || t.EditorText is null
+            || snapshot.Tabs.Any(t => t is null || t.Id == Guid.Empty || t.EditorText is null
+                || (t.Document is { } doc && (doc.FrontMatter is null || doc.RunCode is null
+                    || doc.BodyBeforeCode is null || doc.BodyAfterCode is null || doc.FrontMatter.Packages is null
+                    || doc.FrontMatter.TargetSdk is null))
                 || (t.FilePath is not null && !Path.IsPathFullyQualified(t.FilePath)))
             || (snapshot.ActiveTab is { } active && !snapshot.Tabs.Any(t => t.Id == active)))
             throw new InvalidDataException("Invalid or unsupported recovery snapshot.");

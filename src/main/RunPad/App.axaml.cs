@@ -13,6 +13,7 @@ using RunPad.Languages.VB;
 using RunPad.Logging;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
+using RunPad.Services.Recovery;
 using RunPad.Services.Preferences;
 using RunPad.Services.Scaling;
 using RunPad.Services.Setup;
@@ -149,6 +150,8 @@ public class App : Application
         });
 
         services.AddTransient<MainWindow>();
+        services.AddSingleton<IRecoveryStore>(_ => new DiskRecoveryStore(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "recovery", "v1")));
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<PreferencesWindowViewModel>();
         services.AddTransient<DependenciesWindowViewModel>();

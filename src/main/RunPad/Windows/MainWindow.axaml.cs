@@ -83,14 +83,17 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
         var unsavedWindows = OwnedWindows.OfType<TextEditorWindow>().Where(w => w.ViewModel.IsDirty).ToList();
-        if (!_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
+        if (!GetViewModel().RestoresDrafts && !_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
 
         e.Cancel = true;
         _closeConfirmationInProgress = true;
         bool canClose;
         try
         {
-            canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            IsEnabled = false;
+            canClose = GetViewModel().RestoresDrafts
+                ? await GetViewModel().CheckpointRecoveryAsync()
+                : await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
             foreach (var window in unsavedWindows)
             {
                 if (!canClose) break;
@@ -99,6 +102,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         finally
         {
+            IsEnabled = true;
             _closeConfirmationInProgress = false;
         }
         if (!canClose) return;
