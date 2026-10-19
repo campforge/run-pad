@@ -66,7 +66,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         {
             var snapshot = await _recovery!.LoadAsync();
             if (_disposed) return;
-            if (snapshot is null) { RestoreSession(); return; }
+            var imports = _recovery.Imports ?? [];
+            if (snapshot is null)
+            {
+                RestoreSession();
+                AddImportedDrafts(imports);
+                RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
+                return;
+            }
             _recoveryRevision = snapshot.Revision;
             var frames = new List<RecoveryTab>();
             foreach (var tab in snapshot.Tabs)
@@ -119,17 +126,145 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 ActiveTab = Tabs.FirstOrDefault(t => t.RecoveryId == snapshot.ActiveTab) ?? Tabs.FirstOrDefault();
             }
             finally { _restoringSession = false; }
+            AddImportedDrafts(imports);
             PersistSession();
-            if (_recovery.Warning is { } warning) await _windowService.ShowErrorAsync("Draft Recovery", warning);
+            RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
         }
         catch (Exception ex)
         {
             _recoveryFailed = true;
             _logger.LogWarning("Could not restore drafts ({ErrorType})", ex.GetType().Name);
-            await _windowService.ShowErrorAsync("Draft Recovery Unavailable",
-                "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used.");
+            RecoveryNotice = "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used."
+                + (_recovery?.Warning is { } details ? "\n" + details : "");
             if (!_disposed && Tabs.Count == 0) RestoreSession();
         }
+    }
+
+    /// <summary>A non-modal startup notice about drafts: what was imported, and what could not be
+    /// read and was kept where it is. Null when there is nothing to say.</summary>
+    public string? RecoveryNotice
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public void DismissRecoveryNotice() => RecoveryNotice = null;
+
+    // Unsaved drafts of RunPad windows that closed while this one was not running. A draft of a file
+    // already open here (or in another imported draft) becomes an untitled copy that names the file,
+    // so neither version is overwritten; the others reopen their file, keeping the baseline they were
+    // edited against, so a later save still asks about changes on disk.
+    private void AddImportedDrafts(IReadOnlyList<RecoveryImport> imports)
+    {
+        var drafts = imports.SelectMany(i => i.Tabs).ToList();
+        if (drafts.Count == 0) return;
+        var active = ActiveTab;
+        var copies = 0;
+        _restoringSession = true;
+        try
+        {
+            foreach (var draft in drafts)
+            {
+                var frame = draft;
+                if (draft.FilePath is { } path && _openTabs.ContainsKey(path))
+                {
+                    copies++;
+                    frame = draft with
+                    {
+                        FilePath = null,
+                        OriginalPath = path,
+                        Title = $"{Path.GetFileNameWithoutExtension(path)} (from another window)",
+                        BaselineKnown = false,
+                        DiskHash = null,
+                        IsDirty = true,
+                    };
+                }
+                else if (draft.FilePath is null) frame = draft with { IsDirty = true };
+                var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
+                    frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
+                    frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                {
+                    RecoveryId = frame.Id,
+                    RestoredRecovery = frame,
+                };
+                if (frame.FilePath is not null) _openTabs[frame.FilePath] = vm;
+                AddTab(vm);
+            }
+            if (active is not null) ActiveTab = active;
+        }
+        finally { _restoringSession = false; }
+        var notice = drafts.Count == 1
+            ? "Restored 1 unsaved draft from another RunPad window."
+            : $"Restored {drafts.Count} unsaved drafts from other RunPad windows.";
+        if (copies > 0)
+            notice += copies == 1
+                ? " Its file was already open here, so it is an untitled copy that names the file."
+                : $" {copies} of them are untitled copies because their files were already open here.";
+        _importNotice = notice;
+    }
+
+    private string? _importNotice;
+
+    private static string? JoinNotice(string? first, string? second) =>
+        first is null ? second : second is null ? first : first + "\n" + second;
+
+    /// <summary>
+    /// Closing the app while draft recovery is on. Once the restore, the editors and any pending
+    /// save or file operation have finished: without unsaved tabs the workspace is checkpointed;
+    /// otherwise the user chooses Save All (the usual Save, Save As and changed-on-disk questions;
+    /// any cancel or failure keeps the app open, without undoing saves already made), Keep in Stash
+    /// (closes only once the drafts are durably checkpointed) or Cancel. True means the app may
+    /// close; null that draft recovery turned out unavailable, so the normal confirmations apply.
+    /// </summary>
+    public async Task<bool?> ConfirmExitWithDraftsAsync()
+    {
+        if (_restoreTask is { } restoring) await restoring;
+        if (!RestoresDrafts) return null;
+        await _recoveryGate.WaitAsync();
+        try
+        {
+            try { await WaitForPendingWorkAsync(null); }
+            catch (Exception ex)
+            {
+                // Not knowing which tabs are unsaved must not close anything.
+                _logger.LogWarning("Could not finish pending work before closing ({ErrorType})", ex.GetType().Name);
+                await _windowService.ShowErrorAsync("Not Closed",
+                    "A save or file operation did not finish. Nothing has been closed; try closing again.");
+                return false;
+            }
+            var unsaved = Tabs.Where(t => t.IsDirty).ToList();
+            if (unsaved.Count == 0) return await CheckpointRecoveryCoreAsync();
+            switch (await _windowService.ShowExitUnsavedDialogAsync(unsaved.Select(t => t.FileName).ToList()))
+            {
+                case ExitUnsavedChoice.KeepInStash:
+                    return await CheckpointRecoveryCoreAsync();
+                case ExitUnsavedChoice.SaveAll:
+                    foreach (var tab in unsaved)
+                    {
+                        if (!tab.IsDirty || !Tabs.Contains(tab)) continue;
+                        if (tab.FilePath is not null)
+                        {
+                            var result = await SaveInPlaceAsync(tab);
+                            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
+                            if (result.Status == InPlaceSaveStatus.Failed)
+                            {
+                                await _windowService.ShowErrorAsync("Save Failed", result.Error);
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            await ((IEditorTabActions)this).SaveAsAsync(tab);
+                            if (tab.IsDirty) return false; // Save As was cancelled or failed
+                        }
+                    }
+                    // The session (which files are open, the active tab) is still kept for the next start.
+                    return await CheckpointRecoveryCoreAsync();
+                default:
+                    return false;
+            }
+        }
+        finally { _recoveryGate.Release(); }
     }
 
     public async Task<bool> CheckpointRecoveryAsync()
@@ -145,20 +280,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         try
         {
-            var tabs = Tabs.Where(t => t != exclude).ToList();
-            // A closing window must not skip tabs whose per-language editor is still being created.
-            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-            // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
-            while (true)
-            {
-                var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
-                    .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
-                if (pending.Length == 0) break;
-                await Task.WhenAll(pending);
-            }
-            _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-            tabs = Tabs.Where(t => t != exclude).ToList();
-            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+            var tabs = await WaitForPendingWorkAsync(exclude);
             var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
                 ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
             var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
@@ -174,6 +296,26 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
     }
 
+
+    // The tabs once every editor exists and no save, Save As or workspace operation is running.
+    private async Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
+    {
+        var tabs = Tabs.Where(t => t != exclude).ToList();
+        // A closing window must not skip tabs whose per-language editor is still being created.
+        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+        // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
+        while (true)
+        {
+            var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
+                .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
+            if (pending.Length == 0) break;
+            await Task.WhenAll(pending);
+        }
+        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
+        tabs = Tabs.Where(t => t != exclude).ToList();
+        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+        return tabs;
+    }
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
@@ -515,6 +657,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
         if (newPath is null) return; // cancelled
+
+        // An untitled copy of a file (a recovered draft whose file was already open) never replaces
+        // that file, nor a file another tab has open: either would overwrite the other version unasked.
+        var fullPath = Path.GetFullPath(newPath);
+        if ((vm.FilePath is null && vm.RestoredRecovery?.OriginalPath is { } original
+                && string.Equals(Path.GetFullPath(original), fullPath, FilePathComparison))
+            || (_openTabs.TryGetValue(fullPath, out var other) && other != vm))
+        {
+            await _windowService.ShowErrorAsync("Save Failed",
+                $"'{Path.GetFileName(newPath)}' has its own version open or is the file this copy was made from. Save the copy to another file.");
+            return;
+        }
 
         // Choosing the tab's own file again is an in-place save: the picker's own "replace?" question
         // is about overwriting a file, not about one changed by another program meanwhile.

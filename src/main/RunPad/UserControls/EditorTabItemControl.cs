@@ -339,7 +339,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // they still reach the same files; the tab adopts them only once it really moved there
             // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
             var references = rpad.FrontMatter.References;
-            if (references is not null && RebasedReferences(references, _vm.FilePath, path) is { } rebased)
+            if (references is not null && RebasedReferences(references, _vm.ReferenceAnchorPath, path) is { } rebased)
                 rpad.FrontMatter.References = rebased;
             try
             {
@@ -360,9 +360,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.LastWrite = (path, ScriptFileState.Of(bytes));
     }
 
-    // The references as written for the script saved at newPath instead of oldPath, or null if
-    // nothing changes (same folder, an untitled tab whose relative references had no folder yet, or
-    // nothing relative).
+    // The references as written for the script saved at newPath instead of oldPath (its own file, or
+    // the one an untitled copy was made from), or null if nothing changes (same folder, an untitled
+    // tab whose relative references had no folder yet, or nothing relative).
     private static List<string>? RebasedReferences(List<string> references, string? oldPath, string newPath)
     {
         if (oldPath is null) return null;
@@ -381,9 +381,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var oldPath = _filePath;
         _filePath = newPath;
         if (_disposed || newPath is null || oldPath == newPath) return;
-        if (oldPath is not null
+        // An untitled copy's references were relative to the file it was made from.
+        var anchor = oldPath ?? _vm.RestoredRecovery?.OriginalPath;
+        if (anchor is not null
             && State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
-            && RebasedReferences(references, oldPath, newPath) is { } rebased)
+            && RebasedReferences(references, anchor, newPath) is { } rebased)
         {
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
@@ -424,9 +426,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_disposed || _restarting || _activeRun is { IsCompleted: false }) return Task.CompletedTask;
         var editor = State.Editor;
         if (string.IsNullOrWhiteSpace(editor.SelectedText)) return Task.CompletedTask;
-        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) != RpadKind.Statements)
+        // Statements and Program scripts run the selected statements on their own, as Statements:
+        // in a Program the selection is usually the body of Main or another method, which compiles as
+        // top-level statements once the rest is blanked out. An Expression script has no statements.
+        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) == RpadKind.Expression)
         {
-            SetStatus("Execute Selection requires Statements mode", "RunPad.Status.ErrorBrush");
+            SetStatus("Execute Selection is not available in Expression mode", "RunPad.Status.ErrorBrush");
             UpdateOutputUi();
             return Task.CompletedTask;
         }
@@ -554,6 +559,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var workDir = EnsureWorkDirectory();
             var request = BuildRunRequest(platform, workDir);
+            // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
+            if (selection is not null) request = request with { Kind = RpadKind.Statements };
             var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
             var enabledBreakpoints = s.Editor.Breakpoints
@@ -648,7 +655,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         }
                         else if (runResult is { Succeeded: false } failed)
                         {
-                            ReportRunFailure(failed);
+                            ReportRunFailure(failed, selection is not null);
                         }
                         else if (!s.HadRunError)
                         {
@@ -1158,11 +1165,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The run's status follows the script's real exit code (and a failed compile/start),
     // not "Success" whenever no exception reached the UI. The message is posted like the script's own
     // output, so it lands after the last lines the script wrote.
-    private void ReportRunFailure(RunResult result)
+    private void ReportRunFailure(RunResult result, bool selection = false)
     {
         State.HadRunError = true;
         var (message, status) = result.Outcome switch
         {
+            // The compiler's own errors are already in the output; for a selection, say why a name
+            // declared elsewhere in the script can be missing.
+            RunOutcome.CompilationFailed when selection => (
+                "Execute Selection compiles only the selected statements: methods, types and variables declared outside the selection are not available.",
+                "Compilation failed"),
             RunOutcome.CompilationFailed => (null, "Compilation failed"),
             RunOutcome.StartFailed => ("Failed to start the compiled script.", "Error"),
             _ => ($"Process exited with code {result.ExitCode}.", $"Exit code {result.ExitCode}"),
@@ -1877,6 +1889,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         CaretOffset = State.Editor.CaretOffset,
         SelectionStart = State.Editor.SelectionStart,
         SelectionLength = State.Editor.SelectionLength,
+        // Provenance of an imported draft stays with it until it is saved to a file of its own.
+        OriginalPath = _vm.FilePath is null ? _vm.RestoredRecovery?.OriginalPath : null,
+        ImportedFrom = _vm.RestoredRecovery?.ImportedFrom,
     };
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
@@ -2094,6 +2109,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // The same request a run makes, so the editor reads the references and packages as the build does.
         intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
         {
+            ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
             OutputDirectory = State.OutputDirectory,
             RuntimePath = _prefs.Debugger?.DotnetPath,
@@ -2340,6 +2356,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // IntelliSense's are.
         return ExecutionRequest.For(rpad?.FrontMatter, _vm.FilePath) with
         {
+            ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = platform,
             OutputDirectory = State.OutputDirectory,
             WorkingDirectory = workDir,

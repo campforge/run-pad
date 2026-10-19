@@ -114,6 +114,15 @@ public sealed class WindowService : IWindowService
         return result ?? UnsavedChangesResult.Cancel;
     }
 
+    public async Task<ExitUnsavedChoice> ShowExitUnsavedDialogAsync(IReadOnlyList<string> fileNames)
+    {
+        var owner = MainWindow;
+        if (owner is null) return ExitUnsavedChoice.Cancel;
+
+        var result = await new ExitUnsavedDialog(fileNames).ShowDialog<ExitUnsavedChoice?>(owner);
+        return result ?? ExitUnsavedChoice.Cancel;
+    }
+
     public async Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName)
     {
         var owner = MainWindow;
