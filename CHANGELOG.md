@@ -30,6 +30,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Match feedback remains visible in compact search. Recovery warnings ignore other sessions with
+  empty workspaces while retaining warnings about unreadable draft data.
+
 - Execute Selection excludes unselected fragments of rectangular selections. Narrow search panels
   keep navigation and replacement actions accessible; flyout text follows the interface palette.
 - Recovery skips damaged sessions when an older readable session exists, reports other retained

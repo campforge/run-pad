@@ -24,6 +24,48 @@ public sealed class RecoveryStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task AnUnsupportedOtherSnapshot_Should_NotDisableTheReadableSession()
+    {
+        string draftFolder;
+        using (var draft = new DiskRecoveryStore(_root))
+        {
+            await draft.CommitAsync(Snapshot(1, "readable"));
+            draftFolder = Assert.Single(Directory.GetDirectories(_root));
+            using var other = new DiskRecoveryStore(_root);
+            await other.CommitAsync(Snapshot(1, "future"));
+        }
+        var otherFolder = Directory.GetDirectories(_root).Single(p => p != draftFolder);
+        var payload = Assert.Single(Directory.GetFiles(otherFolder, "*.snapshot"));
+        var future = File.ReadAllText(payload).Replace("\"SchemaVersion\":1", "\"SchemaVersion\":99");
+        File.WriteAllText(payload, future);
+        Directory.SetLastWriteTimeUtc(draftFolder, DateTime.UtcNow.AddMinutes(1));
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Equal("readable", (await reopened.LoadAsync())!.Tabs[0].EditorText);
+        Assert.Contains(otherFolder, reopened.Warning!);
+        Assert.Equal(future, File.ReadAllText(payload));
+    }
+
+    [Fact]
+    public async Task AnEmptyOtherSession_Should_NotProduceARecoveryWarning()
+    {
+        string draftFolder;
+        using (var draft = new DiskRecoveryStore(_root))
+        {
+            await draft.CommitAsync(Snapshot(1));
+            draftFolder = Assert.Single(Directory.GetDirectories(_root));
+            using var empty = new DiskRecoveryStore(_root);
+            await empty.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = [] });
+        }
+        for (var start = 0; start < 3; start++)
+        {
+            Directory.SetLastWriteTimeUtc(draftFolder, DateTime.UtcNow.AddMinutes(1));
+            using var reopened = new DiskRecoveryStore(_root);
+            Assert.NotEmpty((await reopened.LoadAsync())!.Tabs);
+            Assert.Null(reopened.Warning);
+        }
+    }
+
+    [Fact]
     public async Task Commit_Should_NotDependOnTheCallersSynchronizationContext()
     {
         using var release = new ManualResetEventSlim();
