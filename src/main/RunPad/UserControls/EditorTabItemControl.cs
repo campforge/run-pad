@@ -424,9 +424,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (_disposed || _restarting || _activeRun is { IsCompleted: false }) return Task.CompletedTask;
         var editor = State.Editor;
         if (string.IsNullOrWhiteSpace(editor.SelectedText)) return Task.CompletedTask;
-        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) != RpadKind.Statements)
+        // Statements and Program scripts run the selected statements on their own, as Statements:
+        // in a Program the selection is usually the body of Main or another method, which compiles as
+        // top-level statements once the rest is blanked out. An Expression script has no statements.
+        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) == RpadKind.Expression)
         {
-            SetStatus("Execute Selection requires Statements mode", "RunPad.Status.ErrorBrush");
+            SetStatus("Execute Selection is not available in Expression mode", "RunPad.Status.ErrorBrush");
             UpdateOutputUi();
             return Task.CompletedTask;
         }
@@ -554,6 +557,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var workDir = EnsureWorkDirectory();
             var request = BuildRunRequest(platform, workDir);
+            // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
+            if (selection is not null) request = request with { Kind = RpadKind.Statements };
             var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
             var enabledBreakpoints = s.Editor.Breakpoints
@@ -648,7 +653,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                         }
                         else if (runResult is { Succeeded: false } failed)
                         {
-                            ReportRunFailure(failed);
+                            ReportRunFailure(failed, selection is not null);
                         }
                         else if (!s.HadRunError)
                         {
@@ -1158,11 +1163,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The run's status follows the script's real exit code (and a failed compile/start),
     // not "Success" whenever no exception reached the UI. The message is posted like the script's own
     // output, so it lands after the last lines the script wrote.
-    private void ReportRunFailure(RunResult result)
+    private void ReportRunFailure(RunResult result, bool selection = false)
     {
         State.HadRunError = true;
         var (message, status) = result.Outcome switch
         {
+            // The compiler's own errors are already in the output; for a selection, say why a name
+            // declared elsewhere in the script can be missing.
+            RunOutcome.CompilationFailed when selection => (
+                "Execute Selection compiles only the selected statements: methods, types and variables declared outside the selection are not available.",
+                "Compilation failed"),
             RunOutcome.CompilationFailed => (null, "Compilation failed"),
             RunOutcome.StartFailed => ("Failed to start the compiled script.", "Error"),
             _ => ($"Process exited with code {result.ExitCode}.", $"Exit code {result.ExitCode}"),
