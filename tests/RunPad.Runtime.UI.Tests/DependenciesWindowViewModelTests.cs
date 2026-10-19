@@ -504,4 +504,37 @@ public class DependenciesWindowViewModelTests
             CloseIfOpen(window);
         }
     }
+
+    // The real dialog offers "Allow unsafe code" on a Compilation tab for C# scripts only, explains
+    // that it isn't a sandbox, and the choice reaches the script's metadata on Save.
+    [AvaloniaTheory]
+    [InlineData(RpadLanguage.CSharp, true)]
+    [InlineData(RpadLanguage.Vb, false)]
+    public void TheCompilationTab_Should_OfferUnsafeCode_ForCSharpOnly(RpadLanguage language, bool offered)
+    {
+        var rpad = RpadParser.TryParse(RpadWriter.NewFile("", "Demo", language: language))!;
+        var vm = CreateVm();
+        var window = new DependenciesWindow(vm);
+        try
+        {
+            window.SetFrontMatter(rpad.FrontMatter);
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(offered, Find<TabItem>(window, "CompilationTab").IsVisible);
+            if (!offered) return;
+            Assert.Contains("not a sandbox", Find<TextBlock>(window, "AllowUnsafeHint").Text);
+            var box = Find<CheckBox>(window, "AllowUnsafeBox");
+            Assert.False(box.IsChecked);
+            box.IsChecked = true;
+            Assert.True(Find<Button>(window, "OkButton").IsEnabled);
+            Assert.True(vm.ApplyChanges());
+            Assert.True(rpad.FrontMatter.AllowUnsafe);
+            Assert.Contains("allowUnsafe: true", RpadWriter.Write(rpad));
+        }
+        finally
+        {
+            CloseIfOpen(window);
+        }
+    }
 }

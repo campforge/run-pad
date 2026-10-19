@@ -92,6 +92,10 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     protected abstract GeneratorDriver CreateGeneratorDriver(ImmutableArray<ISourceGenerator> generators, ParseOptions parseOptions);
 
+    /// <summary>The script's own compiler settings (such as unsafe code), part of what decides whether
+    /// an earlier binary can be reused.</summary>
+    protected virtual string CompilationSettings => "";
+
     // ── Pipeline ─────────────────────────────────────────────────────────────
 
     // CPU-bound and blocking IO (parse, bind, emit, restore): off the caller's (often the UI) thread.
@@ -361,7 +365,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var builder = new StringBuilder()
             .Append(CompilerRevision).Append('\n')
             .Append(Options.Platform.TargetFrameworkMoniker).Append('\n')
-            .Append(pack.ReferenceDirectory).Append('\n');
+            .Append(pack.ReferenceDirectory).Append('\n')
+            .Append(CompilationSettings).Append('\n');
         // Recorded in the PDB: a symlink in OutputDirectory's path retargeted means a different binary.
         foreach (var path in documentPaths)
             builder.Append(path).Append('\n');

@@ -64,6 +64,8 @@ public static class RpadPreview
             Row(sb, "Namespaces", string.Join(", ", namespaces.Select(Code)));
         if (fm.Args is { Count: > 0 } args)
             Row(sb, "Arguments", string.Join(", ", args.Select(Code)));
+        if (fm.AllowUnsafe)
+            Row(sb, "Unsafe code", "allowed");
     }
 
     // The value is Markdown already: fixed text, Text() or Code().

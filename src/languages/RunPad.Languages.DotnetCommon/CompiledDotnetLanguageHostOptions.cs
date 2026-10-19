@@ -46,6 +46,9 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
 
     public RpadKind Kind { get; init; }
 
+    /// <summary>Compile with unsafe code allowed (C# /unsafe); languages without unsafe code ignore it.</summary>
+    public bool AllowUnsafe { get; init; }
+
     // The .rpad file's own path, null for a
     // never-saved (untitled) tab, same as LINQPad's own Util.CurrentQueryPath for an unsaved query.
     // Threaded down to the compiled script's child process as an environment variable
@@ -89,6 +92,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             BreakOnAllExceptions = request.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = request.BreakOnUncaughtExceptions,
             Kind = request.Kind,
+            AllowUnsafe = request.AllowUnsafe,
             Packages = request.Packages,
             Usings = request.Usings,
             AssemblyReferences = references.Assemblies,

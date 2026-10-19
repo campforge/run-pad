@@ -455,6 +455,19 @@
                 </Grid>
             </TabItem>
 
+            <!-- ─── Compilation (C# only) ──────────────────────────────────────── -->
+            <TabItem x:Name="CompilationTab" Header="Compilation" IsVisible="{Binding HasUnsafeOption}">
+                <StackPanel Margin="0,12,0,0" Spacing="6">
+                    <CheckBox x:Name="AllowUnsafeBox"
+                              Content="Allow unsafe code"
+                              IsChecked="{Binding AllowUnsafe}"
+                              IsEnabled="{Binding HasFrontMatter}"
+                              AutomationProperties.Name="Allow unsafe code"/>
+                    <TextBlock x:Name="AllowUnsafeHint" TextWrapping="Wrap" Classes="hint"
+                               Text="Compiles this script with C#'s /unsafe option, which pointers, fixed buffers and sizeof of your own structs need. It is a compiler setting, not a sandbox: a script always runs with your full permissions, with or without it."/>
+                </StackPanel>
+            </TabItem>
+
         </TabControl>
 
         <!-- Footer: Save applies the draft and is enabled only when something changed. Cancel, Escape

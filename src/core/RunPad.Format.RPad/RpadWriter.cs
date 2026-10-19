@@ -85,6 +85,9 @@ public static class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(a));
         }
 
+        // Written only when on, so existing documents stay byte-for-byte unchanged.
+        if (fm.AllowUnsafe) sb.Append('\n').Append("allowUnsafe: true");
+
         return sb.ToString();
     }
 

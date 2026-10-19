@@ -2140,6 +2140,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             fm.References,
             fm.Namespaces,
             fm.Args,
+            fm.AllowUnsafe,
         });
     }
 

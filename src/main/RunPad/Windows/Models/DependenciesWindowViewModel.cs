@@ -541,6 +541,23 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     public bool HasNamespaceError => NamespaceError is not null;
 
+    // ── Compilation ────────────────────────────────────────────────────────────
+
+    // C# only: Visual Basic has no unsafe code, so its scripts get no such option.
+    public bool HasUnsafeOption => _original?.Language == RpadLanguage.CSharp;
+
+    public bool AllowUnsafe
+    {
+        get => _allowUnsafe;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _allowUnsafe, value);
+            UpdateHasChanges();
+        }
+    }
+
+    private bool _allowUnsafe;
+
     // ── Commands ───────────────────────────────────────────────────────────────
 
     public ReactiveCommand<Unit, Unit> ClearSearchCommand { get; }
@@ -640,8 +657,11 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             : "";
         ReferenceError = null;
         NamespaceError = null;
+        _allowUnsafe = fm?.AllowUnsafe ?? false;
 
         this.RaisePropertyChanged(nameof(HasFrontMatter));
+        this.RaisePropertyChanged(nameof(HasUnsafeOption));
+        this.RaisePropertyChanged(nameof(AllowUnsafe));
         this.RaisePropertyChanged(nameof(ShowNoReferencesHint));
         this.RaisePropertyChanged(nameof(NamespacesText));
         OnDraftPackagesChanged();
@@ -656,9 +676,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             target.Add(new DependencyEntryViewModel(value, remove));
     }
 
-    // Copies the draft's packages/references/namespaces into the original front matter — the only
-    // place it is ever mutated. Everything else on it (version, language, kind, target SDK) is left
-    // alone. Applies at most once and only when something actually changed.
+    // Copies the draft's packages/references/namespaces (and, for C#, the unsafe setting) into the
+    // original front matter — the only place it is ever mutated. Everything else on it (version,
+    // language, kind, target SDK) is left alone. Applies at most once and only when something actually changed.
     public bool ApplyChanges()
     {
         // An invalid namespace line blocks applying (OK is disabled too) rather than being dropped.
@@ -677,6 +697,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
         fm.References = CopyBack(fm.References, References.Select(e => e.Value));
         fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
+        if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
         return true;
     }
 
@@ -701,7 +722,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
         return packagesChanged
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
-               || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal);
+               || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
+               || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe);
     }
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();
