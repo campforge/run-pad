@@ -61,7 +61,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
+    private Task? _activeRun;
+    private bool _restarting;
+    private bool _restartRequested;
     private int _runGeneration;
+    private int _stopGeneration;
     private readonly ILogger<EditorsTabItemControl> _runLogger;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
@@ -391,6 +395,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void Cancel()
     {
+        _restartRequested = false;
+        _stopGeneration++;
         HideInputPrompt();
         try
         {
@@ -407,9 +413,52 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // All UI entry points await this boundary, including errors before execution and in cleanup.
-    internal async Task RunAsync(bool debug, DotnetSdk platform)
+    internal Task RunAsync(bool debug, DotnetSdk platform)
     {
-        try { await RunCoreAsync(debug, platform); }
+        if (_activeRun is { IsCompleted: false }) return Task.CompletedTask;
+        return _activeRun = RunSafeAsync(debug, platform, null);
+    }
+
+    internal Task RunSelectionAsync(DotnetSdk platform)
+    {
+        if (_disposed || _restarting || _activeRun is { IsCompleted: false }) return Task.CompletedTask;
+        var editor = State.Editor;
+        if (string.IsNullOrWhiteSpace(editor.SelectedText)) return Task.CompletedTask;
+        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) != RpadKind.Statements)
+        {
+            SetStatus("Execute Selection requires Statements mode", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+            return Task.CompletedTask;
+        }
+        // Keep original line and column positions without executing the preceding statements.
+        var prefix = new string(editor.Text.Take(editor.SelectionStart)
+            .Select(c => c is '\r' or '\n' ? c : ' ').ToArray());
+        return _activeRun = RunSafeAsync(false, platform, prefix + editor.SelectedText);
+    }
+
+    internal async Task RestartAsync(DotnetSdk platform)
+    {
+        if (_disposed || _restarting) return;
+        _restarting = true;
+        try
+        {
+            var previous = _activeRun;
+            if (previous is { IsCompleted: false })
+            {
+                Cancel();
+                _restartRequested = true;
+                await previous;
+                if (!_restartRequested) return;
+            }
+            _restartRequested = false;
+            if (!_disposed) await RunAsync(_vm.DebugModeEnabled, platform);
+        }
+        finally { _restarting = false; _restartRequested = false; }
+    }
+
+    private async Task RunSafeAsync(bool debug, DotnetSdk platform, string? selection)
+    {
+        try { await RunCoreAsync(debug, platform, selection); }
         catch (OperationCanceledException) when (_disposed) { }
         catch (Exception ex)
         {
@@ -422,10 +471,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async Task RunCoreAsync(bool debug, DotnetSdk platform)
+    private async Task RunCoreAsync(bool debug, DotnetSdk platform, string? selection)
     {
         var s = State;
         if (_disposed || _runInProgress || _savingBeforeRun) return;
+        var stopGeneration = _stopGeneration;
 
         // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -442,7 +492,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
         // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
         // did save runs the script from its new file. An untitled script runs without being saved.
-        if (_vm.FilePath is { } path)
+        if (selection is null && _vm.FilePath is { } path)
         {
             InPlaceSaveResult saved;
             _savingBeforeRun = true;
@@ -454,7 +504,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 _savingBeforeRun = false;
             }
-            if (_disposed) return;
+            if (_disposed || _restartRequested || stopGeneration != _stopGeneration) return;
             if (saved.Status == InPlaceSaveStatus.Failed)
             {
                 s.Output.Clear();
@@ -495,7 +545,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var workDir = EnsureWorkDirectory();
             var request = BuildRunRequest(platform, workDir);
-            var script = s.Editor.Text;
+            var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
             var enabledBreakpoints = s.Editor.Breakpoints
                 .Where(bp =>

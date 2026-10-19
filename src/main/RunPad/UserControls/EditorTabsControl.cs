@@ -217,6 +217,20 @@ public partial class EditorTabsControl : UserControl, IDisposable
             ctrl.ResumeDebug(DebugAction.Continue);
     }
 
+    public void ExecuteSelectionActive()
+    {
+        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
+        if ((vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault()) is { } sdk)
+            _ = ctrl.RunSelectionAsync(sdk);
+    }
+
+    public void RestartActive()
+    {
+        if (GetActiveControl() is not { } ctrl || _vm?.ActiveTab is not { } vm) return;
+        if ((vm.SelectedSdk ?? vm.AvailableSdks.FirstOrDefault()) is { } sdk)
+            _ = ctrl.RestartAsync(sdk);
+    }
+
     public void CancelActive()
         => GetActiveControl()?.Cancel();
 
