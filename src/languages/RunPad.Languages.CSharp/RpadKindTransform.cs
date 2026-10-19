@@ -1,3 +1,7 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace RunPad.Languages.CSharp;
 
 // RpadKind.Program used to glue a bare "Main();"/"await Main();" call directly in front
@@ -47,19 +51,23 @@ internal static class RpadKindTransform
 
     // Glued onto one physical line, immediately followed by the wrapper class's header and opening
     // brace, each on its own line: exactly 2 embedded '\n's, regardless of whether Main turned out to
-    // be Task-returning (CalcKindOffset relies on this being a plain constant, not code-dependent).
+    // be Task-returning (ProgramLineOffset relies on this).
     // Always calls the trampoline (see class doc comment for why, not Main directly) — statically, so
     // it never needs `new`/an IsStatic check here; that check lives in ProgramSuffixFor instead, where
     // the trampoline itself decides how to reach the user's actual Main.
     // The top-level `args` are the script's command-line arguments; an int-returning Main's result is
     // returned from the top level, which makes it the process exit code.
-    public static string ProgramPrefixFor(string code)
+    // Both are empty for a program compiled as written (ProgramEntryPointDetector.IsCompiledAsWritten).
+    // parseOptions are the build's, the same ones its compiler and the editor parse with.
+    public static string ProgramPrefixFor(string code, CSharpParseOptions parseOptions)
     {
-        var main = ProgramEntryPointDetector.DetectMain(code);
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return "";
+        var main = ProgramEntryPointDetector.DetectMain(code, parseOptions);
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
         var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
-        return $"{callStatement}class {ProgramWrapperClassName}\n{{\n";
+        var modifier = ProgramBodyProjection.Create(code, parseOptions).HasChanges ? "partial " : "";
+        return $"{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
     // Appends the trampoline (always accessible from ProgramPrefixFor's call site, regardless of the
@@ -68,9 +76,10 @@ internal static class RpadKindTransform
     // a file that doesn't end in a blank line) isn't glued onto the same physical line as the
     // trampoline — keeps every synthetic line, like the prefix's, off of any line a breakpoint could
     // legitimately target (all of which sit strictly before this suffix begins).
-    public static string ProgramSuffixFor(string code)
+    public static string ProgramSuffixFor(string code, CSharpParseOptions parseOptions)
     {
-        var main = ProgramEntryPointDetector.DetectMain(code);
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return "";
+        var main = ProgramEntryPointDetector.DetectMain(code, parseOptions);
         var arguments = main.Parameters switch
         {
             ProgramEntryPointDetector.MainParameters.Args => "args",
@@ -93,4 +102,22 @@ internal static class RpadKindTransform
             : $"internal static {returnType} {TrampolineMethodName}(string[] args) => {mainCall};";
         return $"\n{trampoline}\n}}\n";
     }
+
+    // A Statements script without a single statement or declaration (empty, comments, using
+    // directives or preprocessor lines only) has nothing to run, and C# would refuse it for lacking
+    // an entry point (CS5001). It gets one `return;` on its own line after the user's code, so it runs
+    // and exits successfully without output; every original offset stays where it was. Code with a
+    // syntax error, or with any statement, type or namespace, is compiled exactly as written — a lone
+    // type declaration still fails as it should. Parsed with the build's own preprocessor symbols, so
+    // code inside `#if DEBUG` counts.
+    public static string StatementsFor(string code, CSharpParseOptions parseOptions)
+    {
+        var tree = CSharpSyntaxTree.ParseText(code, parseOptions);
+        if (((CompilationUnitSyntax)tree.GetRoot()).Members.Count > 0
+            || tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return code;
+        return code + (code.Length == 0 || code.EndsWith('\n') ? "" : "\n") + "return;\n";
+    }
+
+    /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line.</summary>
+    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions) => ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions) ? 0 : 2;
 }
