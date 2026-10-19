@@ -430,10 +430,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             UpdateOutputUi();
             return Task.CompletedTask;
         }
-        // Keep original line and column positions without executing the preceding statements.
-        var prefix = new string(editor.Text.Take(editor.SelectionStart)
-            .Select(c => c is '\r' or '\n' ? c : ' ').ToArray());
-        return _activeRun = RunSafeAsync(false, platform, prefix + editor.SelectedText);
+        // Rectangular selections contain separate segments; SelectedText includes unselected gaps.
+        // Mask those gaps while preserving every original source offset and line ending.
+        var segments = editor.TextArea.Selection.Segments.ToArray();
+        if (segments.Length == 0) return Task.CompletedTask;
+        var selected = editor.Text.Take(segments.Max(segment => segment.EndOffset))
+            .Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
+        foreach (var segment in segments)
+            editor.Text.CopyTo(segment.StartOffset, selected, segment.StartOffset, segment.Length);
+        var script = new string(selected);
+        if (string.IsNullOrWhiteSpace(script)) return Task.CompletedTask;
+        return _activeRun = RunSafeAsync(false, platform, script);
     }
 
     internal async Task RestartAsync(DotnetSdk platform)
@@ -447,6 +454,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 Cancel();
                 _restartRequested = true;
+                SetStatus("Restarting…", "RunPad.Status.RunningBrush");
+                UpdateOutputUi();
                 await previous;
                 if (!_restartRequested) return;
             }

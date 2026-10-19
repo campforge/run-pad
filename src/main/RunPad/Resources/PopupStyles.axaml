@@ -12,6 +12,12 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}"/>
     </Style>
+    <Style Selector="FlyoutPresenter CheckBox /template/ ContentPresenter#PART_ContentPresenter, FlyoutPresenter CheckBox /template/ TextBlock">
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector="FlyoutPresenter CheckBox:disabled /template/ TextBlock">
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    </Style>
     <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuItem:selected /template/ Border#PART_LayoutRoot">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
     </Style>

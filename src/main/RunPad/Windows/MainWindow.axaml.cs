@@ -64,6 +64,8 @@ public sealed partial class MainWindow : Window, IDisposable
         _restoreStateSubscription = viewModel.WhenAnyValue(vm => vm.IsRestoringWorkspace).Subscribe(restoring =>
         {
             if (!_closeConfirmationInProgress) IsEnabled = !restoring;
+            if (NativeMenu.GetMenu(this) is { } native)
+                foreach (var item in native.Items.OfType<NativeMenuItem>()) item.IsEnabled = !restoring;
         });
         Closed += (_, _) => _restoreStateSubscription.Dispose();
         editorTabsCtrl.Attach(viewModel);
@@ -126,6 +128,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (GetViewModel().IsRestoringWorkspace) return;
         var kb = _prefs.Keyboard;
         foreach (var (command, action) in _keyActions)
         {
@@ -362,7 +365,7 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("_Run / Continue", KeyCommands.RunOrContinue),
                 Item("_Stop", KeyCommands.Stop),
-                Item("Execute _Selection", KeyCommands.ExecuteSelection),
+                Item("E_xecute Selection", KeyCommands.ExecuteSelection),
                 Item("Stop and Run _Again", KeyCommands.Restart),
                 new MainMenuSeparator(),
                 Item("_Debug Mode", KeyCommands.ToggleDebugMode),
@@ -394,7 +397,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // A menu item for a key-bindable command: the same action as its key, and the key as a hint
     // (kept current by OnPreferencesChanged).
     private MainMenuCommand Item(string header, KeyCommand command)
-        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command), command);
+        => new(header, ReactiveCommand.Create(() => { if (!GetViewModel().IsRestoringWorkspace) _keyActions[command](); }), _prefs.Keyboard.GestureFor(command), command);
 
     // Undo, Copy… use the platform's keys (Cmd on macOS). Elsewhere the text boxes handle them and
     // the menu only shows them; on macOS the menu bar takes the key first and its Edit command acts on
@@ -468,6 +471,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async Task NewRpadFileWithKindAsync(RpadLanguage language)
     {
+        if (GetViewModel().IsRestoringWorkspace) return;
         var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
         if (kind is null) return; // cancelled
 

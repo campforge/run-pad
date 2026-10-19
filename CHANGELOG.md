@@ -30,6 +30,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Execute Selection excludes unselected fragments of rectangular selections. Narrow search panels
+  keep navigation and replacement actions accessible; flyout text follows the interface palette.
+- Recovery skips damaged sessions when an older readable session exists, reports other retained
+  sessions, and blocks native-menu actions during startup restoration.
+
 - Session recovery waits for pending Save As and file moves before closing, preserves untitled
   tab titles, and falls back to the previous checkpoint when the latest snapshot is damaged.
 

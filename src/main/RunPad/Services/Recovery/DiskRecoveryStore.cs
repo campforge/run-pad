@@ -35,6 +35,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     {
         Directory.CreateDirectory(_root);
         RestrictDirectory(_root);
+        Exception? unreadable = null;
+        var unavailable = new List<string>();
         foreach (var folder in Directory.GetDirectories(_root)
                      .Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _)
                          && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json"))))
@@ -44,8 +46,39 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             catch (IOException) { continue; } // Another live instance owns this session.
             _folder = folder;
             _fault?.Invoke("locked");
-            return ReadSession();
+            try
+            {
+                var snapshot = ReadSession();
+                foreach (var other in Directory.GetDirectories(_root).Where(p => p != folder
+                    && Guid.TryParseExact(Path.GetFileName(p), "N", out _)
+                    && File.Exists(Path.Combine(p, "current.json"))))
+                {
+                    try
+                    {
+                        using var probe = Lock(other);
+                        unavailable.Add(other);
+                    }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
+                if (unavailable.Count > 0)
+                    Warning = string.Join("\n", new[] { Warning,
+                        "Other session data was kept unchanged and has not been loaded. Recovery folders:",
+                        string.Join("\n", unavailable) }.Where(s => !string.IsNullOrEmpty(s)));
+                return snapshot;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or NotSupportedException or UnauthorizedAccessException)
+            {
+                unreadable ??= ex;
+                unavailable.Add(folder);
+                _owner.Dispose();
+                _owner = null;
+                _folder = null;
+                _pointer = null;
+                _revision = -1;
+            }
         }
+        if (unreadable is not null) throw unreadable;
         _folder = Path.Combine(_root, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_folder);
         RestrictDirectory(_folder);
@@ -123,8 +156,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     public async Task CommitAsync(RecoverySnapshot snapshot)
     {
         Validate(snapshot);
-        await LoadAsync();
-        await _writer.WaitAsync();
+        await LoadAsync().ConfigureAwait(false);
+        await _writer.WaitAsync().ConfigureAwait(false);
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -151,7 +184,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                     catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
                 }
-            });
+            }).ConfigureAwait(false);
         }
         finally { _writer.Release(); }
     }

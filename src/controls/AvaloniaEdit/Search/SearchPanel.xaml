@@ -90,7 +90,7 @@
         <Border Name="PART_Border" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="{TemplateBinding BorderThickness}"
                 BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Top" Padding="6,5">
-          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
             <ToggleButton Name="Expander" Theme="{StaticResource SearchPanelExpanderToggle}"
                           Width="22" Height="28" Margin="0,0,4,0" VerticalAlignment="Top"
                           IsVisible="{Binding !TextEditor.IsReadOnly, RelativeSource={RelativeSource TemplatedParent}}"
@@ -98,7 +98,7 @@
                           ToolTip.Tip="{x:Static ae:SR.SearchToggleReplace}" AutomationProperties.Name="{x:Static ae:SR.SearchToggleReplace}"/>
             <DockPanel Grid.Column="1" LastChildFill="True">
               <Button Name="CloseSearchButton" Theme="{StaticResource SearchStripButton}" DockPanel.Dock="Right" Command="{x:Static search:SearchCommands.CloseSearchPanel}"
-                      Width="28" Height="28" Padding="8" ToolTip.Tip="Close (Esc)" AutomationProperties.Name="Close search">
+                      Width="28" Height="28" Padding="8" ToolTip.Tip="{x:Static ae:SR.SearchClose}" AutomationProperties.Name="{x:Static ae:SR.SearchClose}">
                 <Path Data="{StaticResource CloseIconPath}" Stretch="Uniform" Width="12" Height="12" Fill="{Binding $parent[Button].Foreground}"/>
               </Button>
               <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -114,19 +114,23 @@
                     IsChecked="{Binding $parent[search:SearchPanel].UseRegex, Mode=TwoWay}"
                     ToolTip.Tip="{x:Static ae:SR.SearchUseRegexText}" AutomationProperties.Name="{x:Static ae:SR.SearchUseRegexText}"/></StackPanel></TextBox.InnerRightContent>
                 </TextBox>
-                <StackPanel Grid.Column="1" Name="PART_MessageView" IsVisible="False" MinWidth="72" Margin="8,0" VerticalAlignment="Center">
+                <Border Grid.Column="1" IsVisible="{Binding !IsCompact, RelativeSource={RelativeSource TemplatedParent}}"><StackPanel Name="PART_MessageView" IsVisible="False" MinWidth="72" Margin="8,0" VerticalAlignment="Center">
                   <TextBlock Name="PART_MessageContent" FontSize="11" MaxWidth="72" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <Button Theme="{StaticResource SearchStripButton}" Grid.Column="2" Command="{x:Static search:SearchCommands.FindPrevious}" Width="28" Height="28" Padding="6" ToolTip.Tip="{x:Static ae:SR.SearchFindPreviousText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindPreviousText}"><Path Data="{StaticResource FindPreviousIconPath}" Stretch="Uniform" Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}"/></Button><Button Theme="{StaticResource SearchStripButton}" Grid.Column="3" Command="{x:Static search:SearchCommands.FindNext}" Width="28" Height="28" Padding="6" ToolTip.Tip="{x:Static ae:SR.SearchFindNextText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindNextText}"><Path Data="{StaticResource FindNextIconPath}" Stretch="Uniform" Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}"/></Button>
+                </StackPanel></Border>
+                <Button Theme="{StaticResource SearchStripButton}" Grid.Column="2" Command="{x:Static search:SearchCommands.FindPrevious}" IsVisible="{Binding !IsCompact, RelativeSource={RelativeSource TemplatedParent}}" Width="28" Height="28" Padding="6" ToolTip.Tip="{x:Static ae:SR.SearchFindPreviousText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindPreviousText}"><Path Data="{StaticResource FindPreviousIconPath}" Stretch="Uniform" Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}"/></Button><Button Theme="{StaticResource SearchStripButton}" Grid.Column="3" Command="{x:Static search:SearchCommands.FindNext}" IsVisible="{Binding !IsCompact, RelativeSource={RelativeSource TemplatedParent}}" Width="28" Height="28" Padding="6" ToolTip.Tip="{x:Static ae:SR.SearchFindNextText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindNextText}"><Path Data="{StaticResource FindNextIconPath}" Stretch="Uniform" Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}"/></Button>
               </Grid>
             </DockPanel>
-            <Grid Grid.Column="1" Grid.Row="1" Name="ReplaceButtons" ColumnDefinitions="Auto,Auto,Auto" HorizontalAlignment="Left" Margin="0,4,0,0"
+            <Grid Grid.Column="1" Grid.Row="1" Name="ReplaceButtons" ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Left" Margin="0,4,0,0"
                         IsVisible="{Binding #Expander.IsChecked}">
               <TextBox Name="PART_replaceTextBox" PlaceholderText="{x:Static ae:SR.ReplaceLabel}" Width="{Binding SearchFieldWidth, RelativeSource={RelativeSource TemplatedParent}}" MinHeight="26" Padding="6,2"
                        Text="{Binding ReplacePattern, RelativeSource={RelativeSource TemplatedParent}}" AutomationProperties.Name="{x:Static ae:SR.ReplaceLabel}"/>
-              <Button Theme="{StaticResource SearchStripButton}" Grid.Column="1" Margin="6,0,0,0" Classes="replaceAction" Command="{x:Static search:SearchCommands.ReplaceNext}" Content="{x:Static ae:SR.SearchReplaceButton}" MinHeight="26" Padding="10,2" ToolTip.Tip="{x:Static ae:SR.SearchReplaceNext}"/>
-              <Button Theme="{StaticResource SearchStripButton}" Grid.Column="2" Margin="6,0,0,0" Classes="replaceAction" Command="{x:Static search:SearchCommands.ReplaceAll}" Content="{x:Static ae:SR.SearchReplaceAllButton}" MinHeight="26" Padding="10,2" ToolTip.Tip="{x:Static ae:SR.SearchReplaceAll}"/>
+              <Button Theme="{StaticResource SearchStripButton}" Grid.Column="{Binding ReplaceNextColumn, RelativeSource={RelativeSource TemplatedParent}}" Grid.Row="{Binding ReplaceButtonsRow, RelativeSource={RelativeSource TemplatedParent}}" Margin="6,0,0,0" Classes="replaceAction" Command="{x:Static search:SearchCommands.ReplaceNext}" Width="{Binding ReplaceActionWidth, RelativeSource={RelativeSource TemplatedParent}}" AutomationProperties.Name="{x:Static ae:SR.SearchReplaceButton}" MinHeight="26" Padding="4,2" ToolTip.Tip="{x:Static ae:SR.SearchReplaceNext}"><Grid><TextBlock Text="{x:Static ae:SR.SearchReplaceButton}" IsVisible="{Binding !IsCompact, RelativeSource={RelativeSource TemplatedParent}}"/><Path Data="{StaticResource ReplaceNextIconPath}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding $parent[Button].Foreground}" IsVisible="{Binding IsCompact, RelativeSource={RelativeSource TemplatedParent}}"/></Grid></Button>
+              <Button Theme="{StaticResource SearchStripButton}" Grid.Column="{Binding ReplaceAllColumn, RelativeSource={RelativeSource TemplatedParent}}" Grid.Row="{Binding ReplaceButtonsRow, RelativeSource={RelativeSource TemplatedParent}}" Margin="6,0,0,0" Classes="replaceAction" Command="{x:Static search:SearchCommands.ReplaceAll}" Width="{Binding ReplaceActionWidth, RelativeSource={RelativeSource TemplatedParent}}" AutomationProperties.Name="{x:Static ae:SR.SearchReplaceAllButton}" MinHeight="26" Padding="4,2" ToolTip.Tip="{x:Static ae:SR.SearchReplaceAll}"><Grid><TextBlock Text="{x:Static ae:SR.SearchReplaceAllButton}" IsVisible="{Binding !IsCompact, RelativeSource={RelativeSource TemplatedParent}}"/><Path Data="{StaticResource ReplaceAllIconPath}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding $parent[Button].Foreground}" IsVisible="{Binding IsCompact, RelativeSource={RelativeSource TemplatedParent}}"/></Grid></Button>
             </Grid>
+            <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" IsVisible="{Binding IsCompact, RelativeSource={RelativeSource TemplatedParent}}">
+              <Button Theme="{StaticResource SearchStripButton}" Command="{x:Static search:SearchCommands.FindPrevious}" Width="28" Height="28" ToolTip.Tip="{x:Static ae:SR.SearchFindPreviousText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindPreviousText}"><Path Data="{StaticResource FindPreviousIconPath}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding $parent[Button].Foreground}"/></Button>
+              <Button Theme="{StaticResource SearchStripButton}" Command="{x:Static search:SearchCommands.FindNext}" Width="28" Height="28" ToolTip.Tip="{x:Static ae:SR.SearchFindNextText}" AutomationProperties.Name="{x:Static ae:SR.SearchFindNextText}"><Path Data="{StaticResource FindNextIconPath}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding $parent[Button].Foreground}"/></Button>
+            </StackPanel>
           </Grid>
         </Border>
       </ControlTemplate>

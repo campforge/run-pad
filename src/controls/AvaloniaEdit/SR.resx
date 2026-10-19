@@ -164,4 +164,5 @@
   </data>
   <data name="SearchReplaceButton" xml:space="preserve"><value>Replace</value></data>
   <data name="SearchReplaceAllButton" xml:space="preserve"><value>Replace All</value></data>
+  <data name="SearchClose" xml:space="preserve"><value>Close search (Esc)</value></data>
 </root>
