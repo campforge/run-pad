@@ -192,15 +192,33 @@ public class RunSaveConflictTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task ProgramSelection_Should_NotRunTheWholeProgram()
+    public async Task ProgramSelection_Should_RunOnlyTheSelection_AsStatements()
     {
         var (ctrl, _, window) = Open();
         try
         {
             ctrl.State.RpadDocument!.FrontMatter.Kind = RpadKind.Program;
+            ctrl.State.Editor.Text = "void Main()\n{\n    Console.WriteLine(1);\n    Console.WriteLine(2);\n}\n";
+            ctrl.State.Editor.Select(ctrl.State.Editor.Text.IndexOf("Console.WriteLine(2);", StringComparison.Ordinal), 21);
+            await ctrl.RunSelectionAsync(Sdk);
+            Assert.Equal(RpadKind.Statements, Assert.Single(_runs).Kind);
+            Assert.Equal("Console.WriteLine(2);", Assert.Single(_scripts).Trim());
+            Assert.Equal(RpadKind.Program, ctrl.State.RpadDocument.FrontMatter.Kind); // the script keeps its own kind
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ExpressionSelection_Should_NotRun()
+    {
+        var (ctrl, _, window) = Open();
+        try
+        {
+            ctrl.State.RpadDocument!.FrontMatter.Kind = RpadKind.Expression;
             ctrl.State.Editor.Select(0, 5);
             await ctrl.RunSelectionAsync(Sdk);
             Assert.Empty(_runs);
+            Assert.Equal("Execute Selection is not available in Expression mode", ctrl.State.ExecStatusText);
         }
         finally { window.Close(); ctrl.Dispose(); }
     }
