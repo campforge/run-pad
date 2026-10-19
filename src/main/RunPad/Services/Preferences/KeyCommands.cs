@@ -48,7 +48,7 @@ public static class KeyCommands
 
     public static readonly KeyCommand RunOrContinue = new("run.run", Run, "Run / Continue", "F5");
     public static readonly KeyCommand ExecuteSelection = new("run.selection", Run, "Execute Selection", "Ctrl+Shift+E", "Cmd+Shift+E");
-    public static readonly KeyCommand Restart = new("run.restart", Run, "Stop and Run Again", "Alt+Shift+X");
+    public static readonly KeyCommand Restart = new("run.restart", Run, "Stop and Run Again", "Alt+Shift+X", "Cmd+Shift+F5");
     public static readonly KeyCommand Stop = new("run.stop", Run, "Stop", "Shift+F5");
     public static readonly KeyCommand ToggleDebugMode = new("run.toggleDebugMode", Run, "Debug Mode", "");
     public static readonly KeyCommand StepOver = new("run.stepOver", Run, "Step Over", "F10");

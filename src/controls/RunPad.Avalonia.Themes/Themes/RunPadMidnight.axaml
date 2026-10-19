@@ -25,6 +25,14 @@
                     <SolidColorBrush x:Key="RunPad.Separator.BackgroundBrush"         Color="#2E333D" />
                     <SolidColorBrush x:Key="RunPad.Border.BackgroundBrush"            Color="#353B46" />
                     <SolidColorBrush x:Key="RunPad.Text.PrimaryBrush"                 Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForeground" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPointerOver" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPressed" Color="#D7DAE0" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemForegroundDisabled" Color="#99A2AF" />
+                    <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundDisabled" Color="#99A2AF" />
                     <SolidColorBrush x:Key="RunPad.Text.SecondaryBrush"               Color="#99A2AF" />
                     <SolidColorBrush x:Key="RunPad.Accent.BackgroundBrush"            Color="#2568FF" />
                     <SolidColorBrush x:Key="RunPad.Accent.ForegroundBrush"            Color="#FFFFFF" />

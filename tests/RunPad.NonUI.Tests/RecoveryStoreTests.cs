@@ -13,6 +13,81 @@ public sealed class RecoveryStoreTests : IDisposable
         return new RecoverySnapshot { Revision = revision, Tabs = [tab], ActiveTab = tab.Id };
     }
 
+    private sealed class TrackingContext : SynchronizationContext
+    {
+        public int Posts;
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            Interlocked.Increment(ref Posts);
+            base.Post(callback, state);
+        }
+    }
+
+    [Fact]
+    public async Task Commit_Should_NotDependOnTheCallersSynchronizationContext()
+    {
+        using var release = new ManualResetEventSlim();
+        using var store = new DiskRecoveryStore(_root, stage =>
+        {
+            if (stage == "payload") release.Wait(TestContext.Current.CancellationToken);
+        });
+        await store.LoadAsync();
+        var original = SynchronizationContext.Current;
+        var context = new TrackingContext();
+        Task commit;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            commit = store.CommitAsync(Snapshot(1));
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(original); release.Set(); }
+        await commit.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Equal(0, context.Posts);
+    }
+
+    [Fact]
+    public async Task OtherUnlockedSessions_Should_BeReportedWithoutChangingTheirData()
+    {
+        string firstFolder;
+        using (var first = new DiskRecoveryStore(_root))
+        {
+            await first.CommitAsync(Snapshot(1, "first draft"));
+            firstFolder = Assert.Single(Directory.GetDirectories(_root));
+            using var second = new DiskRecoveryStore(_root);
+            await second.CommitAsync(Snapshot(1, "second draft"));
+        }
+        var secondFolder = Directory.GetDirectories(_root).Single(p => p != firstFolder);
+        Directory.SetLastWriteTimeUtc(secondFolder, DateTime.UtcNow.AddMinutes(1));
+        var original = File.ReadAllBytes(Path.Combine(firstFolder, "current.json"));
+        using var next = new DiskRecoveryStore(_root);
+        Assert.Equal("second draft", (await next.LoadAsync())!.Tabs[0].EditorText);
+        Assert.Contains(firstFolder, next.Warning!);
+        Assert.Equal(original, File.ReadAllBytes(Path.Combine(firstFolder, "current.json")));
+    }
+
+    [Fact]
+    public async Task DamagedNewestSession_Should_NotHideAnOlderValidSession()
+    {
+        string firstFolder;
+        using (var first = new DiskRecoveryStore(_root))
+        {
+            await first.CommitAsync(Snapshot(1, "valid draft"));
+            firstFolder = Assert.Single(Directory.GetDirectories(_root));
+            using var second = new DiskRecoveryStore(_root);
+            await second.CommitAsync(Snapshot(1, "damaged draft"));
+        }
+        var damaged = Directory.GetDirectories(_root).Single(p => p != firstFolder);
+        File.WriteAllText(Path.Combine(damaged, "current.json"), "{");
+        Directory.SetLastWriteTimeUtc(damaged, DateTime.UtcNow.AddMinutes(1));
+        for (var i = 0; i < 3; i++)
+        {
+            using var next = new DiskRecoveryStore(_root);
+            Assert.Equal("valid draft", (await next.LoadAsync())!.Tabs[0].EditorText);
+            Assert.Contains(damaged, next.Warning!);
+        }
+        Assert.Equal("{", File.ReadAllText(Path.Combine(damaged, "current.json")));
+    }
+
     [Fact]
     public async Task CommitAndReload_Should_PreserveExactTextAndBaseline()
     {

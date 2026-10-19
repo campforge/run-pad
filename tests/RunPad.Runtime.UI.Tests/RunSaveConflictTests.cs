@@ -228,6 +228,22 @@ public class RunSaveConflictTests : IDisposable
         finally { window.Close(); ctrl.Dispose(); }
     }
 
+    [AvaloniaFact]
+    public async Task RectangleSelection_Should_NotExecuteUnselectedLineFragments()
+    {
+        var (ctrl, _, window) = Open();
+        try
+        {
+            ctrl.State.Editor.Text = "aaa(1);\nbbb(2);\nccc(3);\n";
+            var area = ctrl.State.Editor.TextArea;
+            area.Selection = new global::AvaloniaEdit.Editing.RectangleSelection(area,
+                new global::AvaloniaEdit.TextViewPosition(1, 4), new global::AvaloniaEdit.TextViewPosition(3, 8));
+            await ctrl.RunSelectionAsync(Sdk);
+            Assert.Equal("   (1);\n   (2);\n   (3);", Assert.Single(_scripts));
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
     private void ChangeExternally() => File.WriteAllText(_script, RpadWriter.NewFile(External + "\n", "Demo"));
 
     private void Answer(SaveConflictChoice choice) =>

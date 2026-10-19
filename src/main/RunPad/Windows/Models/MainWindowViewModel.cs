@@ -696,6 +696,8 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     private async Task ImportLinqFileCoreAsync()
     {
+        if (_restoreTask is { IsCompleted: false } restoring) await restoring;
+        if (_disposed) return;
         var linqPath = await _windowService.ShowOpenLinqFileDialogAsync(_fileSystemService.Folder);
         if (linqPath is null) return;
 

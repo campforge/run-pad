@@ -57,10 +57,44 @@ public class SearchPanel : TemplatedControl, IRoutedCommandBindable
         private set => SetValue(SearchFieldWidthProperty, value);
     }
 
+    public static readonly StyledProperty<bool> IsCompactProperty =
+        AvaloniaProperty.Register<SearchPanel, bool>(nameof(IsCompact));
+    public bool IsCompact
+    {
+        get => GetValue(IsCompactProperty);
+        private set => SetValue(IsCompactProperty, value);
+    }
+
+    public static readonly StyledProperty<double> ReplaceActionWidthProperty =
+        AvaloniaProperty.Register<SearchPanel, double>(nameof(ReplaceActionWidth), double.NaN);
+    public double ReplaceActionWidth
+    {
+        get => GetValue(ReplaceActionWidthProperty);
+        private set => SetValue(ReplaceActionWidthProperty, value);
+    }
+
+    public static readonly StyledProperty<int> ReplaceButtonsRowProperty =
+        AvaloniaProperty.Register<SearchPanel, int>(nameof(ReplaceButtonsRow));
+    public int ReplaceButtonsRow { get => GetValue(ReplaceButtonsRowProperty); private set => SetValue(ReplaceButtonsRowProperty, value); }
+    public static readonly StyledProperty<int> ReplaceNextColumnProperty =
+        AvaloniaProperty.Register<SearchPanel, int>(nameof(ReplaceNextColumn), 1);
+    public int ReplaceNextColumn { get => GetValue(ReplaceNextColumnProperty); private set => SetValue(ReplaceNextColumnProperty, value); }
+    public static readonly StyledProperty<int> ReplaceAllColumnProperty =
+        AvaloniaProperty.Register<SearchPanel, int>(nameof(ReplaceAllColumn), 2);
+    public int ReplaceAllColumn { get => GetValue(ReplaceAllColumnProperty); private set => SetValue(ReplaceAllColumnProperty, value); }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         if (double.IsFinite(availableSize.Width))
-            SearchFieldWidth = Math.Clamp(availableSize.Width - 220, 160, 370);
+        {
+            IsCompact = availableSize.Width < 500;
+            ReplaceActionWidth = IsCompact ? 28 : double.NaN;
+            ReplaceButtonsRow = IsCompact ? 1 : 0;
+            ReplaceNextColumn = IsCompact ? 0 : 1;
+            ReplaceAllColumn = IsCompact ? 1 : 2;
+            SearchFieldWidth = IsCompact ? Math.Clamp(availableSize.Width - 80, 112, 370)
+                : Math.Clamp(availableSize.Width - 220, 160, 370);
+        }
         return base.MeasureOverride(availableSize);
     }
 

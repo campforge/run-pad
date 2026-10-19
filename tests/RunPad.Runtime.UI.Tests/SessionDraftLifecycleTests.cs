@@ -325,6 +325,8 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         store.Setup(r => r.CommitAsync(It.IsAny<RecoverySnapshot>())).Callback<RecoverySnapshot>(s => written = s).Returns(Task.CompletedTask);
         using var session = new Session(_root, store.Object);
         Assert.False(session.Host.IsEnabled);
+        if (NativeMenu.GetMenu(session.Host) is { } native)
+            Assert.All(native.Items.OfType<NativeMenuItem>(), item => Assert.False(item.IsEnabled));
         session.Host.Close();
         Assert.True(session.Host.IsVisible);
         source.SetResult(new() { Revision = 7, Tabs = [frame], ActiveTab = frame.Id });
