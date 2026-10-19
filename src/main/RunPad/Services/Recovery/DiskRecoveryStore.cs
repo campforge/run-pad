@@ -40,12 +40,12 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         Directory.CreateDirectory(_root);
         RestrictDirectory(_root);
         // Lock every session nobody else owns before reading any of it: a live instance's session is
-        // never read as abandoned. Taken-over sessions (with an import marker) stay out of the way.
+        // never read as abandoned. Sessions another one imported (with an import marker) are read
+        // too: the marker alone doesn't prove the importing checkpoint is still there (see below).
         var sessions = new List<(string Folder, FileStream Lock, RecoverySnapshot? Snapshot, string? Payload, bool FellBack, Exception? Failure)>();
         foreach (var folder in Directory.GetDirectories(_root)
                      .Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _)
-                         && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json")))
-                         && !File.Exists(Path.Combine(p, ImportMarker)))
+                         && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json"))))
                      .OrderByDescending(Directory.GetLastWriteTimeUtc))
         {
             FileStream owner;
@@ -65,10 +65,14 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         }
 
         // A session whose drafts a durable checkpoint already holds was taken over; if the marker
-        // was not written (a crash right after that checkpoint), finish that now.
+        // was not written (a crash right after that checkpoint), finish that now. Only the
+        // generations actually read count: when the destination's importing checkpoint is lost and
+        // it falls back to one from before the import, the drafts are reachable only from the source.
         var records = sessions.SelectMany(x => x.Snapshot?.ImportedSessions ?? []).ToList();
         bool TakenOver(string folder, RecoverySnapshot snapshot) => records.Any(r =>
             r.Source == Path.GetFileName(folder) && r.Revision >= snapshot.Revision);
+        var failed = sessions.Where(x => x.Failure is not null).Select(x => Path.GetFileName(x.Folder)).ToHashSet();
+        var held = sessions.Select(x => Path.GetFileName(x.Folder)).ToHashSet();
 
         var unavailable = new List<string>();
         Exception? unreadable = null;
@@ -87,6 +91,26 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 unavailable.Add(session.Folder);
                 session.Lock.Dispose();
             }
+            else if (File.Exists(Path.Combine(session.Folder, ImportMarker)))
+            {
+                // Imported before, but no readable checkpoint records it any more. Where the drafts
+                // went decides: a live destination owns them, an unreadable one may still hold them
+                // (kept unchanged and reported, never imported a second time), and a destination
+                // that is gone or fell back past the import leaves the source as their only copy.
+                switch (ImportDestinationState(session.Folder, held, failed))
+                {
+                    case DestinationState.Live:
+                        session.Lock.Dispose();
+                        break;
+                    case DestinationState.Unknown:
+                        unavailable.Add(session.Folder);
+                        session.Lock.Dispose();
+                        break;
+                    default:
+                        Offer(session.Folder, session.Lock, session.Snapshot);
+                        break;
+                }
+            }
             else if (_folder is null)
             {
                 _folder = session.Folder;
@@ -96,16 +120,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 _revision = own?.Revision ?? -1;
                 if (session.FellBack) Warning = "An earlier draft checkpoint was recovered because the newer one was damaged.";
             }
-            else
-            {
-                var drafts = session.Snapshot?.Tabs
-                    .Where(t => t.IsDirty || (t.FilePath is null && !string.IsNullOrWhiteSpace(t.EditorText)))
-                    .Select(t => t with { Id = Guid.NewGuid(), ImportedFrom = Path.GetFileName(session.Folder) })
-                    .ToList() ?? [];
-                if (drafts.Count == 0) { session.Lock.Dispose(); continue; } // Nothing unsaved there.
-                _imports.Add(new RecoveryImport(Path.GetFileName(session.Folder), session.Snapshot!.Revision, drafts));
-                _importLocks.Add(session.Lock);
-            }
+            else Offer(session.Folder, session.Lock, session.Snapshot);
         }
         _records.AddRange(own?.ImportedSessions ?? []);
         if (unavailable.Count > 0)
@@ -125,6 +140,44 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         return own;
     }
 
+    // Another session's unsaved tabs become an import, held locked until a checkpoint records it.
+    private void Offer(string folder, FileStream owner, RecoverySnapshot? snapshot)
+    {
+        var drafts = snapshot?.Tabs
+            .Where(t => t.IsDirty || (t.FilePath is null && !string.IsNullOrWhiteSpace(t.EditorText)))
+            .Select(t => t with { Id = Guid.NewGuid(), ImportedFrom = Path.GetFileName(folder) })
+            .ToList() ?? [];
+        if (drafts.Count == 0) { owner.Dispose(); return; } // Nothing unsaved there.
+        _imports.Add(new RecoveryImport(Path.GetFileName(folder), snapshot!.Revision, drafts));
+        _importLocks.Add(owner);
+    }
+
+    private enum DestinationState { Gone, Live, Unknown }
+
+    // The session an import marker names. One read in this start without the record, or missing
+    // altogether, is Gone; one another instance holds is Live; an unreadable one, or a marker that
+    // can't be read, is Unknown.
+    private DestinationState ImportDestinationState(string source, HashSet<string> held, HashSet<string> failed)
+    {
+        string into;
+        try
+        {
+            var marker = JsonSerializer.Deserialize<ImportMarkerData>(File.ReadAllBytes(Path.Combine(source, ImportMarker)));
+            if (marker is null || marker.Version != 1 || !Guid.TryParseExact(marker.Into, "N", out _)) return DestinationState.Unknown;
+            into = marker.Into;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return DestinationState.Unknown; }
+        if (failed.Contains(into)) return DestinationState.Unknown;
+        if (held.Contains(into)) return DestinationState.Gone; // read here, and it no longer records the import
+        var folder = Path.Combine(_root, into);
+        if (!File.Exists(Path.Combine(folder, "current.json")) && !File.Exists(Path.Combine(folder, "previous.json")))
+            return DestinationState.Gone;
+        try { using var probe = Lock(folder); }
+        catch (IOException) { return DestinationState.Live; }
+        catch (UnauthorizedAccessException) { return DestinationState.Unknown; }
+        return DestinationState.Unknown; // has checkpoints but wasn't among the sessions read: don't guess
+    }
+
     public IReadOnlyList<RecoveryImport> Imports => [.. _imports];
 
     private const string ImportMarker = "imported.json";
@@ -135,12 +188,20 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     {
         // The drafts are already in a durable checkpoint, so a missing marker only means they are
         // filtered out again on the next start; the source session's own files are never changed.
+        // Replaced atomically, so after a second import it names the session that holds them now.
+        var temp = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
-            WriteDurably(Path.Combine(folder, ImportMarker), JsonSerializer.SerializeToUtf8Bytes(
+            WriteDurably(temp, JsonSerializer.SerializeToUtf8Bytes(
                 new ImportMarkerData(1, Path.GetFileName(_folder ?? ""), record.Revision)));
+            File.Move(temp, Path.Combine(folder, ImportMarker), overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private static void RestrictDirectory(string path)

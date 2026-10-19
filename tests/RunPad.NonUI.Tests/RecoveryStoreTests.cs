@@ -106,7 +106,7 @@ public sealed class RecoveryStoreTests : IDisposable
 
     private static Dictionary<string, byte[]> Files(string folder) => Directory.GetFiles(folder)
         .Where(f => Path.GetFileName(f) != "owner.lock")
-        .ToDictionary(Path.GetFileName, File.ReadAllBytes)!;
+        .ToDictionary(f => Path.GetFileName(f), File.ReadAllBytes);
 
     [Fact]
     public async Task OtherUnlockedSessions_Should_BeImported_WithoutChangingTheirData()
@@ -327,4 +327,151 @@ public sealed class RecoveryStoreTests : IDisposable
     }
 
     public void Dispose() => Directory.Delete(_root, true);
+
+    // The destination's newest checkpoint holds the imported draft; damage it so the start falls back
+    // to the generation before the import. Returns (destination, source).
+    private async Task<(string Destination, string Source)> ImportThenAsync(Func<string, Task>? afterImport = null)
+    {
+        var (own, other) = await TwoClosedSessionsAsync("BASE", "IMPORTED-DRAFT");
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            var restored = (await next.LoadAsync())!;
+            var import = Assert.Single(next.Imports);
+            await next.CommitAsync(new RecoverySnapshot { Revision = 2, Tabs = [.. restored.Tabs, .. import.Tabs] });
+        }
+        Assert.True(File.Exists(Path.Combine(other, "imported.json")));
+        if (afterImport is not null) await afterImport(own);
+        return (own, other);
+    }
+
+    private static void DamageCurrentPayload(string folder)
+    {
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "current.json")))!;
+        File.WriteAllText(Path.Combine(folder, pointer["Current"]!.GetValue<string>()), "broken snapshot");
+    }
+
+    // A marker alone is not proof the drafts are still reachable: when the importing checkpoint is
+    // lost and the destination falls back to a generation from before the import, the source is
+    // offered again, its files unchanged.
+    [Fact]
+    public async Task AnImportLostWithTheDestinationsNewestCheckpoint_Should_BeOfferedAgain()
+    {
+        var (destination, source) = await ImportThenAsync();
+        var sourceFiles = Files(source);
+        DamageCurrentPayload(destination);
+
+        using var reopened = new DiskRecoveryStore(_root);
+        var restored = (await reopened.LoadAsync())!;
+        Assert.Equal(["BASE"], restored.Tabs.Select(t => t.EditorText));
+        Assert.Equal("IMPORTED-DRAFT", Assert.Single(Assert.Single(reopened.Imports).Tabs).EditorText);
+        Assert.Equal(sourceFiles, Files(source));
+    }
+
+    // Damage after a discard: the fallback generation still records the import (and holds the draft
+    // itself), so the draft comes back once, from the destination, not a second time from the source.
+    [Fact]
+    public async Task AFallbackThatStillHoldsTheImport_Should_NotImportItAgain()
+    {
+        var (destination, _) = await ImportThenAsync(async own =>
+        {
+            using var later = new DiskRecoveryStore(_root);
+            var restored = (await later.LoadAsync())!;
+            await later.CommitAsync(new RecoverySnapshot { Revision = 3, Tabs = [restored.Tabs[0]] }); // discards the draft
+        });
+        DamageCurrentPayload(destination);
+
+        using var reopened = new DiskRecoveryStore(_root);
+        var restored = (await reopened.LoadAsync())!;
+        Assert.Equal(["BASE", "IMPORTED-DRAFT"], restored.Tabs.Select(t => t.EditorText));
+        Assert.Empty(reopened.Imports);
+    }
+
+    // The discard itself, with the destination intact, still holds on later starts.
+    [Fact]
+    public async Task ADiscardedImport_Should_StayDiscarded_WhileTheDestinationIsReadable()
+    {
+        await ImportThenAsync(async own =>
+        {
+            using var later = new DiskRecoveryStore(_root);
+            var restored = (await later.LoadAsync())!;
+            await later.CommitAsync(new RecoverySnapshot { Revision = 3, Tabs = [restored.Tabs[0]] });
+        });
+        for (var i = 0; i < 2; i++)
+        {
+            using var reopened = new DiskRecoveryStore(_root);
+            Assert.Equal(["BASE"], (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText));
+            Assert.Empty(reopened.Imports);
+        }
+    }
+
+    // The destination session is gone altogether (its folder was removed): the source is offered again.
+    [Fact]
+    public async Task AMissingDestination_Should_LetTheSourceBeOfferedAgain()
+    {
+        var (destination, source) = await ImportThenAsync();
+        Directory.Move(destination, Path.Combine(Path.GetDirectoryName(_root)!, Path.GetFileName(_root) + "-moved-" + Guid.NewGuid().ToString("N")));
+
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Null(await reopened.LoadAsync());
+        Assert.Equal("IMPORTED-DRAFT", Assert.Single(Assert.Single(reopened.Imports).Tabs).EditorText);
+        Assert.True(File.Exists(Path.Combine(source, "imported.json")));
+    }
+
+    // A destination that can't be read at all may still hold the drafts: the source is neither
+    // imported nor hidden — it is kept unchanged and named in the warning.
+    [Fact]
+    public async Task AnUnreadableDestination_Should_KeepTheSourceUnchanged_AndReportIt()
+    {
+        var (destination, source) = await ImportThenAsync();
+        var sourceFiles = Files(source);
+        foreach (var payload in Directory.GetFiles(destination, "*.snapshot")) File.WriteAllText(payload, "broken");
+
+        using var reopened = new DiskRecoveryStore(_root);
+        await Assert.ThrowsAsync<InvalidDataException>(() => reopened.LoadAsync());
+        Assert.Empty(reopened.Imports);
+        Assert.Contains(destination, reopened.Warning!);
+        Assert.Contains(source, reopened.Warning!);
+        Assert.Equal(sourceFiles, Files(source));
+    }
+
+    // While the destination window is still running it owns the imported drafts: never import them twice.
+    [Fact]
+    public async Task ASourceWhoseDestinationIsLive_Should_NotBeImported()
+    {
+        var (destination, source) = await ImportThenAsync();
+        DamageCurrentPayload(destination);
+        using var live = File.Open(Path.Combine(destination, "owner.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Null(await reopened.LoadAsync());
+        Assert.Empty(reopened.Imports);
+    }
+
+    // Imported again after the loss, into a new session: the marker now names that session, and once
+    // it records the import the source stays taken over, also while that session is live.
+    [Fact]
+    public async Task ASecondImport_Should_UpdateTheMarker_AndHoldWhileTheNewDestinationIsLive()
+    {
+        var (destination, source) = await ImportThenAsync();
+        Directory.Move(destination, Path.Combine(Path.GetDirectoryName(_root)!, Path.GetFileName(_root) + "-moved-" + Guid.NewGuid().ToString("N")));
+        string second;
+        using (var reopened = new DiskRecoveryStore(_root))
+        {
+            Assert.Null(await reopened.LoadAsync());
+            var import = Assert.Single(reopened.Imports);
+            await reopened.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = import.Tabs });
+            second = Assert.Single(Directory.GetDirectories(_root), f => f != source);
+        }
+        var marker = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(source, "imported.json")))!;
+        Assert.Equal(Path.GetFileName(second), marker["Into"]!.GetValue<string>());
+        Assert.NotEqual(Path.GetFileName(destination), marker["Into"]!.GetValue<string>());
+        Assert.Empty(Directory.GetFiles(source, "*.tmp"));
+
+        using var live = new DiskRecoveryStore(_root);
+        Assert.Equal(["IMPORTED-DRAFT"], (await live.LoadAsync())!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(live.Imports);
+        using var other = new DiskRecoveryStore(_root);
+        Assert.Null(await other.LoadAsync());
+        Assert.Empty(other.Imports); // the live window holds them
+    }
 }
