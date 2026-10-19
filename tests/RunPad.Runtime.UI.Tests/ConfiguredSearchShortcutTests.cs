@@ -31,9 +31,10 @@ public class ConfiguredSearchShortcutTests
             window.KeyPressQwerty(PhysicalKey.F7, RawInputModifiers.None);
             Assert.True(editor.SearchPanel.IsOpened);
             window.UpdateLayout();
-            var next = editor.SearchPanel.GetVisualDescendants().OfType<Button>()
-                .Single(b => b.Command == SearchCommands.FindNext);
-            Assert.Equal("Find Next (F9)", ToolTip.GetTip(next));
+            var nextButtons = editor.SearchPanel.GetVisualDescendants().OfType<Button>()
+                .Where(b => b.Command == SearchCommands.FindNext).ToArray();
+            Assert.Equal(2, nextButtons.Length);
+            Assert.All(nextButtons, next => Assert.Equal("Find Next (F9)", ToolTip.GetTip(next)));
             editor.SearchPanel.Close();
             editor.TextArea.Focus();
             var command = keyboard.IsMac ? RawInputModifiers.Meta : RawInputModifiers.Control;
@@ -43,7 +44,7 @@ public class ConfiguredSearchShortcutTests
             Assert.True(editor.SearchPanel.IsReplaceMode);
             keyboard.SetKey(KeyCommands.FindNext, "");
             keyboard.ApplyTo(editor);
-            Assert.Equal("Find Next", ToolTip.GetTip(next));
+            Assert.All(nextButtons, next => Assert.Equal("Find Next", ToolTip.GetTip(next)));
             editor.SearchPanel.Close();
             keyboard.SetKey(KeyCommands.FindText, "");
             keyboard.ApplyTo(editor);
