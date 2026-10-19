@@ -26,6 +26,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Session recovery waits for pending Save As and file moves before closing, preserves untitled
+  tab titles, and falls back to the previous checkpoint when the latest snapshot is damaged.
+
 - Search and replacement shortcuts can be changed or disabled in Preferences, and their button
   hints follow the assigned keys. Assembly Explorer navigation hints follow your keys too.
 
