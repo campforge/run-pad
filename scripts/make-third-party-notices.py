@@ -43,6 +43,11 @@ SOURCE_COMPONENTS = [
      "MIT", "Copyright (c) 2014 Steven Kirk",
      "https://github.com/AvaloniaUI/Avalonia.HtmlRenderer",
      "src/controls/RunPad.Avalonia.HtmlRenderer/LICENSE"),
+    ("MarkView.Avalonia and MarkView.Avalonia.SyntaxHighlighting",
+     "src/controls/MarkView.Avalonia, src/controls/MarkView.Avalonia.SyntaxHighlighting, "
+     "tests/MarkView.Avalonia.Tests, tests/MarkView.Avalonia.SyntaxHighlighting.Tests",
+     "MIT", "Copyright (c) 2026 Nicolas Musset",
+     "https://github.com/Kryptos-FR/MarkView.Avalonia", "src/controls/MarkView.Avalonia/LICENSE.md"),
     ("Google Material Design Icons — settings (24px)", "src/main/RunPad/Resources/Icons.axaml",
      "Apache-2.0", "Copyright Google LLC",
      "https://github.com/google/material-design-icons", "scripts/third-party/Apache-2.0.txt"),

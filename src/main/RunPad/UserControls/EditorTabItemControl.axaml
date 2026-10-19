@@ -127,6 +127,15 @@
                         ToolTip.Tip="Toggle debug mode"
                        />
 
+                    <tc:IconToggleButton
+                        x:Name="PreviewButton"
+                        IconData="{StaticResource Icon.PreviewSide}"
+                        CheckedBrush="{DynamicResource RunPad.Icon.PlayBrush}"
+                        IsChecked="{Binding PreviewShown}"
+                        ToolTip.Tip="Show or hide the Markdown preview"
+                        AutomationProperties.Name="Markdown preview"
+                        />
+
                     <tc:IconButton
                         IconData="{StaticResource Icon.PanelBottom}"
                         Command="{Binding OutputPanel.ToggleCommand}"
@@ -196,8 +205,22 @@
             </Panel>
         </Border>
 
-        <!-- Row 1: CodeTextEditor -->
-        <ContentPresenter x:Name="EditorHost" Grid.Row="1"/>
+        <!-- Row 1: CodeTextEditor, and the Markdown preview beside it or in its place — the
+             columns are set by ApplyPreviewMode. -->
+        <Grid x:Name="EditorArea" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{Binding Layout.EditorWidth, Mode=TwoWay}"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="{Binding Layout.PreviewWidth, Mode=TwoWay}"/>
+            </Grid.ColumnDefinitions>
+            <ContentPresenter x:Name="EditorHost" Grid.Column="0"/>
+            <GridSplitter x:Name="PreviewSplitter"
+                          Grid.Column="1"
+                          Classes="seam"
+                          ResizeDirection="Columns"
+                          IsVisible="False"/>
+            <ContentPresenter x:Name="PreviewHost" Grid.Column="2" IsVisible="False"/>
+        </Grid>
 
         <!-- Row 2: GridSplitter -->
         <GridSplitter Grid.Row="2"

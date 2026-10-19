@@ -94,8 +94,18 @@
                              Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"/>
     </Border>
 
-    <Grid x:Name="DebugWorkspace" ColumnDefinitions="2*,1,3*">
-        <Grid x:Name="StackSections" Grid.Column="0" MinWidth="0" RowDefinitions="*,1,2*">
+    <Grid x:Name="DebugWorkspace">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding Layout.StackWidth, Mode=TwoWay}"/>
+            <ColumnDefinition Width="1"/>
+            <ColumnDefinition Width="{Binding Layout.VariablesWidth, Mode=TwoWay}"/>
+        </Grid.ColumnDefinitions>
+        <Grid x:Name="StackSections" Grid.Column="0" MinWidth="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="{Binding Layout.ThreadsHeight, Mode=TwoWay}"/>
+                <RowDefinition Height="1"/>
+                <RowDefinition Height="{Binding Layout.CallStackHeight, Mode=TwoWay}"/>
+            </Grid.RowDefinitions>
             <DockPanel Grid.Row="0">
                 <TextBlock Text="Threads" DockPanel.Dock="Top" Padding="6,2" FontSize="12"
                            Background="{DynamicResource RunPad.Panel.BackgroundBrush}"

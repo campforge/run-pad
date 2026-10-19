@@ -3,6 +3,60 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.8.0] — 2026-10-19
+
+### Added
+
+- Run > Execute Selection runs selected Statements without saving the script. Stop and Run Again
+  waits for the previous run to finish cancelling before starting a fresh run. Both commands have
+  configurable shortcuts.
+
+- Draft recovery can keep open tabs and their unsaved text locally on normal exit, including
+  script arguments and references, without writing those changes to the original files.
+
+- File > Open (Ctrl+O, or Cmd+O on macOS) opens .rpad scripts from any folder. Recent Files keeps
+  the last 50 paths across restarts and can be cleared without deleting files. Opening an already
+  open script activates its tab and preserves unsaved edits.
+- A Markdown preview of the script, as in VS Code: View → Markdown Preview (Ctrl+Shift+V) shows the
+  whole document in place of the editor, and View → Markdown Preview to the Side (Ctrl+Alt+V) beside
+  it; a button on the tab's toolbar shows or hides it. The header is shown as a table of settings,
+  the text around the code as formatted Markdown and the code highlighted in the editor's colors;
+  the preview follows the text as you type. Side by side, the editor and the preview scroll together.
+- An open script follows its file when another program changes it. A tab without unsaved changes
+  reloads by itself when you come back to RunPad; one with unsaved changes asks whether to reload or
+  keep your version, and doesn't ask again about the same change. A reload can be undone with Undo.
+  File → Revert to Saved goes back to the script as saved on disk, asking first if that drops
+  unsaved changes.
+
+### Fixed
+
+- Match feedback remains visible in compact search. Recovery warnings ignore other sessions with
+  empty workspaces while retaining warnings about unreadable draft data.
+
+- Execute Selection excludes unselected fragments of rectangular selections. Narrow search panels
+  keep navigation and replacement actions accessible; flyout text follows the interface palette.
+- Recovery skips damaged sessions when an older readable session exists, reports other retained
+  sessions, and blocks native-menu actions during startup restoration.
+
+- Session recovery waits for pending Save As and file moves before closing, preserves untitled
+  tab titles, and falls back to the previous checkpoint when the latest snapshot is damaged.
+
+- Search and replacement shortcuts can be changed or disabled in Preferences, and their button
+  hints follow the assigned keys. Assembly Explorer navigation hints follow your keys too.
+
+- Selected result text can be copied with the system keyboard shortcut, including Cmd+C on
+  macOS; Select All also follows the platform shortcut.
+
+- Markdown preview mode and editor, output and debugger split positions are shared across tabs,
+  including newly opened tabs; toggling preview keeps the chosen split.
+
+- Opening or reloading scripts preserves literal `${0}` text. Reload and Revert to Saved leave
+  tabs alone if a run or save starts, or their saved version changes, while a dialog is open.
+
+- Opening a script no longer fails while Recent Files refreshes the native macOS menu.
+- Input sent to a script handles failures after Stop or process exit without leaving an unobserved
+  task error. Hidden input fields are cleared, and late submissions cannot change a newer prompt.
+
 ## [0.7.0] — 2026-10-18
 
 ### Added
@@ -19,6 +73,9 @@ Notable changes in each RunPad release. Downloads are on the
   being passed to the script.
 
 ### Changed
+
+- Search uses a compact editor-wide strip with replacement on a second row. Search fields,
+  quick-fix menus, tooltips and flyouts now follow the selected interface palette.
 
 - `runpad` exits with code 2 instead of 1 when the script did not run — a bad command line or
   file, no .NET SDK, or a compile error — the same code as NetPad's `npad`.
@@ -403,3 +460,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.6.0]: https://github.com/campforge/run-pad/releases/tag/v0.6.0
 
 [0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0
+
+[0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0

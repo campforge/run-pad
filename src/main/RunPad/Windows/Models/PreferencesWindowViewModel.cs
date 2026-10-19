@@ -343,6 +343,12 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IReadOnlyList<int> InterfaceScaleOptions { get; }
 
+    public bool RestoreUnsavedTabs
+    {
+        get => _prefs.Appearance.RestoreUnsavedTabs;
+        set => SetPref(_prefs.Appearance.RestoreUnsavedTabs, value, v => _prefs.Appearance.RestoreUnsavedTabs = v);
+    }
+
     public int InterfaceScalePercent
     {
         get => _viewScale.InterfaceScalePercent;

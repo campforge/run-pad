@@ -62,6 +62,10 @@ namespace AvaloniaEdit {
         /// <summary>
         ///   Looks up a localized string similar to Replace....
         /// </summary>
+        public static string SearchClose => ResourceManager.GetString("SearchClose", resourceCulture);
+        public static string SearchReplaceButton => ResourceManager.GetString("SearchReplaceButton", resourceCulture);
+        public static string SearchReplaceAllButton => ResourceManager.GetString("SearchReplaceAllButton", resourceCulture);
+
         public static string ReplaceLabel {
             get {
                 return ResourceManager.GetString("ReplaceLabel", resourceCulture);

@@ -23,6 +23,7 @@ using RunPad.Resources;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
 using RunPad.UserControls.Models;
 using ContractSeverity = RunPad.Contracts.IntelliSense.DiagnosticSeverity;
@@ -49,6 +50,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // filtering happens at render time instead of once when each list is produced.
     private List<CodeFixEntry> _diagnosticFixEntries = [];
     private List<CodeFixEntry> _refactoringFixEntries = [];
+    private long _inputPromptRevision;
     private readonly IBuildCacheService _buildCache;
     private IDisposable? _selectedKindSub;
     private IDisposable? _filePathSub;
@@ -59,7 +61,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private IDisposable? _selectedSdkSub;
     private bool _disposed;
     private bool _runInProgress;
+    private Task? _activeRun;
+    private bool _restarting;
+    private bool _restartRequested;
     private int _runGeneration;
+    private int _stopGeneration;
     private readonly ILogger<EditorsTabItemControl> _runLogger;
 
     // Front matter as of the last point it was accounted for (loaded, or already flagged dirty) —
@@ -184,6 +190,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             StatusLine.Text = $"Line {editor.TextArea.Caret.Line}  Col {editor.TextArea.Caret.Column}";
 
         EditorHost.Content = editor;
+        SetupPreview();
+        _vm.CaptureRecovery = CaptureRecovery;
+        _vm.RecoveryReady.TrySetResult();
 
         // Watch panel: re-evaluate an expression whenever its text changes (row added via
         // AddWatchCommand, or an existing row edited), and every row when a new breakpoint hit
@@ -286,6 +295,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ApplySelectionColor(State.Editor);
         State.Output.Css = HtmlThemeStylesheet.Generate(theme.Interface.Variant, theme.Interface.IsDark);
         UpdateOutputUi();
+        ApplyPreviewThemeNow(theme);
     }
 
     // Deliberately a no-op for a tab with no FilePath yet ("tab lifecycle") — an
@@ -380,10 +390,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         RefreshIntelliSensePackages();
         _intelliSense?.NotifyTextChanged(State.Editor.Text);
+        UpdatePreviewNow();
     }
 
     internal void Cancel()
     {
+        _restartRequested = false;
+        _stopGeneration++;
+        HideInputPrompt();
         try
         {
             State.CurrentDebugCtx?.Resume(DebugAction.Continue);
@@ -399,9 +413,61 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // All UI entry points await this boundary, including errors before execution and in cleanup.
-    internal async Task RunAsync(bool debug, DotnetSdk platform)
+    internal Task RunAsync(bool debug, DotnetSdk platform)
     {
-        try { await RunCoreAsync(debug, platform); }
+        if (_activeRun is { IsCompleted: false }) return Task.CompletedTask;
+        return _activeRun = RunSafeAsync(debug, platform, null);
+    }
+
+    internal Task RunSelectionAsync(DotnetSdk platform)
+    {
+        if (_disposed || _restarting || _activeRun is { IsCompleted: false }) return Task.CompletedTask;
+        var editor = State.Editor;
+        if (string.IsNullOrWhiteSpace(editor.SelectedText)) return Task.CompletedTask;
+        if ((State.RpadDocument?.FrontMatter.Kind ?? _vm.NewFileKind) != RpadKind.Statements)
+        {
+            SetStatus("Execute Selection requires Statements mode", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+            return Task.CompletedTask;
+        }
+        // Rectangular selections contain separate segments; SelectedText includes unselected gaps.
+        // Mask those gaps while preserving every original source offset and line ending.
+        var segments = editor.TextArea.Selection.Segments.ToArray();
+        if (segments.Length == 0) return Task.CompletedTask;
+        var selected = editor.Text.Take(segments.Max(segment => segment.EndOffset))
+            .Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
+        foreach (var segment in segments)
+            editor.Text.CopyTo(segment.StartOffset, selected, segment.StartOffset, segment.Length);
+        var script = new string(selected);
+        if (string.IsNullOrWhiteSpace(script)) return Task.CompletedTask;
+        return _activeRun = RunSafeAsync(false, platform, script);
+    }
+
+    internal async Task RestartAsync(DotnetSdk platform)
+    {
+        if (_disposed || _restarting) return;
+        _restarting = true;
+        try
+        {
+            var previous = _activeRun;
+            if (previous is { IsCompleted: false })
+            {
+                Cancel();
+                _restartRequested = true;
+                SetStatus("Restarting…", "RunPad.Status.RunningBrush");
+                UpdateOutputUi();
+                await previous;
+                if (!_restartRequested) return;
+            }
+            _restartRequested = false;
+            if (!_disposed) await RunAsync(_vm.DebugModeEnabled, platform);
+        }
+        finally { _restarting = false; _restartRequested = false; }
+    }
+
+    private async Task RunSafeAsync(bool debug, DotnetSdk platform, string? selection)
+    {
+        try { await RunCoreAsync(debug, platform, selection); }
         catch (OperationCanceledException) when (_disposed) { }
         catch (Exception ex)
         {
@@ -414,10 +480,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async Task RunCoreAsync(bool debug, DotnetSdk platform)
+    private async Task RunCoreAsync(bool debug, DotnetSdk platform, string? selection)
     {
         var s = State;
         if (_disposed || _runInProgress || _savingBeforeRun) return;
+        var stopGeneration = _stopGeneration;
 
         // Never run an invalid .rpad as raw code — the editor holds the whole file
         // (front matter + Markdown) there, not a script.
@@ -434,7 +501,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // replaced on the user's choice, and a save that doesn't happen (cancelled, a Save As that
         // didn't save, a failed write) means no run — nothing below has started yet. A Save As that
         // did save runs the script from its new file. An untitled script runs without being saved.
-        if (_vm.FilePath is { } path)
+        if (selection is null && _vm.FilePath is { } path)
         {
             InPlaceSaveResult saved;
             _savingBeforeRun = true;
@@ -446,7 +513,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             {
                 _savingBeforeRun = false;
             }
-            if (_disposed) return;
+            if (_disposed || _restartRequested || stopGeneration != _stopGeneration) return;
             if (saved.Status == InPlaceSaveStatus.Failed)
             {
                 s.Output.Clear();
@@ -487,7 +554,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             var workDir = EnsureWorkDirectory();
             var request = BuildRunRequest(platform, workDir);
-            var script = s.Editor.Text;
+            var script = selection ?? s.Editor.Text;
             // Read on the UI thread; they name the host's source file once it exists (see below).
             var enabledBreakpoints = s.Editor.Breakpoints
                 .Where(bp =>
@@ -615,6 +682,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _filePathSub?.Dispose();
         _selectedSdkSub?.Dispose();
         _vm.DebugPanel.WatchExpressions.CollectionChanged -= OnWatchExpressionsCollectionChanged;
+        DisposePreview();
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
@@ -1160,6 +1228,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // real running script asking for input).
     internal void ShowInputPrompt(string? prompt, bool isPassword)
     {
+        if (_disposed) return;
+        ++_inputPromptRevision;
         InputPromptLabel.Text = string.IsNullOrEmpty(prompt) ? "Input:" : prompt;
         InputPromptBox.PasswordChar = isPassword ? '●' : default;
         InputPromptBox.Text = "";
@@ -1169,6 +1239,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal void HideInputPrompt()
     {
+        ++_inputPromptRevision;
+        InputPromptBox.Text = "";
         InputPromptBar.IsVisible = false;
     }
 
@@ -1191,18 +1263,33 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     internal async Task SubmitInputPromptAsync()
     {
-        if (State.RunningHost is not { } host) return;
+        if (_disposed || !IsInputPromptVisible || State.RunningHost is not { } host) return;
 
         var text = InputPromptBox.Text ?? "";
         var isPassword = InputPromptBox.PasswordChar != default;
-        HideInputPrompt();
+        var generation = _runGeneration;
+        var cancellation = State.RunCts?.Token ?? CancellationToken.None;
+        HideInputPrompt(); // Consumes this prompt before the first await and clears its text.
+        var revision = _inputPromptRevision;
+        try
+        {
+            await host.SendInputAsync(text, cancellation);
+            if (IsCurrentSubmission() && !isPassword)
+                AppendOutput(text, OutputKind.StandardOutput);
+        }
+        catch (Exception ex)
+        {
+            if (!IsCurrentSubmission()) return;
+            // A stream exception can contain the submitted value. Report only its type, never its
+            // message or exception object, so passwords cannot reach logs or the results panel.
+            _runLogger.LogError("Sending script input failed ({ErrorType})", ex.GetType().Name);
+            AppendError(new IOException("Could not send input to the script. Stop and run it again."));
+            UpdateOutputUi();
+        }
 
-        // Echo what was submitted into the output, the same way a real console would — except a
-        // password, which a real console never echoes either.
-        if (!isPassword)
-            AppendOutput(text, OutputKind.StandardOutput);
-
-        await host.SendInputAsync(text, CancellationToken.None);
+        bool IsCurrentSubmission() => !_disposed && !cancellation.IsCancellationRequested
+            && generation == _runGeneration && revision == _inputPromptRevision
+            && ReferenceEquals(host, State.RunningHost);
     }
 
     // Forwards gutter breakpoint edits to the running debug session, if there is one — otherwise
@@ -1285,6 +1372,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
             _prefs.Keyboard.ApplyTo(State.Editor);
+            ApplyPreviewCodeFont();
             if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
             {
                 _runPadAnalyzers = !_runPadAnalyzers;
@@ -1774,12 +1862,39 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         return parts.Count == 0 ? null : string.Join("\n\n", parts);
     }
 
+    internal RecoveryTab CaptureRecovery() => new()
+    {
+        Id = _vm.RecoveryId,
+        FilePath = _vm.FilePath,
+        Title = _vm.FileName,
+        EditorText = State.Editor.Text,
+        Document = State.RpadDocument?.CaptureSnapshot(),
+        ParseError = State.DocumentParseError,
+        IsDirty = _vm.IsDirty || FrontMatterSnapshot() != _metadataBaseline,
+        BaselineKnown = !_vm.RequiresBaselineConfirmation && _vm.DiskState is not null,
+        DiskHash = _vm.DiskState?.Hash?.ToArray(),
+        MetadataBaseline = _metadataBaseline,
+        CaretOffset = State.Editor.CaretOffset,
+        SelectionStart = State.Editor.SelectionStart,
+        SelectionLength = State.Editor.SelectionLength,
+    };
+
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
     {
         string content;
         RpadDocument? rpad = null;
 
-        if (filePath is null && _vm.Example is { } example)
+        if (_vm.RestoredRecovery is { } recovered)
+        {
+            rpad = recovered.Document is null ? null : RpadDocument.FromSnapshot(recovered.Document);
+            content = recovered.EditorText;
+            State.DocumentParseError = recovered.ParseError;
+            _vm.DiskState = recovered.BaselineKnown ? new ScriptFileState(recovered.DiskHash?.ToArray()) : null;
+            _vm.RequiresBaselineConfirmation = !recovered.BaselineKnown;
+            if (filePath is not null)
+                State.OutputDirectory = _buildCache.EnsureOutputDirectory(filePath, EnsureWorkDirectory());
+        }
+        else if (filePath is null && _vm.Example is { } example)
         {
             // An example: an untitled, editable copy of its whole document — the code, its front
             // matter and the Markdown around it, which Save As writes out — never the original.
@@ -1803,24 +1918,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
         else if (File.Exists(filePath))
         {
-            // Decoded as File.ReadAllText does; the exact bytes are what later saves compare with.
-            var bytes = File.ReadAllBytes(filePath);
-            _vm.DiskState = ScriptFileState.Of(bytes);
-            string raw;
-            using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
-                raw = reader.ReadToEnd();
-            var parsed = RpadParser.Parse(raw);
-            rpad = parsed.Document;
-            // Invalid document: show the whole file as-is instead of default metadata —
-            // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
-            content = rpad?.RunCode ?? raw;
-            State.DocumentParseError = parsed.Error;
-            if (parsed.Error is { } error)
-            {
-                State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(error))}</div>");
-                SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
-                UpdateOutputUi();
-            }
+            (content, rpad) = ReadScript(File.ReadAllBytes(filePath));
 
             // Allocate/reuse this file's persistent build directory now, at open time, rather than
             // lazily on first Run — see EnsureWorkDirectory/BuildRunOptions for how it's consumed.
@@ -1833,6 +1931,73 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             if (filePath is not null) _vm.DiskState = ScriptFileState.Absent;
         }
 
+        ApplyDocument(rpad);
+
+        if (_vm.RestoredRecovery is { } snapshot)
+        {
+            // A recovery payload is exact editor text, never a template: even ${0} is literal.
+            editor.Document = new TextDocument(content);
+            _metadataBaseline = snapshot.MetadataBaseline ?? FrontMatterSnapshot();
+            _vm.IsDirty = snapshot.IsDirty;
+            editor.Select(Math.Clamp(snapshot.SelectionStart, 0, content.Length),
+                Math.Clamp(snapshot.SelectionLength, 0, content.Length - Math.Clamp(snapshot.SelectionStart, 0, content.Length)));
+            editor.CaretOffset = Math.Clamp(snapshot.CaretOffset, 0, content.Length);
+        }
+        else if (filePath is not null)
+        {
+            editor.Document = new TextDocument(content);
+        }
+        else if (_vm.Example is not null)
+        {
+            // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
+            editor.Document = new TextDocument(content);
+            _vm.IsDirty = true;
+        }
+        else
+        {
+            var (text, caret) = CodeTemplate.TakeCaret(content);
+            editor.Document = new TextDocument(text);
+            if (caret > 0) editor.CaretOffset = caret;
+        }
+
+        // Shows which kind/target framework the script actually runs as —
+        // helps tell the two compile paths apart and diagnose compile/run discrepancies without
+        // having to open the front matter by hand. Was left commented out with the XAML control
+        // itself missing — both restored.
+        UpdateProjectInfoBlock();
+    }
+
+    // The script in a file's exact bytes, which become what later saves compare the file with. An
+    // invalid document comes back as the whole file and no RpadDocument, and says why in the output.
+    private (string Content, RpadDocument? Document) ReadScript(byte[] bytes)
+    {
+        _vm.DiskState = ScriptFileState.Of(bytes);
+        _vm.RequiresBaselineConfirmation = false;
+        var raw = DecodeScript(bytes);
+        var parsed = RpadParser.Parse(raw);
+        // Invalid document: show the whole file as-is instead of default metadata —
+        // WriteFile's no-RpadDocument branch then saves it back verbatim, and RunAsync refuses it.
+        State.DocumentParseError = parsed.Error;
+        if (parsed.Error is { } error)
+        {
+            State.Output.Append($"\n<div class=\"error\">{HttpUtility.HtmlEncode(InvalidDocumentMessage(error))}</div>");
+            SetStatus("Invalid document", "RunPad.Status.ErrorBrush");
+            UpdateOutputUi();
+        }
+        return (parsed.Document?.RunCode ?? raw, parsed.Document);
+    }
+
+    // Decoded as File.ReadAllText does.
+    private static string DecodeScript(byte[] bytes)
+    {
+        using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    // Makes rpad the tab's document: the toolbar, IntelliSense and the baseline that tells a
+    // front-matter edit apart follow its header. The editor's text is the caller's to set.
+    private void ApplyDocument(RpadDocument? rpad)
+    {
         State.RpadDocument = rpad;
         _metadataBaseline = FrontMatterSnapshot();
         _vm.FrontMatter = rpad?.FrontMatter;
@@ -1852,8 +2017,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             _syncingSdk = false;
         }
 
-        // Push kind/packages/usings into IntelliSense BEFORE handing the editor its text: setting
-        // editor.Document below fires TextChanged synchronously, which is what actually triggers the
+        // Push kind/packages/usings into IntelliSense BEFORE the caller hands the editor its text:
+        // setting editor.Document fires TextChanged synchronously, which is what actually triggers the
         // first NotifyTextChanged/diagnostics pass. Doing this the other way around (as it used to
         // be) meant that very first pass always ran against IntelliSense's stale defaults — kind
         // still RpadKind.Statements, no packages, no usings — since UpdateKind/UpdatePackageReferences/
@@ -1866,25 +2031,55 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         RefreshIntelliSensePackages();
         if (rpad?.FrontMatter.Namespaces is { Count: > 0 })
             RefreshIntelliSenseUsings();
+    }
 
-        if (_vm.Example is not null && filePath is null)
+    /// <summary>
+    /// Replaces the tab's script with what its file holds now — the code as one undoable edit, so
+    /// Undo brings back the text it replaced — and leaves the tab saved. The caller decides whether
+    /// unsaved edits may go.
+    /// </summary>
+    internal DiskReload ReloadFromDisk()
+    {
+        if (_disposed || _vm.FilePath is not { } path) return DiskReload.Unavailable;
+        byte[] bytes;
+        try
         {
-            // verbatim (no template caret marker), and unsaved: closing asks, Save goes to Save As
-            editor.Document = new TextDocument(content);
-            _vm.IsDirty = true;
+            bytes = File.ReadAllBytes(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DiskReload.Unavailable;
+        }
+
+        // This tab's editor services, grammar and snippets are its language's; a script that is now
+        // in another language needs a tab of its own.
+        var language = State.RpadDocument?.FrontMatter.Language ?? RpadLanguage.CSharp;
+        if (RpadParser.TryParse(DecodeScript(bytes))?.FrontMatter.Language is { } newLanguage && newLanguage != language)
+            return DiskReload.OtherLanguage;
+
+        var (content, rpad) = ReadScript(bytes);
+        _vm.DeclinedDiskState = null;
+        ApplyDocument(rpad);
+        // Usings that are gone from the header must leave IntelliSense too.
+        RefreshIntelliSenseUsings();
+
+        var editor = State.Editor;
+        var text = content;
+        if (editor.Document.Text != text)
+        {
+            var caret = editor.CaretOffset;
+            editor.Document.Replace(0, editor.Document.TextLength, text);
+            editor.CaretOffset = Math.Min(caret, editor.Document.TextLength);
         }
         else
         {
-            var (text, caret) = CodeTemplate.TakeCaret(content);
-            editor.Document = new TextDocument(text);
-            if (caret > 0) editor.CaretOffset = caret;
+            // Only the header changed; the text edit that would analyse the code again never came.
+            _intelliSense?.NotifyTextChanged(text);
         }
-
-        // Shows which kind/target framework the script actually runs as —
-        // helps tell the two compile paths apart and diagnose compile/run discrepancies without
-        // having to open the front matter by hand. Was left commented out with the XAML control
-        // itself missing — both restored.
+        _vm.IsDirty = false;
         UpdateProjectInfoBlock();
+        UpdatePreviewNow();
+        return DiskReload.Reloaded;
     }
 
     /// <summary>
@@ -1915,6 +2110,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         _metadataBaseline = FrontMatterSnapshot();
         _vm.IsDirty = true;
+        UpdatePreviewNow();
         SaveIfNeeded();
     }
 
@@ -1934,12 +2130,17 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     private string FrontMatterSnapshot()
     {
         if (State.RpadDocument?.FrontMatter is not { } fm) return "";
-        var packages = fm.Packages is null
-            ? ""
-            : string.Join(";", fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value.Version}"));
-        return string.Join("\n",
-            fm.Version, fm.Language, fm.TargetSdk, fm.Kind, packages,
-            string.Join(";", fm.References ?? []), string.Join(";", fm.Namespaces ?? []));
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            fm.Version,
+            fm.Language,
+            fm.TargetSdk,
+            fm.Kind,
+            Packages = fm.Packages.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray(),
+            fm.References,
+            fm.Namespaces,
+            fm.Args,
+        });
     }
 
     /// <summary>Pushes this tab's front-matter `namespaces:` list into its own IntelliSense instance.</summary>
@@ -2160,4 +2361,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         public string? Condition { get; } = condition;
         public string? HitCondition { get; } = hitCondition;
     }
+}
+
+/// <summary>How <see cref="EditorsTabItemControl.ReloadFromDisk"/> ended.</summary>
+internal enum DiskReload
+{
+    Reloaded,
+    /// <summary>The file is gone or can't be read; the tab is left as it was.</summary>
+    Unavailable,
+    /// <summary>The file now holds a script in another language; the tab is left as it was.</summary>
+    OtherLanguage,
 }

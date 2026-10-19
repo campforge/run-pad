@@ -17,7 +17,7 @@ internal sealed record MainMenuGroup(string Header, IReadOnlyList<MainMenuEntry>
 
 // Key: the bindable command whose key Gesture shows (null for keys that are not bindable, such as
 // the platform's Copy/Paste).
-internal sealed record MainMenuCommand(string Header, ICommand Command, KeyGesture? Gesture = null, KeyCommand? Key = null)
+internal sealed record MainMenuCommand(string Header, ICommand Command, KeyGesture? Gesture = null, KeyCommand? Key = null, object? Parameter = null)
     : MainMenuEntry;
 
 internal static class MainMenuDefinition
@@ -33,6 +33,7 @@ internal static class MainMenuDefinition
         {
             Header = command.Header,
             Command = command.Command,
+            CommandParameter = command.Parameter,
             InputGesture = command.Gesture,
         },
         _ => throw new ArgumentOutOfRangeException(nameof(entry), entry, null),
@@ -56,13 +57,14 @@ internal static class MainMenuDefinition
         return menu;
     }
 
-    private static NativeMenuItemBase ToNativeMenuItem(MainMenuEntry entry) => entry switch
+    internal static NativeMenuItemBase ToNativeMenuItem(MainMenuEntry entry) => entry switch
     {
         MainMenuSeparator => new NativeMenuItemSeparator(),
         MainMenuGroup group => new NativeMenuItem(StripAccessKey(group.Header)) { Menu = ToNativeMenu(group.Items) },
         MainMenuCommand command => new NativeMenuItem(StripAccessKey(command.Header))
         {
             Command = command.Command,
+            CommandParameter = command.Parameter,
             Gesture = command.Gesture,
         },
         _ => throw new ArgumentOutOfRangeException(nameof(entry), entry, null),
@@ -118,5 +120,5 @@ internal static class MainMenuDefinition
         }
     }
 
-    public static string StripAccessKey(string header) => header.Replace("_", "");
+    public static string StripAccessKey(string header) => header.Replace("__", "\0").Replace("_", "").Replace("\0", "_");
 }

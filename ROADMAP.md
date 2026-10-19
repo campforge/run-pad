@@ -2,12 +2,6 @@
 
 Planned work for RunPad. Missing something? [Open an issue](https://github.com/campforge/run-pad/issues).
 
-## Next
-
-- **Visual Basic editor intelligence** — completion, signature help, live diagnostics and quick fixes
-  for VB, which today only compiles, runs and debugs.
-- **File → Open** — open a `.rpad` file from anywhere, not only from the scripts folder.
-
 ## Editor
 
 - Format on type and Format Selection (Format Document already exists).
@@ -25,3 +19,6 @@ Planned work for RunPad. Missing something? [Open an issue](https://github.com/c
 - **Plugin system** — extensions loaded at runtime instead of being compiled into RunPad.
 - **Languages as plugins** — support for other languages delivered as plugins, on the same host
   interface that C# and Visual Basic already use.
+- **Visual Basic editor intelligence** — completion, signature help, live diagnostics and quick fixes
+  are deferred until the language plugin system is implemented. Existing VB compilation, execution
+  and debugging remain supported.

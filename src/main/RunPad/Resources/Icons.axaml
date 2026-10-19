@@ -34,6 +34,8 @@
     <StreamGeometry x:Key="Icon.BreakpointCondition">M18,13.5 L22.5,18 L18,22.5 L13.5,18 Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.Lightbulb">M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.SidebarLeft">M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H9V6H4M11,6V18H20V6H11Z</StreamGeometry>
+    <!-- Code on the left, the rendered page on the right. -->
+    <StreamGeometry x:Key="Icon.PreviewSide">M3,4H21A1,1 0 0,1 22,5V19A1,1 0 0,1 21,20H3A1,1 0 0,1 2,19V5A1,1 0 0,1 3,4M4,6V18H11V6H4M13,6V18H20V6H13M5,8H10V9.5H5V8M5,11H9V12.5H5V11M5,14H10V15.5H5V14M14,8H19V10H14V8M14,12H19V13.5H14V12M14,15H18V16.5H14V15Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.PanelBottom">M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,13V18H20V13H4M4,6V11H20V6H4Z</StreamGeometry>
     <!-- Material Design context menu icons -->
     <StreamGeometry x:Key="Icon.Rename">M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z</StreamGeometry>

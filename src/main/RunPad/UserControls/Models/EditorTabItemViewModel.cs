@@ -7,11 +7,15 @@ using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Shared;
 
 namespace RunPad.UserControls.Models;
 
 public enum RunState { Idle, Run, RunDebug, Paused }
+
+// Where the tab shows its Markdown preview: not at all, beside the editor, or in its place.
+public enum ScriptPreviewMode { Off, Side, Full }
 
 public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 {
@@ -23,6 +27,12 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // constructed by MainWindowViewModel BEFORE its control). IEditorTabActions' Save/Duplicate
     // implementations read this instead of taking it as a parameter, so this ViewModel's commands
     // can delegate straight to _actions without waiting for the View to hand a callback down first.
+    internal Guid RecoveryId { get; init; } = Guid.NewGuid();
+    internal RecoveryTab? RestoredRecovery { get; init; }
+    internal Func<RecoveryTab>? CaptureRecovery { get; set; }
+    internal TaskCompletionSource RecoveryReady { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal bool RequiresBaselineConfirmation { get; set; }
+
     internal Action<string>? WriteToFile { get; set; }
 
     // What this tab's file held when the tab last read it or wrote it itself; null while unknown (a
@@ -35,11 +45,21 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     internal void AcceptWrittenState(string path)
     {
-        if (LastWrite is { } written && written.Path == path) DiskState = written.State;
+        if (LastWrite is { } written && written.Path == path)
+        {
+            DiskState = written.State;
+            RequiresBaselineConfirmation = false;
+            DeclinedDiskState = null;
+        }
     }
+
+    // A version of the file another program wrote that the user chose not to reload over their
+    // unsaved edits: RunPad doesn't ask about that same version again. Saving or reloading forgets it.
+    internal ScriptFileState? DeclinedDiskState { get; set; }
 
     // An in-place save still waiting for the user's choice (see InPlaceSave).
     internal Task<InPlaceSaveResult>? PendingSave { get; set; }
+    internal Task? PendingSaveAs { get; set; }
 
     // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
     // give a previously untitled tab a real path in place, instead of needing to close/reopen a new
@@ -94,7 +114,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    public string FileName => FilePath is null ? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+    public string FileName => FilePath is null ? RestoredRecovery?.Title ?? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
 
     /// <summary>The bundled example this untitled tab was opened from: its document is the tab's
     /// starting text (a copy — the example itself never changes). Null for any other tab.</summary>
@@ -130,6 +150,29 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = true;
+
+    public EditorLayoutState Layout { get; }
+    public ScriptPreviewMode PreviewMode
+    {
+        get => Layout.PreviewMode;
+        set => Layout.PreviewMode = value;
+    }
+    private readonly IDisposable _layoutSubscription;
+
+    // The toolbar's preview button: lit while any preview shows, and it opens the side-by-side one.
+    public bool PreviewShown
+    {
+        get => PreviewMode != ScriptPreviewMode.Off;
+        set => PreviewMode = value ? ScriptPreviewMode.Side : ScriptPreviewMode.Off;
+    }
+
+    // As in VS Code: the same key opens the preview and goes back to the editor; the other key
+    // switches between the side-by-side preview and none.
+    public void TogglePreview()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Full ? ScriptPreviewMode.Off : ScriptPreviewMode.Full;
+
+    public void TogglePreviewToSide()
+        => PreviewMode = PreviewMode == ScriptPreviewMode.Side ? ScriptPreviewMode.Off : ScriptPreviewMode.Side;
 
     private RunState _runState;
     public RunState RunState
@@ -233,14 +276,14 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         DuplicateCommand = ReactiveCommand.Create(() => _actions.Duplicate(this));
         OpenContainingFolderCommand = ReactiveCommand.Create(() => _actions.OpenContainingFolder(this));
 
-        OutputPanel = new CollapsiblePanelState(
-            _prefs.Layout.DebugPanelCollapsed, _prefs.Layout.DebugPanelHeight, defaultExpandedSize: 220,
-            onChanged: (collapsed, size) =>
-            {
-                _prefs.Layout.DebugPanelCollapsed = collapsed;
-                if (size > 0) _prefs.Layout.DebugPanelHeight = size;
-                _prefs.Save();
-            });
+        Layout = EditorLayoutState.For(prefs);
+        OutputPanel = Layout.OutputPanel;
+        DebugPanel.Layout = Layout;
+        _layoutSubscription = Layout.WhenAnyValue(x => x.PreviewMode).Subscribe(_ =>
+        {
+            this.RaisePropertyChanged(nameof(PreviewMode));
+            this.RaisePropertyChanged(nameof(PreviewShown));
+        });
 
         SyncTooltips();
         _prefs.Changed += OnPreferencesChanged;
@@ -265,6 +308,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     public void Dispose()
     {
+        _layoutSubscription.Dispose();
         _prefs.Changed -= OnPreferencesChanged;
         GC.SuppressFinalize(this);
     }

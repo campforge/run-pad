@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ using RunPad.Format.RPad;
 using RunPad.Services;
 using RunPad.Services.Examples;
 using RunPad.Services.Preferences;
+using RunPad.Services.Recovery;
 using RunPad.Shared;
 using RunPad.UserControls.Models;
 
@@ -24,6 +26,154 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private readonly IPreferencesService _prefs;
     private readonly ILanguageHostRegistry _languageRegistry;
     private readonly ILogger<MainWindowViewModel> _logger;
+    private readonly IRecoveryStore? _recovery;
+    private readonly bool _recoveryMode;
+    private readonly SemaphoreSlim _recoveryGate = new(1);
+    private Task? _restoreTask;
+    private long _recoveryRevision;
+    private bool _recoveryFailed;
+    private readonly HashSet<Task> _workspaceOperations = [];
+
+    private Task TrackWorkspaceOperation(Func<Task> operation)
+    {
+        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
+        var task = operation();
+        if (!task.IsCompleted) _workspaceOperations.Add(task);
+        return task;
+    }
+
+    public bool RestoresDrafts => _recovery is not null && _recoveryMode && !_recoveryFailed;
+
+    public Task RestoreSessionAsync() => _restoreTask ??= RestoreDraftsAsync();
+
+    public bool IsRestoringWorkspace
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    private async Task RestoreDraftsAsync()
+    {
+        IsRestoringWorkspace = true;
+        try { await RestoreDraftsCoreAsync(); }
+        finally { IsRestoringWorkspace = false; }
+    }
+
+    private async Task RestoreDraftsCoreAsync()
+    {
+        if (!RestoresDrafts) { RestoreSession(); return; }
+        try
+        {
+            var snapshot = await _recovery!.LoadAsync();
+            if (_disposed) return;
+            if (snapshot is null) { RestoreSession(); return; }
+            _recoveryRevision = snapshot.Revision;
+            var frames = new List<RecoveryTab>();
+            foreach (var tab in snapshot.Tabs)
+            {
+                var frame = tab;
+                if (!tab.IsDirty && tab.FilePath is { } path)
+                {
+                    try
+                    {
+                        var bytes = await Task.Run(() => File.ReadAllBytes(path));
+                        string text;
+                        using (var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true)) text = reader.ReadToEnd();
+                        var parsed = RpadParser.Parse(text);
+                        frame = tab with
+                        {
+                            EditorText = parsed.Document?.RunCode ?? text,
+                            Document = parsed.Document?.CaptureSnapshot(),
+                            ParseError = parsed.Error,
+                            BaselineKnown = true,
+                            DiskHash = ScriptFileState.Of(bytes).Hash,
+                            MetadataBaseline = null,
+                        };
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        frame = tab with { IsDirty = true };
+                    }
+                }
+                else if (tab.FilePath is null) frame = tab with { IsDirty = true };
+                frames.Add(frame);
+            }
+            if (_disposed) return;
+            if (frames.Where(t => t.FilePath is not null).Select(t => t.FilePath!).Distinct(FilePathComparer).Count()
+                != frames.Count(t => t.FilePath is not null)) throw new InvalidDataException("Duplicate recovery paths.");
+            _restoringSession = true;
+            try
+            {
+                foreach (var frame in frames)
+                {
+                    var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
+                        frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
+                        frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                    {
+                        RecoveryId = frame.Id,
+                        RestoredRecovery = frame,
+                    };
+                    if (frame.FilePath is not null) _openTabs[frame.FilePath] = vm;
+                    AddTab(vm);
+                }
+                ActiveTab = Tabs.FirstOrDefault(t => t.RecoveryId == snapshot.ActiveTab) ?? Tabs.FirstOrDefault();
+            }
+            finally { _restoringSession = false; }
+            PersistSession();
+            if (_recovery.Warning is { } warning) await _windowService.ShowErrorAsync("Draft Recovery", warning);
+        }
+        catch (Exception ex)
+        {
+            _recoveryFailed = true;
+            _logger.LogWarning("Could not restore drafts ({ErrorType})", ex.GetType().Name);
+            await _windowService.ShowErrorAsync("Draft Recovery Unavailable",
+                "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used.");
+            if (!_disposed && Tabs.Count == 0) RestoreSession();
+        }
+    }
+
+    public async Task<bool> CheckpointRecoveryAsync()
+    {
+        if (_restoreTask is { } restoring) await restoring;
+        if (!RestoresDrafts) return false;
+        await _recoveryGate.WaitAsync();
+        try { return await CheckpointRecoveryCoreAsync(); }
+        finally { _recoveryGate.Release(); }
+    }
+
+    private async Task<bool> CheckpointRecoveryCoreAsync(EditorTabItemViewModel? exclude = null)
+    {
+        try
+        {
+            var tabs = Tabs.Where(t => t != exclude).ToList();
+            // A closing window must not skip tabs whose per-language editor is still being created.
+            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+            // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
+            while (true)
+            {
+                var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
+                    .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
+                if (pending.Length == 0) break;
+                await Task.WhenAll(pending);
+            }
+            _workspaceOperations.RemoveWhere(task => task.IsCompleted);
+            tabs = Tabs.Where(t => t != exclude).ToList();
+            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+            var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
+                ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
+            var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
+            await _recovery!.CommitAsync(new RecoverySnapshot { Revision = ++_recoveryRevision, Tabs = frames, ActiveTab = active });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Could not checkpoint drafts ({ErrorType})", ex.GetType().Name);
+            await _windowService.ShowErrorAsync("Drafts Not Saved",
+                "Draft recovery could not be saved. Nothing has been closed. Check free space and permissions, then close again to retry, or save your files manually.");
+            return false;
+        }
+    }
+
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
@@ -67,6 +217,75 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private bool _disposed;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    private bool _restoringSession;
+    private bool _openingFile;
+    public event Action? RecentFilesChanged;
+    public IReadOnlyList<string> RecentFiles => _prefs.Session.RecentFiles;
+    public bool HasRecentFiles => RecentFiles.Count > 0;
+    public ReactiveCommand<Unit, Unit> OpenFileCommand { get; }
+    public ReactiveCommand<string, Unit> OpenRecentFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearRecentFilesCommand { get; }
+
+    private Task OpenFileAsync() => TrackWorkspaceOperation(OpenFileCoreAsync);
+
+    private async Task OpenFileCoreAsync()
+    {
+        if (_disposed || _openingFile) return;
+        _openingFile = true;
+        try
+        {
+            var folder = ActiveTab?.FilePath is { } current ? Path.GetDirectoryName(current)! : _fileSystemService.Folder;
+            var path = await _windowService.ShowOpenScriptFileDialogAsync(folder);
+            if (path is not null) await OpenScriptAsync(path);
+        }
+        finally { _openingFile = false; }
+    }
+
+    internal async Task OpenScriptAsync(string path)
+    {
+        if (_restoreTask is { IsCompleted: false } restoring) await restoring;
+        if (_disposed) return;
+        try
+        {
+            path = Path.GetFullPath(path);
+            if (!string.Equals(Path.GetExtension(path), ".rpad", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Choose a .rpad script.");
+            // An already-open dirty tab remains usable even if its file was removed elsewhere.
+            if (!_openTabs.ContainsKey(path))
+            {
+                using var readable = File.OpenRead(path);
+            }
+            OpenTab(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            await _windowService.ShowErrorAsync("Open Failed", $"Could not open '{path}':\n{ex.Message}");
+        }
+    }
+
+    private void RememberRecentFile(string path)
+    {
+        if (_restoringSession) return;
+        _prefs.Session.RecentFiles = RecentFiles.Where(p => !FilePathComparer.Equals(p, path)).Prepend(path).Take(50).ToList();
+        RecentFilesUpdated();
+    }
+
+    private void SaveSessionSettings()
+    {
+        try { _prefs.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not save session and recent files");
+        }
+    }
+
+    private void RecentFilesUpdated()
+    {
+        SaveSessionSettings();
+        this.RaisePropertyChanged(nameof(HasRecentFiles));
+        RecentFilesChanged?.Invoke();
+    }
+
     // ── Window commands ───────────────────────────────────────────────────────
 
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
@@ -87,6 +306,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Raised after the Dependencies dialog closes, so the view can refresh IntelliSense for the
     // (possibly package-mutated) active tab. RpadFrontMatter has no change notification of its own.
     public event Action? DependenciesWindowClosed;
+
+    /// <summary>A script or folder in the scripts folder changed on disk (raised on the UI thread).</summary>
+    public event Action? ScriptsFolderChanged;
 
     public void OpenDependenciesWindow() => _ = OpenDependenciesWindowAsync();
 
@@ -180,9 +402,10 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // action, not worth the debounce Sidebar's own drag-frame writes need.
     private void PersistSession()
     {
+        if (_restoringSession) return;
         _prefs.Session.OpenTabs = Tabs.Where(t => t.FilePath is not null).Select(t => t.FilePath!).ToList();
         _prefs.Session.ActiveTabPath = ActiveTab?.FilePath;
-        _prefs.Save();
+        SaveSessionSettings();
     }
 
     // Replaces the old unconditional "open one blank tab" at startup (EditorTabsControl.Attach) —
@@ -200,12 +423,17 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var savedOpenTabs = _prefs.Session.OpenTabs.ToList();
 
         var restoredAny = false;
-        foreach (var path in savedOpenTabs)
+        _restoringSession = true;
+        try
         {
-            if (!File.Exists(path)) continue;
-            OpenTab(path);
-            restoredAny = true;
+            foreach (var path in savedOpenTabs)
+            {
+                if (!File.Exists(path)) continue;
+                OpenTab(path);
+                restoredAny = true;
+            }
         }
+        finally { _restoringSession = false; }
 
         if (!restoredAny)
         {
@@ -241,9 +469,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     public void OpenTab(string? filePath)
     {
+        if (filePath is not null) filePath = Path.GetFullPath(filePath);
         if (filePath is not null && _openTabs.TryGetValue(filePath, out var existing))
         {
             ActiveTab = existing;
+            RememberRecentFile(filePath!);
             return;
         }
 
@@ -254,11 +484,15 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             blankToClose = Tabs[0];
 
         var vm = new EditorTabItemViewModel(filePath, AvailableSdks, _prefs, this);
-        if (filePath is not null) _openTabs[filePath] = vm;
+        if (filePath is not null)
+        {
+            _openTabs[filePath] = vm;
+        }
         AddTab(vm);
 
         if (blankToClose is not null)
             CloseTab(blankToClose);
+        if (filePath is not null) RememberRecentFile(filePath);
     }
 
     private void AddTab(EditorTabItemViewModel vm)
@@ -271,7 +505,13 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // `newPath` to disk — rebinds the tab from "untitled" (or its old path) to the new one, the same
     // bookkeeping RenameFile already does for a file-tree rename, just triggered from the tab side
     // instead of the tree.
-    public async Task SaveTabAsAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
+    public Task SaveTabAsAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
+    {
+        if (vm.PendingSaveAs is { IsCompleted: false } pending) return pending;
+        return vm.PendingSaveAs = SaveTabAsCoreAsync(vm, writeToPath);
+    }
+
+    private async Task SaveTabAsCoreAsync(EditorTabItemViewModel vm, Action<string> writeToPath)
     {
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
         if (newPath is null) return; // cancelled
@@ -280,7 +520,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // is about overwriting a file, not about one changed by another program meanwhile.
         if (vm.FilePath is { } ownPath && string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(ownPath), FilePathComparison))
         {
-            var result = await InPlaceSave.CheckAndWriteAsync(vm, _windowService, () => SaveTabAsAsync(vm, writeToPath));
+            var result = await InPlaceSave.CheckAndWriteAsync(vm, _windowService, () => SaveTabAsCoreAsync(vm, writeToPath));
             if (result.Status == InPlaceSaveStatus.Failed)
                 await _windowService.ShowErrorAsync("Save Failed", result.Error);
             return;
@@ -302,6 +542,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         vm.AcceptWrittenState(newPath);
         vm.IsDirty = false;
         _openTabs[newPath] = vm;
+        RememberRecentFile(newPath);
         RefreshNodes();
         // Neither Tabs nor ActiveTab changed (same vm, same position) but the path list did —
         // PersistSession's usual triggers (the ActiveTab setter, CloseTab) won't fire here.
@@ -375,8 +616,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // path the tab's own [x] button/Ctrl+W use, rather than a second, parallel way to trigger this.
     async Task IEditorTabActions.CloseAsync(EditorTabItemViewModel vm)
     {
-        if (!await ResolveUnsavedChangesBeforeCloseAsync(vm)) return;
-        CloseTab(vm);
+        await _recoveryGate.WaitAsync();
+        try
+        {
+            if (!await ResolveUnsavedChangesBeforeCloseAsync(vm)) return;
+            if (RestoresDrafts && !await CheckpointRecoveryCoreAsync(vm)) return;
+            CloseTab(vm);
+        }
+        finally { _recoveryGate.Release(); }
     }
 
     // The single "may this dirty tab's content be dropped now?" decision, shared by a
@@ -445,8 +692,12 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // "next to the original" convention rather than always landing inside whatever workspace happens
     // to be open; if that means the new file isn't under the tracked folder, RefreshNodes below just
     // won't show it in the sidebar (the tab itself still opens and works fine either way).
-    public async Task ImportLinqFileAsync()
+    public Task ImportLinqFileAsync() => TrackWorkspaceOperation(ImportLinqFileCoreAsync);
+
+    private async Task ImportLinqFileCoreAsync()
     {
+        if (_restoreTask is { IsCompleted: false } restoring) await restoring;
+        if (_disposed) return;
         var linqPath = await _windowService.ShowOpenLinqFileDialogAsync(_fileSystemService.Folder);
         if (linqPath is null) return;
 
@@ -512,6 +763,24 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
             PersistSession(); // ActiveTab unchanged, so its setter won't fire — persist explicitly
     }
 
+    // A new tab for the same file in vm's place — for a script whose language changed on disk,
+    // which vm's editor services can't show. vm must have nothing unsaved.
+    internal void ReopenTab(EditorTabItemViewModel vm)
+    {
+        var index = Tabs.IndexOf(vm);
+        if (vm.FilePath is not { } path || index < 0) return;
+        var wasActive = ActiveTab == vm;
+        _openTabs.Remove(path);
+        Tabs.RemoveAt(index);
+        var reopened = new EditorTabItemViewModel(path, AvailableSdks, _prefs, this);
+        _openTabs[path] = reopened;
+        Tabs.Insert(index, reopened);
+        if (wasActive)
+            ActiveTab = reopened; // also persists the session (see the setter)
+        else
+            PersistSession();
+    }
+
     // ── File tree operations ──────────────────────────────────────────────────
 
     // Tabs for files living inside filePath — used when filePath is a FOLDER being deleted/renamed,
@@ -525,7 +794,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     }
 
     // Completes at once unless a tab has to be saved first and the user is asked about it.
-    public async Task DeleteFile(string filePath)
+    public Task DeleteFile(string filePath) => TrackWorkspaceOperation(() => DeleteFileCoreAsync(filePath));
+
+    private async Task DeleteFileCoreAsync(string filePath)
     {
         // Directory.Exists/File.Delete are NOT interchangeable — File.Delete on a directory path
         // throws (silently swallowed below, before this fix), so a folder never actually left disk
@@ -599,7 +870,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // name). Affected tab(s) are flushed to the OLD path first (a failed write aborts
     // the operation), and only closed/reopened at the new path once the move succeeded — a failed
     // move leaves the very same tabs open rather than closing and reloading them from disk.
-    private async Task MoveOrRenameOnDisk(
+    private Task MoveOrRenameOnDisk(
+        string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
+        => TrackWorkspaceOperation(() => MoveOrRenameCoreAsync(sourcePath, newPath, errorTitle, errorVerb, errorDestinationPhrase));
+
+    private async Task MoveOrRenameCoreAsync(
         string sourcePath, string newPath, string errorTitle, string errorVerb, string errorDestinationPhrase)
     {
         var isDirectory = Directory.Exists(sourcePath);
@@ -703,19 +978,38 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         // logger they don't care about — real app startup (App.axaml.cs's AddTransient) still gets
         // a real one, since DI resolves ILogger<MainWindowViewModel> from the registered logging
         // provider regardless of the parameter having a default.
-        ILogger<MainWindowViewModel>? logger = null)
+        ILogger<MainWindowViewModel>? logger = null, IRecoveryStore? recovery = null)
     {
         _fileSystemService = fileSystemService;
         _windowService = windowService;
         _prefs = prefs;
         _logger = logger ?? NullLogger<MainWindowViewModel>.Instance;
+        _recovery = recovery;
+        _recoveryMode = prefs.Appearance?.RestoreUnsavedTabs ?? true;
         // FileTreeViewModel now needs IPreferencesService (RenameGesture/
         // DeleteGesture) and ILanguageHostRegistry (per-language file icon), so this moves from a
         // property initializer (which would run before _prefs is assigned above) into the
         // constructor body.
         _languageRegistry = languageRegistry;
         NewFileLanguages = NewFileLanguageChoice.From(languageRegistry);
+        var recent = new List<string>();
+        foreach (var path in _prefs.Session.RecentFiles ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            try { recent.Add(Path.GetFullPath(path)); }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { }
+        }
+        _prefs.Session.RecentFiles = recent.Distinct(FilePathComparer).Take(50).ToList();
         FileTree = new FileTreeViewModel(_prefs, languageRegistry);
+        OpenFileCommand = ReactiveCommand.CreateFromTask(OpenFileAsync);
+        OpenRecentFileCommand = ReactiveCommand.CreateFromTask<string>(OpenScriptAsync);
+        ClearRecentFilesCommand = ReactiveCommand.Create(() =>
+        {
+            _prefs.Session.RecentFiles = [];
+            RecentFilesUpdated();
+        }, this.WhenAnyValue(x => x.HasRecentFiles));
+        OpenFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Opening script failed"));
+        OpenRecentFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Opening recent script failed"));
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
@@ -758,7 +1052,11 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         Task.Delay(WatcherRefreshDebounce).ContinueWith(_ =>
         {
             if (_debounceVersion == version)
-                _dispatcher.Post(RefreshNodes);
+                _dispatcher.Post(() =>
+                {
+                    RefreshNodes();
+                    if (!_disposed) ScriptsFolderChanged?.Invoke();
+                });
         });
     }
 

@@ -11,4 +11,28 @@ public sealed class RpadDocument
     internal string BodyBeforeCode { get; init; } = "";
     // Everything in the markdown body from the closing ``` onwards
     internal string BodyAfterCode { get; init; } = "";
+    /// <summary>A detached copy for local recovery, without serializing or normalizing the document.</summary>
+    public RpadDocumentSnapshot CaptureSnapshot() => new(CloneMetadata(FrontMatter), RunCode, BodyBeforeCode, BodyAfterCode);
+
+    public static RpadDocument FromSnapshot(RpadDocumentSnapshot snapshot) => new()
+    {
+        FrontMatter = CloneMetadata(snapshot.FrontMatter),
+        RunCode = snapshot.RunCode,
+        BodyBeforeCode = snapshot.BodyBeforeCode,
+        BodyAfterCode = snapshot.BodyAfterCode,
+    };
+
+    private static RpadFrontMatter CloneMetadata(RpadFrontMatter source) => new()
+    {
+        Version = source.Version,
+        Language = source.Language,
+        TargetSdk = source.TargetSdk,
+        Kind = source.Kind,
+        Packages = source.Packages.ToDictionary(p => p.Key, p => p.Value),
+        References = source.References?.ToList(),
+        Namespaces = source.Namespaces?.ToList(),
+        Args = source.Args?.ToList(),
+    };
 }
+
+public sealed record RpadDocumentSnapshot(RpadFrontMatter FrontMatter, string RunCode, string BodyBeforeCode, string BodyAfterCode);
