@@ -190,4 +190,21 @@ public class CSharpIntelliSenseKindAwarenessTests
             Assert.InRange(d.EndOffset, 0, RegexHelperProgramKindScript.Length);
         });
     }
+
+    // A classic program (usings, a namespace, a class with a static Main) is analyzed as written,
+    // like it is compiled: no wrapper errors, and a real error is underlined where the user typed it.
+    [Fact]
+    public async Task AClassicProgram_Should_BeAnalyzedAsWritten()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "using System;\nusing Out = System.Console;\n\nnamespace N\n{\n    class Program\n    {\n        static void Main()\n        {\n            int x = \"text\";\n            Out.WriteLine(x);\n        }\n    }\n}\n";
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+
+        var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(code.IndexOf("\"text\"", StringComparison.Ordinal), error.StartOffset);
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("__RunPad", StringComparison.Ordinal)
+            || d.Message.Contains("using clause", StringComparison.Ordinal));
+    }
 }

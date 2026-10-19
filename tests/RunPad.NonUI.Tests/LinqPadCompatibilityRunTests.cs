@@ -1,0 +1,226 @@
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Sdk;
+using RunPad.Runtime.UI.Tests;
+using Xunit;
+
+namespace RunPad.NonUI.Tests;
+
+// Real compiles and runs (the installed SDK, a real dotnet process) of C# scripts written the way
+// LINQPad accepts them: a Program with a classic entry point (a class with a static Main, usings
+// and namespaces) as well as the LINQPad member style (a bare Main at the top level).
+[Trait("Category", "RealBuild")]
+[Collection(RealBuildTestCollection.Name)]
+public class LinqPadCompatibilityRunTests
+{
+    private sealed record Run(RunResult Result, string Output, string Errors);
+
+    private static async Task<Run> RunAsync(RpadKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false)
+    {
+        var outputDir = Directory.CreateTempSubdirectory("runpad-linqpad-compat").FullName;
+        try
+        {
+            var options = new CompiledDotnetLanguageHostOptions
+            {
+                Platform = new DotnetSdkProvider().Get().First(),
+                ExecutionOptions = new ExecutionOptions
+                {
+                    WorkingDirectory = outputDir,
+                    Runtime = new RuntimeOptions { RuntimePath = "dotnet" },
+                    Debugger = new DebuggerOptions { DebuggerPath = "" },
+                },
+                OutputDirectory = outputDir,
+                RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
+                Kind = kind,
+                Arguments = args ?? [],
+            };
+            await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
+            var output = new ConcurrentQueue<string>();
+            var errors = new ConcurrentQueue<string>();
+            var result = await host.RunAsync(code, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data))
+                .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
+            return new Run(result, string.Join('\n', output), string.Join('\n', errors));
+        }
+        finally
+        {
+            try { Directory.Delete(outputDir, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static bool NoSdk => !new DotnetSdkProvider().Get().Any();
+
+    // A classic entry point and a helper in a class: the shape of a pre-C# 9 console program.
+    [Fact]
+    public async Task AProgramWithAClassAndStaticMain_Should_RunThatMain()
+    {
+        if (NoSdk) return;
+        const string code = """
+            // Converted with a comment above the class, as LINQPad files often are.
+
+            class Program
+            {
+                static void Main()
+                {
+                    Console.WriteLine(ToInches(30));
+                    Console.WriteLine(ToInches(100));
+                }
+
+                static int ToInches(int feet)
+                {
+                    var inches = feet * 12;
+                    return inches;
+                }
+            }
+            """;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("360\n1200", run.Output);
+    }
+
+    // Using directives (plain, alias, static, global) before a namespace with the entry point class.
+    [Fact]
+    public async Task AProgramWithUsingsAndANamespace_Should_KeepThemAndRun()
+    {
+        if (NoSdk) return;
+        const string code = """
+            global using System.Text;
+            using System;
+            using Out = System.Console;
+            using static System.Math;
+
+            namespace Samples.Basics
+            {
+                class Entry
+                {
+                    static void Main()   // the entry point
+                    {
+                        int x = 12 * 30;
+                        Out.WriteLine(x);
+                        Out.WriteLine(new StringBuilder().Append(Abs(-7)).ToString());
+                    }
+                }
+            }
+            """;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("360\n7", run.Output);
+    }
+
+    // The CLR's own entry point rules: args from the script and an awaited Task<int> as the exit code.
+    [Fact]
+    public async Task AClassicAsyncMainReturningInt_Should_GetArgs_AndSetTheExitCode()
+    {
+        if (NoSdk) return;
+        const string code = """
+            using System.Threading.Tasks;
+
+            static class Program
+            {
+                static async Task<int> Main(string[] args)
+                {
+                    await Task.Yield();
+                    Console.WriteLine(string.Join("|", args));
+                    return 40 + args.Length;
+                }
+            }
+            """;
+        var run = await RunAsync(RpadKind.Program, code, ["one", "two"]);
+        Assert.Equal(RunOutcome.Exited, run.Result.Outcome);
+        Assert.Equal(42, run.Result.ExitCode);
+        Assert.Equal("one|two", run.Output);
+    }
+
+    // Two candidate entry points: the compiler says so, and neither runs.
+    [Fact]
+    public async Task TwoClassicEntryPoints_Should_FailWithTheCompilersOwnError()
+    {
+        if (NoSdk) return;
+        const string code = """
+            class A { static void Main() => Console.WriteLine("A ran"); }
+            class B { static void Main() => Console.WriteLine("B ran"); }
+            """;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.Contains("CS0017", run.Errors);
+        Assert.DoesNotContain("ran", run.Output);
+    }
+
+    // A Program with no entry point at all is still an error, not an empty success.
+    [Theory]
+    [InlineData("")]
+    [InlineData("// nothing here yet\n")]
+    [InlineData("class Helper { static void Run() => Console.WriteLine(\"ran\"); }")]
+    public async Task AProgramWithoutAnyMain_Should_FailToCompile(string code)
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.Contains("CS5001", run.Errors);
+        Assert.DoesNotContain("ran", run.Output);
+    }
+
+    // Top-level code next to a classic class keeps the LINQPad meaning (members of the program); with
+    // no top-level Main the compile fails instead of running the class's Main or the stray statement.
+    [Fact]
+    public async Task AStrayStatementBesideAClassicProgram_Should_NotRunEither()
+    {
+        if (NoSdk) return;
+        const string code = """
+            Console.WriteLine("stray");
+
+            class Program { static void Main() => Console.WriteLine("class main"); }
+            """;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.DoesNotContain("stray\n", run.Output + "\n");
+        Assert.DoesNotContain("class main", run.Output.Replace("'Program.Main()'", ""));
+    }
+
+    // LINQPad member style is unchanged: a bare Main with fields and helpers around it.
+    [Fact]
+    public async Task AMemberStyleMain_Should_StillRun_WithArgsAndExitCode()
+    {
+        if (NoSdk) return;
+        const string code = """
+            int start = 12;
+
+            int Main(string[] args)
+            {
+                Console.WriteLine(Times(30));
+                return args.Length;
+            }
+
+            private int Times(int n) => start * n;
+            """;
+        var run = await RunAsync(RpadKind.Program, code, ["a", "b", "c"]);
+        Assert.Equal(3, run.Result.ExitCode);
+        Assert.Equal("360", run.Output);
+    }
+
+    // The entry point is the top-level Main, even when a helper holds a local function also named
+    // Main with a signature RunPad would otherwise prefer.
+    [Fact]
+    public async Task AMainNestedInAHelper_Should_NotBecomeTheEntryPoint()
+    {
+        if (NoSdk) return;
+        const string code = """
+            void Main() => Console.WriteLine("top-level main");
+
+            void Helper()
+            {
+                static int Main(string[] args) => 99;
+                Main([]);
+            }
+            """;
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("top-level main", run.Output);
+    }
+}

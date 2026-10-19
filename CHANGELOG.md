@@ -3,6 +3,14 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- A Program script written as a classic C# program (a class with a `static Main`, with using
+  directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
+  are unchanged. A missing or ambiguous entry point is reported by the compiler.
+
 ## [0.8.0] — 2026-10-19
 
 ### Added

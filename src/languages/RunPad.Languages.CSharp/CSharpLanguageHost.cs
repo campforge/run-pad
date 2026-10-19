@@ -57,16 +57,17 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     //
     // The kind-transform component must match ApplyKindTransform exactly so DapSession can map a
     // breakpoint set on the user-visible line to the right line in the actually-compiled
-    // (transformed) source. Program's prefix (see RpadKindTransform.ProgramPrefixFor)
-    // always inserts exactly 2 new lines before the user's own first line — the call statement itself
+    // (transformed) source. Program's prefix (see RpadKindTransform.ProgramPrefixFor), when there is
+    // one (a program compiled as written has none), inserts exactly 2 new lines before the user's own first line — the call statement itself
     // has no trailing newline (glued onto the same physical line as the wrapper class's own header),
     // but the class header and its opening brace each occupy their own line, regardless of which call
     // variant was actually picked. ApplyKindTransform's own suffix (the class's closing brace) comes
     // AFTER the user's code and so never affects this offset.
-    public override int CalcKindOffset() => Options.Usings.Count + (Options.Kind switch
+    // A Program compiled as written (no top-level statements) gets no prefix at all.
+    public override int CalcKindOffset(string code) => Options.Usings.Count + (Options.Kind switch
     {
         RpadKind.Expression => 1,
-        RpadKind.Program => 2,
+        RpadKind.Program => RpadKindTransform.ProgramLineOffset(code),
         _ => 0,
     });
 }

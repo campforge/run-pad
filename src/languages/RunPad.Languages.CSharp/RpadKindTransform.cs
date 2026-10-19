@@ -47,14 +47,16 @@ internal static class RpadKindTransform
 
     // Glued onto one physical line, immediately followed by the wrapper class's header and opening
     // brace, each on its own line: exactly 2 embedded '\n's, regardless of whether Main turned out to
-    // be Task-returning (CalcKindOffset relies on this being a plain constant, not code-dependent).
+    // be Task-returning (ProgramLineOffset relies on this).
     // Always calls the trampoline (see class doc comment for why, not Main directly) — statically, so
     // it never needs `new`/an IsStatic check here; that check lives in ProgramSuffixFor instead, where
     // the trampoline itself decides how to reach the user's actual Main.
     // The top-level `args` are the script's command-line arguments; an int-returning Main's result is
     // returned from the top level, which makes it the process exit code.
+    // Both are empty for a program compiled as written (ProgramEntryPointDetector.IsCompiledAsWritten).
     public static string ProgramPrefixFor(string code)
     {
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code)) return "";
         var main = ProgramEntryPointDetector.DetectMain(code);
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
@@ -70,6 +72,7 @@ internal static class RpadKindTransform
     // legitimately target (all of which sit strictly before this suffix begins).
     public static string ProgramSuffixFor(string code)
     {
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code)) return "";
         var main = ProgramEntryPointDetector.DetectMain(code);
         var arguments = main.Parameters switch
         {
@@ -93,4 +96,7 @@ internal static class RpadKindTransform
             : $"internal static {returnType} {TrampolineMethodName}(string[] args) => {mainCall};";
         return $"\n{trampoline}\n}}\n";
     }
+
+    /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line.</summary>
+    public static int ProgramLineOffset(string code) => ProgramEntryPointDetector.IsCompiledAsWritten(code) ? 0 : 2;
 }
