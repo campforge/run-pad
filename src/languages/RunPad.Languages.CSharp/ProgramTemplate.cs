@@ -21,6 +21,9 @@ internal static class ProgramTemplate
     public static string? CodeForKind(string code, RpadKind kind)
     {
         if (kind != RpadKind.Program || ProgramEntryPointDetector.DetectMain(code).Found) return null;
+        // A classic program (a class with a static Main, no top-level statements) runs as it is.
+        if (!string.IsNullOrWhiteSpace(code) && ProgramEntryPointDetector.IsCompiledAsWritten(code)
+            && HasStaticMain(code)) return null;
         if (string.IsNullOrWhiteSpace(code)) return Skeleton;
 
         var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code).GetRoot();
@@ -50,6 +53,10 @@ internal static class ProgramTemplate
     private static string Lf(string text) => text.Replace("\r\n", "\n");
 
     // An await that makes Main itself async: not one inside a lambda or local function.
+    private static bool HasStaticMain(string code) => CSharpSyntaxTree.ParseText(code).GetRoot()
+        .DescendantNodes().OfType<MethodDeclarationSyntax>()
+        .Any(m => m.Identifier.Text == "Main" && m.Modifiers.Any(SyntaxKind.StaticKeyword));
+
     private static bool AwaitsDirectly(GlobalStatementSyntax statement)
         => statement.DescendantTokens().Any(t =>
             t.IsKind(SyntaxKind.AwaitKeyword)

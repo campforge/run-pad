@@ -141,7 +141,7 @@ public class CSharpLanguageHostKindTransformTests
         var host = CreateHost(kind, out var outputDir);
         try
         {
-            Assert.Equal(expectedOffset, host.CalcKindOffset());
+            Assert.Equal(expectedOffset, host.CalcKindOffset("void Main() { }"));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -165,7 +165,7 @@ public class CSharpLanguageHostKindTransformTests
             Assert.True(indexOfUserCode >= 0);
 
             var newlinesBeforeUserCode = transformed[..indexOfUserCode].Count(c => c == '\n');
-            Assert.Equal(newlinesBeforeUserCode, host.CalcKindOffset());
+            Assert.Equal(newlinesBeforeUserCode, host.CalcKindOffset(code));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -186,7 +186,7 @@ public class CSharpLanguageHostKindTransformTests
         var host = CreateHost(kind, out var outputDir, usings);
         try
         {
-            Assert.Equal(usings.Count + kindOnlyOffset, host.CalcKindOffset());
+            Assert.Equal(usings.Count + kindOnlyOffset, host.CalcKindOffset("void Main() { }"));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -241,6 +241,38 @@ public class CSharpLanguageHostKindTransformTests
         finally { Directory.Delete(outputDir, recursive: true); }
     }
 
+    // A program without top-level statements (a class with a static Main, usings, namespaces) is
+    // compiled exactly as written: no wrapper, no line offset beyond the front-matter usings.
+    [Theory]
+    [InlineData("class Program\n{\n    static void Main() { }\n}\n")]
+    [InlineData("using System;\nusing Con = System.Console;\nusing static System.Math;\nglobal using System.Text;\n\nnamespace N\n{\n    class A { static void Main() { } }\n}\n")]
+    [InlineData("// only a comment\n")]
+    [InlineData("")]
+    public void ApplyKindTransform_Should_LeaveAProgramWithoutTopLevelStatements_AsWritten(string code)
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir, ["System.Text"]);
+        try
+        {
+            Assert.Equal(code, host.ApplyKindTransform(code));
+            Assert.Equal(1, host.CalcKindOffset(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
+    // The entry point of a LINQPad-style program is a Main written at the top level only; a local
+    // function named Main inside a helper must not decide how the program is called.
+    [Fact]
+    public void ApplyKindTransform_Should_IgnoreAMainNestedInAHelper()
+    {
+        const string code = "void Main() { }\n\nvoid Helper()\n{\n    static async Task<int> Main(string[] args) => 0;\n}\n";
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            Assert.Equal(ExpectedProgramTransform(code, isStatic: false, returnsTask: false), host.ApplyKindTransform(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
+
     // The call statement itself is always a single physical line with no embedded '\n' — CalcKindOffset
     // relies on the wrapper class's header/opening-brace lines (exactly 2) being the only source of the
     // offset, regardless of which call-statement variant ApplyKindTransform actually picked.
@@ -257,7 +289,7 @@ public class CSharpLanguageHostKindTransformTests
             var callStatementEnd = transformed.IndexOf("class " + WrapperClass, StringComparison.Ordinal);
             Assert.True(callStatementEnd > 0);
             Assert.DoesNotContain('\n', transformed[..callStatementEnd]);
-            Assert.Equal(2, host.CalcKindOffset());
+            Assert.Equal(2, host.CalcKindOffset(code));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

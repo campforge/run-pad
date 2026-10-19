@@ -94,8 +94,9 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
     /// <summary>
     /// Lines prepended before the user's own first line — both by <see cref="ApplyKindTransform"/>
     /// and by the compiler's own per-script global-usings/imports prepend (<see cref="Options"/>.Usings.Count).
+    /// Depends on <paramref name="code"/>, the user's code before the transform, where the transform does.
     /// </summary>
-    public abstract int CalcKindOffset();
+    public abstract int CalcKindOffset(string code);
 
     protected CompiledDotnetLanguageHostBase(
         CompiledDotnetLanguageHostOptions options,
@@ -233,7 +234,7 @@ public abstract class CompiledDotnetLanguageHostBase : LanguageHostBase
         CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        var lineOffset = CalcKindOffset();
+        var lineOffset = CalcKindOffset(code);
 
         (CompiledDotnetCompilationResult compilationResult, string? binaryPath) =
             await CompileInternalAsync(ApplyKindTransform(code), cancellationToken);
