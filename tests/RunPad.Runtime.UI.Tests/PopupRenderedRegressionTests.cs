@@ -171,6 +171,31 @@ public class PopupRenderedRegressionTests
         finally { flyout.Hide(); host.Close(); Uninstall(installed); }
     }
 
+    [AvaloniaTheory]
+    [InlineData(900)]
+    [InlineData(320)]
+    public void MatchFeedback_Should_RemainVisibleInBothLayouts(int width)
+    {
+        var editor = new TextEditor { Text = "one two one" };
+        var host = new Window { Width = width, Height = 450, Content = editor };
+        host.Show();
+        try
+        {
+            editor.SearchPanel.Open();
+            Dispatcher.UIThread.RunJobs();
+            host.UpdateLayout();
+            editor.SearchPanel.SearchPattern = "absent";
+            Dispatcher.UIThread.RunJobs();
+            host.UpdateLayout();
+            var message = editor.SearchPanel.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "PART_MessageContent");
+            Assert.True(message.IsEffectivelyVisible);
+            Assert.False(string.IsNullOrWhiteSpace(message.Text));
+            Assert.True(message.TranslatePoint(new Point(message.Bounds.Width, 0), editor.SearchPanel)!.Value.X
+                <= editor.SearchPanel.Bounds.Width + 0.5);
+        }
+        finally { host.Close(); }
+    }
+
     // Every control of the strip lies inside the strip (nothing pushed past its right edge), with
     // the "No matches found" message and the replacement row shown, and the input keeps room to type.
     [AvaloniaTheory]

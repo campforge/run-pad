@@ -56,7 +56,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                     try
                     {
                         using var probe = Lock(other);
-                        unavailable.Add(other);
+                        if (HasRetainedTabs(other)) unavailable.Add(other);
                     }
                     catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
@@ -84,6 +84,38 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         RestrictDirectory(_folder);
         _owner = Lock(_folder);
         return null;
+    }
+
+    private static bool HasRetainedTabs(string folder)
+    {
+        // A valid empty current checkpoint intentionally supersedes its older drafts.
+        foreach (var pointerName in new[] { "current.json", "previous.json" })
+        {
+            var path = Path.Combine(folder, pointerName);
+            if (!File.Exists(path)) continue;
+            try
+            {
+                var pointer = JsonSerializer.Deserialize<Pointer>(File.ReadAllBytes(path));
+                if (pointer is null || pointer.Version != 1) return true;
+                foreach (var payload in new[] { pointer.Current, pointer.Previous })
+                {
+                    if (payload is null) continue;
+                    try
+                    {
+                        ValidatePayloadName(payload);
+                        var snapshot = JsonSerializer.Deserialize<RecoverySnapshot>(File.ReadAllBytes(Path.Combine(folder, payload)));
+                        if (snapshot is null) continue;
+                        Validate(snapshot);
+                        return snapshot.Tabs.Count > 0;
+                    }
+                    catch (NotSupportedException) { return true; }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException) { }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException or UnauthorizedAccessException) { }
+        }
+        // Unreadable data may still contain drafts: keep reporting it, never silently delete it.
+        return true;
     }
 
     private static void RestrictDirectory(string path)
