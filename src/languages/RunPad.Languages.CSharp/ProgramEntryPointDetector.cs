@@ -38,10 +38,15 @@ internal static class ProgramEntryPointDetector
     // and a cancellation token over a token alone, over arguments alone, over none. A Main with a
     // parameter list RunPad can't supply is only picked when it's the only one — the compiler then
     // reports why it can't be called.
-    public static MainSignature DetectMain(string code)
+    // Only a Main written directly at the top level is the script's entry point: a local function
+    // named Main inside a helper (or inside another local function) is just a nested helper.
+    // parseOptions are the build's (its DEBUG/TRACE/framework symbols): a Main under `#if DEBUG` is
+    // there exactly when the compiler sees it.
+    public static MainSignature DetectMain(string code, CSharpParseOptions parseOptions)
     {
-        var root = CSharpSyntaxTree.ParseText(code).GetRoot();
-        var mains = root.DescendantNodes()
+        var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, parseOptions).GetRoot();
+        var mains = root.Members.OfType<GlobalStatementSyntax>()
+            .Select(g => g.Statement)
             .OfType<LocalFunctionStatementSyntax>()
             .Where(f => f.Identifier.Text == "Main")
             .ToList();
@@ -61,6 +66,17 @@ internal static class ProgramEntryPointDetector
             ReturnsInt: IsIntReturning(chosen.Function.ReturnType),
             Parameters: chosen.Parameters);
     }
+
+    /// <summary>
+    /// A Program without any top-level statement is an ordinary C# program, written the way it would
+    /// be outside LINQPad (<c>class Program { static void Main() … }</c>, often inside a namespace
+    /// and after using directives). It is compiled exactly as written: the compiler picks its entry
+    /// point by the usual rules and reports a missing or ambiguous one itself. Anything else is a
+    /// LINQPad-style program, whose top-level members are wrapped in a class (see RpadKindTransform).
+    /// Parsed with the build's own <paramref name="parseOptions"/>, as <see cref="DetectMain"/> is.
+    /// </summary>
+    public static bool IsCompiledAsWritten(string code, CSharpParseOptions parseOptions) =>
+        !((CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, parseOptions).GetRoot()).Members.OfType<GlobalStatementSyntax>().Any();
 
     // Null for a parameter list RunPad doesn't know how to fill.
     private static MainParameters? ParametersOf(LocalFunctionStatementSyntax main)

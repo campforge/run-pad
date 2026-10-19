@@ -190,4 +190,18 @@ public class LinqConverterTests
 
         Assert.Throws<FormatException>(() => LinqConverter.Convert(linq));
     }
+
+    // LINQPad query headers carry no unsafe setting, and RunPad never guesses one from the code:
+    // a query that uses unsafe code converts with the setting off, for the user to turn on.
+    [Fact]
+    public void Convert_Should_LeaveUnsafeOff_EvenForUnsafeCode()
+    {
+        const string linq = "<Query Kind=\"Program\" />\n\nunsafe static void Main()\n{\n    sizeof(Point).Dump();\n}\n\nstruct Point { int x; int y; }\n";
+
+        var doc = LinqConverter.Convert(linq);
+
+        Assert.False(doc.FrontMatter.AllowUnsafe);
+        Assert.DoesNotContain("allowUnsafe", RpadWriter.Write(doc));
+        Assert.Contains("unsafe static void Main()", doc.RunCode);
+    }
 }

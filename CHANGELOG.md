@@ -3,6 +3,32 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Added
+
+- C# scripts can allow unsafe code (pointers, `sizeof` of your own structs) with "Allow unsafe
+  code" on the Dependencies window's Compilation tab, saved as `allowUnsafe: true`. It is off
+  unless a script turns it on, also for imported LINQPad queries. It is a compiler setting, not a
+  sandbox.
+
+### Fixed
+
+- C# Program scripts can declare extension methods and custom awaiters alongside Main; the editor
+  keeps navigation, diagnostics and code actions aligned with the original script.
+
+- Program scripts now choose and invoke their entry point using the selected framework's conditional
+  compilation symbols, including `DEBUG` and `TRACE`.
+
+
+- A Program script written as a classic C# program (a class with a `static Main`, with using
+  directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
+  are unchanged. A missing or ambiguous entry point is reported by the compiler.
+
+- A C# Statements script with nothing to run (only comments, using directives or preprocessor
+  lines, like many LINQPad readme queries) now runs and finishes without output instead of failing
+  with CS5001. Syntax errors and scripts with only declarations still fail as before.
+
 ## [0.8.0] — 2026-10-19
 
 ### Added

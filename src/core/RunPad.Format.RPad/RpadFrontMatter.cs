@@ -35,4 +35,12 @@ public sealed class RpadFrontMatter
 
     /// <summary>The script's command-line arguments: what <c>args</c> holds when the script runs.</summary>
     public List<string>? Args { get; set; }
+
+    /// <summary>
+    /// <c>allowUnsafe:</c> compiles the script with unsafe code allowed (C#'s /unsafe), for pointers,
+    /// <c>sizeof</c> of a user struct and other unsafe contexts. Off unless the script asks for it. A
+    /// compiler setting only: no sandbox exists either way, a script always runs with the user's own
+    /// permissions. Languages without unsafe code ignore it.
+    /// </summary>
+    public bool AllowUnsafe { get; set; }
 }
