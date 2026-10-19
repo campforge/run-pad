@@ -30,6 +30,14 @@ public sealed record ExecutionRequest
     /// <summary>The script's own file; null for one never saved.</summary>
     public string? CurrentQueryPath { get; init; }
 
+    /// <summary>
+    /// The file the <c>references:</c> are relative to, when that isn't <see cref="CurrentQueryPath"/>:
+    /// an untitled copy of a file keeps resolving them (and <c>$(CurrentQueryPath)</c> in them) from
+    /// that file's folder. Only references use it; the script still runs as untitled. Null means
+    /// <see cref="CurrentQueryPath"/>.
+    /// </summary>
+    public string? ReferenceBasePath { get; init; }
+
     /// <summary>Where the script is built (its build-cache folder); null where it has none yet.</summary>
     public string? OutputDirectory { get; init; }
 

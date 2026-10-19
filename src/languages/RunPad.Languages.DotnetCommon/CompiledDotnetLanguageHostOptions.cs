@@ -74,7 +74,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
         var outputDirectory = request.OutputDirectory ?? throw new ArgumentException("A run needs an output directory.", nameof(request));
         // Project references aren't supported (scripts compile in-process, no MSBuild): they're still
         // collected so the compiler reports them as an error.
-        var references = ReferencePathResolver.Resolve(request.References, request.CurrentQueryPath);
+        var references = ReferencePathResolver.Resolve(request.References, request.ReferenceBasePath ?? request.CurrentQueryPath);
         return new CompiledDotnetLanguageHostOptions
         {
             Platform = platform,

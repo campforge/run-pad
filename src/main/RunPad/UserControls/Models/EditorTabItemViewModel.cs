@@ -29,6 +29,10 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
     // can delegate straight to _actions without waiting for the View to hand a callback down first.
     internal Guid RecoveryId { get; init; } = Guid.NewGuid();
     internal RecoveryTab? RestoredRecovery { get; init; }
+
+    /// <summary>The file this tab's references are relative to: its own, or, for an untitled copy of
+    /// a file (a recovered draft whose file was already open), that file. Null when there is none.</summary>
+    internal string? ReferenceAnchorPath => FilePath ?? RestoredRecovery?.OriginalPath;
     internal Func<RecoveryTab>? CaptureRecovery { get; set; }
     internal TaskCompletionSource RecoveryReady { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal bool RequiresBaselineConfirmation { get; set; }

@@ -658,6 +658,18 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         var newPath = await _windowService.ShowSaveFileDialogAsync(vm.FileName, _fileSystemService.Folder);
         if (newPath is null) return; // cancelled
 
+        // An untitled copy of a file (a recovered draft whose file was already open) never replaces
+        // that file, nor a file another tab has open: either would overwrite the other version unasked.
+        var fullPath = Path.GetFullPath(newPath);
+        if ((vm.FilePath is null && vm.RestoredRecovery?.OriginalPath is { } original
+                && string.Equals(Path.GetFullPath(original), fullPath, FilePathComparison))
+            || (_openTabs.TryGetValue(fullPath, out var other) && other != vm))
+        {
+            await _windowService.ShowErrorAsync("Save Failed",
+                $"'{Path.GetFileName(newPath)}' has its own version open or is the file this copy was made from. Save the copy to another file.");
+            return;
+        }
+
         // Choosing the tab's own file again is an in-place save: the picker's own "replace?" question
         // is about overwriting a file, not about one changed by another program meanwhile.
         if (vm.FilePath is { } ownPath && string.Equals(Path.GetFullPath(newPath), Path.GetFullPath(ownPath), FilePathComparison))

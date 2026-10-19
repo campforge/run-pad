@@ -4,7 +4,10 @@ using Avalonia.Styling;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -29,6 +32,9 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         public EditorTabsControl Tabs { get; }
         public MainWindow Host { get; }
         public IRecoveryStore Store { get; }
+        // What the language was asked to run, and what the editor was told to analyze.
+        public List<ExecutionRequest> Runs { get; } = [];
+        public List<ExecutionRequest> EditorContexts { get; } = [];
 
         public Session(string root, IRecoveryStore store, bool enabled = true)
         {
@@ -50,8 +56,20 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(new InterfaceTheme("Test", ThemeVariant.Dark, true),
                 new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
             var registry = new Mock<ILanguageHostRegistry>();
+            var host = new Mock<ILanguageHost>();
+            host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RunResult.Exited(0));
+            host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
+                .Callback<string, ExecutionRequest>((_, r) => Runs.Add(r)).Returns(host.Object);
+            var intelliSense = new Mock<IIntelliSenseService>();
+            intelliSense.Setup(i => i.UpdateExecutionContext(It.IsAny<ExecutionRequest>()))
+                .Callback<ExecutionRequest>(EditorContexts.Add);
+            var cache = new Mock<IBuildCacheService>();
+            cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(() => Directory.CreateDirectory(Path.Combine(root, "build")).FullName);
             Vm = new([], files.Object, Windows.Object, prefs.Object, new LanguageHostRegistry(), recovery: store);
-            Tabs = new(theme.Object, Windows.Object, registry.Object, prefs.Object, new Mock<IBuildCacheService>().Object);
+            Tabs = new(theme.Object, Windows.Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object, cache.Object);
             Host = new(prefs.Object, Tabs, Vm);
             Host.Show();
         }
@@ -761,6 +779,138 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         await session.Close();
         session.Windows.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
         session.Windows.Verify(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>()), Times.Never);
+    }
+
+    // ── Reference anchors of a detached copy ─────────────────────────────────────
+
+    private static readonly DotnetSdk Sdk = new(".NET", "net10.0", "10.0.0", ".NET 10.0");
+
+    // Two windows' drafts of one file whose references are relative to its folder: lib/example.dll
+    // and $(CurrentQueryPath)/lib/macro.dll, both real files there. The second becomes a copy.
+    private async Task<(string Script, string Library, string Macro)> SameFileDraftsWithReferencesAsync()
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "original")).FullName;
+        Directory.CreateDirectory(Path.Combine(folder, "lib"));
+        var library = Path.Combine(folder, "lib", "example.dll");
+        var macro = Path.Combine(folder, "lib", "macro.dll");
+        File.Copy(typeof(Assert).Assembly.Location, library);
+        File.Copy(typeof(Assert).Assembly.Location, macro);
+        var path = Path.Combine(folder, "shared.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        RecoveryTab Draft(string text, string arg)
+        {
+            var draft = DirtyFileDraft(path, text, arg);
+            var document = RpadDocument.FromSnapshot(draft.Document!);
+            document.FrontMatter.References = ["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"];
+            document.FrontMatter.Packages["Humanizer"] = new Package("2.14.1");
+            return draft with { Document = document.CaptureSnapshot() };
+        }
+        await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), Draft("other window's edit", "other-arg"));
+        await ClosedSessionAsync(DateTime.UtcNow, Draft("this window's edit", "own-arg"));
+        return (path, library, macro);
+    }
+
+    private static EditorTabItemViewModel Copy(Session session) => session.Vm.Tabs.Single(t => t.FilePath is null);
+
+    // The references the build and the editor would use for the copy, as they resolve them.
+    private static async Task<IReadOnlyList<string>> BuildReferencesAsync(Session session)
+    {
+        var copy = Copy(session);
+        session.Vm.ActiveTab = copy;
+        session.Runs.Clear();
+        await session.Control(copy).RunAsync(false, Sdk);
+        var options = CompiledDotnetLanguageHostOptions.From(Assert.Single(session.Runs), "/runtime/RunPad.Runtime.dll");
+        Assert.Empty(options.ReferenceErrors);
+        Assert.Null(options.CurrentQueryPath); // still an untitled script at run time
+        return options.AssemblyReferences;
+    }
+
+    private static IReadOnlyList<string> EditorReferences(Session session) =>
+        DotnetPackageReferenceContext.For(session.EditorContexts.Last() with { Platform = Sdk })!.AssemblyReferences ?? [];
+
+    // The copy keeps resolving the original's relative and $(CurrentQueryPath) references for runs
+    // and the editor, though it is untitled — and still after another restart.
+    [AvaloniaFact]
+    public async Task ADetachedCopy_Should_ResolveReferencesFromTheOriginalsFolder_AlsoAfterRestart()
+    {
+        var (_, library, macro) = await SameFileDraftsWithReferencesAsync();
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            Assert.Equal([library, macro], await BuildReferencesAsync(session));
+            Assert.Equal([library, macro], EditorReferences(session));
+            await session.Close();
+        }
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal([library, macro], await BuildReferencesAsync(again));
+        Assert.Equal([library, macro], EditorReferences(again));
+        await again.Close();
+    }
+
+    // The first Save As to another folder writes references that reach the same files from there,
+    // keeps the rest of the metadata, and never touches the original file.
+    [AvaloniaFact]
+    public async Task ADetachedCopysFirstSaveAs_Should_RebaseItsReferences_FromTheOriginalsFolder()
+    {
+        var (script, library, macro) = await SameFileDraftsWithReferencesAsync();
+        var original = File.ReadAllBytes(script);
+        var target = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "elsewhere", "deeper")).FullName, "copy.rpad");
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(target);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Equal(target, copy.FilePath);
+        var saved = RpadParser.TryParse(File.ReadAllText(target))!;
+        Assert.Equal([library, macro], ReferencePathResolver.Resolve(saved.FrontMatter.References!, target).Assemblies);
+        Assert.StartsWith("$(CurrentQueryPath)/", saved.FrontMatter.References![1]);
+        Assert.Equal(["other-arg"], saved.FrontMatter.Args);
+        Assert.Equal("2.14.1", saved.FrontMatter.Packages["Humanizer"].Version);
+        Assert.Equal(RpadKind.Program, saved.FrontMatter.Kind);
+        Assert.Equal(original, File.ReadAllBytes(script));
+        await session.Close();
+    }
+
+    // A cancelled Save As changes nothing: the copy still resolves from the original's folder.
+    [AvaloniaFact]
+    public async Task ADetachedCopysCancelledSaveAs_Should_KeepItsReferenceAnchor()
+    {
+        var (_, library, macro) = await SameFileDraftsWithReferencesAsync();
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((string?)null);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Null(copy.FilePath);
+        Assert.True(copy.IsDirty);
+        Assert.Equal(["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"], session.Control(copy).State.RpadDocument!.FrontMatter.References);
+        Assert.Equal([library, macro], await BuildReferencesAsync(session));
+        await session.Close();
+    }
+
+    // Saving the copy over the file it was detached from would overwrite the other version unasked.
+    [AvaloniaFact]
+    public async Task ADetachedCopy_Should_NotBeSavedOverItsOriginal()
+    {
+        var (script, _, _) = await SameFileDraftsWithReferencesAsync();
+        var original = File.ReadAllBytes(script);
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(script);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Null(copy.FilePath);
+        Assert.True(copy.IsDirty);
+        Assert.Equal(original, File.ReadAllBytes(script));
+        session.Windows.Verify(w => w.ShowErrorAsync("Save Failed", It.Is<string>(m => m.Contains("shared.rpad"))), Times.Once);
+        await session.Close();
     }
 
     public void Dispose() => Directory.Delete(_root, true);
