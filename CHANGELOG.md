@@ -5,6 +5,13 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Changed
+
+- With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
+  Save As, including the question about files changed on disk), Keep in Stash (close without
+  writing the files; the changes reopen next time) or Cancel. A cancelled or failed save, or a
+  stash that could not be written, keeps RunPad open.
+
 ### Fixed
 
 - Execute Selection also runs selected statements in Program scripts, such as lines inside
