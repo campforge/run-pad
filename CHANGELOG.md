@@ -7,6 +7,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Added
 
+- Run > Execute Selection runs selected Statements without saving the script. Stop and Run Again
+  waits for the previous run to finish cancelling before starting a fresh run. Both commands have
+  configurable shortcuts.
+
 - Draft recovery can keep open tabs and their unsaved text locally on normal exit, including
   script arguments and references, without writing those changes to the original files.
 

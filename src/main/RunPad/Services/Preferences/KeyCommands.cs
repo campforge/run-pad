@@ -47,6 +47,8 @@ public static class KeyCommands
     public static readonly KeyCommand TogglePreviewToSide = new("view.togglePreviewToSide", General, "Toggle Markdown Preview to the Side", "Ctrl+Alt+V", "Cmd+Alt+V");
 
     public static readonly KeyCommand RunOrContinue = new("run.run", Run, "Run / Continue", "F5");
+    public static readonly KeyCommand ExecuteSelection = new("run.selection", Run, "Execute Selection", "Ctrl+Shift+E", "Cmd+Shift+E");
+    public static readonly KeyCommand Restart = new("run.restart", Run, "Stop and Run Again", "Alt+Shift+X");
     public static readonly KeyCommand Stop = new("run.stop", Run, "Stop", "Shift+F5");
     public static readonly KeyCommand ToggleDebugMode = new("run.toggleDebugMode", Run, "Debug Mode", "");
     public static readonly KeyCommand StepOver = new("run.stepOver", Run, "Step Over", "F10");
@@ -87,7 +89,7 @@ public static class KeyCommands
     [
         NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
         ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
-        RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
         FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,
         Format, GoToLine, ResolveAllUsings,

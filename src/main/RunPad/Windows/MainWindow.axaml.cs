@@ -168,6 +168,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
             [KeyCommands.RunOrContinue] = tabs.RunOrContinueActive,
             [KeyCommands.Stop] = tabs.CancelActive,
+            [KeyCommands.ExecuteSelection] = tabs.ExecuteSelectionActive,
+            [KeyCommands.Restart] = tabs.RestartActive,
             [KeyCommands.ToggleDebugMode] = tabs.ToggleDebugModeActive,
             [KeyCommands.StepOver] = tabs.StepOverActive,
             [KeyCommands.StepInto] = tabs.StepInActive,
@@ -360,6 +362,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("_Run / Continue", KeyCommands.RunOrContinue),
                 Item("_Stop", KeyCommands.Stop),
+                Item("Execute _Selection", KeyCommands.ExecuteSelection),
+                Item("Stop and Run _Again", KeyCommands.Restart),
                 new MainMenuSeparator(),
                 Item("_Debug Mode", KeyCommands.ToggleDebugMode),
                 new MainMenuSeparator(),
