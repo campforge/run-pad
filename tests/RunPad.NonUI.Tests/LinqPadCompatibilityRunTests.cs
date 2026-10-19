@@ -393,4 +393,91 @@ public class LinqPadCompatibilityRunTests
         Assert.Contains("CS5001", run.Errors);
         Assert.DoesNotContain("excluded\n", run.Output + "\n");
     }
+    [Fact]
+    public async Task ExtensionClasses_Should_RunOutsideTheMemberProgramWrapper()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            void Main()
+            {
+                Console.WriteLine(21.Twice());
+                Console.WriteLine(new Value { Number = 7 }.Read());
+                int n = 2;
+                n.Increment();
+                Console.WriteLine(n);
+                Console.WriteLine("abc".Identity());
+            }
+            static class NumberExtensions
+            {
+                public static int Twice(this int n) => n * 2;
+                public static void Increment(this ref int n) => n++;
+                public static T Identity<T>(this T value) where T : notnull => value;
+            }
+            class Value { public int Number; }
+            static class ValueExtensions
+            {
+                public static int Read(this Value value) => value.Number;
+            }
+            """);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("42\n7\n3\nabc", run.Output);
+    }
+
+    [Fact]
+    public async Task ExtensionAwaiter_Should_BeAwaitedByAsyncMain()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            #if DEBUG
+            async Task<int> Main(string[] args)
+            {
+                await TimeSpan.Zero;
+                Console.WriteLine(args[0]);
+                return 17;
+            }
+            static class AwaiterExtensions
+            {
+                public static System.Runtime.CompilerServices.TaskAwaiter GetAwaiter(this TimeSpan duration)
+                    => Task.Delay(duration).GetAwaiter();
+            }
+            #endif
+            """, args: ["awaited"]);
+        Assert.Equal(17, run.Result.ExitCode);
+        Assert.EndsWith("awaited", run.Output);
+    }
+
+    [Fact]
+    public async Task ExtensionClassesInsideNamespaces_Should_RemainAtNamespaceScope()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            void Main() { Console.WriteLine(Tools.Runner.Compute()); }
+            namespace Tools
+            {
+                public static class Runner { public static int Compute() => 5.Twice(); }
+                static class Extensions { public static int Twice(this int n) => n * 2; }
+            }
+            """);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("10", run.Output);
+    }
+
+    [Fact]
+    public async Task CSharp14ExtensionBlocks_Should_RemainAtNamespaceScope()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            void Main() { Console.WriteLine(4.Twice()); }
+            static class Extensions
+            {
+                extension(int number)
+                {
+                    public int Twice() => number * 2;
+                }
+            }
+            """);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("8", run.Output);
+    }
+
 }

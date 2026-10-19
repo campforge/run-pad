@@ -46,7 +46,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code, ParseOptions())}{code}{RpadKindTransform.ProgramSuffixFor(code, ParseOptions())}",
+        RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code, ParseOptions())}{ProgramBodyProjection.Create(code, ParseOptions()).Text}{RpadKindTransform.ProgramSuffixFor(code, ParseOptions())}",
         _ => RpadKindTransform.StatementsFor(code, ParseOptions()),
     };
 

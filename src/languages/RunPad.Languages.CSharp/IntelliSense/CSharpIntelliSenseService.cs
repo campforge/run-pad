@@ -371,7 +371,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
     // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
-    // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
+    // expression-source mapping. Program uses a shared insertion-only projection so moved types still map
+    // to their original editor offsets.
     // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
     // own Main is static and/or Task-returning — every call site already has
     // `code` in scope (it's what's being analyzed), so this just threads it through.
@@ -388,6 +389,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Total offset from the start of the live-analysis document text to the start of the user's own
     // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
+
+    private ProgramBodyProjection? _bodyProjection;
+    private CSharpParseOptions? _projectionOptions;
+    private RpadKind _projectionKind;
+
+    private ProgramBodyProjection ProjectionFor(string code)
+    {
+        lock (_syncLock)
+        {
+            if (_bodyProjection?.Original != code || _projectionOptions != _parseOptions || _projectionKind != _kind)
+            {
+                _bodyProjection = _kind == RpadKind.Program
+                    ? ProgramBodyProjection.Create(code, _parseOptions)
+                    : ProgramBodyProjection.Identity(code);
+                _projectionOptions = _parseOptions;
+                _projectionKind = _kind;
+            }
+            return _bodyProjection;
+        }
+    }
+
+    private int ToDocumentOffset(string code, int offset) => HeaderLength(code) + ProjectionFor(code).ToProjected(offset);
+
+    private int ToUserOffset(string code, int offset)
+    {
+        var result = ProjectionFor(code).ToOriginal(offset - HeaderLength(code));
+        return result < 0 || result > code.Length ? -1 : result;
+    }
+
+    private TextSpan? ToUserSpan(string code, TextSpan span)
+    {
+        var relativeStart = span.Start - HeaderLength(code);
+        return relativeStart < 0 ? null : ProjectionFor(code).ToOriginal(new TextSpan(relativeStart, span.Length));
+    }
+
 
     // With nothing after the user's own code, a query position sitting at the very end
     // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
@@ -415,7 +451,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
+                var newFullText = _preamble + KindPrefix(code) + ProjectionFor(code).Text + KindSuffix(code) + TrailingPad;
 
                 // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -492,7 +528,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
 
             // Checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right
@@ -1117,7 +1153,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -1357,7 +1393,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1441,8 +1477,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var header = HeaderLength(code);
-            var pos = position + header;
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1453,7 +1488,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             if (symbol.Locations.FirstOrDefault(l => l.IsInSource) is { } sourceLocation)
             {
-                var offset = sourceLocation.SourceSpan.Start - header;
+                var offset = ToUserOffset(code, sourceLocation.SourceSpan.Start);
                 if (offset < 0) return null; // declared inside the prepended preamble, not user code
                 return new SimpleDefinitionResult(
                     IsInSource: true, Offset: offset,
@@ -1523,8 +1558,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var header = HeaderLength(code);
-            var pos = position + header;
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1553,7 +1587,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             foreach (var impl in implementations)
             {
                 if (impl.Locations.FirstOrDefault(l => l.IsInSource) is not { } location) continue;
-                var offset = location.SourceSpan.Start - header;
+                var offset = ToUserOffset(code, location.SourceSpan.Start);
                 if (offset < 0) continue; // inside the prepended usings preamble, not user code
                 results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
             }
@@ -1586,7 +1620,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var root = await document.GetSyntaxRootAsync(ct);
         if (root == null) return null;
 
-        var pos = position + HeaderLength(code);
+        var pos = ToDocumentOffset(code, position);
         if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
         var token = root.FindToken(pos);
@@ -1595,7 +1629,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var symbol = ResolveTokenSymbol(model, token);
         if (symbol == null) return null;
 
-        var header = HeaderLength(code);
         var spans = new List<IDocumentHighlightSpan>();
         foreach (var candidate in root.DescendantTokens())
         {
@@ -1609,7 +1642,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
                 continue;
 
-            var userStart = candidate.SpanStart - header;
+            var userStart = ToUserOffset(code, candidate.SpanStart);
             if (userStart < 0) continue; // inside the prepended usings preamble, not user code
             spans.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
         }
@@ -1621,8 +1654,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // declaration site (e.g. the identifier in "var x = ...") has no GetSymbolInfo result of its
     // own (that call is for usages/references), only GetDeclaredSymbol; a usage is the opposite.
     // Trying both, in this order, covers either kind of identifier token uniformly.
-    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token) =>
-        model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token)
+    {
+        var symbol = model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+        // Calls bind to a reduced extension method (without its receiver parameter); its source
+        // declaration is the unreduced method. Both must identify the same rename/highlight symbol.
+        return symbol is IMethodSymbol { ReducedFrom: { } method } ? method.OriginalDefinition : symbol;
+    }
 
     // ── Format ─────────────────────────────────────────────────────────────────
 
@@ -1667,13 +1705,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var document = SyncDocument(code);
             var headerLength = HeaderLength(code);
-            var span = new TextSpan(position + headerLength, 0);
+            var span = new TextSpan(ToDocumentOffset(code, position), 0);
 
             // 1-based, same convention as CodeFixEntry.Line/RoslynCodeFixEngine's own diagnostic-fix
             // line lookup — LinePosition.Line itself is 0-based.
             var userLine = SourceText.From(code).Lines.GetLinePosition(position).Line + 1;
 
-            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, code, headerLength, userLine, ct);
+            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, ProjectionFor(code).Text, headerLength, userLine, ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
@@ -1693,11 +1731,14 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         try
         {
             var headerLength = HeaderLength(code);
-            var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
+            var materialized = await _codeFixEngine.MaterializeAsync(key, ProjectionFor(code).Text, headerLength, ct);
             if (materialized is null) return null;
-            var newCode = _kind == RpadKind.Program && materialized.Value.NewCode != code
-                ? await ReindentOutsideTheWrapperAsync(materialized.Value.NewCode, materialized.Value.ChangedSpans, ct)
-                : materialized.Value.NewCode;
+            var projection = ProjectionFor(code);
+            var restored = projection.RestoreEdit(materialized.Value.NewCode, KindPrefix(code), KindSuffix(code), _parseOptions);
+            if (restored is null) return null;
+            var newCode = !projection.HasChanges && _kind == RpadKind.Program && restored != code
+                ? await ReindentOutsideTheWrapperAsync(restored, materialized.Value.ChangedSpans, ct)
+                : restored;
             return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
         catch (OperationCanceledException) { throw; }
@@ -1811,7 +1852,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Where(d => d.Id is "CS0246" or "CS0103")
                 .ToList();
 
-            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, code, headerLength, ct);
+            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, ProjectionFor(code).Text, headerLength, ct);
             return new SimpleMaterializedFix(code, usings);
         }
         catch (OperationCanceledException) { throw; }
@@ -1868,7 +1909,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
     {
         var headerLength = HeaderLength(code);
-        var textLen = headerLength + code.Length;
+        var textLen = headerLength + ProjectionFor(code).Text.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -1878,10 +1919,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var start = span.TextSpan.Start - headerLength;
-            if (start < 0) continue;
-            var end = Math.Min(span.TextSpan.End - headerLength, code.Length);
-            if (start >= end) continue;
+            var mapped = ToUserSpan(code, span.TextSpan);
+            if (mapped is null || mapped.Value.IsEmpty) continue;
+            var start = mapped.Value.Start;
+            var end = mapped.Value.End;
 
             result.Add(new SimpleSemanticToken(start, end - start, kind));
         }
@@ -1934,12 +1975,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // Roslyn's own CSharpInlineTypeHintsService (IsValidType) only excludes null and a type
         // literally named "var" (e.g. a user-defined `class var` — legal, if unusual, C#); it doesn't
         // special-case error types beyond that, and neither does this.
-        static void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
+        void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
             int headerLength, string code, SemanticModel model)
         {
             if (type is null || type.Name == "var") return;
 
-            var offset = identifierPos - headerLength;
+            var offset = ToUserOffset(code, identifierPos);
             if (offset < 0 || offset > code.Length) return;
 
             var display = type.ToMinimalDisplayString(model, typeSyntaxPos, _inlayHintTypeFormat);
@@ -1988,15 +2029,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (!d.Location.IsInSource) continue;
 
             var span = d.Location.SourceSpan;
-            var start = span.Start - headerLength;
-            if (start < 0) continue;
+            var mappedStart = ToUserSpan(code, span);
+            if (mappedStart is null) continue;
+            var start = mappedStart.Value.Start;
 
             // Clamp to code.Length before the start>=end skip below, same pattern as
             // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
             // RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
             // now follows the user's own code in the synced document, so a diagnostic anchored there
             // (or straddling into it) needs to not leak an out-of-range span to the editor.
-            var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+            var end = Math.Min(Math.Max(mappedStart.Value.End, start + 1), code.Length);
             if (start >= end) continue;
 
             var severity = d.Severity switch
@@ -2017,8 +2059,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             foreach (var (d, span) in await GeneratorDiagnosticsAsync(document, compilation, model.SyntaxTree, ct))
             {
                 if (d.Severity is RoslynSeverity.Hidden or RoslynSeverity.Info) continue;
-                var start = span.Start - headerLength;
-                var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+                var mapped = ToUserSpan(code, span);
+                if (mapped is null) continue;
+                var start = mapped.Value.Start;
+                var end = Math.Min(Math.Max(mapped.Value.End, start + 1), code.Length);
                 if (start < 0 || start >= end || !seen.Add((d.Id, start, end))) continue;
                 visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture),
                     d.Severity == RoslynSeverity.Error ? ContractSeverity.Error : ContractSeverity.Warning));
@@ -2027,7 +2071,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, headerLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, ProjectionFor(code).Text, headerLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
     }
 
