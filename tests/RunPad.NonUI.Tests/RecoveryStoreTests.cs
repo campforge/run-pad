@@ -367,6 +367,35 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Equal(sourceFiles, Files(source));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepairingAnImportMarker_Should_NameTheCheckpointOwner_RegardlessOfSessionOrder(bool unrelatedFirst)
+    {
+        var (destination, source) = await ImportThenAsync();
+        if (unrelatedFirst)
+        {
+            var staging = Path.Combine(_root, "staging");
+            using (var unrelated = new DiskRecoveryStore(staging))
+                await unrelated.CommitAsync(Snapshot(1, "UNRELATED"));
+            var folder = Directory.GetDirectories(staging).Single();
+            var moved = Path.Combine(_root, Path.GetFileName(folder));
+            Directory.Move(folder, moved);
+            Directory.SetLastWriteTimeUtc(moved, DateTime.UtcNow.AddMinutes(20));
+        }
+        Directory.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(10));
+        using (var intermediate = new DiskRecoveryStore(_root))
+            await intermediate.LoadAsync();
+
+        using var marker = JsonDocument.Parse(File.ReadAllText(Path.Combine(source, "imported.json")));
+        Assert.Equal(Path.GetFileName(destination), marker.RootElement.GetProperty("Into").GetString());
+        DamageCurrentPayload(destination);
+        using var reopened = new DiskRecoveryStore(_root);
+        var snapshot = await reopened.LoadAsync();
+        Assert.Contains((snapshot?.Tabs ?? []).Concat(reopened.Imports.SelectMany(i => i.Tabs)),
+            t => t.EditorText == "IMPORTED-DRAFT");
+    }
+
     // Damage after a discard: the fallback generation still records the import (and holds the draft
     // itself), so the draft comes back once, from the destination, not a second time from the source.
     [Fact]
