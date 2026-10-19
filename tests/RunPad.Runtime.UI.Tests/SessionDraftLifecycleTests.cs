@@ -388,7 +388,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task TwoSessions_Should_KeepTheirOwnDrafts_AndRestoreOnlyAnUnlockedSession()
+    public async Task TwoSessions_Should_KeepTheirOwnDrafts_AndALaterStartShouldRestoreBoth()
     {
         using (var first = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
@@ -410,10 +410,160 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             }
             await first.Close();
         }
-        using var final = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
-        await final.Ready();
-        Assert.Equal("first instance", final.Control(final.Vm.Tabs.Single()).State.Editor.Text);
-        await final.Close();
+        // Neither window's draft is orphaned: the newer session is restored, the other one imported.
+        using (var final = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await final.Ready();
+            Assert.Equal(["first instance", "second instance"], final.Vm.Tabs.Select(t => final.Control(t).State.Editor.Text));
+            Assert.Contains("another RunPad window", final.Vm.RecoveryNotice);
+            AssertNoModalNotice(final);
+            await final.Close();
+        }
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal(["first instance", "second instance"], again.Vm.Tabs.Select(t => again.Control(t).State.Editor.Text));
+        Assert.Null(again.Vm.RecoveryNotice); // imported once, then simply part of this session
+        await again.Close();
+    }
+
+    private static void AssertNoModalNotice(Session session) =>
+        session.Windows.Verify(w => w.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+
+    // A closed session of another window, written as that window's store would have left it.
+    private async Task<string> ClosedSessionAsync(DateTime written, params RecoveryTab[] tabs)
+    {
+        var before = Directory.Exists(RecoveryRoot) ? Directory.GetDirectories(RecoveryRoot) : [];
+        using (var store = new DiskRecoveryStore(RecoveryRoot))
+        {
+            // Own a fresh folder even when older closed sessions exist: hold those while creating it.
+            var held = before.Select(f => File.Open(Path.Combine(f, "owner.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)).ToList();
+            try { await store.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = tabs, ActiveTab = tabs.FirstOrDefault()?.Id }); }
+            finally { held.ForEach(h => h.Dispose()); }
+        }
+        var folder = Directory.GetDirectories(RecoveryRoot).Single(f => !before.Contains(f));
+        Directory.SetLastWriteTimeUtc(folder, written);
+        return folder;
+    }
+
+    private static RecoveryTab DirtyFileDraft(string path, string text, string args)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var document = RpadParser.Parse(RpadWriter.NewFile(text, Path.GetFileNameWithoutExtension(path), kind: RpadKind.Program)
+            .Replace("kind: Program\n", $"kind: Program\nargs:\n  - \"{args}\"\n")).Document!;
+        return new RecoveryTab
+        {
+            FilePath = path,
+            EditorText = text,
+            Document = document.CaptureSnapshot(),
+            IsDirty = true,
+            BaselineKnown = true,
+            DiskHash = ScriptFileState.Of(bytes).Hash,
+        };
+    }
+
+    [AvaloniaFact]
+    public async Task TwoWindowsDraftsOfTheSameFile_Should_BothBeRestored_WithoutWritingTheFile()
+    {
+        var path = Path.Combine(_root, "shared.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        var disk = File.ReadAllBytes(path);
+        var otherFolder = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), DirtyFileDraft(path, "other window's edit", "other-arg"));
+        await ClosedSessionAsync(DateTime.UtcNow, DirtyFileDraft(path, "this window's edit", "own-arg"));
+
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            var file = session.Vm.Tabs.Single(t => t.FilePath is not null);
+            Assert.Equal(path, file.FilePath);
+            Assert.Equal("this window's edit", session.Control(file).State.Editor.Text);
+            Assert.True(file.IsDirty);
+            var copy = session.Vm.Tabs.Single(t => t.FilePath is null);
+            Assert.Equal("shared (from another window)", copy.FileName);
+            Assert.True(copy.IsDirty);
+            var copyState = session.Control(copy).State;
+            Assert.Equal("other window's edit", copyState.Editor.Text);
+            Assert.Equal(["other-arg"], copyState.RpadDocument!.FrontMatter.Args);
+            Assert.Equal(RpadKind.Program, copyState.RpadDocument.FrontMatter.Kind);
+            Assert.Equal(["own-arg"], session.Control(file).State.RpadDocument!.FrontMatter.Args);
+            Assert.Contains("untitled copy", session.Vm.RecoveryNotice);
+            Assert.Equal(file, session.Vm.ActiveTab); // the restored session keeps its own active tab
+            AssertNoModalNotice(session);
+            await session.Close();
+        }
+        Assert.Equal(disk, File.ReadAllBytes(path));
+        Assert.True(File.Exists(Path.Combine(otherFolder, "imported.json")));
+
+        // The copy keeps its provenance in later checkpoints and is not imported again.
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal(2, again.Vm.Tabs.Count);
+        Assert.Equal("shared (from another window)", again.Vm.Tabs.Single(t => t.FilePath is null).FileName);
+        var captured = again.Control(again.Vm.Tabs.Single(t => t.FilePath is null)).CaptureRecovery();
+        Assert.Equal(path, captured.OriginalPath);
+        Assert.Equal(Path.GetFileName(otherFolder), captured.ImportedFrom);
+        Assert.Null(again.Vm.RecoveryNotice);
+        await again.Close();
+        Assert.Equal(disk, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task AnImportedDraftOfAFileNotOpenHere_Should_ReopenItWithTheBaselineItWasEditedAgainst()
+    {
+        var path = Path.Combine(_root, "elsewhere.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("original", "Elsewhere"));
+        var draft = DirtyFileDraft(path, "edited in the other window", "x");
+        File.WriteAllText(path, RpadWriter.NewFile("changed on disk later", "Elsewhere"));
+        var changed = File.ReadAllBytes(path);
+        await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), draft);
+        await ClosedSessionAsync(DateTime.UtcNow, new RecoveryTab { EditorText = "own untitled", IsDirty = true });
+
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var tab = session.Vm.Tabs.Single(t => t.FilePath == path);
+        Assert.Equal("edited in the other window", session.Control(tab).State.Editor.Text);
+        Assert.True(tab.IsDirty);
+        // A save compares with what the draft was edited against, so the later disk change is noticed.
+        Assert.Equal(draft.DiskHash, tab.DiskState!.Hash);
+        Assert.False(tab.RequiresBaselineConfirmation);
+        Assert.Equal("own untitled", session.Control(session.Vm.ActiveTab!).State.Editor.Text);
+        await session.Close();
+        Assert.Equal(changed, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task ADamagedOtherSession_Should_BeNamedInANonModalNotice_AndKeptUnchanged()
+    {
+        var damaged = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), new RecoveryTab { EditorText = "lost?", IsDirty = true });
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(damaged, "current.json")))!;
+        File.WriteAllText(Path.Combine(damaged, pointer["Current"]!.GetValue<string>()), "{ damaged");
+        var files = Directory.GetFiles(damaged).Where(f => !f.EndsWith("owner.lock")).ToDictionary(f => f, File.ReadAllBytes);
+        await ClosedSessionAsync(DateTime.UtcNow, new RecoveryTab { EditorText = "own draft", IsDirty = true });
+
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            Assert.Equal("own draft", session.Control(session.Vm.Tabs.Single()).State.Editor.Text);
+            Assert.Contains(damaged, session.Vm.RecoveryNotice);
+            Assert.True(session.Host.FindControl<Border>("RecoveryNoticeBar")!.IsVisible);
+            AssertNoModalNotice(session);
+            session.Vm.DismissRecoveryNotice();
+            Assert.False(session.Host.FindControl<Border>("RecoveryNoticeBar")!.IsVisible);
+            await session.Close();
+        }
+        Assert.All(files, f => Assert.Equal(f.Value, File.ReadAllBytes(f.Key)));
+    }
+
+    [AvaloniaFact]
+    public async Task UnreadableRecovery_Should_SayItNonModally()
+    {
+        var store = new Mock<IRecoveryStore>();
+        store.Setup(s => s.LoadAsync()).ThrowsAsync(new InvalidDataException("broken"));
+        using var session = new Session(_root, store.Object);
+        await session.Ready();
+        Assert.Contains("could not be read and have been kept unchanged", session.Vm.RecoveryNotice);
+        AssertNoModalNotice(session);
+        session.Windows.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>())).ReturnsAsync(UnsavedChangesResult.DontSave);
+        await session.Close();
     }
 
     public void Dispose() => Directory.Delete(_root, true);

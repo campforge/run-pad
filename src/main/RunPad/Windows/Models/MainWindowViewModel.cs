@@ -66,7 +66,14 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         {
             var snapshot = await _recovery!.LoadAsync();
             if (_disposed) return;
-            if (snapshot is null) { RestoreSession(); return; }
+            var imports = _recovery.Imports ?? [];
+            if (snapshot is null)
+            {
+                RestoreSession();
+                AddImportedDrafts(imports);
+                RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
+                return;
+            }
             _recoveryRevision = snapshot.Revision;
             var frames = new List<RecoveryTab>();
             foreach (var tab in snapshot.Tabs)
@@ -119,18 +126,87 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
                 ActiveTab = Tabs.FirstOrDefault(t => t.RecoveryId == snapshot.ActiveTab) ?? Tabs.FirstOrDefault();
             }
             finally { _restoringSession = false; }
+            AddImportedDrafts(imports);
             PersistSession();
-            if (_recovery.Warning is { } warning) await _windowService.ShowErrorAsync("Draft Recovery", warning);
+            RecoveryNotice = JoinNotice(_importNotice, _recovery.Warning);
         }
         catch (Exception ex)
         {
             _recoveryFailed = true;
             _logger.LogWarning("Could not restore drafts ({ErrorType})", ex.GetType().Name);
-            await _windowService.ShowErrorAsync("Draft Recovery Unavailable",
-                "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used.");
+            RecoveryNotice = "Saved drafts could not be read and have been kept unchanged. File-backed session restoration and normal save confirmations will be used."
+                + (_recovery?.Warning is { } details ? "\n" + details : "");
             if (!_disposed && Tabs.Count == 0) RestoreSession();
         }
     }
+
+    /// <summary>A non-modal startup notice about drafts: what was imported, and what could not be
+    /// read and was kept where it is. Null when there is nothing to say.</summary>
+    public string? RecoveryNotice
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public void DismissRecoveryNotice() => RecoveryNotice = null;
+
+    // Unsaved drafts of RunPad windows that closed while this one was not running. A draft of a file
+    // already open here (or in another imported draft) becomes an untitled copy that names the file,
+    // so neither version is overwritten; the others reopen their file, keeping the baseline they were
+    // edited against, so a later save still asks about changes on disk.
+    private void AddImportedDrafts(IReadOnlyList<RecoveryImport> imports)
+    {
+        var drafts = imports.SelectMany(i => i.Tabs).ToList();
+        if (drafts.Count == 0) return;
+        var active = ActiveTab;
+        var copies = 0;
+        _restoringSession = true;
+        try
+        {
+            foreach (var draft in drafts)
+            {
+                var frame = draft;
+                if (draft.FilePath is { } path && _openTabs.ContainsKey(path))
+                {
+                    copies++;
+                    frame = draft with
+                    {
+                        FilePath = null,
+                        OriginalPath = path,
+                        Title = $"{Path.GetFileNameWithoutExtension(path)} (from another window)",
+                        BaselineKnown = false,
+                        DiskHash = null,
+                        IsDirty = true,
+                    };
+                }
+                else if (draft.FilePath is null) frame = draft with { IsDirty = true };
+                var vm = new EditorTabItemViewModel(frame.FilePath, AvailableSdks, _prefs, this,
+                    frame.Document?.FrontMatter.Language ?? RpadLanguage.CSharp,
+                    frame.Document?.FrontMatter.Kind ?? RpadKind.Statements)
+                {
+                    RecoveryId = frame.Id,
+                    RestoredRecovery = frame,
+                };
+                if (frame.FilePath is not null) _openTabs[frame.FilePath] = vm;
+                AddTab(vm);
+            }
+            if (active is not null) ActiveTab = active;
+        }
+        finally { _restoringSession = false; }
+        var notice = drafts.Count == 1
+            ? "Restored 1 unsaved draft from another RunPad window."
+            : $"Restored {drafts.Count} unsaved drafts from other RunPad windows.";
+        if (copies > 0)
+            notice += copies == 1
+                ? " Its file was already open here, so it is an untitled copy that names the file."
+                : $" {copies} of them are untitled copies because their files were already open here.";
+        _importNotice = notice;
+    }
+
+    private string? _importNotice;
+
+    private static string? JoinNotice(string? first, string? second) =>
+        first is null ? second : second is null ? first : first + "\n" + second;
 
     public async Task<bool> CheckpointRecoveryAsync()
     {

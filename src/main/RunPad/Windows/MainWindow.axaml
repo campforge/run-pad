@@ -189,7 +189,25 @@
             <GridSplitter Grid.Column="1" Classes="seam" ResizeDirection="Columns"/>
 
             <!-- ── Editor area ───────────────────────────────────────────── -->
-            <ContentControl x:Name="EditorTabsHost" Grid.Column="2"/>
+            <DockPanel Grid.Column="2">
+                <!-- Startup draft recovery notice: informs without blocking, and stays until dismissed.
+                     The text is selectable so the recovery folders it names can be copied. -->
+                <Border x:Name="RecoveryNoticeBar" DockPanel.Dock="Top"
+                        IsVisible="{Binding RecoveryNotice, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        Background="{DynamicResource RunPad.Sidebar.BackgroundBrush}"
+                        BorderBrush="{DynamicResource RunPad.Accent.BackgroundBrush}" BorderThickness="0,0,0,1"
+                        Padding="10,6">
+                    <DockPanel>
+                        <Button x:Name="DismissRecoveryNoticeButton" DockPanel.Dock="Right" Margin="8,0,0,0"
+                                VerticalAlignment="Center" Content="Dismiss" Command="{Binding DismissRecoveryNotice}"
+                                AutomationProperties.Name="Dismiss draft recovery notice"/>
+                        <SelectableTextBlock x:Name="RecoveryNoticeText" Text="{Binding RecoveryNotice}"
+                                             TextWrapping="Wrap" VerticalAlignment="Center"
+                                             AutomationProperties.Name="Draft recovery notice"/>
+                    </DockPanel>
+                </Border>
+                <ContentControl x:Name="EditorTabsHost"/>
+            </DockPanel>
 
         </Grid>
     </Grid>
