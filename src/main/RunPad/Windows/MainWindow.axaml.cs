@@ -1,4 +1,5 @@
 using System.Reactive;
+using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -19,6 +20,7 @@ public sealed partial class MainWindow : Window, IDisposable
 {
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
+    private readonly IDisposable _restoreStateSubscription;
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself
@@ -47,6 +49,8 @@ public sealed partial class MainWindow : Window, IDisposable
         foreach (var item in MainMenuDefinition.ToMenuItems(MainMenuEntries)) _mainMenu.Items.Add(item);
 
         ApplyPlatformChrome();
+        viewModel.RecentFilesChanged += OnRecentFilesChanged;
+        Closed += (_, _) => viewModel.RecentFilesChanged -= OnRecentFilesChanged;
 
         // A key rebound in Preferences shows in both menus at once (OnWindowKeyDown reads it anyway).
         _prefs.Changed += OnPreferencesChanged;
@@ -57,7 +61,18 @@ public sealed partial class MainWindow : Window, IDisposable
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
 
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
+        _restoreStateSubscription = viewModel.WhenAnyValue(vm => vm.IsRestoringWorkspace).Subscribe(restoring =>
+        {
+            if (!_closeConfirmationInProgress) IsEnabled = !restoring;
+            if (NativeMenu.GetMenu(this) is { } native)
+                foreach (var item in native.Items.OfType<NativeMenuItem>()) item.IsEnabled = !restoring;
+        });
+        Closed += (_, _) => _restoreStateSubscription.Dispose();
         editorTabsCtrl.Attach(viewModel);
+
+        // Coming back to RunPad from another program is when its files were most likely changed
+        // there; scripts outside the watched scripts folder are only noticed this way.
+        Activated += (_, _) => _ = editorTabsCtrl.CheckFilesChangedOnDiskAsync();
 
         Closing += OnClosing;
     }
@@ -81,14 +96,17 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
         var unsavedWindows = OwnedWindows.OfType<TextEditorWindow>().Where(w => w.ViewModel.IsDirty).ToList();
-        if (!_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
+        if (!GetViewModel().RestoresDrafts && !_editorTabs.HasUnsavedTabs() && unsavedWindows.Count == 0) return;
 
         e.Cancel = true;
         _closeConfirmationInProgress = true;
         bool canClose;
         try
         {
-            canClose = await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            IsEnabled = false;
+            canClose = GetViewModel().RestoresDrafts
+                ? await GetViewModel().CheckpointRecoveryAsync()
+                : await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
             foreach (var window in unsavedWindows)
             {
                 if (!canClose) break;
@@ -97,6 +115,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         finally
         {
+            IsEnabled = true;
             _closeConfirmationInProgress = false;
         }
         if (!canClose) return;
@@ -109,6 +128,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (GetViewModel().IsRestoringWorkspace) return;
         var kb = _prefs.Keyboard;
         foreach (var (command, action) in _keyActions)
         {
@@ -132,8 +152,10 @@ public sealed partial class MainWindow : Window, IDisposable
         return new()
         {
             [KeyCommands.NewFile] = vm.NewRpadFileWithDefaults,
+            [KeyCommands.OpenFile] = () => vm.OpenFileCommand.Execute().Subscribe(),
             [KeyCommands.Save] = tabs.SaveActive,
             [KeyCommands.SaveAs] = tabs.SaveAsActive,
+            [KeyCommands.RevertFile] = tabs.RevertActive,
             [KeyCommands.CloseTab] = tabs.CloseActiveTab,
             // Close(), as the window's close button: unsaved tabs are asked about first.
             [KeyCommands.Exit] = Close,
@@ -142,11 +164,15 @@ public sealed partial class MainWindow : Window, IDisposable
             [KeyCommands.OpenPreferences] = () => vm.OpenPreferencesCommand.Execute().Subscribe(),
             [KeyCommands.ToggleFileTree] = () => vm.Sidebar.ToggleCommand.Execute().Subscribe(),
             [KeyCommands.ToggleOutputPanel] = tabs.ToggleOutputPanelActive,
+            [KeyCommands.TogglePreview] = tabs.TogglePreviewActive,
+            [KeyCommands.TogglePreviewToSide] = tabs.TogglePreviewToSideActive,
             [KeyCommands.ZoomIn] = tabs.ZoomInActive,
             [KeyCommands.ZoomOut] = tabs.ZoomOutActive,
             [KeyCommands.ResetZoom] = tabs.ResetZoomActive,
             [KeyCommands.RunOrContinue] = tabs.RunOrContinueActive,
             [KeyCommands.Stop] = tabs.CancelActive,
+            [KeyCommands.ExecuteSelection] = tabs.ExecuteSelectionActive,
+            [KeyCommands.Restart] = tabs.RestartActive,
             [KeyCommands.ToggleDebugMode] = tabs.ToggleDebugModeActive,
             [KeyCommands.StepOver] = tabs.StepOverActive,
             [KeyCommands.StepInto] = tabs.StepInActive,
@@ -236,6 +262,49 @@ public sealed partial class MainWindow : Window, IDisposable
 
     // A conventional IDE layout, the same on every OS. Every item calls the code behind the matching
     // toolbar button or shortcut (OnWindowKeyDown, EditorTabsControl.*Active), never a copy of it.
+    private MainMenuGroup CreateRecentFilesMenu()
+    {
+        var vm = GetViewModel();
+        var entries = vm.RecentFiles.Select(path => (MainMenuEntry)new MainMenuCommand(
+            path.Replace("_", "__"), vm.OpenRecentFileCommand, Parameter: path)).ToList();
+        if (entries.Count > 0) entries.Add(new MainMenuSeparator());
+        entries.Add(new MainMenuCommand("_Clear Recent Files", vm.ClearRecentFilesCommand));
+        return new MainMenuGroup("Recent _Files", entries);
+    }
+
+    private void OnRecentFilesChanged()
+    {
+        // The macOS exporter tracks the identity of each exported menu. Replacing the root (or
+        // submenu) while it handles a command invalidates that tracking; update only its items.
+        for (var groupIndex = 0; groupIndex < MainMenuEntries.Count; groupIndex++)
+        {
+            var group = MainMenuEntries[groupIndex];
+            for (var itemIndex = 0; itemIndex < group.Items.Count; itemIndex++)
+            {
+                if (group.Items[itemIndex] is not MainMenuGroup { Header: "Recent _Files" }) continue;
+                var recent = CreateRecentFilesMenu();
+                var groups = MainMenuEntries.ToArray();
+                var children = group.Items.ToArray();
+                children[itemIndex] = recent;
+                groups[groupIndex] = group with { Items = children };
+                MainMenuEntries = groups;
+
+                var menuItem = (MenuItem)((MenuItem)_mainMenu.Items[groupIndex]!).Items[itemIndex]!;
+                menuItem.Items.Clear();
+                foreach (var child in MainMenuDefinition.ToMenuItems(recent.Items)) menuItem.Items.Add(child);
+
+                if (NativeMenu.GetMenu(this) is { } nativeRoot)
+                {
+                    var nativeGroup = ((NativeMenuItem)nativeRoot.Items[groupIndex]).Menu!;
+                    var nativeRecent = ((NativeMenuItem)nativeGroup.Items[itemIndex]).Menu!;
+                    nativeRecent.Items.Clear();
+                    foreach (var child in recent.Items) nativeRecent.Add(MainMenuDefinition.ToNativeMenuItem(child));
+                }
+                return;
+            }
+        }
+    }
+
     private IReadOnlyList<MainMenuGroup> CreateMainMenu()
     {
         var vm = GetViewModel();
@@ -251,11 +320,14 @@ public sealed partial class MainWindow : Window, IDisposable
                     .. vm.NewFileLanguages.Select(l => new MainMenuCommand(
                         l.DisplayName, ReactiveCommand.CreateFromTask(() => NewRpadFileWithKindAsync(l.Language)))),
                 ]),
+                new MainMenuCommand("_Open...", vm.OpenFileCommand, _prefs.Keyboard.GestureFor(KeyCommands.OpenFile), KeyCommands.OpenFile),
+                CreateRecentFilesMenu(),
                 new MainMenuCommand("Open _Text File...", vm.OpenTextFileCommand),
                 new MainMenuCommand("_Import .linq Query...", vm.ImportLinqFileCommand),
                 new MainMenuSeparator(),
                 Item("_Save", KeyCommands.Save),
                 Item("Save _As...", KeyCommands.SaveAs),
+                Item("Re_vert to Saved", KeyCommands.RevertFile),
                 new MainMenuSeparator(),
                 Item("_Close Tab", KeyCommands.CloseTab),
                 new MainMenuSeparator(),
@@ -282,6 +354,9 @@ public sealed partial class MainWindow : Window, IDisposable
                 Item("Toggle _File Tree", KeyCommands.ToggleFileTree),
                 Item("Toggle _Output Panel", KeyCommands.ToggleOutputPanel),
                 new MainMenuSeparator(),
+                Item("Markdown _Preview", KeyCommands.TogglePreview),
+                Item("Markdown Preview to the _Side", KeyCommands.TogglePreviewToSide),
+                new MainMenuSeparator(),
                 Item("Zoom _In", KeyCommands.ZoomIn),
                 Item("Zoom O_ut", KeyCommands.ZoomOut),
                 Item("_Reset Zoom", KeyCommands.ResetZoom),
@@ -290,6 +365,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("_Run / Continue", KeyCommands.RunOrContinue),
                 Item("_Stop", KeyCommands.Stop),
+                Item("E_xecute Selection", KeyCommands.ExecuteSelection),
+                Item("Stop and Run _Again", KeyCommands.Restart),
                 new MainMenuSeparator(),
                 Item("_Debug Mode", KeyCommands.ToggleDebugMode),
                 new MainMenuSeparator(),
@@ -320,7 +397,7 @@ public sealed partial class MainWindow : Window, IDisposable
     // A menu item for a key-bindable command: the same action as its key, and the key as a hint
     // (kept current by OnPreferencesChanged).
     private MainMenuCommand Item(string header, KeyCommand command)
-        => new(header, ReactiveCommand.Create(_keyActions[command]), _prefs.Keyboard.GestureFor(command), command);
+        => new(header, ReactiveCommand.Create(() => { if (!GetViewModel().IsRestoringWorkspace) _keyActions[command](); }), _prefs.Keyboard.GestureFor(command), command);
 
     // Undo, Copy… use the platform's keys (Cmd on macOS). Elsewhere the text boxes handle them and
     // the menu only shows them; on macOS the menu bar takes the key first and its Edit command acts on
@@ -394,6 +471,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async Task NewRpadFileWithKindAsync(RpadLanguage language)
     {
+        if (GetViewModel().IsRestoringWorkspace) return;
         var kind = await new NewFileKindDialog().ShowDialog<RpadKind?>(this);
         if (kind is null) return; // cancelled
 
@@ -460,7 +538,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        GetViewModel().RecentFilesChanged -= OnRecentFilesChanged;
         _prefs.Changed -= OnPreferencesChanged;
+        _restoreStateSubscription.Dispose();
         _editorTabs.Dispose();
         GC.SuppressFinalize(this);
     }

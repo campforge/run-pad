@@ -1,0 +1,30 @@
+// Copyright (c) Nicolas Musset
+// Distributed under the MIT license. See the LICENSE.md file in the project root for more information.
+
+using Avalonia.Media;
+
+using Markdig.Syntax;
+
+namespace MarkView.Avalonia.Rendering.Blocks;
+
+/// <summary>
+/// Renders a Markdig <see cref="ParagraphBlock"/> as a <see cref="MarkdownSelectableTextBlock"/>.
+/// </summary>
+public sealed class ParagraphRenderer : AvaloniaObjectRenderer<ParagraphBlock>
+{
+    protected override void Write(AvaloniaRenderer renderer, ParagraphBlock obj)
+    {
+        var textBlock = new MarkdownSelectableTextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Renderer = renderer,
+        };
+        textBlock.Classes.Add("markdown-paragraph");
+
+        renderer.Push(textBlock.Inlines!);
+        renderer.WriteLeafInline(obj);
+        renderer.Pop();
+
+        renderer.WriteBlock(textBlock);
+    }
+}

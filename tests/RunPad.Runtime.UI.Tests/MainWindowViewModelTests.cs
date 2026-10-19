@@ -22,6 +22,7 @@ public class MainWindowViewModelTests
             fileService.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
 
             var prefs = new Mock<IPreferencesService>();
+            prefs.Setup(p => p.Session).Returns(new SessionSettings());
             prefs.Setup(p => p.Layout).Returns(new LayoutSettings { SidebarWidth = 300, SidebarCollapsed = false });
 
             var vm = new MainWindowViewModel(

@@ -445,7 +445,9 @@ public sealed class HtmlContainer : IDisposable
         ArgChecker.AssertArgNotNull(parent, "parent");
         ArgChecker.AssertArgNotNull(e, "e");
 
-        _htmlContainerInt.HandleKeyDown(new ControlAdapter(_avaloniaAdapter, parent), CreateKeyEevent(e));
+        var key = CreateKeyEevent(e);
+        _htmlContainerInt.HandleKeyDown(new ControlAdapter(_avaloniaAdapter, parent), key);
+        if (key.Control && (key.AKeyCode || key.CKeyCode)) e.Handled = true;
     }
 
     /// <summary>
@@ -493,8 +495,12 @@ public sealed class HtmlContainer : IDisposable
     /// </summary>
     private static RKeyEvent CreateKeyEevent(KeyEventArgs e)
     {
-        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
-        return new RKeyEvent(control, e.Key == Key.A, e.Key == Key.C);
+        var hotkeys = Application.Current?.PlatformSettings?.HotkeyConfiguration;
+        var selectAll = hotkeys?.SelectAll.Any(g => g.Matches(e))
+            ?? new KeyGesture(Key.A, KeyModifiers.Control).Matches(e);
+        var copy = hotkeys?.Copy.Any(g => g.Matches(e))
+            ?? new KeyGesture(Key.C, KeyModifiers.Control).Matches(e);
+        return new RKeyEvent(selectAll || copy, selectAll, copy);
     }
 
     #endregion

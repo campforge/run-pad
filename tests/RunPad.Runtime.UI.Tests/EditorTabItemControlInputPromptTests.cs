@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
+using Microsoft.Extensions.Logging;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
@@ -43,7 +44,7 @@ public class EditorTabItemControlInputPromptTests
         return theme;
     }
 
-    private static EditorsTabItemControl CreateControl()
+    private static EditorsTabItemControl CreateControl(ILogger<EditorsTabItemControl>? logger = null)
     {
         var prefs = MakePrefs();
         var vm = new EditorTabItemViewModel(
@@ -52,7 +53,7 @@ public class EditorTabItemControlInputPromptTests
         var buildCache = new Mock<IBuildCacheService>();
 
         var ctrl = new EditorsTabItemControl(vm, MakeTheme().Object, new Mock<IWindowService>().Object, registry.Object, prefs.Object,
-            intelliSense: null, buildCache.Object);
+            intelliSense: null, buildCache.Object, logger);
         var window = new Window { Content = ctrl };
         window.Show();
         return ctrl;
@@ -173,5 +174,88 @@ public class EditorTabItemControlInputPromptTests
         await ctrl.SubmitInputPromptAsync(); // State.RunningHost is null — must not throw
 
         Assert.True(ctrl.IsInputPromptVisible); // never got to the point of hiding/sending
+    }
+
+    [AvaloniaFact]
+    public async Task FailedSend_Should_ReportWithoutLeakingInput_AndNotFaultTheUiAction()
+    {
+        var logger = new Mock<ILogger<EditorsTabItemControl>>();
+        var ctrl = CreateControl(logger.Object);
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.SendInputAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("private-password"));
+        ctrl.State.RunningHost = host.Object;
+        ctrl.ShowInputPrompt("Password", true);
+        ctrl.InputPromptBoxText = "private-password";
+        await ctrl.SubmitInputPromptAsync();
+        Assert.Contains("Could not send input", ctrl.State.Output.Content);
+        Assert.DoesNotContain("private-password", ctrl.State.Output.Content);
+        var log = Assert.Single(logger.Invocations, i => i.Method.Name == "Log");
+        Assert.Equal(LogLevel.Error, log.Arguments[0]);
+        Assert.Null(log.Arguments[3]);
+        Assert.DoesNotContain("private-password", log.Arguments[2]?.ToString());
+        Assert.Equal("", ctrl.InputPromptBoxText);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public void Cancel_Should_ClearAndHidePasswordImmediately()
+    {
+        var ctrl = CreateControl();
+        ctrl.ShowInputPrompt("Password", true);
+        ctrl.InputPromptBoxText = "private-password";
+        ctrl.Cancel();
+        Assert.False(ctrl.IsInputPromptVisible);
+        Assert.Equal("", ctrl.InputPromptBoxText);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaFact]
+    public async Task PendingSend_Should_ConsumeOnlyOneAnswer_AndNotChangeANewerPrompt()
+    {
+        var ctrl = CreateControl();
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.SendInputAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(pending.Task);
+        ctrl.State.RunningHost = host.Object;
+        ctrl.ShowInputPrompt("First", false);
+        ctrl.InputPromptBoxText = "answer";
+        var send = ctrl.SubmitInputPromptAsync();
+        var duplicate = ctrl.SubmitInputPromptAsync();
+        var count = host.Invocations.Count(i => i.Method.Name == "SendInputAsync");
+        if (count != 1) pending.TrySetResult();
+        Assert.Equal(1, count);
+        await duplicate;
+        ctrl.ShowInputPrompt("Next", true);
+        ctrl.InputPromptBoxText = "next-secret";
+        pending.SetException(new IOException("old-send"));
+        await send;
+        Assert.True(ctrl.IsInputPromptVisible);
+        Assert.Equal("next-secret", ctrl.InputPromptBoxText);
+        Assert.DoesNotContain("Could not send input", ctrl.State.Output.Content);
+        ctrl.Dispose();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LateSendFailure_AfterStopOrClose_Should_BeQuiet(bool close)
+    {
+        var logger = new Mock<ILogger<EditorsTabItemControl>>();
+        var ctrl = CreateControl(logger.Object);
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.SendInputAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(pending.Task);
+        ctrl.State.RunningHost = host.Object;
+        ctrl.ShowInputPrompt("Password", true);
+        ctrl.InputPromptBoxText = "secret";
+        var send = ctrl.SubmitInputPromptAsync();
+        if (close) ctrl.Dispose(); else ctrl.Cancel();
+        pending.SetException(new ObjectDisposedException("stdin"));
+        await send;
+        Assert.DoesNotContain("Could not send input", ctrl.State.Output.Content);
+        Assert.Empty(logger.Invocations);
+        Assert.Equal("", ctrl.InputPromptBoxText);
+        ctrl.Dispose();
     }
 }

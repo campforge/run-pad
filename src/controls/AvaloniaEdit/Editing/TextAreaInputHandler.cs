@@ -203,6 +203,8 @@ public class TextAreaInputHandler : ITextAreaInputHandler
             handler.Detach();
     }
 
+    protected virtual KeyGesture GestureFor(RoutedCommand command) => command.Gesture;
+
     // workaround since InputElement.KeyBindings can't be marked as handled
     private void TextAreaOnKeyDown(object sender, KeyEventArgs keyEventArgs)
     {
@@ -218,7 +220,7 @@ public class TextAreaInputHandler : ITextAreaInputHandler
 
         foreach (var commandBinding in CommandBindings)
         {
-            if (commandBinding.Command.Gesture?.Matches(keyEventArgs) == true)
+            if (GestureFor(commandBinding.Command)?.Matches(keyEventArgs) == true)
             {
                 commandBinding.Command.Execute(null, (IInputElement)sender);
                 keyEventArgs.Handled = true;

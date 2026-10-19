@@ -34,6 +34,9 @@ public class RunSaveConflictTests : IDisposable
     private readonly string _script;
     private readonly Mock<IWindowService> _windows = new();
     private readonly List<ExecutionRequest> _runs = [];
+    private readonly List<string> _scripts = [];
+    private Func<CancellationToken, Task<RunResult>>? _execute;
+    private Func<ValueTask>? _disposeHost;
 
     public RunSaveConflictTests()
     {
@@ -69,8 +72,12 @@ public class RunSaveConflictTests : IDisposable
 
         var host = new Mock<ILanguageHost>();
         host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(RunResult.Exited(0));
-        host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            .Returns((string code, OutputReceivedHandler output, CancellationToken token) =>
+            {
+                _scripts.Add(code);
+                return _execute?.Invoke(token) ?? Task.FromResult(RunResult.Exited(0));
+            });
+        host.Setup(h => h.DisposeAsync()).Returns(() => _disposeHost?.Invoke() ?? ValueTask.CompletedTask);
         var registry = new Mock<ILanguageHostRegistry>();
         registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
             .Callback<string, ExecutionRequest>((_, request) => _runs.Add(request)).Returns(host.Object);
@@ -85,6 +92,156 @@ public class RunSaveConflictTests : IDisposable
         window.Show();
         Dispatcher.UIThread.RunJobs();
         return (ctrl, vm, window);
+    }
+
+    [AvaloniaFact]
+    public async Task Selection_Should_RunOnlySelectedStatements_WithoutSavingTheDocument()
+    {
+        var original = File.ReadAllBytes(_script);
+        var (ctrl, vm, window) = Open();
+        try
+        {
+            ctrl.State.Editor.Text = "throw new Exception();\n42.Dump();\nthrow new Exception();";
+            ctrl.State.RpadDocument!.FrontMatter.Args = ["argument"];
+            ctrl.State.Editor.Select(ctrl.State.Editor.Text.IndexOf("42.Dump", StringComparison.Ordinal), 10);
+            await ctrl.RunSelectionAsync(Sdk);
+            var script = Assert.Single(_scripts);
+            Assert.Equal("42.Dump();", script.Trim());
+            Assert.Equal(1, script.Count(c => c == '\n'));
+            Assert.Equal(["argument"], Assert.Single(_runs).Arguments);
+            Assert.Equal(original, File.ReadAllBytes(_script));
+            Assert.True(vm.IsDirty);
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task EmptySelection_Should_NotRunTheWholeDocument()
+    {
+        var (ctrl, _, window) = Open();
+        try { await ctrl.RunSelectionAsync(Sdk); Assert.Empty(_runs); }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Restart_Should_WaitForCancelledHostDisposal_AndStartExactlyOnce()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposalCalls = 0;
+        _disposeHost = () =>
+        {
+            if (Interlocked.Increment(ref disposalCalls) != 1) return ValueTask.CompletedTask;
+            disposing.SetResult();
+            return new ValueTask(disposed.Task);
+        };
+        var calls = 0;
+        _execute = async token =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                using var registration = token.Register(() => cancelled.TrySetResult());
+                entered.SetResult();
+                await finish.Task;
+                token.ThrowIfCancellationRequested();
+            }
+            return RunResult.Exited(0);
+        };
+        var (ctrl, _, window) = Open();
+        try
+        {
+            var first = ctrl.RunAsync(false, Sdk);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var restart = ctrl.RestartAsync(Sdk);
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await ctrl.RestartAsync(Sdk);
+            Assert.Single(_runs);
+            finish.SetResult();
+            await disposing.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Single(_runs);
+            disposed.SetResult();
+            await first;
+            await restart;
+            Assert.Equal(2, _runs.Count);
+        }
+        finally { finish.TrySetResult(); disposed.TrySetResult(); window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task StopDuringQueuedRestart_Should_NotLaunchAnotherHost()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _execute = async token => { entered.TrySetResult(); await finish.Task; token.ThrowIfCancellationRequested(); return RunResult.Exited(0); };
+        var (ctrl, _, window) = Open();
+        try
+        {
+            var first = ctrl.RunAsync(false, Sdk);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var restart = ctrl.RestartAsync(Sdk);
+            ctrl.Cancel();
+            finish.SetResult();
+            await first;
+            await restart;
+            Assert.Single(_runs);
+        }
+        finally { finish.TrySetResult(); window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ProgramSelection_Should_NotRunTheWholeProgram()
+    {
+        var (ctrl, _, window) = Open();
+        try
+        {
+            ctrl.State.RpadDocument!.FrontMatter.Kind = RpadKind.Program;
+            ctrl.State.Editor.Select(0, 5);
+            await ctrl.RunSelectionAsync(Sdk);
+            Assert.Empty(_runs);
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RestartDuringSaveQuestion_Should_StartOnlyTheNewRun(bool stopQueuedRestart)
+    {
+        var (ctrl, _, window) = Open();
+        try
+        {
+            ChangeExternally();
+            var answer = new TaskCompletionSource<SaveConflictChoice>();
+            _windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).Returns(answer.Task);
+            var first = ctrl.RunAsync(false, Sdk);
+            var restart = ctrl.RestartAsync(Sdk);
+            if (stopQueuedRestart) ctrl.Cancel();
+            Assert.Empty(_runs);
+            answer.SetResult(SaveConflictChoice.Overwrite);
+            await first;
+            await restart;
+            Assert.Equal(stopQueuedRestart ? 0 : 1, _runs.Count);
+        }
+        finally { window.Close(); ctrl.Dispose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task RectangleSelection_Should_NotExecuteUnselectedLineFragments()
+    {
+        var (ctrl, _, window) = Open();
+        try
+        {
+            ctrl.State.Editor.Text = "aaa(1);\nbbb(2);\nccc(3);\n";
+            var area = ctrl.State.Editor.TextArea;
+            area.Selection = new global::AvaloniaEdit.Editing.RectangleSelection(area,
+                new global::AvaloniaEdit.TextViewPosition(1, 4), new global::AvaloniaEdit.TextViewPosition(3, 8));
+            await ctrl.RunSelectionAsync(Sdk);
+            Assert.Equal("   (1);\n   (2);\n   (3);", Assert.Single(_scripts));
+        }
+        finally { window.Close(); ctrl.Dispose(); }
     }
 
     private void ChangeExternally() => File.WriteAllText(_script, RpadWriter.NewFile(External + "\n", "Demo"));

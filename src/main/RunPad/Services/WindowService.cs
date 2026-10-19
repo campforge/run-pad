@@ -74,6 +74,21 @@ public sealed class WindowService : IWindowService
         return file is null ? null : file.TryGetLocalPath();
     }
 
+    public async Task<string?> ShowOpenScriptFileDialogAsync(string startFolder)
+    {
+        var owner = MainWindow;
+        if (owner is null) return null;
+        var startLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(startFolder);
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open Script",
+            AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
+            FileTypeFilter = [new FilePickerFileType("RPad Script") { Patterns = ["*.rpad"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
     public async Task<string?> ShowOpenLinqFileDialogAsync(string startFolder)
     {
         var owner = MainWindow;
@@ -106,6 +121,19 @@ public sealed class WindowService : IWindowService
 
         var result = await new SaveConflictDialog(fileName).ShowDialog<SaveConflictChoice?>(owner);
         return result ?? SaveConflictChoice.Cancel;
+    }
+
+    public Task<bool> ShowReloadChangedFileDialogAsync(string fileName)
+        => ShowReloadDialogAsync(ReloadFileDialog.ChangedOnDisk(fileName));
+
+    public Task<bool> ShowRevertFileDialogAsync(string fileName)
+        => ShowReloadDialogAsync(ReloadFileDialog.Revert(fileName));
+
+    private async Task<bool> ShowReloadDialogAsync(ReloadFileDialog dialog)
+    {
+        var owner = MainWindow;
+        if (owner is null) return false;
+        return await dialog.ShowDialog<bool?>(owner) == true;
     }
 
     public async Task<string?> ShowOpenAssemblyFileDialogAsync(string startFolder)

@@ -26,8 +26,10 @@ public static class KeyCommands
     public const string AssemblyExplorer = "Assembly Explorer";
 
     public static readonly KeyCommand NewFile = new("file.new", General, "New File", "Ctrl+N", "Cmd+N");
+    public static readonly KeyCommand OpenFile = new("file.open", General, "Open Script", "Ctrl+O", "Cmd+O");
     public static readonly KeyCommand Save = new("file.save", General, "Save", "Ctrl+S", "Cmd+S");
     public static readonly KeyCommand SaveAs = new("file.saveAs", General, "Save As", "Ctrl+Shift+S", "Cmd+Shift+S");
+    public static readonly KeyCommand RevertFile = new("file.revert", General, "Revert to Saved", "");
     public static readonly KeyCommand CloseTab = new("file.closeTab", General, "Close Tab", "Ctrl+W", "Cmd+W");
     // Windows and Linux close the window with the system's Alt+F4; macOS has no such key, Cmd+Q is the convention.
     public static readonly KeyCommand Exit = new("file.exit", General, "Exit", "", "Cmd+Q");
@@ -39,8 +41,14 @@ public static class KeyCommands
     public static readonly KeyCommand ZoomIn = new("view.zoomIn", General, "Zoom In", "");
     public static readonly KeyCommand ZoomOut = new("view.zoomOut", General, "Zoom Out", "");
     public static readonly KeyCommand ResetZoom = new("view.resetZoom", General, "Reset Zoom", "");
+    // VS Code's keys; its Ctrl+K V for the side preview is a two-key chord, which key bindings here
+    // can't express, so that one takes Alt instead of Shift.
+    public static readonly KeyCommand TogglePreview = new("view.togglePreview", General, "Toggle Markdown Preview", "Ctrl+Shift+V", "Cmd+Shift+V");
+    public static readonly KeyCommand TogglePreviewToSide = new("view.togglePreviewToSide", General, "Toggle Markdown Preview to the Side", "Ctrl+Alt+V", "Cmd+Alt+V");
 
     public static readonly KeyCommand RunOrContinue = new("run.run", Run, "Run / Continue", "F5");
+    public static readonly KeyCommand ExecuteSelection = new("run.selection", Run, "Execute Selection", "Ctrl+Shift+E", "Cmd+Shift+E");
+    public static readonly KeyCommand Restart = new("run.restart", Run, "Stop and Run Again", "Alt+Shift+X", "Cmd+Shift+F5");
     public static readonly KeyCommand Stop = new("run.stop", Run, "Stop", "Shift+F5");
     public static readonly KeyCommand ToggleDebugMode = new("run.toggleDebugMode", Run, "Debug Mode", "");
     public static readonly KeyCommand StepOver = new("run.stepOver", Run, "Step Over", "F10");
@@ -48,6 +56,13 @@ public static class KeyCommands
     public static readonly KeyCommand StepOut = new("run.stepOut", Run, "Step Out", "Shift+F11");
     public static readonly KeyCommand Pause = new("run.pause", Run, "Pause", "");
     public static readonly KeyCommand RunToCursor = new("run.runToCursor", Run, "Run to Cursor", "Ctrl+F10", "Cmd+F10");
+
+    public static readonly KeyCommand FindText = new("editor.find", Editor, "Find", "Ctrl+F", "Cmd+F");
+    public static readonly KeyCommand ReplaceText = new("editor.replace", Editor, "Replace", "Ctrl+H", "Cmd+Alt+F");
+    public static readonly KeyCommand FindNext = new("editor.findNext", Editor, "Find Next", "F3");
+    public static readonly KeyCommand FindPrevious = new("editor.findPrevious", Editor, "Find Previous", "Shift+F3");
+    public static readonly KeyCommand ReplaceNext = new("editor.replaceNext", Editor, "Replace Next", "Alt+R");
+    public static readonly KeyCommand ReplaceAll = new("editor.replaceAll", Editor, "Replace All", "Alt+A");
 
     public static readonly KeyCommand TriggerCompletion = new("editor.completion", Editor, "Show Completion", "Ctrl+Space");
     public static readonly KeyCommand SignatureHelp = new("editor.signatureHelp", Editor, "Signature Help", "Ctrl+Shift+Space", "Cmd+Shift+Space");
@@ -72,9 +87,10 @@ public static class KeyCommands
 
     public static IReadOnlyList<KeyCommand> All { get; } =
     [
-        NewFile, Save, SaveAs, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
-        ToggleFileTree, ToggleOutputPanel, ZoomIn, ZoomOut, ResetZoom,
-        RunOrContinue, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        NewFile, OpenFile, Save, SaveAs, RevertFile, CloseTab, Exit, OpenDependencies, OpenAssemblyExplorer, OpenPreferences,
+        ToggleFileTree, ToggleOutputPanel, TogglePreview, TogglePreviewToSide, ZoomIn, ZoomOut, ResetZoom,
+        RunOrContinue, ExecuteSelection, Restart, Stop, ToggleDebugMode, StepOver, StepInto, StepOut, Pause, RunToCursor,
+        FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll,
         TriggerCompletion, SignatureHelp, GoToDefinition, FindReferences, RenameSymbol, JumpToBracket,
         Format, GoToLine, ResolveAllUsings,
         RenameFile, DeleteFile,
@@ -96,7 +112,8 @@ public static class KeyCommands
     // The keys the code editor control handles itself (EditorKeyBindings.ApplyTo), in every window
     // that has one.
     private static readonly HashSet<KeyCommand> CodeEditorCommands =
-        [TriggerCompletion, SignatureHelp, JumpToBracket, RenameSymbol, GoToDefinition, FindReferences];
+        [TriggerCompletion, SignatureHelp, JumpToBracket, RenameSymbol, GoToDefinition, FindReferences,
+            FindText, ReplaceText, FindNext, FindPrevious, ReplaceNext, ReplaceAll];
 
     /// <summary>Where <paramref name="command"/>'s key is handled: the main window dispatches General
     /// and Run keys (and Format, Go to Line, Resolve All Usings) wherever its focus is; the code
