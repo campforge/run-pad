@@ -58,10 +58,11 @@ internal static class RpadKindTransform
     // The top-level `args` are the script's command-line arguments; an int-returning Main's result is
     // returned from the top level, which makes it the process exit code.
     // Both are empty for a program compiled as written (ProgramEntryPointDetector.IsCompiledAsWritten).
-    public static string ProgramPrefixFor(string code)
+    // parseOptions are the build's, the same ones its compiler and the editor parse with.
+    public static string ProgramPrefixFor(string code, CSharpParseOptions parseOptions)
     {
-        if (ProgramEntryPointDetector.IsCompiledAsWritten(code)) return "";
-        var main = ProgramEntryPointDetector.DetectMain(code);
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return "";
+        var main = ProgramEntryPointDetector.DetectMain(code, parseOptions);
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
         var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
@@ -74,10 +75,10 @@ internal static class RpadKindTransform
     // a file that doesn't end in a blank line) isn't glued onto the same physical line as the
     // trampoline — keeps every synthetic line, like the prefix's, off of any line a breakpoint could
     // legitimately target (all of which sit strictly before this suffix begins).
-    public static string ProgramSuffixFor(string code)
+    public static string ProgramSuffixFor(string code, CSharpParseOptions parseOptions)
     {
-        if (ProgramEntryPointDetector.IsCompiledAsWritten(code)) return "";
-        var main = ProgramEntryPointDetector.DetectMain(code);
+        if (ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions)) return "";
+        var main = ProgramEntryPointDetector.DetectMain(code, parseOptions);
         var arguments = main.Parameters switch
         {
             ProgramEntryPointDetector.MainParameters.Args => "args",
@@ -117,5 +118,5 @@ internal static class RpadKindTransform
     }
 
     /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line.</summary>
-    public static int ProgramLineOffset(string code) => ProgramEntryPointDetector.IsCompiledAsWritten(code) ? 0 : 2;
+    public static int ProgramLineOffset(string code, CSharpParseOptions parseOptions) => ProgramEntryPointDetector.IsCompiledAsWritten(code, parseOptions) ? 0 : 2;
 }

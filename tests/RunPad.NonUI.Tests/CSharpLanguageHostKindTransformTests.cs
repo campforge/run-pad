@@ -315,4 +315,24 @@ public class CSharpLanguageHostKindTransformTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // Classification uses the build's preprocessor symbols: a member Main under DEBUG gets the wrapper
+    // and its 2-line offset; one under an undefined symbol leaves a program with no top-level code.
+    [Theory]
+    [InlineData("#if DEBUG\nvoid Main() { }\n#endif\n", 2)]
+    [InlineData("#if TRACE\nasync Task<int> Main(string[] args) => 0;\n#endif\n", 2)]
+    [InlineData("#if NEVER_DEFINED\nvoid Main() { }\n#endif\n", 0)]
+    [InlineData("#if !DEBUG\nvoid Main() { }\n#else\nclass P { static void Main() { } }\n#endif\n", 0)]
+    public void Classification_Should_FollowTheBuildsSymbols(string code, int offset)
+    {
+        var host = CreateHost(RpadKind.Program, out var outputDir);
+        try
+        {
+            var transformed = host.ApplyKindTransform(code);
+            Assert.Equal(offset, host.CalcKindOffset(code));
+            Assert.Equal(offset, transformed[..transformed.IndexOf(code, StringComparison.Ordinal)].Count(c => c == '\n'));
+            Assert.Equal(offset == 2, transformed.Contains(WrapperClass, StringComparison.Ordinal));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }

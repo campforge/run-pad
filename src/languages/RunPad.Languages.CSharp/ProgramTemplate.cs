@@ -16,17 +16,22 @@ internal static class ProgramTemplate
     public const string Comment = "// Other methods, fields and types used by Main go here.";
     private const string Indent = "    ";
 
+    // No target framework is known when the kind changes: the symbols of the runtime RunPad runs on,
+    // the same ones the editor uses until it knows the script's target.
+    private static readonly CSharpParseOptions ParseOptions =
+        Compiler.CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
+
     public static string Skeleton { get; } = $"void Main()\n{{\n{Indent}${{0}}\n}}\n\n{Comment}\n";
 
     public static string? CodeForKind(string code, RpadKind kind)
     {
-        if (kind != RpadKind.Program || ProgramEntryPointDetector.DetectMain(code).Found) return null;
+        if (kind != RpadKind.Program || ProgramEntryPointDetector.DetectMain(code, ParseOptions).Found) return null;
         // A classic program (a class with a static Main, no top-level statements) runs as it is.
-        if (!string.IsNullOrWhiteSpace(code) && ProgramEntryPointDetector.IsCompiledAsWritten(code)
+        if (!string.IsNullOrWhiteSpace(code) && ProgramEntryPointDetector.IsCompiledAsWritten(code, ParseOptions)
             && HasStaticMain(code)) return null;
         if (string.IsNullOrWhiteSpace(code)) return Skeleton;
 
-        var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code).GetRoot();
+        var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, ParseOptions).GetRoot();
         var usings = string.Concat(root.Externs.Select(e => e.ToFullString()))
                      + string.Concat(root.Usings.Select(u => u.ToFullString()));
         var statements = root.Members.OfType<GlobalStatementSyntax>()
@@ -53,7 +58,7 @@ internal static class ProgramTemplate
     private static string Lf(string text) => text.Replace("\r\n", "\n");
 
     // An await that makes Main itself async: not one inside a lambda or local function.
-    private static bool HasStaticMain(string code) => CSharpSyntaxTree.ParseText(code).GetRoot()
+    private static bool HasStaticMain(string code) => CSharpSyntaxTree.ParseText(code, ParseOptions).GetRoot()
         .DescendantNodes().OfType<MethodDeclarationSyntax>()
         .Any(m => m.Identifier.Text == "Main" && m.Modifiers.Any(SyntaxKind.StaticKeyword));
 

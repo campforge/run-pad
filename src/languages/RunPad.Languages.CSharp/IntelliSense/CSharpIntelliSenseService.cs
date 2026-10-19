@@ -375,14 +375,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
     // own Main is static and/or Task-returning — every call site already has
     // `code` in scope (it's what's being analyzed), so this just threads it through.
-    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code) : "";
+    // Parsed with this document's own options (the build's symbols for its target), as the build does.
+    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code, _parseOptions) : "";
 
     // Closes the wrapper class KindPrefix opens for RpadKind.Program — mirrored for the
     // same reason as the prefix: without it, the live-analysis document would contain a permanently
     // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
     // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
     // depends on whether the user's own Main is static/Task-returning.
-    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code) : "";
+    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code, _parseOptions) : "";
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
     // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.

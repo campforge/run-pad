@@ -14,6 +14,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Program scripts now choose and invoke their entry point using the selected framework's conditional
+  compilation symbols, including `DEBUG` and `TRACE`.
+
+
 - A Program script written as a classic C# program (a class with a `static Main`, with using
   directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
   are unchanged. A missing or ambiguous entry point is reported by the compiler.

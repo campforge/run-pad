@@ -46,7 +46,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     public override string ApplyKindTransform(string code) => Options.Kind switch
     {
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
-        RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code)}{code}{RpadKindTransform.ProgramSuffixFor(code)}",
+        RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code, ParseOptions())}{code}{RpadKindTransform.ProgramSuffixFor(code, ParseOptions())}",
         _ => RpadKindTransform.StatementsFor(code, ParseOptions()),
     };
 
@@ -74,7 +74,7 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     public override int CalcKindOffset(string code) => Options.Usings.Count + (Options.Kind switch
     {
         RpadKind.Expression => 1,
-        RpadKind.Program => RpadKindTransform.ProgramLineOffset(code),
+        RpadKind.Program => RpadKindTransform.ProgramLineOffset(code, ParseOptions()),
         _ => 0,
     });
 }

@@ -40,9 +40,11 @@ internal static class ProgramEntryPointDetector
     // reports why it can't be called.
     // Only a Main written directly at the top level is the script's entry point: a local function
     // named Main inside a helper (or inside another local function) is just a nested helper.
-    public static MainSignature DetectMain(string code)
+    // parseOptions are the build's (its DEBUG/TRACE/framework symbols): a Main under `#if DEBUG` is
+    // there exactly when the compiler sees it.
+    public static MainSignature DetectMain(string code, CSharpParseOptions parseOptions)
     {
-        var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code).GetRoot();
+        var root = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, parseOptions).GetRoot();
         var mains = root.Members.OfType<GlobalStatementSyntax>()
             .Select(g => g.Statement)
             .OfType<LocalFunctionStatementSyntax>()
@@ -71,9 +73,10 @@ internal static class ProgramEntryPointDetector
     /// and after using directives). It is compiled exactly as written: the compiler picks its entry
     /// point by the usual rules and reports a missing or ambiguous one itself. Anything else is a
     /// LINQPad-style program, whose top-level members are wrapped in a class (see RpadKindTransform).
+    /// Parsed with the build's own <paramref name="parseOptions"/>, as <see cref="DetectMain"/> is.
     /// </summary>
-    public static bool IsCompiledAsWritten(string code) =>
-        !((CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code).GetRoot()).Members.OfType<GlobalStatementSyntax>().Any();
+    public static bool IsCompiledAsWritten(string code, CSharpParseOptions parseOptions) =>
+        !((CompilationUnitSyntax)CSharpSyntaxTree.ParseText(code, parseOptions).GetRoot()).Members.OfType<GlobalStatementSyntax>().Any();
 
     // Null for a parameter list RunPad doesn't know how to fill.
     private static MainParameters? ParametersOf(LocalFunctionStatementSyntax main)

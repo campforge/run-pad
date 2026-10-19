@@ -137,4 +137,11 @@ public class ProgramTemplateTests
     {
         Assert.Contains("void Main()", CSharp.CodeForKind("class Helper\n{\n    void Main() { }\n}\n", RpadKind.Program));
     }
+
+    // A Main under DEBUG already is the program's Main: switching to Program leaves the code alone.
+    [Fact]
+    public void CSharp_AMainUnderDebug_Should_StayAsWritten()
+    {
+        Assert.Null(CSharp.CodeForKind("#if DEBUG\nvoid Main() { }\n#endif\n", RpadKind.Program));
+    }
 }
