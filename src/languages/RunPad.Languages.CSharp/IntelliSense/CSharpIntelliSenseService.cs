@@ -2091,11 +2091,26 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // yet, the runtime IntelliSense itself runs on.
     public void UpdateExecutionContext(ExecutionRequest request)
     {
+        UpdateAllowUnsafe(request.AllowUnsafe);
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         if (DotnetPackageReferenceContext.For(request) is { } context)
             UpdatePackageReferences(packages, context);
         else
             UpdatePackageReferences(packages);
+    }
+
+    // The same /unsafe setting the build uses, so the editor neither flags allowed unsafe code (CS0227)
+    // nor hides that a script without the setting won't compile.
+    private void UpdateAllowUnsafe(bool allowUnsafe)
+    {
+        lock (_syncLock)
+        {
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var options = (CSharpCompilationOptions)project.CompilationOptions!;
+            if (options.AllowUnsafe == allowUnsafe) return;
+            if (_workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution))
+                _lastCode = ""; // force re-sync on next analysis pass
+        }
     }
 
     // Without a build context: the runtime IntelliSense itself runs on, the user's NuGet settings.

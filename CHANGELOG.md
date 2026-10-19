@@ -5,6 +5,13 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- C# scripts can allow unsafe code (pointers, `sizeof` of your own structs) with "Allow unsafe
+  code" on the Dependencies window's Compilation tab, saved as `allowUnsafe: true`. It is off
+  unless a script turns it on, also for imported LINQPad queries. It is a compiler setting, not a
+  sandbox.
+
 ### Fixed
 
 - A Program script written as a classic C# program (a class with a `static Main`, with using

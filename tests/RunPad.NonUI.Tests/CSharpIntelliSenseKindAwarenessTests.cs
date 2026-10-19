@@ -207,4 +207,21 @@ public class CSharpIntelliSenseKindAwarenessTests
         Assert.DoesNotContain(diagnostics, d => d.Message.Contains("__RunPad", StringComparison.Ordinal)
             || d.Message.Contains("using clause", StringComparison.Ordinal));
     }
+
+    // The editor uses the script's unsafe setting the way the build does: CS0227 only without it.
+    [Fact]
+    public async Task UnsafeCode_Should_BeFlagged_OnlyWithoutTheScriptsSetting()
+    {
+        const string code = "unsafe static void Main() { int x = 1; int* p = &x; Console.WriteLine(*p); }\n";
+        using (var off = CreateService())
+        {
+            off.UpdateKind(RpadKind.Program);
+            Assert.Contains(await WaitForDiagnosticsAsync(off, code), d => d.Message.Contains("unsafe", StringComparison.OrdinalIgnoreCase)
+                && d.Severity == DiagnosticSeverity.Error);
+        }
+        using var on = CreateService();
+        on.UpdateKind(RpadKind.Program);
+        on.UpdateExecutionContext(new RunPad.Contracts.Models.ExecutionRequest { AllowUnsafe = true });
+        Assert.DoesNotContain(await WaitForDiagnosticsAsync(on, code), d => d.Severity == DiagnosticSeverity.Error);
+    }
 }

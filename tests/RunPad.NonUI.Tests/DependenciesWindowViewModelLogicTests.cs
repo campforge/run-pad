@@ -817,4 +817,37 @@ public class DependenciesWindowViewModelLogicTests
         Assert.False(vm.HasChanges);
         vm.Dispose();
     }
+
+    // The unsafe setting is a C# script's own choice in the dialog, applied with the rest of the draft.
+    [Fact]
+    public void AllowUnsafe_Should_BeAnOptInDraftChange_ForCSharpScripts()
+    {
+        var (vm, _, _) = CreateVm();
+        var fm = new RpadFrontMatter { Language = RpadLanguage.CSharp };
+        vm.SetFrontMatter(fm);
+        Assert.True(vm.HasUnsafeOption);
+        Assert.False(vm.AllowUnsafe);
+        Assert.False(vm.HasChanges);
+
+        vm.AllowUnsafe = true;
+        Assert.True(vm.HasChanges);
+        Assert.False(fm.AllowUnsafe); // only applied on Save
+        Assert.True(vm.ApplyChanges());
+        Assert.True(fm.AllowUnsafe);
+    }
+
+    // Visual Basic has no unsafe code: no option, and applying other changes leaves the value alone.
+    [Fact]
+    public void AllowUnsafe_Should_NotBeOffered_ForVisualBasicScripts()
+    {
+        var (vm, _, _) = CreateVm();
+        var fm = new RpadFrontMatter { Language = RpadLanguage.Vb, Namespaces = ["System.Text"] };
+        vm.SetFrontMatter(fm);
+        Assert.False(vm.HasUnsafeOption);
+        vm.AllowUnsafe = true;
+        Assert.False(vm.HasChanges);
+        vm.NamespacesText = "System.Linq";
+        Assert.True(vm.ApplyChanges());
+        Assert.False(fm.AllowUnsafe);
+    }
 }

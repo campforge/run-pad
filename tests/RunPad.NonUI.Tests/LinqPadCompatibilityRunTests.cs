@@ -18,11 +18,12 @@ namespace RunPad.NonUI.Tests;
 [Collection(RealBuildTestCollection.Name)]
 public class LinqPadCompatibilityRunTests
 {
-    private sealed record Run(RunResult Result, string Output, string Errors);
+    private sealed record Run(RunResult Result, string Output, string Errors, string Dumps);
 
-    private static async Task<Run> RunAsync(RpadKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false)
+    private static async Task<Run> RunAsync(RpadKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false,
+        string? outputDirectory = null)
     {
-        var outputDir = Directory.CreateTempSubdirectory("runpad-linqpad-compat").FullName;
+        var outputDir = outputDirectory ?? Directory.CreateTempSubdirectory("runpad-linqpad-compat").FullName;
         try
         {
             var options = new CompiledDotnetLanguageHostOptions
@@ -38,20 +39,91 @@ public class LinqPadCompatibilityRunTests
                 RuntimeLibPath = new CSharpReferenceService().GetExtensionReference(),
                 Kind = kind,
                 Arguments = args ?? [],
+                AllowUnsafe = allowUnsafe,
             };
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
             var output = new ConcurrentQueue<string>();
             var errors = new ConcurrentQueue<string>();
-            var result = await host.RunAsync(code, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data))
+            var dumps = new ConcurrentQueue<string>();
+            // A Dump arrives as base64-encoded HTML.
+            var result = await host.RunAsync(code, (data, kind) =>
+                {
+                    if (kind == OutputKind.DumpHtml) dumps.Enqueue(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(data)));
+                    else (kind == OutputKind.StandardError ? errors : output).Enqueue(data);
+                })
                 .WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
-            return new Run(result, string.Join('\n', output), string.Join('\n', errors));
+            return new Run(result, string.Join('\n', output), string.Join('\n', errors), string.Join('\n', dumps));
         }
         finally
         {
-            try { Directory.Delete(outputDir, recursive: true); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            // A directory the caller passed is the caller's to remove.
+            if (outputDirectory is null)
+            {
+                try { Directory.Delete(outputDir, recursive: true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
         }
+    }
+
+    private const string StructSizes = """
+        // Struct sizes need unsafe code: sizeof of a user-defined struct.
+
+        unsafe static void Main()
+        {
+            Console.WriteLine(sizeof(Pair));
+            sizeof(Padded).Dump();
+        }
+
+        struct Pair
+        {
+            public int First;
+            public int Second;
+        }
+
+        struct Padded
+        {
+            public byte Small;
+            public long Large;
+        }
+        """;
+
+    // With the script's unsafe setting on, sizeof of user structs compiles and runs (8 and 16 bytes).
+    [Fact]
+    public async Task UnsafeCode_WithTheSettingOn_Should_CompileAndRun()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: true);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("8", run.Output.Split('\n').Last(l => !l.Contains("warning", StringComparison.Ordinal)));
+        Assert.Contains(">16<", run.Dumps);
+    }
+
+    // Off by default: the same script is refused with the compiler's CS0227 and does not run.
+    [Fact]
+    public async Task UnsafeCode_WithTheSettingOff_Should_FailWithCS0227()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, StructSizes);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.Contains("CS0227", run.Errors);
+        Assert.Empty(run.Dumps);
+    }
+
+    // Turning the setting on or off is a different build: an earlier binary is never reused for it.
+    [Fact]
+    public async Task ChangingTheUnsafeSetting_Should_NotReuseTheEarlierBuild()
+    {
+        if (NoSdk) return;
+        var outputDir = Directory.CreateTempSubdirectory("runpad-linqpad-unsafe-cache").FullName;
+        try
+        {
+            Assert.True((await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: true, outputDirectory: outputDir)).Result.Succeeded);
+            var off = await RunAsync(RpadKind.Program, StructSizes, allowUnsafe: false, outputDirectory: outputDir);
+            Assert.Equal(RunOutcome.CompilationFailed, off.Result.Outcome);
+            Assert.Contains("CS0227", off.Errors);
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
     }
 
     private static bool NoSdk => !new DotnetSdkProvider().Get().Any();

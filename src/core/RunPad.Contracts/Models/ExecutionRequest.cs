@@ -27,6 +27,9 @@ public sealed record ExecutionRequest
     /// <summary>The script's <c>args</c>.</summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
 
+    /// <summary>The script's <c>allowUnsafe:</c>: compile with unsafe code allowed, where the language has it.</summary>
+    public bool AllowUnsafe { get; init; }
+
     /// <summary>The script's own file; null for one never saved.</summary>
     public string? CurrentQueryPath { get; init; }
 
@@ -46,8 +49,8 @@ public sealed record ExecutionRequest
     public bool BreakOnUncaughtExceptions { get; init; } = true;
 
     /// <summary>
-    /// The request a script's front matter makes: its kind, packages, usings, references and
-    /// arguments (unless <paramref name="arguments"/> replaces them), for a script at
+    /// The request a script's front matter makes: its kind, packages, usings, references, unsafe
+    /// setting and arguments (unless <paramref name="arguments"/> replaces them), for a script at
     /// <paramref name="currentQueryPath"/>. A script without front matter (untitled, never saved)
     /// gets the defaults a new document has.
     /// </summary>
@@ -58,6 +61,7 @@ public sealed record ExecutionRequest
         Usings = frontMatter?.Namespaces ?? [],
         References = frontMatter?.References ?? [],
         Arguments = arguments ?? frontMatter?.Args ?? [],
+        AllowUnsafe = frontMatter?.AllowUnsafe ?? false,
         CurrentQueryPath = currentQueryPath,
     };
 }
