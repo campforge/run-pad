@@ -339,7 +339,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // they still reach the same files; the tab adopts them only once it really moved there
             // (OnFilePathChanged) — a cancelled or failed Save As leaves its references as they were.
             var references = rpad.FrontMatter.References;
-            if (references is not null && RebasedReferences(references, _vm.FilePath, path) is { } rebased)
+            if (references is not null && RebasedReferences(references, _vm.ReferenceAnchorPath, path) is { } rebased)
                 rpad.FrontMatter.References = rebased;
             try
             {
@@ -360,9 +360,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         _vm.LastWrite = (path, ScriptFileState.Of(bytes));
     }
 
-    // The references as written for the script saved at newPath instead of oldPath, or null if
-    // nothing changes (same folder, an untitled tab whose relative references had no folder yet, or
-    // nothing relative).
+    // The references as written for the script saved at newPath instead of oldPath (its own file, or
+    // the one an untitled copy was made from), or null if nothing changes (same folder, an untitled
+    // tab whose relative references had no folder yet, or nothing relative).
     private static List<string>? RebasedReferences(List<string> references, string? oldPath, string newPath)
     {
         if (oldPath is null) return null;
@@ -381,9 +381,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var oldPath = _filePath;
         _filePath = newPath;
         if (_disposed || newPath is null || oldPath == newPath) return;
-        if (oldPath is not null
+        // An untitled copy's references were relative to the file it was made from.
+        var anchor = oldPath ?? _vm.RestoredRecovery?.OriginalPath;
+        if (anchor is not null
             && State.RpadDocument?.FrontMatter is { References: { } references } frontMatter
-            && RebasedReferences(references, oldPath, newPath) is { } rebased)
+            && RebasedReferences(references, anchor, newPath) is { } rebased)
         {
             frontMatter.References = rebased;
             _metadataBaseline = FrontMatterSnapshot();
@@ -2107,6 +2109,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // The same request a run makes, so the editor reads the references and packages as the build does.
         intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
         {
+            ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
             OutputDirectory = State.OutputDirectory,
             RuntimePath = _prefs.Debugger?.DotnetPath,
@@ -2352,6 +2355,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // IntelliSense's are.
         return ExecutionRequest.For(rpad?.FrontMatter, _vm.FilePath) with
         {
+            ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = platform,
             OutputDirectory = State.OutputDirectory,
             WorkingDirectory = workDir,

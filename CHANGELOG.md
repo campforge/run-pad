@@ -20,7 +20,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 - Starting RunPad restores unsaved drafts without a message box, including drafts of another
   RunPad window that was closed meanwhile. A draft of a file that is already open comes back as an
-  untitled copy naming the file, so neither version is overwritten. Draft data that cannot be read
+  untitled copy naming the file, so neither version is overwritten: it keeps finding the file's
+  relative references and can't be saved over that file. Draft data that cannot be read
   is kept unchanged and named in a dismissible notice; sessions with only saved files no longer
   cause a warning on every start.
 
