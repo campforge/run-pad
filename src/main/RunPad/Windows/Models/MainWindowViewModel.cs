@@ -208,6 +208,65 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     private static string? JoinNotice(string? first, string? second) =>
         first is null ? second : second is null ? first : first + "\n" + second;
 
+    /// <summary>
+    /// Closing the app while draft recovery is on. Once the restore, the editors and any pending
+    /// save or file operation have finished: without unsaved tabs the workspace is checkpointed;
+    /// otherwise the user chooses Save All (the usual Save, Save As and changed-on-disk questions;
+    /// any cancel or failure keeps the app open, without undoing saves already made), Keep in Stash
+    /// (closes only once the drafts are durably checkpointed) or Cancel. True means the app may
+    /// close; null that draft recovery turned out unavailable, so the normal confirmations apply.
+    /// </summary>
+    public async Task<bool?> ConfirmExitWithDraftsAsync()
+    {
+        if (_restoreTask is { } restoring) await restoring;
+        if (!RestoresDrafts) return null;
+        await _recoveryGate.WaitAsync();
+        try
+        {
+            try { await WaitForPendingWorkAsync(null); }
+            catch (Exception ex)
+            {
+                // Not knowing which tabs are unsaved must not close anything.
+                _logger.LogWarning("Could not finish pending work before closing ({ErrorType})", ex.GetType().Name);
+                await _windowService.ShowErrorAsync("Not Closed",
+                    "A save or file operation did not finish. Nothing has been closed; try closing again.");
+                return false;
+            }
+            var unsaved = Tabs.Where(t => t.IsDirty).ToList();
+            if (unsaved.Count == 0) return await CheckpointRecoveryCoreAsync();
+            switch (await _windowService.ShowExitUnsavedDialogAsync(unsaved.Select(t => t.FileName).ToList()))
+            {
+                case ExitUnsavedChoice.KeepInStash:
+                    return await CheckpointRecoveryCoreAsync();
+                case ExitUnsavedChoice.SaveAll:
+                    foreach (var tab in unsaved)
+                    {
+                        if (!tab.IsDirty || !Tabs.Contains(tab)) continue;
+                        if (tab.FilePath is not null)
+                        {
+                            var result = await SaveInPlaceAsync(tab);
+                            if (result.Status == InPlaceSaveStatus.Cancelled) return false;
+                            if (result.Status == InPlaceSaveStatus.Failed)
+                            {
+                                await _windowService.ShowErrorAsync("Save Failed", result.Error);
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            await ((IEditorTabActions)this).SaveAsAsync(tab);
+                            if (tab.IsDirty) return false; // Save As was cancelled or failed
+                        }
+                    }
+                    // The session (which files are open, the active tab) is still kept for the next start.
+                    return await CheckpointRecoveryCoreAsync();
+                default:
+                    return false;
+            }
+        }
+        finally { _recoveryGate.Release(); }
+    }
+
     public async Task<bool> CheckpointRecoveryAsync()
     {
         if (_restoreTask is { } restoring) await restoring;
@@ -221,20 +280,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     {
         try
         {
-            var tabs = Tabs.Where(t => t != exclude).ToList();
-            // A closing window must not skip tabs whose per-language editor is still being created.
-            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
-            // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
-            while (true)
-            {
-                var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
-                    .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
-                if (pending.Length == 0) break;
-                await Task.WhenAll(pending);
-            }
-            _workspaceOperations.RemoveWhere(task => task.IsCompleted);
-            tabs = Tabs.Where(t => t != exclude).ToList();
-            await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+            var tabs = await WaitForPendingWorkAsync(exclude);
             var frames = tabs.Select(t => t.CaptureRecovery?.Invoke()
                 ?? throw new InvalidOperationException("Editor capture is unavailable.")).ToList();
             var active = frames.FirstOrDefault(t => t.Id == ActiveTab?.RecoveryId)?.Id ?? frames.LastOrDefault()?.Id;
@@ -250,6 +296,26 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         }
     }
 
+
+    // The tabs once every editor exists and no save, Save As or workspace operation is running.
+    private async Task<List<EditorTabItemViewModel>> WaitForPendingWorkAsync(EditorTabItemViewModel? exclude)
+    {
+        var tabs = Tabs.Where(t => t != exclude).ToList();
+        // A closing window must not skip tabs whose per-language editor is still being created.
+        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+        // Save As owns path rebasing as well as the write; a snapshot must see both or neither.
+        while (true)
+        {
+            var pending = Tabs.SelectMany(t => new Task?[] { t.PendingSave, t.PendingSaveAs }).OfType<Task>()
+                .Concat(_workspaceOperations).Where(task => !task.IsCompleted).Distinct().ToArray();
+            if (pending.Length == 0) break;
+            await Task.WhenAll(pending);
+        }
+        _workspaceOperations.RemoveWhere(task => task.IsCompleted);
+        tabs = Tabs.Where(t => t != exclude).ToList();
+        await Task.WhenAll(tabs.Select(t => t.RecoveryReady.Task)).WaitAsync(TimeSpan.FromSeconds(20));
+        return tabs;
+    }
 
     // Debounce for file-watcher-triggered tree refreshes — a single file save/rename can raise
     // several FileSystemWatcher events in quick succession; wait for them to settle before
