@@ -236,4 +236,17 @@ public class CSharpIntelliSenseKindAwarenessTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
+
+    // The editor classifies a Program with the same symbols as the build: a Main under DEBUG is the
+    // entry point, not an unused local function.
+    [Fact]
+    public async Task AMemberMainUnderDebug_Should_NotBeFlaggedAsUnused()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, "#if DEBUG\nvoid Main()\n{\n    Console.WriteLine(\"hi\");\n}\n#endif\n");
+
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
+    }
 }

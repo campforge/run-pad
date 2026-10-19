@@ -332,4 +332,65 @@ public class LinqPadCompatibilityRunTests
         Assert.Contains(expected, run.Errors);
         Assert.DoesNotContain("CS8803", run.Errors);
     }
+
+    // How a Program is classified and called follows the build's own preprocessor symbols (DEBUG,
+    // TRACE, the target framework's): code under a symbol the build defines counts, code under one it
+    // doesn't is ignored, exactly as the compiler sees it.
+    [Fact]
+    public async Task AMemberMainUnderDebug_Should_Run()
+    {
+        if (NoSdk) return;
+        const string code = "#if DEBUG\nvoid Main() { Console.WriteLine(\"EXPECTED-MAIN\"); }\n#endif\n";
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("EXPECTED-MAIN", run.Output);
+    }
+
+    [Fact]
+    public async Task MemberAndClassicMains_UnderOppositeBranches_Should_RunTheDefinedOne_WithArgs()
+    {
+        if (NoSdk) return;
+        const string member = "#if DEBUG\nvoid Main(string[] args) => Console.WriteLine(\"member:\" + args.Length);\n#else\nclass Program { static void Main() => Console.WriteLine(\"classic\"); }\n#endif\n";
+        var run = await RunAsync(RpadKind.Program, member, ["a", "b"]);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.Equal("member:2", run.Output);
+
+        const string classic = "#if !DEBUG\nvoid Main() => Console.WriteLine(\"member\");\n#else\nclass Program\n{\n    static async Task<int> Main(string[] args)\n    {\n        await Task.Yield();\n        Console.WriteLine(\"classic:\" + args[0]);\n        return 5;\n    }\n}\n#endif\n";
+        var classicRun = await RunAsync(RpadKind.Program, classic, ["x"]);
+        Assert.Equal(5, classicRun.Result.ExitCode);
+        Assert.Equal("classic:x", classicRun.Output);
+    }
+
+    // The call shape (args, async, exit code) comes from the Main the build compiles.
+    [Fact]
+    public async Task TheMainSignature_Should_ComeFromTheDefinedBranch()
+    {
+        if (NoSdk) return;
+        const string code = "#if TRACE\nasync Task<int> Main(string[] args)\n{\n    await Task.Yield();\n    Console.WriteLine(\"trace:\" + args.Length);\n    return 7;\n}\n#else\nvoid Main() => Console.WriteLine(\"other\");\n#endif\n";
+        var run = await RunAsync(RpadKind.Program, code, ["1", "2", "3"]);
+        Assert.Equal(7, run.Result.ExitCode);
+        Assert.Equal("trace:3", run.Output);
+    }
+
+    [Fact]
+    public async Task AMainUnderAFrameworkSymbol_Should_Run()
+    {
+        if (NoSdk) return;
+        const string code = "#if NET8_0_OR_GREATER\nint Main() { Console.WriteLine(\"framework\"); return 4; }\n#endif\n";
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.Equal(4, run.Result.ExitCode);
+        Assert.Equal("framework", run.Output);
+    }
+
+    // A Main excluded by an undefined symbol is not an entry point: the Program has none.
+    [Fact]
+    public async Task AMainUnderAnUndefinedSymbol_Should_NotRun()
+    {
+        if (NoSdk) return;
+        const string code = "#if NEVER_DEFINED\nvoid Main() => Console.WriteLine(\"excluded\");\n#endif\n";
+        var run = await RunAsync(RpadKind.Program, code);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.Contains("CS5001", run.Errors);
+        Assert.DoesNotContain("excluded\n", run.Output + "\n");
+    }
 }
