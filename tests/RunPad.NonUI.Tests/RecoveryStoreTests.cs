@@ -94,5 +94,68 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Equal(bytes, File.ReadAllBytes(pointer));
     }
 
+    [Theory]
+    [InlineData("missing-payload")]
+    [InlineData("null-tab")]
+    [InlineData("missing-current")]
+    public async Task DamagedNewestCheckpoint_Should_RecoverPreviousWithoutOverwritingIt(string damage)
+    {
+        using (var store = new DiskRecoveryStore(_root))
+        {
+            await store.CommitAsync(Snapshot(1, "earlier"));
+            await store.CommitAsync(Snapshot(2, "newest"));
+        }
+        var folder = Directory.GetDirectories(_root).Single();
+        var pointerPath = Path.Combine(folder, "current.json");
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(pointerPath))!;
+        var payloadPath = Path.Combine(folder, pointer["Current"]!.GetValue<string>());
+        if (damage == "missing-payload") File.Delete(payloadPath);
+        else if (damage == "missing-current")
+        {
+            pointer["Current"] = null;
+            File.WriteAllText(pointerPath, pointer.ToJsonString());
+        }
+        else
+        {
+            var payload = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(payloadPath))!;
+            payload["Tabs"] = new System.Text.Json.Nodes.JsonArray((System.Text.Json.Nodes.JsonNode?)null);
+            File.WriteAllText(payloadPath, payload.ToJsonString());
+        }
+        var damagedPointer = File.ReadAllBytes(pointerPath);
+        using var next = new DiskRecoveryStore(_root);
+        Assert.Equal("earlier", (await next.LoadAsync())!.Tabs.Single().EditorText);
+        Assert.NotNull(next.Warning);
+        Assert.Equal(damagedPointer, File.ReadAllBytes(pointerPath));
+    }
+
+    [Fact]
+    public async Task DisposeDuringLoad_Should_ReleaseLateAcquiredSessionOwnership()
+    {
+        using (var initial = new DiskRecoveryStore(_root)) await initial.CommitAsync(Snapshot(1));
+        var cancellation = TestContext.Current.CancellationToken;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var store = new DiskRecoveryStore(_root, stage =>
+        {
+            if (stage != "locked") return;
+            entered.SetResult();
+            release.Wait(TimeSpan.FromSeconds(5), cancellation);
+        });
+        var loading = store.LoadAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellation);
+        var disposing = Task.Run(store.Dispose, cancellation);
+        try
+        {
+            Assert.False(disposing.IsCompleted);
+        }
+        finally { release.Set(); }
+        await loading;
+        await disposing;
+        using var next = new DiskRecoveryStore(_root);
+        Assert.NotNull(await next.LoadAsync());
+        Assert.Single(Directory.GetDirectories(_root));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => store.LoadAsync());
+    }
+
     public void Dispose() => Directory.Delete(_root, true);
 }

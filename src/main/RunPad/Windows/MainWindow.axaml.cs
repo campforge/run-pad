@@ -1,4 +1,5 @@
 using System.Reactive;
+using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -19,6 +20,7 @@ public sealed partial class MainWindow : Window, IDisposable
 {
     private readonly IPreferencesService _prefs;
     private readonly EditorTabsControl _editorTabs;
+    private readonly IDisposable _restoreStateSubscription;
 
     // Set right before the confirmed, real Close() below — lets OnClosing tell "the user just
     // clicked the confirmed, second time through" apart from the very first Closing that it itself
@@ -59,6 +61,11 @@ public sealed partial class MainWindow : Window, IDisposable
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
 
         this.FindControl<ContentControl>("EditorTabsHost")!.Content = editorTabsCtrl;
+        _restoreStateSubscription = viewModel.WhenAnyValue(vm => vm.IsRestoringWorkspace).Subscribe(restoring =>
+        {
+            if (!_closeConfirmationInProgress) IsEnabled = !restoring;
+        });
+        Closed += (_, _) => _restoreStateSubscription.Dispose();
         editorTabsCtrl.Attach(viewModel);
 
         // Coming back to RunPad from another program is when its files were most likely changed
@@ -525,6 +532,7 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         GetViewModel().RecentFilesChanged -= OnRecentFilesChanged;
         _prefs.Changed -= OnPreferencesChanged;
+        _restoreStateSubscription.Dispose();
         _editorTabs.Dispose();
         GC.SuppressFinalize(this);
     }

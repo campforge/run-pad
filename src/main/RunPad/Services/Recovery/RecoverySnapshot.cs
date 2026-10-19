@@ -6,6 +6,7 @@ public sealed record RecoveryTab
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public string? FilePath { get; init; }
+    public string? Title { get; init; }
     public required string EditorText { get; init; }
     public RpadDocumentSnapshot? Document { get; init; }
     public string? ParseError { get; init; }

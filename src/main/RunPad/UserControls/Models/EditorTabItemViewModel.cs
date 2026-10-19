@@ -59,6 +59,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
 
     // An in-place save still waiting for the user's choice (see InPlaceSave).
     internal Task<InPlaceSaveResult>? PendingSave { get; set; }
+    internal Task? PendingSaveAs { get; set; }
 
     // Settable (not just get-only) so a successful Save As (MainWindowViewModel.SaveTabAsAsync) can
     // give a previously untitled tab a real path in place, instead of needing to close/reopen a new
@@ -113,7 +114,7 @@ public sealed class EditorTabItemViewModel : ReactiveObject, IDisposable
         internal set => this.RaiseAndSetIfChanged(ref field, value);
     }
 
-    public string FileName => FilePath is null ? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
+    public string FileName => FilePath is null ? RestoredRecovery?.Title ?? Example?.Title ?? "Untitled" : Path.GetFileNameWithoutExtension(FilePath);
 
     /// <summary>The bundled example this untitled tab was opened from: its document is the tab's
     /// starting text (a copy — the example itself never changes). Null for any other tab.</summary>

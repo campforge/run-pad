@@ -16,6 +16,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private string? _folder;
     private Pointer? _pointer;
     private long _revision = -1;
+    private bool _disposed;
     public string? Warning { get; private set; }
 
     public DiskRecoveryStore(string root) => _root = root;
@@ -23,7 +24,11 @@ public sealed class DiskRecoveryStore : IRecoveryStore
 
     public Task<RecoverySnapshot?> LoadAsync()
     {
-        lock (_initializationLock) return _load ??= Task.Run(LoadCore);
+        lock (_initializationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _load ??= Task.Run(LoadCore);
+        }
     }
 
     private RecoverySnapshot? LoadCore()
@@ -38,6 +43,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             try { _owner = Lock(folder); }
             catch (IOException) { continue; } // Another live instance owns this session.
             _folder = folder;
+            _fault?.Invoke("locked");
             return ReadSession();
         }
         _folder = Path.Combine(_root, Guid.NewGuid().ToString("N"));
@@ -68,6 +74,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 var pointer = JsonSerializer.Deserialize<Pointer>(File.ReadAllBytes(path))
                     ?? throw new InvalidDataException("Invalid recovery pointer.");
                 if (pointer.Version != 1) throw new NotSupportedException("Unsupported recovery version. Data has been kept unchanged.");
+                if (string.IsNullOrEmpty(pointer.Current)) throw new InvalidDataException("Missing recovery payload.");
                 foreach (var payload in new[] { pointer.Current, pointer.Previous })
                 {
                     if (payload is null) continue;
@@ -102,8 +109,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     {
         if (snapshot.SchemaVersion != 1) throw new NotSupportedException("Unsupported recovery version. Data has been kept unchanged.");
         if (snapshot.Revision < 0 || snapshot.Tabs is null
+            || snapshot.Tabs.Any(t => t is null)
             || snapshot.Tabs.Select(t => t.Id).Distinct().Count() != snapshot.Tabs.Count
-            || snapshot.Tabs.Any(t => t is null || t.Id == Guid.Empty || t.EditorText is null
+            || snapshot.Tabs.Any(t => t.Id == Guid.Empty || t.EditorText is null
                 || (t.Document is { } doc && (doc.FrontMatter is null || doc.RunCode is null
                     || doc.BodyBeforeCode is null || doc.BodyAfterCode is null || doc.FrontMatter.Packages is null
                     || doc.FrontMatter.TargetSdk is null))
@@ -119,6 +127,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         await _writer.WaitAsync();
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (snapshot.Revision <= _revision) return;
             await Task.Run(() =>
             {
@@ -175,6 +184,19 @@ public sealed class DiskRecoveryStore : IRecoveryStore
 
     public void Dispose()
     {
+        Task<RecoverySnapshot?>? loading;
+        lock (_initializationLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            loading = _load;
+        }
+        // Loading acquires the session lock on a worker; do not leave a late owner behind.
+        if (loading is not null)
+        {
+            try { loading.GetAwaiter().GetResult(); }
+            catch (Exception) { /* Failed loads still release any acquired owner below. */ }
+        }
         _writer.Wait();
         try { _owner?.Dispose(); }
         finally { _writer.Release(); }
