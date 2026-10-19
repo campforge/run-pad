@@ -68,9 +68,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         // was not written (a crash right after that checkpoint), finish that now. Only the
         // generations actually read count: when the destination's importing checkpoint is lost and
         // it falls back to one from before the import, the drafts are reachable only from the source.
-        var records = sessions.SelectMany(x => x.Snapshot?.ImportedSessions ?? []).ToList();
+        var records = sessions.SelectMany(x => (x.Snapshot?.ImportedSessions ?? [])
+            .Select(record => (Destination: x.Folder, Record: record))).ToList();
         bool TakenOver(string folder, RecoverySnapshot snapshot) => records.Any(r =>
-            r.Source == Path.GetFileName(folder) && r.Revision >= snapshot.Revision);
+            r.Record.Source == Path.GetFileName(folder) && r.Record.Revision >= snapshot.Revision);
         var failed = sessions.Where(x => x.Failure is not null).Select(x => Path.GetFileName(x.Folder)).ToHashSet();
         var held = sessions.Select(x => Path.GetFileName(x.Folder)).ToHashSet();
 
@@ -81,7 +82,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         {
             if (session.Snapshot is { } taken && TakenOver(session.Folder, taken))
             {
-                TryMarkImported(session.Folder, records.First(r => r.Source == Path.GetFileName(session.Folder)));
+                var owner = records.First(r => r.Record.Source == Path.GetFileName(session.Folder)
+                    && r.Record.Revision >= taken.Revision);
+                TryMarkImported(session.Folder, owner.Record, owner.Destination);
                 session.Lock.Dispose();
             }
             else if (session.Failure is not null)
@@ -184,7 +187,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
 
     private sealed record ImportMarkerData(int Version, string Into, long Revision);
 
-    private void TryMarkImported(string folder, RecoveryImportRecord record)
+    private static void TryMarkImported(string folder, RecoveryImportRecord record, string destination)
     {
         // The drafts are already in a durable checkpoint, so a missing marker only means they are
         // filtered out again on the next start; the source session's own files are never changed.
@@ -193,7 +196,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         try
         {
             WriteDurably(temp, JsonSerializer.SerializeToUtf8Bytes(
-                new ImportMarkerData(1, Path.GetFileName(_folder ?? ""), record.Revision)));
+                new ImportMarkerData(1, Path.GetFileName(destination), record.Revision)));
             File.Move(temp, Path.Combine(folder, ImportMarker), overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -295,7 +298,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 _revision = snapshot.Revision;
                 _fault?.Invoke("committed");
                 foreach (var record in pending)
-                    TryMarkImported(Path.Combine(_root, record.Source), record);
+                    TryMarkImported(Path.Combine(_root, record.Source), record, _folder!);
                 _records.AddRange(pending);
                 _imports.Clear();
                 foreach (var held in _importLocks) held.Dispose();

@@ -14,6 +14,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Draft recovery keeps imported drafts reachable when session read order changes and a newer checkpoint is damaged.
+
 - Execute Selection also runs selected statements in Program scripts, such as lines inside
   `Main`, on their own. A selection that uses a method or variable declared outside it explains
   the compile error instead of running the whole program.
