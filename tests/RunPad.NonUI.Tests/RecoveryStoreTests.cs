@@ -87,115 +87,167 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Equal(0, context.Posts);
     }
 
-    [Fact]
-    public async Task OtherUnlockedSessions_Should_BeReportedWithoutChangingTheirData()
+    // Two sessions closed with drafts (two windows ran at once); the later start keeps the newer as
+    // its own and imports the other's drafts, leaving that session's files exactly as they were.
+    private async Task<(string Own, string Other)> TwoClosedSessionsAsync(string ownText = "own draft", string otherText = "other draft")
     {
-        string firstFolder;
+        string other;
         using (var first = new DiskRecoveryStore(_root))
         {
-            await first.CommitAsync(Snapshot(1, "first draft"));
-            firstFolder = Assert.Single(Directory.GetDirectories(_root));
+            await first.CommitAsync(Snapshot(1, otherText));
+            other = Assert.Single(Directory.GetDirectories(_root));
             using var second = new DiskRecoveryStore(_root);
-            await second.CommitAsync(Snapshot(1, "second draft"));
+            await second.CommitAsync(Snapshot(1, ownText));
         }
-        var secondFolder = Directory.GetDirectories(_root).Single(p => p != firstFolder);
-        Directory.SetLastWriteTimeUtc(secondFolder, DateTime.UtcNow.AddMinutes(1));
-        var original = File.ReadAllBytes(Path.Combine(firstFolder, "current.json"));
-        using var next = new DiskRecoveryStore(_root);
-        Assert.Equal("second draft", (await next.LoadAsync())!.Tabs[0].EditorText);
-        Assert.Contains(firstFolder, next.Warning!);
-        Assert.Equal(original, File.ReadAllBytes(Path.Combine(firstFolder, "current.json")));
+        var own = Directory.GetDirectories(_root).Single(p => p != other);
+        Directory.SetLastWriteTimeUtc(own, DateTime.UtcNow.AddMinutes(1));
+        return (own, other);
+    }
+
+    private static Dictionary<string, byte[]> Files(string folder) => Directory.GetFiles(folder)
+        .Where(f => Path.GetFileName(f) != "owner.lock")
+        .ToDictionary(Path.GetFileName, File.ReadAllBytes)!;
+
+    [Fact]
+    public async Task OtherUnlockedSessions_Should_BeImported_WithoutChangingTheirData()
+    {
+        var (own, other) = await TwoClosedSessionsAsync();
+        var original = Files(other);
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            Assert.Equal("own draft", (await next.LoadAsync())!.Tabs[0].EditorText);
+            Assert.Null(next.Warning);
+            var import = Assert.Single(next.Imports);
+            Assert.Equal(Path.GetFileName(other), import.Source);
+            var tab = Assert.Single(import.Tabs);
+            Assert.Equal("other draft", tab.EditorText);
+            Assert.Equal(Path.GetFileName(other), tab.ImportedFrom);
+            // Not consumed until a checkpoint holds the draft; meanwhile nobody else can take it.
+            Assert.Equal(original, Files(other));
+            Assert.Throws<IOException>(() => File.Open(Path.Combine(other, "owner.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose());
+            await next.CommitAsync(Snapshot(2, "own draft") with { Tabs = [Snapshot(2).Tabs[0] with { EditorText = "own draft" }, tab] }
+                is var s ? s with { ActiveTab = s.Tabs[0].Id } : null!);
+        }
+        var after = Files(other);
+        Assert.True(after.Remove("imported.json"));
+        Assert.Equal(original, after); // only a marker was added, nothing changed or deleted
+        Assert.Equal(original.Keys.Order(), Files(other).Keys.Where(k => k != "imported.json").Order());
+
+        using var third = new DiskRecoveryStore(_root);
+        var restored = await third.LoadAsync();
+        Assert.Equal(["own draft", "other draft"], restored!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(third.Imports);
+        Assert.Null(third.Warning);
     }
 
     [Fact]
-    public async Task DamagedNewestSession_Should_NotHideAnOlderValidSession()
+    public async Task ACrashBetweenTheImportingCheckpointAndTheMarker_Should_NotImportTwice()
     {
-        string firstFolder;
+        var (own, other) = await TwoClosedSessionsAsync();
+        using (var next = new DiskRecoveryStore(_root, stage => { if (stage == "committed") throw new IOException("crash"); }))
+        {
+            await next.LoadAsync();
+            var tab = Assert.Single(Assert.Single(next.Imports).Tabs);
+            var snapshot = new RecoverySnapshot { Revision = 2, Tabs = [tab], ActiveTab = tab.Id };
+            await Assert.ThrowsAsync<IOException>(() => next.CommitAsync(snapshot));
+        }
+        Assert.False(File.Exists(Path.Combine(other, "imported.json")));
+        // Even when the source session looks newest, the durable checkpoint's record wins.
+        Directory.SetLastWriteTimeUtc(other, DateTime.UtcNow.AddMinutes(5));
+        using var again = new DiskRecoveryStore(_root);
+        Assert.Equal(["other draft"], (await again.LoadAsync())!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(again.Imports);
+        Assert.True(File.Exists(Path.Combine(other, "imported.json")));
+    }
+
+    [Fact]
+    public async Task AnImportNeverCheckpointed_Should_BeOfferedAgain()
+    {
+        var (_, other) = await TwoClosedSessionsAsync();
+        using (var next = new DiskRecoveryStore(_root)) Assert.Single((await next.LoadAsync()) is not null ? next.Imports : []);
+        using var again = new DiskRecoveryStore(_root);
+        await again.LoadAsync();
+        Assert.Equal("other draft", Assert.Single(Assert.Single(again.Imports).Tabs).EditorText);
+        Assert.False(File.Exists(Path.Combine(other, "imported.json")));
+    }
+
+    [Fact]
+    public async Task ADiscardedImportedDraft_Should_NotComeBack()
+    {
+        await TwoClosedSessionsAsync();
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            await next.LoadAsync();
+            Assert.Single(next.Imports);
+            await next.CommitAsync(new RecoverySnapshot { Revision = 2, Tabs = [] }); // the user discarded it
+        }
+        for (var i = 0; i < 2; i++)
+        {
+            using var later = new DiskRecoveryStore(_root);
+            Assert.Empty((await later.LoadAsync())!.Tabs);
+            Assert.Empty(later.Imports);
+            Assert.Null(later.Warning);
+        }
+    }
+
+    [Fact]
+    public async Task ALiveSession_Should_NeverBeImported()
+    {
+        using var live = new DiskRecoveryStore(_root);
+        await live.CommitAsync(Snapshot(1, "live draft"));
+        var liveFolder = Assert.Single(Directory.GetDirectories(_root));
+        var original = Files(liveFolder);
+        using var next = new DiskRecoveryStore(_root);
+        Assert.Null(await next.LoadAsync());
+        Assert.Empty(next.Imports);
+        Assert.Null(next.Warning);
+        Assert.Equal(original, Files(liveFolder));
+    }
+
+    [Fact]
+    public async Task AnOtherSessionWithOnlyCleanTabs_Should_NeitherBeImportedNorReported()
+    {
+        string other;
         using (var first = new DiskRecoveryStore(_root))
         {
-            await first.CommitAsync(Snapshot(1, "valid draft"));
-            firstFolder = Assert.Single(Directory.GetDirectories(_root));
+            var clean = new RecoveryTab { FilePath = Path.Combine(_root, "clean.rpad"), EditorText = "saved", IsDirty = false };
+            await first.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = [clean, new RecoveryTab { EditorText = "" }] });
+            other = Assert.Single(Directory.GetDirectories(_root));
             using var second = new DiskRecoveryStore(_root);
-            await second.CommitAsync(Snapshot(1, "damaged draft"));
+            await second.CommitAsync(Snapshot(1, "own"));
         }
-        var damaged = Directory.GetDirectories(_root).Single(p => p != firstFolder);
-        File.WriteAllText(Path.Combine(damaged, "current.json"), "{");
-        Directory.SetLastWriteTimeUtc(damaged, DateTime.UtcNow.AddMinutes(1));
+        Directory.SetLastWriteTimeUtc(other, DateTime.UtcNow.AddMinutes(-5));
+        var original = Files(other);
         for (var i = 0; i < 3; i++)
         {
             using var next = new DiskRecoveryStore(_root);
-            Assert.Equal("valid draft", (await next.LoadAsync())!.Tabs[0].EditorText);
-            Assert.Contains(damaged, next.Warning!);
+            Assert.Equal("own", (await next.LoadAsync())!.Tabs[0].EditorText);
+            Assert.Empty(next.Imports);
+            Assert.Null(next.Warning);
         }
-        Assert.Equal("{", File.ReadAllText(Path.Combine(damaged, "current.json")));
-    }
-
-    [Fact]
-    public async Task CommitAndReload_Should_PreserveExactTextAndBaseline()
-    {
-        var snapshot = Snapshot(1);
-        using (var store = new DiskRecoveryStore(_root)) await store.CommitAsync(snapshot);
-        using var next = new DiskRecoveryStore(_root);
-        var restored = (await next.LoadAsync())!;
-        Assert.Equal(snapshot.Tabs[0].EditorText, restored.Tabs[0].EditorText);
-        Assert.Equal(snapshot.Tabs[0].DiskHash, restored.Tabs[0].DiskHash);
-        Assert.Equal(snapshot.ActiveTab, restored.ActiveTab);
+        Assert.Equal(original, Files(other));
     }
 
     [Theory]
-    [InlineData("payload")]
-    [InlineData("previous")]
-    [InlineData("current.json")]
-    [InlineData("committed")]
-    public async Task InterruptedCommit_Should_KeepACompleteGeneration(string stage)
+    [InlineData("damaged")]
+    [InlineData("newer-schema")]
+    public async Task AnUnreadableOtherSession_Should_BeReportedAndKeptUnchanged(string damage)
     {
-        using (var first = new DiskRecoveryStore(_root)) await first.CommitAsync(Snapshot(1, "original"));
-        using (var failing = new DiskRecoveryStore(_root, step => { if (step == stage) throw new IOException("injected"); }))
-            await Assert.ThrowsAsync<IOException>(() => failing.CommitAsync(Snapshot(2, "next")));
-        using var reopened = new DiskRecoveryStore(_root);
-        var restored = (await reopened.LoadAsync())!;
-        Assert.Equal(stage == "committed" ? "next" : "original", restored.Tabs[0].EditorText);
-    }
-
-    [Fact]
-    public async Task CorruptPointer_Should_FallBackToPreviousGeneration()
-    {
-        string folder;
-        using (var store = new DiskRecoveryStore(_root))
+        var (own, other) = await TwoClosedSessionsAsync();
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(other, "current.json")))!;
+        var payload = Path.Combine(other, pointer["Current"]!.GetValue<string>());
+        if (damage == "damaged") File.WriteAllText(payload, "{ not json");
+        else File.WriteAllText(payload, File.ReadAllText(payload).Replace("\"SchemaVersion\":1", "\"SchemaVersion\":2"));
+        var original = Files(other);
+        for (var i = 0; i < 2; i++)
         {
-            await store.CommitAsync(Snapshot(1, "one"));
-            await store.CommitAsync(Snapshot(2, "two"));
-            folder = Assert.Single(Directory.GetDirectories(_root));
+            using var next = new DiskRecoveryStore(_root);
+            Assert.Equal("own draft", (await next.LoadAsync())!.Tabs[0].EditorText);
+            Assert.Empty(next.Imports);
+            Assert.Contains(other, next.Warning!);
+            await next.CommitAsync(Snapshot(2 + i, "own draft"));
         }
-        File.WriteAllText(Path.Combine(folder, "current.json"), "{");
-        using var next = new DiskRecoveryStore(_root);
-        Assert.Equal("one", (await next.LoadAsync())!.Tabs[0].EditorText);
-    }
-
-    [Fact]
-    public async Task LiveOwner_Should_NotBeClaimedOrOverwritten()
-    {
-        using var one = new DiskRecoveryStore(_root);
-        await one.CommitAsync(Snapshot(1, "first instance"));
-        using var two = new DiskRecoveryStore(_root);
-        Assert.Null(await two.LoadAsync());
-        await two.CommitAsync(Snapshot(1, "second instance"));
-        Assert.Equal(2, Directory.GetDirectories(_root).Length);
-    }
-
-    [Fact]
-    public async Task OlderRevision_Should_NotReplaceNewer_AndEmptySessionIsAValidCommit()
-    {
-        using (var store = new DiskRecoveryStore(_root))
-        {
-            await store.CommitAsync(Snapshot(2));
-            await store.CommitAsync(Snapshot(1, "stale"));
-            await store.CommitAsync(new RecoverySnapshot { Revision = 3, Tabs = [] });
-        }
-        using var reopened = new DiskRecoveryStore(_root);
-        var snapshot = (await reopened.LoadAsync())!;
-        Assert.Equal(3, snapshot.Revision);
-        Assert.Empty(snapshot.Tabs);
+        Assert.Equal(original, Files(other));
     }
 
     [Fact]

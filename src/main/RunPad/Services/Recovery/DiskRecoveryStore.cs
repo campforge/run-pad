@@ -17,6 +17,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private Pointer? _pointer;
     private long _revision = -1;
     private bool _disposed;
+    private readonly List<RecoveryImport> _imports = [];
+    private readonly List<FileStream> _importLocks = [];
+    // Sessions taken over by this one, carried in every checkpoint (see RecoveryImportRecord).
+    private readonly List<RecoveryImportRecord> _records = [];
     public string? Warning { get; private set; }
 
     public DiskRecoveryStore(string root) => _root = root;
@@ -35,87 +39,108 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     {
         Directory.CreateDirectory(_root);
         RestrictDirectory(_root);
-        Exception? unreadable = null;
-        var unavailable = new List<string>();
+        // Lock every session nobody else owns before reading any of it: a live instance's session is
+        // never read as abandoned. Taken-over sessions (with an import marker) stay out of the way.
+        var sessions = new List<(string Folder, FileStream Lock, RecoverySnapshot? Snapshot, string? Payload, bool FellBack, Exception? Failure)>();
         foreach (var folder in Directory.GetDirectories(_root)
                      .Where(p => Guid.TryParseExact(Path.GetFileName(p), "N", out _)
-                         && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json"))))
+                         && (File.Exists(Path.Combine(p, "current.json")) || File.Exists(Path.Combine(p, "previous.json")))
+                         && !File.Exists(Path.Combine(p, ImportMarker)))
                      .OrderByDescending(Directory.GetLastWriteTimeUtc))
         {
-            try { _owner = Lock(folder); }
+            FileStream owner;
+            try { owner = Lock(folder); }
             catch (IOException) { continue; } // Another live instance owns this session.
-            _folder = folder;
-            _fault?.Invoke("locked");
+            catch (UnauthorizedAccessException) { continue; }
+            if (sessions.Count == 0) _fault?.Invoke("locked");
             try
             {
-                var snapshot = ReadSession();
-                foreach (var other in Directory.GetDirectories(_root).Where(p => p != folder
-                    && Guid.TryParseExact(Path.GetFileName(p), "N", out _)
-                    && File.Exists(Path.Combine(p, "current.json"))))
-                {
-                    try
-                    {
-                        using var probe = Lock(other);
-                        if (HasRetainedTabs(other)) unavailable.Add(other);
-                    }
-                    catch (IOException) { }
-                    catch (UnauthorizedAccessException) { }
-                }
-                if (unavailable.Count > 0)
-                    Warning = string.Join("\n", new[] { Warning,
-                        "Other session data was kept unchanged and has not been loaded. Recovery folders:",
-                        string.Join("\n", unavailable) }.Where(s => !string.IsNullOrEmpty(s)));
-                return snapshot;
+                var (snapshot, payload, fellBack) = ReadFolder(folder);
+                sessions.Add((folder, owner, snapshot, payload, fellBack, null));
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or NotSupportedException or UnauthorizedAccessException)
             {
-                unreadable ??= ex;
-                unavailable.Add(folder);
-                _owner.Dispose();
-                _owner = null;
-                _folder = null;
-                _pointer = null;
-                _revision = -1;
+                sessions.Add((folder, owner, null, null, false, ex));
             }
         }
-        if (unreadable is not null) throw unreadable;
-        _folder = Path.Combine(_root, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_folder);
-        RestrictDirectory(_folder);
-        _owner = Lock(_folder);
-        return null;
+
+        // A session whose drafts a durable checkpoint already holds was taken over; if the marker
+        // was not written (a crash right after that checkpoint), finish that now.
+        var records = sessions.SelectMany(x => x.Snapshot?.ImportedSessions ?? []).ToList();
+        bool TakenOver(string folder, RecoverySnapshot snapshot) => records.Any(r =>
+            r.Source == Path.GetFileName(folder) && r.Revision >= snapshot.Revision);
+
+        var unavailable = new List<string>();
+        Exception? unreadable = null;
+        RecoverySnapshot? own = null;
+        foreach (var session in sessions)
+        {
+            if (session.Snapshot is { } taken && TakenOver(session.Folder, taken))
+            {
+                TryMarkImported(session.Folder, records.First(r => r.Source == Path.GetFileName(session.Folder)));
+                session.Lock.Dispose();
+            }
+            else if (session.Failure is not null)
+            {
+                // Unreadable or newer data may hold drafts: keep it unchanged and say where it is.
+                unreadable ??= session.Failure;
+                unavailable.Add(session.Folder);
+                session.Lock.Dispose();
+            }
+            else if (_folder is null)
+            {
+                _folder = session.Folder;
+                _owner = session.Lock;
+                own = session.Snapshot;
+                if (session.Payload is not null) _pointer = new Pointer(1, session.Payload, null);
+                _revision = own?.Revision ?? -1;
+                if (session.FellBack) Warning = "An earlier draft checkpoint was recovered because the newer one was damaged.";
+            }
+            else
+            {
+                var drafts = session.Snapshot?.Tabs
+                    .Where(t => t.IsDirty || (t.FilePath is null && !string.IsNullOrWhiteSpace(t.EditorText)))
+                    .Select(t => t with { Id = Guid.NewGuid(), ImportedFrom = Path.GetFileName(session.Folder) })
+                    .ToList() ?? [];
+                if (drafts.Count == 0) { session.Lock.Dispose(); continue; } // Nothing unsaved there.
+                _imports.Add(new RecoveryImport(Path.GetFileName(session.Folder), session.Snapshot!.Revision, drafts));
+                _importLocks.Add(session.Lock);
+            }
+        }
+        _records.AddRange(own?.ImportedSessions ?? []);
+        if (unavailable.Count > 0)
+            Warning = string.Join("\n", new[] { Warning,
+                "Some draft data could not be read and was kept unchanged. Recovery folders:",
+                string.Join("\n", unavailable) }.Where(s => !string.IsNullOrEmpty(s)));
+        if (_folder is null)
+        {
+            // Unreadable data alone must not be replaced by an empty session that hides it.
+            if (unreadable is not null && _imports.Count == 0)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(unreadable);
+            _folder = Path.Combine(_root, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_folder);
+            RestrictDirectory(_folder);
+            _owner = Lock(_folder);
+        }
+        return own;
     }
 
-    private static bool HasRetainedTabs(string folder)
+    public IReadOnlyList<RecoveryImport> Imports => [.. _imports];
+
+    private const string ImportMarker = "imported.json";
+
+    private sealed record ImportMarkerData(int Version, string Into, long Revision);
+
+    private void TryMarkImported(string folder, RecoveryImportRecord record)
     {
-        // A valid empty current checkpoint intentionally supersedes its older drafts.
-        foreach (var pointerName in new[] { "current.json", "previous.json" })
+        // The drafts are already in a durable checkpoint, so a missing marker only means they are
+        // filtered out again on the next start; the source session's own files are never changed.
+        try
         {
-            var path = Path.Combine(folder, pointerName);
-            if (!File.Exists(path)) continue;
-            try
-            {
-                var pointer = JsonSerializer.Deserialize<Pointer>(File.ReadAllBytes(path));
-                if (pointer is null || pointer.Version != 1) return true;
-                foreach (var payload in new[] { pointer.Current, pointer.Previous })
-                {
-                    if (payload is null) continue;
-                    try
-                    {
-                        ValidatePayloadName(payload);
-                        var snapshot = JsonSerializer.Deserialize<RecoverySnapshot>(File.ReadAllBytes(Path.Combine(folder, payload)));
-                        if (snapshot is null) continue;
-                        Validate(snapshot);
-                        return snapshot.Tabs.Count > 0;
-                    }
-                    catch (NotSupportedException) { return true; }
-                    catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException) { }
-                }
-            }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException or UnauthorizedAccessException) { }
+            WriteDurably(Path.Combine(folder, ImportMarker), JsonSerializer.SerializeToUtf8Bytes(
+                new ImportMarkerData(1, Path.GetFileName(_folder ?? ""), record.Revision)));
         }
-        // Unreadable data may still contain drafts: keep reporting it, never silently delete it.
-        return true;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private static void RestrictDirectory(string path)
@@ -127,12 +152,12 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private static FileStream Lock(string folder) => new(Path.Combine(folder, "owner.lock"),
         FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
-    private RecoverySnapshot? ReadSession()
+    private static (RecoverySnapshot? Snapshot, string? Payload, bool FellBack) ReadFolder(string folder)
     {
         Exception? failure = null;
         foreach (var name in new[] { "current.json", "previous.json" })
         {
-            var path = Path.Combine(_folder!, name);
+            var path = Path.Combine(folder, name);
             if (!File.Exists(path)) continue;
             try
             {
@@ -146,13 +171,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                     try
                     {
                         ValidatePayloadName(payload);
-                        var snapshot = JsonSerializer.Deserialize<RecoverySnapshot>(File.ReadAllBytes(Path.Combine(_folder!, payload)))
+                        var snapshot = JsonSerializer.Deserialize<RecoverySnapshot>(File.ReadAllBytes(Path.Combine(folder, payload)))
                             ?? throw new InvalidDataException("Invalid recovery snapshot.");
                         Validate(snapshot);
-                        if (failure is not null) Warning = "An earlier draft checkpoint was recovered because the newer one was damaged.";
-                        _pointer = new Pointer(1, payload, null);
-                        _revision = snapshot.Revision;
-                        return snapshot;
+                        return (snapshot, payload, failure is not null);
                     }
                     catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException) { failure = ex; }
                 }
@@ -160,7 +182,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or ArgumentException) { failure = ex; }
         }
         if (failure is not null) throw new InvalidDataException("Recovery data could not be read. It has been kept unchanged.");
-        return null;
+        return (null, null, false);
     }
 
     private static void ValidatePayloadName(string name)
@@ -194,6 +216,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (snapshot.Revision <= _revision) return;
+            // Drafts imported at startup are in this workspace from the restore on: every checkpoint
+            // records their sessions, and only once one is durable are those sessions marked.
+            var pending = _imports.Select(i => new RecoveryImportRecord(i.Source, i.Revision)).ToList();
+            snapshot = snapshot with { ImportedSessions = [.. _records, .. pending] };
             await Task.Run(() =>
             {
                 var name = Guid.NewGuid().ToString("N") + ".snapshot";
@@ -207,6 +233,12 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 _pointer = pointer;
                 _revision = snapshot.Revision;
                 _fault?.Invoke("committed");
+                foreach (var record in pending)
+                    TryMarkImported(Path.Combine(_root, record.Source), record);
+                _records.AddRange(pending);
+                _imports.Clear();
+                foreach (var held in _importLocks) held.Dispose();
+                _importLocks.Clear();
                 // Only unreachable generations are disposable; a failed cleanup must not turn a
                 // successfully committed checkpoint into a failed save.
                 foreach (var file in Directory.EnumerateFiles(_folder!, "*.snapshot"))
@@ -263,7 +295,11 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             catch (Exception) { /* Failed loads still release any acquired owner below. */ }
         }
         _writer.Wait();
-        try { _owner?.Dispose(); }
+        try
+        {
+            _owner?.Dispose();
+            foreach (var held in _importLocks) held.Dispose();
+        }
         finally { _writer.Release(); }
     }
 }

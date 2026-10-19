@@ -1887,6 +1887,9 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         CaretOffset = State.Editor.CaretOffset,
         SelectionStart = State.Editor.SelectionStart,
         SelectionLength = State.Editor.SelectionLength,
+        // Provenance of an imported draft stays with it until it is saved to a file of its own.
+        OriginalPath = _vm.FilePath is null ? _vm.RestoredRecovery?.OriginalPath : null,
+        ImportedFrom = _vm.RestoredRecovery?.ImportedFrom,
     };
 
     private void SetDocumentContent(CodeTextEditor editor, string? filePath)
