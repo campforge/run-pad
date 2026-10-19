@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging;
 using RunPad.Contracts;
 using RunPad.Format.RPad;
@@ -46,8 +47,14 @@ public sealed class CSharpLanguageHost : CompiledDotnetLanguageHostBase
     {
         RpadKind.Expression => $"(\n{code.TrimEnd()}\n).Dump();\n",
         RpadKind.Program => $"{RpadKindTransform.ProgramPrefixFor(code)}{code}{RpadKindTransform.ProgramSuffixFor(code)}",
-        _ => code,
+        _ => RpadKindTransform.StatementsFor(code, ParseOptions()),
     };
+
+    // The options the build parses with, for the target framework the script runs on.
+    private CSharpParseOptions ParseOptions() =>
+        TargetFramework.TryParse(Options.Platform.TargetFrameworkMoniker, out var major, out var minor)
+            ? CSharpScriptCompiler.ParseOptions(major, minor)
+            : CSharpScriptCompiler.ParseOptions(Environment.Version.Major, Environment.Version.Minor);
 
     // Lines prepended before the user's first line, both by ApplyKindTransform (above) and by the
     // compiler (RoslynScriptCompiler), which separately prepends one "using X;" line per

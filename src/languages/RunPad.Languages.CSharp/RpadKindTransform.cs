@@ -1,3 +1,7 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace RunPad.Languages.CSharp;
 
 // RpadKind.Program used to glue a bare "Main();"/"await Main();" call directly in front
@@ -95,6 +99,21 @@ internal static class RpadKindTransform
             ? $"internal static void {TrampolineMethodName}(string[] args) {{ {mainCall}; }}"
             : $"internal static {returnType} {TrampolineMethodName}(string[] args) => {mainCall};";
         return $"\n{trampoline}\n}}\n";
+    }
+
+    // A Statements script without a single statement or declaration (empty, comments, using
+    // directives or preprocessor lines only) has nothing to run, and C# would refuse it for lacking
+    // an entry point (CS5001). It gets one `return;` on its own line after the user's code, so it runs
+    // and exits successfully without output; every original offset stays where it was. Code with a
+    // syntax error, or with any statement, type or namespace, is compiled exactly as written — a lone
+    // type declaration still fails as it should. Parsed with the build's own preprocessor symbols, so
+    // code inside `#if DEBUG` counts.
+    public static string StatementsFor(string code, CSharpParseOptions parseOptions)
+    {
+        var tree = CSharpSyntaxTree.ParseText(code, parseOptions);
+        if (((CompilationUnitSyntax)tree.GetRoot()).Members.Count > 0
+            || tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return code;
+        return code + (code.Length == 0 || code.EndsWith('\n') ? "" : "\n") + "return;\n";
     }
 
     /// <summary>Lines <see cref="ProgramPrefixFor"/> puts before the user's first line.</summary>

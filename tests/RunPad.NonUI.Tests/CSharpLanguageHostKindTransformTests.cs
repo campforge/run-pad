@@ -293,4 +293,26 @@ public class CSharpLanguageHostKindTransformTests
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
+
+    // An empty Statements script gets a lone `return;` after the user's code, on its own line: the
+    // user's text, and with it every offset, is unchanged. Anything else stays exactly as written.
+    [Theory]
+    [InlineData("", "return;\n")]
+    [InlineData("// note", "// note\nreturn;\n")]
+    [InlineData("using System.Text;\n", "using System.Text;\nreturn;\n")]
+    [InlineData("Console.WriteLine(1);\n", "Console.WriteLine(1);\n")]
+    [InlineData("class C { }\n", "class C { }\n")]
+    [InlineData("Console.WriteLine(", "Console.WriteLine(")]
+    public void ApplyKindTransform_Should_GiveOnlyAnEmptyStatementsScript_AReturn(string code, string expected)
+    {
+        var host = CreateHost(RpadKind.Statements, out var outputDir);
+        try
+        {
+            var transformed = host.ApplyKindTransform(code);
+            Assert.Equal(expected, transformed);
+            Assert.StartsWith(code, transformed, StringComparison.Ordinal);
+            Assert.Equal(0, host.CalcKindOffset(code));
+        }
+        finally { Directory.Delete(outputDir, recursive: true); }
+    }
 }
