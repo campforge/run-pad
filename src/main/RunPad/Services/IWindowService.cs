@@ -89,6 +89,12 @@ public interface IWindowService
     Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName);
 
     /// <summary>
+    /// Asks what to do with the unsaved tabs named when the app is closed while draft recovery is on.
+    /// Closing the dialog, or no window to show it on, is Cancel.
+    /// </summary>
+    Task<ExitUnsavedChoice> ShowExitUnsavedDialogAsync(IReadOnlyList<string> fileNames);
+
+    /// <summary>
     /// Asks whether a tab with unsaved changes should reload its file, which another program
     /// changed. True reloads; keeping the changes, closing the dialog or no window to show it on is false.
     /// </summary>

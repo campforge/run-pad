@@ -12,6 +12,13 @@ Notable changes in each RunPad release. Downloads are on the
   unless a script turns it on, also for imported LINQPad queries. It is a compiler setting, not a
   sandbox.
 
+### Changed
+
+- With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
+  Save As, including the question about files changed on disk), Keep in Stash (close without
+  writing the files; the changes reopen next time) or Cancel. A cancelled or failed save, or a
+  stash that could not be written, keeps RunPad open.
+
 ### Fixed
 
 - C# Program scripts can declare extension methods and custom awaiters alongside Main; the editor
@@ -28,6 +35,19 @@ Notable changes in each RunPad release. Downloads are on the
 - A C# Statements script with nothing to run (only comments, using directives or preprocessor
   lines, like many LINQPad readme queries) now runs and finishes without output instead of failing
   with CS5001. Syntax errors and scripts with only declarations still fail as before.
+
+- Draft recovery keeps imported drafts reachable when session read order changes and a newer checkpoint is damaged.
+
+- Execute Selection also runs selected statements in Program scripts, such as lines inside
+  `Main`, on their own. A selection that uses a method or variable declared outside it explains
+  the compile error instead of running the whole program.
+
+- Starting RunPad restores unsaved drafts without a message box, including drafts of another
+  RunPad window that was closed meanwhile. A draft of a file that is already open comes back as an
+  untitled copy naming the file, so neither version is overwritten: it keeps finding the file's
+  relative references and can't be saved over that file. Draft data that cannot be read
+  is kept unchanged and named in a dismissible notice; sessions with only saved files no longer
+  cause a warning on every start.
 
 ## [0.8.0] — 2026-10-19
 

@@ -104,9 +104,8 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             IsEnabled = false;
-            canClose = GetViewModel().RestoresDrafts
-                ? await GetViewModel().CheckpointRecoveryAsync()
-                : await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            canClose = (GetViewModel().RestoresDrafts ? await GetViewModel().ConfirmExitWithDraftsAsync() : null)
+                ?? await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
             foreach (var window in unsavedWindows)
             {
                 if (!canClose) break;

@@ -199,4 +199,27 @@ public sealed class ExecutionRequestTests : IDisposable
         public EditorLanguageProfile EditorProfile { get; } = new();
         public ILanguageHost Create(ILanguageHostOptions? options = null) => throw new NotSupportedException();
     }
+
+    // An untitled copy of a script resolves its references (and $(CurrentQueryPath) in them) from the
+    // copied script's folder, for the build and the editor alike, while it still runs as untitled.
+    [Fact]
+    public void AReferenceBasePath_Should_AnchorTheReferences_WithoutBecomingTheQueryPath()
+    {
+        var frontMatter = new RpadFrontMatter { References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"] };
+        var request = ExecutionRequest.For(frontMatter, null) with
+        {
+            Platform = Sdk,
+            OutputDirectory = Path.Combine(_root, "out"),
+            ReferenceBasePath = _script,
+        };
+
+        var options = CompiledDotnetLanguageHostOptions.From(request, "/runtime/RunPad.Runtime.dll");
+        Assert.Equal([_library, _library], options.AssemblyReferences);
+        Assert.Empty(options.ReferenceErrors);
+        Assert.Null(options.CurrentQueryPath);
+        Assert.Equal([_library, _library], DotnetPackageReferenceContext.For(request)!.AssemblyReferences);
+
+        // Without it an untitled script's relative references have no folder, as before.
+        Assert.NotEmpty(CompiledDotnetLanguageHostOptions.From(request with { ReferenceBasePath = null }, "/runtime/RunPad.Runtime.dll").ReferenceErrors);
+    }
 }
