@@ -14,6 +14,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- C# Program scripts can declare extension methods and custom awaiters alongside Main; the editor
+  keeps navigation, diagnostics and code actions aligned with the original script.
+
 - Program scripts now choose and invoke their entry point using the selected framework's conditional
   compilation symbols, including `DEBUG` and `TRACE`.
 

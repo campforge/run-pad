@@ -249,4 +249,69 @@ public class CSharpIntelliSenseKindAwarenessTests
 
         Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
     }
+    [Fact]
+    public async Task ExtensionClass_Should_ResolveCallsAndMapDefinitionToOriginalSource()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var definition = await service.GetDefinitionAsync(code, code.IndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(definition);
+        Assert.True(definition.IsInSource);
+        Assert.Equal(code.IndexOf("Twice(this", StringComparison.Ordinal), definition.Offset);
+        var lastDefinition = await service.GetDefinitionAsync(code, code.LastIndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(lastDefinition);
+        Assert.Equal(definition.Offset, lastDefinition.Offset);
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_MapDiagnosticsAndRenameAcrossClassBoundaries()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { MissingType x; Console.WriteLine(3.Twice()); }\n";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(code.IndexOf("MissingType", StringComparison.Ordinal), error.StartOffset);
+        var rename = await service.GetRenameInfoAsync(code, code.IndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(rename);
+        Assert.Equal(3, rename.Spans.Count);
+        Assert.All(rename.Spans, span => Assert.Equal("Twice", code.Substring(span.Start, span.Length)));
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_MaterializeRefactoringWithoutSyntheticBraces()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions\n{\n    public static int Twice(this int n)\n    {\n        return n * 2;\n    }\n}\n";
+        var fixes = await service.GetRefactoringsAsync(code, code.IndexOf("return n", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(fixes);
+        var fix = Assert.Single(fixes, f => f.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase));
+        var result = await service.MaterializeFixAsync(code, fix.Key, TestContext.Current.CancellationToken);
+        Assert.NotNull(result);
+        Assert.Contains("=> n * 2", result.NewCode);
+        Assert.DoesNotContain("__RunPad", result.NewCode);
+        Assert.DoesNotContain("partial class", result.NewCode);
+        Assert.DoesNotContain(await WaitForDiagnosticsAsync(service, result.NewCode), d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_CompleteAndClassifySourceAfterLiftedTypes()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
+        var position = code.IndexOf("3.Twice", StringComparison.Ordinal) + 2;
+        var completions = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
+        Assert.NotNull(completions);
+        Assert.Contains(completions.Items, item => item.DisplayText == "Twice");
+        var symbols = await service.GetDocumentHighlightsAsync(code, position, TestContext.Current.CancellationToken);
+        Assert.NotNull(symbols);
+        Assert.Equal(3, symbols.Count);
+        Assert.All(symbols, span => Assert.Equal("Twice", code.Substring(span.Start, span.Length)));
+    }
+
 }

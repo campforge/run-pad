@@ -66,7 +66,8 @@ internal static class RpadKindTransform
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
         var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
-        return $"{callStatement}class {ProgramWrapperClassName}\n{{\n";
+        var modifier = ProgramBodyProjection.Create(code, parseOptions).HasChanges ? "partial " : "";
+        return $"{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
     // Appends the trampoline (always accessible from ProgramPrefixFor's call site, regardless of the
