@@ -224,4 +224,16 @@ public class CSharpIntelliSenseKindAwarenessTests
         on.UpdateExecutionContext(new RunPad.Contracts.Models.ExecutionRequest { AllowUnsafe = true });
         Assert.DoesNotContain(await WaitForDiagnosticsAsync(on, code), d => d.Severity == DiagnosticSeverity.Error);
     }
+
+    // The editor shows nothing wrong with an empty Statements script, as the build now runs it.
+    [Fact]
+    public async Task AnEmptyStatementsScript_Should_HaveNoErrorsInTheEditor()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Statements);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, "// only comments\nusing System.Text;\n");
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
 }

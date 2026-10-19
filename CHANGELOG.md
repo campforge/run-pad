@@ -18,6 +18,10 @@ Notable changes in each RunPad release. Downloads are on the
   directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
   are unchanged. A missing or ambiguous entry point is reported by the compiler.
 
+- A C# Statements script with nothing to run (only comments, using directives or preprocessor
+  lines, like many LINQPad readme queries) now runs and finishes without output instead of failing
+  with CS5001. Syntax errors and scripts with only declarations still fail as before.
+
 ## [0.8.0] — 2026-10-19
 
 ### Added

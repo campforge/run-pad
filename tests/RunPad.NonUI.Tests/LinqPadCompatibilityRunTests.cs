@@ -295,4 +295,41 @@ public class LinqPadCompatibilityRunTests
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.Equal("top-level main", run.Output);
     }
+
+    // A Statements script with nothing to run (a LINQPad readme is often only comments) exits
+    // successfully without output instead of failing for a missing entry point.
+    [Theory]
+    [InlineData("")]
+    [InlineData("// Welcome: this query only has comments.\n//\n// Nothing to run.\n")]
+    [InlineData("// no newline at the end")]
+    [InlineData("/* a block comment */\n")]
+    [InlineData("using System.Text;\nusing Json = System.Text.Json.JsonSerializer;\nusing static System.Math;\n")]
+    [InlineData("#define LOCAL\n#nullable enable\n// directives only\n")]
+    [InlineData("#if NEVER_DEFINED\nConsole.WriteLine(\"excluded\");\n#endif\n")]
+    public async Task AnEmptyStatementsScript_Should_SucceedWithoutOutput(string code)
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Statements, code);
+        Assert.True(run.Result.Succeeded, run.Errors + run.Output);
+        Assert.DoesNotContain("CS5001", run.Output + run.Errors);
+        Assert.DoesNotContain("excluded", run.Output);
+        Assert.Empty(run.Dumps);
+    }
+
+    // Code that only looks empty still fails as written: syntax errors, an unterminated comment, and
+    // declarations without a statement (also ones present under the build's own symbols, like DEBUG).
+    [Theory]
+    [InlineData("Console.WriteLine(", "CS1026")]
+    [InlineData("/* never closed\n", "CS1035")]
+    [InlineData("#if NEVER_DEFINED\n// open\n", "CS1027")]
+    [InlineData("class OnlyAType { }\n", "CS5001")]
+    [InlineData("#if DEBUG\nclass DebugOnly { }\n#endif\n", "CS5001")]
+    public async Task CodeThatOnlyLooksEmpty_Should_StillFail(string code, string expected)
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Statements, code);
+        Assert.Equal(RunOutcome.CompilationFailed, run.Result.Outcome);
+        Assert.Contains(expected, run.Errors);
+        Assert.DoesNotContain("CS8803", run.Errors);
+    }
 }
