@@ -19,6 +19,10 @@ public sealed class HttpConnectionDriver : IConnectionDriver
     private const string Timeout = "timeout";
     private const int DefaultTimeoutSeconds = 100;
 
+    // HttpClient.Timeout takes a whole number of milliseconds up to int.MaxValue, more than 24 days.
+    private const double MinTimeoutSeconds = 0.001;
+    private const double MaxTimeoutSeconds = 2147483;
+
     // The Test button waits no longer than this, whatever the connection's own timeout.
     private static readonly TimeSpan MaxTestTime = TimeSpan.FromSeconds(30);
 
@@ -56,13 +60,20 @@ public sealed class HttpConnectionDriver : IConnectionDriver
             errors.Add($"The base address '{address.Text}' is not an http:// or https:// address.");
 
         // "headers:" left empty is no headers; anything else must map names to texts.
-        if (parameters.TryGetValue(Headers, out var headers) && headers.Text is not { Length: 0 }
-            && (headers.Fields is not { } fields || fields.Values.Any(v => v.Text is null)))
-            errors.Add("Headers must be names with texts.");
+        if (parameters.TryGetValue(Headers, out var headers) && headers.Text is not { Length: 0 })
+        {
+            if (headers.Fields is not { } fields || fields.Values.Any(v => v.Text is null))
+                errors.Add("Headers must be names with texts.");
+            else
+                // The client would drop them without a word: content headers such as Content-Type
+                // belong to a request's content, and a name can't have spaces or the like.
+                errors.AddRange(fields.Keys.Where(k => !IsRequestHeader(k)).Select(k =>
+                    $"'{k}' can't be sent as a request header: content headers such as Content-Type go with a request's content, and a name has no spaces."));
+        }
 
         if (parameters.TryGetValue(Timeout, out var timeout) && timeout.Text is { Length: > 0 } seconds
-            && !HasPlaceholder(seconds) && !(TimeoutSeconds(seconds) is > 0))
-            errors.Add($"The timeout '{seconds}' is not a positive number of seconds.");
+            && !HasPlaceholder(seconds) && !(TimeoutSeconds(seconds) is >= MinTimeoutSeconds and <= MaxTimeoutSeconds))
+            errors.Add(TimeoutError(seconds));
         return errors;
     }
 
@@ -71,7 +82,13 @@ public sealed class HttpConnectionDriver : IConnectionDriver
         if (!resolvedParams.TryGetValue(BaseAddress, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
             return new ConnectionTestResult(false, "The base address is not an http:// or https:// address.");
 
-        var seconds = resolvedParams.TryGetValue(Timeout, out var t) && t.Text is { } text ? TimeoutSeconds(text) ?? DefaultTimeoutSeconds : DefaultTimeoutSeconds;
+        var seconds = (double)DefaultTimeoutSeconds;
+        if (resolvedParams.TryGetValue(Timeout, out var t) && t.Text is { Length: > 0 } text)
+        {
+            if (TimeoutSeconds(text) is not { } given || given is not (>= MinTimeoutSeconds and <= MaxTimeoutSeconds))
+                return new ConnectionTestResult(false, TimeoutError(text));
+            seconds = given;
+        }
         var wait = TimeSpan.FromSeconds(Math.Min(seconds, MaxTestTime.TotalSeconds));
         using var client = new HttpClient(_handler(), disposeHandler: true) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
         using var request = new HttpRequestMessage(HttpMethod.Get, address);
@@ -125,6 +142,15 @@ public sealed class HttpConnectionDriver : IConnectionDriver
 
     private static bool IsHttpAddress(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static bool IsRequestHeader(string name)
+    {
+        using var request = new HttpRequestMessage();
+        return request.Headers.TryAddWithoutValidation(name, "x");
+    }
+
+    private static string TimeoutError(string seconds) =>
+        $"The timeout '{seconds}' is not a number of seconds from {MinTimeoutSeconds.ToString(CultureInfo.InvariantCulture)} to {MaxTimeoutSeconds.ToString(CultureInfo.InvariantCulture)}.";
 
     private static double? TimeoutSeconds(string text) =>
         double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) ? seconds : null;
