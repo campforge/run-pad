@@ -284,7 +284,8 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     public bool HasSelection => SelectedConnection is not null;
     public bool IsEmpty => LoadError is null && Connections.Count == 0;
-    public bool CanTest => SelectedConnection is { Driver: not null } item && item.Fields.All(f => f.MapError is null);
+    // A connection with problems would only fail its test, or send the server half a configuration.
+    public bool CanTest => SelectedConnection is { Driver: not null, HasProblems: false };
 
     public string? LoadError { get; }
     public bool HasLoadError => LoadError is not null;
@@ -413,7 +414,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     private async Task TestSelectedAsync()
     {
-        if (SelectedConnection is not { Driver: { } driver } item || item.Fields.Any(f => f.MapError is not null)) return;
+        if (SelectedConnection is not { Driver: { } driver, HasProblems: false } item) return;
         IsTesting = true;
         item.TestResult = "Testing…";
         try
@@ -438,6 +439,12 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
                     ? "Failed: its description couldn't be read: " + error
                     : "Scripts get its classes on their next build.");
             }
+        }
+        // A driver is free to throw for an unreachable or misconfigured server; that is the test's
+        // answer, not a reason to take the window down.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            item.TestResult = "Failed: " + ex.Message;
         }
         finally { IsTesting = false; }
     }
