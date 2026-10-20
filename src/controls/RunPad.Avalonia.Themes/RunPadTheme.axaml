@@ -114,15 +114,15 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
     </Style>
-    <Style Selector=":is(Button).secondary /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
     </Style>
-    <Style Selector=":is(Button).secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
     </Style>
-    <Style Selector=":is(Button).secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
     </Style>
     <Style Selector=":is(Button).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
@@ -130,6 +130,14 @@
         <Setter Property="Opacity" Value="0.55"/>
     </Style>
 
+    <!-- The dropdown presenter starts at x=0 inside the border; an opaque fill hides its left edge. -->
+    <Style Selector=":is(DropDownButton).secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    </Style>
     <Style Selector=":is(DropDownButton).secondary /template/ Border#RootBorder">
         <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
@@ -139,6 +147,18 @@
     </Style>
     <Style Selector=":is(DropDownButton).secondary:pressed /template/ Border#RootBorder">
         <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+    </Style>
+
+    <!-- Form inputs share the secondary action border; keyboard focus still has its own ring. -->
+    <Style Selector=":is(TextBox).form-field, ComboBox.form-field">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector=":is(TextBox).form-field:not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
     </Style>
 
     <!-- ── Default dialog button ──────────────────────────────────────────── -->
