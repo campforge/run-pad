@@ -99,9 +99,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             BreakOnUncaughtExceptions = request.BreakOnUncaughtExceptions,
             Kind = request.Kind,
             AllowUnsafe = request.AllowUnsafe,
-            // A version the script asks for itself wins over a connection driver's.
-            Packages = (request.Connections?.Packages ?? new Dictionary<string, string>())
-                .Where(p => !request.Packages.ContainsKey(p.Key)).Concat(request.Packages).ToDictionary(p => p.Key, p => p.Value),
+            Packages = request.Packages,
             ConnectionSource = request.Connections is { Source.Length: > 0 } connections ? connections.Source : null,
             ConnectionErrors = request.Connections?.Errors ?? [],
             Usings = request.Usings,

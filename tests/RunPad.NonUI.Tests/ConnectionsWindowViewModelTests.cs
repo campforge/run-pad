@@ -66,6 +66,7 @@ public class ConnectionsWindowViewModelTests
         public string Id => "fake";
         public string DisplayName => "Fake";
         public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
 
         public IReadOnlyList<ConnectionParam> Params { get; } =
         [

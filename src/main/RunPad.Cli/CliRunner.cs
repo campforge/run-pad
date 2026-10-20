@@ -234,7 +234,8 @@ public static class CliRunner
         string? currentQueryPath = null, IReadOnlyList<string>? arguments = null, ConnectionDriverRegistry? connectionDrivers = null)
         => ExecutionRequest.For(frontMatter, currentQueryPath, arguments) with
         {
-            Connections = GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, connectionDrivers ?? new ConnectionDriverRegistry()),
+            Connections = GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys,
+                connectionDrivers ?? new ConnectionDriverRegistry()),
             Platform = platform,
             OutputDirectory = outputDirectory,
             WorkingDirectory = outputDirectory,

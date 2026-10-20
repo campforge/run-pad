@@ -41,8 +41,9 @@ public sealed class ScriptConnectionItemViewModel : ReactiveObject
 }
 
 // Dependencies → Connections: the script's connections: list. Adding one of the user's connections
-// copies it into the script (its secrets stay placeholders), and the editor knows its client class
-// right away once the change is saved. Import keeps a script's connection in the user's own list.
+// copies it into the script (its secrets stay placeholders) together with the NuGet packages its
+// driver needs, which become ordinary packages of the script; the editor knows its client class right
+// away once the change is saved. Import keeps a script's connection in the user's own list.
 public sealed class ScriptConnectionsViewModel : ReactiveObject
 {
     private readonly IConnectionStore? _store;
@@ -50,6 +51,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly ConnectionDriverRegistry _drivers;
     private IReadOnlyList<RpadConnection> _original = [];
     private List<RpadConnection> _mine = [];
+    // The script's packages as drafted in the window, and how to add one there.
+    private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
+    private Action<string, string> _addPackage = (_, _) => { };
 
     internal event Action? Edited;
 
@@ -103,6 +107,16 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasStoreError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
     }
 
+    // The Dependencies window's own package draft, which connections add their packages to.
+    internal void UsePackages(Func<IReadOnlySet<string>> scriptPackages, Action<string, string> addPackage)
+    {
+        _scriptPackages = scriptPackages;
+        _addPackage = addPackage;
+    }
+
+    // After the script's packages change: a missing package is a problem of the connection.
+    internal void OnPackagesChanged() => Refresh();
+
     internal void Load(RpadFrontMatter? frontMatter)
     {
         _original = frontMatter?.Connections ?? [];
@@ -138,6 +152,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         var item = new ScriptConnectionItemViewModel(Clone(connection));
         Items.Add(item);
         SelectedItem = item;
+        if (_drivers.Find(connection.Driver) is { } driver)
+            foreach (var (id, version) in driver.Packages)
+                if (!_scriptPackages().Contains(id)) _addPackage(id, version);
         Refresh();
         Edited?.Invoke();
     }
@@ -184,7 +201,12 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             var problems = new List<string>();
             if (!IsCSharp) problems.Add("Connections can be used in C# scripts only, for now.");
             if (driver is null) problems.Add($"This RunPad has no '{connection.Driver}' driver.");
-            else problems.AddRange(driver.Validate(connection));
+            else
+            {
+                problems.AddRange(driver.Validate(connection));
+                problems.AddRange(GeneratedConnections.MissingPackages(driver, _scriptPackages())
+                    .Select(id => $"Needs the NuGet package {id}: add it on the Packages tab."));
+            }
             foreach (var text in connection.Params.Values.SelectMany(v => v.Texts()))
             {
                 var parsed = RpadPlaceholders.Parse(text);

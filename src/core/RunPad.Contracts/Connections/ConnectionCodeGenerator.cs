@@ -64,21 +64,24 @@ public sealed class ConnectionCodeContext
 /// <c>Connections</c> class with a property per connection (<c>Connections.Billing</c>), created on
 /// first use, and each connection's client class nested in it (<c>Connections.BillingClient</c>).
 /// </summary>
-public sealed record GeneratedConnections(string Source, IReadOnlyDictionary<string, string> Packages, IReadOnlyList<string> Errors)
+public sealed record GeneratedConnections(string Source, IReadOnlyList<string> Errors)
 {
     /// <summary>
     /// Null for a script without connections. Problems (an invalid list, a driver this RunPad lacks,
-    /// invalid parameters, a language without connections) are <see cref="Errors"/>, which fail the
-    /// build; the valid connections still get their code, so the editor knows them.
+    /// invalid parameters, a package the driver needs missing from <paramref name="scriptPackages"/>,
+    /// a language without connections) are <see cref="Errors"/>, which fail the build; the valid
+    /// connections still get their code, so the editor knows them.
     /// </summary>
-    public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language, ConnectionDriverRegistry drivers)
+    /// <param name="scriptPackages">The ids of the script's <c>packages:</c>.</param>
+    public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language,
+        IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers)
     {
         if (connections.Count == 0) return null;
         if (language != RpadLanguage.CSharp)
-            return new GeneratedConnections("", new Dictionary<string, string>(), ["Connections can be used in C# scripts only, for now."]);
+            return new GeneratedConnections("", ["Connections can be used in C# scripts only, for now."]);
 
         var errors = RpadConnection.Validate(connections).ToList();
-        var packages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var packages = new HashSet<string>(scriptPackages, StringComparer.OrdinalIgnoreCase);
         var classes = new StringBuilder();
         var properties = new StringBuilder();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -99,9 +102,11 @@ public sealed record GeneratedConnections(string Source, IReadOnlyDictionary<str
                 continue;
             }
 
+            errors.AddRange(MissingPackages(driver, packages).Select(id =>
+                $"Connection '{connection.Name}' needs the NuGet package {id}: add it in Dependencies → Packages."));
+
             var context = new ConnectionCodeContext(connection);
             var client = driver.CreateClient(connection, context);
-            foreach (var (id, version) in client.Packages ?? new Dictionary<string, string>()) packages[id] = version;
             classes.Append(Indent(client.ClassSource.Replace("\r\n", "\n").TrimEnd(), "    ")).Append("\n\n");
             var field = "__" + char.ToLowerInvariant(codeName[0]) + codeName[1..];
             properties
@@ -118,8 +123,12 @@ public sealed record GeneratedConnections(string Source, IReadOnlyDictionary<str
             .Append(properties)
             .Append(classes)
             .Append("}\n");
-        return new GeneratedConnections(source.ToString(), packages, errors);
+        return new GeneratedConnections(source.ToString(), errors);
     }
+
+    /// <summary>The driver's packages that aren't among the script's.</summary>
+    public static IEnumerable<string> MissingPackages(IConnectionDriver driver, IReadOnlySet<string> scriptPackages) =>
+        driver.Packages.Keys.Where(id => !scriptPackages.Contains(id));
 
     private static string Indent(string text, string indent) =>
         string.Join("\n", text.Split('\n').Select(line => line.Length == 0 ? line : indent + line));
