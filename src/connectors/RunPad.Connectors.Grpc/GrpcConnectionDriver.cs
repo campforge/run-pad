@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Grpc.Core;
@@ -260,7 +261,9 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
             start.ArgumentList.Add("--csharp_out=" + output);
             start.ArgumentList.Add("--grpc_out=" + output);
             start.ArgumentList.Add("--grpc_opt=no_server");
-            foreach (var file in files.Where(f => !IsWellKnown(f.Name))) start.ArgumentList.Add(file.Name);
+            foreach (var file in files.Where(f => !IsWellKnown(f.Name)))
+                start.ArgumentList.Add(GrpcReflection.IsSafeProtoPath(file.Name) ? file.Name
+                    : throw new GrpcConnectionException($"The server described a file with a name RunPad doesn't accept: '{file.Name}'."));
 
             using var process = Process.Start(start) ?? throw new GrpcConnectionException("protoc couldn't be started.");
             var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
@@ -334,7 +337,7 @@ internal sealed class GrpcConnectionException(string message) : Exception(messag
 internal sealed record GrpcServiceClient(string Service, string ClientType, string Property);
 
 /// <summary>Server reflection, in the v1 protocol or the older v1alpha one the server may offer instead.</summary>
-internal sealed class GrpcReflection(CallInvoker invoker, Metadata headers)
+internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata headers)
 {
     private static readonly Method<ServerReflectionRequest, ServerReflectionResponse> V1 = new(
         MethodType.DuplexStreaming, "grpc.reflection.v1.ServerReflection", "ServerReflectionInfo",
@@ -366,8 +369,10 @@ internal sealed class GrpcReflection(CallInvoker invoker, Metadata headers)
             foreach (var name in missing)
             {
                 var response = await AskAsync(new ServerReflectionRequest { FileByFilename = name }, ct, allowNotFound: true).ConfigureAwait(false);
-                if (response is null) files[name] = null; // left to protoc's own well-known files
-                else Add(response);
+                Add(response);
+                // Not sent, or sent under another name: never asked again, and left to protoc's own
+                // well-known files (protoc names it if it isn't one).
+                files.TryAdd(name, null);
             }
         return [.. files.Values.OfType<FileDescriptorProto>()];
 
@@ -376,6 +381,10 @@ internal sealed class GrpcReflection(CallInvoker invoker, Metadata headers)
             foreach (var bytes in response?.FileDescriptorResponse?.FileDescriptorProto ?? [])
             {
                 var file = FileDescriptorProto.Parser.ParseFrom(bytes);
+                // The names go on protoc's command line: a server must not be able to pass options.
+                foreach (var name in file.Dependency.Prepend(file.Name))
+                    if (!IsSafeProtoPath(name))
+                        throw new GrpcConnectionException($"The server described a file with a name RunPad doesn't accept: '{name}'.");
                 files.TryAdd(file.Name, file);
             }
         }
@@ -383,6 +392,14 @@ internal sealed class GrpcReflection(CallInvoker invoker, Metadata headers)
         List<string> Missing() => [.. files.Values.OfType<FileDescriptorProto>().SelectMany(f => f.Dependency).Distinct()
             .Where(d => !files.ContainsKey(d))];
     }
+
+    // A relative path of a .proto file, as protoc names them: no option (-…), response file (@…),
+    // absolute path or parent folder.
+    internal static bool IsSafeProtoPath(string name) =>
+        SafeProtoPath().IsMatch(name) && !name.Split('/').Any(part => part is "" or "." or "..");
+
+    [GeneratedRegex(@"^[A-Za-z0-9_][A-Za-z0-9_./-]*\.proto$")]
+    private static partial Regex SafeProtoPath();
 
     private async Task<ServerReflectionResponse> AskAsync(ServerReflectionRequest request, CancellationToken ct) =>
         (await AskAsync(request, ct, allowNotFound: false).ConfigureAwait(false))!;

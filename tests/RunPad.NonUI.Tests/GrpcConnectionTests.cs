@@ -152,6 +152,21 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.StartsWith("Could not reach the server:", closed.Message, StringComparison.Ordinal);
     }
 
+    // The server names the files RunPad passes to protoc: a name must never become one of its options.
+    [Theory]
+    [InlineData("inventory.proto", true)]
+    [InlineData("inventory/v1/stock.proto", true)]
+    [InlineData("google/protobuf/timestamp.proto", true)]
+    [InlineData("--plugin=protoc-gen-grpc=/bin/sh", false)]
+    [InlineData("--descriptor_set_out=/home/u/.bashrc.proto", false)]
+    [InlineData("@args.proto", false)]
+    [InlineData("/etc/passwd.proto", false)]
+    [InlineData("../outside.proto", false)]
+    [InlineData("a//b.proto", false)]
+    [InlineData("inventory.txt", false)]
+    public void FileNames_FromTheServer_Should_BeChecked(string name, bool safe) =>
+        Assert.Equal(safe, GrpcReflection.IsSafeProtoPath(name));
+
     [Fact]
     public void ServiceProperties_Should_BeShort_AndUnique()
     {
