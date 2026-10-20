@@ -11,6 +11,7 @@ public partial class ConditionDialog : Window
         EnabledBox.IsChecked = initialEnabled;
         ConditionBox.Text = initialCondition ?? "";
         HitConditionBox.Text = initialHitCondition ?? "";
+        HitCountOptions.IsExpanded = !string.IsNullOrWhiteSpace(initialHitCondition);
         Opened += (_, _) =>
         {
             ConditionBox.Focus();
