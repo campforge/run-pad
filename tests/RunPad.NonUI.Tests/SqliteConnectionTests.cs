@@ -108,7 +108,8 @@ public sealed class SqliteConnectionTests : IDisposable
 
         Assert.Equal(("long", true), SqliteModel.ClrType("INTEGER"));
         Assert.Equal(("string", false), SqliteModel.ClrType("varchar(20)"));
-        Assert.Equal(("byte[]", false), SqliteModel.ClrType(""));
+        Assert.Equal(("string", false), SqliteModel.ClrType(""));
+        Assert.Equal(("byte[]", false), SqliteModel.ClrType("BLOB"));
         Assert.Equal(("double", true), SqliteModel.ClrType("REAL"));
         Assert.Equal(("decimal", true), SqliteModel.ClrType("DECIMAL(10,2)"));
         Assert.Equal(("bool", true), SqliteModel.ClrType("BOOLEAN"));
@@ -259,6 +260,46 @@ public sealed class SqliteConnectionTests : IDisposable
             shop.SaveChanges();
             Console.WriteLine(shop.Keyed.ToList().Count);
             """, ["2"]);
+    }
+
+    // A column without a declared type, such as a view's count(*), is read as text, not as bytes.
+    [Fact]
+    public async Task UntypedViewColumns_Should_ReadAsText()
+    {
+        await RunSchemaScriptAsync("CREATE VIEW city_counts AS SELECT city, count(*) AS n FROM customers GROUP BY city;",
+            """
+            var oslo = Connections.Shop.CityCounts.Single(c => c.City == "Oslo");
+            Console.WriteLine(oslo.N);
+            """, ["2"]);
+    }
+
+    // A table name comes from whoever made the file: a line break C# knows, such as U+2028, must not
+    // end the documentation comment it is written in and start a line of code.
+    [Fact]
+    public async Task ATableName_Should_NeverEndItsDocumentationComment()
+    {
+        var name = "evil" + (char)0x2028 + "public static int X = 1;" + (char)0x85 + "y" + (char)0x2029 + "z";
+        using (var db = new SqliteConnection($"Data Source={DatabasePath};Pooling=False"))
+        {
+            db.Open();
+            using var command = db.CreateCommand();
+            command.CommandText = $"CREATE TABLE \"{name}\" (id INTEGER PRIMARY KEY);";
+            command.ExecuteNonQuery();
+        }
+        var connection = Shop();
+        var schemas = Schemas();
+        await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
+        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, new SqliteConnectionDriver().Packages.Keys,
+            schemas.Drivers, schemas.Cache, ScriptDirectory)!;
+        Assert.Empty(generated.Errors);
+        Assert.DoesNotContain(generated.Source, c => c is (char)0x85 or (char)0x2028 or (char)0x2029);
+        Assert.Contains("evil public static int X = 1; y z", generated.Source, StringComparison.Ordinal);
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(generated.Source, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(tree.GetRoot(TestContext.Current.CancellationToken).DescendantNodes()
+                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax>(), v => v.Identifier.Text == "X");
+
+        Assert.Equal("a b c d e", ConnectionCodeContext.Doc("a\rb\u0085c\u2028d\u2029e"));
+        Assert.Equal("&lt;a&gt; &amp; b", ConnectionCodeContext.Doc("<a>\t&\0b"));
     }
 
     [Fact]

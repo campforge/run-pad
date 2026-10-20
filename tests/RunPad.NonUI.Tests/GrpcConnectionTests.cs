@@ -48,7 +48,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         {
             Sku = request.Sku,
             Count = 42,
-            Caller = context.RequestHeaders.GetValue("authorization") ?? "",
+            Caller = string.Join(",", context.RequestHeaders.Where(h => h.Key == "authorization").Select(h => h.Value)),
         });
     }
 
@@ -152,6 +152,73 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.StartsWith("Could not reach the server:", closed.Message, StringComparison.Ordinal);
     }
 
+    // The Test button gets the parameters unchecked: a name Metadata refuses is a message, not a crash.
+    [Theory]
+    [InlineData("bad key")]
+    [InlineData("token-bin")]
+    public async Task Test_Should_SayWhichMetadataNameIsInvalid(string name)
+    {
+        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal)
+        {
+            ["address"] = RpadValue.Of(Address),
+            ["metadata"] = RpadValue.Map([new(name, RpadValue.Of("x"))]),
+        };
+        var result = await new GrpcConnectionDriver().TestAsync(parameters, TestContext.Current.CancellationToken);
+        Assert.Equal(new ConnectionTestResult(false,
+            $"'{name}' can't be a metadata name: use letters, digits, '-', '_' and '.', and no '-bin' ending."), result);
+    }
+
+    // The client sends the connection's metadata in a Metadata of its own for each call, so the one a
+    // script passes and reuses is left as it was.
+    [Fact]
+    public void TheClient_Should_NeverAddToTheCallersMetadata()
+    {
+        var connection = Inventory();
+        var schemas = Schemas();
+        schemas.Cache.Put(connection, new ConnectionSchema("", [], "[]"));
+        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
+        Assert.Empty(generated.Errors);
+        Assert.Contains("var all = new global::Grpc.Core.Metadata();", generated.Source, StringComparison.Ordinal);
+        Assert.Contains("if (headers is not null) foreach (var entry in headers) all.Add(entry);", generated.Source, StringComparison.Ordinal);
+        Assert.DoesNotContain("headers.Add(", generated.Source, StringComparison.Ordinal);
+    }
+
+    // Files of the same name in different packages (x/v1/service.proto, x/v2/service.proto) are
+    // written to folders of their own instead of over each other. Grpc.Tools comes from NuGet.
+    [Fact]
+    [Trait("Category", "RealBuild")]
+    public async Task Protoc_Should_WriteFilesOfTheSameName_FromDifferentPackages()
+    {
+        static Google.Protobuf.Reflection.FileDescriptorProto Proto(string version)
+        {
+            var file = new Google.Protobuf.Reflection.FileDescriptorProto
+            {
+                Name = $"x/{version}/service.proto",
+                Package = $"x.{version}",
+                Syntax = "proto3",
+            };
+            file.MessageType.Add(new Google.Protobuf.Reflection.DescriptorProto { Name = "Ping" });
+            var service = new Google.Protobuf.Reflection.ServiceDescriptorProto { Name = "Echo" };
+            service.Method.Add(new Google.Protobuf.Reflection.MethodDescriptorProto
+            {
+                Name = "Send",
+                InputType = $".x.{version}.Ping",
+                OutputType = $".x.{version}.Ping",
+            });
+            file.Service.Add(service);
+            return file;
+        }
+
+        var tools = await DotnetConnectionTools.Default.GetPackageFolderAsync("Grpc.Tools", GrpcConnectionDriver.GrpcVersion,
+            TestContext.Current.CancellationToken);
+        var files = await GrpcConnectionDriver.ProtocAsync(tools, [Proto("v1"), Proto("v2")], TestContext.Current.CancellationToken);
+        Assert.Equal(["X/V1/Service.cs", "X/V1/ServiceGrpc.cs", "X/V2/Service.cs", "X/V2/ServiceGrpc.cs"], files.Select(f => f.Name));
+        var clients = GrpcClientParser.Find(files, ["x.v1.Echo", "x.v2.Echo"]);
+        Assert.Equal(["global::X.V1.Echo.EchoClient", "global::X.V2.Echo.EchoClient"], clients.Select(c => c.ClientType));
+        Assert.Equal(["XV1Echo", "XV2Echo"], GrpcClientParser.WithProperties(clients).Select(c => c.Property));
+    }
+
     // The server names the files RunPad passes to protoc: a name must never become one of its options.
     [Theory]
     [InlineData("inventory.proto", true)]
@@ -233,8 +300,8 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.Null(schemas.Cache.ErrorFor(connection));
         var schema = schemas.Cache.Get(connection)!;
         Assert.Equal("2 services: inventory.v1.Audit, inventory.v1.Stock.", schema.Summary);
-        Assert.Contains(schema.Files, f => f.Name == "Inventory.cs");
-        Assert.Contains(schema.Files, f => f.Name == "InventoryGrpc.cs");
+        Assert.Contains(schema.Files, f => f.Name == "Inventory/V1/Inventory.cs");
+        Assert.Contains(schema.Files, f => f.Name == "Inventory/V1/InventoryGrpc.cs");
         Assert.DoesNotContain(schema.Files, f => f.Name.Contains("Timestamp", StringComparison.Ordinal)); // Google.Protobuf has it
         // Read once: nothing changes the next time.
         Assert.False(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
@@ -244,7 +311,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.Empty(generated.Errors);
         Assert.Contains("public global::Inventory.V1.Stock.StockClient Stock => __stock ??= new global::Inventory.V1.Stock.StockClient(CallInvoker);",
             generated.Source);
-        Assert.Contains(generated.Files, f => f.Name == "Inventory.InventoryGrpc.cs");
+        Assert.Contains(generated.Files, f => f.Name == "Inventory.Inventory/V1/InventoryGrpc.cs");
 
         // The editor knows the services' clients and messages before any run.
         var referenceService = new CSharpReferenceService();
@@ -276,16 +343,19 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
             var output = new ConcurrentQueue<string>();
             var errors = new ConcurrentQueue<string>();
+            // The caller's own metadata goes too, and is the same after each call.
             const string script = """
-                var item = await Connections.Inventory.Stock.GetItemAsync(new Inventory.V1.ItemRequest { Sku = "A1" });
-                Console.WriteLine($"{item.Sku} {item.Count} {item.Caller}");
+                var headers = new Grpc.Core.Metadata { { "x-trace", "1" } };
+                await Connections.Inventory.Stock.GetItemAsync(new Inventory.V1.ItemRequest { Sku = "A0" }, headers);
+                var item = await Connections.Inventory.Stock.GetItemAsync(new Inventory.V1.ItemRequest { Sku = "A1" }, headers);
+                Console.WriteLine($"{item.Sku} {item.Count} {item.Caller} {headers.Count}");
                 """;
             var result = await host.RunAsync(script, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data),
                     TestContext.Current.CancellationToken)
                 .WaitAsync(TimeSpan.FromMinutes(3), TestContext.Current.CancellationToken);
 
             Assert.True(result.Succeeded, string.Join('\n', errors));
-            Assert.Equal("A1 42 Bearer t0k", output.Last());
+            Assert.Equal("A1 42 Bearer t0k 1", output.Last());
         }
         finally
         {
