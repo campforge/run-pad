@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\connectors\RunPad.Connectors.Http\RunPad.Connectors.Http.csproj" />
     <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj" />
     <ProjectReference Include="..\..\languages\RunPad.Languages.CSharp\RunPad.Languages.CSharp.csproj" />
     <ProjectReference Include="..\..\languages\RunPad.Languages.VB\RunPad.Languages.VB.csproj" />

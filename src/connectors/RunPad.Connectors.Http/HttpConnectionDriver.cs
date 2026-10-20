@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text;
 using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 
@@ -93,6 +94,28 @@ public sealed class HttpConnectionDriver : IConnectionDriver
         {
             return new ConnectionTestResult(false, $"Could not reach the server: {ex.Message}");
         }
+    }
+
+    // An HttpClient with the base address, headers and timeout set, so the script calls
+    // Connections.Billing.GetStringAsync("invoices") and the like.
+    public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context)
+    {
+        var parameters = connection.Params;
+        var address = parameters[BaseAddress].Text!;
+        var sb = new StringBuilder()
+            .Append("/// <summary>The HTTP connection '").Append(ConnectionCodeContext.Doc(connection.Name)).Append("': an HttpClient for ")
+            .Append(ConnectionCodeContext.Doc(address)).Append(".</summary>\n")
+            .Append("public sealed class ").Append(context.ClassName).Append(" : global::System.Net.Http.HttpClient\n{\n")
+            .Append("    internal ").Append(context.ClassName).Append("()\n    {\n")
+            .Append("        BaseAddress = new global::System.Uri(").Append(context.Text(address)).Append(");\n");
+        if (parameters.TryGetValue(Timeout, out var timeout) && timeout.Text is { Length: > 0 } seconds)
+            sb.Append("        Timeout = global::System.TimeSpan.FromSeconds(global::System.Double.Parse(").Append(context.Text(seconds))
+                .Append(", global::System.Globalization.CultureInfo.InvariantCulture));\n");
+        foreach (var (name, value) in parameters.TryGetValue(Headers, out var headers) ? headers.Fields ?? [] : [])
+            sb.Append("        DefaultRequestHeaders.TryAddWithoutValidation(").Append(ConnectionCodeContext.Literal(name)).Append(", ")
+                .Append(context.Text(value.Text ?? "")).Append(");\n");
+        sb.Append("    }\n}");
+        return new ConnectionClientCode(sb.ToString());
     }
 
     private static bool HasPlaceholder(string text) => RpadPlaceholders.Parse(text).Parts.Any(p => p.Kind != RpadPlaceholders.Kind.Text);

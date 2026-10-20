@@ -85,4 +85,15 @@ public interface IConnectionDriver
     /// unreachable or refusing endpoint: that is a failed result with the reason.
     /// </summary>
     Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The script's client class for a valid connection: C# for a public sealed class named
+    /// <see cref="ConnectionCodeContext.ClassName"/> with a parameterless internal constructor that
+    /// sets the client up. Texts become expressions through <see cref="ConnectionCodeContext.Text"/>,
+    /// so secrets and environment variables are read when the script runs, never put in the code.
+    /// </summary>
+    ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context);
 }
+
+/// <summary>A connection's client class, and the NuGet packages (id → version) it needs.</summary>
+public sealed record ConnectionClientCode(string ClassSource, IReadOnlyDictionary<string, string>? Packages = null);

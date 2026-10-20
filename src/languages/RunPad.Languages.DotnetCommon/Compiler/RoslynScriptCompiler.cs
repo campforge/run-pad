@@ -120,6 +120,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         if (Options.ReferenceErrors.Count > 0)
             return new ProcessCompilerResult(_dllPath, false, [.. Options.ReferenceErrors.Select(e => Message("", e))], ReferenceWarnings());
+        if (Options.ConnectionErrors.Count > 0)
+            return new ProcessCompilerResult(_dllPath, false, [.. Options.ConnectionErrors.Select(e => Message("", e))], ReferenceWarnings());
 
         var tfm = Options.Platform.TargetFrameworkMoniker;
         if (!TargetFramework.TryParse(tfm, out var major, out var minor))
@@ -153,7 +155,9 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var generatedPath = DebugSourcePath.Canonicalize(
             Path.Combine(_objDir, Options.OutputName + ".Generated" + SourceFileExtension));
 
-        var key = Fingerprint(code, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
+        // The connections' code is part of the generated file, so it decides about reuse like the script's own.
+        var generatedSource = GeneratedSource(target) + (Options.ConnectionSource is { } connections ? "\n" + connections : "");
+        var key = Fingerprint(Options.ConnectionSource is null ? code : code + "\n\0" + generatedSource, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
             return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
@@ -164,7 +168,7 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var scriptText = SourceText.From(code, Encoding.UTF8, SourceHashAlgorithm.Sha256);
         var scriptTree = Parse(scriptText, sourcePath, target, ct);
-        var generatedTree = Parse(SourceText.From(GeneratedSource(target), Encoding.UTF8, SourceHashAlgorithm.Sha256),
+        var generatedTree = Parse(SourceText.From(generatedSource, Encoding.UTF8, SourceHashAlgorithm.Sha256),
             generatedPath, target, ct);
 
         var references = frameworkReferences.Concat([Options.RuntimeLibPath]).Concat(userReferences).Concat(packageReferences)
