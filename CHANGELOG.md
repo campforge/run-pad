@@ -12,6 +12,11 @@ Notable changes in each RunPad release. Downloads are on the
   unless a script turns it on, also for imported LINQPad queries. It is a compiler setting, not a
   sandbox.
 
+- Tools → Secret Store keeps passwords, tokens and keys out of scripts: save them by name and read
+  them with `Util.GetSecret("name")`. The store belongs to you on this computer, encrypted for
+  your account on Windows and readable only by you on macOS and Linux; a missing secret fails with
+  a message naming it and the store.
+
 ### Changed
 
 - With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
