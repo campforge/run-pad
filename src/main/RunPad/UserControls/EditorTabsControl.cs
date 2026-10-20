@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
@@ -26,6 +27,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private IDisposable? _activeTabSub;
     private bool _disposed;
     private readonly ILogger<EditorsTabItemControl>? _runLogger;
+    private readonly ConnectionDriverRegistry? _connectionDrivers;
 
     private MainWindowViewModel? _vm;
 
@@ -51,9 +53,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
         IWindowService windowService,
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
-        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
+        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
+        ConnectionDriverRegistry? connectionDrivers = null)
     {
         InitializeComponent();
+        _connectionDrivers = connectionDrivers;
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -608,7 +612,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _registry!,
             _prefs!,
             intelliSense,
-            _buildCache!, _runLogger
+            _buildCache!, _runLogger, _connectionDrivers
         );
     }
 

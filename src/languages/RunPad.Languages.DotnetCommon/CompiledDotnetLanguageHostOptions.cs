@@ -65,6 +65,12 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// </summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
 
+    /// <summary>The <c>Connections</c> class the script's connections add, compiled with the script; null without connections.</summary>
+    public string? ConnectionSource { get; init; }
+
+    /// <summary>Why the script's connections can't be built; any of them fails the build.</summary>
+    public IReadOnlyList<string> ConnectionErrors { get; init; } = [];
+
     /// <summary>
     /// The options a run asks for: <paramref name="request"/>'s references resolved relative to the
     /// script's folder with macros expanded (as IntelliSense resolves them), RunPad's own NuGet.Config
@@ -93,7 +99,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             BreakOnUncaughtExceptions = request.BreakOnUncaughtExceptions,
             Kind = request.Kind,
             AllowUnsafe = request.AllowUnsafe,
-            Packages = request.Packages,
+            // A version the script asks for itself wins over a connection driver's.
+            Packages = (request.Connections?.Packages ?? new Dictionary<string, string>())
+                .Where(p => !request.Packages.ContainsKey(p.Key)).Concat(request.Packages).ToDictionary(p => p.Key, p => p.Value),
+            ConnectionSource = request.Connections is { Source.Length: > 0 } connections ? connections.Source : null,
+            ConnectionErrors = request.Connections?.Errors ?? [],
             Usings = request.Usings,
             AssemblyReferences = references.Assemblies,
             ProjectReferences = references.Projects,

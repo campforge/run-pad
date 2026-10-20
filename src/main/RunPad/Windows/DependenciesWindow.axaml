@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        xmlns:rpad="clr-namespace:RunPad.Format.RPad;assembly=RunPad.Format.RPad"
         x:Class="RunPad.Windows.DependenciesWindow"
         x:DataType="viewModels:DependenciesWindowViewModel"
         Title="Dependencies"
@@ -466,6 +467,65 @@
                     <TextBlock x:Name="AllowUnsafeHint" TextWrapping="Wrap" Classes="hint"
                                Text="Compiles this script with C#'s /unsafe option, which pointers, fixed buffers and sizeof of your own structs need. It is a compiler setting, not a sandbox: a script always runs with your full permissions, with or without it."/>
                 </StackPanel>
+            </TabItem>
+
+            <!-- ─── Connections: the script's connections: list ───────────────── -->
+            <TabItem x:Name="ConnectionsTab" Header="Connections">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,12,0,0" RowSpacing="8"
+                      DataContext="{Binding Connections}" x:DataType="viewModels:ScriptConnectionsViewModel"
+                      IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Your connections:"/>
+                        <ComboBox x:Name="AvailableConnectionsBox" Grid.Column="1" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Available}" SelectedItem="{Binding SelectedAvailable}"
+                                  PlaceholderText="All of them are in the script (add more in Tools → Connections)"
+                                  AutomationProperties.Name="Your connections">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="rpad:RpadConnection">
+                                    <TextBlock>
+                                        <Run Text="{Binding Name}" FontWeight="SemiBold"/>
+                                        <Run Text="{Binding Driver}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint" TextWrapping="Wrap"
+                               Text="Each connection becomes a client in the script's code, such as Connections.Billing, as soon as the change is saved. Secrets stay ${secret:name} placeholders and are read from the Secret Store when the script runs."/>
+                    <Border Grid.Row="2"
+                            BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+                            BorderThickness="1" CornerRadius="4">
+                        <ListBox x:Name="ScriptConnectionList" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                                 Background="Transparent" BorderThickness="0"
+                                 AutomationProperties.Name="The script's connections"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="viewModels:ScriptConnectionItemViewModel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock>
+                                            <Run Text="{Binding Name}" FontWeight="SemiBold"/>
+                                            <Run Text="{Binding DriverName}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                            <Run Text="  "/>
+                                            <Run Text="{Binding CodeName}"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                        <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource RunPad.Status.ErrorBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="RemoveConnectionButton" Content="Remove from Script" Command="{Binding RemoveCommand}"/>
+                        <Button x:Name="ImportConnectionButton" Content="Import to Your Connections" Command="{Binding ImportCommand}"
+                                ToolTip.Tip="Keeps this connection in Tools → Connections, replacing one of the same name; the script doesn't change"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="4" Classes="hint" Foreground="{DynamicResource RunPad.Status.ErrorBrush}" TextWrapping="Wrap"
+                               Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>
+                </Grid>
             </TabItem>
 
         </TabControl>

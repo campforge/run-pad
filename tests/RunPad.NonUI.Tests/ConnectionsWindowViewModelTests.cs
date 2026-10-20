@@ -83,6 +83,9 @@ public class ConnectionsWindowViewModelTests
             Tested = resolvedParams;
             return Task.FromResult(new ConnectionTestResult(true, "Connected."));
         }
+
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+            new($"public sealed class {context.ClassName} {{ internal {context.ClassName}() {{ }} }}");
     }
 
     private static readonly RpadConnection Billing = new()

@@ -236,6 +236,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Task.Run, so without this a completion request for the text at keystroke N could race a
     // still-in-flight background-analysis pass for keystroke N-2.
     private readonly object _syncLock = new();
+    private readonly DocumentId _connectionsDocumentId;
     private CancellationTokenSource? _diagnosticsCts;
 
     // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
@@ -307,6 +308,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         var projectId = ProjectId.CreateNewId("RunPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
+        _connectionsDocumentId = DocumentId.CreateNewId(projectId, "Connections.g.cs");
 
         var projectInfo = ProjectInfo.Create(
             projectId,
@@ -1458,7 +1460,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // framework symbol (e.g. "WriteLine" in Console.WriteLine) has no source location to
             // rename AT; renaming its call sites in the script without renaming the framework
             // method itself would just turn correct code into a compile error.
-            if (!result.Symbol.Locations.Any(l => l.IsInSource)) return null;
+            if (!result.Symbol.Locations.Any(IsInScript)) return null;
 
             return new SimpleRenameInfo(result.Symbol.Name, result.Spans);
         }
@@ -1491,7 +1493,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var symbol = ResolveTokenSymbol(model, token);
             if (symbol == null) return null;
 
-            if (symbol.Locations.FirstOrDefault(l => l.IsInSource) is { } sourceLocation)
+            if (symbol.Locations.FirstOrDefault(IsInScript) is { } sourceLocation)
             {
                 var offset = ToUserOffset(code, sourceLocation.SourceSpan.Start);
                 if (offset < 0) return null; // declared inside the prepended preamble, not user code
@@ -1591,7 +1593,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var results = new List<IImplementationLocation>();
             foreach (var impl in implementations)
             {
-                if (impl.Locations.FirstOrDefault(l => l.IsInSource) is not { } location) continue;
+                if (impl.Locations.FirstOrDefault(IsInScript) is not { } location) continue;
                 var offset = ToUserOffset(code, location.SourceSpan.Start);
                 if (offset < 0) continue; // inside the prepended usings preamble, not user code
                 results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
@@ -2040,7 +2042,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             forCodeFixes.Add(d);
             if (d.Severity == RoslynSeverity.Hidden) continue;
 
-            if (!d.Location.IsInSource) continue;
+            if (!IsInScript(d.Location)) continue;
 
             var span = d.Location.SourceSpan;
             var mappedStart = ToUserSpan(code, span);
@@ -2151,11 +2153,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void UpdateExecutionContext(ExecutionRequest request)
     {
         UpdateAllowUnsafe(request.AllowUnsafe);
-        var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
+        UpdateConnections(request.Connections is { Source.Length: > 0 } connections ? connections.Source : null);
+        // As the build: a connection driver's packages, unless the script asks for a version itself.
+        var packages = (request.Connections?.Packages ?? new Dictionary<string, string>())
+            .Where(p => !request.Packages.ContainsKey(p.Key)).Concat(request.Packages)
+            .ToDictionary(p => p.Key, p => new Package(p.Value));
         if (DotnetPackageReferenceContext.For(request) is { } context)
             UpdatePackageReferences(packages, context);
         else
             UpdatePackageReferences(packages);
+    }
+
+    // A source location in the script's own document, not in the generated Connections document,
+    // whose offsets mean nothing in the editor.
+    private bool IsInScript(Location location) =>
+        location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) != _connectionsDocumentId;
+
+    // The script's Connections class, as the build generates it, in a document of its own next to
+    // the script's: Connections.Billing and its client class complete and bind as soon as a connection
+    // is added, before any run. Null removes it.
+    private void UpdateConnections(string? source)
+    {
+        lock (_syncLock)
+        {
+            var solution = _workspace.CurrentSolution;
+            var current = solution.GetDocument(_connectionsDocumentId);
+            if (current is null && source is null) return;
+            if (current is not null && source is not null && current.TryGetText(out var text) && text.ToString() == source) return;
+            solution = source is null
+                ? solution.RemoveDocument(_connectionsDocumentId)
+                : current is null
+                    ? solution.AddDocument(_connectionsDocumentId, "Connections.g.cs", SourceText.From(source, Encoding.UTF8))
+                    : solution.WithDocumentText(_connectionsDocumentId, SourceText.From(source, Encoding.UTF8));
+            if (_workspace.TryApplyChanges(solution))
+                _lastCode = ""; // force re-sync on next analysis pass
+        }
     }
 
     // The same /unsafe setting the build uses, so the editor neither flags allowed unsafe code (CS0227)
