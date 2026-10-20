@@ -22,7 +22,7 @@ public class ConnectionsWindowTests
     public async Task TheForm_Should_FollowTheDriver_AndOkShouldSaveTheEdits()
     {
         var store = new Mock<IConnectionStore>();
-        store.Setup(s => s.Load()).Returns(
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot(
         [
             new RpadConnection
             {
@@ -30,12 +30,12 @@ public class ConnectionsWindowTests
                 Driver = "http",
                 Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of("https://billing.local/") },
             },
-        ]);
+        ], null));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
         IReadOnlyList<RpadConnection>? saved = null;
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>())).Callback<IReadOnlyList<RpadConnection>>(list => saved = list);
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<RpadConnection>, string?>((list, _) => saved = list);
         var secrets = new Mock<ISecretStore>();
-        secrets.Setup(s => s.Load()).Returns([new Secret("billing-token", "t0k")]);
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
         var registry = new ConnectionDriverRegistry();
         registry.Register(new HttpConnectionDriver());
 
@@ -61,5 +61,45 @@ public class ConnectionsWindowTests
         Assert.True(await result);
         Assert.Equal("https://billing.example/", Assert.Single(saved!).Params["baseAddress"].Text);
         owner.Close();
+    }
+    [AvaloniaFact]
+    public async Task SaveFailure_Should_KeepDialogOpenWithEdits_AndAllowRetry()
+    {
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([], null));
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()))
+            .Throws(new IOException("Private connection text must not appear"));
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new HttpConnectionDriver());
+        var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object);
+        ((System.Windows.Input.ICommand)vm.AddCommand).Execute(drivers.Find("http"));
+        vm.Connections[0].Name = "draft";
+        var owner = new Window();
+        owner.Show();
+        var window = new ConnectionsWindow(vm);
+        var result = window.ShowDialog<bool>(owner);
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var ok = window.FindControl<Button>("OkButton")!;
+            ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(result.IsCompleted);
+            Assert.Equal("draft", vm.Connections[0].Name);
+            var error = window.FindControl<TextBlock>("StoreError")!;
+            Assert.True(error.IsVisible);
+            Assert.Contains("Could not save", error.Text);
+            Assert.DoesNotContain("Private connection", error.Text);
+            store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Returns("saved");
+            ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(await result);
+        }
+        finally
+        {
+            window.Close();
+            owner.Close();
+        }
     }
 }
