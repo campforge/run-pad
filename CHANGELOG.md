@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Conditional breakpoint edits and enabled state now reach an active debug session. The compact
+  editor keeps the condition on one line, with optional hit-count settings collapsed.
+
 - Cached runs restore missing or changed runtime dependency files before starting the script.
 
 - gRPC schema-generated messages and clients compile into a separate cached assembly, reused when

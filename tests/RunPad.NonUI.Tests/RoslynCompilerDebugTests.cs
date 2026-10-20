@@ -39,11 +39,11 @@ public class RoslynCompilerDebugTests : IDisposable
 
     public void Dispose() => Directory.Delete(_outputDir, recursive: true);
 
-    private sealed class TestBreakpoint(string fileName, int line) : IBreakpoint
+    private sealed class TestBreakpoint(string fileName, int line, string? condition = null) : IBreakpoint
     {
         public string FileName { get; } = fileName;
         public int Line { get; set; } = line;
-        public string? Condition => null;
+        public string? Condition => condition;
         public string? HitCondition => null;
     }
 
@@ -101,6 +101,24 @@ public class RoslynCompilerDebugTests : IDisposable
         Assert.Equal(line, context.CallStack[0].Line);
         Assert.Contains(context.LocalVariables, v => v.Name == "x" && v.Value == "41");
         Assert.Contains("value=42", All());
+    }
+
+    [Fact]
+    public async Task ConditionalBreakpoint_Should_StopOnlyWhenTheConditionIsTrue()
+    {
+        await using var host = CreateHost(RequireNetcoredbg(), RpadKind.Statements, 2);
+        host.ClearBreakpoints();
+        host.AddBreakpoint(new TestBreakpoint(Path.Combine(_outputDir, "RunPadQuery.cs"), 2, "i == 2"));
+        var values = new List<string?>();
+        host.BreakpointHit += ctx =>
+        {
+            values.Add(ctx.LocalVariables.FirstOrDefault(v => v.Name == "i")?.Value);
+            ctx.Resume(DebugAction.Continue);
+        };
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(45));
+        await host.RunDebugAsync("for (int i = 0; i < 4; i++)\n    Console.WriteLine(i);", (_, _) => { }, timeout.Token);
+        Assert.Equal(new[] { "2" }, values);
     }
 
     [Fact]

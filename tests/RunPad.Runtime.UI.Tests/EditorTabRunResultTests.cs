@@ -67,6 +67,36 @@ public class EditorTabRunResultTests
     }
 
     [AvaloniaFact]
+    public void EditingBreakpointOptions_Should_ReplaceTheRunningHostsBreakpoint_AndRespectEnabled()
+    {
+        var ctrl = CreateControl(RunResult.Exited(0));
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.Supports(LanguageHostCapabilities.Breakpoints)).Returns(true);
+        ctrl.State.RunningHost = host.Object;
+        ctrl.State.SourceFilePath = "RunPadQuery.cs";
+        try
+        {
+            ctrl.ApplyBreakpointOptions(2, " count > 5 ", "% 2", true);
+            host.Verify(h => h.AddBreakpoint(It.Is<RunPad.Contracts.IBreakpoint>(b =>
+                b.Line == 2 && b.Condition == "count > 5" && b.HitCondition == "% 2")), Times.Once);
+            Assert.Single(ctrl.State.Editor.Breakpoints);
+            host.Invocations.Clear();
+            ctrl.ApplyBreakpointOptions(2, "count == 9", null, false);
+            host.Verify(h => h.RemoveBreakpoint(It.IsAny<RunPad.Contracts.IBreakpoint>()), Times.Once);
+            host.Verify(h => h.AddBreakpoint(It.IsAny<RunPad.Contracts.IBreakpoint>()), Times.Never);
+            Assert.False(Assert.Single(ctrl.State.Editor.Breakpoints).IsEnabled);
+            ctrl.ApplyBreakpointOptions(2, " ", null, true);
+            host.Verify(h => h.AddBreakpoint(It.Is<RunPad.Contracts.IBreakpoint>(b => b.Condition == null)), Times.Once);
+        }
+        finally
+        {
+            ctrl.State.RunningHost = null;
+            ((Window)TopLevel.GetTopLevel(ctrl)!).Close();
+            ctrl.Dispose();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task StopThenImmediateRun_Should_NotReplaceTheStillUnwindingRun()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

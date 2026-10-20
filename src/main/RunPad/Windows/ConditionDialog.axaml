@@ -2,72 +2,31 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
         x:Class="RunPad.Windows.ConditionDialog"
-        Icon="/Assets/icon.ico"
-        Title="Conditional Breakpoint"
-        Width="440"
-        MinWidth="320" MinHeight="230"
-        CanResize="False"
-        SizeToContent="Height"
+        Icon="/Assets/icon.ico" Title="Line breakpoint"
+        Width="480" MinWidth="360" CanResize="False" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
-    <Window.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://RunPad.Avalonia.Themes/Metrics.axaml"/>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </Window.Resources>
-
-
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
-
-        <CheckBox x:Name="EnabledBox"
-                  Grid.Row="0"
-                  Content="Enabled"
-                  Margin="0,0,0,10"/>
-
-        <TextBlock Grid.Row="1"
-                   Text="Break when this condition is true:"
-                   FontSize="{DynamicResource RunPad.Type.Caption}"
-                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                   Margin="0,0,0,6"/>
-
-        <TextBox x:Name="ConditionBox"
-                 Grid.Row="2"
-                 FontSize="{DynamicResource RunPad.Type.Body}"
+    <StackPanel Margin="16" Spacing="10">
+        <CheckBox x:Name="EnabledBox" Content="Enabled"/>
+        <TextBlock Text="Condition:"/>
+        <TextBox x:Name="ConditionBox" AcceptsReturn="False" TextWrapping="NoWrap"
+                 PlaceholderText="e.g. count &gt; 5"
                  FontFamily="{x:Static cte:MonospaceFont.Default}"
-                 Padding="6,4"
-                 Margin="0,0,0,12"/>
-
-        <TextBlock Grid.Row="3"
-                   Text="Break only when the hit count matches (optional, e.g. &quot;= 5&quot;, &quot;&gt;= 3&quot;, &quot;% 2&quot;):"
-                   TextWrapping="Wrap"
-                   FontSize="{DynamicResource RunPad.Type.Caption}"
-                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"
-                   Margin="0,0,0,6"/>
-
-        <TextBox x:Name="HitConditionBox"
-                 Grid.Row="4"
-                 FontSize="{DynamicResource RunPad.Type.Body}"
-                 FontFamily="{x:Static cte:MonospaceFont.Default}"
-                 Padding="6,4"
-                 Margin="0,0,0,12"/>
-
-        <StackPanel Grid.Row="5"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="{DynamicResource RunPad.Space.Control}">
-            <Button Content="OK"
-                    Width="80"
-                    Click="OkButton_Click"
-                    IsDefault="True"/>
-            <Button Content="Cancel"
-                    Width="80"
-                    Click="CancelButton_Click"
-                    IsCancel="True"/>
+                 AutomationProperties.Name="Breakpoint condition"/>
+        <Expander Header="Hit count" IsExpanded="False" x:Name="HitCountOptions">
+            <StackPanel Spacing="6">
+                <TextBlock Text="Optional hit-count expression, e.g. = 5, &gt;= 3, % 2"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                <TextBox x:Name="HitConditionBox" AcceptsReturn="False"
+                         FontFamily="{x:Static cte:MonospaceFont.Default}"
+                         AutomationProperties.Name="Breakpoint hit count"/>
+            </StackPanel>
+        </Expander>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" MinWidth="80" Click="CancelButton_Click" IsCancel="True"/>
+            <Button Content="Done" MinWidth="80" Click="OkButton_Click" IsDefault="True"/>
         </StackPanel>
-
-    </Grid>
-
+    </StackPanel>
 </Window>

@@ -798,30 +798,34 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
         var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true);
         var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
-        if (result is null) return; // cancelled
+        if (result is null || _disposed) return; // cancelled or the tab was closed
 
-        var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
-        var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
-        var enabled = result.Value.Enabled;
+        ApplyBreakpointOptions(line, result.Value.Condition, result.Value.HitCondition, result.Value.Enabled);
+    }
 
-        if (bp is not null)
+    internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)
+    {
+        condition = string.IsNullOrWhiteSpace(condition) ? null : condition.Trim();
+        hitCondition = string.IsNullOrWhiteSpace(hitCondition) ? null : hitCondition.Trim();
+        var bp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
+        if (bp is null)
         {
-            bp.Condition = condition;
-            bp.HitCondition = hitCondition;
-            bp.IsEnabled = enabled;
-            State.Editor.InvalidateBreakpoints();
+            // Set all options before publishing the new breakpoint to the running host.
+            State.Editor.BreakpointAdded -= OnGutterBreakpointAdded;
+            try { State.Editor.AddBreakpoint(line); }
+            finally { State.Editor.BreakpointAdded += OnGutterBreakpointAdded; }
+            bp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
         }
-        else if (condition is not null || hitCondition is not null || !enabled)
+        if (bp is null) return;
+        bp.Condition = condition;
+        bp.HitCondition = hitCondition;
+        bp.IsEnabled = enabled;
+        State.Editor.InvalidateBreakpoints();
+        if (State.RunningHost is { } host && host.Supports(LanguageHostCapabilities.Breakpoints)
+            && State.SourceFilePath is { } path)
         {
-            State.Editor.AddBreakpoint(line);
-            var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
-            if (newBp is not null)
-            {
-                newBp.Condition = condition;
-                newBp.HitCondition = hitCondition;
-                newBp.IsEnabled = enabled;
-                State.Editor.InvalidateBreakpoints();
-            }
+            host.RemoveBreakpoint(new ScriptBreakpoint(path, line, null));
+            if (enabled) host.AddBreakpoint(new ScriptBreakpoint(path, line, condition, hitCondition));
         }
     }
 
@@ -1334,7 +1338,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
         if (State.SourceFilePath is not { } path) return;
         var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line);
-        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
+        if (editorBp?.IsEnabled != false)
+            host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
     }
 
     private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
