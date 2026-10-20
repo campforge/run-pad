@@ -3,7 +3,10 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.9.0] — 2026-10-20
+
+Connections and secrets: keep your HTTP APIs, gRPC servers and SQLite databases in one place,
+give a script a typed client for each, and keep passwords and tokens out of scripts.
 
 ### Added
 
@@ -555,3 +558,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0
 
 [0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0
+
+[0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0
