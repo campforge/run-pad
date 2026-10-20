@@ -299,6 +299,18 @@ public class PreferencesWindowViewModel : ViewModelBase, IDisposable
         set => SetPref(_prefs.Editor.ShowFolding, value, v => _prefs.Editor.ShowFolding = v);
     }
 
+    public bool UseTabs
+    {
+        get => _prefs.Editor.UseTabs;
+        set => SetPref(_prefs.Editor.UseTabs, value, v => _prefs.Editor.UseTabs = v);
+    }
+
+    public int IndentationSize
+    {
+        get => _prefs.Editor.IndentationSize;
+        set => SetPref(_prefs.Editor.IndentationSize, Math.Clamp(value, 1, 16), v => _prefs.Editor.IndentationSize = v);
+    }
+
     public bool ShowTabs
     {
         get => _prefs.Editor.ShowTabs;

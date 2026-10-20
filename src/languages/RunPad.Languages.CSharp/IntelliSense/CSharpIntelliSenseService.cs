@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -1680,12 +1681,30 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
     // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
     // boundary whitespace to reconcile.
+    public void UpdateIndentation(bool useTabs, int indentationSize)
+    {
+        lock (_syncLock)
+        {
+            var size = Math.Clamp(indentationSize, 1, 16);
+            var options = _workspace.CurrentSolution.Options
+                .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, useTabs)
+                .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, size)
+                .WithChangedOption(FormattingOptions.IndentationSize, LanguageNames.CSharp, size);
+            _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(options));
+        }
+    }
+
     public async Task<string?> FormatDocumentAsync(string code, CancellationToken ct = default)
     {
         try
         {
             CSharpParseOptions parseOptions;
-            lock (_syncLock) parseOptions = _parseOptions;
+            OptionSet formattingOptions;
+            lock (_syncLock)
+            {
+                parseOptions = _parseOptions;
+                formattingOptions = _workspace.CurrentSolution.Options;
+            }
             using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
             formatWorkspace.AddProject(ProjectInfo.Create(
@@ -1697,7 +1716,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 parseOptions: parseOptions));
 
             var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
-            var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
+            var formatted = await Formatter.FormatAsync(document, formattingOptions, cancellationToken: ct);
             var text = await formatted.GetTextAsync(ct);
             return text.ToString();
         }

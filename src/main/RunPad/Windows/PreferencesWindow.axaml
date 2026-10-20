@@ -204,6 +204,13 @@
 
                     <StackPanel Spacing="{DynamicResource RunPad.Space.Tight}">
                         <TextBlock Classes="settings-heading" Text="Editing"/>
+                        <CheckBox IsChecked="{Binding UseTabs}" Content="Use tab characters for indentation"/>
+                        <Grid ColumnDefinitions="Auto,100" ColumnSpacing="12">
+                            <TextBlock Text="Indent / tab width" VerticalAlignment="Center"/>
+                            <NumericUpDown Grid.Column="1" Value="{Binding IndentationSize}"
+                                           Minimum="1" Maximum="16" Increment="1"/>
+                        </Grid>
+                        <TextBlock Classes="settings-help" Text="Applies to Tab, automatic indentation and formatting. Existing text changes only when you edit or format it." TextWrapping="Wrap"/>
                         <CheckBox IsChecked="{Binding WordWrap}" Content="Word wrap"/>
                         <CheckBox IsChecked="{Binding CommitCharactersEnabled}">
                             <TextBlock Text="Accept completion when typing punctuation" TextWrapping="Wrap"/>
