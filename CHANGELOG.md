@@ -5,14 +5,6 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
-### Fixed
-
-- Connection and Secret Store buttons follow the selected theme; inserting a secret uses a labelled
-  menu of names instead of an empty compact dropdown.
-
-- gRPC connections sharing a schema no longer compile duplicate message classes. Conflicting
-  schema files produce a clear error, and service properties avoid the generated client class name.
-
 ### Added
 
 - C# scripts can allow unsafe code (pointers, `sizeof` of your own structs) with "Allow unsafe
@@ -61,6 +53,12 @@ Notable changes in each RunPad release. Downloads are on the
   are unchanged. A missing or ambiguous entry point is reported by the compiler.
 
 ### Fixed
+
+- Connection and Secret Store buttons follow the selected theme; inserting a secret uses a labelled
+  menu of names instead of an empty compact dropdown.
+
+- gRPC connections sharing a schema no longer compile duplicate message classes. Conflicting
+  schema files produce a clear error, and service properties avoid the generated client class name.
 
 - Packages with native libraries (such as SQLite's) work in scripts on Linux with a .NET built by
   the distribution (for example Ubuntu's `dotnet` packages), which reports its own runtime
