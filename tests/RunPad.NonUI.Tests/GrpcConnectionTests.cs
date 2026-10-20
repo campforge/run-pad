@@ -165,6 +165,47 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.Equal(["InventoryV1Stock", "LegacyStock", "Audit", "XChannel"], clients.Select(c => c.Property));
     }
 
+    [Fact]
+    public void SharedSchema_Should_CompileOnce_AndRejectConflictingDefinitions()
+    {
+        var connection = Inventory();
+        var other = Inventory();
+        other.Name = "other";
+        other.Params["address"] = RpadValue.Of("http://localhost:5002");
+        var schemas = Schemas();
+        const string code = "namespace Shared { public partial class Message { public void Send() {} } }";
+        schemas.Cache.Put(connection, new ConnectionSchema("", [new("Shared.cs", code)], "[]"));
+        schemas.Cache.Put(other, new ConnectionSchema("", [new("Shared.cs", code)], "[]"));
+        var generated = GeneratedConnections.For([connection, other], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
+        Assert.Empty(generated.Errors);
+        Assert.Single(generated.Files);
+        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("SharedSchema",
+            generated.Files.Select(f => Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(f.Text)),
+            [Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+            new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+        Assert.DoesNotContain(compilation.GetDiagnostics(TestContext.Current.CancellationToken), d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+
+        schemas.Cache.Put(other, new ConnectionSchema("", [new("Shared.cs", code.Replace("Send", "Receive"))], "[]"));
+        generated = GeneratedConnections.For([connection, other], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
+        Assert.Contains(generated.Errors, e => e.Contains("conflicts with another connection", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ServiceProperties_Should_AvoidTheActualWrapperClassName()
+    {
+        var connection = Inventory();
+        var schemas = Schemas();
+        schemas.Cache.Put(connection, new ConnectionSchema("", [],
+            "[{\"Service\":\"example.InventoryClient\",\"ClientType\":\"global::Example.Client\",\"Property\":\"InventoryClient\"}]"));
+        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache)!;
+        Assert.Empty(generated.Errors);
+        Assert.Contains("public global::Example.Client ExampleInventoryClient =>", generated.Source, StringComparison.Ordinal);
+        Assert.DoesNotContain("public global::Example.Client InventoryClient =>", generated.Source, StringComparison.Ordinal);
+    }
+
     // Reading the schema needs Grpc.Tools from NuGet; the script's build needs the SDK.
     [Fact]
     [Trait("Category", "RealBuild")]
