@@ -24,6 +24,19 @@ public class IndentationFormattingTests
     }
 
     [Fact]
+    public async Task IndentationPreferences_Should_NotLeakIntoOtherEditorsOrCodeActions()
+    {
+        using var custom = new CSharpIntelliSenseService([], NullLogger<CSharpIntelliSenseService>.Instance);
+        using var standard = new CSharpIntelliSenseService([], NullLogger<CSharpIntelliSenseService>.Instance);
+        custom.UpdateIndentation(true, 3);
+        const string code = "if (true) {\nSystem.Console.WriteLine(1);\n}";
+        var customized = await custom.FormatDocumentAsync(code, TestContext.Current.CancellationToken);
+        var unchanged = await standard.FormatDocumentAsync(code, TestContext.Current.CancellationToken);
+        Assert.Contains("\n\tSystem.Console", customized);
+        Assert.Contains("\n    System.Console", unchanged);
+    }
+
+    [Fact]
     public void Settings_Should_DefaultToFourSpaces_AndBoundInvalidWidths()
     {
         var saved = System.Text.Json.JsonSerializer.Serialize(new EditorSettings { UseTabs = true, IndentationSize = 2 });

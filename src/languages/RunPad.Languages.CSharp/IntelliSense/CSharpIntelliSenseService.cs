@@ -1681,16 +1681,21 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
     // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
     // boundary whitespace to reconcile.
+    private bool _useTabs;
+    private int _indentationSize = 4;
+
+    private OptionSet FormattingOptionsSnapshot() => _workspace.CurrentSolution.Options
+        .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
+        .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, _indentationSize)
+        .WithChangedOption(FormattingOptions.IndentationSize, LanguageNames.CSharp, _indentationSize);
+
     public void UpdateIndentation(bool useTabs, int indentationSize)
     {
         lock (_syncLock)
         {
-            var size = Math.Clamp(indentationSize, 1, 16);
-            var options = _workspace.CurrentSolution.Options
-                .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, useTabs)
-                .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, size)
-                .WithChangedOption(FormattingOptions.IndentationSize, LanguageNames.CSharp, size);
-            _workspace.TryApplyChanges(_workspace.CurrentSolution.WithOptions(options));
+            // Applying solution options writes shared Roslyn services; keep each editor's policy local.
+            _useTabs = useTabs;
+            _indentationSize = Math.Clamp(indentationSize, 1, 16);
         }
     }
 
@@ -1703,7 +1708,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             lock (_syncLock)
             {
                 parseOptions = _parseOptions;
-                formattingOptions = _workspace.CurrentSolution.Options;
+                formattingOptions = FormattingOptionsSnapshot();
             }
             using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
@@ -1797,7 +1802,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         if (changedSpans.Count == 0) return newCode;
 
-        var options = _workspace.CurrentSolution.Options;
+        OptionSet options;
+        lock (_syncLock) options = FormattingOptionsSnapshot();
         var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
         var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
         CSharpParseOptions parseOptions;
