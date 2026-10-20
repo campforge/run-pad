@@ -173,7 +173,10 @@ public class BreakPointMargin : AbstractMargin, IDisposable
         var lineNumber = TextView.Document.GetLineByOffset(offset).LineNumber;
         var existing = _manager.FirstOrDefault(bp => bp.Line == lineNumber);
 
-        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        var buttons = e.GetCurrentPoint(this).Properties;
+        // macOS reports Control-click on a trackpad as a left-button press.
+        if (buttons.IsRightButtonPressed || (OperatingSystem.IsMacOS()
+            && buttons.IsLeftButtonPressed && e.KeyModifiers.HasFlag(KeyModifiers.Control)))
         {
             _editor.RaiseBreakpointRightClicked(lineNumber, existing);
             e.Handled = true;

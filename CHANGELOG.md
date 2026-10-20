@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Control-click in the macOS breakpoint gutter opens the condition editor instead of toggling
+  the breakpoint.
+
 - Editor preferences now control tabs versus spaces and indentation width consistently for typing,
   automatic indentation and C# formatting.
 

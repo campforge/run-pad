@@ -112,6 +112,38 @@ public class GutterAppearanceTests
         Assert.Equal(width, folding.Bounds.Width);
     }
 
+    [AvaloniaFact]
+    public void ContextClickOnBreakpoint_Should_EditIt_WithoutTogglingIt()
+    {
+        var (window, editor) = CreateEditor();
+        try
+        {
+            editor.AddBreakpoint(3);
+            var original = Assert.Single(editor.Breakpoints);
+            var edited = 0;
+            editor.BreakpointRightClicked += (line, bp) =>
+            {
+                Assert.Equal(3, line);
+                Assert.Same(original, bp);
+                edited++;
+            };
+            var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().Single();
+            var point = InWindow(window, margin, new Point(margin.Bounds.Width / 2, RowCenter(editor, 3)));
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Assert.Equal(1, edited);
+            Assert.Same(original, Assert.Single(editor.Breakpoints));
+            if (OperatingSystem.IsMacOS())
+            {
+                window.MouseDown(point, MouseButton.Left, RawInputModifiers.Control);
+                window.MouseUp(point, MouseButton.Left, RawInputModifiers.Control);
+                Assert.Equal(2, edited);
+                Assert.Same(original, Assert.Single(editor.Breakpoints));
+            }
+        }
+        finally { window.Close(); }
+    }
+
     // A click in the folding column beside a chevron does not move the caret into the code.
     [AvaloniaFact]
     public void AClickInTheFoldingColumn_WithoutAChevron_Should_LeaveTheCaret()
