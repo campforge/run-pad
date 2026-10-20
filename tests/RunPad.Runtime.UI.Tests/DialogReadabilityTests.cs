@@ -40,18 +40,22 @@ public class DialogReadabilityTests
     }
 
     [AvaloniaFact]
-    public void ConditionDialog_Should_WrapTheHitCountHint_AndKeepItsButtonsInside()
+    public void BreakpointPopover_Should_WrapErrors_AndKeepButtonsInsideAtItsDesignedWidth()
     {
-        var dialog = Show(new ConditionDialog("count > 10", "= 5"));
-        var hint = dialog.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text?.StartsWith("Break only when") == true);
-
-        // Wrapped: more than one line, and within the dialog's width.
-        Assert.True(hint.TextLayout.TextLines.Count > 1, $"hint lines: {hint.TextLayout.TextLines.Count}");
-        AssertInside(dialog, hint, "hint");
-        foreach (var button in dialog.GetVisualDescendants().OfType<Button>())
-            AssertInside(dialog, button, $"button {button.Content}");
-        Assert.Equal(440, dialog.Width);
-        dialog.Close();
+        using var panel = new RunPad.UserControls.BreakpointConditionEditor();
+        var window = Show(new Window { Width = 420, Height = 420, Content = panel });
+        try
+        {
+            var error = panel.FindControl<TextBlock>("ErrorText")!;
+            error.Text = new string('x', 180);
+            error.IsVisible = true;
+            window.UpdateLayout();
+            Assert.True(error.TextLayout.TextLines.Count > 1);
+            AssertInside(window, error, "condition error");
+            AssertInside(window, panel.FindControl<Button>("DoneButton")!, "Done");
+            Assert.Null(panel.FindControl<Expander>("HitCountOptions"));
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaFact]

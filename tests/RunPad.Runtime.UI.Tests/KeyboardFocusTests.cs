@@ -189,10 +189,10 @@ public class KeyboardFocusTests
     [AvaloniaFact]
     public void DialogControls_Should_ShowTheFrameOnlyFromTheKeyboard()
     {
-        var dialog = Themed(new ConditionDialog("count > 10", "= 5"), "VsCodeDark");
+        var dialog = Themed(new Window { Content = new StackPanel { Children = { new CheckBox { Content = "Enabled" }, new TextBox { Text = "count > 10" }, new TextBox { Text = "= 5" }, new Button { Content = "Done" }, new Button { Content = "Cancel" } } } }, "VsCodeDark");
         dialog.Show();
         Dispatcher.UIThread.RunJobs();
-        var check = dialog.FindControl<CheckBox>("EnabledBox")!;
+        var check = dialog.GetVisualDescendants().OfType<CheckBox>().Single();
 
         Click(dialog, check);
         Assert.True(check.IsFocused);

@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
@@ -64,6 +66,64 @@ public class EditorTabRunResultTests
             intelliSense: null, new Mock<IBuildCacheService>().Object, logger);
         new Window { Content = ctrl }.Show();
         return ctrl;
+    }
+
+    [AvaloniaFact]
+    public void BreakpointPopover_Should_InheritTemplatesAndTrackTheOwnersPalette()
+    {
+        var theme = new RunPadTheme();
+        global::Avalonia.Application.Current!.Styles.Add(theme);
+        var ctrl = CreateControl(RunResult.Exited(0));
+        var window = (Window)TopLevel.GetTopLevel(ctrl)!;
+        try
+        {
+            window.RequestedThemeVariant = RunPadThemeVariants.RiderDark;
+            ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
+            var popup = ctrl.BreakpointPopup!;
+            var panel = Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            foreach (var variant in new[] { RunPadThemeVariants.RiderDark, RunPadThemeVariants.RiderLight,
+                RunPadThemeVariants.RunPadMidnight, RunPadThemeVariants.RunPadWarmLight,
+                RunPadThemeVariants.VsCodeDark, RunPadThemeVariants.VsCodeLight,
+                RunPadThemeVariants.Vs2022Dark, RunPadThemeVariants.Vs2022Light })
+            {
+                window.RequestedThemeVariant = variant;
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(variant, panel.ActualThemeVariant);
+                theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var expected);
+                var surface = panel.FindControl<Border>("PopoverSurface")!;
+                Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expected).Color,
+                    Assert.IsAssignableFrom<ISolidColorBrush>(surface.Background).Color);
+                var input = panel.FindControl<TextBox>("ConditionBox")!;
+                Assert.NotEmpty(input.GetVisualDescendants());
+                theme.TryGetResource("RunPad.Editor.BackgroundBrush", variant, out var expectedInput);
+                var inputBorder = input.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
+                Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expectedInput).Color,
+                    Assert.IsAssignableFrom<ISolidColorBrush>(inputBorder.Background).Color);
+                Assert.NotEmpty(panel.FindControl<CheckBox>("EnabledBox")!.GetVisualDescendants());
+                Assert.NotEmpty(panel.FindControl<Button>("DoneButton")!.GetVisualDescendants());
+                Assert.Null(panel.FindControl<Expander>("HitCountOptions"));
+                Assert.InRange(panel.Bounds.Width, 360, 420);
+            }
+        }
+        finally { ctrl.Dispose(); window.Close(); global::Avalonia.Application.Current!.Styles.Remove(theme); }
+    }
+
+    [AvaloniaFact]
+    public void BreakpointEditor_Should_OpenAtTheEditor_AndCloseWithItsTab()
+    {
+        var ctrl = CreateControl(RunResult.Exited(0));
+        try
+        {
+            ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
+            var popup = Assert.IsType<global::Avalonia.Controls.Primitives.Popup>(ctrl.BreakpointPopup);
+            Assert.True(popup.IsOpen);
+            Assert.Same(ctrl.State.Editor, popup.PlacementTarget);
+            Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            ctrl.Dispose();
+            Assert.False(popup.IsOpen);
+            Assert.Empty(ctrl.State.Editor.Breakpoints);
+        }
+        finally { ((Window)TopLevel.GetTopLevel(ctrl)!).Close(); }
     }
 
     [AvaloniaFact]

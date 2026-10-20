@@ -7,6 +7,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Breakpoint conditions now open in an anchored popover with C# validation and scoped name/member
+  suggestions. Invalid conditions cannot be applied; Escape or clicking outside cancels edits.
+- Indentation preferences remain isolated between editors instead of changing shared formatter state.
+
 - Control-click in the macOS breakpoint gutter opens the condition editor instead of toggling
   the breakpoint.
 
@@ -14,7 +18,7 @@ Notable changes in each RunPad release. Downloads are on the
   automatic indentation and C# formatting.
 
 - Conditional breakpoint edits and enabled state now reach an active debug session. The compact
-  editor keeps the condition on one line, with optional hit-count settings collapsed.
+  editor keeps the condition on one line.
 
 - Cached runs restore missing or changed runtime dependency files before starting the script.
 
