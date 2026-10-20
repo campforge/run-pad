@@ -17,6 +17,10 @@ Notable changes in each RunPad release. Downloads are on the
   your account on Windows and readable only by you on macOS and Linux; a missing secret fails with
   a message naming it and the store.
 
+- Tools → Connections keeps your own connections in one window, for now HTTP APIs: a base address,
+  headers (with `${secret:name}` for tokens from the Secret Store) and a timeout, with a Test
+  Connection button. Scripts can't use them yet.
+
 ### Changed
 
 - With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
