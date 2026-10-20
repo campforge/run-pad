@@ -13,8 +13,9 @@ public class SecretStoreWindowViewModelTests
     private static (SecretStoreWindowViewModel Vm, Mock<ISecretStore> Store) CreateVm(params Secret[] secrets)
     {
         var store = new Mock<ISecretStore>();
-        store.Setup(s => s.Load()).Returns(secrets);
+        store.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot(secrets, "loaded"));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/secrets.json");
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>())).Returns("saved");
         return (new SecretStoreWindowViewModel(store.Object), store);
     }
 
@@ -34,11 +35,11 @@ public class SecretStoreWindowViewModelTests
         Execute(vm.AddCommand);
         Assert.Equal("secret", vm.SelectedSecret?.Name);
         vm.SelectedSecret!.Value = "token";
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>()), Times.Never);
 
         Assert.True(vm.Save());
         store.Verify(s => s.Save(It.Is<IReadOnlyList<Secret>>(list =>
-            list.SequenceEqual(new[] { new Secret("db", "two"), new Secret("secret", "token") }))));
+            list.SequenceEqual(new[] { new Secret("db", "two"), new Secret("secret", "token") })), "loaded"));
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public class SecretStoreWindowViewModelTests
         vm.Secrets[1].Name = name;
         Assert.True(vm.HasValidationError);
         Assert.False(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>()), Times.Never);
 
         vm.Secrets[1].Name = "other";
         Assert.True(vm.CanSave);
@@ -73,7 +74,7 @@ public class SecretStoreWindowViewModelTests
     public void AStoreThatCantBeRead_Should_BeReported_AndNeverOverwritten()
     {
         var store = new Mock<ISecretStore>();
-        store.Setup(s => s.Load()).Throws(new InvalidDataException("The secret store file is damaged."));
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("The secret store file is damaged."));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/secrets.json");
         var vm = new SecretStoreWindowViewModel(store.Object);
 
@@ -82,7 +83,7 @@ public class SecretStoreWindowViewModelTests
         Assert.False(vm.CanSave);
         Assert.False(((ICommand)vm.AddCommand).CanExecute(null));
         Assert.False(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact]
@@ -96,5 +97,23 @@ public class SecretStoreWindowViewModelTests
         vm.SelectedSecret = vm.Secrets[1];
         Assert.False(vm.IsValueRevealed);
         Assert.Equal('●', vm.ValuePasswordChar);
+    }
+    [Theory]
+    [InlineData(typeof(IOException))]
+    [InlineData(typeof(UnauthorizedAccessException))]
+    [InlineData(typeof(System.Security.Cryptography.CryptographicException))]
+    public void AWriteFailure_Should_KeepEditsAndAllowRetry_WithoutExposingValues(Type exceptionType)
+    {
+        var (vm, store) = CreateVm(new Secret("db", "sensitive-value"));
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>()))
+            .Throws((Exception)Activator.CreateInstance(exceptionType, "sensitive-value")!);
+        Assert.False(vm.Save());
+        Assert.NotNull(vm.SaveError);
+        Assert.DoesNotContain("sensitive-value", vm.SaveError);
+        Assert.Equal("sensitive-value", vm.Secrets[0].Value);
+        Assert.True(vm.CanSave);
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>(), It.IsAny<string?>())).Returns("saved");
+        Assert.True(vm.Save());
+        Assert.Null(vm.SaveError);
     }
 }

@@ -646,4 +646,51 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Empty(reopened.Imports);
         Assert.True(File.Exists(Path.Combine(source, "imported.json")));
     }
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    public async Task AnImportedSourcesFallback_Should_NotResurrectItsOlderDraft(bool discarded, bool damagePointer, bool missingMarker)
+    {
+        string source;
+        string destination;
+        using (var original = new DiskRecoveryStore(_root))
+        {
+            await original.CommitAsync(Snapshot(1, "OLD-DRAFT"));
+            await original.CommitAsync(Snapshot(2, "LATEST-DRAFT"));
+            source = Directory.GetDirectories(_root).Single();
+            using var other = new DiskRecoveryStore(_root);
+            await other.CommitAsync(Snapshot(1, "BASE"));
+            destination = Directory.GetDirectories(_root).Single(f => f != source);
+        }
+        Directory.SetLastWriteTimeUtc(destination, DateTime.UtcNow.AddMinutes(10));
+        using (var importing = new DiskRecoveryStore(_root))
+        {
+            var own = (await importing.LoadAsync())!;
+            await importing.CommitAsync(own with
+            {
+                Revision = 2,
+                Tabs = discarded ? own.Tabs : [.. own.Tabs, .. importing.Imports.SelectMany(i => i.Tabs)],
+            });
+        }
+        if (damagePointer) File.WriteAllText(Path.Combine(source, "current.json"), "broken pointer");
+        else DamageCurrentPayload(source);
+        if (missingMarker) File.Delete(Path.Combine(source, "imported.json"));
+        var payloads = Directory.GetFiles(source, "*.snapshot").ToDictionary(f => f, File.ReadAllBytes);
+        Directory.SetLastWriteTimeUtc(destination, DateTime.UtcNow.AddMinutes(20));
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            var own = (await next.LoadAsync())!;
+            Assert.Equal(discarded ? ["BASE"] : new[] { "BASE", "LATEST-DRAFT" }, own.Tabs.Select(t => t.EditorText));
+            Assert.Empty(next.Imports);
+            foreach (var pair in payloads) Assert.Equal(pair.Value, File.ReadAllBytes(pair.Key));
+            await next.CommitAsync(own with { Revision = 3 });
+        }
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Equal(discarded ? ["BASE"] : new[] { "BASE", "LATEST-DRAFT" }, (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(reopened.Imports);
+    }
 }

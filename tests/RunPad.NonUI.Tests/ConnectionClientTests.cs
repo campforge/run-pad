@@ -136,7 +136,7 @@ public sealed class ConnectionClientTests : IDisposable
     {
         if (!new DotnetSdkProvider().Get().Any()) return;
         var secretsFile = Path.Combine(_folder, "secrets.json");
-        new FileSecretStore(secretsFile).Save([new Secret("billing-token", "t0k")]);
+        new FileSecretStore(secretsFile).Save([new Secret("billing-token", "t0k")], null);
         var previousSecrets = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
         Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, secretsFile);
         Environment.SetEnvironmentVariable("RUNPAD_TEST_TENANT", "acme");
@@ -158,7 +158,7 @@ public sealed class ConnectionClientTests : IDisposable
                 Console.WriteLine(api.BaseAddress);
                 Console.WriteLine(api.DefaultRequestHeaders.Authorization);
                 Console.WriteLine(string.Join(",", api.DefaultRequestHeaders.GetValues("X-Tenant")));
-                Console.WriteLine(api.Timeout.TotalSeconds);
+                Console.WriteLine(api.Timeout.TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 Console.WriteLine(ReferenceEquals(api, Connections.BillingApi));
                 """;
             var result = await host.RunAsync(script, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data),

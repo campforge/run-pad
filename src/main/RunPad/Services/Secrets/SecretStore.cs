@@ -13,10 +13,15 @@ public static class SecretStoreExtensions
     /// store has none of that name or can't be read.</summary>
     public static string? Find(this ISecretStore store, string name)
     {
-        try { return store.Load().FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))?.Value; }
+        try { return store.LoadSnapshot().Secrets.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))?.Value; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
     }
 }
+
+/// <summary>Secrets and the exact file generation they were read from; null means no file existed.</summary>
+public sealed record SecretStoreSnapshot(IReadOnlyList<Secret> Secrets, string? Version);
+
+public sealed class SecretStoreConflictException() : IOException("The secret store changed after it was opened.");
 
 /// <summary>
 /// RunPad's Secret Store: secrets kept on this machine for this user, outside every script, so a
@@ -30,10 +35,11 @@ public interface ISecretStore
     /// <summary>Every secret, in the order they were saved; empty when there is no store yet.</summary>
     /// <exception cref="InvalidDataException">The file can't be read here: damaged, from a newer RunPad,
     /// or encrypted for another Windows user. It is left as it is.</exception>
-    IReadOnlyList<Secret> Load();
+    SecretStoreSnapshot LoadSnapshot();
 
-    /// <summary>Replaces the whole store with <paramref name="secrets"/>.</summary>
-    void Save(IReadOnlyList<Secret> secrets);
+    /// <summary>Replaces the store only if it still matches the loaded version; returns the new version.</summary>
+    /// <exception cref="SecretStoreConflictException">Another writer changed the file; nothing was written.</exception>
+    string Save(IReadOnlyList<Secret> secrets, string? expectedVersion);
 }
 
 /// <summary>
@@ -66,13 +72,16 @@ public sealed class FileSecretStore : ISecretStore
             ? path
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "secrets.json");
 
-    public IReadOnlyList<Secret> Load()
+    public IReadOnlyList<Secret> Load() => LoadSnapshot().Secrets;
+
+    public SecretStoreSnapshot LoadSnapshot()
     {
-        if (!File.Exists(FilePath)) return [];
+        var bytes = ReadBytes(FilePath);
+        if (bytes is null) return new SecretStoreSnapshot([], null);
         StoreFile file;
         try
         {
-            file = JsonSerializer.Deserialize<StoreFile>(File.ReadAllBytes(FilePath))
+            file = JsonSerializer.Deserialize<StoreFile>(bytes)
                 ?? throw new InvalidDataException("The secret store is empty.");
         }
         catch (JsonException ex)
@@ -91,7 +100,7 @@ public sealed class FileSecretStore : ISecretStore
         };
         try
         {
-            return [.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Value)))];
+            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Value)))], VersionOf(bytes));
         }
         catch (Exception ex) when (ex is CryptographicException or FormatException)
         {
@@ -99,8 +108,19 @@ public sealed class FileSecretStore : ISecretStore
         }
     }
 
-    public void Save(IReadOnlyList<Secret> secrets)
+    public string Save(IReadOnlyList<Secret> secrets, string? expectedVersion)
     {
+        var fullPath = Path.GetFullPath(FilePath);
+        var folder = Path.GetDirectoryName(fullPath)!;
+        Directory.CreateDirectory(folder);
+        // Keep this lock file: deleting it would let concurrent writers lock different inodes.
+        var lockOptions = new FileStreamOptions { Mode = FileMode.OpenOrCreate, Access = FileAccess.ReadWrite, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows()) lockOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using var writer = new FileStream(fullPath + ".lock", lockOptions);
+        var current = ReadBytes(fullPath);
+        var currentVersion = current is null ? null : VersionOf(current);
+        if (!string.Equals(expectedVersion, currentVersion, StringComparison.Ordinal))
+            throw new SecretStoreConflictException();
         var windows = OperatingSystem.IsWindows();
         var file = new StoreFile
         {
@@ -109,8 +129,7 @@ public sealed class FileSecretStore : ISecretStore
             Secrets = secrets.ToDictionary(s => s.Name, s => OperatingSystem.IsWindows() ? Protect(s.Value) : s.Value,
                 StringComparer.OrdinalIgnoreCase),
         };
-        var folder = Path.GetDirectoryName(Path.GetFullPath(FilePath))!;
-        Directory.CreateDirectory(folder);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(file, WriteOptions);
 
         // Written next to the store and moved over it, so a failed write never leaves half a store;
         // created readable by its owner only, before any secret is in it.
@@ -121,15 +140,26 @@ public sealed class FileSecretStore : ISecretStore
             if (!windows) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
             using (var stream = new FileStream(temp, options))
             {
-                JsonSerializer.Serialize(stream, file, WriteOptions);
+                stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
             }
-            File.Move(temp, FilePath, overwrite: true);
+            File.Move(temp, fullPath, overwrite: true);
+            return VersionOf(bytes);
         }
         finally
         {
-            if (File.Exists(temp)) File.Delete(temp);
+            try { if (File.Exists(temp)) File.Delete(temp); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+    }
+
+    private static string VersionOf(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
+
+    private static byte[]? ReadBytes(string path)
+    {
+        try { return File.ReadAllBytes(path); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
