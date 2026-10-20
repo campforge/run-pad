@@ -17,6 +17,7 @@ using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 using RunPad.Services.Connections;
 using RunPad.Services.Secrets;
+using RunPad.TemplatedControls;
 using RunPad.Windows;
 using RunPad.Windows.Models;
 using Xunit;
@@ -124,6 +125,71 @@ public class WindowDesignRegressionTests
             }
             var row = window.FindControl<ListBox>("ConnectionList")!.GetVisualDescendants().OfType<ListBoxItem>().First();
             Assert.Contains("billing-api", ControlAutomationPeer.CreatePeerForElement(row).GetName());
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SecretPicker_Should_InsertOnlyThePlaceholder_AndAllowRepeatedChoices()
+    {
+        var (window, vm) = Connections();
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var picker = window.GetVisualDescendants().OfType<SecretPicker>()
+                .Single(p => p.DataContext is ConnectionMapRowViewModel);
+            Assert.Equal("Insert secret", picker.Content);
+            Assert.True(picker.Bounds.Width >= 116);
+            var row = Assert.IsType<ConnectionMapRowViewModel>(picker.DataContext);
+            row.Value = "Bearer ";
+            var menu = Assert.IsType<MenuFlyout>(picker.Flyout);
+            Assert.Equal(new[] { "other", "token" }, menu.Items.Cast<MenuItem>().Select(i => i.Header));
+            var item = menu.Items.Cast<MenuItem>().Single(i => Equals(i.Header, "token"));
+            item.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Bearer ${secret:token}", row.Value);
+            item.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Bearer ${secret:token}${secret:token}", row.Value);
+            Assert.Null(picker.SelectedSecret);
+            Assert.DoesNotContain("synthetic-first", row.Value, StringComparison.Ordinal);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [MemberData(nameof(AllThemes))]
+    public void SecondaryActions_Should_FollowThePaletteInEveryState(string themeName)
+    {
+        var (window, _) = Connections();
+        var theme = new RunPadTheme();
+        window.Styles.Add(theme);
+        window.RequestedThemeVariant = (ThemeVariant)typeof(RunPadThemeVariants).GetField(themeName)!.GetValue(null)!;
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            foreach (var button in window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible && b.Classes.Contains("secondary")))
+            {
+                var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().Single(c => c.Name == "PART_ContentPresenter");
+                object? Resource(string role)
+                {
+                    Assert.True(theme.TryGetResource(role, window.ActualThemeVariant, out var value));
+                    return value;
+                }
+                Assert.Same(Resource("RunPad.Text.PrimaryBrush"), presenter.Foreground);
+                Assert.Same(Resource("RunPad.Editor.BackgroundBrush"), presenter.Background);
+                ((IPseudoClasses)button.Classes).Add(":pointerover");
+                Dispatcher.UIThread.RunJobs();
+                Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), presenter.Background);
+                ((IPseudoClasses)button.Classes).Add(":pressed");
+                Dispatcher.UIThread.RunJobs();
+                Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), presenter.Background);
+                button.IsEnabled = false;
+                Dispatcher.UIThread.RunJobs();
+                Assert.Same(Resource("RunPad.Text.SecondaryBrush"), presenter.Foreground);
+            }
         }
         finally { window.Close(); }
     }
