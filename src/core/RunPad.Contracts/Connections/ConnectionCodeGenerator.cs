@@ -7,12 +7,16 @@ namespace RunPad.Contracts.Connections;
 /// <summary>What a driver's <see cref="IConnectionDriver.CreateClient"/> writes code with.</summary>
 public sealed class ConnectionCodeContext
 {
-    internal ConnectionCodeContext(RpadConnection connection) => Connection = connection;
+    internal ConnectionCodeContext(RpadConnection connection, string className)
+    {
+        Connection = connection;
+        ClassName = className;
+    }
 
     public RpadConnection Connection { get; }
 
-    /// <summary>The client class's name: the connection's code name and <c>Client</c>, <c>BillingClient</c> for <c>billing</c>.</summary>
-    public string ClassName => RpadConnection.CodeName(Connection.Name) + "Client";
+    /// <summary>The client class name: normally the code name and <c>Client</c>, with a numeric suffix when needed to avoid another generated member.</summary>
+    public string ClassName { get; }
 
     /// <summary>
     /// A C# string expression for connection text: literal parts as literals, <c>${secret:name}</c>
@@ -85,6 +89,7 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
         var classes = new StringBuilder();
         var properties = new StringBuilder();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var symbols = new HashSet<string>(connections.Select(c => RpadConnection.CodeName(c.Name)), StringComparer.Ordinal) { "Connections" };
         foreach (var connection in connections)
         {
             var codeName = RpadConnection.CodeName(connection.Name);
@@ -105,7 +110,14 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
             errors.AddRange(MissingPackages(driver, packages).Select(id =>
                 $"Connection '{connection.Name}' needs the NuGet package {id}: add it in Dependencies → Packages."));
 
-            var context = new ConnectionCodeContext(connection);
+            if (codeName == "Connections")
+            {
+                errors.Add($"Connection '{connection.Name}': the code name Connections is reserved.");
+                continue;
+            }
+            var className = codeName + "Client";
+            for (var suffix = 2; !symbols.Add(className); suffix++) className = codeName + "Client" + suffix;
+            var context = new ConnectionCodeContext(connection, className);
             var client = driver.CreateClient(connection, context);
             classes.Append(Indent(client.ClassSource.Replace("\r\n", "\n").TrimEnd(), "    ")).Append("\n\n");
             var field = "__" + char.ToLowerInvariant(codeName[0]) + codeName[1..];

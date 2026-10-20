@@ -51,6 +51,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly ConnectionDriverRegistry _drivers;
     private IReadOnlyList<RpadConnection> _original = [];
     private List<RpadConnection> _mine = [];
+    private string? _version;
     // The script's packages as drafted in the window, and how to add one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
@@ -136,7 +137,9 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         if (_store is null) return;
         try
         {
-            _mine = [.. _store.Load()];
+            var snapshot = _store.LoadSnapshot();
+            _version = snapshot.Version;
+            _mine = [.. snapshot.Connections];
             StoreError = null;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
@@ -176,16 +179,20 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         if (SelectedItem is not { } item || _store is null) return;
         LoadMine();
         if (HasStoreError) return;
-        var index = _mine.FindIndex(c => string.Equals(c.Name, item.Name, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0) _mine[index] = Clone(item.Connection);
-        else _mine.Add(Clone(item.Connection));
+        var candidate = _mine.ToList();
+        var index = candidate.FindIndex(c => string.Equals(c.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0) candidate[index] = Clone(item.Connection);
+        else candidate.Add(Clone(item.Connection));
         try
         {
-            _store.Save(_mine);
+            _version = _store.Save(candidate, _version);
+            _mine = candidate;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StoreError = $"Your connections couldn't be saved: {ex.Message}";
+            StoreError = ex is ConnectionStoreConflictException
+                ? "Your connections changed in another window. Nothing was imported; reopen Dependencies and try again."
+                : "Your connections could not be saved. Check access and available disk space, then try again.";
         }
         Refresh();
     }
@@ -232,7 +239,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private HashSet<string>? SecretNames()
     {
         if (_secrets is null) return null;
-        try { return new HashSet<string>(_secrets.Load().Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
+        try { return new HashSet<string>(_secrets.LoadSnapshot().Secrets.Select(s => s.Name), StringComparer.OrdinalIgnoreCase); }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
     }
 
