@@ -3,6 +3,15 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Repeated connection-schema reads reuse unchanged generated contracts in memory and detect
+  replacements on disk, avoiding repeated JSON parsing during editor refreshes.
+- The script's IL viewer virtualizes visible lines and builds its document off the UI thread,
+  keeping large disassemblies from being laid out as a single text field.
+
 ## [0.9.0] — 2026-10-20
 
 Connections and secrets: keep your HTTP APIs, gRPC servers and SQLite databases in one place,
