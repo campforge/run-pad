@@ -53,4 +53,27 @@ public class SecretStoreWindowTests
         store.Verify(s => s.Save(It.Is<IReadOnlyList<Secret>>(list => list.SequenceEqual(new[] { new Secret("db", "new") }))));
         owner.Close();
     }
+    [AvaloniaFact]
+    public async Task SaveFailure_Should_KeepTheDialogAndEdits_ForRetry()
+    {
+        var (window, store, result, owner) = Open(new Secret("db", "old"));
+        try
+        {
+            var value = window.FindControl<TextBox>("ValueBox")!;
+            value.Text = "edited-secret";
+            store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>())).Throws(new IOException("edited-secret"));
+            window.FindControl<Button>("OkButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(result.IsCompleted);
+            Assert.Equal("edited-secret", value.Text);
+            var error = window.FindControl<TextBlock>("StoreError")!;
+            Assert.Contains("Could not save", error.Text);
+            Assert.DoesNotContain("edited-secret", error.Text);
+            Assert.True(((SecretStoreWindowViewModel)window.DataContext!).CanSave);
+            store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()));
+            window.FindControl<Button>("OkButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(await result);
+        }
+        finally { window.Close(); owner.Close(); }
+    }
 }

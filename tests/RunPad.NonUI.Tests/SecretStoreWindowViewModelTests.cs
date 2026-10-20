@@ -97,4 +97,22 @@ public class SecretStoreWindowViewModelTests
         Assert.False(vm.IsValueRevealed);
         Assert.Equal('●', vm.ValuePasswordChar);
     }
+    [Theory]
+    [InlineData(typeof(IOException))]
+    [InlineData(typeof(UnauthorizedAccessException))]
+    [InlineData(typeof(System.Security.Cryptography.CryptographicException))]
+    public void AWriteFailure_Should_KeepEditsAndAllowRetry_WithoutExposingValues(Type exceptionType)
+    {
+        var (vm, store) = CreateVm(new Secret("db", "sensitive-value"));
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()))
+            .Throws((Exception)Activator.CreateInstance(exceptionType, "sensitive-value")!);
+        Assert.False(vm.Save());
+        Assert.NotNull(vm.SaveError);
+        Assert.DoesNotContain("sensitive-value", vm.SaveError);
+        Assert.Equal("sensitive-value", vm.Secrets[0].Value);
+        Assert.True(vm.CanSave);
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<Secret>>()));
+        Assert.True(vm.Save());
+        Assert.Null(vm.SaveError);
+    }
 }
