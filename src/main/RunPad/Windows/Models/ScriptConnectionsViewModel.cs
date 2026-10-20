@@ -55,6 +55,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly IConnectionStore? _store;
     private readonly ISecretStore? _secrets;
     private readonly ConnectionDriverRegistry _drivers;
+    private readonly ConnectionSchemaCache? _schemas;
     private IReadOnlyList<RpadConnection> _original = [];
     private List<RpadConnection> _mine = [];
     private string? _version;
@@ -122,8 +123,10 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> ImportCommand { get; }
 
-    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers)
+    public ScriptConnectionsViewModel(IConnectionStore? store, ISecretStore? secrets, ConnectionDriverRegistry? drivers,
+        ConnectionSchemaCache? schemas = null)
     {
+        _schemas = schemas;
         _store = store;
         _secrets = secrets;
         _drivers = drivers ?? new ConnectionDriverRegistry();
@@ -273,6 +276,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
                 problems.AddRange(driver.Validate(connection));
                 problems.AddRange(GeneratedConnections.MissingPackages(driver, _scriptPackages())
                     .Select(id => $"Needs the NuGet package {id}: add it on the Packages tab."));
+                if (driver is IConnectionSchemaDriver && _schemas?.Get(connection) is null && _schemas?.ErrorFor(connection) is { } why)
+                    problems.Add($"Its description couldn't be read: {why}");
             }
             foreach (var text in connection.Params.Values.SelectMany(v => v.Texts()))
             {

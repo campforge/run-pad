@@ -20,7 +20,15 @@ public sealed class ConnectionMapRowViewModel : ReactiveObject
     public string Name
     {
         get;
-        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value ?? "");
+            this.RaisePropertyChanged(nameof(NameFieldLabel));
+            this.RaisePropertyChanged(nameof(ValueFieldLabel));
+            this.RaisePropertyChanged(nameof(InsertSecretLabel));
+            this.RaisePropertyChanged(nameof(RemoveRowLabel));
+            Edited?.Invoke();
+        }
     } = "";
 
     public string Value
@@ -43,7 +51,17 @@ public sealed class ConnectionMapRowViewModel : ReactiveObject
 
     public bool HasSecrets => SecretNames.Count > 0;
 
-    internal ConnectionMapRowViewModel(IReadOnlyList<string> secretNames) => SecretNames = secretNames;
+    public string NameFieldLabel => $"{_fieldLabel} name: {Name}";
+    public string ValueFieldLabel => $"Value for {_fieldLabel} {Name}";
+    public string InsertSecretLabel => $"Insert secret into {_fieldLabel} {Name}";
+    public string RemoveRowLabel => $"Remove {_fieldLabel} {Name}";
+    private readonly string _fieldLabel;
+
+    internal ConnectionMapRowViewModel(IReadOnlyList<string> secretNames, string fieldLabel)
+    {
+        SecretNames = secretNames;
+        _fieldLabel = fieldLabel;
+    }
 }
 
 // One parameter of the selected connection, edited the way its ConnectionParamType says.
@@ -55,6 +73,7 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
     public IReadOnlyList<string> SecretNames { get; }
 
     public string Label => Param.Required ? Param.Label + " *" : Param.Label;
+    public string AddRowLabel => $"Add {Param.Label.ToLowerInvariant()} row";
     public string? Description => Param.Description;
     public bool HasDescription => Param.Description is not null;
     public string? Example => Param.Example ?? Param.Default;
@@ -124,7 +143,7 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
 
     private void AddRow(string name, string value)
     {
-        var row = new ConnectionMapRowViewModel(SecretNames) { Name = name, Value = value };
+        var row = new ConnectionMapRowViewModel(SecretNames, Param.Label) { Name = name, Value = value };
         row.Edited += () => Edited?.Invoke();
         Rows.Add(row);
         Edited?.Invoke();
@@ -244,6 +263,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     private readonly IConnectionStore _store;
     private string? _version;
     private readonly ConnectionDriverRegistry _drivers;
+    private readonly ConnectionSchemas? _schemas;
     private readonly IReadOnlyList<string> _secretNames;
     private readonly ISecretStore _secrets;
 
@@ -310,8 +330,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> TestCommand { get; }
 
-    public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets)
+    public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets,
+        ConnectionSchemas? schemas = null)
     {
+        _schemas = schemas;
         _store = store;
         Connections.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
         _drivers = drivers;
@@ -406,6 +428,16 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             }
             var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
             item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
+            // A server that answers is read again, so scripts get its current classes.
+            if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
+            {
+                item.TestResult += "\nReading its description…";
+                var connection = item.ToConnection();
+                await _schemas.EnsureAsync([connection], ConnectionSchemaRefresh.All, CancellationToken.None);
+                item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
+                    ? "Failed: its description couldn't be read: " + error
+                    : "Scripts get its classes on their next build.");
+            }
         }
         finally { IsTesting = false; }
     }

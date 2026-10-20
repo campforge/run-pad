@@ -25,6 +25,13 @@ Notable changes in each RunPad release. Downloads are on the
   the script's packages, like any other package. Secrets are read only when the script runs; the
   command-line runner builds connections too.
 
+- gRPC connections: add a server's address (and metadata such as `authorization: Bearer
+  ${secret:name}`) in Tools → Connections, and a C# script gets a client for each of its services,
+  such as `Connections.Inventory.Stock.GetItemAsync(…)`, with the messages' classes and completion.
+  RunPad reads the services through gRPC server reflection when the script is opened or run and
+  writes the classes with `protoc` from the Grpc.Tools package; Test Connection lists the services
+  and reads them again. A server that can't be read fails the build with the reason.
+
 ### Changed
 
 - With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and

@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp.Compiler;
@@ -236,7 +237,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Task.Run, so without this a completion request for the text at keystroke N could race a
     // still-in-flight background-analysis pass for keystroke N-2.
     private readonly object _syncLock = new();
-    private readonly DocumentId _connectionsDocumentId;
+    private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
     private CancellationTokenSource? _diagnosticsCts;
 
     // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
@@ -308,7 +309,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         var projectId = ProjectId.CreateNewId("RunPadScript");
         _documentId = DocumentId.CreateNewId(projectId, "Script.cs");
-        _connectionsDocumentId = DocumentId.CreateNewId(projectId, "Connections.g.cs");
 
         var projectInfo = ProjectInfo.Create(
             projectId,
@@ -2153,7 +2153,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     public void UpdateExecutionContext(ExecutionRequest request)
     {
         UpdateAllowUnsafe(request.AllowUnsafe);
-        UpdateConnections(request.Connections is { Source.Length: > 0 } connections ? connections.Source : null);
+        UpdateConnections(request.Connections is { Source.Length: > 0 } connections
+            ? [new GeneratedSourceFile("Connections.g.cs", connections.Source), .. connections.Files]
+            : []);
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         if (DotnetPackageReferenceContext.For(request) is { } context)
             UpdatePackageReferences(packages, context);
@@ -2164,26 +2166,28 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // A source location in the script's own document, not in the generated Connections document,
     // whose offsets mean nothing in the editor.
     private bool IsInScript(Location location) =>
-        location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) != _connectionsDocumentId;
+        location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) == _documentId;
 
-    // The script's Connections class, as the build generates it, in a document of its own next to
-    // the script's: Connections.Billing and its client class complete and bind as soon as a connection
-    // is added, before any run. Null removes it.
-    private void UpdateConnections(string? source)
+    // The script's Connections class and the files its connections' schemas add, as the build
+    // generates them, in documents of their own next to the script's: Connections.Billing and its
+    // client complete and bind as soon as a connection is added, before any run.
+    private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files)
     {
         lock (_syncLock)
         {
+            if (files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)))) return;
             var solution = _workspace.CurrentSolution;
-            var current = solution.GetDocument(_connectionsDocumentId);
-            if (current is null && source is null) return;
-            if (current is not null && source is not null && current.TryGetText(out var text) && text.ToString() == source) return;
-            solution = source is null
-                ? solution.RemoveDocument(_connectionsDocumentId)
-                : current is null
-                    ? solution.AddDocument(_connectionsDocumentId, "Connections.g.cs", SourceText.From(source, Encoding.UTF8))
-                    : solution.WithDocumentText(_connectionsDocumentId, SourceText.From(source, Encoding.UTF8));
-            if (_workspace.TryApplyChanges(solution))
-                _lastCode = ""; // force re-sync on next analysis pass
+            foreach (var id in _connectionFiles.Select(f => f.Value.Id)) solution = solution.RemoveDocument(id);
+            var added = new List<KeyValuePair<string, (DocumentId Id, string Text)>>();
+            foreach (var file in files)
+            {
+                var id = DocumentId.CreateNewId(_documentId.ProjectId, file.Name);
+                solution = solution.AddDocument(id, file.Name, SourceText.From(file.Text, Encoding.UTF8));
+                added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
+            }
+            if (!_workspace.TryApplyChanges(solution)) return;
+            _connectionFiles = added;
+            _lastCode = ""; // force re-sync on next analysis pass
         }
     }
 

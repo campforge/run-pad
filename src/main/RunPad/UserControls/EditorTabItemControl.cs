@@ -35,6 +35,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 {
     private readonly ILanguageHostRegistry _registry;
     private readonly ConnectionDriverRegistry _connectionDrivers;
+    private readonly ConnectionSchemas? _connectionSchemas;
     private readonly IPreferencesService _prefs;
     private readonly EditorTabItemViewModel _vm;
     private TabControl? _outputTabsControl;
@@ -104,9 +105,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
-        ConnectionDriverRegistry? connectionDrivers = null)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
     {
         _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
+        _connectionSchemas = connectionSchemas;
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -562,6 +564,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         try
         {
             var workDir = EnsureWorkDirectory();
+            // A gRPC server's classes are part of the build: read the ones not read yet, and try
+            // again those that failed (the server may be up now).
+            if (_connectionSchemas is { } schemas && s.RpadDocument?.FrontMatter.Connections is { Count: > 0 } connections)
+                await schemas.EnsureAsync(connections, ConnectionSchemaRefresh.Failed, runCts.Token);
             var request = BuildRunRequest(platform, workDir);
             // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
             if (selection is not null) request = request with { Kind = RpadKind.Statements };
@@ -2119,6 +2125,28 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             OutputDirectory = State.OutputDirectory,
             RuntimePath = _prefs.Debugger?.DotnetPath,
         });
+        EnsureConnectionSchemasInBackground();
+    }
+
+    // Reads the schemas of connections that have never been read (a gRPC server's services) and
+    // then lets the editor know their classes. One that fails isn't asked again here: its error is
+    // what the editor shows, and a run or the Connections window tries again.
+    private void EnsureConnectionSchemasInBackground()
+    {
+        if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
+        List<RpadConnection> list = [.. connections];
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (await schemas.EnsureAsync(list, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
+                    Dispatcher.Post(() => { if (!_disposed) RefreshIntelliSensePackages(); });
+            }
+            catch (Exception ex)
+            {
+                _runLogger.LogWarning(ex, "Reading connection schemas failed");
+            }
+        });
     }
 
     // A front-matter edit (kind, usings, packages, references) is a real unsaved
@@ -2378,7 +2406,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     // The client classes of the script's connections, for its build and for the editor alike.
     private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
         frontMatter is null ? null
-            : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers);
+            : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers,
+                _connectionSchemas?.Cache);
 
     private sealed class ScriptBreakpoint(
         string fileName,
