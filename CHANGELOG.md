@@ -30,6 +30,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Recovery does not restore an obsolete or discarded imported draft again when its source falls
+  back to an older checkpoint.
+
 - Secret Store detects changes made by another window instead of overwriting its newer secrets.
 
 - Secret Store reports save failures without closing the dialog or losing edits, and allows retrying.
