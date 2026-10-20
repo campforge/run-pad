@@ -27,9 +27,12 @@ public class ProgramBodyProjectionTests
     {
         var projection = ProgramBodyProjection.Create(Code, Options);
         var changed = projection.Text.Replace("n * 2", "n * 3", StringComparison.Ordinal);
-        Assert.Equal(Code.Replace("n * 2", "n * 3", StringComparison.Ordinal),
-            projection.RestoreEdit(changed, RpadKindTransform.ProgramPrefixFor(Code, Options),
-                RpadKindTransform.ProgramSuffixFor(Code, Options), Options));
+        var restored = projection.RestoreEdit(changed, [], RpadKindTransform.ProgramPrefixFor(Code, Options),
+            RpadKindTransform.ProgramSuffixFor(Code, Options), Options);
+        Assert.NotNull(restored);
+        Assert.Equal(Code.Replace("n * 2", "n * 3", StringComparison.Ordinal), restored.Value.Code);
+        var span = Assert.Single(restored.Value.ChangedSpans);
+        Assert.Equal("3", restored.Value.Code.Substring(span.Start, span.Length));
     }
 
     [Fact]
@@ -37,7 +40,7 @@ public class ProgramBodyProjectionTests
     {
         var projection = ProgramBodyProjection.Create(Code, Options);
         var changed = projection.Text.Replace("partial class __RunPadProgram", "partial class Changed", StringComparison.Ordinal);
-        Assert.Null(projection.RestoreEdit(changed, RpadKindTransform.ProgramPrefixFor(Code, Options),
+        Assert.Null(projection.RestoreEdit(changed, [], RpadKindTransform.ProgramPrefixFor(Code, Options),
             RpadKindTransform.ProgramSuffixFor(Code, Options), Options));
     }
 

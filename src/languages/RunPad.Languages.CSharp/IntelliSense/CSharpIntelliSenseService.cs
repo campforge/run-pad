@@ -1739,11 +1739,16 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var materialized = await _codeFixEngine.MaterializeAsync(key, ProjectionFor(code).Text, headerLength, ct);
             if (materialized is null) return null;
             var projection = ProjectionFor(code);
-            var restored = projection.RestoreEdit(materialized.Value.NewCode, KindPrefix(code), KindSuffix(code), _parseOptions);
-            if (restored is null) return null;
-            var newCode = !projection.HasChanges && _kind == RpadKind.Program && restored != code
-                ? await ReindentOutsideTheWrapperAsync(restored, materialized.Value.ChangedSpans, ct)
-                : restored;
+            if (projection.RestoreEdit(materialized.Value.NewCode, materialized.Value.ChangedSpans,
+                    KindPrefix(code), KindSuffix(code), _parseOptions) is not var (restored, changedSpans)) return null;
+            var newCode = restored;
+            if (_kind == RpadKind.Program && restored != code)
+            {
+                // A class compiled outside the hidden one was formatted at its own columns already.
+                var moved = projection.HasChanges ? ProgramBodyProjection.Create(restored, _parseOptions).Moved : [];
+                newCode = await ReindentOutsideTheWrapperAsync(restored,
+                    [.. changedSpans.Where(span => !moved.Any(m => m.Contains(span)))], ct);
+            }
             return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
         catch (OperationCanceledException) { throw; }
