@@ -359,10 +359,20 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
             var contract = Assert.Single(Directory.GetFiles(Path.Combine(outputDir, "obj", "connection-contracts"), "*.dll"));
             var contractTime = File.GetLastWriteTimeUtc(contract);
             Assert.True(File.Exists(Path.Combine(outputDir, "bin", Path.GetFileName(contract))));
-            var second = await host.RunAsync(script + "\n// A script edit must not rebuild the contract.",
+            const string editedScript = script + "\n// A script edit must not rebuild the contract.";
+            var second = await host.RunAsync(editedScript,
                 (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data), TestContext.Current.CancellationToken);
             Assert.True(second.Succeeded, string.Join('\n', errors));
             Assert.Equal(contractTime, File.GetLastWriteTimeUtc(contract));
+            var binary = Path.Combine(outputDir, "bin", "RunPadQuery.dll");
+            var binaryTime = File.GetLastWriteTimeUtc(binary);
+            var runtimeContract = Path.Combine(outputDir, "bin", Path.GetFileName(contract));
+            File.Delete(runtimeContract);
+            var hotRun = await host.RunAsync(editedScript,
+                (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data), TestContext.Current.CancellationToken);
+            Assert.True(hotRun.Succeeded, string.Join('\n', errors));
+            Assert.True(File.Exists(runtimeContract));
+            Assert.Equal(binaryTime, File.GetLastWriteTimeUtc(binary));
             using var cachedEditor = new CSharpIntelliSenseService(
                 referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance);
             cachedEditor.UpdateExecutionContext(new ExecutionRequest
@@ -380,6 +390,9 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
                 TestContext.Current.CancellationToken);
             Assert.NotNull(definition);
             Assert.Equal(contract, definition.AssemblyPath);
+            var decompiled = CSharpDecompilerService.Decompile(definition);
+            Assert.Contains("class ItemRequest", decompiled.Text, StringComparison.Ordinal);
+            Assert.Contains("Sku", decompiled.Text, StringComparison.Ordinal);
             const string partialScript = """
                 var request = new Inventory.V1.ItemRequest { Sku = "extended" };
                 Console.WriteLine(request.CustomValue);

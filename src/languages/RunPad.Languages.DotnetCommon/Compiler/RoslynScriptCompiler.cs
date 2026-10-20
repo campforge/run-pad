@@ -187,7 +187,19 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var key = Fingerprint(keyCode, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
+        {
+            try
+            {
+                // A cached script still needs its runtime dependencies if one was removed or changed.
+                foreach (var file in runtimeFiles)
+                    CopyIfChanged(file.SourcePath, Path.Combine(_binDir, file.RelativePath));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Failed(Message("", $"Couldn't restore the compiled script's dependencies: {ex.Message}"));
+            }
             return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
+        }
 
         // The script file itself — what breakpoints and the debugger's source view point at.
         if (!File.Exists(_sourcePath) || await File.ReadAllTextAsync(_sourcePath, ct) != code)
