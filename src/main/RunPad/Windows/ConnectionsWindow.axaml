@@ -91,7 +91,7 @@
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
                                                     <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
                                                         <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
-                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="Remove header"
+                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
                                                                 Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
                                                         <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
