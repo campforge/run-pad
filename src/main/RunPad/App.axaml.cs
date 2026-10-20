@@ -16,12 +16,14 @@ using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
+using RunPad.Services.Secrets;
 using RunPad.Services.Setup;
 using RunPad.UserControls;
 using RunPad.Windows.Models;
 using DependenciesWindow = RunPad.Windows.DependenciesWindow;
 using MainWindow = RunPad.Windows.MainWindow;
 using PreferencesWindow = RunPad.Windows.PreferencesWindow;
+using SecretStoreWindow = RunPad.Windows.SecretStoreWindow;
 using SetupWizardWindow = RunPad.Windows.SetupWizardWindow;
 
 namespace RunPad;
@@ -157,6 +159,9 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
+        services.AddSingleton<ISecretStore>(_ => new FileSecretStore());
+        services.AddTransient<SecretStoreWindowViewModel>();
+        services.AddTransient<SecretStoreWindow>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<SetupWizardWindow>();
         services.AddSingleton<EditorTabsControl>();
@@ -165,6 +170,7 @@ public class App : Application
         // each time a dialog is shown).
         services.AddSingleton<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
         services.AddSingleton<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
+        services.AddSingleton<Func<SecretStoreWindow>>(sp => () => sp.GetRequiredService<SecretStoreWindow>());
 
         var provider = services.BuildServiceProvider();
 

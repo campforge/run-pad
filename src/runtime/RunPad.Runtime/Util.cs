@@ -433,6 +433,68 @@ public static class Util
     /// <summary>Same as <see cref="ReadLine(string?)"/>, but the output panel masks what's typed — still plain text on the wire, just not shown on screen.</summary>
     public static string? GetPassword(string? prompt = null) => ReadLineCore(prompt, isPassword: true);
 
+    // Mirrors FileSecretStore.FileEnvVar and its file format (RunPad's main app, which writes the
+    // store), duplicated rather than shared for the same reason as the data folder above.
+    internal const string SecretsFileEnvVar = "RUNPAD_SECRETS_FILE";
+
+    private sealed class SecretStoreFile
+    {
+        public int Version { get; set; }
+        public string? Protection { get; set; }
+        public Dictionary<string, string>? Secrets { get; set; }
+    }
+
+    /// <summary>
+    /// The secret named <paramref name="name"/> (letter case aside) from RunPad's Secret Store
+    /// (Tools → Secret Store), so a password, token or key stays out of the script and its file.
+    /// The store belongs to the user on this machine; on Windows it is encrypted for that user.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The store has no such secret.</exception>
+    /// <exception cref="InvalidDataException">The store can't be read here.</exception>
+    public static string GetSecret(string name)
+    {
+        if (name is null) throw new ArgumentNullException(nameof(name));
+        var path = Environment.GetEnvironmentVariable(SecretsFileEnvVar) is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "secrets.json");
+        var missing = new KeyNotFoundException(
+            $"RunPad's Secret Store has no secret named '{name}'. Add it in Tools → Secret Store ({path}).");
+        if (!File.Exists(path)) throw missing;
+
+        SecretStoreFile? store;
+        try
+        {
+            store = (SecretStoreFile?)ScriptJson.Deserialize(File.ReadAllText(path), typeof(SecretStoreFile));
+        }
+        catch (Exception ex) when (ScriptJson.IsJsonException(ex))
+        {
+            throw new InvalidDataException($"RunPad's Secret Store ({path}) is damaged.", ex);
+        }
+        if (store is null || store.Version != 1)
+            throw new InvalidDataException($"RunPad's Secret Store ({path}) was written by a newer RunPad.");
+
+        var value = store.Secrets?.FirstOrDefault(s => string.Equals(s.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+        if (value is null) throw missing;
+        switch (store.Protection)
+        {
+            case "None":
+                return value;
+            case "DPAPI" when System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows):
+                try
+                {
+                    return Encoding.UTF8.GetString(Dpapi.Unprotect(Convert.FromBase64String(value)));
+                }
+                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or FormatException)
+                {
+                    throw new InvalidDataException($"RunPad's Secret Store ({path}) is encrypted for another Windows user or is damaged.", ex);
+                }
+            case "DPAPI":
+                throw new InvalidDataException($"RunPad's Secret Store ({path}) is encrypted for a Windows user and can't be read here.");
+            default:
+                throw new InvalidDataException($"RunPad's Secret Store ({path}) uses an unknown protection ({store.Protection}).");
+        }
+    }
+
     /// <summary>
     /// Reads a line and converts it to <typeparamref name="T"/> via <see cref="Convert.ChangeType(object, Type)"/>
     /// (works for <see cref="int"/>, <see cref="double"/>, <see cref="bool"/>, <see cref="DateTime"/>,
@@ -485,7 +547,7 @@ public static class Util
     // them). A compile-time reference to STJ 8.0 made Util.Cache throw FileLoadException/
     // FileNotFoundException on net6/net7 scripts, whose in-box STJ is older (verified against both).
     // Every .NET a script can run on (net6+) ships STJ in the box; binding at runtime uses whichever
-    // version is there. Only Util.Cache needs a real serializer (arbitrary T).
+    // version is there. Util.Cache needs a real serializer (arbitrary T); Util.GetSecret reads RunPad's store with it.
     private static class ScriptJson
     {
         private static readonly Lazy<(MethodInfo Serialize, MethodInfo Deserialize, Type JsonException)> Api = new(Load);
@@ -493,7 +555,7 @@ public static class Util
         private static (MethodInfo, MethodInfo, Type) Load()
         {
             var serializer = Type.GetType("System.Text.Json.JsonSerializer, System.Text.Json", throwOnError: false)
-                ?? throw new PlatformNotSupportedException("Util.Cache needs System.Text.Json, which ships with .NET 6 and later.");
+                ?? throw new PlatformNotSupportedException("Util.Cache and Util.GetSecret need System.Text.Json, which ships with .NET 6 and later.");
             var assembly = serializer.Assembly;
             var options = assembly.GetType("System.Text.Json.JsonSerializerOptions", throwOnError: true)!;
             return (

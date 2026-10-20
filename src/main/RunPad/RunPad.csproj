@@ -50,6 +50,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console"/>
     <PackageReference Include="System.Composition.AttributedModel"/>
     <PackageReference Include="System.Configuration.ConfigurationManager"/>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData"/>
   </ItemGroup>
 
   <ItemGroup>
