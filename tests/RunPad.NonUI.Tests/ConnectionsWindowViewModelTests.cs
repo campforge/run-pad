@@ -45,13 +45,18 @@ public sealed class FileConnectionStoreTests : IDisposable
     }
 
     [Theory]
-    [InlineData("{ not json")]
-    [InlineData("{\"Version\":2,\"Connections\":[]}")]
-    public void AListThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content)
+    [InlineData("{ not json", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":2,\"Connections\":[]}", "The connection list was written by a newer RunPad (format 2).")]
+    [InlineData("{\"Connections\":[]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":0,\"Connections\":[]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[null]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[{\"Name\":\"a\",\"Driver\":\"http\",\"Params\":null}]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[{\"Name\":\"a\",\"Driver\":\"http\",\"Params\":{\"headers\":{\"Fields\":{\"x\":null}}}}]}", "The connection list file is damaged.")]
+    public void AListThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content, string message)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
         File.WriteAllText(StorePath, content);
-        Assert.Throws<InvalidDataException>(() => new FileConnectionStore(StorePath).Load());
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => new FileConnectionStore(StorePath).Load()).Message);
         Assert.Equal(content, File.ReadAllText(StorePath));
     }
 }

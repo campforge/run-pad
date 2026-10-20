@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text.Json;
 using RunPad.Format.RPad;
@@ -56,9 +57,17 @@ public sealed class FileConnectionStore : IConnectionStore
         {
             throw new InvalidDataException("The connection list file is damaged.", ex);
         }
-        if (file.Version != FormatVersion)
+        if (file.Version > FormatVersion)
             throw new InvalidDataException($"The connection list was written by a newer RunPad (format {file.Version}).");
-        return new ConnectionStoreSnapshot(file.Connections ?? [], VersionOf(bytes));
+        if (file.Version != FormatVersion)
+            throw new InvalidDataException("The connection list file is damaged.");
+        var connections = new List<RpadConnection>();
+        foreach (var connection in file.Connections ?? [])
+        {
+            if (!IsWhole(connection)) throw new InvalidDataException("The connection list file is damaged.");
+            connections.Add(connection);
+        }
+        return new ConnectionStoreSnapshot(connections, VersionOf(bytes));
     }
 
     public string Save(IReadOnlyList<RpadConnection> connections, string? expectedVersion)
@@ -95,6 +104,15 @@ public sealed class FileConnectionStore : IConnectionStore
         }
     }
 
+    // JSON nulls deserialize into properties the rest of RunPad reads as never null.
+    private static bool IsWhole([NotNullWhen(true)] RpadConnection? connection) =>
+        connection is { Name: not null, Driver: not null, Params: not null }
+        && connection.Params.Values.All(IsWhole)
+        && (connection.Extra?.Values.All(IsWhole) ?? true);
+
+    private static bool IsWhole(RpadValue? value) =>
+        value is not null && (value.Items?.All(IsWhole) ?? true) && (value.Fields?.Values.All(IsWhole) ?? true);
+
     private static string VersionOf(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 
     private static byte[]? ReadBytes(string path)
@@ -107,6 +125,6 @@ public sealed class FileConnectionStore : IConnectionStore
     private sealed class StoreFile
     {
         public int Version { get; set; }
-        public List<RpadConnection>? Connections { get; set; }
+        public List<RpadConnection?>? Connections { get; set; }
     }
 }
