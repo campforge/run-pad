@@ -19,6 +19,10 @@ Notable changes in each RunPad release. Downloads are on the
   writing the files; the changes reopen next time) or Cancel. A cancelled or failed save, or a
   stash that could not be written, keeps RunPad open.
 
+- A Program script written as a classic C# program (a class with a `static Main`, with using
+  directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
+  are unchanged. A missing or ambiguous entry point is reported by the compiler.
+
 ### Fixed
 
 - C# Program scripts can declare extension methods and custom awaiters alongside Main; the editor
@@ -27,16 +31,12 @@ Notable changes in each RunPad release. Downloads are on the
 - Program scripts now choose and invoke their entry point using the selected framework's conditional
   compilation symbols, including `DEBUG` and `TRACE`.
 
-
-- A Program script written as a classic C# program (a class with a `static Main`, with using
-  directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
-  are unchanged. A missing or ambiguous entry point is reported by the compiler.
-
 - A C# Statements script with nothing to run (only comments, using directives or preprocessor
   lines, like many LINQPad readme queries) now runs and finishes without output instead of failing
   with CS5001. Syntax errors and scripts with only declarations still fail as before.
 
-- Draft recovery keeps imported drafts reachable when session read order changes and a newer checkpoint is damaged.
+- Draft recovery keeps imported drafts reachable when session read order changes and a newer
+  checkpoint is damaged.
 
 - Execute Selection also runs selected statements in Program scripts, such as lines inside
   `Main`, on their own. A selection that uses a method or variable declared outside it explains

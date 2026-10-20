@@ -153,7 +153,9 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     // Unsaved drafts of RunPad windows that closed while this one was not running. A draft of a file
     // already open here (or in another imported draft) becomes an untitled copy that names the file,
     // so neither version is overwritten; the others reopen their file, keeping the baseline they were
-    // edited against, so a later save still asks about changes on disk.
+    // edited against, so a later save still asks about changes on disk. Nothing is checkpointed here:
+    // the next checkpoint (closing a tab or the app) records the imports, and until then their
+    // sessions stay locked and unchanged, so a crash only offers the same drafts again.
     private void AddImportedDrafts(IReadOnlyList<RecoveryImport> imports)
     {
         var drafts = imports.SelectMany(i => i.Tabs).ToList();
