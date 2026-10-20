@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RunPad.Connectors.Grpc;
 using RunPad.Connectors.Http;
+using RunPad.Connectors.Sqlite;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;
 using RunPad.Languages.CSharp;
@@ -29,7 +30,8 @@ public sealed record CliServices(ILanguageHostRegistry Registry, ISdkProvider Sd
         var connectionDrivers = new ConnectionDriverRegistry();
         connectionDrivers.Register(new HttpConnectionDriver());
         connectionDrivers.Register(new GrpcConnectionDriver());
-        var schemas = new ConnectionSchemas(connectionDrivers, new ConnectionSchemaCache(ConnectionSchemaCache.DefaultFolder),
+        connectionDrivers.Register(new SqliteConnectionDriver());
+        var schemas = new ConnectionSchemas(connectionDrivers, ConnectionSchemaCache.DefaultFolder,
             DotnetConnectionTools.Default, Secret);
         return new CliServices(registry, new DotnetSdkProvider(), connectionDrivers, schemas);
     }

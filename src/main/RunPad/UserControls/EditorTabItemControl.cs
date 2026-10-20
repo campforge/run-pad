@@ -567,7 +567,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // A gRPC server's classes are part of the build: read the ones not read yet, and try
             // again those that failed (the server may be up now).
             if (_connectionSchemas is { } schemas && s.RpadDocument?.FrontMatter.Connections is { Count: > 0 } connections)
-                await schemas.EnsureAsync(connections, ConnectionSchemaRefresh.Failed, runCts.Token);
+                await schemas.EnsureAsync(connections, ScriptDirectory, ConnectionSchemaRefresh.Failed, runCts.Token);
             var request = BuildRunRequest(platform, workDir);
             // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
             if (selection is not null) request = request with { Kind = RpadKind.Statements };
@@ -2135,11 +2135,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     {
         if (_connectionSchemas is not { } schemas || State.RpadDocument?.FrontMatter.Connections is not { Count: > 0 } connections) return;
         List<RpadConnection> list = [.. connections];
+        var scriptDirectory = ScriptDirectory;
         _ = Task.Run(async () =>
         {
             try
             {
-                if (await schemas.EnsureAsync(list, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
+                if (await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
                     Dispatcher.Post(() => { if (!_disposed) RefreshIntelliSensePackages(); });
             }
             catch (Exception ex)
@@ -2404,10 +2405,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
     }
 
     // The client classes of the script's connections, for its build and for the editor alike.
+    // Where relative paths in the script's connections (a database file) are read from: the
+    // script's own folder, as the running script reads them through Util.CurrentQueryPath.
+    private string? ScriptDirectory => _vm.FilePath is { } path ? Path.GetDirectoryName(path) : null;
+
     private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
         frontMatter is null ? null
             : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers,
-                _connectionSchemas?.Cache);
+                _connectionSchemas?.Cache, ScriptDirectory);
 
     private sealed class ScriptBreakpoint(
         string fileName,

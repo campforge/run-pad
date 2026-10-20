@@ -433,7 +433,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             {
                 item.TestResult += "\nReading its description…";
                 var connection = item.ToConnection();
-                await _schemas.EnsureAsync([connection], ConnectionSchemaRefresh.All, CancellationToken.None);
+                await _schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.All, CancellationToken.None);
                 item.TestResult = "Success: " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
                     ? "Failed: its description couldn't be read: " + error
                     : "Scripts get its classes on their next build.");

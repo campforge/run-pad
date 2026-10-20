@@ -106,7 +106,8 @@ public static class CliRunner
         {
             // A gRPC server's classes are part of the build: read the ones not read yet or that failed.
             if (services.ConnectionSchemas is { } schemas && document.FrontMatter.Connections.Count > 0)
-                await schemas.EnsureAsync(document.FrontMatter.Connections, ConnectionSchemaRefresh.Failed, cancellationToken);
+                await schemas.EnsureAsync(document.FrontMatter.Connections, Path.GetDirectoryName(Path.GetFullPath(filePath)),
+                    ConnectionSchemaRefresh.Failed, cancellationToken);
             var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments,
                 services.ConnectionDrivers, services.ConnectionSchemas?.Cache);
 
@@ -240,7 +241,8 @@ public static class CliRunner
         => ExecutionRequest.For(frontMatter, currentQueryPath, arguments) with
         {
             Connections = GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys,
-                connectionDrivers ?? new ConnectionDriverRegistry(), connectionSchemas),
+                connectionDrivers ?? new ConnectionDriverRegistry(), connectionSchemas,
+                currentQueryPath is null ? null : Path.GetDirectoryName(Path.GetFullPath(currentQueryPath))),
             Platform = platform,
             OutputDirectory = outputDirectory,
             WorkingDirectory = outputDirectory,

@@ -84,8 +84,10 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
     /// <param name="scriptPackages">The ids of the script's <c>packages:</c>.</param>
     /// <param name="schemas">The schemas read so far, for drivers that need one; such a connection
     /// without a schema is an error naming why it couldn't be read.</param>
+    /// <param name="scriptDirectory">The script's folder, which a schema may depend on; null for a script never saved.</param>
     public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language,
-        IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers, ConnectionSchemaCache? schemas = null)
+        IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers, ConnectionSchemaCache? schemas = null,
+        string? scriptDirectory = null)
     {
         if (connections.Count == 0) return null;
         if (language != RpadLanguage.CSharp)
@@ -127,10 +129,10 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
             ConnectionSchema? schema = null;
             if (driver is IConnectionSchemaDriver)
             {
-                schema = schemas?.Get(connection);
+                schema = schemas?.Get(connection, scriptDirectory);
                 if (schema is null)
                 {
-                    errors.Add($"Connection '{connection.Name}': " + (schemas?.ErrorFor(connection) is { } why
+                    errors.Add($"Connection '{connection.Name}': " + (schemas?.ErrorFor(connection, scriptDirectory) is { } why
                         ? $"its description couldn't be read: {why}"
                         : "its description hasn't been read yet; RunPad reads it when the script is opened or run."));
                     continue;

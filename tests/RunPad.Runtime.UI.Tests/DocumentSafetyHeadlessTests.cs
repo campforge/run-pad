@@ -247,8 +247,8 @@ public class DocumentSafetyHeadlessTests
     // window service hosts a real DependenciesWindowViewModel on the active tab's FrontMatter stream,
     // edits the draft, then either applies it (OK) or drops it (Cancel/Escape/close).
     private static void SetupDependenciesDialog(Harness h, bool apply)
-        => h.WindowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RpadFrontMatter?>?>()))
-            .Returns<IObservable<RpadFrontMatter?>?>(stream =>
+        => h.WindowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
+            .Returns<IObservable<RpadFrontMatter?>?, IObservable<string?>?>((stream, _) =>
             {
                 var cache = new Mock<ILocalPackageCacheService>();
                 cache.Setup(c => c.GetCachedPackages()).Returns([]);

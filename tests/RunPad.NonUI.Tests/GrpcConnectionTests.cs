@@ -106,7 +106,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
     {
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new GrpcConnectionDriver());
-        return new ConnectionSchemas(drivers, new ConnectionSchemaCache(Path.Combine(_folder, "schemas")), DotnetConnectionTools.Default,
+        return new ConnectionSchemas(drivers, Path.Combine(_folder, "schemas"), DotnetConnectionTools.Default,
             name => name == "inventory-token" ? "t0k" : null);
     }
 
@@ -173,7 +173,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         if (!new DotnetSdkProvider().Get().Any()) return;
         var connection = Inventory();
         var schemas = Schemas();
-        Assert.True(await schemas.EnsureAsync([connection], ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
+        Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
         Assert.Null(schemas.Cache.ErrorFor(connection));
         var schema = schemas.Cache.Get(connection)!;
         Assert.Equal("2 services: inventory.v1.Audit, inventory.v1.Stock.", schema.Summary);
@@ -181,7 +181,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.Contains(schema.Files, f => f.Name == "InventoryGrpc.cs");
         Assert.DoesNotContain(schema.Files, f => f.Name.Contains("Timestamp", StringComparison.Ordinal)); // Google.Protobuf has it
         // Read once: nothing changes the next time.
-        Assert.False(await schemas.EnsureAsync([connection], ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
+        Assert.False(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
 
         var packages = new GrpcConnectionDriver().Packages;
         var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache)!;
@@ -248,12 +248,12 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.Equal(["Connection 'inventory': its description hasn't been read yet; RunPad reads it when the script is opened or run."],
             GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
 
-        Assert.True(await schemas.EnsureAsync([connection], ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
+        Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
         Assert.Equal(
             ["Connection 'inventory': its description couldn't be read: The server doesn't offer gRPC server reflection, which RunPad reads its services with."],
             GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache)!.Errors);
-        Assert.False(await schemas.EnsureAsync([connection], ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
-        Assert.True(await schemas.EnsureAsync([connection], ConnectionSchemaRefresh.Failed, TestContext.Current.CancellationToken));
+        Assert.False(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
+        Assert.True(await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Failed, TestContext.Current.CancellationToken));
 
         // Dependencies → Connections says so too.
         var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas.Cache);
@@ -264,7 +264,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
 
         // A missing secret is such a reason too.
         var secretless = Inventory(metadata: "Bearer ${secret:nope}");
-        await schemas.EnsureAsync([secretless], ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
+        await schemas.EnsureAsync([secretless], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
         Assert.Equal("The Secret Store has no secret named 'nope'. Add it in Tools → Secret Store.", schemas.Cache.ErrorFor(secretless));
     }
 }

@@ -49,9 +49,11 @@ public sealed class WindowService : IWindowService
     private static Window? MainWindow =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
-    public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null)
+    public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null)
     {
         var window = _dependenciesWindowFactory();
+        // The path first: the connections shown for the front matter depend on the script's folder.
+        using var pathSubscription = scriptPath?.Subscribe(window.SetScriptPath);
         using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
         await ShowDialogAsync(window);
     }

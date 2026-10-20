@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RunPad.NonUI.Tests" />
+    <InternalsVisibleTo Include="RunPad.Runtime.UI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\RunPad.Contracts\RunPad.Contracts.csproj" />
+  </ItemGroup>
+</Project>
