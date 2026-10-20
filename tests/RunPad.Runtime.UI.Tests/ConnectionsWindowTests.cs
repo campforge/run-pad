@@ -28,7 +28,11 @@ public class ConnectionsWindowTests
             {
                 Name = "billing",
                 Driver = "http",
-                Params = new(StringComparer.Ordinal) { ["baseAddress"] = RpadValue.Of("https://billing.local/") },
+                Params = new(StringComparer.Ordinal)
+                {
+                    ["baseAddress"] = RpadValue.Of("https://billing.local/"),
+                    ["headers"] = RpadValue.Map([new("Accept", RpadValue.Of("application/json"))]),
+                },
             },
         ], null));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
@@ -56,6 +60,12 @@ public class ConnectionsWindowTests
         Assert.Equal("https://billing.local/", addressBox.Text);
         addressBox.Text = "https://billing.example/";
         Dispatcher.UIThread.RunJobs();
+
+        // A row's remove button names the row in its tooltip, as in its accessible name.
+        var removeRow = fields.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "✕"));
+        var row = (ConnectionMapRowViewModel)removeRow.DataContext!;
+        Assert.Equal(row.RemoveRowLabel, ToolTip.GetTip(removeRow));
+        Assert.EndsWith("Accept", row.RemoveRowLabel);
 
         window.FindControl<Button>("OkButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.True(await result);
