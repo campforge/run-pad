@@ -28,6 +28,19 @@ public class ScriptConnectionsViewModelTests
             },
     };
 
+    private sealed class SqlLikeDriver : IConnectionDriver
+    {
+        public string Id => "sqlish";
+        public string DisplayName => "SQL-ish";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Microsoft.Data.Sqlite"] = "9.0.0" };
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+    }
+
     private static (DependenciesWindowViewModel Vm, Mock<IConnectionStore> Store, List<RpadConnection> Mine) CreateVm(params RpadConnection[] mine)
     {
         var list = mine.ToList();
@@ -39,6 +52,7 @@ public class ScriptConnectionsViewModelTests
         secrets.Setup(s => s.Load()).Returns([new Secret("billing-token", "t0k")]);
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
+        drivers.Register(new SqlLikeDriver());
         var sources = new Mock<INuGetSourceStore>();
         sources.Setup(s => s.Load()).Returns([]);
         var cache = new Mock<ILocalPackageCacheService>();
@@ -133,5 +147,22 @@ public class ScriptConnectionsViewModelTests
 
         vm.SetFrontMatter(new RpadFrontMatter { Language = RpadLanguage.Vb, Connections = [Http("a", "https://a/")] });
         Assert.Equal("Connections can be used in C# scripts only, for now.", Assert.Single(vm.Connections.Items).Problem);
+    }
+
+    // The libraries a connection needs come as the script's own packages, visible on the Packages tab.
+    [Fact]
+    public void AddingAConnection_Should_AddItsDriversPackages_AndAMissingOneIsAProblem()
+    {
+        var (vm, _, _) = CreateVm(new RpadConnection { Name = "local", Driver = "sqlish" });
+        var fm = new RpadFrontMatter();
+        vm.SetFrontMatter(fm);
+        Execute(vm.Connections.AddCommand);
+        Assert.Null(vm.Connections.Items.Single().Problem);
+        Assert.True(vm.ApplyChanges());
+        Assert.Equal("9.0.0", fm.Packages["Microsoft.Data.Sqlite"].Version);
+
+        var (other, _, _) = CreateVm();
+        other.SetFrontMatter(new RpadFrontMatter { Connections = [new RpadConnection { Name = "local", Driver = "sqlish" }] });
+        Assert.Equal("Needs the NuGet package Microsoft.Data.Sqlite: add it on the Packages tab.", other.Connections.Items.Single().Problem);
     }
 }

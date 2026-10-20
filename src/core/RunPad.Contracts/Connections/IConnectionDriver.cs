@@ -73,6 +73,13 @@ public interface IConnectionDriver
     IReadOnlyList<ConnectionParam> Params { get; }
 
     /// <summary>
+    /// The NuGet packages (id → version) the script's client needs. They are ordinary packages of the
+    /// script: adding a connection in the Dependencies window adds them to its <c>packages:</c>, where
+    /// they are restored, shown and updated like any other, and a build without them fails.
+    /// </summary>
+    IReadOnlyDictionary<string, string> Packages { get; }
+
+    /// <summary>
     /// Problems with the connection's parameters, one message each; empty when it is fine. Text
     /// with placeholders is checked only as far as the placeholders allow (their values are
     /// unknown until the script runs).
@@ -95,5 +102,5 @@ public interface IConnectionDriver
     ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context);
 }
 
-/// <summary>A connection's client class, and the NuGet packages (id → version) it needs.</summary>
-public sealed record ConnectionClientCode(string ClassSource, IReadOnlyDictionary<string, string>? Packages = null);
+/// <summary>A connection's client class; the packages it uses are the driver's <see cref="IConnectionDriver.Packages"/>.</summary>
+public sealed record ConnectionClientCode(string ClassSource);

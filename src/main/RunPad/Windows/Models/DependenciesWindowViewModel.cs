@@ -594,6 +594,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         ConnectionDriverRegistry? connectionDrivers = null)
     {
         Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers);
+        Connections.UsePackages(
+            () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
+            (id, version) => AddPackage(id, version));
         Connections.Edited += UpdateHasChanges;
         _search = search;
         _cache = cache;
@@ -793,6 +796,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private void OnDraftPackagesChanged()
     {
+        Connections.OnPackagesChanged();
         foreach (var item in OnlinePackages)
         {
             item.ScriptVersion = FindDraft(item.Id)?.Version;

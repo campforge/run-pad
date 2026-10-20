@@ -52,7 +52,7 @@ public sealed class ConnectionClientTests : IDisposable
     [Fact]
     public void TheGeneratedCode_Should_ReadSecretsAndVariablesOnlyWhenRun()
     {
-        var generated = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, Drivers())!;
+        var generated = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers())!;
         Assert.Empty(generated.Errors);
         Assert.Contains("public static BillingApiClient BillingApi => __billingApi ??= new BillingApiClient();", generated.Source);
         Assert.Contains("public sealed class BillingApiClient : global::System.Net.Http.HttpClient", generated.Source);
@@ -67,16 +67,42 @@ public sealed class ConnectionClientTests : IDisposable
     {
         var missingAddress = new RpadConnection { Name = "broken", Driver = "http" };
         var unknown = new RpadConnection { Name = "warehouse", Driver = "snowflake" };
-        var generated = GeneratedConnections.For([Billing(), missingAddress, unknown], RpadLanguage.CSharp, Drivers())!;
+        var generated = GeneratedConnections.For([Billing(), missingAddress, unknown], RpadLanguage.CSharp, [], Drivers())!;
         Assert.Equal(
             ["Connection 'broken': The base address is missing.", "Connection 'warehouse': this RunPad has no 'snowflake' driver."],
             generated.Errors);
         Assert.Contains("BillingApi", generated.Source);
         Assert.DoesNotContain("Broken", generated.Source);
 
-        Assert.Null(GeneratedConnections.For([], RpadLanguage.CSharp, Drivers()));
+        Assert.Null(GeneratedConnections.For([], RpadLanguage.CSharp, [], Drivers()));
         Assert.Equal(["Connections can be used in C# scripts only, for now."],
-            GeneratedConnections.For([Billing()], RpadLanguage.Vb, Drivers())!.Errors);
+            GeneratedConnections.For([Billing()], RpadLanguage.Vb, [], Drivers())!.Errors);
+    }
+
+    private sealed class SqlLikeDriver : IConnectionDriver
+    {
+        public string Id => "sqlish";
+        public string DisplayName => "SQL-ish";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params { get; } = [];
+        public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string> { ["Microsoft.Data.Sqlite"] = "9.0.0" };
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, ""));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
+            new($"public sealed class {context.ClassName} {{ internal {context.ClassName}() {{ }} }}");
+    }
+
+    // A driver's packages are the script's own: without them in packages: the build fails, saying which.
+    [Fact]
+    public void ADriversPackage_MissingFromTheScript_Should_BeABuildError()
+    {
+        var drivers = Drivers();
+        drivers.Register(new SqlLikeDriver());
+        var local = new RpadConnection { Name = "local", Driver = "sqlish" };
+        Assert.Equal(["Connection 'local' needs the NuGet package Microsoft.Data.Sqlite: add it in Dependencies → Packages."],
+            GeneratedConnections.For([local], RpadLanguage.CSharp, [], drivers)!.Errors);
+        Assert.Empty(GeneratedConnections.For([local], RpadLanguage.CSharp, ["microsoft.data.sqlite"], drivers)!.Errors);
     }
 
     // The editor knows Connections.BillingApi, an HttpClient, as soon as the script lists it.
@@ -88,7 +114,7 @@ public sealed class ConnectionClientTests : IDisposable
             referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance);
         service.UpdateExecutionContext(new ExecutionRequest
         {
-            Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, Drivers()),
+            Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers()),
         });
 
         const string code = "var text = await Connections.BillingApi.GetStr";
@@ -122,7 +148,7 @@ public sealed class ConnectionClientTests : IDisposable
             {
                 Platform = new DotnetSdkProvider().Get().First(),
                 OutputDirectory = outputDir,
-                Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, Drivers()),
+                Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers()),
             }, new CSharpReferenceService().GetExtensionReference());
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
             var output = new ConcurrentQueue<string>();
@@ -160,7 +186,7 @@ public sealed class ConnectionClientTests : IDisposable
         {
             Platform = new DotnetSdkProvider().Get().First(),
             OutputDirectory = outputDir,
-            Connections = GeneratedConnections.For([new RpadConnection { Name = "broken", Driver = "http" }], RpadLanguage.CSharp, Drivers()),
+            Connections = GeneratedConnections.For([new RpadConnection { Name = "broken", Driver = "http" }], RpadLanguage.CSharp, [], Drivers()),
         }, new CSharpReferenceService().GetExtensionReference());
         await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
         var errors = new ConcurrentQueue<string>();

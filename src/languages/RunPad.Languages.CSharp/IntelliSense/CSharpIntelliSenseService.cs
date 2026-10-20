@@ -2154,10 +2154,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         UpdateAllowUnsafe(request.AllowUnsafe);
         UpdateConnections(request.Connections is { Source.Length: > 0 } connections ? connections.Source : null);
-        // As the build: a connection driver's packages, unless the script asks for a version itself.
-        var packages = (request.Connections?.Packages ?? new Dictionary<string, string>())
-            .Where(p => !request.Packages.ContainsKey(p.Key)).Concat(request.Packages)
-            .ToDictionary(p => p.Key, p => new Package(p.Value));
+        var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         if (DotnetPackageReferenceContext.For(request) is { } context)
             UpdatePackageReferences(packages, context);
         else

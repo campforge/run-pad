@@ -2377,7 +2377,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     // The client classes of the script's connections, for its build and for the editor alike.
     private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
-        frontMatter is null ? null : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, _connectionDrivers);
+        frontMatter is null ? null
+            : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers);
 
     private sealed class ScriptBreakpoint(
         string fileName,

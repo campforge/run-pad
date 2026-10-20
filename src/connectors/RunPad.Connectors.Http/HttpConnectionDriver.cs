@@ -33,6 +33,9 @@ public sealed class HttpConnectionDriver : IConnectionDriver
 
     public ConnectionCategory Category => ConnectionCategory.Http;
 
+    // HttpClient is part of .NET.
+    public IReadOnlyDictionary<string, string> Packages { get; } = new Dictionary<string, string>();
+
     public IReadOnlyList<ConnectionParam> Params { get; } =
     [
         new(BaseAddress, "Base address", Required: true, Example: "https://api.example.com/",
