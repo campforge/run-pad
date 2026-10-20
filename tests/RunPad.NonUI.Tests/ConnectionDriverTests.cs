@@ -71,9 +71,57 @@ public class HttpConnectionDriverTests
         Assert.Equal(["The base address is missing."], driver.Validate(Http()));
         Assert.Equal(["The base address 'ftp://files' is not an http:// or https:// address."],
             driver.Validate(Http(("baseAddress", RpadValue.Of("ftp://files")))));
-        Assert.Equal(["Headers must be names with texts.", "The timeout '-1' is not a positive number of seconds."],
+        Assert.Equal(["Headers must be names with texts.", "The timeout '-1' is not a number of seconds from 0.001 to 2147483."],
             driver.Validate(Http(("baseAddress", RpadValue.Of("https://a/")),
                 ("headers", RpadValue.List([RpadValue.Of("x")])), ("timeout", RpadValue.Of("-1")))));
+    }
+
+    // What HttpClient.Timeout takes: a whole number of milliseconds, at most int.MaxValue.
+    [Theory]
+    [InlineData("0.001", true)]
+    [InlineData("2147483", true)]
+    [InlineData("1e2", true)]
+    [InlineData("0", false)]
+    [InlineData("0.0001", false)]
+    [InlineData("2147484", false)]
+    [InlineData("1e300", false)]
+    [InlineData("Infinity", false)]
+    [InlineData("NaN", false)]
+    [InlineData("soon", false)]
+    public void Validate_Should_AcceptOnlyTimeoutsHttpClientTakes(string seconds, bool valid)
+    {
+        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", RpadValue.Of("https://a/")), ("timeout", RpadValue.Of(seconds))));
+        if (valid) Assert.Empty(problems);
+        else Assert.Equal([$"The timeout '{seconds}' is not a number of seconds from 0.001 to 2147483."], problems);
+    }
+
+    // The generated client would drop them without a word.
+    [Fact]
+    public void Validate_Should_RejectHeaders_TheClientCantSend()
+    {
+        var problems = new HttpConnectionDriver().Validate(Http(("baseAddress", RpadValue.Of("https://a/")),
+            ("headers", RpadValue.Map(
+            [
+                new("Authorization", RpadValue.Of("Bearer ${secret:token}")),
+                new("X-Api-Key", RpadValue.Of("k")),
+                new("Content-Type", RpadValue.Of("application/json")),
+                new("My Header", RpadValue.Of("x")),
+            ]))));
+        Assert.Equal(
+        [
+            "'Content-Type' can't be sent as a request header: content headers such as Content-Type go with a request's content, and a name has no spaces.",
+            "'My Header' can't be sent as a request header: content headers such as Content-Type go with a request's content, and a name has no spaces.",
+        ], problems);
+    }
+
+    [Fact]
+    public async Task Test_Should_RejectATimeoutHttpClientDoesntTake()
+    {
+        var handler = new FakeHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        var result = await new HttpConnectionDriver(() => handler)
+            .TestAsync(Resolved("https://a/", timeout: "Infinity"), TestContext.Current.CancellationToken);
+        Assert.Equal(new ConnectionTestResult(false, "The timeout 'Infinity' is not a number of seconds from 0.001 to 2147483."), result);
+        Assert.Null(handler.Request);
     }
 
     private sealed class FakeHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
