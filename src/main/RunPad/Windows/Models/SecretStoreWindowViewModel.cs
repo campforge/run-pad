@@ -40,6 +40,7 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
     private const string NewSecretName = "secret";
 
     private readonly ISecretStore _store;
+    private string? _version;
 
     public ObservableCollection<SecretItemViewModel> Secrets { get; } = [];
 
@@ -113,7 +114,9 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         _store = store;
         try
         {
-            foreach (var secret in store.Load()) Add(new SecretItemViewModel(secret));
+            var snapshot = store.LoadSnapshot();
+            _version = snapshot.Version;
+            foreach (var secret in snapshot.Secrets) Add(new SecretItemViewModel(secret));
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
@@ -134,14 +137,16 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         if (!CanSave) return false;
         try
         {
-            _store.Save([.. Secrets.Select(s => s.ToSecret())]);
+            _version = _store.Save([.. Secrets.Select(s => s.ToSecret())], _version);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
             // Exception text can contain data from a serializer or encryption provider. Keep secrets
             // out of UI errors while retaining the user's edits and allowing a retry.
-            SaveError = "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.";
+            SaveError = ex is SecretStoreConflictException
+                ? "The secret store changed in another window. Reopen it before saving. Your edits have not been written."
+                : "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.";
             return false;
         }
     }
