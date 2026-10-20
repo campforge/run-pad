@@ -24,6 +24,8 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
 
     public string Id => DriverId;
 
+    public string SchemaVersion => "2";
+
     public string DisplayName => "SQLite";
 
     public ConnectionCategory Category => ConnectionCategory.Database;
@@ -110,7 +112,7 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
         foreach (var entity in model)
             sb.Append('\n')
                 .Append("    /// <summary>The ").Append(entity.Table.IsView ? "view " : "table ").Append(ConnectionCodeContext.Doc(entity.Table.Name))
-                .Append(entity.Keyless ? " (read only: it has no primary key)" : "").Append(".</summary>\n")
+                .Append(entity.Keyless ? " (read only: it has no non-null primary key)" : "").Append(".</summary>\n")
                 .Append("    public ").Append(ef).Append(".DbSet<").Append(entity.ClassName).Append("> ").Append(entity.SetName)
                 .Append(" => Set<").Append(entity.ClassName).Append(">();\n");
 
@@ -125,8 +127,12 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
             else if (entity.Key.Count == 1) sb.Append("            e.HasKey(x => x.").Append(entity.Key[0]).Append(");\n");
             else sb.Append("            e.HasKey(x => new { ").Append(string.Join(", ", entity.Key.Select(k => "x." + k))).Append(" });\n");
             foreach (var column in entity.Columns)
+            {
                 sb.Append("            ").Append(ef).Append(".RelationalPropertyBuilderExtensions.HasColumnName(e.Property(x => x.")
                     .Append(column.PropertyName).Append("), ").Append(ConnectionCodeContext.Literal(column.Column.Name)).Append(");\n");
+                if (column.Column.Generated)
+                    sb.Append("            e.Property(x => x.").Append(column.PropertyName).Append(").ValueGeneratedOnAddOrUpdate();\n");
+            }
             sb.Append("        });\n");
         }
         sb.Append("    }\n");
@@ -197,13 +203,25 @@ public sealed class SqliteConnectionDriver : IConnectionSchemaDriver
             }
             foreach (var table in tables)
             {
+                // A true INTEGER PRIMARY KEY aliases rowid and has no separate primary-key index.
+                // INTEGER PRIMARY KEY DESC is a notable exception and can contain NULL.
+                await using var indexes = connection.CreateCommand();
+                indexes.CommandText = "SELECT count(*) FROM pragma_index_list($table) WHERE origin = 'pk'";
+                indexes.Parameters.AddWithValue("$table", table.Name);
+                var hasPrimaryKeyIndex = Convert.ToInt64(await indexes.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
                 await using var info = connection.CreateCommand();
-                info.CommandText = "SELECT name, type, \"notnull\", pk FROM pragma_table_info($table) ORDER BY cid";
+                info.CommandText = "SELECT name, type, \"notnull\", pk, hidden FROM pragma_table_xinfo($table) WHERE hidden != 1 ORDER BY cid";
                 info.Parameters.AddWithValue("$table", table.Name);
                 await using var reader = await info.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     table.Columns.Add(new SqliteColumn(reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        reader.GetInt64(2) != 0, (int)reader.GetInt64(3)));
+                        reader.GetInt64(2) != 0, (int)reader.GetInt64(3), reader.GetInt64(4) is 2 or 3));
+                if (!table.IsView && !hasPrimaryKeyIndex && table.Columns.Where(c => c.PrimaryKey > 0).ToList() is [var key]
+                    && key.Type.Equals("INTEGER", StringComparison.OrdinalIgnoreCase))
+                {
+                    var index = table.Columns.IndexOf(key);
+                    table.Columns[index] = key with { NotNull = true };
+                }
             }
             return tables;
         }
@@ -222,4 +240,4 @@ internal sealed record SqliteTable(string Name, bool IsView, List<SqliteColumn> 
 
 /// <param name="Type">The declared type, which SQLite only uses as a hint (its type affinity).</param>
 /// <param name="PrimaryKey">Its position in the primary key, from 1; 0 when it isn't part of it.</param>
-internal sealed record SqliteColumn(string Name, string Type, bool NotNull, int PrimaryKey);
+internal sealed record SqliteColumn(string Name, string Type, bool NotNull, int PrimaryKey, bool Generated = false);

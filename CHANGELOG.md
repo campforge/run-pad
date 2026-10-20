@@ -54,6 +54,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- SQLite tables with nullable primary keys can be read without tracking; non-null keys remain
+  writable. Computed columns are available in scripts and refreshed after saves without writing
+  to them. Previously cached SQLite schemas are refreshed automatically.
+
 - Connection form inputs use the same subtle themed borders as buttons, and dropdown action
   backgrounds no longer cover the left edge of their rounded border.
 

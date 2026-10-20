@@ -29,7 +29,7 @@ public sealed class SqliteConnectionTests : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, city TEXT, created DATETIME);
-            CREATE TABLE order_items (order_id INTEGER, line INTEGER, qty INT NOT NULL, price DECIMAL(10, 2), PRIMARY KEY (order_id, line));
+            CREATE TABLE order_items (order_id INTEGER NOT NULL, line INTEGER NOT NULL, qty INT NOT NULL, price DECIMAL(10, 2), PRIMARY KEY (order_id, line));
             CREATE TABLE log (message TEXT);
             CREATE VIEW big_customers AS SELECT id, name FROM customers WHERE city = 'Oslo';
             INSERT INTO customers (name, city, created) VALUES ('Ann', 'Oslo', '2026-01-02 03:04:05'), ('Bob', 'Paris', NULL), ('Cy', 'Oslo', NULL);
@@ -213,5 +213,98 @@ public sealed class SqliteConnectionTests : IDisposable
         tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.rpad"));
         tab.Load(new RpadFrontMatter { Connections = [connection] });
         Assert.Equal($"Its description couldn't be read: {reason}", Assert.Single(tab.Items).Problem);
+    }
+
+    [Theory]
+    [InlineData("code TEXT PRIMARY KEY")]
+    [InlineData("code INTEGER PRIMARY KEY DESC")]
+    [InlineData("code TEXT, part INTEGER, PRIMARY KEY (code, part)")]
+    public async Task NullablePrimaryKeys_Should_BeReadableWithoutTracking(string columns)
+    {
+        var sql = $"CREATE TABLE nullable_keys ({columns}); INSERT INTO nullable_keys (code) VALUES (NULL);";
+        await RunSchemaScriptAsync(sql,
+            "Console.WriteLine(Connections.Shop.NullableKeys.ToList().Count);", ["1"]);
+    }
+
+    [Theory]
+    [InlineData("STORED")]
+    [InlineData("VIRTUAL")]
+    public async Task GeneratedColumns_Should_ReadAndRefreshWithoutBeingWritten(string storage)
+    {
+        await RunSchemaScriptAsync($"CREATE TABLE computed (id INTEGER PRIMARY KEY, value INTEGER, twice INTEGER GENERATED ALWAYS AS (value * 2) {storage}); INSERT INTO computed (value) VALUES (3);",
+            """
+            var shop = Connections.Shop;
+            Console.WriteLine(shop.Computed.Single().Twice);
+            var row = new Connections.ShopClient.ComputedRow { Value = 4, Twice = 99 };
+            shop.Computed.Add(row);
+            shop.SaveChanges();
+            Console.WriteLine(row.Twice);
+            row.Value = 7;
+            row.Twice = 999;
+            shop.SaveChanges();
+            Console.WriteLine(row.Twice);
+            """, ["6", "8", "14"]);
+    }
+
+    [Theory]
+    [InlineData("code TEXT PRIMARY KEY", "STRICT")]
+    [InlineData("code TEXT PRIMARY KEY", "WITHOUT ROWID")]
+    [InlineData("code TEXT NOT NULL PRIMARY KEY", "")]
+    public async Task NonNullablePrimaryKeys_Should_RemainWritable(string columns, string options)
+    {
+        await RunSchemaScriptAsync($"CREATE TABLE keyed ({columns}) {options}; INSERT INTO keyed VALUES ('first');",
+            """
+            var shop = Connections.Shop;
+            shop.Keyed.Add(new Connections.ShopClient.KeyedRow { Code = "second" });
+            shop.SaveChanges();
+            Console.WriteLine(shop.Keyed.ToList().Count);
+            """, ["2"]);
+    }
+
+    [Fact]
+    public async Task UpdatedSchemaVersion_Should_IgnoreLegacyCachedDescriptions()
+    {
+        var connection = Shop(DatabasePath);
+        var schemas = Schemas();
+        var legacy = new ConnectionSchemaCache(schemas.Cache.Folder);
+        legacy.Put(connection, new ConnectionSchema("stale", [], "[]"));
+        Assert.Null(schemas.Cache.Get(connection));
+        await schemas.EnsureAsync([connection], null, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
+        Assert.Contains("customers", schemas.Cache.Get(connection)!.Summary, StringComparison.Ordinal);
+    }
+
+    private async Task RunSchemaScriptAsync(string sql, string script, string[] expected)
+    {
+        using (var db = new SqliteConnection($"Data Source={DatabasePath};Pooling=False"))
+        {
+            db.Open();
+            using var command = db.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+        var connection = Shop();
+        var schemas = Schemas();
+        await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
+        var packages = new SqliteConnectionDriver().Packages;
+        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
+        Assert.Empty(generated.Errors);
+        var outputDir = Path.Combine(_folder, "regression-build");
+        Directory.CreateDirectory(outputDir);
+        var options = CompiledDotnetLanguageHostOptions.From(new ExecutionRequest
+        {
+            Platform = new DotnetSdkProvider().Get().First(),
+            OutputDirectory = outputDir,
+            WorkingDirectory = outputDir,
+            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.rpad"),
+            Packages = packages,
+            Connections = generated,
+        }, new CSharpReferenceService().GetExtensionReference());
+        await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
+        var output = new ConcurrentQueue<string>();
+        var errors = new ConcurrentQueue<string>();
+        var result = await host.RunAsync(script, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data),
+                TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken);
+        Assert.True(result.Succeeded, string.Join('\n', errors));
+        Assert.Equal(expected, output.TakeLast(expected.Length));
     }
 }
