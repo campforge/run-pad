@@ -25,8 +25,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
-- C# Program scripts can declare extension methods and custom awaiters alongside Main; the editor
-  keeps navigation, diagnostics and code actions aligned with the original script.
+- C# Program scripts can declare extension methods and custom awaiters alongside Main, as in
+  LINQPad: static classes are compiled outside the generated class, other types stay nested in it,
+  so a type an extension uses (such as its receiver) must be internal or public. The editor keeps
+  navigation, diagnostics and code actions aligned with the original script.
 
 - Program scripts now choose and invoke their entry point using the selected framework's conditional
   compilation symbols, including `DEBUG` and `TRACE`.
@@ -47,7 +49,8 @@ Notable changes in each RunPad release. Downloads are on the
   untitled copy naming the file, so neither version is overwritten: it keeps finding the file's
   relative references and can't be saved over that file. Draft data that cannot be read
   is kept unchanged and named in a dismissible notice; sessions with only saved files no longer
-  cause a warning on every start.
+  cause a warning on every start. The other window's draft data is deleted once RunPad has kept
+  the restored drafts in two checkpoints of its own.
 
 ## [0.8.0] — 2026-10-19
 

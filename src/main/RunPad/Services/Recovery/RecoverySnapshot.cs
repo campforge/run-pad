@@ -55,8 +55,8 @@ public interface IRecoveryStore : IDisposable
 
     /// <summary>After <see cref="LoadAsync"/>: drafts of other sessions nobody owns. Their sessions stay
     /// locked until the first successful <see cref="CommitAsync"/>, which records the imports and marks
-    /// those sessions as taken over without changing or deleting their data; imports no commit recorded
-    /// are offered again next time.</summary>
+    /// those sessions as taken over; imports no commit recorded are offered again next time. A later
+    /// commit, once both checkpoint generations hold the drafts, deletes those sessions.</summary>
     IReadOnlyList<RecoveryImport> Imports => [];
 
     Task<RecoverySnapshot?> LoadAsync();

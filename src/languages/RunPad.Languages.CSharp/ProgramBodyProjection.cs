@@ -7,9 +7,14 @@ using Microsoft.CodeAnalysis.Text;
 namespace RunPad.Languages.CSharp;
 
 /// <summary>
-/// Keeps types at namespace scope in member-style programs with extension methods. Only synthetic
-/// braces and partial-class headers are inserted; the original characters stay in their original
-/// order, and no lines are inserted. The same projection is used by the compiler and editor.
+/// Lets member-style programs declare extension methods, as LINQPad does: the script's types stay
+/// nested in the generated class, except that once any top-level static class declares extension
+/// methods (which C# allows only in a non-nested static class), every top-level static class and
+/// namespace is moved out of it. Moved classes see the nested types and the script's members
+/// through the prefix's <c>using static</c>, as far as their accessibility allows: a type a moved
+/// class uses, such as an extension's receiver, must be internal or public, as in LINQPad. Only
+/// synthetic braces and partial-class headers are inserted; the original characters stay in their
+/// original order, and no lines are inserted. The same projection is used by the compiler and editor.
 /// </summary>
 internal sealed class ProgramBodyProjection
 {
@@ -41,10 +46,11 @@ internal sealed class ProgramBodyProjection
         if (!root.Members.OfType<GlobalStatementSyntax>().Any()
             || !root.Members.Any(ContainsExtensionClass)) return Identity(code);
 
-        // Types used as extension receivers must share the extension class's namespace scope. Types
-        // nested inside one of these declarations stay nested: only compilation-unit members move.
-        var declarations = root.Members.Where(m => m is BaseTypeDeclarationSyntax
-            or DelegateDeclarationSyntax or NamespaceDeclarationSyntax).ToList();
+        // Static classes move, extension ones or not (as in LINQPad); other types stay nested, where
+        // they keep seeing the script's own members. A namespace can't be nested in a class at all.
+        // Types nested inside a moved declaration stay where they are: only compilation-unit members move.
+        var declarations = root.Members.Where(m => m is NamespaceDeclarationSyntax
+            || (m is ClassDeclarationSyntax type && type.Modifiers.Any(SyntaxKind.StaticKeyword))).ToList();
         var insertions = new List<Insertion>();
         foreach (var declaration in declarations)
         {
