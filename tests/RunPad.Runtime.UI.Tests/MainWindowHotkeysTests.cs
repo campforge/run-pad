@@ -56,7 +56,7 @@ public class MainWindowHotkeysTests
         var buildCache = new Mock<IBuildCacheService>();
         var intelliSense = new Mock<IIntelliSenseService>();
         var windowService = new Mock<IWindowService>();
-        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()))
+        windowService.Setup(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()))
             .Returns(Task.CompletedTask);
         // Ctrl+W's close path asks this whenever the active tab is untitled+dirty (EditorTabsControl.
         // RequestCloseTabAsync) — an unstubbed loose mock defaults an unconfigured Task<enum> call to
@@ -114,7 +114,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
     }
 
     [AvaloniaFact]
@@ -124,7 +124,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Never);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Never);
     }
 
     [AvaloniaFact]
@@ -134,7 +134,7 @@ public class MainWindowHotkeysTests
 
         window.KeyPress(Key.X, RawInputModifiers.Control | RawInputModifiers.Shift, PhysicalKey.X, null);
 
-        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>()), Times.Once);
+        windowService.Verify(w => w.ShowDependenciesAsync(It.IsAny<IObservable<RunPad.Format.RPad.RpadFrontMatter?>?>(), It.IsAny<IObservable<string?>?>()), Times.Once);
     }
 
     [AvaloniaFact]

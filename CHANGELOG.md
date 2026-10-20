@@ -32,6 +32,12 @@ Notable changes in each RunPad release. Downloads are on the
   writes the classes with `protoc` from the Grpc.Tools package; Test Connection lists the services
   and reads them again. A server that can't be read fails the build with the reason.
 
+- SQLite connections: name a database file (relative to the script's folder, or a full path) in
+  Tools → Connections, and a C# script gets an Entity Framework Core context with a set for each
+  table and view, such as `Connections.Shop.Customers.Where(c => c.City == "Oslo")`, with a class
+  for the rows and completion; changes are saved with `SaveChanges()`. RunPad reads the tables when
+  the script is opened or run, and the connection can be opened read only.
+
 ### Changed
 
 - With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
@@ -47,6 +53,10 @@ Notable changes in each RunPad release. Downloads are on the
   are unchanged. A missing or ambiguous entry point is reported by the compiler.
 
 ### Fixed
+
+- Packages with native libraries (such as SQLite's) work in scripts on Linux with a .NET built by
+  the distribution (for example Ubuntu's `dotnet` packages), which reports its own runtime
+  identifier: the libraries for the portable one (`linux-x64`) are now placed next to the script.
 
 - Secret Store keeps masked values out of accessibility values and change notifications until Show
   is enabled. Connection fields and lists have descriptive accessibility names.

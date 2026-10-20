@@ -460,7 +460,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
 
     private async Task OpenDependenciesWindowAsync()
     {
-        await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter));
+        await _windowService.ShowDependenciesAsync(ActiveTab?.WhenAnyValue(x => x.FrontMatter), ActiveTab?.WhenAnyValue(x => x.FilePath));
         DependenciesWindowClosed?.Invoke();
     }
 

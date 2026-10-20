@@ -439,11 +439,23 @@ public static class NuGetRestorer
     }
 
     // The current platform's RID and its portable fallbacks, most specific first (win-x64 -> win).
-    internal static string[] RuntimeIdentifierFallbacks()
+    // The runtime's own RID first, then the portable one packages ship assets for: a .NET built by a
+    // Linux distribution reports its own RID (ubuntu.24.04-x64), which no package has a folder for,
+    // so SQLite's runtimes/linux-x64/native/libe_sqlite3.so would otherwise never be placed.
+    internal static string[] RuntimeIdentifierFallbacks() =>
+        RuntimeIdentifierFallbacks(RuntimeInformation.RuntimeIdentifier, RuntimeInformation.ProcessArchitecture);
+
+    internal static string[] RuntimeIdentifierFallbacks(string rid, Architecture architecture)
     {
-        var rid = RuntimeInformation.RuntimeIdentifier;
-        var os = rid.Split('-')[0];
-        return OperatingSystem.IsWindows() ? [rid, os, "any"] : [rid, os, "unix", "any"];
+        var arch = architecture.ToString().ToLowerInvariant();
+        var os = OperatingSystem.IsWindows() ? "win"
+            : OperatingSystem.IsMacOS() ? "osx"
+            : rid.Contains("musl", StringComparison.Ordinal) || rid.StartsWith("alpine", StringComparison.Ordinal) ? "linux-musl"
+            : "linux";
+        string[] all = OperatingSystem.IsWindows()
+            ? [rid, $"{os}-{arch}", rid.Split('-')[0], os, "any"]
+            : [rid, $"{os}-{arch}", rid.Split('-')[0], os, os == "linux-musl" ? "linux" : "unix", "unix", "any"];
+        return [.. all.Distinct(StringComparer.Ordinal)];
     }
 
     private static ResultItem Message(string code, string text) => new(code, "", new LineSymbol(0, 0), text);

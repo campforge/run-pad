@@ -1,0 +1,217 @@
+using System.Collections.Concurrent;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
+using RunPad.Build.Core.Models;
+using RunPad.Connectors.Sqlite;
+using RunPad.Contracts.Connections;
+using RunPad.Contracts.Models;
+using RunPad.Format.RPad;
+using RunPad.Languages.CSharp;
+using RunPad.Languages.CSharp.IntelliSense;
+using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Sdk;
+using RunPad.Windows.Models;
+using Xunit;
+
+namespace RunPad.NonUI.Tests;
+
+// A SQLite connection reads the database's tables and views, and the script gets an EF Core context
+// with a set per table. The file here is a real one next to a script, named by a relative path.
+public sealed class SqliteConnectionTests : IDisposable
+{
+    private readonly string _folder = Directory.CreateTempSubdirectory("runpad-sqlite-connection").FullName;
+
+    public SqliteConnectionTests()
+    {
+        Directory.CreateDirectory(Path.Combine(_folder, "scripts", "data"));
+        using var connection = new SqliteConnection($"Data Source={DatabasePath};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT NOT NULL, city TEXT, created DATETIME);
+            CREATE TABLE order_items (order_id INTEGER, line INTEGER, qty INT NOT NULL, price DECIMAL(10, 2), PRIMARY KEY (order_id, line));
+            CREATE TABLE log (message TEXT);
+            CREATE VIEW big_customers AS SELECT id, name FROM customers WHERE city = 'Oslo';
+            INSERT INTO customers (name, city, created) VALUES ('Ann', 'Oslo', '2026-01-02 03:04:05'), ('Bob', 'Paris', NULL), ('Cy', 'Oslo', NULL);
+            INSERT INTO order_items VALUES (1, 1, 2, 9.5), (1, 2, 3, 1.25);
+            INSERT INTO log VALUES ('started');
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    public void Dispose() => Directory.Delete(_folder, true);
+
+    private string ScriptDirectory => Path.Combine(_folder, "scripts");
+
+    private string DatabasePath => Path.Combine(ScriptDirectory, "data", "shop.db");
+
+    private static RpadConnection Shop(string file = "data/shop.db", string? readOnly = null) => new()
+    {
+        Name = "shop",
+        Driver = "sqlite",
+        Params = readOnly is null
+            ? new(StringComparer.Ordinal) { ["file"] = RpadValue.Of(file) }
+            : new(StringComparer.Ordinal) { ["file"] = RpadValue.Of(file), ["readOnly"] = RpadValue.Of(readOnly) },
+    };
+
+    private ConnectionSchemas Schemas()
+    {
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SqliteConnectionDriver());
+        return new ConnectionSchemas(drivers, Path.Combine(_folder, "schemas"), DotnetConnectionTools.Default, _ => null);
+    }
+
+    private static Dictionary<string, RpadValue> Resolved(RpadConnection connection) =>
+        ConnectionPlaceholderResolver.Resolve(connection.Params, _ => null, _ => null).Params.ToDictionary();
+
+    [Fact]
+    public void Validate_Should_NameWhatIsWrong()
+    {
+        var driver = new SqliteConnectionDriver();
+        Assert.Empty(driver.Validate(Shop()));
+        Assert.Equal(["The database file is missing."], driver.Validate(new RpadConnection { Name = "a", Driver = "sqlite" }));
+        Assert.Equal(
+            ["An in-memory database has no tables to read: give a database file.", "Read only must be true or false, not 'yes'."],
+            driver.Validate(Shop(":memory:", "yes")));
+        Assert.True(driver.UsesScriptDirectory(Shop()));
+        Assert.True(driver.UsesScriptDirectory(Shop("${env:SHOP_DB}")));
+        Assert.False(driver.UsesScriptDirectory(Shop(Path.GetFullPath("/data/shop.db"))));
+    }
+
+    [Fact]
+    public async Task Test_Should_ListTheTables_OrSayWhyNot()
+    {
+        var driver = new SqliteConnectionDriver();
+        var ok = await driver.TestAsync(Resolved(Shop(DatabasePath)), TestContext.Current.CancellationToken);
+        Assert.True(ok.Succeeded, ok.Message);
+        Assert.Equal("3 tables and 1 view: big_customers, customers, log, order_items.", ok.Message);
+
+        var relative = await driver.TestAsync(Resolved(Shop()), TestContext.Current.CancellationToken);
+        Assert.False(relative.Succeeded);
+        Assert.Equal("'data/shop.db' is relative to the script's folder: save the script first, or give a full path.", relative.Message);
+
+        var missing = Path.Combine(_folder, "nope.db");
+        var absent = await driver.TestAsync(Resolved(Shop(missing)), TestContext.Current.CancellationToken);
+        Assert.Equal($"The database file {missing} doesn't exist.", absent.Message);
+        Assert.False(File.Exists(missing)); // never created
+    }
+
+    [Fact]
+    public void Names_And_Types_Should_ReadAsCSharp()
+    {
+        Assert.Equal("OrderItems", SqliteModel.Pascal("order_items", "Table"));
+        Assert.Equal("OrderItems", SqliteModel.Pascal("Order Items", "Table"));
+        Assert.Equal("Table2020", SqliteModel.Pascal("2020", "Table"));
+        Assert.Equal("Column", SqliteModel.Pascal("$", "Column"));
+        Assert.Equal(["Category", "Address", "Box", "Status", "Data"],
+            new[] { "Categories", "Addresses", "Boxes", "Status", "Data" }.Select(SqliteModel.Singular));
+
+        Assert.Equal(("long", true), SqliteModel.ClrType("INTEGER"));
+        Assert.Equal(("string", false), SqliteModel.ClrType("varchar(20)"));
+        Assert.Equal(("byte[]", false), SqliteModel.ClrType(""));
+        Assert.Equal(("double", true), SqliteModel.ClrType("REAL"));
+        Assert.Equal(("decimal", true), SqliteModel.ClrType("DECIMAL(10,2)"));
+        Assert.Equal(("bool", true), SqliteModel.ClrType("BOOLEAN"));
+        Assert.Equal(("global::System.DateTime", true), SqliteModel.ClrType("datetime"));
+        Assert.Equal(("global::System.DateOnly", true), SqliteModel.ClrType("DATE"));
+        Assert.Equal(("global::System.Guid", true), SqliteModel.ClrType("UUID"));
+
+        // A set never takes a DbContext member's name, and a row class never its set's.
+        var model = SqliteModel.Build(
+        [
+            new SqliteTable("model", false, [new SqliteColumn("model", "TEXT", false, 0)]),
+            new SqliteTable("data", false, []),
+        ], "ShopClient");
+        Assert.Equal(["ModelTable", "Data"], model.Select(e => e.SetName));
+        Assert.Equal(["ModelRow", "DataRow"], model.Select(e => e.ClassName));
+        Assert.Equal("Model", model[0].Columns[0].PropertyName);
+    }
+
+    [Fact]
+    [Trait("Category", "RealBuild")]
+    public async Task AScript_Should_QueryAndChangeTheDatabase_ThroughItsContext()
+    {
+        if (!new DotnetSdkProvider().Get().Any()) return;
+        var connection = Shop();
+        var schemas = Schemas();
+        // Relative to the script's folder: read for that folder only.
+        Assert.True(await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken));
+        Assert.Null(schemas.Cache.ErrorFor(connection, ScriptDirectory));
+        Assert.Equal("3 tables and 1 view: big_customers, customers, log, order_items.", schemas.Cache.Get(connection, ScriptDirectory)!.Summary);
+        Assert.Null(schemas.Cache.Get(connection, _folder));
+
+        var packages = new SqliteConnectionDriver().Packages;
+        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, packages.Keys, schemas.Drivers, schemas.Cache, ScriptDirectory)!;
+        Assert.Empty(generated.Errors);
+        Assert.Contains("public global::Microsoft.EntityFrameworkCore.DbSet<Customer> Customers => Set<Customer>();", generated.Source);
+        Assert.Contains("e.HasKey(x => new { x.OrderId, x.Line });", generated.Source);
+        Assert.Contains("public sealed class LogRow", generated.Source);
+
+        // The editor knows the sets and the rows' columns before any run.
+        var referenceService = new CSharpReferenceService();
+        using (var service = new CSharpIntelliSenseService(
+                   referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance))
+        {
+            service.UpdateExecutionContext(new ExecutionRequest { Packages = packages, Connections = generated });
+            const string code = "Connections.Shop.";
+            var members = await service.GetCompletionsAsync(code, code.Length, ct: TestContext.Current.CancellationToken);
+            Assert.Contains(members!.Items, i => i.DisplayText == "Customers");
+            Assert.Contains(members.Items, i => i.DisplayText == "OrderItems");
+        }
+
+        var outputDir = Path.Combine(_folder, "build");
+        Directory.CreateDirectory(outputDir);
+        var options = CompiledDotnetLanguageHostOptions.From(new ExecutionRequest
+        {
+            Platform = new DotnetSdkProvider().Get().First(),
+            OutputDirectory = outputDir,
+            WorkingDirectory = outputDir,
+            CurrentQueryPath = Path.Combine(ScriptDirectory, "shop.rpad"),
+            Packages = packages,
+            Connections = generated,
+        }, new CSharpReferenceService().GetExtensionReference());
+        await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
+        var output = new ConcurrentQueue<string>();
+        var errors = new ConcurrentQueue<string>();
+        const string script = """
+            var shop = Connections.Shop;
+            Console.WriteLine(string.Join(",", shop.Customers.Where(c => c.City == "Oslo").OrderBy(c => c.Id).Select(c => c.Name)));
+            Console.WriteLine(shop.Customers.Single(c => c.Name == "Ann").Created?.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.WriteLine(shop.OrderItems.Sum(i => i.Qty));
+            Console.WriteLine(shop.Log.Single().Message + " " + shop.BigCustomers.Count());
+            shop.Customers.Add(new Connections.ShopClient.Customer { Name = "Eve", City = "Bergen" });
+            shop.SaveChanges();
+            Console.WriteLine(shop.Customers.Count());
+            """;
+        var result = await host.RunAsync(script, (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data),
+                TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromMinutes(3), TestContext.Current.CancellationToken);
+
+        Assert.True(result.Succeeded, string.Join('\n', errors));
+        Assert.Equal(["Ann,Cy", "2026-01-02 03:04:05", "5", "started 2", "4"], output.TakeLast(5));
+        await using var check = new SqliteConnection($"Data Source={DatabasePath};Pooling=False");
+        await check.OpenAsync(TestContext.Current.CancellationToken);
+        await using var count = check.CreateCommand();
+        count.CommandText = "SELECT name FROM customers WHERE id = 4";
+        Assert.Equal("Eve", await count.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
+    // A connection that can't be read is a build error with the reason, here and on the Connections tab.
+    [Fact]
+    public async Task AMissingFile_Should_BeABuildError_WithTheReason()
+    {
+        var connection = Shop("data/missing.db");
+        var schemas = Schemas();
+        await schemas.EnsureAsync([connection], ScriptDirectory, ConnectionSchemaRefresh.Missing, TestContext.Current.CancellationToken);
+        var reason = $"The database file {Path.Combine(ScriptDirectory, "data", "missing.db")} doesn't exist.";
+        var packages = new SqliteConnectionDriver().Packages.Keys;
+        Assert.Equal([$"Connection 'shop': its description couldn't be read: {reason}"],
+            GeneratedConnections.For([connection], RpadLanguage.CSharp, packages, schemas.Drivers, schemas.Cache, ScriptDirectory)!.Errors);
+
+        var tab = new ScriptConnectionsViewModel(null, null, schemas.Drivers, schemas.Cache);
+        tab.UsePackages(() => new HashSet<string>(packages, StringComparer.OrdinalIgnoreCase), (_, _) => { });
+        tab.SetScriptPath(Path.Combine(ScriptDirectory, "shop.rpad"));
+        tab.Load(new RpadFrontMatter { Connections = [connection] });
+        Assert.Equal($"Its description couldn't be read: {reason}", Assert.Single(tab.Items).Problem);
+    }
+}

@@ -56,6 +56,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private readonly ISecretStore? _secrets;
     private readonly ConnectionDriverRegistry _drivers;
     private readonly ConnectionSchemaCache? _schemas;
+    // The script's folder, which a database file's relative path is read from.
+    private string? _scriptDirectory;
     private IReadOnlyList<RpadConnection> _original = [];
     private List<RpadConnection> _mine = [];
     private string? _version;
@@ -148,6 +150,12 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     // After the script's packages change: a missing package is a problem of the connection.
     internal void OnPackagesChanged() => Refresh();
+
+    internal void SetScriptPath(string? path)
+    {
+        _scriptDirectory = path is null ? null : Path.GetDirectoryName(path);
+        Refresh();
+    }
 
     internal void Load(RpadFrontMatter? frontMatter)
     {
@@ -276,7 +284,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
                 problems.AddRange(driver.Validate(connection));
                 problems.AddRange(GeneratedConnections.MissingPackages(driver, _scriptPackages())
                     .Select(id => $"Needs the NuGet package {id}: add it on the Packages tab."));
-                if (driver is IConnectionSchemaDriver && _schemas?.Get(connection) is null && _schemas?.ErrorFor(connection) is { } why)
+                if (driver is IConnectionSchemaDriver && _schemas?.Get(connection, _scriptDirectory) is null
+                    && _schemas?.ErrorFor(connection, _scriptDirectory) is { } why)
                     problems.Add($"Its description couldn't be read: {why}");
             }
             foreach (var text in connection.Params.Values.SelectMany(v => v.Texts()))
