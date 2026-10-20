@@ -63,7 +63,7 @@
                 <StackPanel Spacing="12" DataContext="{Binding SelectedConnection}" x:DataType="viewModels:ConnectionItemViewModel">
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="12">
                         <TextBlock Text="Name:" VerticalAlignment="Center"/>
-                        <TextBox x:Name="NameBox" Grid.Column="1" Text="{Binding Name}" AutomationProperties.Name="Connection name"/>
+                        <TextBox Classes="form-field" x:Name="NameBox" Grid.Column="1" Text="{Binding Name}" AutomationProperties.Name="Connection name"/>
                         <TextBlock Grid.Row="1" Text="Type:"/>
                         <TextBlock x:Name="DriverText" Grid.Row="1" Grid.Column="1" Text="{Binding DriverName}"/>
                     </Grid>
@@ -74,15 +74,15 @@
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{Binding Label}" FontSize="12" IsVisible="{Binding !IsBoolean}"/>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
-                                        <TextBox Classes="field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
+                                        <TextBox Classes="field form-field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
                                         <controls:SecretPicker Grid.Column="1"
                                                   SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding CanInsertSecret}"
                                                   AutomationProperties.Name="{Binding Param.Label, StringFormat='Insert secret into {0}'}" ToolTip.Tip="Insert secret"/>
                                     </Grid>
                                     <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
-                                    <ComboBox IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch" ItemsSource="{Binding Choices}"
+                                    <ComboBox Classes="form-field" IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch" ItemsSource="{Binding Choices}"
                                               SelectedItem="{Binding Text}" AutomationProperties.Name="{Binding Param.Label}"/>
-                                    <TextBox IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"
+                                    <TextBox Classes="form-field" IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"
                                              AutomationProperties.Name="{Binding Param.Label}"/>
                                     <StackPanel IsVisible="{Binding IsMap}" Spacing="8">
                                         <ItemsControl ItemsSource="{Binding Rows}">
@@ -90,11 +90,11 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
                                                     <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
-                                                        <TextBox Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
+                                                        <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
                                                         <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="Remove header"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
                                                                 Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
-                                                        <TextBox Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
+                                                        <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
                                                                  AutomationProperties.Name="{Binding ValueFieldLabel}"/>
                                                         <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
                                                                   SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
