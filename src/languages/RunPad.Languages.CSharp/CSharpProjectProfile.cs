@@ -13,5 +13,5 @@ internal static class CSharpProjectProfile
     public static readonly DotnetLanguageProjectProfile Instance = new(
         SourceFileExtension: ".cs",
         DefaultImportNamespaces: ["RunPad.Runtime"],
-        FormatImportStatement: ns => $"using {ns};");
+        FormatImportStatement: ns => $"global using {ns};");
 }

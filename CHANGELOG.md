@@ -25,6 +25,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Per-script C# imports work with global using directives in the source, in both compilation
+  and editor diagnostics.
+
 - Importing C# LINQPad queries now preserves standard namespace imports alongside custom imports
   in the converted file, so names such as StringBuilder and XDocument resolve without editing code.
 

@@ -40,6 +40,17 @@ public class CSharpIntelliSenseKindAwarenessTests
     }
 
     [Fact]
+    public async Task ImportedNamespaces_Should_NotConflictWithGlobalUsings()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Statements);
+        service.UpdateGlobalUsings(["System.Text"]);
+        const string code = "global using Text = System.Text;\nusing System.Globalization;\nConsole.WriteLine(new Text.StringBuilder());";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == RunPad.Contracts.IntelliSense.DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenKindIsProgram()
     {
         using var service = CreateService();

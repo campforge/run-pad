@@ -18,10 +18,25 @@ namespace RunPad.NonUI.Tests;
 [Collection(RealBuildTestCollection.Name)]
 public class LinqPadCompatibilityRunTests
 {
+    [Fact]
+    public async Task ImportedNamespaceProfile_Should_AllowGlobalUsingsInTheSource()
+    {
+        if (NoSdk) return;
+        var doc = LinqConverter.Convert("""
+            <Query Kind="Statements" />
+            global using Text = System.Text;
+            using System.Globalization;
+            Console.WriteLine(new Text.StringBuilder("imports").ToString());
+            """);
+        var run = await RunAsync(doc.FrontMatter.Kind, doc.RunCode, usings: doc.FrontMatter.Namespaces);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("imports", run.Output);
+    }
+
     private sealed record Run(RunResult Result, string Output, string Errors, string Dumps);
 
     private static async Task<Run> RunAsync(RpadKind kind, string code, IReadOnlyList<string>? args = null, bool allowUnsafe = false,
-        string? outputDirectory = null)
+        string? outputDirectory = null, IReadOnlyList<string>? usings = null)
     {
         var outputDir = outputDirectory ?? Directory.CreateTempSubdirectory("runpad-linqpad-compat").FullName;
         try
@@ -40,6 +55,7 @@ public class LinqPadCompatibilityRunTests
                 Kind = kind,
                 Arguments = args ?? [],
                 AllowUnsafe = allowUnsafe,
+                Usings = usings ?? [],
             };
             await using var host = new CSharpLanguageHost(options, NullLoggerFactory.Instance);
             var output = new ConcurrentQueue<string>();
