@@ -63,9 +63,13 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private string? _version;
     private List<RpadConnection>? _pendingImport;
     private string? _pendingVersion;
-    // The script's packages as drafted in the window, and how to add one there.
+    // The script's packages as drafted in the window, and how to add or remove one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
+    private Action<string> _removePackage = _ => { };
+    // Packages the draft gained for a connection added since Load, so removing that connection
+    // again before saving takes away what adding it brought and nothing the script had.
+    private readonly Dictionary<ScriptConnectionItemViewModel, List<string>> _addedPackages = [];
 
     internal event Action? Edited;
 
@@ -112,14 +116,31 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ConfirmImportCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelImportCommand { get; }
 
-    // Why the user's list couldn't be read or written; Import is off while it can't be read.
-    public string? StoreError
+    // Why the user's list couldn't be read; Import is off until it can be.
+    public string? ReadError
     {
         get;
-        private set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(HasStoreError)); }
+        private set { this.RaiseAndSetIfChanged(ref field, value); OnStoreErrorChanged(); }
     }
 
+    public bool HasReadError => ReadError is not null;
+
+    // Why the last import couldn't be written; Import stays on to try again.
+    public string? WriteError
+    {
+        get;
+        private set { this.RaiseAndSetIfChanged(ref field, value); OnStoreErrorChanged(); }
+    }
+
+    public string? StoreError => ReadError ?? WriteError;
     public bool HasStoreError => StoreError is not null;
+
+    private void OnStoreErrorChanged()
+    {
+        this.RaisePropertyChanged(nameof(HasReadError));
+        this.RaisePropertyChanged(nameof(StoreError));
+        this.RaisePropertyChanged(nameof(HasStoreError));
+    }
 
     public ReactiveCommand<Unit, Unit> AddCommand { get; }
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
@@ -136,16 +157,18 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         AddCommand = ReactiveCommand.Create(AddSelected, this.WhenAnyValue(x => x.SelectedAvailable, (RpadConnection? c) => c is not null));
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
-            this.WhenAnyValue(x => x.SelectedItem, x => x.HasStoreError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
+            this.WhenAnyValue(x => x.SelectedItem, x => x.HasReadError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
         ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
         CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
     }
 
     // The Dependencies window's own package draft, which connections add their packages to.
-    internal void UsePackages(Func<IReadOnlySet<string>> scriptPackages, Action<string, string> addPackage)
+    internal void UsePackages(Func<IReadOnlySet<string>> scriptPackages, Action<string, string> addPackage,
+        Action<string>? removePackage = null)
     {
         _scriptPackages = scriptPackages;
         _addPackage = addPackage;
+        _removePackage = removePackage ?? (_ => { });
     }
 
     // After the script's packages change: a missing package is a problem of the connection.
@@ -160,6 +183,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     internal void Load(RpadFrontMatter? frontMatter)
     {
         SelectedItem = null;
+        _addedPackages.Clear();
+        WriteError = null;
         _original = frontMatter?.Connections ?? [];
         IsCSharp = frontMatter?.Language is null or RpadLanguage.CSharp;
         LoadMine();
@@ -180,12 +205,12 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
             var snapshot = _store.LoadSnapshot();
             _version = snapshot.Version;
             _mine = [.. snapshot.Connections];
-            StoreError = null;
+            ReadError = null;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
             _mine = [];
-            StoreError = $"Your connections can't be read: {ex.Message}";
+            ReadError = $"Your connections can't be read: {ex.Message}";
         }
     }
 
@@ -196,8 +221,16 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         Items.Add(item);
         SelectedItem = item;
         if (_drivers.Find(connection.Driver) is { } driver)
+        {
+            var added = new List<string>();
             foreach (var (id, version) in driver.Packages)
-                if (!_scriptPackages().Contains(id)) _addPackage(id, version);
+            {
+                if (_scriptPackages().Contains(id)) continue;
+                _addPackage(id, version);
+                if (_scriptPackages().Contains(id)) added.Add(id);
+            }
+            if (added.Count > 0) _addedPackages[item] = added;
+        }
         Refresh();
         Edited?.Invoke();
     }
@@ -208,6 +241,16 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         var index = Items.IndexOf(item);
         Items.Remove(item);
         SelectedItem = Items.Count == 0 ? null : Items[Math.Min(index, Items.Count - 1)];
+        if (_addedPackages.Remove(item, out var added))
+            foreach (var id in added)
+            {
+                // A package another connection still needs stays, and goes with that one instead.
+                var needing = Items.FirstOrDefault(i => _drivers.Find(i.Connection.Driver)?.Packages.Keys
+                    .Contains(id, StringComparer.OrdinalIgnoreCase) == true);
+                if (needing is null) _removePackage(id);
+                else if (_addedPackages.TryGetValue(needing, out var theirs)) theirs.Add(id);
+                else _addedPackages[needing] = [id];
+            }
         Refresh();
         Edited?.Invoke();
     }
@@ -217,17 +260,25 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private void ImportSelected()
     {
         if (SelectedItem is not { } item || _store is null) return;
+        WriteError = null;
         LoadMine();
-        if (HasStoreError) return;
+        if (HasReadError) return;
         var candidate = _mine.ToList();
-        var index = candidate.FindIndex(c => string.Equals(c.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+        // A saved connection with the same name in code is replaced too: keeping both would make
+        // any script that lists them together fail to build.
+        var match = FindMine(item.Name);
+        var index = match is null ? -1 : candidate.IndexOf(match);
         if (index >= 0) candidate[index] = Clone(item.Connection);
         else candidate.Add(Clone(item.Connection));
         if (index >= 0 && Json([_mine[index]]) != Json([item.Connection]))
         {
+            var mine = _mine[index].Name;
             _pendingImport = candidate;
             _pendingVersion = _version;
-            ImportMessage = $"Replace your saved connection '{item.Name}'? This is saved immediately; Cancel in Dependencies will not undo it.";
+            ImportMessage = (string.Equals(mine, item.Name, StringComparison.OrdinalIgnoreCase)
+                    ? $"Replace your saved connection '{mine}'?"
+                    : $"Replace your saved connection '{mine}' with '{item.Name}'? Both are {RpadConnection.CodeName(item.Name)} in code.")
+                + " This is saved immediately; Cancel in Dependencies will not undo it.";
             IsImportConfirmationPending = true;
             return;
         }
@@ -261,24 +312,44 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StoreError = ex is ConnectionStoreConflictException
+            WriteError = ex is ConnectionStoreConflictException
                 ? "Your connections changed in another window. Nothing was imported; reopen Dependencies and try again."
                 : "Your connections could not be saved. Check access and available disk space, then try again.";
         }
         Refresh();
     }
 
+    // The saved connection of that name, or else the one with the same name in code.
+    private RpadConnection? FindMine(string name) =>
+        _mine.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+        ?? _mine.FirstOrDefault(c => SameCodeName(c.Name, name));
+
+    // As RpadConnection.Validate compares them: two such connections can't be in one script.
+    private static bool SameCodeName(string a, string b) =>
+        string.Equals(RpadConnection.CodeName(a), RpadConnection.CodeName(b), StringComparison.OrdinalIgnoreCase);
+
     private void Refresh()
     {
         var secretNames = SecretNames();
+        // Validate reports each connection's problems as it reaches it, so the messages that
+        // appear when a connection joins the list are that connection's.
+        var listed = new List<RpadConnection>();
+        var reported = 0;
         foreach (var item in Items)
         {
             var connection = item.Connection;
+            listed.Add(connection);
+            var listErrors = RpadConnection.Validate(listed);
+            var problems = listErrors.Skip(reported).ToList();
+            reported = listErrors.Count;
             var driver = _drivers.Find(connection.Driver);
             item.DriverName = driver?.DisplayName ?? connection.Driver;
-            var problems = new List<string>();
             if (!IsCSharp) problems.Add("Connections can be used in C# scripts only, for now.");
-            if (driver is null) problems.Add($"This RunPad has no '{connection.Driver}' driver.");
+            if (driver is null)
+            {
+                // Without a driver id, Validate has already said so.
+                if (!string.IsNullOrWhiteSpace(connection.Driver)) problems.Add($"This RunPad has no '{connection.Driver}' driver.");
+            }
             else
             {
                 problems.AddRange(driver.Validate(connection));
@@ -288,26 +359,31 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
                     && _schemas?.ErrorFor(connection, _scriptDirectory) is { } why)
                     problems.Add($"Its description couldn't be read: {why}");
             }
+            // A malformed placeholder is one of Validate's messages.
             foreach (var text in connection.Params.Values.SelectMany(v => v.Texts()))
             {
                 var parsed = RpadPlaceholders.Parse(text);
-                if (parsed.Error is { } error) problems.Add(error);
                 problems.AddRange(parsed.Parts
                     .Where(p => p.Kind == RpadPlaceholders.Kind.Secret && secretNames is not null && !secretNames.Contains(p.Value))
                     .Select(p => $"The Secret Store has no secret named '{p.Value}'."));
             }
             item.Problem = problems.Count == 0 ? null : string.Join("\n", problems.Distinct());
 
-            var mine = _mine.FirstOrDefault(c => string.Equals(c.Name, connection.Name, StringComparison.OrdinalIgnoreCase));
+            var mine = FindMine(connection.Name);
             item.Status = _store is null ? ""
                 : mine is null ? "Not in your connections: Import keeps it there."
+                : !string.Equals(mine.Name, connection.Name, StringComparison.OrdinalIgnoreCase)
+                    ? $"Has the same name in code as your connection '{mine.Name}': Import replaces yours."
                 : Json([mine]) == Json([connection]) ? "Same as in your connections."
                 : "Differs from your connection of the same name: Import replaces yours.";
         }
+        // Clearing the list lets the bound picker clear the selection, so remember it first.
+        var previous = SelectedAvailable?.Name;
         Available.Clear();
-        foreach (var connection in _mine.Where(m => Items.All(i => !string.Equals(i.Name, m.Name, StringComparison.OrdinalIgnoreCase))))
+        foreach (var connection in _mine.Where(m => Items.All(i => !SameCodeName(i.Name, m.Name))))
             Available.Add(connection);
-        SelectedAvailable = Available.FirstOrDefault();
+        SelectedAvailable = Available.FirstOrDefault(c => string.Equals(c.Name, previous, StringComparison.OrdinalIgnoreCase))
+            ?? Available.FirstOrDefault();
         this.RaisePropertyChanged(nameof(AvailableHint));
     }
 
