@@ -492,7 +492,7 @@
                         <Button x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="hint" TextWrapping="Wrap"
-                               Text="Add a connection to use its client in this script. Secrets are read only when the script runs."/>
+                               Text="Add a connection to use its client in this script. Its secrets stay out of the script: the script reads them when it runs."/>
                     <Border Grid.Row="2"
                             BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             BorderThickness="1" CornerRadius="4">

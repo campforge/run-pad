@@ -86,4 +86,4 @@
     <!-- IL disassembly for the "IL" output tab — ILSpy/SharpDevelop team, actively maintained. -->
     <PackageVersion Include="ICSharpCode.Decompiler" Version="11.1.0.9782" />
   </ItemGroup>
-</Project>
+</Project>
