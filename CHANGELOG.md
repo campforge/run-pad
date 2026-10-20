@@ -25,6 +25,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Importing C# LINQPad queries now preserves standard namespace imports alongside custom imports
+  in the converted file, so names such as StringBuilder and XDocument resolve without editing code.
+
 - Recovery cleanup preserves a session acquired by another RunPad instance while retiring imported drafts.
 
 - C# Program scripts can declare extension methods and custom awaiters alongside Main, as in

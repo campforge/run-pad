@@ -79,7 +79,68 @@ public class LinqConverterTests
 
         var doc = LinqConverter.Convert(linq);
 
-        Assert.Equal(["System.Text", "System.Text.Json"], doc.FrontMatter.Namespaces);
+        Assert.Equal(CSharpDefaults.Append("System.Text.Json"), doc.FrontMatter.Namespaces);
+    }
+
+    private static readonly string[] CSharpDefaults =
+    [
+        "System", "System.Collections", "System.Collections.Generic", "System.Data",
+        "System.Diagnostics", "System.IO", "System.Linq", "System.Linq.Expressions",
+        "System.Reflection", "System.Text", "System.Text.RegularExpressions", "System.Threading",
+        "System.Transactions", "System.Xml", "System.Xml.Linq", "System.Xml.XPath",
+    ];
+
+    [Theory]
+    [InlineData("Statements")]
+    [InlineData("Expression")]
+    [InlineData("Program")]
+    public void Convert_Should_PersistCSharpDefaultImports_ThroughRoundTrip(string kind)
+    {
+        var doc = LinqConverter.Convert($"<Query Kind=\"{kind}\" />\n1");
+        Assert.Equal(CSharpDefaults, doc.FrontMatter.Namespaces);
+        var reparsed = RpadParser.TryParse(RpadWriter.Write(doc));
+        Assert.NotNull(reparsed);
+        Assert.Equal(CSharpDefaults, reparsed.FrontMatter.Namespaces);
+        Assert.Equal("1\n", reparsed.RunCode);
+    }
+
+    [Fact]
+    public void Convert_Should_MergeImportsWithoutLosingCustomSyntaxOrCase()
+    {
+        const string linq = """
+            <Query Kind="Statements">
+              <Namespace> System.Text </Namespace>
+              <Namespace>Acme.Tools</Namespace>
+              <Namespace>Acme.Tools</Namespace>
+              <Namespace>static System.Math</Namespace>
+              <Namespace>Builder = System.Text.StringBuilder</Namespace>
+              <Namespace>system.text</Namespace>
+              <Namespace> </Namespace>
+            </Query>
+            """;
+        var doc = LinqConverter.Convert(linq);
+        Assert.Equal(CSharpDefaults.Concat(new[] { "Acme.Tools", "static System.Math",
+            "Builder = System.Text.StringBuilder", "system.text" }), doc.FrontMatter.Namespaces);
+    }
+
+    [Theory]
+    [InlineData("VBStatements")]
+    [InlineData("VBExpression")]
+    [InlineData("VBProgram")]
+    public void Convert_Should_KeepVbImportsAsWritten(string kind)
+    {
+        var doc = LinqConverter.Convert($"<Query Kind=\"{kind}\"><Namespace>System.Text</Namespace></Query>");
+        Assert.Equal(["System.Text"], doc.FrontMatter.Namespaces);
+    }
+
+    [Fact]
+    public void ConvertingLinq_Should_NotAddImportsToAnOrdinaryRpadFile()
+    {
+        var text = RpadWriter.NewFile("1");
+        LinqConverter.Convert("<Query Kind=\"Statements\" />");
+        var doc = RpadParser.TryParse(text);
+        Assert.NotNull(doc);
+        Assert.True(doc.FrontMatter.Namespaces is null or { Count: 0 });
     }
 
     [Fact]
