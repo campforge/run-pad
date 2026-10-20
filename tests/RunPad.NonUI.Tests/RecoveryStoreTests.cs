@@ -505,18 +505,18 @@ public sealed class RecoveryStoreTests : IDisposable
     }
 
     // Once the checkpoint that imported a session is replaced, both generations a start can fall back
-    // to hold its drafts: the source session is deleted and later checkpoints stop recording it.
+    // to hold its drafts: the source checkpoints are removed and later checkpoints stop recording it.
     [Fact]
-    public async Task ASettledImport_Should_DeleteTheSourceSession_AndStopRecordingIt()
+    public async Task ASettledImport_Should_RetireTheSourceSession_AndStopRecordingIt()
     {
-        var (destination, source) = await ImportThenAsync();
+        var (_, source) = await ImportThenAsync();
         Assert.True(Directory.Exists(source)); // the importing checkpoint alone keeps it
 
         using (var later = new DiskRecoveryStore(_root))
         {
             var restored = (await later.LoadAsync())!;
             await later.CommitAsync(restored with { Revision = 3 });
-            Assert.False(Directory.Exists(source));
+            Assert.Equal(["owner.lock"], Directory.GetFiles(source).Select(Path.GetFileName));
             await later.CommitAsync(restored with { Revision = 4 });
         }
         using var reopened = new DiskRecoveryStore(_root);
@@ -525,13 +525,13 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Empty(snapshot.ImportedSessions ?? []);
         Assert.Empty(reopened.Imports);
         Assert.Null(reopened.Warning);
-        Assert.Equal([destination], Directory.GetDirectories(_root));
+        Assert.Equal(2, Directory.GetDirectories(_root).Length);
     }
 
     // A session imported in turn carries the sessions it had imported: deleting it must not make
-    // their drafts look abandoned, so they are recorded and deleted with it, never offered twice.
+    // their drafts look abandoned, so their checkpoints are retired with it, never offered twice.
     [Fact]
-    public async Task ImportingAnImportingSession_Should_TakeOverItsSources_AndDeleteThemTogether()
+    public async Task ImportingAnImportingSession_Should_TakeOverItsSources_AndRetireThemTogether()
     {
         var (destination, source) = await ImportThenAsync();
         var staging = Path.Combine(_root, "staging");
@@ -552,13 +552,40 @@ public sealed class RecoveryStoreTests : IDisposable
             await next.CommitAsync(merged);
             await next.CommitAsync(merged with { Revision = 3 });
         }
-        Assert.False(Directory.Exists(destination));
-        Assert.False(Directory.Exists(source));
+        Assert.Equal(["owner.lock"], Directory.GetFiles(destination).Select(Path.GetFileName));
+        Assert.Equal(["owner.lock"], Directory.GetFiles(source).Select(Path.GetFileName));
 
         using var reopened = new DiskRecoveryStore(_root);
         var snapshot = (await reopened.LoadAsync())!;
         Assert.Equal(["NEWEST", "BASE", "IMPORTED-DRAFT"], snapshot.Tabs.Select(t => t.EditorText));
         Assert.Empty(reopened.Imports);
         Assert.Null(reopened.Warning);
+    }
+
+    [Fact]
+    public async Task RetiringAnImport_Should_NotDeleteDataWrittenByTheNextOwner()
+    {
+        var (_, source) = await ImportThenAsync();
+        var newPayload = Path.Combine(source, "new-owner.snapshot");
+        FileStream? newOwner = null;
+        try
+        {
+            using var later = new DiskRecoveryStore(_root, stage =>
+            {
+                if (stage != "import-retired") return;
+                newOwner = new FileStream(Path.Combine(source, "owner.lock"),
+                    FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                File.WriteAllText(newPayload, "new owner's draft");
+            });
+            var restored = (await later.LoadAsync())!;
+            await later.CommitAsync(restored with { Revision = 3 });
+
+            Assert.NotNull(newOwner);
+            Assert.True(File.Exists(newPayload));
+            Assert.Equal("new owner's draft", File.ReadAllText(newPayload));
+            Assert.Throws<IOException>(() => new FileStream(Path.Combine(source, "owner.lock"),
+                FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
+        }
+        finally { newOwner?.Dispose(); }
     }
 }

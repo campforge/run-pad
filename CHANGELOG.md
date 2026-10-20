@@ -25,6 +25,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Recovery cleanup preserves a session acquired by another RunPad instance while retiring imported drafts.
+
 - C# Program scripts can declare extension methods and custom awaiters alongside Main, as in
   LINQPad: static classes are compiled outside the generated class, other types stay nested in it,
   so a type an extension uses (such as its receiver) must be internal or public. The editor keeps

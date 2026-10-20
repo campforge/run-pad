@@ -213,7 +213,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     }
 
     // Deletes a session whose drafts this one holds, as of the revision that was imported; true once
-    // it is gone. A session someone has open, or one written since, is left for a later checkpoint.
+    // its checkpoint data is gone. A session someone has open, or one written since, is left for a later checkpoint.
     private bool TryRemoveTakenOver(RecoveryImportRecord record)
     {
         if (!Guid.TryParseExact(record.Source, "N", out _)) return false;
@@ -238,8 +238,10 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         {
             return !File.Exists(Path.Combine(folder, "current.json")) && !File.Exists(Path.Combine(folder, "previous.json"));
         }
-        try { Directory.Delete(folder, recursive: true); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        _fault?.Invoke("import-retired");
+        // Keep the lock inode and its empty directory. After releasing ownership another instance
+        // may already have adopted the folder; deleting anything here could destroy its new data
+        // or split ownership across two different lock files. Folders without pointers are ignored.
         return true;
     }
 
