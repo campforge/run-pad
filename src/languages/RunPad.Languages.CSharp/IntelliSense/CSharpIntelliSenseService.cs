@@ -332,8 +332,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private void RebuildPreamble()
     {
         var sb = new StringBuilder();
-        foreach (var u in _basePreambleUsings) sb.Append("using ").Append(u).Append(";\n");
-        foreach (var u in _extraPreambleUsings) sb.Append("using ").Append(u).Append(";\n");
+        foreach (var u in _basePreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
+        foreach (var u in _extraPreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
         sb.Append('\n');
         _preamble = sb.ToString();
         _preambleLength = _preamble.Length;
@@ -2029,6 +2029,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var forCodeFixes = new List<Diagnostic>();
         foreach (var d in model.GetDiagnostics(cancellationToken: ct).Concat(analyzerDiagnostics))
         {
+            // The analysis workspace is a library to allow incomplete/class-only edits, while
+            // scripts are compiled as executables. Its library-only top-level error is artificial.
+            if (d.Id == "CS8805") continue;
+
             // Unlike compiler diagnostics (never actually Hidden in practice), most of the analyzer
             // diagnostics above fire at Hidden severity BY DESIGN — no squiggle, only a CodeFixProvider
             // keyed to that same diagnostic ID becoming available (RoslynAnalyzerEngine's own doc
