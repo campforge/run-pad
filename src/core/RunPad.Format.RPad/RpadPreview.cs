@@ -66,6 +66,8 @@ public static class RpadPreview
             Row(sb, "Arguments", string.Join(", ", args.Select(Code)));
         if (fm.AllowUnsafe)
             Row(sb, "Unsafe code", "allowed");
+        if (fm.Connections.Count > 0)
+            Row(sb, "Connections", string.Join(", ", fm.Connections.Select(c => $"{Code(c.Name)} ({Text(c.Driver)})")));
     }
 
     // The value is Markdown already: fixed text, Text() or Code().
