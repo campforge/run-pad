@@ -63,8 +63,25 @@ public sealed class ConnectionCodeContext
     }
 
     /// <summary>Text for an XML documentation comment.</summary>
-    public static string Doc(string value) =>
-        value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\r", " ").Replace("\n", " ");
+    public static string Doc(string value)
+    {
+        // C# ends a line, and with it the /// comment, at U+0085, U+2028 and U+2029 too: a name read
+        // from a database or a server must not be able to start a line of code.
+        var sb = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '&': sb.Append("&amp;"); break;
+                case '<': sb.Append("&lt;"); break;
+                case '>': sb.Append("&gt;"); break;
+                default:
+                    sb.Append(char.IsControl(c) || c is (char)0x2028 or (char)0x2029 ? ' ' : c);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
 }
 
 /// <summary>
