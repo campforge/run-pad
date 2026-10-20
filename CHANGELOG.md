@@ -30,6 +30,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Secret Store detects changes made by another window instead of overwriting its newer secrets.
+
 - Secret Store reports save failures without closing the dialog or losing edits, and allows retrying.
 
 - Per-script C# imports work with global using directives in the source, in both compilation

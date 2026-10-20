@@ -9,6 +9,7 @@ using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Sdk;
 using RunPad.Runtime.UI.Tests;
 using RunPad.Services.Secrets;
+using RunPad.Windows.Models;
 using Xunit;
 
 namespace RunPad.NonUI.Tests;
@@ -34,18 +35,18 @@ public sealed class SecretStoreTests : IDisposable
     {
         var store = new FileSecretStore(StorePath);
         Secret[] secrets = [new("db", "p@ss \"wörd\"\n"), new("api-token", ""), new("Zeta", "z")];
-        store.Save(secrets);
+        store.Save(secrets, store.LoadSnapshot().Version);
         Assert.Equal(secrets, store.Load());
 
-        store.Save([secrets[2]]);
+        store.Save([secrets[2]], store.LoadSnapshot().Version);
         Assert.Equal([secrets[2]], new FileSecretStore(StorePath).Load());
-        Assert.Single(Directory.GetFiles(Path.GetDirectoryName(StorePath)!)); // no temporary files left
+        Assert.Single(Directory.GetFiles(Path.GetDirectoryName(StorePath)!), f => f != StorePath + ".lock"); // no temporary files left
     }
 
     [Fact]
     public void TheFile_Should_BeEncryptedOnWindows_AndOwnerOnlyElsewhere()
     {
-        new FileSecretStore(StorePath).Save([new Secret("db", "plain-secret-value")]);
+        SaveSecrets([new Secret("db", "plain-secret-value")]);
         var json = JsonNode.Parse(File.ReadAllText(StorePath))!;
         Assert.Equal(1, json["Version"]!.GetValue<int>());
         if (OperatingSystem.IsWindows())
@@ -75,7 +76,7 @@ public sealed class SecretStoreTests : IDisposable
     [Fact]
     public void GetSecret_Should_ReadWhatRunPadSaved_LetterCaseAside()
     {
-        new FileSecretStore(StorePath).Save([new Secret("Orders-DB", "p@ss wörd"), new Secret("empty", "")]);
+        SaveSecrets([new Secret("Orders-DB", "p@ss wörd"), new Secret("empty", "")]);
         WithStore(StorePath, () =>
         {
             Assert.Equal("p@ss wörd", Util.GetSecret("orders-db"));
@@ -114,7 +115,7 @@ public sealed class SecretStoreTests : IDisposable
     public async Task AScript_Should_ReadASecret_FromItsOwnProcess()
     {
         if (!new DotnetSdkProvider().Get().Any()) return;
-        new FileSecretStore(StorePath).Save([new Secret("api-token", "t0ken")]);
+        SaveSecrets([new Secret("api-token", "t0ken")]);
         var previous = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
         Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, StorePath);
         try
@@ -151,6 +152,63 @@ public sealed class SecretStoreTests : IDisposable
             Assert.Contains(output, line => line.Contains("'missing'", StringComparison.Ordinal));
         }
         finally { Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, previous); }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void AnOlderWindow_Should_NotOverwriteAnotherWindowsSecrets(bool existingFile, bool sharedStore)
+    {
+        var firstStore = new FileSecretStore(StorePath);
+        if (existingFile) firstStore.Save([new Secret("db", "initial")], null);
+        var first = new SecretStoreWindowViewModel(firstStore);
+        var second = new SecretStoreWindowViewModel(sharedStore ? firstStore : new FileSecretStore(StorePath));
+        ((System.Windows.Input.ICommand)second.AddCommand).Execute(null);
+        second.SelectedSecret!.Name = "new-token";
+        second.SelectedSecret.Value = "second-window";
+        Assert.True(second.Save());
+        var saved = File.ReadAllBytes(StorePath);
+        if (!existingFile) ((System.Windows.Input.ICommand)first.AddCommand).Execute(null);
+        first.Secrets[0].Value = "first-window";
+
+        Assert.False(first.Save());
+        Assert.Contains("changed in another window", first.SaveError);
+        Assert.Equal(saved, File.ReadAllBytes(StorePath));
+        Assert.Contains(firstStore.Load(), secret => secret.Name == "new-token");
+        Assert.Equal("first-window", first.Secrets[0].Value);
+    }
+
+    private void SaveSecrets(IReadOnlyList<Secret> secrets)
+    {
+        var store = new FileSecretStore(StorePath);
+        store.Save(secrets, store.LoadSnapshot().Version);
+    }
+
+    [Fact]
+    public void AWriterLock_Should_BlockCompetingSave_WithoutChangingTheStore()
+    {
+        SaveSecrets([new Secret("db", "initial")]);
+        var store = new FileSecretStore(StorePath);
+        var snapshot = store.LoadSnapshot();
+        var bytes = File.ReadAllBytes(StorePath);
+        using var owner = new FileStream(StorePath + ".lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        Assert.Throws<IOException>(() => store.Save([new Secret("db", "changed")], snapshot.Version));
+        Assert.Equal(bytes, File.ReadAllBytes(StorePath));
+    }
+
+    [Fact]
+    public void ASuccessfulSave_Should_AdvanceTheWindowsVersion_ForItsNextSave()
+    {
+        var store = new FileSecretStore(StorePath);
+        var vm = new SecretStoreWindowViewModel(store);
+        ((System.Windows.Input.ICommand)vm.AddCommand).Execute(null);
+        vm.SelectedSecret!.Value = "first";
+        Assert.True(vm.Save());
+        vm.SelectedSecret.Value = "second";
+        Assert.True(vm.Save());
+        Assert.Equal("second", Assert.Single(store.Load()).Value);
     }
 
     private static void WithStore(string path, Action test)
