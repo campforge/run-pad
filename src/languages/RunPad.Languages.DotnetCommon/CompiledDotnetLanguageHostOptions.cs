@@ -68,6 +68,9 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// <summary>The <c>Connections</c> class the script's connections add, compiled with the script; null without connections.</summary>
     public string? ConnectionSource { get; init; }
 
+    /// <summary>Files the connections' schemas add (a gRPC server's messages and clients), compiled with the script.</summary>
+    public IReadOnlyList<RunPad.Contracts.Connections.GeneratedSourceFile> ConnectionFiles { get; init; } = [];
+
     /// <summary>Why the script's connections can't be built; any of them fails the build.</summary>
     public IReadOnlyList<string> ConnectionErrors { get; init; } = [];
 
@@ -102,6 +105,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             Packages = request.Packages,
             ConnectionSource = request.Connections is { Source.Length: > 0 } connections ? connections.Source : null,
             ConnectionErrors = request.Connections?.Errors ?? [],
+            ConnectionFiles = request.Connections?.Files ?? [],
             Usings = request.Usings,
             AssemblyReferences = references.Assemblies,
             ProjectReferences = references.Projects,

@@ -28,6 +28,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
     private bool _disposed;
     private readonly ILogger<EditorsTabItemControl>? _runLogger;
     private readonly ConnectionDriverRegistry? _connectionDrivers;
+    private readonly ConnectionSchemas? _connectionSchemas;
 
     private MainWindowViewModel? _vm;
 
@@ -54,10 +55,11 @@ public partial class EditorTabsControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
-        ConnectionDriverRegistry? connectionDrivers = null)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
     {
         InitializeComponent();
         _connectionDrivers = connectionDrivers;
+        _connectionSchemas = connectionSchemas;
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -612,7 +614,7 @@ public partial class EditorTabsControl : UserControl, IDisposable
             _registry!,
             _prefs!,
             intelliSense,
-            _buildCache!, _runLogger, _connectionDrivers
+            _buildCache!, _runLogger, _connectionDrivers, _connectionSchemas
         );
     }
 

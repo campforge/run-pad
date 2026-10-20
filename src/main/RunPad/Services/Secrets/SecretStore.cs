@@ -7,6 +7,17 @@ namespace RunPad.Services.Secrets;
 /// <summary>A named secret: a password, token or key a script reads with <c>Util.GetSecret</c>.</summary>
 public sealed record Secret(string Name, string Value);
 
+public static class SecretStoreExtensions
+{
+    /// <summary>The value of a secret, by name in any case as <c>Util.GetSecret</c> finds it; null when the
+    /// store has none of that name or can't be read.</summary>
+    public static string? Find(this ISecretStore store, string name)
+    {
+        try { return store.Load().FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))?.Value; }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return null; }
+    }
+}
+
 /// <summary>
 /// RunPad's Secret Store: secrets kept on this machine for this user, outside every script, so a
 /// script names a secret instead of containing it. Edited in Tools → Secret Store.

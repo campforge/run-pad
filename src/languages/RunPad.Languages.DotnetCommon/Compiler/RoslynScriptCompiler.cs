@@ -157,7 +157,11 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         // The connections' code is part of the generated file, so it decides about reuse like the script's own.
         var generatedSource = GeneratedSource(target) + (Options.ConnectionSource is { } connections ? "\n" + connections : "");
-        var key = Fingerprint(Options.ConnectionSource is null ? code : code + "\n\0" + generatedSource, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
+        var connectionFiles = Options.ConnectionFiles.Select(f => (Path: DebugSourcePath.Canonicalize(
+            Path.Combine(_objDir, "Connections", f.Name)), f.Text)).ToList();
+        var keyCode = Options.ConnectionSource is null ? code
+            : code + "\n\0" + generatedSource + string.Concat(connectionFiles.Select(f => "\n\0" + f.Path + "\n" + f.Text));
+        var key = Fingerprint(keyCode, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
             return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
@@ -173,7 +177,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var references = frameworkReferences.Concat([Options.RuntimeLibPath]).Concat(userReferences).Concat(packageReferences)
             .Select(GetReference);
-        var compilation = CreateCompilation(Options.OutputName, [scriptTree, generatedTree], references, target);
+        var connectionTrees = connectionFiles.Select(f => Parse(SourceText.From(f.Text, Encoding.UTF8, SourceHashAlgorithm.Sha256), f.Path, target, ct));
+        var compilation = CreateCompilation(Options.OutputName, [scriptTree, generatedTree, .. connectionTrees], references, target);
 
         var diagnostics = new List<RoslynDiagnostic>();
         var generators = generatorPaths.SelectMany(p => GetGenerators(p)).ToImmutableArray();
