@@ -1,5 +1,6 @@
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
+using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -15,7 +16,16 @@ public static class RpadParser
         .WithTypeConverter(new PackageYamlConverter())
         .WithTypeConverter(new StrictEnumYamlConverter<RpadKind>(lowercase: false))
         .WithTypeConverter(new StrictEnumYamlConverter<RpadLanguage>(lowercase: true))
+        .WithTypeConverter(new ConnectionYamlConverter())
         .Build();
+
+    // The front matter's own keys, as RpadWriter writes them; any other top-level key is kept
+    // verbatim in RpadFrontMatter.UnknownEntries.
+    private static readonly HashSet<string> KnownKeys = new(StringComparer.Ordinal)
+    {
+        "version", "language", "targetSdk", "kind", "packages", "references", "namespaces", "args",
+        "allowUnsafe", "connections",
+    };
 
     /// <summary>
     /// Parses an .rpad file. Returns null if the content isn't a valid .rpad document — see
@@ -63,6 +73,8 @@ public static class RpadParser
             fm.References ??= [];
             fm.Namespaces ??= [];
             fm.Args ??= [];
+            fm.Connections ??= [];
+            fm.UnknownEntries = UnknownEntries(yamlText);
             if (fm.Kind == RpadKind.Unknown) fm.Kind = RpadKind.Statements;
             if (fm.Language == RpadLanguage.Unknown) fm.Language = RpadLanguage.CSharp;
         }
@@ -111,6 +123,26 @@ public static class RpadParser
             BodyBeforeCode = markdownBody[..codeStart],      // up to + including opening fence \n
             BodyAfterCode = markdownBody[closeStart..],      // from closing ``` onwards
         });
+    }
+
+    // Each top-level entry with an unknown key, from its key up to the next key: its value and the
+    // comments between them, without trailing blank lines, LF line breaks.
+    private static List<string> UnknownEntries(string yaml)
+    {
+        var stream = new YamlStream();
+        stream.Load(new StringReader(yaml));
+        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode { Style: not MappingStyle.Flow } root)
+            return [];
+        var keys = root.Children.Keys.ToList();
+        var entries = new List<string>();
+        for (var i = 0; i < keys.Count; i++)
+        {
+            if (keys[i] is YamlScalarNode { Value: { } key } && KnownKeys.Contains(key)) continue;
+            var start = (int)keys[i].Start.Index;
+            var end = i + 1 < keys.Count ? (int)keys[i + 1].Start.Index : yaml.Length;
+            entries.Add(yaml[start..end].Replace("\r\n", "\n").TrimEnd());
+        }
+        return entries;
     }
 
     private delegate bool LineMatch(ReadOnlySpan<char> line);
@@ -210,6 +242,66 @@ internal sealed class TargetSdkYamlConverter : IYamlTypeConverter
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         => emitter.Emit(new Scalar(((TargetSdk)value!).ToString()));
+}
+
+// A connection is name, driver and params, with params holding any YAML shape; other keys are kept
+// in Extra. Every scalar is read as text, so "30" and "true" stay what the file says.
+internal sealed class ConnectionYamlConverter : IYamlTypeConverter
+{
+    public bool Accepts(Type type) => type == typeof(RpadConnection);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
+    {
+        var start = parser.Current!.Start;
+        if (!parser.TryConsume<MappingStart>(out _))
+            throw new YamlException(start, start, "A connection must be a mapping with name, driver and params.");
+        var connection = new RpadConnection();
+        while (!parser.TryConsume<MappingEnd>(out _))
+        {
+            var key = parser.Consume<Scalar>().Value;
+            var value = ReadValue(parser);
+            switch (key)
+            {
+                case "name": connection.Name = value.Text ?? throw NotText(key, start); break;
+                case "driver": connection.Driver = value.Text ?? throw NotText(key, start); break;
+                case "params":
+                    if (value.Fields is { } fields) connection.Params = fields;
+                    else if (value.Text is not { Length: > 0 }) connection.Params = new(StringComparer.Ordinal);
+                    else throw new YamlException(start, start, "A connection's params must be a mapping.");
+                    break;
+                default: (connection.Extra ??= new(StringComparer.Ordinal))[key] = value; break;
+            }
+        }
+        return connection;
+    }
+
+    private static YamlException NotText(string key, Mark at) => new(at, at, $"A connection's {key} must be text.");
+
+    internal static RpadValue ReadValue(IParser parser)
+    {
+        if (parser.TryConsume<Scalar>(out var scalar)) return RpadValue.Of(scalar.Value);
+        if (parser.TryConsume<SequenceStart>(out _))
+        {
+            var items = new List<RpadValue>();
+            while (!parser.TryConsume<SequenceEnd>(out _)) items.Add(ReadValue(parser));
+            return RpadValue.List(items);
+        }
+        if (parser.TryConsume<MappingStart>(out _))
+        {
+            var fields = new Dictionary<string, RpadValue>(StringComparer.Ordinal);
+            while (!parser.TryConsume<MappingEnd>(out _))
+            {
+                var key = parser.Consume<Scalar>().Value;
+                fields[key] = ReadValue(parser);
+            }
+            return new RpadValue { Fields = fields };
+        }
+        var at = parser.Current!.Start;
+        throw new YamlException(at, at, "Anchors and aliases are not supported in connections.");
+    }
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => throw new NotSupportedException("RpadWriter writes connections.");
 }
 
 internal sealed class PackageYamlConverter : IYamlTypeConverter
