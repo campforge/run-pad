@@ -164,6 +164,46 @@ public class RpadConnectionsTests
         Assert.Contains("futureMap:\n  x: 1\n---", written);
     }
 
+    // A repeated key is what a hand edit or a merge leaves behind; the deserializer takes its last
+    // value, and collecting the unknown keys must not turn that into a parse error.
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    public void ARepeatedKnownKey_Should_ParseWithItsLastValue(string newline)
+    {
+        var text = "---\nversion: \"1.0\"\nkind: Statements\nfutureFlag: on\nkind: Program\n---\n```csharp run\nvoid Main() { }\n```\n"
+            .ReplaceLineEndings(newline);
+        var doc = Parse(text);
+        Assert.Equal(RpadKind.Program, doc.FrontMatter.Kind);
+        Assert.Equal(["futureFlag: on"], doc.FrontMatter.UnknownEntries);
+    }
+
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    public void ARepeatedUnknownKey_Should_KeepOnlyItsLastEntry(string newline)
+    {
+        var text = "---\nfuture: 1\nkind: Statements\nfutureList:\n  - a\nfuture:\n  x: 2\n---\n```csharp run\n```\n"
+            .ReplaceLineEndings(newline);
+        var doc = Parse(text);
+        Assert.Equal(["futureList:\n  - a", "future:\n  x: 2"], doc.FrontMatter.UnknownEntries);
+
+        var again = Parse(RpadWriter.Write(doc));
+        Assert.Equal(doc.FrontMatter.UnknownEntries, again.FrontMatter.UnknownEntries);
+    }
+
+    [Fact]
+    public void UnknownKeysOfAFlowStyleFrontMatter_Should_SurviveASave()
+    {
+        var doc = Parse("---\r\n{version: '1.0', future: 3, nested: {a: [1, 2]}, kind: Program}\r\n---\r\n```csharp run\r\nvoid Main() { }\r\n```\r\n");
+        Assert.Equal(RpadKind.Program, doc.FrontMatter.Kind);
+        Assert.Equal(["future: 3", "nested: {a: [1, 2]}"], doc.FrontMatter.UnknownEntries);
+
+        var again = Parse(RpadWriter.Write(doc));
+        Assert.Equal(RpadKind.Program, again.FrontMatter.Kind);
+        Assert.Equal(doc.FrontMatter.UnknownEntries, again.FrontMatter.UnknownEntries);
+    }
+
     [Theory]
     [InlineData("connections:\n  - orders\n")]
     [InlineData("connections:\n  - name: a\n    driver: http\n    params: text\n")]

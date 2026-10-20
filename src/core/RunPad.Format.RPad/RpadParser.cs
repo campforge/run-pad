@@ -1,6 +1,5 @@
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
-using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -127,22 +126,60 @@ public static class RpadParser
 
     // Each top-level entry with an unknown key, from its key up to the next key: its value and the
     // comments between them, without trailing blank lines, LF line breaks.
+    //
+    // Walks the parser's events rather than loading a YamlStream: the representation model rejects
+    // a repeated key, which the deserializer accepts (the last value wins), so a hand-edited or
+    // merged front matter with "kind:" twice would otherwise stop opening at all. A repeated unknown
+    // key likewise keeps only its last entry, so a save does not write the key twice.
     private static List<string> UnknownEntries(string yaml)
     {
-        var stream = new YamlStream();
-        stream.Load(new StringReader(yaml));
-        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode { Style: not MappingStyle.Flow } root)
+        var parser = new Parser(new StringReader(yaml));
+        parser.Consume<StreamStart>();
+        if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out var root))
             return [];
-        var keys = root.Children.Keys.ToList();
-        var entries = new List<string>();
+
+        var keys = new List<(string? Name, int Start, int ValueEnd)>();
+        while (!parser.TryConsume<MappingEnd>(out _))
+        {
+            // A key that isn't a scalar (a "? [a, b]" complex key) is never one of ours, so it is
+            // kept as unknown, with a null name.
+            var name = parser.Current is Scalar scalar ? scalar.Value : null;
+            var start = (int)parser.Current!.Start.Index;
+            SkipNode(parser, yaml);
+            keys.Add((name, start, SkipNode(parser, yaml)));
+        }
+
+        var entries = new List<(string? Name, string Text)>();
         for (var i = 0; i < keys.Count; i++)
         {
-            if (keys[i] is YamlScalarNode { Value: { } key } && KnownKeys.Contains(key)) continue;
-            var start = (int)keys[i].Start.Index;
-            var end = i + 1 < keys.Count ? (int)keys[i + 1].Start.Index : yaml.Length;
-            entries.Add(yaml[start..end].Replace("\r\n", "\n").TrimEnd());
+            var (name, start, valueEnd) = keys[i];
+            if (name is not null && KnownKeys.Contains(name)) continue;
+            // A flow mapping ("{version: '1.0', future: 3}") has no lines to take whole: keep just
+            // the key and its value, which read back the same way as a block-style entry.
+            var end = root.Style == MappingStyle.Flow ? valueEnd
+                : i + 1 < keys.Count ? keys[i + 1].Start : yaml.Length;
+            if (name is not null) entries.RemoveAll(e => e.Name == name);
+            entries.Add((name, yaml[start..end].Replace("\r\n", "\n").TrimEnd()));
         }
-        return entries;
+        return [.. entries.Select(e => e.Text)];
+    }
+
+    // Consumes one node with everything nested in it; returns the offset just past its end.
+    private static int SkipNode(IParser parser, string yaml)
+    {
+        var depth = 0;
+        ParsingEvent current;
+        do
+        {
+            current = parser.Consume<ParsingEvent>();
+            depth += current.NestingIncrease;
+        }
+        while (depth > 0);
+        // The end event of a flow collection is marked at its closing bracket, not past it.
+        var end = (int)current.End.Index;
+        return current is MappingEnd or SequenceEnd && end < yaml.Length && yaml[end] is '}' or ']'
+            ? end + 1
+            : end;
     }
 
     private delegate bool LineMatch(ReadOnlySpan<char> line);
