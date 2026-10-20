@@ -435,6 +435,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
     public ReactiveCommand<Unit, Unit> OpenDependenciesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenPreferencesCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAboutCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenSecretStoreCommand { get; }
     public ReactiveCommand<Unit, Unit> ImportLinqFileCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenAssemblyExplorerCommand { get; }
 
@@ -1169,6 +1170,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         OpenDependenciesCommand = ReactiveCommand.CreateFromTask(OpenDependenciesWindowAsync);
         OpenPreferencesCommand = ReactiveCommand.CreateFromTask(_windowService.ShowPreferencesAsync);
         OpenAboutCommand = ReactiveCommand.CreateFromTask(_windowService.ShowAboutAsync);
+        OpenSecretStoreCommand = ReactiveCommand.CreateFromTask(_windowService.ShowSecretStoreAsync);
         ImportLinqFileCommand = ReactiveCommand.CreateFromTask(ImportLinqFileAsync);
         OpenAssemblyExplorerCommand = ReactiveCommand.CreateFromTask(
             () => _windowService.ShowAssemblyExplorerAsync(_fileSystemService.Folder));
@@ -1179,6 +1181,7 @@ public class MainWindowViewModel : ViewModelBase, IDisposable, IEditorTabActions
         OpenDependenciesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenDependenciesCommand failed"));
         OpenPreferencesCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenPreferencesCommand failed"));
         OpenAboutCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAboutCommand failed"));
+        OpenSecretStoreCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenSecretStoreCommand failed"));
         ImportLinqFileCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "ImportLinqFileCommand failed"));
         OpenAssemblyExplorerCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "OpenAssemblyExplorerCommand failed"));
         AvailableSdks = sdkProviders.SelectMany(p => p.Get(prefs.Debugger.DotnetPath)).ToList();

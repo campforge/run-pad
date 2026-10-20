@@ -13,6 +13,9 @@ public interface IWindowService
     Task ShowErrorAsync(string title, string message);
     Task ShowAboutAsync();
 
+    /// <summary>Tools → Secret Store: the user's named secrets for <c>Util.GetSecret</c>.</summary>
+    Task ShowSecretStoreAsync();
+
     /// <summary>
     /// Shows a native Save As dialog defaulting to <paramref name="startFolder"/> (the user can still
     /// navigate into any subfolder from there — MainWindowViewModel.SaveTabAsAsync's own defaulting

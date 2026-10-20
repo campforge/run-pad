@@ -55,6 +55,7 @@
          vulnerabilities (CVE-2026-84008, CVE-2026-70162); 8.0.2 is the fixed release of the same line.
          Referenced by RunPad.Languages.DotnetCommon, which brings in NuGet. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <!-- System -->
     <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.12" />
     <PackageVersion Include="System.Composition.Hosting" Version="10.0.12" />
