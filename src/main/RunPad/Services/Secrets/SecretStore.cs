@@ -88,8 +88,21 @@ public sealed class FileSecretStore : ISecretStore
         {
             throw new InvalidDataException("The secret store file is damaged.", ex);
         }
-        if (file.Version != FormatVersion)
+        if (file.Version > FormatVersion)
             throw new InvalidDataException($"The secret store was written by a newer RunPad (format {file.Version}).");
+        if (file.Version != FormatVersion)
+            throw new InvalidDataException("The secret store file is damaged.");
+
+        // Util.GetSecret finds a secret by name letter case aside, so names differing only in case
+        // would make the secret it reads depend on the file's order.
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in file.Secrets ?? [])
+        {
+            if (value is null)
+                throw new InvalidDataException("The secret store file is damaged.");
+            if (!names.Add(name))
+                throw new InvalidDataException($"The secret store file is damaged: two secrets are named '{name}' (letter case aside).");
+        }
 
         var unprotect = file.Protection switch
         {
@@ -100,7 +113,7 @@ public sealed class FileSecretStore : ISecretStore
         };
         try
         {
-            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Value)))], VersionOf(bytes));
+            return new SecretStoreSnapshot([.. (file.Secrets ?? []).Select(pair => new Secret(pair.Key, unprotect(pair.Value!)))], VersionOf(bytes));
         }
         catch (Exception ex) when (ex is CryptographicException or FormatException)
         {
@@ -126,7 +139,7 @@ public sealed class FileSecretStore : ISecretStore
         {
             Version = FormatVersion,
             Protection = windows ? Dpapi : NoProtection,
-            Secrets = secrets.ToDictionary(s => s.Name, s => OperatingSystem.IsWindows() ? Protect(s.Value) : s.Value,
+            Secrets = secrets.ToDictionary(s => s.Name, string? (s) => OperatingSystem.IsWindows() ? Protect(s.Value) : s.Value,
                 StringComparer.OrdinalIgnoreCase),
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(file, WriteOptions);
@@ -174,6 +187,6 @@ public sealed class FileSecretStore : ISecretStore
     {
         public int Version { get; set; }
         public string? Protection { get; set; }
-        public Dictionary<string, string>? Secrets { get; set; }
+        public Dictionary<string, string?>? Secrets { get; set; }
     }
 }

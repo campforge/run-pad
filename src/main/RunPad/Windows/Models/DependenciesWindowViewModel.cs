@@ -596,7 +596,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas?.Cache);
         Connections.UsePackages(
             () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
-            (id, version) => AddPackage(id, version));
+            (id, version) => AddPackage(id, version),
+            RemovePackage);
         Connections.Edited += UpdateHasChanges;
         _search = search;
         _cache = cache;

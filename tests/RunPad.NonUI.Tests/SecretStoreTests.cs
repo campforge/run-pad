@@ -62,14 +62,20 @@ public sealed class SecretStoreTests : IDisposable
     }
 
     [Theory]
-    [InlineData("{ not json")]
-    [InlineData("{\"Version\":2,\"Protection\":\"None\",\"Secrets\":{}}")]
-    [InlineData("{\"Version\":1,\"Protection\":\"Vault\",\"Secrets\":{}}")]
-    public void AStoreThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content)
+    [InlineData("{ not json", "The secret store file is damaged.")]
+    [InlineData("{\"Version\":2,\"Protection\":\"None\",\"Secrets\":{}}", "The secret store was written by a newer RunPad (format 2).")]
+    [InlineData("{\"Protection\":\"None\",\"Secrets\":{}}", "The secret store file is damaged.")]
+    [InlineData("{\"Version\":0,\"Protection\":\"None\",\"Secrets\":{}}", "The secret store file is damaged.")]
+    [InlineData("{\"Version\":1,\"Protection\":\"Vault\",\"Secrets\":{}}", "The secret store uses an unknown protection (Vault).")]
+    [InlineData("{\"Version\":1,\"Protection\":\"None\",\"Secrets\":{\"db\":null}}", "The secret store file is damaged.")]
+    [InlineData("{\"Version\":1,\"Protection\":\"DPAPI\",\"Secrets\":{\"db\":null}}", "The secret store file is damaged.")]
+    [InlineData("{\"Version\":1,\"Protection\":\"None\",\"Secrets\":{\"db\":\"a\",\"DB\":\"b\"}}",
+        "The secret store file is damaged: two secrets are named 'DB' (letter case aside).")]
+    public void AStoreThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content, string message)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
         File.WriteAllText(StorePath, content);
-        Assert.Throws<InvalidDataException>(() => new FileSecretStore(StorePath).Load());
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => new FileSecretStore(StorePath).Load()).Message);
         Assert.Equal(content, File.ReadAllText(StorePath));
     }
 

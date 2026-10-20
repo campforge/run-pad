@@ -45,13 +45,18 @@ public sealed class FileConnectionStoreTests : IDisposable
     }
 
     [Theory]
-    [InlineData("{ not json")]
-    [InlineData("{\"Version\":2,\"Connections\":[]}")]
-    public void AListThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content)
+    [InlineData("{ not json", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":2,\"Connections\":[]}", "The connection list was written by a newer RunPad (format 2).")]
+    [InlineData("{\"Connections\":[]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":0,\"Connections\":[]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[null]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[{\"Name\":\"a\",\"Driver\":\"http\",\"Params\":null}]}", "The connection list file is damaged.")]
+    [InlineData("{\"Version\":1,\"Connections\":[{\"Name\":\"a\",\"Driver\":\"http\",\"Params\":{\"headers\":{\"Fields\":{\"x\":null}}}}]}", "The connection list file is damaged.")]
+    public void AListThatCantBeRead_Should_FailToLoad_AndStayUnchanged(string content, string message)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
         File.WriteAllText(StorePath, content);
-        Assert.Throws<InvalidDataException>(() => new FileConnectionStore(StorePath).Load());
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => new FileConnectionStore(StorePath).Load()).Message);
         Assert.Equal(content, File.ReadAllText(StorePath));
     }
 }
@@ -63,6 +68,7 @@ public class ConnectionsWindowViewModelTests
     private sealed class FakeDriver : IConnectionDriver
     {
         public IReadOnlyDictionary<string, RpadValue>? Tested { get; private set; }
+        public Exception? Failure { get; set; }
         public string Id => "fake";
         public string DisplayName => "Fake";
         public ConnectionCategory Category => ConnectionCategory.Database;
@@ -82,7 +88,7 @@ public class ConnectionsWindowViewModelTests
         public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken)
         {
             Tested = resolvedParams;
-            return Task.FromResult(new ConnectionTestResult(true, "Connected."));
+            return Failure is null ? Task.FromResult(new ConnectionTestResult(true, "Connected.")) : Task.FromException<ConnectionTestResult>(Failure);
         }
 
         public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) =>
@@ -241,6 +247,37 @@ public class ConnectionsWindowViewModelTests
         Assert.Null(item.TestResult); // an edit clears the last result
         await vm.TestCommand.Execute();
         Assert.Equal("The Secret Store has no secret named 'missing'. Add it in Tools → Secret Store.", item.TestResult);
+    }
+
+    // Drivers may throw for an unreachable server; the window reports it instead of crashing.
+    [Fact]
+    public async Task ADriverThatThrows_Should_FailTheTest_AndAllowAnother()
+    {
+        var (vm, _, fake) = CreateVm();
+        Execute(vm.AddCommand, fake);
+        var item = vm.SelectedConnection!;
+        item.Fields[0].Text = "Host=nowhere";
+        fake.Failure = new InvalidOperationException("No such host.");
+        await vm.TestCommand.Execute();
+        Assert.Equal("Failed: No such host.", item.TestResult);
+        Assert.False(vm.IsTesting);
+        Assert.True(((ICommand)vm.TestCommand).CanExecute(null));
+    }
+
+    [Fact]
+    public void AConnectionWithProblems_Should_NotBeTested()
+    {
+        var (vm, _, fake) = CreateVm();
+        Execute(vm.AddCommand, fake);
+        var item = vm.SelectedConnection!;
+        Assert.Equal("The connection string is missing.", item.Problems);
+        Assert.False(vm.CanTest);
+        Assert.False(((ICommand)vm.TestCommand).CanExecute(null));
+
+        item.Fields[0].Text = "Host=db";
+        Assert.True(vm.CanTest);
+        item.Fields[0].Text = "Password=${secret:db";
+        Assert.False(vm.CanTest);
     }
 
     [Fact]

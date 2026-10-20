@@ -273,6 +273,18 @@ public class RpadConnectionsTests
             errors);
     }
 
+    // The generated class holding every connection is named Connections, so no connection can be.
+    [Theory]
+    [InlineData("connections")]
+    [InlineData("Connections")]
+    public void Validate_Should_RejectTheReservedCodeName(string name)
+    {
+        Assert.Equal(
+            [$"Connection '{name}': the code name Connections is reserved."],
+            RpadConnection.Validate([new RpadConnection { Name = name, Driver = "http" }]));
+        Assert.Empty(RpadConnection.Validate([new RpadConnection { Name = "connections-db", Driver = "http" }]));
+    }
+
     // Draft recovery keeps documents as JSON (RpadDocumentSnapshot): connections must come back whole.
     [Fact]
     public void ASnapshot_Should_KeepConnectionsAndUnknownKeys_ThroughJson()
