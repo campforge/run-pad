@@ -25,8 +25,6 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
-- Recovery cleanup preserves a session acquired by another RunPad instance while retiring imported drafts.
-
 - C# Program scripts can declare extension methods and custom awaiters alongside Main, as in
   LINQPad: static classes are compiled outside the generated class, other types stay nested in it,
   so a type an extension uses (such as its receiver) must be internal or public. The editor keeps
@@ -52,7 +50,8 @@ Notable changes in each RunPad release. Downloads are on the
   relative references and can't be saved over that file. Draft data that cannot be read
   is kept unchanged and named in a dismissible notice; sessions with only saved files no longer
   cause a warning on every start. The other window's draft data is deleted once RunPad has kept
-  the restored drafts in two checkpoints of its own.
+  the restored drafts in two checkpoints of its own; a window that meanwhile started in the same
+  folder keeps its own drafts.
 
 ## [0.8.0] — 2026-10-19
 

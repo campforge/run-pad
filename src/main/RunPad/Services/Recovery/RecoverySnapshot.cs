@@ -28,13 +28,17 @@ public sealed record RecoveryTab
 
 /// <summary>A session whose drafts this one has taken over, at that session's revision: the record
 /// travels with every later checkpoint, so the same drafts are never imported twice.</summary>
-public sealed record RecoveryImportRecord(string Source, long Revision);
+/// <param name="Payload">The checkpoint file the drafts were read from. It names that generation
+/// alone: a session that later reuses the folder starts its revisions again, but never writes the
+/// same file. Null in records written before it was kept; those match by revision.</param>
+public sealed record RecoveryImportRecord(string Source, long Revision, string? Payload = null);
 
 /// <summary>Drafts of another RunPad session nobody owns any more, offered to the starting one.</summary>
 /// <param name="Source">The session's folder name.</param>
 /// <param name="Revision">The revision those drafts were read at.</param>
 /// <param name="Tabs">Its tabs with unsaved changes.</param>
-public sealed record RecoveryImport(string Source, long Revision, IReadOnlyList<RecoveryTab> Tabs);
+/// <param name="Payload">The checkpoint file they were read from (see <see cref="RecoveryImportRecord"/>).</param>
+public sealed record RecoveryImport(string Source, long Revision, IReadOnlyList<RecoveryTab> Tabs, string? Payload = null);
 
 public sealed record RecoverySnapshot
 {
