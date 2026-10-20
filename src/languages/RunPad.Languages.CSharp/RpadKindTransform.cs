@@ -66,8 +66,12 @@ internal static class RpadKindTransform
         var call = $"{ProgramWrapperClassName}.{TrampolineMethodName}(args)";
         if (main.ReturnsTask) call = "await " + call;
         var callStatement = main.ReturnsInt ? $"return {call};" : $"{call};";
-        var modifier = ProgramBodyProjection.Create(code, parseOptions).HasChanges ? "partial " : "";
-        return $"{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
+        // Classes the body projection moves out of the wrapper reach its nested types and members by
+        // their simple names, as LINQPad's do. On the same line, so no line moves.
+        var moved = ProgramBodyProjection.Create(code, parseOptions).HasChanges;
+        var usingStatic = moved ? $"using static {ProgramWrapperClassName};" : "";
+        var modifier = moved ? "partial " : "";
+        return $"{usingStatic}{callStatement}{modifier}class {ProgramWrapperClassName}\n{{\n";
     }
 
     // Appends the trampoline (always accessible from ProgramPrefixFor's call site, regardless of the

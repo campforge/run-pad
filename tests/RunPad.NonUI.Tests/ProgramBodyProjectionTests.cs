@@ -42,6 +42,20 @@ public class ProgramBodyProjectionTests
     }
 
     [Fact]
+    public void OnlyStaticClassesAndNamespaces_Should_LeaveTheGeneratedClass()
+    {
+        const string code = "void Main() {}\nclass Value {}\nstatic class Helpers {}\nstatic class Extensions { public static int Twice(this int n) => n*2; }\nnamespace Tools { class Inner {} }\nenum Kind { A }\n";
+        var text = ProgramBodyProjection.Create(code, Options).Text;
+        Assert.Contains("\nclass Value {}\n", text, StringComparison.Ordinal);
+        Assert.Contains("\nenum Kind { A }\n", text, StringComparison.Ordinal);
+        Assert.Contains("}static class Helpers {}partial class", text, StringComparison.Ordinal);
+        Assert.Contains("}static class Extensions", text, StringComparison.Ordinal);
+        Assert.Contains("}namespace Tools", text, StringComparison.Ordinal);
+        Assert.StartsWith("using static " + RpadKindTransform.ProgramWrapperClassName + ";",
+            RpadKindTransform.ProgramPrefixFor(code, Options), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NormalProgramsAndNestedExtensionDeclarations_Should_NotBeRewritten()
     {
         const string nested = "void Main() {}\nclass Container { static class Extensions { static int Twice(this int n) => n*2; } }";

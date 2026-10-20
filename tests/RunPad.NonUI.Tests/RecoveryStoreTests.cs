@@ -503,4 +503,62 @@ public sealed class RecoveryStoreTests : IDisposable
         Assert.Null(await other.LoadAsync());
         Assert.Empty(other.Imports); // the live window holds them
     }
+
+    // Once the checkpoint that imported a session is replaced, both generations a start can fall back
+    // to hold its drafts: the source session is deleted and later checkpoints stop recording it.
+    [Fact]
+    public async Task ASettledImport_Should_DeleteTheSourceSession_AndStopRecordingIt()
+    {
+        var (destination, source) = await ImportThenAsync();
+        Assert.True(Directory.Exists(source)); // the importing checkpoint alone keeps it
+
+        using (var later = new DiskRecoveryStore(_root))
+        {
+            var restored = (await later.LoadAsync())!;
+            await later.CommitAsync(restored with { Revision = 3 });
+            Assert.False(Directory.Exists(source));
+            await later.CommitAsync(restored with { Revision = 4 });
+        }
+        using var reopened = new DiskRecoveryStore(_root);
+        var snapshot = (await reopened.LoadAsync())!;
+        Assert.Equal(["BASE", "IMPORTED-DRAFT"], snapshot.Tabs.Select(t => t.EditorText));
+        Assert.Empty(snapshot.ImportedSessions ?? []);
+        Assert.Empty(reopened.Imports);
+        Assert.Null(reopened.Warning);
+        Assert.Equal([destination], Directory.GetDirectories(_root));
+    }
+
+    // A session imported in turn carries the sessions it had imported: deleting it must not make
+    // their drafts look abandoned, so they are recorded and deleted with it, never offered twice.
+    [Fact]
+    public async Task ImportingAnImportingSession_Should_TakeOverItsSources_AndDeleteThemTogether()
+    {
+        var (destination, source) = await ImportThenAsync();
+        var staging = Path.Combine(_root, "staging");
+        using (var newest = new DiskRecoveryStore(staging))
+            await newest.CommitAsync(Snapshot(1, "NEWEST"));
+        var newestFolder = Path.Combine(_root, Path.GetFileName(Directory.GetDirectories(staging).Single()));
+        Directory.Move(Directory.GetDirectories(staging).Single(), newestFolder);
+        Directory.Delete(staging);
+        Directory.SetLastWriteTimeUtc(newestFolder, DateTime.UtcNow.AddMinutes(10));
+
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            var restored = (await next.LoadAsync())!;
+            Assert.Equal(["NEWEST"], restored.Tabs.Select(t => t.EditorText));
+            var import = Assert.Single(next.Imports);
+            Assert.Equal(Path.GetFileName(destination), import.Source);
+            var merged = restored with { Revision = 2, Tabs = [.. restored.Tabs, .. import.Tabs] };
+            await next.CommitAsync(merged);
+            await next.CommitAsync(merged with { Revision = 3 });
+        }
+        Assert.False(Directory.Exists(destination));
+        Assert.False(Directory.Exists(source));
+
+        using var reopened = new DiskRecoveryStore(_root);
+        var snapshot = (await reopened.LoadAsync())!;
+        Assert.Equal(["NEWEST", "BASE", "IMPORTED-DRAFT"], snapshot.Tabs.Select(t => t.EditorText));
+        Assert.Empty(reopened.Imports);
+        Assert.Null(reopened.Warning);
+    }
 }

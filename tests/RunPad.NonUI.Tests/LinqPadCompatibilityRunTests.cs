@@ -413,7 +413,7 @@ public class LinqPadCompatibilityRunTests
                 public static void Increment(this ref int n) => n++;
                 public static T Identity<T>(this T value) where T : notnull => value;
             }
-            class Value { public int Number; }
+            internal class Value { public int Number; }
             static class ValueExtensions
             {
                 public static int Read(this Value value) => value.Number;
@@ -421,6 +421,45 @@ public class LinqPadCompatibilityRunTests
             """);
         Assert.True(run.Result.Succeeded, run.Errors);
         Assert.EndsWith("42\n7\n3\nabc", run.Output);
+    }
+
+    // As in LINQPad, only static classes leave the generated class: other types stay nested and
+    // keep using the script's own private members by their simple names.
+    [Fact]
+    public async Task ExtensionClasses_Should_LeaveOtherTypesNestedWithAccessToTheScript()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            void Main() { new Doubler().Run(); }
+            static int Twice(int x) => x * 2;
+            class Doubler { public void Run() => Console.WriteLine(Twice(4).Squared()); }
+            static class NumberExtensions { public static int Squared(this int n) => n * n; }
+            """);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("64", run.Output);
+    }
+
+    // A moved class reaches the nested types and the script's members as LINQPad's do, through the
+    // generated class, so they need internal or public access; a private one is a compile error.
+    [Fact]
+    public async Task ExtensionClasses_Should_UseNestedTypesAndMembers_ThatAreInternal()
+    {
+        if (NoSdk) return;
+        var run = await RunAsync(RpadKind.Program, """
+            void Main() => Console.WriteLine(new Point(3, 4).Length());
+            internal static int Scale = 10;
+            internal record Point(int X, int Y);
+            static class PointExtensions { public static int Length(this Point p) => (p.X * p.X + p.Y * p.Y) * Scale; }
+            """);
+        Assert.True(run.Result.Succeeded, run.Errors);
+        Assert.EndsWith("250", run.Output);
+
+        var hidden = await RunAsync(RpadKind.Program, """
+            void Main() => Console.WriteLine(new Point(3, 4).Length());
+            record Point(int X, int Y);
+            static class PointExtensions { public static int Length(this Point p) => p.X + p.Y; }
+            """);
+        Assert.Equal(RunOutcome.CompilationFailed, hidden.Result.Outcome);
     }
 
     [Fact]

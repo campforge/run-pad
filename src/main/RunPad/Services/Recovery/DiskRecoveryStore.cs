@@ -21,6 +21,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private readonly List<FileStream> _importLocks = [];
     // Sessions taken over by this one, carried in every checkpoint (see RecoveryImportRecord).
     private readonly List<RecoveryImportRecord> _records = [];
+    // Sessions an imported one had taken over itself: their drafts arrive with its own, so this one
+    // records them too, and they stay recognised as taken over once that session is removed.
+    private readonly List<RecoveryImportRecord> _inherited = [];
     public string? Warning { get; private set; }
 
     public DiskRecoveryStore(string root) => _root = root;
@@ -152,6 +155,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             .ToList() ?? [];
         if (drafts.Count == 0) { owner.Dispose(); return; } // Nothing unsaved there.
         _imports.Add(new RecoveryImport(Path.GetFileName(folder), snapshot!.Revision, drafts));
+        _inherited.AddRange(snapshot.ImportedSessions ?? []);
         _importLocks.Add(owner);
     }
 
@@ -190,7 +194,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     private static void TryMarkImported(string folder, RecoveryImportRecord record, string destination)
     {
         // The drafts are already in a durable checkpoint, so a missing marker only means they are
-        // filtered out again on the next start; the source session's own files are never changed.
+        // filtered out again on the next start. The source session's own files are not changed here;
+        // it is removed only once both generations hold its drafts (TryRemoveTakenOver).
         // Replaced atomically, so after a second import it names the session that holds them now.
         var temp = Path.Combine(folder, Guid.NewGuid().ToString("N") + ".tmp");
         try
@@ -205,6 +210,37 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             try { if (File.Exists(temp)) File.Delete(temp); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+    }
+
+    // Deletes a session whose drafts this one holds, as of the revision that was imported; true once
+    // it is gone. A session someone has open, or one written since, is left for a later checkpoint.
+    private bool TryRemoveTakenOver(RecoveryImportRecord record)
+    {
+        if (!Guid.TryParseExact(record.Source, "N", out _)) return false;
+        var folder = Path.Combine(_root, record.Source);
+        if (!File.Exists(Path.Combine(folder, "current.json")) && !File.Exists(Path.Combine(folder, "previous.json")))
+            return true;
+        try
+        {
+            using (Lock(folder))
+            {
+                var (snapshot, _, _) = ReadFolder(folder);
+                if (snapshot is not null && snapshot.Revision > record.Revision) return false;
+                // The pointers first: without them the folder is no session any more, so an
+                // interrupted removal leaves nothing that is loaded or offered again.
+                File.Delete(Path.Combine(folder, "current.json"));
+                File.Delete(Path.Combine(folder, "previous.json"));
+                foreach (var file in Directory.EnumerateFiles(folder).Where(f => Path.GetFileName(f) != "owner.lock"))
+                    File.Delete(file);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return !File.Exists(Path.Combine(folder, "current.json")) && !File.Exists(Path.Combine(folder, "previous.json"));
+        }
+        try { Directory.Delete(folder, recursive: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        return true;
     }
 
     private static void RestrictDirectory(string path)
@@ -282,7 +318,11 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             if (snapshot.Revision <= _revision) return;
             // Drafts imported at startup are in this workspace from the restore on: every checkpoint
             // records their sessions, and only once one is durable are those sessions marked.
-            var pending = _imports.Select(i => new RecoveryImportRecord(i.Source, i.Revision)).ToList();
+            var pending = _imports.Select(i => new RecoveryImportRecord(i.Source, i.Revision))
+                .Concat(_inherited).Except(_records).Distinct().ToList();
+            // Recorded by the checkpoint this one replaces, so in both generations a load can fall
+            // back to once this one is durable.
+            var settled = _records.ToList();
             snapshot = snapshot with { ImportedSessions = [.. _records, .. pending] };
             await Task.Run(() =>
             {
@@ -301,6 +341,11 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                     TryMarkImported(Path.Combine(_root, record.Source), record, _folder!);
                 _records.AddRange(pending);
                 _imports.Clear();
+                _inherited.Clear();
+                // Drafts both reachable generations hold no longer need the session they came from;
+                // once it is gone, later checkpoints stop recording it.
+                foreach (var record in settled)
+                    if (TryRemoveTakenOver(record)) _records.Remove(record);
                 foreach (var held in _importLocks) held.Dispose();
                 _importLocks.Clear();
                 // Only unreachable generations are disposable; a failed cleanup must not turn a
