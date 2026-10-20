@@ -211,6 +211,36 @@ public sealed class SecretStoreTests : IDisposable
         Assert.Equal("second", Assert.Single(store.Load()).Value);
     }
 
+    [Fact]
+    public void ARealWriteFailure_Should_KeepEditsAndSaveAfterThePathIsFixed()
+    {
+        var store = new FileSecretStore(StorePath);
+        var vm = new SecretStoreWindowViewModel(store);
+        ((System.Windows.Input.ICommand)vm.AddCommand).Execute(null);
+        vm.SelectedSecret!.Value = "retained-value";
+        Directory.CreateDirectory(StorePath);
+        Assert.False(vm.Save());
+        Assert.NotNull(vm.SaveError);
+        Assert.DoesNotContain("retained-value", vm.SaveError);
+        Assert.Equal("retained-value", vm.SelectedSecret.Value);
+        Directory.Delete(StorePath);
+        Assert.True(vm.Save());
+        Assert.Null(vm.SaveError);
+        Assert.Equal("retained-value", Assert.Single(store.Load()).Value);
+    }
+
+    [Fact]
+    public void ARemovedStore_Should_NotBeRecreatedFromAStaleWindow()
+    {
+        SaveSecrets([new Secret("db", "initial")]);
+        var vm = new SecretStoreWindowViewModel(new FileSecretStore(StorePath));
+        File.Delete(StorePath);
+        Assert.False(vm.Save());
+        Assert.False(File.Exists(StorePath));
+        Assert.Contains("changed in another window", vm.SaveError);
+        Assert.Equal("initial", vm.Secrets[0].Value);
+    }
+
     private static void WithStore(string path, Action test)
     {
         var previous = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
