@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Editor preferences now control tabs versus spaces and indentation width consistently for typing,
+  automatic indentation and C# formatting.
+
 - Conditional breakpoint edits and enabled state now reach an active debug session. The compact
   editor keeps the condition on one line, with optional hit-count settings collapsed.
 

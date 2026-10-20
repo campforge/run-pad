@@ -140,6 +140,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateZoomButton();
 
         _intelliSense = intelliSense;
+        _intelliSense?.UpdateIndentation(prefs.Editor.UseTabs, prefs.Editor.IndentationSize);
         _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
         intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
         SetupEditor(editor, intelliSense);
@@ -1411,6 +1412,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
             _prefs.Keyboard.ApplyTo(State.Editor);
             ApplyPreviewCodeFont();
             if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
@@ -1532,6 +1534,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.FontSize = CodeFontSize(s, codeZoom);
         editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
         editor.WordWrap = s.WordWrap;
+        editor.Options.ConvertTabsToSpaces = !s.UseTabs;
+        editor.Options.IndentationSize = s.IndentationSize;
+        if (editor.TextArea.IndentationStrategy is AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy strategy)
+            strategy.IndentationString = editor.Options.IndentationString;
         editor.Options.ShowTabs = s.ShowTabs;
         editor.Options.ShowSpaces = s.ShowSpaces;
         editor.Options.ShowEndOfLine = s.ShowEndOfLine;
