@@ -53,15 +53,13 @@ public interface IRecoveryStore : IDisposable
     /// <summary>What could not be loaded and was kept unchanged, for a non-modal notice; null if nothing.</summary>
     string? Warning => null;
 
-    /// <summary>After <see cref="LoadAsync"/>: drafts of other sessions nobody owns, held locked until
-    /// <see cref="CompleteImports"/>.</summary>
+    /// <summary>After <see cref="LoadAsync"/>: drafts of other sessions nobody owns. Their sessions stay
+    /// locked until the first successful <see cref="CommitAsync"/>, which records the imports and marks
+    /// those sessions as taken over without changing or deleting their data; imports no commit recorded
+    /// are offered again next time.</summary>
     IReadOnlyList<RecoveryImport> Imports => [];
 
     Task<RecoverySnapshot?> LoadAsync();
     Task CommitAsync(RecoverySnapshot snapshot);
 
-    /// <summary>Once a commit holding the imported drafts has succeeded (<paramref name="committed"/>),
-    /// marks their sessions as taken over, without changing or deleting their data. Either way their
-    /// locks are released; uncommitted imports are offered again next time.</summary>
-    void CompleteImports(bool committed) { }
 }

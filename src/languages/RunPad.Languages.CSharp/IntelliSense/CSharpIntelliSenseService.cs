@@ -377,36 +377,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // own Main is static and/or Task-returning — every call site already has
     // `code` in scope (it's what's being analyzed), so this just threads it through.
     // Parsed with this document's own options (the build's symbols for its target), as the build does.
-    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code, _parseOptions) : "";
+    private string KindPrefix(string code) => KindShapeFor(code).Prefix;
 
     // Closes the wrapper class KindPrefix opens for RpadKind.Program — mirrored for the
     // same reason as the prefix: without it, the live-analysis document would contain a permanently
     // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
     // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
     // depends on whether the user's own Main is static/Task-returning.
-    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code, _parseOptions) : "";
+    private string KindSuffix(string code) => KindShapeFor(code).Suffix;
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
     // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
 
-    private ProgramBodyProjection? _bodyProjection;
-    private CSharpParseOptions? _projectionOptions;
-    private RpadKind _projectionKind;
+    private ProgramBodyProjection ProjectionFor(string code) => KindShapeFor(code).Projection;
 
-    private ProgramBodyProjection ProjectionFor(string code)
+    // The prefix, projection and suffix each parse the whole script, and the offset mapping below
+    // runs once per classified span, diagnostic or highlighted token: computed once per text, kind
+    // and parse options, not on every mapped offset.
+    private sealed record KindShape(string Code, CSharpParseOptions Options, RpadKind Kind,
+        string Prefix, ProgramBodyProjection Projection, string Suffix);
+
+    private KindShape? _kindShape;
+
+    private KindShape KindShapeFor(string code)
     {
         lock (_syncLock)
         {
-            if (_bodyProjection?.Original != code || _projectionOptions != _parseOptions || _projectionKind != _kind)
-            {
-                _bodyProjection = _kind == RpadKind.Program
-                    ? ProgramBodyProjection.Create(code, _parseOptions)
-                    : ProgramBodyProjection.Identity(code);
-                _projectionOptions = _parseOptions;
-                _projectionKind = _kind;
-            }
-            return _bodyProjection;
+            if (_kindShape is { } shape && shape.Code == code && shape.Options == _parseOptions && shape.Kind == _kind)
+                return shape;
+            return _kindShape = _kind == RpadKind.Program
+                ? new KindShape(code, _parseOptions, _kind,
+                    RpadKindTransform.ProgramPrefixFor(code, _parseOptions),
+                    ProgramBodyProjection.Create(code, _parseOptions),
+                    RpadKindTransform.ProgramSuffixFor(code, _parseOptions))
+                : new KindShape(code, _parseOptions, _kind, "", ProgramBodyProjection.Identity(code), "");
         }
     }
 

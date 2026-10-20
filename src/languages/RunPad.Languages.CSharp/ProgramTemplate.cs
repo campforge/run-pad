@@ -57,11 +57,12 @@ internal static class ProgramTemplate
 
     private static string Lf(string text) => text.Replace("\r\n", "\n");
 
-    // An await that makes Main itself async: not one inside a lambda or local function.
+    // A classic program's entry point: a static Main method declared in some type.
     private static bool HasStaticMain(string code) => CSharpSyntaxTree.ParseText(code, ParseOptions).GetRoot()
         .DescendantNodes().OfType<MethodDeclarationSyntax>()
         .Any(m => m.Identifier.Text == "Main" && m.Modifiers.Any(SyntaxKind.StaticKeyword));
 
+    // An await that makes Main itself async: not one inside a lambda or local function.
     private static bool AwaitsDirectly(GlobalStatementSyntax statement)
         => statement.DescendantTokens().Any(t =>
             t.IsKind(SyntaxKind.AwaitKeyword)
