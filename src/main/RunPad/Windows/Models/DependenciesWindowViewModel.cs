@@ -4,7 +4,10 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using ReactiveUI;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
+using RunPad.Services.Connections;
+using RunPad.Services.Secrets;
 using RunPad.Shared;
 
 namespace RunPad.Windows.Models;
@@ -546,6 +549,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // C# only: Visual Basic has no unsafe code, so its scripts get no such option.
     public bool HasUnsafeOption => _original?.Language == RpadLanguage.CSharp;
 
+    /// <summary>The Connections tab: the script's <c>connections:</c>.</summary>
+    public ScriptConnectionsViewModel Connections { get; }
+
     public bool AllowUnsafe
     {
         get => _allowUnsafe;
@@ -577,14 +583,21 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // ── Constructor ────────────────────────────────────────────────────────────
 
     public DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
-        INuGetSourceStore sources)
-        : this(search, cache, sources, DefaultSearchDebounce)
+        INuGetSourceStore sources, IConnectionStore? connections = null, ISecretStore? secrets = null,
+        ConnectionDriverRegistry? connectionDrivers = null)
+        : this(search, cache, sources, DefaultSearchDebounce, connections, secrets, connectionDrivers)
     {
     }
 
     internal DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
-        INuGetSourceStore sources, TimeSpan searchDebounce)
+        INuGetSourceStore sources, TimeSpan searchDebounce, IConnectionStore? connections = null, ISecretStore? secrets = null,
+        ConnectionDriverRegistry? connectionDrivers = null)
     {
+        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers);
+        Connections.UsePackages(
+            () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
+            (id, version) => AddPackage(id, version));
+        Connections.Edited += UpdateHasChanges;
         _search = search;
         _cache = cache;
         _sources = sources;
@@ -658,6 +671,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         ReferenceError = null;
         NamespaceError = null;
         _allowUnsafe = fm?.AllowUnsafe ?? false;
+        Connections.Load(fm);
 
         this.RaisePropertyChanged(nameof(HasFrontMatter));
         this.RaisePropertyChanged(nameof(HasUnsafeOption));
@@ -698,6 +712,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         fm.References = CopyBack(fm.References, References.Select(e => e.Value));
         fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
         if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
+        fm.Connections = Connections.ToList();
         return true;
     }
 
@@ -723,7 +738,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
         return packagesChanged
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
                || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
-               || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe);
+               || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe)
+               || Connections.HasChanges;
     }
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();
@@ -780,6 +796,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private void OnDraftPackagesChanged()
     {
+        Connections.OnPackagesChanged();
         foreach (var item in OnlinePackages)
         {
             item.ScriptVersion = FindDraft(item.Id)?.Version;

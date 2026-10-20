@@ -379,6 +379,7 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("_Dependencies...", KeyCommands.OpenDependencies),
                 Item("_Assembly Explorer...", KeyCommands.OpenAssemblyExplorer),
+                new MainMenuCommand("_Connections...", vm.OpenConnectionsCommand),
                 new MainMenuCommand("_Secret Store...", vm.OpenSecretStoreCommand),
                 new MainMenuSeparator(),
                 Item("_Preferences...", KeyCommands.OpenPreferences),
