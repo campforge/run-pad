@@ -234,7 +234,7 @@ public class ConnectionsWindowViewModelTests
         var item = vm.SelectedConnection!;
         item.Fields[0].Text = "Password=${secret:DB}";
         await vm.TestCommand.Execute();
-        Assert.Equal("✓ Connected.", item.TestResult);
+        Assert.Equal("Success: Connected.", item.TestResult);
         Assert.Equal("Password=pw", fake.Tested!["connectionString"].Text);
 
         item.Fields[0].Text = "Password=${secret:missing}";

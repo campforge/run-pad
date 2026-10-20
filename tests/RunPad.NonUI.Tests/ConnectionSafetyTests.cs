@@ -151,4 +151,30 @@ public sealed class ConnectionSafetyTests : IDisposable
         var generated = GeneratedConnections.For([Http("connections")], RpadLanguage.CSharp, [], Drivers())!;
         Assert.Contains(generated.Errors, e => e.Contains("reserved", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void ReplacingAnImportedConnection_Should_RequireConfirmation_AndRecheckTheStoredVersion()
+    {
+        var store = new FileConnectionStore(StorePath);
+        store.Save([Http("api")], null);
+        var changed = Http("api");
+        changed.Params["baseAddress"] = RpadValue.Of("https://changed.test/");
+        var vm = new ScriptConnectionsViewModel(store, new FileSecretStore(Path.Combine(_folder, "secrets.json")), Drivers());
+        vm.Load(new RpadFrontMatter { Connections = [changed] });
+        vm.SelectedItem = vm.Items[0];
+        ((ICommand)vm.ImportCommand).Execute(null);
+        Assert.True(vm.IsImportConfirmationPending);
+        Assert.Equal("https://example.test/", store.Load()[0].Params["baseAddress"].Text);
+        ((ICommand)vm.CancelImportCommand).Execute(null);
+        Assert.False(vm.IsImportConfirmationPending);
+        Assert.False(vm.HasChanges);
+        ((ICommand)vm.ImportCommand).Execute(null);
+        var latest = store.LoadSnapshot();
+        store.Save([Http("newer")], latest.Version);
+        ((ICommand)vm.ConfirmImportCommand).Execute(null);
+        Assert.False(vm.IsImportConfirmationPending);
+        Assert.Contains("changed", vm.StoreError);
+        Assert.Equal("newer", store.Load()[0].Name);
+        Assert.False(vm.HasChanges);
+    }
 }

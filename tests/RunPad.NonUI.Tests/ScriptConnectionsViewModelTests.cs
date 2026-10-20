@@ -118,6 +118,9 @@ public class ScriptConnectionsViewModelTests
 
         vm.Connections.SelectedItem = vm.Connections.Items[0];
         Execute(vm.Connections.ImportCommand);
+        Assert.True(vm.Connections.IsImportConfirmationPending);
+        Assert.Equal("https://old.billing/", mine[0].Params["baseAddress"].Text);
+        Execute(vm.Connections.ConfirmImportCommand);
         vm.Connections.SelectedItem = vm.Connections.Items[1];
         Execute(vm.Connections.ImportCommand);
 

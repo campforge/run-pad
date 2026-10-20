@@ -49,13 +49,14 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
         get;
         set
         {
+            IsValueRevealed = false;
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(HasSelection));
-            IsValueRevealed = false;
         }
     }
 
     public bool HasSelection => SelectedSecret is not null;
+    public bool IsEmpty => LoadError is null && Secrets.Count == 0;
 
     // Shows the selected value instead of dots; hidden again whenever the selection changes.
     public bool IsValueRevealed
@@ -112,6 +113,7 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
     public SecretStoreWindowViewModel(ISecretStore store)
     {
         _store = store;
+        Secrets.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
         try
         {
             var snapshot = store.LoadSnapshot();

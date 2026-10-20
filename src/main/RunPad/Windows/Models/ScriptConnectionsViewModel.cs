@@ -21,7 +21,13 @@ public sealed class ScriptConnectionItemViewModel : ReactiveObject
     // How the script's code reaches it.
     public string CodeName => "Connections." + RpadConnection.CodeName(Connection.Name);
 
-    public string DriverName { get; internal set; } = "";
+    public string DriverName
+    {
+        get;
+        internal set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(AccessibleName)); }
+    } = "";
+
+    public string AccessibleName => $"{Name}, {DriverName}";
 
     // Problems that would fail the build: a missing driver, invalid parameters, a missing secret.
     public string? Problem
@@ -52,6 +58,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     private IReadOnlyList<RpadConnection> _original = [];
     private List<RpadConnection> _mine = [];
     private string? _version;
+    private List<RpadConnection>? _pendingImport;
+    private string? _pendingVersion;
     // The script's packages as drafted in the window, and how to add one there.
     private Func<IReadOnlySet<string>> _scriptPackages = () => new HashSet<string>();
     private Action<string, string> _addPackage = (_, _) => { };
@@ -72,7 +80,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     public ScriptConnectionItemViewModel? SelectedItem
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set { if (ReferenceEquals(field, value)) return; this.RaiseAndSetIfChanged(ref field, value); CancelImportConfirmation(); }
     }
 
     public bool IsCSharp
@@ -82,6 +90,24 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
     } = true;
 
     public bool HasItems => Items.Count > 0;
+    public string AvailableHint => _mine.Count == 0
+        ? "No saved connections. Create one in Tools → Connections."
+        : Available.Count == 0 ? "All saved connections are already in this script." : "Choose a connection";
+
+    public bool IsImportConfirmationPending
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string? ImportMessage
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public ReactiveCommand<Unit, Unit> ConfirmImportCommand { get; }
+    public ReactiveCommand<Unit, Unit> CancelImportCommand { get; }
 
     // Why the user's list couldn't be read or written; Import is off while it can't be read.
     public string? StoreError
@@ -106,6 +132,8 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.SelectedItem, (ScriptConnectionItemViewModel? i) => i is not null));
         ImportCommand = ReactiveCommand.Create(ImportSelected,
             this.WhenAnyValue(x => x.SelectedItem, x => x.HasStoreError, (ScriptConnectionItemViewModel? i, bool error) => i is not null && !error && _store is not null));
+        ConfirmImportCommand = ReactiveCommand.Create(ConfirmImport, this.WhenAnyValue(x => x.IsImportConfirmationPending));
+        CancelImportCommand = ReactiveCommand.Create(CancelImportConfirmation, this.WhenAnyValue(x => x.IsImportConfirmationPending));
     }
 
     // The Dependencies window's own package draft, which connections add their packages to.
@@ -120,6 +148,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
 
     internal void Load(RpadFrontMatter? frontMatter)
     {
+        SelectedItem = null;
         _original = frontMatter?.Connections ?? [];
         IsCSharp = frontMatter?.Language is null or RpadLanguage.CSharp;
         LoadMine();
@@ -183,10 +212,41 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         var index = candidate.FindIndex(c => string.Equals(c.Name, item.Name, StringComparison.OrdinalIgnoreCase));
         if (index >= 0) candidate[index] = Clone(item.Connection);
         else candidate.Add(Clone(item.Connection));
+        if (index >= 0 && Json([_mine[index]]) != Json([item.Connection]))
+        {
+            _pendingImport = candidate;
+            _pendingVersion = _version;
+            ImportMessage = $"Replace your saved connection '{item.Name}'? This is saved immediately; Cancel in Dependencies will not undo it.";
+            IsImportConfirmationPending = true;
+            return;
+        }
+        CommitImport(candidate, _version);
+    }
+
+    private void ConfirmImport()
+    {
+        if (_pendingImport is not { } candidate) return;
+        var version = _pendingVersion;
+        CancelImportConfirmation();
+        CommitImport(candidate, version);
+    }
+
+    private void CancelImportConfirmation()
+    {
+        _pendingImport = null;
+        _pendingVersion = null;
+        IsImportConfirmationPending = false;
+        ImportMessage = null;
+    }
+
+    private void CommitImport(List<RpadConnection> candidate, string? version)
+    {
+        if (_store is null) return;
         try
         {
-            _version = _store.Save(candidate, _version);
+            _version = _store.Save(candidate, version);
             _mine = candidate;
+            ImportMessage = "Saved to your connections. Cancel in Dependencies will not undo this import.";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -234,6 +294,7 @@ public sealed class ScriptConnectionsViewModel : ReactiveObject
         foreach (var connection in _mine.Where(m => Items.All(i => !string.Equals(i.Name, m.Name, StringComparison.OrdinalIgnoreCase))))
             Available.Add(connection);
         SelectedAvailable = Available.FirstOrDefault();
+        this.RaisePropertyChanged(nameof(AvailableHint));
     }
 
     private HashSet<string>? SecretNames()

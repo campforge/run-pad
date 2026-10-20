@@ -471,14 +471,14 @@
 
             <!-- ─── Connections: the script's connections: list ───────────────── -->
             <TabItem x:Name="ConnectionsTab" Header="Connections">
-                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,12,0,0" RowSpacing="8"
+                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="0,12,0,0" RowSpacing="8"
                       DataContext="{Binding Connections}" x:DataType="viewModels:ScriptConnectionsViewModel"
                       IsEnabled="{Binding $parent[Window].((viewModels:DependenciesWindowViewModel)DataContext).HasFrontMatter}">
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                         <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Your connections:"/>
                         <ComboBox x:Name="AvailableConnectionsBox" Grid.Column="1" HorizontalAlignment="Stretch"
                                   ItemsSource="{Binding Available}" SelectedItem="{Binding SelectedAvailable}"
-                                  PlaceholderText="All of them are in the script (add more in Tools → Connections)"
+                                  PlaceholderText="{Binding AvailableHint}"
                                   AutomationProperties.Name="Your connections">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="rpad:RpadConnection">
@@ -492,7 +492,7 @@
                         <Button x:Name="AddConnectionButton" Grid.Column="2" Content="Add to Script" Command="{Binding AddCommand}"/>
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="hint" TextWrapping="Wrap"
-                               Text="Each connection becomes a client in the script's code, such as Connections.Billing, as soon as the change is saved. Secrets stay ${secret:name} placeholders and are read from the Secret Store when the script runs."/>
+                               Text="Add a connection to use its client in this script. Secrets are read only when the script runs."/>
                     <Border Grid.Row="2"
                             BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
                             BorderThickness="1" CornerRadius="4">
@@ -500,15 +500,19 @@
                                  Background="Transparent" BorderThickness="0"
                                  AutomationProperties.Name="The script's connections"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem" x:DataType="viewModels:ScriptConnectionItemViewModel">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}"/>
+                                </Style>
+                            </ListBox.Styles>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="viewModels:ScriptConnectionItemViewModel">
                                     <StackPanel Spacing="2">
-                                        <TextBlock>
-                                            <Run Text="{Binding Name}" FontWeight="SemiBold"/>
-                                            <Run Text="{Binding DriverName}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
-                                            <Run Text="  "/>
-                                            <Run Text="{Binding CodeName}"/>
-                                        </TextBlock>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding DriverName}" Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                        </Grid>
+                                        <SelectableTextBlock Text="{Binding CodeName}" TextWrapping="Wrap" AutomationProperties.Name="Client in script"/>
                                         <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
                                         <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" FontSize="12" TextWrapping="Wrap"
@@ -523,7 +527,15 @@
                         <Button x:Name="ImportConnectionButton" Content="Import to Your Connections" Command="{Binding ImportCommand}"
                                 ToolTip.Tip="Keeps this connection in Tools → Connections, replacing one of the same name; the script doesn't change"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="4" Classes="hint" Foreground="{DynamicResource RunPad.Status.ErrorBrush}" TextWrapping="Wrap"
+                    <StackPanel Grid.Row="4" Spacing="6">
+                        <TextBlock Classes="hint" Text="Imports save to your connections immediately; Save below applies changes to this script."/>
+                        <TextBlock x:Name="ImportMessage" Text="{Binding ImportMessage}" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsImportConfirmationPending}">
+                            <Button x:Name="CancelImportButton" Content="Keep Existing" Command="{Binding CancelImportCommand}"/>
+                            <Button x:Name="ConfirmImportButton" Content="Replace Saved Connection" Command="{Binding ConfirmImportCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Grid.Row="5" Classes="hint" Foreground="{DynamicResource RunPad.Status.ErrorBrush}" TextWrapping="Wrap"
                                Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>
                 </Grid>
             </TabItem>
@@ -534,9 +546,9 @@
              and the window's close button ask whether to save pending changes. Save is deliberately
              not IsDefault so Enter in a field never applies the dialog. -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="OkButton" Content="Save" Width="80" Click="Ok_Click"
-                    IsEnabled="{Binding CanApply}"/>
             <Button x:Name="CancelButton" Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+            <Button x:Name="OkButton" Classes="primary" Content="Save" Width="80" Click="Ok_Click"
+                    IsEnabled="{Binding CanApply}"/>
         </StackPanel>
     </Grid>
 </Window>
