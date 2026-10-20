@@ -588,4 +588,62 @@ public sealed class RecoveryStoreTests : IDisposable
         }
         finally { newOwner?.Dispose(); }
     }
+
+    // The checkpoint that retires a source still records it. An instance that listed the folder
+    // before and adopted it afterwards, empty, starts its own revisions again: its drafts must be
+    // restored, not taken for the retired import, and never deleted as one.
+    [Fact]
+    public async Task AFolderAdoptedAfterRetiring_Should_KeepTheNewOwnersDrafts()
+    {
+        var (destination, source) = await ImportThenAsync();
+        using (var later = new DiskRecoveryStore(_root))
+        {
+            var restored = (await later.LoadAsync())!;
+            await later.CommitAsync(restored with { Revision = 3 }); // retires the source, then exits
+        }
+        Assert.Equal(["owner.lock"], Directory.GetFiles(source).Select(Path.GetFileName));
+        var staging = Path.Combine(Path.GetDirectoryName(_root)!, Path.GetFileName(_root) + "-adopter");
+        using (var adopter = new DiskRecoveryStore(staging)) await adopter.CommitAsync(Snapshot(1, "ADOPTER-DRAFT"));
+        foreach (var file in Directory.GetFiles(Directory.GetDirectories(staging).Single()).Where(f => Path.GetFileName(f) != "owner.lock"))
+            File.Copy(file, Path.Combine(source, Path.GetFileName(file)));
+        Directory.Delete(staging, true);
+        Directory.SetLastWriteTimeUtc(destination, DateTime.UtcNow.AddMinutes(10));
+        var adopted = Files(source);
+
+        using (var next = new DiskRecoveryStore(_root))
+        {
+            var own = (await next.LoadAsync())!;
+            Assert.Equal(["BASE", "IMPORTED-DRAFT"], own.Tabs.Select(t => t.EditorText));
+            var import = Assert.Single(next.Imports);
+            Assert.Equal("ADOPTER-DRAFT", Assert.Single(import.Tabs).EditorText);
+            var merged = own with { Revision = 4, Tabs = [.. own.Tabs, .. import.Tabs] };
+            await next.CommitAsync(merged);
+            // The old record no longer describes the folder: it is dropped, the adopter's data kept.
+            Assert.Equal(adopted.Keys.Order(), Files(source).Keys.Where(k => k != "imported.json").Order());
+            await next.CommitAsync(merged with { Revision = 5 });
+        }
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Equal(["BASE", "IMPORTED-DRAFT", "ADOPTER-DRAFT"], (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(reopened.Imports);
+    }
+
+    // Checkpoints written before records named the imported checkpoint file still match by revision.
+    [Fact]
+    public async Task ARecordWithoutACheckpointFile_Should_StillMarkTheSourceAsTakenOver()
+    {
+        var (destination, source) = await ImportThenAsync();
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(destination, "current.json")))!;
+        var payload = Path.Combine(destination, pointer["Current"]!.GetValue<string>());
+        var snapshot = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(payload))!;
+        foreach (var record in snapshot["ImportedSessions"]!.AsArray())
+            Assert.True(record!.AsObject().Remove("Payload"));
+        File.WriteAllText(payload, snapshot.ToJsonString());
+        File.Delete(Path.Combine(source, "imported.json"));
+        Directory.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddMinutes(10));
+
+        using var reopened = new DiskRecoveryStore(_root);
+        Assert.Equal(["BASE", "IMPORTED-DRAFT"], (await reopened.LoadAsync())!.Tabs.Select(t => t.EditorText));
+        Assert.Empty(reopened.Imports);
+        Assert.True(File.Exists(Path.Combine(source, "imported.json")));
+    }
 }

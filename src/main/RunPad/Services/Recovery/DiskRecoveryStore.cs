@@ -73,8 +73,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         // it falls back to one from before the import, the drafts are reachable only from the source.
         var records = sessions.SelectMany(x => (x.Snapshot?.ImportedSessions ?? [])
             .Select(record => (Destination: x.Folder, Record: record))).ToList();
-        bool TakenOver(string folder, RecoverySnapshot snapshot) => records.Any(r =>
-            r.Record.Source == Path.GetFileName(folder) && r.Record.Revision >= snapshot.Revision);
+        bool TakenOver(string folder, RecoverySnapshot snapshot, string? payload) =>
+            records.Any(r => Describes(r.Record, folder, snapshot, payload));
         var failed = sessions.Where(x => x.Failure is not null).Select(x => Path.GetFileName(x.Folder)).ToHashSet();
         var held = sessions.Select(x => Path.GetFileName(x.Folder)).ToHashSet();
 
@@ -83,10 +83,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         RecoverySnapshot? own = null;
         foreach (var session in sessions)
         {
-            if (session.Snapshot is { } taken && TakenOver(session.Folder, taken))
+            if (session.Snapshot is { } taken && TakenOver(session.Folder, taken, session.Payload))
             {
-                var owner = records.First(r => r.Record.Source == Path.GetFileName(session.Folder)
-                    && r.Record.Revision >= taken.Revision);
+                var owner = records.First(r => Describes(r.Record, session.Folder, taken, session.Payload));
                 TryMarkImported(session.Folder, owner.Record, owner.Destination);
                 session.Lock.Dispose();
             }
@@ -113,7 +112,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                         session.Lock.Dispose();
                         break;
                     default:
-                        Offer(session.Folder, session.Lock, session.Snapshot);
+                        Offer(session.Folder, session.Lock, session.Snapshot, session.Payload);
                         break;
                 }
             }
@@ -126,7 +125,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
                 _revision = own?.Revision ?? -1;
                 if (session.FellBack) Warning = "An earlier draft checkpoint was recovered because the newer one was damaged.";
             }
-            else Offer(session.Folder, session.Lock, session.Snapshot);
+            else Offer(session.Folder, session.Lock, session.Snapshot, session.Payload);
         }
         _records.AddRange(own?.ImportedSessions ?? []);
         if (unavailable.Count > 0)
@@ -146,15 +145,22 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         return own;
     }
 
+    // Whether a record is about the generation read from this folder. A folder can be reused: an
+    // instance that listed it before it was retired may adopt it, empty, as its own new session, and
+    // its revisions start again, so only the checkpoint file identifies what was imported.
+    private static bool Describes(RecoveryImportRecord record, string folder, RecoverySnapshot snapshot, string? payload) =>
+        record.Source == Path.GetFileName(folder)
+        && (record.Payload is { } imported ? imported == payload : record.Revision >= snapshot.Revision);
+
     // Another session's unsaved tabs become an import, held locked until a checkpoint records it.
-    private void Offer(string folder, FileStream owner, RecoverySnapshot? snapshot)
+    private void Offer(string folder, FileStream owner, RecoverySnapshot? snapshot, string? payload)
     {
         var drafts = snapshot?.Tabs
             .Where(t => t.IsDirty || (t.FilePath is null && !string.IsNullOrWhiteSpace(t.EditorText)))
             .Select(t => t with { Id = Guid.NewGuid(), ImportedFrom = Path.GetFileName(folder) })
             .ToList() ?? [];
         if (drafts.Count == 0) { owner.Dispose(); return; } // Nothing unsaved there.
-        _imports.Add(new RecoveryImport(Path.GetFileName(folder), snapshot!.Revision, drafts));
+        _imports.Add(new RecoveryImport(Path.GetFileName(folder), snapshot!.Revision, drafts, payload));
         _inherited.AddRange(snapshot.ImportedSessions ?? []);
         _importLocks.Add(owner);
     }
@@ -212,8 +218,9 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         }
     }
 
-    // Deletes a session whose drafts this one holds, as of the revision that was imported; true once
-    // its checkpoint data is gone. A session someone has open, or one written since, is left for a later checkpoint.
+    // Deletes the checkpoints of a session whose drafts this one holds, as of the generation that was
+    // imported; true once the record is no longer needed. A session someone has open is left for a
+    // later checkpoint; a folder holding anything but that generation is not the record's any more.
     private bool TryRemoveTakenOver(RecoveryImportRecord record)
     {
         if (!Guid.TryParseExact(record.Source, "N", out _)) return false;
@@ -224,8 +231,8 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         {
             using (Lock(folder))
             {
-                var (snapshot, _, _) = ReadFolder(folder);
-                if (snapshot is not null && snapshot.Revision > record.Revision) return false;
+                var (snapshot, payload, _) = ReadFolder(folder);
+                if (snapshot is not null && !Describes(record, folder, snapshot, payload)) return true;
                 // The pointers first: without them the folder is no session any more, so an
                 // interrupted removal leaves nothing that is loaded or offered again.
                 File.Delete(Path.Combine(folder, "current.json"));
@@ -320,7 +327,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             if (snapshot.Revision <= _revision) return;
             // Drafts imported at startup are in this workspace from the restore on: every checkpoint
             // records their sessions, and only once one is durable are those sessions marked.
-            var pending = _imports.Select(i => new RecoveryImportRecord(i.Source, i.Revision))
+            var pending = _imports.Select(i => new RecoveryImportRecord(i.Source, i.Revision, i.Payload))
                 .Concat(_inherited).Except(_records).Distinct().ToList();
             // Recorded by the checkpoint this one replaces, so in both generations a load can fall
             // back to once this one is durable.
