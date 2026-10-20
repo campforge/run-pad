@@ -21,13 +21,17 @@ internal sealed class ProgramBodyProjection
     private sealed record Insertion(int Offset, string Text);
     private readonly IReadOnlyList<Insertion> _insertions;
     public string Original { get; }
+
+    /// <summary>The declarations compiled outside the generated class, in <see cref="Original"/>.</summary>
+    public IReadOnlyList<TextSpan> Moved { get; }
     public string Text { get; }
     public bool HasChanges => _insertions.Count != 0;
 
-    private ProgramBodyProjection(string code, IReadOnlyList<Insertion> insertions)
+    private ProgramBodyProjection(string code, IReadOnlyList<Insertion> insertions, IReadOnlyList<TextSpan> moved)
     {
         Original = code;
         _insertions = insertions;
+        Moved = moved;
         var builder = new StringBuilder();
         var offset = 0;
         foreach (var insertion in insertions)
@@ -38,7 +42,7 @@ internal sealed class ProgramBodyProjection
         Text = builder.Append(code, offset, code.Length - offset).ToString();
     }
 
-    public static ProgramBodyProjection Identity(string code) => new(code, []);
+    public static ProgramBodyProjection Identity(string code) => new(code, [], []);
 
     public static ProgramBodyProjection Create(string code, CSharpParseOptions options)
     {
@@ -57,7 +61,7 @@ internal sealed class ProgramBodyProjection
             insertions.Add(new Insertion(declaration.SpanStart, "}"));
             insertions.Add(new Insertion(declaration.Span.End, $"partial class {RpadKindTransform.ProgramWrapperClassName}{{"));
         }
-        return new ProgramBodyProjection(code, insertions);
+        return new ProgramBodyProjection(code, insertions, [.. declarations.Select(d => d.Span)]);
     }
 
     private static bool ContainsExtensionClass(MemberDeclarationSyntax declaration) => declaration switch
@@ -106,10 +110,13 @@ internal sealed class ProgramBodyProjection
     }
 
     /// <summary>Translate a code action without ever writing generated class boundaries into a script.
-    /// Actions rewriting those boundaries cannot safely be applied and are refused.</summary>
-    public string? RestoreEdit(string changed, string prefix, string suffix, CSharpParseOptions options)
+    /// Actions rewriting those boundaries cannot safely be applied and are refused. Also returns where
+    /// the action's text ended up in the script (see <paramref name="changedSpans"/>, the same for
+    /// the projected text), for the editor's re-indentation.</summary>
+    public (string Code, IReadOnlyList<TextSpan> ChangedSpans)? RestoreEdit(string changed, IReadOnlyList<TextSpan> changedSpans,
+        string prefix, string suffix, CSharpParseOptions options)
     {
-        if (!HasChanges) return changed;
+        if (!HasChanges) return (changed, changedSpans);
         var before = CSharpSyntaxTree.ParseText(prefix + Text + suffix, options);
         var after = CSharpSyntaxTree.ParseText(prefix + changed + suffix, options);
         var edits = new List<TextChange>();
@@ -144,6 +151,14 @@ internal sealed class ProgramBodyProjection
             if (startOffset < 0 || endOffset < startOffset) return null;
             edits.Add(new TextChange(TextSpan.FromBounds(startOffset, endOffset), change.NewText ?? ""));
         }
-        return SourceText.From(Original).WithChanges(edits).ToString();
+        var spans = new List<TextSpan>(edits.Count);
+        var shift = 0;
+        foreach (var edit in edits.OrderBy(e => e.Span.Start))
+        {
+            var length = edit.NewText?.Length ?? 0;
+            spans.Add(new TextSpan(edit.Span.Start + shift, length));
+            shift += length - edit.Span.Length;
+        }
+        return (SourceText.From(Original).WithChanges(edits).ToString(), spans);
     }
 }
