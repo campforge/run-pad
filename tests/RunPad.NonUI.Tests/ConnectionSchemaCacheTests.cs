@@ -60,6 +60,26 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
     }
 
     [Fact]
+    public void WarmDescriptions_Should_BeReused_AndExternalChangesInvalidated()
+    {
+        var (schemas, _) = Create();
+        var cache = schemas.Cache;
+        cache.Put(Connection, new ConnectionSchema("first", [new("Large.cs", new string(' ', 2_000_000))], ""));
+        var first = cache.Get(Connection)!;
+        Assert.Same(first, cache.Get(Connection));
+        var external = new ConnectionSchemaCache(cache.Folder);
+        external.Put(Connection, new ConnectionSchema("replaced externally", [], ""));
+        var updated = cache.Get(Connection)!;
+        Assert.NotSame(first, updated);
+        Assert.Equal("replaced externally", updated.Summary);
+        Assert.Same(updated, cache.Get(Connection));
+        cache.Put(Connection, new ConnectionSchema("local replacement", [], ""));
+        Assert.Equal("local replacement", cache.Get(Connection)!.Summary);
+        File.Delete(Path.Combine(cache.Folder, cache.KeyOf(Connection) + ".json"));
+        Assert.Null(cache.Get(Connection));
+    }
+
+    [Fact]
     public async Task ConcurrentCallers_Should_ShareOneRead()
     {
         var (schemas, driver) = Create();

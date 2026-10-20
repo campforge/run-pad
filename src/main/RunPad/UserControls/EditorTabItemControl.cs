@@ -1243,9 +1243,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
+        // Build the line index off-thread too; the UI only adopts the finished document.
+        var document = new AvaloniaEdit.Document.TextDocument(il);
+        document.SetOwnerThread(null);
         Dispatcher.Post(() =>
         {
-            if (!_disposed && generation == _runGeneration) IlOutput.Text = il;
+            if (!_disposed && generation == _runGeneration)
+            {
+                document.SetOwnerThread(Thread.CurrentThread);
+                IlOutput.Document = document;
+            }
         });
     }
 
