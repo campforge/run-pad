@@ -107,19 +107,19 @@
     </Style>
 
     <!-- ── Default dialog button ──────────────────────────────────────────── -->
-    <!-- The button a dialog's Enter presses (IsDefault) is its primary action and looks like it:
-         theme accent with white text. Disabled keeps Fluent's own look. -->
-    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+    <!-- A primary form action can be accented without making Enter save a text field.
+         Default dialog actions share the style; disabled keeps Fluent's own look. -->
+    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
     </Style>
-    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
     </Style>
-    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>

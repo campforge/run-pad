@@ -41,6 +41,13 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Secret Store keeps masked values out of accessibility values and change notifications until Show
+  is enabled. Connection fields and lists have descriptive accessibility names.
+- Connection test results wrap inside the window. Header fields keep room for editing at the
+  minimum window width, with compact secret pickers and clearer empty states.
+- New settings windows use clear Save actions and expandable storage details. Importing over a
+  saved connection asks for confirmation; the exit dialog lists unsaved tabs on separate lines.
+
 - Connections keeps duplicate HTTP header names as editable validation errors instead of throwing
   while typing, and retains edits after a failed save so you can retry.
 - Connections detects a list changed in another window instead of overwriting newer connections.

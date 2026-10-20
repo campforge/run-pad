@@ -1,4 +1,7 @@
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using RunPad.Services;
 
 namespace RunPad.Windows;
@@ -12,10 +15,18 @@ public partial class ExitUnsavedDialog : RunPadDialogWindow
     public ExitUnsavedDialog(IReadOnlyList<string> fileNames)
         : this()
     {
-        var listed = string.Join(", ", fileNames.Take(ListedNames));
-        if (fileNames.Count > ListedNames) listed += $" and {fileNames.Count - ListedNames} more";
-        Layout.Message = (fileNames.Count == 1 ? "1 tab has unsaved changes: " : $"{fileNames.Count} tabs have unsaved changes: ")
-            + listed + ". Keep in Stash closes without writing them; they reopen next time.";
+        Layout.Message = fileNames.Count == 1 ? "1 tab has unsaved changes." : $"{fileNames.Count} tabs have unsaved changes.";
+        var names = new StackPanel { Spacing = 4 };
+        foreach (var name in fileNames.Take(ListedNames))
+        {
+            var row = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis };
+            ToolTip.SetTip(row, name);
+            names.Children.Add(row);
+        }
+        if (fileNames.Count > ListedNames)
+            names.Children.Add(new TextBlock { Text = $"and {fileNames.Count - ListedNames} more" });
+        names.Children.Add(new TextBlock { Text = "Keep in Stash closes without writing the files; they reopen next time.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) });
+        Layout.Body = names;
     }
 
     private ExitUnsavedDialog()

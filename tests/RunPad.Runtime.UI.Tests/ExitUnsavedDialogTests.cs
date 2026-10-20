@@ -71,11 +71,11 @@ public class ExitUnsavedDialogTests
         try
         {
             var layout = dialog.FindControl<DialogLayout>("Layout")!;
-            Assert.StartsWith("7 tabs have unsaved changes: script-with-a-rather-long-name-1, ", layout.Message);
-            Assert.Contains("script-with-a-rather-long-name-5 and 2 more.", layout.Message);
-            Assert.DoesNotContain("name-6", layout.Message);
-            Assert.Equal("1 tab has unsaved changes: only. Keep in Stash closes without writing them; they reopen next time.",
-                new ExitUnsavedDialog(["only"]).FindControl<DialogLayout>("Layout")!.Message);
+            Assert.Equal("7 tabs have unsaved changes.", layout.Message);
+            var rows = Assert.IsType<StackPanel>(layout.Body).Children.OfType<TextBlock>().ToList();
+            Assert.Equal(names.Take(5), rows.Take(5).Select(t => t.Text));
+            Assert.Equal("and 2 more", rows[5].Text);
+            Assert.Equal("1 tab has unsaved changes.", new ExitUnsavedDialog(["only"]).FindControl<DialogLayout>("Layout")!.Message);
             foreach (var button in dialog.GetLogicalDescendants().OfType<Button>())
             {
                 var origin = button.TranslatePoint(default, dialog)!.Value;

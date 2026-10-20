@@ -41,6 +41,8 @@ public sealed class ConnectionMapRowViewModel : ReactiveObject
         }
     }
 
+    public bool HasSecrets => SecretNames.Count > 0;
+
     internal ConnectionMapRowViewModel(IReadOnlyList<string> secretNames) => SecretNames = secretNames;
 }
 
@@ -160,12 +162,13 @@ public sealed class ConnectionItemViewModel : ReactiveObject
     public IConnectionDriver? Driver { get; }
     public string DriverId { get; }
     public string DriverName => Driver?.DisplayName ?? $"{DriverId} (not available in this RunPad)";
+    public string AccessibleName => $"{Name}, {DriverName}";
     public ObservableCollection<ConnectionFieldViewModel> Fields { get; } = [];
 
     public string Name
     {
         get;
-        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); this.RaisePropertyChanged(nameof(AccessibleName)); Edited?.Invoke(); }
     }
 
     public string? KeptParamsNote => _otherParams.Count == 0 ? null
@@ -260,6 +263,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     }
 
     public bool HasSelection => SelectedConnection is not null;
+    public bool IsEmpty => LoadError is null && Connections.Count == 0;
     public bool CanTest => SelectedConnection is { Driver: not null } item && item.Fields.All(f => f.MapError is null);
 
     public string? LoadError { get; }
@@ -309,6 +313,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets)
     {
         _store = store;
+        Connections.CollectionChanged += (_, _) => this.RaisePropertyChanged(nameof(IsEmpty));
         _drivers = drivers;
         _secrets = secrets;
         _secretNames = SecretNamesOf(secrets);
@@ -400,7 +405,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
                 return;
             }
             var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
-            item.TestResult = (result.Succeeded ? "✓ " : "✗ ") + result.Message;
+            item.TestResult = (result.Succeeded ? "Success: " : "Failed: ") + result.Message;
         }
         finally { IsTesting = false; }
     }
