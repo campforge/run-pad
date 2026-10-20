@@ -45,11 +45,11 @@ public class ScriptConnectionsViewModelTests
     {
         var list = mine.ToList();
         var store = new Mock<IConnectionStore>();
-        store.Setup(s => s.Load()).Returns(() => [.. list]);
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>()))
-            .Callback<IReadOnlyList<RpadConnection>>(saved => { list.Clear(); list.AddRange(saved); });
+        store.Setup(s => s.LoadSnapshot()).Returns(() => new ConnectionStoreSnapshot([.. list], null));
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()))
+            .Callback<IReadOnlyList<RpadConnection>, string?>((saved, _) => { list.Clear(); list.AddRange(saved); });
         var secrets = new Mock<ISecretStore>();
-        secrets.Setup(s => s.Load()).Returns([new Secret("billing-token", "t0k")]);
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([new Secret("billing-token", "t0k")], null));
         var drivers = new ConnectionDriverRegistry();
         drivers.Register(new HttpConnectionDriver());
         drivers.Register(new SqlLikeDriver());
@@ -125,7 +125,7 @@ public class ScriptConnectionsViewModelTests
         Assert.Equal("https://billing.local/", mine[0].Params["baseAddress"].Text);
         Assert.All(vm.Connections.Items, i => Assert.Equal("Same as in your connections.", i.Status));
         Assert.False(vm.HasChanges);
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>()), Times.Exactly(2));
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Exactly(2));
     }
 
     [Fact]

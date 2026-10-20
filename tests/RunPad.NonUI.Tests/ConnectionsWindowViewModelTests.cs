@@ -35,7 +35,7 @@ public sealed class FileConnectionStoreTests : IDisposable
                     ["headers"] = RpadValue.Map([new("Authorization", RpadValue.Of("Bearer ${secret:billing}"))]),
                 },
             },
-        ]);
+        ], null);
         var loaded = Assert.Single(new FileConnectionStore(StorePath).Load());
         Assert.Equal(("billing", "http"), (loaded.Name, loaded.Driver));
         Assert.Equal(["baseAddress", "headers"], loaded.Params.Keys);
@@ -112,10 +112,10 @@ public class ConnectionsWindowViewModelTests
         IReadOnlyList<Secret>? secrets = null, params RpadConnection[] connections)
     {
         var store = new Mock<IConnectionStore>();
-        store.Setup(s => s.Load()).Returns(connections);
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot(connections, null));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
         var secretStore = new Mock<ISecretStore>();
-        secretStore.Setup(s => s.Load()).Returns(secrets ?? [new Secret("billing", "t0k"), new Secret("db", "pw")]);
+        secretStore.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot(secrets ?? [new Secret("billing", "t0k"), new Secret("db", "pw")], null));
         var registry = new ConnectionDriverRegistry();
         registry.Register(new HttpConnectionDriver());
         var fake = new FakeDriver();
@@ -168,10 +168,10 @@ public class ConnectionsWindowViewModelTests
         Execute(billing.Fields[1].AddRowCommand);
         billing.Fields[1].Rows[1].Name = "Accept";
         billing.Fields[1].Rows[1].Value = "application/json";
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
 
         IReadOnlyList<RpadConnection>? saved = null;
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>())).Callback<IReadOnlyList<RpadConnection>>(list => saved = list);
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<RpadConnection>, string?>((list, _) => saved = list);
         Assert.True(vm.Save());
 
         Assert.NotNull(saved);
@@ -192,7 +192,7 @@ public class ConnectionsWindowViewModelTests
         Execute(vm.AddCommand, fake);
         vm.SelectedConnection!.Fields[0].Text = "Data Source=x";
         IReadOnlyList<RpadConnection>? saved = null;
-        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>())).Callback<IReadOnlyList<RpadConnection>>(list => saved = list);
+        store.Setup(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>())).Callback<IReadOnlyList<RpadConnection>, string?>((list, _) => saved = list);
         Assert.True(vm.Save());
         Assert.Equal(["connectionString"], Assert.Single(saved!).Params.Keys);
     }
@@ -209,7 +209,7 @@ public class ConnectionsWindowViewModelTests
         Assert.False(vm.Save());
         vm.SelectedConnection.Name = "2nd";
         Assert.False(vm.CanSave);
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
 
         Execute(vm.RemoveCommand);
         Assert.True(vm.CanSave);
@@ -247,12 +247,12 @@ public class ConnectionsWindowViewModelTests
     public void AListThatCantBeRead_Should_BeReported_AndNeverOverwritten()
     {
         var store = new Mock<IConnectionStore>();
-        store.Setup(s => s.Load()).Throws(new InvalidDataException("The connection list file is damaged."));
+        store.Setup(s => s.LoadSnapshot()).Throws(new InvalidDataException("The connection list file is damaged."));
         store.Setup(s => s.FilePath).Returns("/data/RunPad/connections.json");
         var vm = new ConnectionsWindowViewModel(store.Object, new ConnectionDriverRegistry(),
-            Mock.Of<ISecretStore>(secrets => secrets.Load() == Array.Empty<Secret>()));
+            Mock.Of<ISecretStore>(secrets => secrets.LoadSnapshot() == new SecretStoreSnapshot(Array.Empty<Secret>(), null)));
         Assert.Contains("damaged", vm.LoadError);
         Assert.False(vm.Save());
-        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>()), Times.Never);
+        store.Verify(s => s.Save(It.IsAny<IReadOnlyList<RpadConnection>>(), It.IsAny<string?>()), Times.Never);
     }
 }

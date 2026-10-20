@@ -48,6 +48,18 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Connections keeps duplicate HTTP header names as editable validation errors instead of throwing
+  while typing, and retains edits after a failed save so you can retry.
+- Connections detects a list changed in another window instead of overwriting newer connections.
+- Connection client classes compile when one connection's name matches another client's type name.
+
+- Recovery does not restore an obsolete or discarded imported draft again when its source falls
+  back to an older checkpoint.
+
+- Secret Store detects changes made by another window instead of overwriting its newer secrets.
+
+- Secret Store reports save failures without closing the dialog or losing edits, and allows retrying.
+
 - Per-script C# imports work with global using directives in the source, in both compilation
   and editor diagnostics.
 

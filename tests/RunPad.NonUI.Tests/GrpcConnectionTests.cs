@@ -203,7 +203,7 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         }
 
         var secretsFile = Path.Combine(_folder, "secrets.json");
-        new FileSecretStore(secretsFile).Save([new Secret("inventory-token", "t0k")]);
+        new FileSecretStore(secretsFile).Save([new Secret("inventory-token", "t0k")], null);
         var previousSecrets = Environment.GetEnvironmentVariable(FileSecretStore.FileEnvVar);
         Environment.SetEnvironmentVariable(FileSecretStore.FileEnvVar, secretsFile);
         try

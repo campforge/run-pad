@@ -128,13 +128,17 @@ public sealed class ConnectionFieldViewModel : ReactiveObject
         Edited?.Invoke();
     }
 
+    internal string? MapError => IsMap && Rows.Where(r => r.Name.Trim().Length > 0)
+        .GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1)
+        ? $"{Param.Label}: names must be unique (letter case aside)." : null;
+
     // Null for nothing set (and for a switch left at its default), so the parameter isn't written.
     internal RpadValue? ToValue() => Param.Type switch
     {
         ConnectionParamType.Boolean => BooleanValue == string.Equals(Param.Default, "true", StringComparison.OrdinalIgnoreCase)
             ? null : RpadValue.Of(BooleanValue ? "true" : "false"),
         ConnectionParamType.Map => Rows.Any(r => r.Name.Trim().Length > 0)
-            ? RpadValue.Map(Rows.Where(r => r.Name.Trim().Length > 0).Select(r => KeyValuePair.Create(r.Name.Trim(), RpadValue.Of(r.Value))))
+            ? RpadValue.Map(Rows.Where(r => r.Name.Trim().Length > 0).GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).Select(g => KeyValuePair.Create(g.First().Name.Trim(), RpadValue.Of(g.First().Value))))
             : null,
         ConnectionParamType.List => Text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList() is { Count: > 0 } items
             ? RpadValue.List(items.Select(RpadValue.Of))
@@ -214,7 +218,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
         var connection = ToConnection();
         var placeholders = connection.Params.SelectMany(p => p.Value.Texts().Select(t => (p.Key, RpadPlaceholders.Parse(t).Error)))
             .Where(p => p.Error is not null).Select(p => $"{p.Key}: {p.Error}");
-        var problems = placeholders.Concat(Driver?.Validate(connection) ?? []).ToList();
+        var problems = Fields.Select(f => f.MapError).OfType<string>().Concat(placeholders).Concat(Driver?.Validate(connection) ?? []).ToList();
         Problems = problems.Count == 0 ? null : string.Join("\n", problems);
     }
 
@@ -235,6 +239,7 @@ public sealed class ConnectionItemViewModel : ReactiveObject
 public sealed class ConnectionsWindowViewModel : ViewModelBase
 {
     private readonly IConnectionStore _store;
+    private string? _version;
     private readonly ConnectionDriverRegistry _drivers;
     private readonly ConnectionSchemas? _schemas;
     private readonly IReadOnlyList<string> _secretNames;
@@ -251,13 +256,29 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         {
             this.RaiseAndSetIfChanged(ref field, value);
             this.RaisePropertyChanged(nameof(HasSelection));
+            this.RaisePropertyChanged(nameof(CanTest));
         }
     }
 
     public bool HasSelection => SelectedConnection is not null;
+    public bool CanTest => SelectedConnection is { Driver: not null } item && item.Fields.All(f => f.MapError is null);
 
     public string? LoadError { get; }
     public bool HasLoadError => LoadError is not null;
+
+    public string? SaveError
+    {
+        get;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(StoreError));
+            this.RaisePropertyChanged(nameof(HasStoreError));
+        }
+    }
+
+    public string? StoreError => LoadError ?? SaveError;
+    public bool HasStoreError => StoreError is not null;
 
     // Names that are missing, invalid or clash: these block OK.
     public string? ValidationError
@@ -296,7 +317,9 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         _secretNames = SecretNamesOf(secrets);
         try
         {
-            foreach (var connection in store.Load()) Add(connection);
+            var snapshot = store.LoadSnapshot();
+            _version = snapshot.Version;
+            foreach (var connection in snapshot.Connections) Add(connection);
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
@@ -307,22 +330,33 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
         AddCommand = ReactiveCommand.Create<IConnectionDriver>(AddNew, this.WhenAnyValue(x => x.HasLoadError, error => !error));
         RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.HasSelection));
         TestCommand = ReactiveCommand.CreateFromTask(TestSelectedAsync,
-            this.WhenAnyValue(x => x.SelectedConnection, x => x.IsTesting, (c, testing) => c?.Driver is not null && !testing));
+            this.WhenAnyValue(x => x.CanTest, x => x.IsTesting, (valid, testing) => valid && !testing));
         Validate();
     }
 
     // Writes the list; false (nothing written) while a name is wrong or the list unreadable.
     public bool Save()
     {
+        SaveError = null;
         Validate();
         if (!CanSave) return false;
-        _store.Save([.. Connections.Select(c => c.ToConnection())]);
-        return true;
+        try
+        {
+            _version = _store.Save([.. Connections.Select(c => c.ToConnection())], _version);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SaveError = ex is ConnectionStoreConflictException
+                ? "The connection list changed in another window. Reopen it before saving. Your edits have not been written."
+                : "Could not save the connections. Check access and available disk space, then try again. Your edits are still here.";
+            return false;
+        }
     }
 
     private static IReadOnlyList<string> SecretNamesOf(ISecretStore secrets)
     {
-        try { return [.. secrets.Load().Select(s => s.Name).Order(StringComparer.OrdinalIgnoreCase)]; }
+        try { return [.. secrets.LoadSnapshot().Secrets.Select(s => s.Name).Order(StringComparer.OrdinalIgnoreCase)]; }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 
@@ -355,7 +389,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     private async Task TestSelectedAsync()
     {
-        if (SelectedConnection is not { Driver: { } driver } item) return;
+        if (SelectedConnection is not { Driver: { } driver } item || item.Fields.Any(f => f.MapError is not null)) return;
         IsTesting = true;
         item.TestResult = "Testing…";
         try
@@ -386,13 +420,14 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 
     private Dictionary<string, string> SecretValues()
     {
-        try { return _secrets.Load().ToDictionary(s => s.Name, s => s.Value, StringComparer.OrdinalIgnoreCase); }
+        try { return _secrets.LoadSnapshot().Secrets.ToDictionary(s => s.Name, s => s.Value, StringComparer.OrdinalIgnoreCase); }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
     }
 
     private void Validate()
     {
+        this.RaisePropertyChanged(nameof(CanTest));
         var errors = RpadConnection.Validate(Connections.Select(c => new RpadConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
-        ValidationError = errors.Count == 0 ? null : errors[0];
+        ValidationError = errors.FirstOrDefault() ?? Connections.SelectMany(c => c.Fields).Select(f => f.MapError).FirstOrDefault(e => e is not null);
     }
 }

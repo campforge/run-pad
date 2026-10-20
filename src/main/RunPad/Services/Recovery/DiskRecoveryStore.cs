@@ -74,7 +74,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         var records = sessions.SelectMany(x => (x.Snapshot?.ImportedSessions ?? [])
             .Select(record => (Destination: x.Folder, Record: record))).ToList();
         bool TakenOver(string folder, RecoverySnapshot snapshot, string? payload) =>
-            records.Any(r => Describes(r.Record, folder, snapshot, payload));
+            records.Any(r => Describes(r.Record, folder, snapshot, payload, r.Destination));
         var failed = sessions.Where(x => x.Failure is not null).Select(x => Path.GetFileName(x.Folder)).ToHashSet();
         var held = sessions.Select(x => Path.GetFileName(x.Folder)).ToHashSet();
 
@@ -85,7 +85,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
         {
             if (session.Snapshot is { } taken && TakenOver(session.Folder, taken, session.Payload))
             {
-                var owner = records.First(r => Describes(r.Record, session.Folder, taken, session.Payload));
+                var owner = records.First(r => Describes(r.Record, session.Folder, taken, session.Payload, r.Destination));
                 TryMarkImported(session.Folder, owner.Record, owner.Destination);
                 session.Lock.Dispose();
             }
@@ -148,9 +148,36 @@ public sealed class DiskRecoveryStore : IRecoveryStore
     // Whether a record is about the generation read from this folder. A folder can be reused: an
     // instance that listed it before it was retired may adopt it, empty, as its own new session, and
     // its revisions start again, so only the checkpoint file identifies what was imported.
-    private static bool Describes(RecoveryImportRecord record, string folder, RecoverySnapshot snapshot, string? payload) =>
-        record.Source == Path.GetFileName(folder)
-        && (record.Payload is { } imported ? imported == payload : record.Revision >= snapshot.Revision);
+    private static bool Describes(RecoveryImportRecord record, string folder, RecoverySnapshot snapshot, string? payload, string destination)
+    {
+        if (record.Source != Path.GetFileName(folder)) return false;
+        if (record.Payload is not { } imported) return record.Revision >= snapshot.Revision;
+        if (imported == payload) return true;
+        if (snapshot.Revision >= record.Revision || payload is null) return false;
+
+        // An older readable payload is still this imported session if a pointer links it to the
+        // imported generation. Retiring a folder removes both pointers, so a new owner cannot match.
+        foreach (var name in new[] { "current.json", "previous.json" })
+        {
+            try
+            {
+                var pointer = JsonSerializer.Deserialize<Pointer>(File.ReadAllBytes(Path.Combine(folder, name)));
+                if (pointer is { Version: 1 } && pointer.Current == imported && pointer.Previous == payload)
+                    return true;
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
+        }
+
+        // A damaged pointer can erase that link. Its import marker corroborates ownership only
+        // alongside a readable destination checkpoint holding the same import record. Markers are
+        // deleted during retirement too; they never make a reused folder belong to an old record.
+        try
+        {
+            var marker = JsonSerializer.Deserialize<ImportMarkerData>(File.ReadAllBytes(Path.Combine(folder, ImportMarker)));
+            return marker is { Version: 1 } && marker.Into == Path.GetFileName(destination) && marker.Revision == record.Revision;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return false; }
+    }
 
     // Another session's unsaved tabs become an import, held locked until a checkpoint records it.
     private void Offer(string folder, FileStream owner, RecoverySnapshot? snapshot, string? payload)
@@ -232,7 +259,7 @@ public sealed class DiskRecoveryStore : IRecoveryStore
             using (Lock(folder))
             {
                 var (snapshot, payload, _) = ReadFolder(folder);
-                if (snapshot is not null && !Describes(record, folder, snapshot, payload)) return true;
+                if (snapshot is not null && !Describes(record, folder, snapshot, payload, _folder!)) return true;
                 // The pointers first: without them the folder is no session any more, so an
                 // interrupted removal leaves nothing that is loaded or offered again.
                 File.Delete(Path.Combine(folder, "current.json"));
