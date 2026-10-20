@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:RunPad.TemplatedControls"
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         x:Class="RunPad.Windows.ConnectionsWindow" x:DataType="viewModels:ConnectionsWindowViewModel"
         Title="Connections" Icon="/Assets/icon.ico"
@@ -47,10 +48,10 @@
                     </Panel>
                 </Border>
                 <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <DropDownButton x:Name="AddButton" Content="Add" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection">
+                    <DropDownButton Classes="secondary" x:Name="AddButton" Content="Add" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection">
                         <DropDownButton.Flyout><MenuFlyout Placement="Bottom"/></DropDownButton.Flyout>
                     </DropDownButton>
-                    <Button x:Name="RemoveButton" Grid.Column="1" Content="Remove" Command="{Binding RemoveCommand}"/>
+                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Content="Remove" Command="{Binding RemoveCommand}"/>
                 </Grid>
             </Grid>
             <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns"/>
@@ -74,8 +75,8 @@
                                     <TextBlock Text="{Binding Label}" FontSize="12" IsVisible="{Binding !IsBoolean}"/>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
                                         <TextBox Classes="field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
-                                        <ComboBox Grid.Column="1" Width="36" MinWidth="0" Padding="4" PlaceholderText="⋯"
-                                                  ItemsSource="{Binding SecretNames}" SelectedItem="{Binding SecretToInsert}" IsVisible="{Binding CanInsertSecret}"
+                                        <controls:SecretPicker Grid.Column="1"
+                                                  SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding CanInsertSecret}"
                                                   AutomationProperties.Name="{Binding Param.Label, StringFormat='Insert secret into {0}'}" ToolTip.Tip="Insert secret"/>
                                     </Grid>
                                     <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
@@ -88,21 +89,21 @@
                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="10"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
-                                                    <Grid ColumnDefinitions="*,36" RowDefinitions="Auto,Auto" RowSpacing="4" ColumnSpacing="6">
+                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
                                                         <TextBox Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
-                                                        <Button Grid.Column="1" Content="✕" ToolTip.Tip="Remove header"
+                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="Remove header"
                                                                 AutomationProperties.Name="{Binding RemoveRowLabel}"
                                                                 Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
-                                                        <TextBox Grid.Row="1" Text="{Binding Value}" PlaceholderText="Value"
+                                                        <TextBox Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
                                                                  AutomationProperties.Name="{Binding ValueFieldLabel}"/>
-                                                        <ComboBox Grid.Row="1" Grid.Column="1" Width="36" MinWidth="0" Padding="4" PlaceholderText="⋯"
-                                                                  ItemsSource="{Binding SecretNames}" SelectedItem="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
+                                                        <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
+                                                                  SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
                                                                   AutomationProperties.Name="{Binding InsertSecretLabel}" ToolTip.Tip="Insert secret"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                        <Button Classes="secondary" Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                     <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
                                 </StackPanel>
@@ -112,7 +113,7 @@
                     <TextBlock Classes="hint" Text="{Binding KeptParamsNote}" IsVisible="{Binding HasKeptParams}"/>
                     <TextBlock x:Name="ProblemsText" Classes="error" Text="{Binding Problems}" IsVisible="{Binding HasProblems}"/>
                     <StackPanel Spacing="6">
-                        <Button x:Name="TestButton" Content="Test Connection" HorizontalAlignment="Left"
+                        <Button Classes="secondary" x:Name="TestButton" Content="Test Connection" HorizontalAlignment="Left"
                                 Command="{Binding $parent[Window].((viewModels:ConnectionsWindowViewModel)DataContext).TestCommand}"/>
                         <SelectableTextBlock x:Name="TestResultText" TextWrapping="Wrap" Text="{Binding TestResult}"/>
                     </StackPanel>
@@ -130,7 +131,7 @@
             </StackPanel>
         </Expander>
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" IsCancel="True" Click="Cancel_Click"/>
+            <Button Classes="secondary" x:Name="CancelButton" Content="Cancel" MinWidth="80" IsCancel="True" Click="Cancel_Click"/>
             <Button x:Name="OkButton" Classes="primary" Content="Save" MinWidth="80" IsEnabled="{Binding CanSave}" Click="Ok_Click"/>
         </StackPanel>
     </Grid>

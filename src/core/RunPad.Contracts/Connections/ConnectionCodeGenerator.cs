@@ -93,6 +93,7 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
         if (language != RpadLanguage.CSharp)
             return new GeneratedConnections("", ["Connections can be used in C# scripts only, for now."], []);
         var files = new List<GeneratedSourceFile>();
+        var schemaFiles = new Dictionary<string, string>(StringComparer.Ordinal);
 
         var errors = RpadConnection.Validate(connections).ToList();
         var packages = new HashSet<string>(scriptPackages, StringComparer.OrdinalIgnoreCase);
@@ -137,7 +138,17 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
                         : "its description hasn't been read yet; RunPad reads it when the script is opened or run."));
                     continue;
                 }
-                files.AddRange(schema.Files.Select(f => f with { Name = $"{codeName}.{f.Name}" }));
+                foreach (var file in schema.Files)
+                {
+                    if (schemaFiles.TryGetValue(file.Name, out var text))
+                    {
+                        if (text != file.Text)
+                            errors.Add($"Connection '{connection.Name}': its schema file '{file.Name}' conflicts with another connection's schema.");
+                        continue;
+                    }
+                    schemaFiles.Add(file.Name, file.Text);
+                    files.Add(file with { Name = $"{codeName}.{file.Name}" });
+                }
             }
 
             var className = codeName + "Client";
