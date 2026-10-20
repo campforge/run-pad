@@ -65,7 +65,7 @@ public class PrimaryActionAndSplitterTests
     [InlineData("RiderLight")]
     public void TheDefaultButton_Should_UseThePrimaryBrushes_InEachState_AndOthersShouldNot(string themeName)
     {
-        var dialog = Themed(new ConditionDialog("x > 1"), themeName);
+        var dialog = Themed(new Window { Content = new StackPanel { Children = { new Button { Content = "Done", IsDefault = true }, new Button { Content = "Cancel", IsCancel = true } } } }, themeName);
         dialog.Show();
         Dispatcher.UIThread.RunJobs();
         var buttons = dialog.GetVisualDescendants().OfType<Button>().ToList();
@@ -97,27 +97,6 @@ public class PrimaryActionAndSplitterTests
         Dispatcher.UIThread.RunJobs();
         Assert.NotSame(Brush("RunPad.Button.Primary.BackgroundBrush"), Presenter(ok).Background);
         dialog.Close();
-    }
-
-    // The look changed, the keys didn't: Enter is OK, Escape is Cancel.
-    [AvaloniaTheory]
-    [InlineData(Key.Enter, true)]
-    [InlineData(Key.Escape, false)]
-    public async Task EnterAndEscape_Should_StillChooseTheDefaultAndCancelButtons(Key key, bool expectResult)
-    {
-        var owner = Themed(new Window());
-        owner.Show();
-        var dialog = Themed(new ConditionDialog("count > 10", "= 5"));
-        var result = dialog.ShowDialog<(string, string, bool)?>(owner);
-        Dispatcher.UIThread.RunJobs();
-
-        dialog.KeyPress(key, RawInputModifiers.None, key == Key.Enter ? PhysicalKey.Enter : PhysicalKey.Escape, "");
-        Dispatcher.UIThread.RunJobs();
-
-        Assert.True(result.IsCompleted, "the dialog didn't close");
-        Assert.Equal(expectResult, (await result).HasValue);
-        if (expectResult) Assert.Equal(("count > 10", "= 5", true), (await result)!.Value);
-        owner.Close();
     }
 
     // The seam reserves one DIP in layout. Its five-DIP target overlaps both panels and still

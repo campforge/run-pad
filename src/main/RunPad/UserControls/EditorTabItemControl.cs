@@ -710,6 +710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
+        _breakpointPopup?.Close();
         _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
@@ -792,16 +793,53 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private global::Avalonia.Controls.Primitives.Popup? _breakpointPopup;
+    internal global::Avalonia.Controls.Primitives.Popup? BreakpointPopup => _breakpointPopup;
+
+    private void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner is null) return;
-
-        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true);
-        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
-        if (result is null || _disposed) return; // cancelled or the tab was closed
-
-        ApplyBreakpointOptions(line, result.Value.Condition, result.Value.HitCondition, result.Value.Enabled);
+        _breakpointPopup?.Close();
+        var editor = State.Editor;
+        var offset = editor.Document.GetLineByNumber(line).Offset;
+        var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
+            (expression, ct) =>
+            {
+                var code = editor.Text;
+                return Task.Run(() => _intelliSense?.AnalyzeBreakpointConditionAsync(code, offset, expression, ct)
+                    ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
+            });
+        var view = editor.TextArea.TextView;
+        var position = view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1), VisualYPosition.LineBottom)
+            - view.ScrollOffset;
+        var anchor = view.TranslatePoint(position, editor) ?? new Point(0, 0);
+        var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().FirstOrDefault();
+        var markerX = margin?.TranslatePoint(new Point(margin.Bounds.Width / 2, 0), editor)?.X ?? 28;
+        var popup = new global::Avalonia.Controls.Primitives.Popup
+        {
+            PlacementTarget = editor,
+            Placement = global::Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft,
+            PlacementRect = new Rect(new Point(markerX - 28, anchor.Y), new Size(1, 1)),
+            IsLightDismissEnabled = true,
+            Child = panel,
+        };
+        panel.Finished += result =>
+        {
+            if (result is { } value && !_disposed)
+                ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
+            popup.Close();
+        };
+        popup.Closed += (_, _) =>
+        {
+            panel.Dispose();
+            popup.Child = null;
+            if (ReferenceEquals(_breakpointPopup, popup)) _breakpointPopup = null;
+        };
+        // A detached Popup does not inherit the owner's theme/resources or control templates.
+        var popupOwner = (Panel)Content!;
+        popupOwner.Children.Add(popup);
+        popup.Closed += (_, _) => popupOwner.Children.Remove(popup);
+        _breakpointPopup = popup;
+        popup.Open();
     }
 
     internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)
