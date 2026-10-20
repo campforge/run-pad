@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using RunPad.Connectors.Grpc;
 using RunPad.Connectors.Http;
 using RunPad.Contracts;
 using RunPad.Contracts.Connections;
@@ -171,8 +172,14 @@ public class App : Application
         {
             var registry = new ConnectionDriverRegistry();
             registry.Register(new HttpConnectionDriver());
+            registry.Register(new GrpcConnectionDriver());
             return registry;
         });
+        // What some drivers read from the endpoint before a build (a gRPC server's services), kept
+        // on disk; secrets for reading it come from the Secret Store.
+        services.AddSingleton(sp => new ConnectionSchemas(sp.GetRequiredService<ConnectionDriverRegistry>(),
+            new ConnectionSchemaCache(ConnectionSchemaCache.DefaultFolder), DotnetConnectionTools.Default,
+            sp.GetRequiredService<ISecretStore>().Find));
         services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
         services.AddTransient<ConnectionsWindowViewModel>();
         services.AddTransient<ConnectionsWindow>();

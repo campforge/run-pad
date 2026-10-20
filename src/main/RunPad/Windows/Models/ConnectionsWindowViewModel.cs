@@ -236,6 +236,7 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
 {
     private readonly IConnectionStore _store;
     private readonly ConnectionDriverRegistry _drivers;
+    private readonly ConnectionSchemas? _schemas;
     private readonly IReadOnlyList<string> _secretNames;
     private readonly ISecretStore _secrets;
 
@@ -285,8 +286,10 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
     public ReactiveCommand<Unit, Unit> TestCommand { get; }
 
-    public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets)
+    public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets,
+        ConnectionSchemas? schemas = null)
     {
+        _schemas = schemas;
         _store = store;
         _drivers = drivers;
         _secrets = secrets;
@@ -367,6 +370,16 @@ public sealed class ConnectionsWindowViewModel : ViewModelBase
             }
             var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
             item.TestResult = (result.Succeeded ? "✓ " : "✗ ") + result.Message;
+            // A server that answers is read again, so scripts get its current classes.
+            if (result.Succeeded && driver is IConnectionSchemaDriver && _schemas is not null)
+            {
+                item.TestResult += "\nReading its description…";
+                var connection = item.ToConnection();
+                await _schemas.EnsureAsync([connection], ConnectionSchemaRefresh.All, CancellationToken.None);
+                item.TestResult = "✓ " + result.Message + "\n" + (_schemas.Cache.ErrorFor(connection) is { } error
+                    ? "✗ Its description couldn't be read: " + error
+                    : "Scripts get its classes on their next build.");
+            }
         }
         finally { IsTesting = false; }
     }

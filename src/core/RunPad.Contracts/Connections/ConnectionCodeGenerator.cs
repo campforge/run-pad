@@ -7,9 +7,16 @@ namespace RunPad.Contracts.Connections;
 /// <summary>What a driver's <see cref="IConnectionDriver.CreateClient"/> writes code with.</summary>
 public sealed class ConnectionCodeContext
 {
-    internal ConnectionCodeContext(RpadConnection connection) => Connection = connection;
+    internal ConnectionCodeContext(RpadConnection connection, ConnectionSchema? schema)
+    {
+        Connection = connection;
+        Schema = schema;
+    }
 
     public RpadConnection Connection { get; }
+
+    /// <summary>The endpoint's description, for an <see cref="IConnectionSchemaDriver"/>; null otherwise.</summary>
+    public ConnectionSchema? Schema { get; }
 
     /// <summary>The client class's name: the connection's code name and <c>Client</c>, <c>BillingClient</c> for <c>billing</c>.</summary>
     public string ClassName => RpadConnection.CodeName(Connection.Name) + "Client";
@@ -64,7 +71,8 @@ public sealed class ConnectionCodeContext
 /// <c>Connections</c> class with a property per connection (<c>Connections.Billing</c>), created on
 /// first use, and each connection's client class nested in it (<c>Connections.BillingClient</c>).
 /// </summary>
-public sealed record GeneratedConnections(string Source, IReadOnlyList<string> Errors)
+/// <param name="Files">C# files a connection's schema adds, such as a gRPC server's messages and clients.</param>
+public sealed record GeneratedConnections(string Source, IReadOnlyList<string> Errors, IReadOnlyList<GeneratedSourceFile> Files)
 {
     /// <summary>
     /// Null for a script without connections. Problems (an invalid list, a driver this RunPad lacks,
@@ -73,12 +81,15 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
     /// connections still get their code, so the editor knows them.
     /// </summary>
     /// <param name="scriptPackages">The ids of the script's <c>packages:</c>.</param>
+    /// <param name="schemas">The schemas read so far, for drivers that need one; such a connection
+    /// without a schema is an error naming why it couldn't be read.</param>
     public static GeneratedConnections? For(IReadOnlyList<RpadConnection> connections, RpadLanguage language,
-        IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers)
+        IEnumerable<string> scriptPackages, ConnectionDriverRegistry drivers, ConnectionSchemaCache? schemas = null)
     {
         if (connections.Count == 0) return null;
         if (language != RpadLanguage.CSharp)
-            return new GeneratedConnections("", ["Connections can be used in C# scripts only, for now."]);
+            return new GeneratedConnections("", ["Connections can be used in C# scripts only, for now."], []);
+        var files = new List<GeneratedSourceFile>();
 
         var errors = RpadConnection.Validate(connections).ToList();
         var packages = new HashSet<string>(scriptPackages, StringComparer.OrdinalIgnoreCase);
@@ -105,7 +116,21 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
             errors.AddRange(MissingPackages(driver, packages).Select(id =>
                 $"Connection '{connection.Name}' needs the NuGet package {id}: add it in Dependencies → Packages."));
 
-            var context = new ConnectionCodeContext(connection);
+            ConnectionSchema? schema = null;
+            if (driver is IConnectionSchemaDriver)
+            {
+                schema = schemas?.Get(connection);
+                if (schema is null)
+                {
+                    errors.Add($"Connection '{connection.Name}': " + (schemas?.ErrorFor(connection) is { } why
+                        ? $"its description couldn't be read: {why}"
+                        : "its description hasn't been read yet; RunPad reads it when the script is opened or run."));
+                    continue;
+                }
+                files.AddRange(schema.Files.Select(f => f with { Name = $"{codeName}.{f.Name}" }));
+            }
+
+            var context = new ConnectionCodeContext(connection, schema);
             var client = driver.CreateClient(connection, context);
             classes.Append(Indent(client.ClassSource.Replace("\r\n", "\n").TrimEnd(), "    ")).Append("\n\n");
             var field = "__" + char.ToLowerInvariant(codeName[0]) + codeName[1..];
@@ -123,7 +148,7 @@ public sealed record GeneratedConnections(string Source, IReadOnlyList<string> E
             .Append(properties)
             .Append(classes)
             .Append("}\n");
-        return new GeneratedConnections(source.ToString(), errors);
+        return new GeneratedConnections(source.ToString(), errors, files);
     }
 
     /// <summary>The driver's packages that aren't among the script's.</summary>

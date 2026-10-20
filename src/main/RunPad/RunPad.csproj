@@ -67,6 +67,7 @@
     <ProjectReference Include="..\..\core\RunPad.Format.RPad\RunPad.Format.RPad.csproj"/>
     <ProjectReference Include="..\..\core\RunPad.Build.Core\RunPad.Build.Core.csproj"/>
     <ProjectReference Include="..\..\connectors\RunPad.Connectors.Http\RunPad.Connectors.Http.csproj"/>
+    <ProjectReference Include="..\..\connectors\RunPad.Connectors.Grpc\RunPad.Connectors.Grpc.csproj" />
     <ProjectReference Include="..\..\languages\RunPad.Languages.CSharp\RunPad.Languages.CSharp.csproj"/>
     <ProjectReference Include="..\..\languages\RunPad.Languages.VB\RunPad.Languages.VB.csproj"/>
     <ProjectReference Include="..\..\languages\RunPad.Languages.DotnetCommon\RunPad.Languages.DotnetCommon.csproj"/>
