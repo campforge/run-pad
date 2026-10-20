@@ -109,10 +109,12 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
         cache.Put(Connection, new ConnectionSchema("1 service", [], ""));
         Assert.Equal([cache.KeyOf(Connection) + ".json"], Directory.GetFiles(cache.Folder).Select(Path.GetFileName));
 
-        // A folder where the file should go: the move fails, twice.
+        // A folder where the file should go: the move fails, twice (an IOException on Unix, access
+        // denied on Windows).
         File.Delete(Path.Combine(cache.Folder, cache.KeyOf(Connection) + ".json"));
         Directory.CreateDirectory(Path.Combine(cache.Folder, cache.KeyOf(Connection) + ".json"));
-        Assert.ThrowsAny<IOException>(() => cache.Put(Connection, new ConnectionSchema("1 service", [], "")));
+        var failure = Assert.ThrowsAny<Exception>(() => cache.Put(Connection, new ConnectionSchema("1 service", [], "")));
+        Assert.True(failure is IOException or UnauthorizedAccessException, failure.ToString());
         Assert.Empty(Directory.GetFiles(cache.Folder));
     }
 }
