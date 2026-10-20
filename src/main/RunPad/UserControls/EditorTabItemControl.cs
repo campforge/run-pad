@@ -567,7 +567,13 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             // A gRPC server's classes are part of the build: read the ones not read yet, and try
             // again those that failed (the server may be up now).
             if (_connectionSchemas is { } schemas && s.RpadDocument?.FrontMatter.Connections is { Count: > 0 } connections)
-                await schemas.EnsureAsync(connections, ScriptDirectory, ConnectionSchemaRefresh.Failed, runCts.Token);
+            {
+                // Off the UI thread: a driver may read the whole schema synchronously (SQLite does).
+                List<RpadConnection> list = [.. connections];
+                var scriptDirectory = ScriptDirectory;
+                var token = runCts.Token;
+                await Task.Run(() => schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Failed, token), token);
+            }
             var request = BuildRunRequest(platform, workDir);
             // A selection runs as Statements whatever the script's own kind (see RunSelectionAsync).
             if (selection is not null) request = request with { Kind = RpadKind.Statements };
@@ -2141,7 +2147,14 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             try
             {
                 if (await schemas.EnsureAsync(list, scriptDirectory, ConnectionSchemaRefresh.Missing, CancellationToken.None).ConfigureAwait(false))
-                    Dispatcher.Post(() => { if (!_disposed) RefreshIntelliSensePackages(); });
+                    Dispatcher.Post(() =>
+                    {
+                        if (_disposed) return;
+                        RefreshIntelliSensePackages();
+                        // The new classes (or error) change what the code already in the editor
+                        // means: analyse it again now rather than at the next keystroke.
+                        _intelliSense?.NotifyTextChanged(State.Editor.Text);
+                    });
             }
             catch (Exception ex)
             {

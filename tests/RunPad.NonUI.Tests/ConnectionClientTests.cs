@@ -130,6 +130,43 @@ public sealed class ConnectionClientTests : IDisposable
         Assert.DoesNotContain(none?.Items ?? [], i => i.DisplayText == "BillingApi");
     }
 
+    // Analyzer findings inside a connection's generated code are neither squiggles nor fixes in the
+    // script: their offsets belong to another document.
+    [Fact]
+    public async Task TheEditor_Should_IgnoreAnalyzerFindings_InTheGeneratedConnectionCode()
+    {
+        var referenceService = new CSharpReferenceService();
+        using var service = new CSharpIntelliSenseService(
+            referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance)
+        {
+            BackgroundAnalysisDebounce = TimeSpan.Zero,
+        };
+        // IDE0040 (accessibility modifiers, Hidden: a fix only), IDE0051 (unused member) and IDE0044
+        // (make field readonly, a visible finding): code a generator writes; far enough into the file that
+        // its offsets would also fall inside the script's text (padded below to match).
+        var schemaFile = "// " + new string('x', 3000) + "\nnamespace Schema;\nclass Stock\n{\n    private int _count = 0;\n"
+            + "    void Print() => System.Console.WriteLine(_count);\n}\n";
+        service.UpdateExecutionContext(new ExecutionRequest
+        {
+            Connections = GeneratedConnections.For([Billing()], RpadLanguage.CSharp, [], Drivers())! with
+            {
+                Files = [new GeneratedSourceFile("Stock.cs", schemaFile)],
+            },
+        });
+
+        var code = "var api = Connections.BillingApi;\nConsole.WriteLine(api.BaseAddress);\n" + string.Concat(Enumerable.Repeat("// padding\n", 600));
+        var diagnostics = new TaskCompletionSource<IReadOnlyList<IDiagnosticInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixes = new TaskCompletionSource<IReadOnlyList<ICodeFixInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DiagnosticsChanged += (text, d) => { if (text == code) diagnostics.TrySetResult(d); };
+        service.CodeFixesChanged += (text, f) => { if (text == code) fixes.TrySetResult(f); };
+        service.NotifyTextChanged(code);
+
+        var timeout = TimeSpan.FromSeconds(30);
+        Assert.Empty(await diagnostics.Task.WaitAsync(timeout, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(await fixes.Task.WaitAsync(timeout, TestContext.Current.CancellationToken),
+            f => f.DiagnosticId is "IDE0040" or "IDE0044" or "IDE0051");
+    }
+
     [Fact]
     [Trait("Category", "RealBuild")]
     public async Task AScript_Should_UseItsConnection_WithTheSecretFilledInWhenItRuns()
