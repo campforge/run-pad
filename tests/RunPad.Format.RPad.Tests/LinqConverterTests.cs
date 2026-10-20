@@ -82,6 +82,21 @@ public class LinqConverterTests
         Assert.Equal(CSharpDefaults.Append("System.Text.Json"), doc.FrontMatter.Namespaces);
     }
 
+    // A query that drops System.Threading to use System.Timers' Timer would not compile (CS0104,
+    // an ambiguous Timer) if the dropped default came back.
+    [Fact]
+    public void Convert_Should_LeaveOutTheDefaultNamespacesAQueryRemoves()
+    {
+        var doc = LinqConverter.Convert(
+            "<Query Kind=\"Statements\">\r\n  <Namespace>System.Timers</Namespace>\r\n" +
+            "  <RemoveNamespace>System.Threading</RemoveNamespace>\r\n  <RemoveNamespace> System.Xml.XPath </RemoveNamespace>\r\n" +
+            "</Query>\r\n\r\nnew Timer(1000).Dispose();");
+
+        Assert.Equal(
+            CSharpDefaults.Where(ns => ns is not ("System.Threading" or "System.Xml.XPath")).Append("System.Timers"),
+            doc.FrontMatter.Namespaces);
+    }
+
     private static readonly string[] CSharpDefaults =
     [
         "System", "System.Collections", "System.Collections.Generic", "System.Data",

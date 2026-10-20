@@ -5,7 +5,7 @@ namespace RunPad.Format.RPad;
 /// <summary>
 /// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> — a <c>.linq</c>
 /// file is an XML <c>&lt;Query&gt;</c> header (<c>Kind</c> attribute, <c>&lt;NuGetReference&gt;</c>/
-/// <c>&lt;Namespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
+/// <c>&lt;Namespace&gt;</c>/<c>&lt;RemoveNamespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
 /// wrapping on the code itself, so the header is parsed as an isolated fragment rather than the whole
 /// file (which usually isn't valid XML end to end once the code is anything nontrivial).
 /// </summary>
@@ -76,8 +76,15 @@ public static class LinqConverter
         var explicitNamespaces = query.Elements("Namespace")
             .Select(e => e.Value.Trim())
             .Where(ns => ns.Length > 0);
+        // A query can drop some of LINQPad's standard imports with <RemoveNamespace> (to avoid an
+        // ambiguity such as System.Threading.Timer vs System.Timers.Timer); keeping them would make
+        // the converted script fail to compile.
+        var removedNamespaces = query.Elements("RemoveNamespace")
+            .Select(e => e.Value.Trim())
+            .ToHashSet(StringComparer.Ordinal);
         var namespaces = mapped.Language == RpadLanguage.CSharp
-            ? CSharpDefaultNamespaces.Concat(explicitNamespaces).Distinct(StringComparer.Ordinal).ToList()
+            ? CSharpDefaultNamespaces.Where(ns => !removedNamespaces.Contains(ns))
+                .Concat(explicitNamespaces).Distinct(StringComparer.Ordinal).ToList()
             : explicitNamespaces.ToList();
 
         var references = query.Elements("Reference")
