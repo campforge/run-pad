@@ -36,11 +36,13 @@ public sealed class RpadConnection
         return sb.ToString();
     }
 
+    private const string ReservedCodeName = "Connections";
+
     /// <summary>
     /// Problems with a connections list, one message each: a name that is missing, not a valid name
     /// (a letter, then letters, digits, <c>-</c>, <c>_</c> or <c>.</c>) or used twice — also when
-    /// two names give the same <see cref="CodeName"/> —, a missing driver, or a malformed
-    /// placeholder. Empty when the list is fine.
+    /// two names give the same <see cref="CodeName"/> —, a name whose code name is the reserved
+    /// <c>Connections</c>, a missing driver, or a malformed placeholder. Empty when the list is fine.
     /// </summary>
     public static IReadOnlyList<string> Validate(IEnumerable<RpadConnection> connections)
     {
@@ -53,6 +55,9 @@ public sealed class RpadConnection
                 errors.Add("A connection has no name.");
             else if (!IsValidName(name))
                 errors.Add($"'{name}' is not a valid connection name: start with a letter, then use letters, digits, '-', '_' or '.'.");
+            // The generated class that holds every connection is itself named Connections.
+            else if (CodeName(name) == ReservedCodeName)
+                errors.Add($"Connection '{name}': the code name {ReservedCodeName} is reserved.");
             else if (codeNames.TryGetValue(CodeName(name), out var other))
                 errors.Add(string.Equals(other, name, StringComparison.OrdinalIgnoreCase)
                     ? $"Two connections are named '{name}'."
