@@ -7,6 +7,8 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Cached runs restore missing or changed runtime dependency files before starting the script.
+
 - gRPC schema-generated messages and clients compile into a separate cached assembly, reused when
   script text changes. After the first build, IntelliSense uses the same assembly instead of
   reprocessing the generated source documents; target and dependency changes invalidate it.
