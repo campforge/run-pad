@@ -73,6 +73,9 @@ public enum ConnectionSchemaRefresh
 public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistry? drivers = null)
 {
     private readonly Dictionary<string, string> _errors = new(StringComparer.Ordinal);
+    // The reads under way, by key: the editor, a run and the Connections window often ask for the
+    // same schema at once, and each read may be a server round trip plus a code generator.
+    private readonly Dictionary<string, Task<bool>> _fetches = new(StringComparer.Ordinal);
     private readonly object _lock = new();
 
     public static string DefaultFolder => Path.Combine(
@@ -109,16 +112,38 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     {
         Directory.CreateDirectory(Folder);
         var key = KeyOf(connection, scriptDirectory);
-        var temp = Path.Combine(Folder, Guid.NewGuid().ToString("N") + ".tmp");
-        File.WriteAllText(temp, JsonSerializer.Serialize(schema));
-        File.Move(temp, Path.Combine(Folder, key + ".json"), overwrite: true);
+        var target = Path.Combine(Folder, key + ".json");
+        // Named after the key, so one left over (the process killed mid-write) tells whose it was.
+        var temp = Path.Combine(Folder, key + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            File.WriteAllText(temp, JsonSerializer.Serialize(schema));
+            try
+            {
+                File.Move(temp, target, overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // On Windows another RunPad (the window and the CLI share the folder) may be reading
+                // the file for a moment.
+                Thread.Sleep(100);
+                File.Move(temp, target, overwrite: true);
+            }
+        }
+        finally
+        {
+            try { File.Delete(temp); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
         lock (_lock) _errors.Remove(key);
     }
 
     /// <summary>
     /// Reads and caches the schema of the connections that need one, as <paramref name="refresh"/>
     /// says which. Returns true when any schema or error changed. Failures are kept for
-    /// <see cref="ErrorFor"/>; a missing secret or variable is such a failure too.
+    /// <see cref="ErrorFor"/>; a missing secret or variable is such a failure too. A schema already
+    /// being read for another caller isn't read a second time: this call waits for that read.
+    /// Cancelling stops the wait, not the read, which still records its schema or error.
     /// </summary>
     public async Task<bool> EnsureAsync(IEnumerable<RpadConnection> connections, string? scriptDirectory,
         ConnectionDriverRegistry drivers, Func<string, string?> secret, ConnectionTools tools, ConnectionSchemaRefresh refresh,
@@ -139,18 +164,51 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
                 changed = true;
                 continue;
             }
-            try
-            {
-                Put(connection, await driver.FetchSchemaAsync(resolved.Params, tools, cancellationToken).ConfigureAwait(false),
-                    scriptDirectory);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-            {
-                lock (_lock) _errors[key] = ex.Message;
-            }
-            changed = true;
+            if (await FetchOnceAsync(key, connection, driver, resolved.Params, tools, scriptDirectory, refresh)
+                .WaitAsync(cancellationToken).ConfigureAwait(false))
+                changed = true;
         }
         return changed;
+    }
+
+    // The read under way for this key, or a new one. It runs on the thread pool, as some drivers read
+    // synchronously, and without any caller's token: it is shared, so one caller giving up must not
+    // cancel it for the others, nor record the cancellation as the schema's error. False when there
+    // was nothing to read after all: a read that finished just before this call came for it.
+    private Task<bool> FetchOnceAsync(string key, RpadConnection connection, IConnectionSchemaDriver driver,
+        IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools, string? scriptDirectory,
+        ConnectionSchemaRefresh refresh)
+    {
+        Task<bool> fetch;
+        lock (_lock)
+        {
+            if (_fetches.TryGetValue(key, out var running)) return running;
+            if (refresh != ConnectionSchemaRefresh.All && Get(connection, scriptDirectory) is not null) return Task.FromResult(false);
+            if (refresh == ConnectionSchemaRefresh.Missing && _errors.ContainsKey(key)) return Task.FromResult(false);
+            fetch = Task.Run(async () =>
+            {
+                try
+                {
+                    Put(connection, await driver.FetchSchemaAsync(resolvedParams, tools, CancellationToken.None).ConfigureAwait(false),
+                        scriptDirectory);
+                }
+                catch (Exception ex)
+                {
+                    lock (_lock) _errors[key] = ex.Message;
+                }
+                return true;
+            });
+            _fetches[key] = fetch;
+        }
+        // Registered after the task is listed, so a read that is already over still leaves the list.
+        _ = fetch.ContinueWith(_ =>
+        {
+            lock (_lock)
+            {
+                if (_fetches.TryGetValue(key, out var listed) && listed == fetch) _fetches.Remove(key);
+            }
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        return fetch;
     }
 }
 
