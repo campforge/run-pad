@@ -104,9 +104,8 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             IsEnabled = false;
-            canClose = GetViewModel().RestoresDrafts
-                ? await GetViewModel().CheckpointRecoveryAsync()
-                : await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
+            canClose = (GetViewModel().RestoresDrafts ? await GetViewModel().ConfirmExitWithDraftsAsync() : null)
+                ?? await _editorTabs.ConfirmCloseAllUnsavedTabsAsync();
             foreach (var window in unsavedWindows)
             {
                 if (!canClose) break;
@@ -380,6 +379,8 @@ public sealed partial class MainWindow : Window, IDisposable
             [
                 Item("_Dependencies...", KeyCommands.OpenDependencies),
                 Item("_Assembly Explorer...", KeyCommands.OpenAssemblyExplorer),
+                new MainMenuCommand("_Connections...", vm.OpenConnectionsCommand),
+                new MainMenuCommand("_Secret Store...", vm.OpenSecretStoreCommand),
                 new MainMenuSeparator(),
                 Item("_Preferences...", KeyCommands.OpenPreferences),
             ]),

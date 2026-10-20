@@ -123,4 +123,25 @@ public class ProgramTemplateTests
     [InlineData("Class C\nEnd Class\n")]
     public void Vb_AModuleOrClass_Should_StayAsItIs(string code)
         => Assert.Null(Vb.CodeForKind(code, RpadKind.Program));
+
+    // A classic program already has its entry point; switching to Program must not wrap it in Main.
+    [Fact]
+    public void CSharp_AClassWithAStaticMain_Should_StayAsWritten()
+    {
+        Assert.Null(CSharp.CodeForKind("using System;\n\nclass Program\n{\n    static void Main() => Console.WriteLine(1);\n}\n", RpadKind.Program));
+    }
+
+    // A class without a static Main is not an entry point: it still gets a Main skeleton.
+    [Fact]
+    public void CSharp_AClassWithoutAStaticMain_Should_StillGetMain()
+    {
+        Assert.Contains("void Main()", CSharp.CodeForKind("class Helper\n{\n    void Main() { }\n}\n", RpadKind.Program));
+    }
+
+    // A Main under DEBUG already is the program's Main: switching to Program leaves the code alone.
+    [Fact]
+    public void CSharp_AMainUnderDebug_Should_StayAsWritten()
+    {
+        Assert.Null(CSharp.CodeForKind("#if DEBUG\nvoid Main() { }\n#endif\n", RpadKind.Program));
+    }
 }

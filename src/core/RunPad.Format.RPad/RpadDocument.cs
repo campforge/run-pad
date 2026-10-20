@@ -32,6 +32,15 @@ public sealed class RpadDocument
         References = source.References?.ToList(),
         Namespaces = source.Namespaces?.ToList(),
         Args = source.Args?.ToList(),
+        AllowUnsafe = source.AllowUnsafe,
+        Connections = [.. source.Connections.Select(c => new RpadConnection
+        {
+            Name = c.Name,
+            Driver = c.Driver,
+            Params = c.Params.ToDictionary(p => p.Key, p => p.Value.Clone(), StringComparer.Ordinal),
+            Extra = c.Extra?.ToDictionary(p => p.Key, p => p.Value.Clone(), StringComparer.Ordinal),
+        })],
+        UnknownEntries = [.. source.UnknownEntries],
     };
 }
 

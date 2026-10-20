@@ -1,0 +1,138 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:RunPad.TemplatedControls"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.ConnectionsWindow" x:DataType="viewModels:ConnectionsWindowViewModel"
+        Title="Connections" Icon="/Assets/icon.ico"
+        Width="820" Height="660" MinWidth="640" MinHeight="460"
+        CanResize="True" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+    <Window.Styles>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Status.ErrorBrush}"/>
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="*,Auto,Auto,Auto" Margin="16" RowSpacing="8">
+        <Grid ColumnDefinitions="190,8,*">
+            <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="8">
+                <Border BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}" BorderThickness="1" CornerRadius="4">
+                    <Panel>
+                        <ListBox x:Name="ConnectionList" ItemsSource="{Binding Connections}" SelectedItem="{Binding SelectedConnection}"
+                                 Background="Transparent" BorderThickness="0" AutomationProperties.Name="Connections"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem" x:DataType="viewModels:ConnectionItemViewModel">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="viewModels:ConnectionItemViewModel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                        <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="No connections yet.&#10;Use Add below to create one." Classes="hint" Margin="12"
+                                   IsVisible="{Binding IsEmpty}" VerticalAlignment="Center"/>
+                    </Panel>
+                </Border>
+                <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
+                    <DropDownButton Classes="secondary" x:Name="AddButton" Content="Add" IsEnabled="{Binding !HasLoadError}" AutomationProperties.Name="Add a connection">
+                        <DropDownButton.Flyout><MenuFlyout Placement="Bottom"/></DropDownButton.Flyout>
+                    </DropDownButton>
+                    <Button Classes="secondary" x:Name="RemoveButton" Grid.Column="1" Content="Remove" Command="{Binding RemoveCommand}"/>
+                </Grid>
+            </Grid>
+            <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns"/>
+            <StackPanel Grid.Column="2" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" Spacing="8" Margin="16">
+                <TextBlock Text="Add your first connection" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Classes="hint" Text="Use Add to choose a connection type, then enter its settings. Secrets can stay in Secret Store."/>
+            </StackPanel>
+            <ScrollViewer Grid.Column="2" IsVisible="{Binding HasSelection}" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="12" DataContext="{Binding SelectedConnection}" x:DataType="viewModels:ConnectionItemViewModel">
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+                        <TextBlock Text="Name:" VerticalAlignment="Center"/>
+                        <TextBox Classes="form-field" x:Name="NameBox" Grid.Column="1" Text="{Binding Name}" AutomationProperties.Name="Connection name"/>
+                        <TextBlock Grid.Row="1" Text="Type:"/>
+                        <TextBlock x:Name="DriverText" Grid.Row="1" Grid.Column="1" Text="{Binding DriverName}"/>
+                    </Grid>
+                    <ItemsControl x:Name="FieldList" ItemsSource="{Binding Fields}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="viewModels:ConnectionFieldViewModel">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Label}" FontSize="12" IsVisible="{Binding !IsBoolean}"/>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
+                                        <TextBox Classes="field form-field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
+                                        <controls:SecretPicker Grid.Column="1"
+                                                  SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding CanInsertSecret}"
+                                                  AutomationProperties.Name="{Binding Param.Label, StringFormat='Insert secret into {0}'}" ToolTip.Tip="Insert secret"/>
+                                    </Grid>
+                                    <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}" Content="{Binding Param.Label}"/>
+                                    <ComboBox Classes="form-field" IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch" ItemsSource="{Binding Choices}"
+                                              SelectedItem="{Binding Text}" AutomationProperties.Name="{Binding Param.Label}"/>
+                                    <TextBox Classes="form-field" IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60" Text="{Binding Text}" PlaceholderText="One per line"
+                                             AutomationProperties.Name="{Binding Param.Label}"/>
+                                    <StackPanel IsVisible="{Binding IsMap}" Spacing="8">
+                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="10"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
+                                                    <Grid ColumnDefinitions="*,32" RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="6">
+                                                        <TextBox Classes="form-field" Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
+                                                        <Button Classes="secondary" Grid.Column="1" Content="✕" HorizontalAlignment="Right" Width="32" ToolTip.Tip="{Binding RemoveRowLabel}"
+                                                                AutomationProperties.Name="{Binding RemoveRowLabel}"
+                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
+                                                        <TextBox Classes="form-field" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Value}" PlaceholderText="Value"
+                                                                 AutomationProperties.Name="{Binding ValueFieldLabel}"/>
+                                                        <controls:SecretPicker Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Right"
+                                                                  SecretNames="{Binding SecretNames}" SelectedSecret="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
+                                                                  AutomationProperties.Name="{Binding InsertSecretLabel}" ToolTip.Tip="Insert secret"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Classes="secondary" Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                    <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Classes="hint" Text="{Binding KeptParamsNote}" IsVisible="{Binding HasKeptParams}"/>
+                    <TextBlock x:Name="ProblemsText" Classes="error" Text="{Binding Problems}" IsVisible="{Binding HasProblems}"/>
+                    <StackPanel Spacing="6">
+                        <Button Classes="secondary" x:Name="TestButton" Content="Test Connection" HorizontalAlignment="Left"
+                                Command="{Binding $parent[Window].((viewModels:ConnectionsWindowViewModel)DataContext).TestCommand}"/>
+                        <SelectableTextBlock x:Name="TestResultText" TextWrapping="Wrap" Text="{Binding TestResult}"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <StackPanel Grid.Row="1" Spacing="4">
+            <TextBlock Classes="error" x:Name="StoreError" Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>
+            <TextBlock Classes="error" Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}"/>
+        </StackPanel>
+        <Expander Grid.Row="2" Header="Storage and usage" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="4">
+                <TextBlock Classes="hint" Text="Saved outside your scripts. Use ${secret:name} for passwords and tokens from Secret Store."/>
+                <SelectableTextBlock FontSize="12" TextWrapping="Wrap" Text="{Binding StorePath}"/>
+            </StackPanel>
+        </Expander>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="secondary" x:Name="CancelButton" Content="Cancel" MinWidth="80" IsCancel="True" Click="Cancel_Click"/>
+            <Button x:Name="OkButton" Classes="primary" Content="Save" MinWidth="80" IsEnabled="{Binding CanSave}" Click="Ok_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

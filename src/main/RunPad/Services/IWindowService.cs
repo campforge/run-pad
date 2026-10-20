@@ -8,10 +8,16 @@ public interface IWindowService
 {
     // Takes a live stream rather than a snapshot so the dialog picks up front matter that becomes
     // available after it's already open (see EditorTabItemViewModel.FrontMatter).
-    Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null);
+    Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null);
     Task ShowPreferencesAsync();
     Task ShowErrorAsync(string title, string message);
     Task ShowAboutAsync();
+
+    /// <summary>Tools → Secret Store: the user's named secrets for <c>Util.GetSecret</c>.</summary>
+    Task ShowSecretStoreAsync();
+
+    /// <summary>Tools → Connections: the user's own database, HTTP and gRPC connections.</summary>
+    Task ShowConnectionsAsync();
 
     /// <summary>
     /// Shows a native Save As dialog defaulting to <paramref name="startFolder"/> (the user can still
@@ -87,6 +93,12 @@ public interface IWindowService
     /// last read or wrote it. Closing the dialog, or no window to show it on, is Cancel.
     /// </summary>
     Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName);
+
+    /// <summary>
+    /// Asks what to do with the unsaved tabs named when the app is closed while draft recovery is on.
+    /// Closing the dialog, or no window to show it on, is Cancel.
+    /// </summary>
+    Task<ExitUnsavedChoice> ShowExitUnsavedDialogAsync(IReadOnlyList<string> fileNames);
 
     /// <summary>
     /// Asks whether a tab with unsaved changes should reload its file, which another program

@@ -5,7 +5,7 @@ namespace RunPad.Format.RPad;
 /// <summary>
 /// Converts a LINQPad <c>.linq</c> file to an <see cref="RpadDocument"/> — a <c>.linq</c>
 /// file is an XML <c>&lt;Query&gt;</c> header (<c>Kind</c> attribute, <c>&lt;NuGetReference&gt;</c>/
-/// <c>&lt;Namespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
+/// <c>&lt;Namespace&gt;</c>/<c>&lt;RemoveNamespace&gt;</c>/<c>&lt;Reference&gt;</c> children) followed by plain C#/VB source — no XML
 /// wrapping on the code itself, so the header is parsed as an isolated fragment rather than the whole
 /// file (which usually isn't valid XML end to end once the code is anything nontrivial).
 /// </summary>
@@ -23,6 +23,16 @@ public static class LinqConverter
         ["VBProgram"] = (RpadLanguage.Vb, RpadKind.Program),
         ["VBExpression"] = (RpadLanguage.Vb, RpadKind.Expression),
     };
+
+    // LINQPad omits its standard imports from query headers. Persist this compatibility profile
+    // only in converted C# documents, so ordinary scripts retain their own import defaults.
+    private static readonly string[] CSharpDefaultNamespaces =
+    [
+        "System", "System.Collections", "System.Collections.Generic", "System.Data",
+        "System.Diagnostics", "System.IO", "System.Linq", "System.Linq.Expressions",
+        "System.Reflection", "System.Text", "System.Text.RegularExpressions", "System.Threading",
+        "System.Transactions", "System.Xml", "System.Xml.Linq", "System.Xml.XPath",
+    ];
 
     /// <summary>
     /// Converts <paramref name="linqContent"/> (the full text of a <c>.linq</c> file) to an
@@ -63,10 +73,19 @@ public static class LinqConverter
             packages[id] = version is null ? Package.Default : new Package(version);
         }
 
-        var namespaces = query.Elements("Namespace")
+        var explicitNamespaces = query.Elements("Namespace")
             .Select(e => e.Value.Trim())
-            .Where(ns => ns.Length > 0)
-            .ToList();
+            .Where(ns => ns.Length > 0);
+        // A query can drop some of LINQPad's standard imports with <RemoveNamespace> (to avoid an
+        // ambiguity such as System.Threading.Timer vs System.Timers.Timer); keeping them would make
+        // the converted script fail to compile.
+        var removedNamespaces = query.Elements("RemoveNamespace")
+            .Select(e => e.Value.Trim())
+            .ToHashSet(StringComparer.Ordinal);
+        var namespaces = mapped.Language == RpadLanguage.CSharp
+            ? CSharpDefaultNamespaces.Where(ns => !removedNamespaces.Contains(ns))
+                .Concat(explicitNamespaces).Distinct(StringComparer.Ordinal).ToList()
+            : explicitNamespaces.ToList();
 
         var references = query.Elements("Reference")
             .Select(e => (e.Attribute("Relative")?.Value ?? e.Value).Trim())

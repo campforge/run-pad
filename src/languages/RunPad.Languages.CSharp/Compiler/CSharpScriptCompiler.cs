@@ -12,12 +12,14 @@ namespace RunPad.Languages.CSharp.Compiler;
 // C# scripts through Roslyn, with the settings the SDK passes to csc for a throwaway Exe project
 // (captured from a real `dotnet build -v:d`): /langversion of the target, /warn:<major>, /nullable:enable,
 // /define:TRACE;DEBUG;NET...;NETx_0_OR_GREATER..., /nowarn:1701,1702, /warnaserror+:SYSLIB0011,
-// /optimize-, /deterministic+, implicit usings + RunPad.Runtime.
+// /optimize-, /deterministic+, implicit usings + RunPad.Runtime; /unsafe only when the script asks for it.
 public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions options, ILogger logger)
     : RoslynScriptCompiler(options, logger)
 {
     protected override string SourceFileExtension => CSharpProjectProfile.Instance.SourceFileExtension;
     protected override string LanguageFolder => "cs";
+
+    protected override string CompilationSettings => Options.AllowUnsafe ? "unsafe" : "";
 
     protected override string FormatImport(string ns) => CSharpProjectProfile.Instance.FormatImportStatement(ns);
 
@@ -41,6 +43,7 @@ public sealed class CSharpScriptCompiler(CompiledDotnetLanguageHostOptions optio
         CSharpCompilation.Create(assemblyName, trees, references, new CSharpCompilationOptions(
             Microsoft.CodeAnalysis.OutputKind.ConsoleApplication,
             optimizationLevel: OptimizationLevel.Debug,
+            allowUnsafe: Options.AllowUnsafe,
             nullableContextOptions: NullableContextOptions.Enable,
             warningLevel: Math.Max(4, target.Major),
             deterministic: true,

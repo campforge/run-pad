@@ -74,7 +74,7 @@ public class VbLanguageHostKindTransformTests
         var host = CreateHost(kind, out var outputDir);
         try
         {
-            Assert.Equal(expectedOffset, host.CalcKindOffset());
+            Assert.Equal(expectedOffset, host.CalcKindOffset(""));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -97,7 +97,7 @@ public class VbLanguageHostKindTransformTests
             Assert.True(indexOfUserCode >= 0);
 
             var newlinesBeforeUserCode = transformed[..indexOfUserCode].Count(c => c == '\n');
-            Assert.Equal(newlinesBeforeUserCode, host.CalcKindOffset());
+            Assert.Equal(newlinesBeforeUserCode, host.CalcKindOffset(""));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }
@@ -112,7 +112,7 @@ public class VbLanguageHostKindTransformTests
         var host = CreateHost(kind, out var outputDir, usings);
         try
         {
-            Assert.Equal(usings.Count + kindOnlyOffset, host.CalcKindOffset());
+            Assert.Equal(usings.Count + kindOnlyOffset, host.CalcKindOffset(""));
         }
         finally { Directory.Delete(outputDir, recursive: true); }
     }

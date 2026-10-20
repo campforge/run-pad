@@ -23,27 +23,37 @@ public sealed class WindowService : IWindowService
     private readonly IThemeService _themeService;
     private readonly IPreferencesService? _preferences;
 
+    private readonly Func<SecretStoreWindow>? _secretStoreWindowFactory;
+    private readonly Func<ConnectionsWindow>? _connectionsWindowFactory;
+
     // preferences: the text editor window's Save/Save As key gestures (the user's keyboard settings);
-    // optional so tests constructing a WindowService for other windows needn't supply it.
+    // optional, like the Secret Store and Connections windows, so tests constructing a WindowService for other windows
+    // needn't supply it.
     public WindowService(
         Func<DependenciesWindow> dependenciesWindowFactory,
         Func<PreferencesWindow> preferencesWindowFactory,
         IThemeService themeService,
-        IPreferencesService? preferences = null)
+        IPreferencesService? preferences = null,
+        Func<SecretStoreWindow>? secretStoreWindowFactory = null,
+        Func<ConnectionsWindow>? connectionsWindowFactory = null)
     {
         _dependenciesWindowFactory = dependenciesWindowFactory;
         _preferencesWindowFactory = preferencesWindowFactory;
         _themeService = themeService;
         _preferences = preferences;
+        _secretStoreWindowFactory = secretStoreWindowFactory;
+        _connectionsWindowFactory = connectionsWindowFactory;
     }
 
     // The same lookup, repeated verbatim 6 times below.
     private static Window? MainWindow =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
-    public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null)
+    public async Task ShowDependenciesAsync(IObservable<RpadFrontMatter?>? frontMatter = null, IObservable<string?>? scriptPath = null)
     {
         var window = _dependenciesWindowFactory();
+        // The path first: the connections shown for the front matter depend on the script's folder.
+        using var pathSubscription = scriptPath?.Subscribe(window.SetScriptPath);
         using var subscription = frontMatter?.Subscribe(window.SetFrontMatter);
         await ShowDialogAsync(window);
     }
@@ -56,6 +66,12 @@ public sealed class WindowService : IWindowService
 
     public Task ShowAboutAsync()
         => ShowDialogAsync(new AboutWindow());
+
+    public Task ShowSecretStoreAsync()
+        => _secretStoreWindowFactory is { } factory ? ShowDialogAsync(factory()) : Task.CompletedTask;
+
+    public Task ShowConnectionsAsync()
+        => _connectionsWindowFactory is { } factory ? ShowDialogAsync(factory()) : Task.CompletedTask;
 
     public async Task<string?> ShowSaveFileDialogAsync(string suggestedFileName, string startFolder)
     {
@@ -112,6 +128,15 @@ public sealed class WindowService : IWindowService
 
         var result = await new UnsavedChangesDialog(fileName).ShowDialog<UnsavedChangesResult?>(owner);
         return result ?? UnsavedChangesResult.Cancel;
+    }
+
+    public async Task<ExitUnsavedChoice> ShowExitUnsavedDialogAsync(IReadOnlyList<string> fileNames)
+    {
+        var owner = MainWindow;
+        if (owner is null) return ExitUnsavedChoice.Cancel;
+
+        var result = await new ExitUnsavedDialog(fileNames).ShowDialog<ExitUnsavedChoice?>(owner);
+        return result ?? ExitUnsavedChoice.Cancel;
     }
 
     public async Task<SaveConflictChoice> ShowSaveConflictDialogAsync(string fileName)

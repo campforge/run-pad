@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package inventory.v1;
+
+option csharp_namespace = "Inventory.V1";
+
+import "google/protobuf/timestamp.proto";
+
+// What the gRPC connection's tests call.
+service Stock {
+  rpc GetItem (ItemRequest) returns (Item);
+}
+
+service Audit {
+  rpc Ping (ItemRequest) returns (ItemRequest);
+}
+
+message ItemRequest {
+  string sku = 1;
+}
+
+message Item {
+  string sku = 1;
+  int32 count = 2;
+  google.protobuf.Timestamp updated = 3;
+  // The authorization metadata the call came with.
+  string caller = 4;
+}

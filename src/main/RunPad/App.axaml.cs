@@ -5,7 +5,11 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using RunPad.Connectors.Grpc;
+using RunPad.Connectors.Http;
+using RunPad.Connectors.Sqlite;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.DotnetCommon;
 using RunPad.Languages.DotnetCommon.Sdk;
@@ -13,15 +17,19 @@ using RunPad.Languages.VB;
 using RunPad.Logging;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
+using RunPad.Services.Connections;
 using RunPad.Services.Preferences;
 using RunPad.Services.Recovery;
 using RunPad.Services.Scaling;
+using RunPad.Services.Secrets;
 using RunPad.Services.Setup;
 using RunPad.UserControls;
 using RunPad.Windows.Models;
+using ConnectionsWindow = RunPad.Windows.ConnectionsWindow;
 using DependenciesWindow = RunPad.Windows.DependenciesWindow;
 using MainWindow = RunPad.Windows.MainWindow;
 using PreferencesWindow = RunPad.Windows.PreferencesWindow;
+using SecretStoreWindow = RunPad.Windows.SecretStoreWindow;
 using SetupWizardWindow = RunPad.Windows.SetupWizardWindow;
 
 namespace RunPad;
@@ -157,6 +165,26 @@ public class App : Application
         services.AddTransient<DependenciesWindowViewModel>();
         services.AddTransient<PreferencesWindow>();
         services.AddTransient<DependenciesWindow>();
+        services.AddSingleton<ISecretStore>(_ => new FileSecretStore());
+        services.AddTransient<SecretStoreWindowViewModel>();
+        services.AddTransient<SecretStoreWindow>();
+        // Connection drivers are part of RunPad for now, registered here like the languages above.
+        services.AddSingleton(_ =>
+        {
+            var registry = new ConnectionDriverRegistry();
+            registry.Register(new HttpConnectionDriver());
+            registry.Register(new GrpcConnectionDriver());
+            registry.Register(new SqliteConnectionDriver());
+            return registry;
+        });
+        // What some drivers read from the endpoint before a build (a gRPC server's services), kept
+        // on disk; secrets for reading it come from the Secret Store.
+        services.AddSingleton(sp => new ConnectionSchemas(sp.GetRequiredService<ConnectionDriverRegistry>(),
+            ConnectionSchemaCache.DefaultFolder, DotnetConnectionTools.Default,
+            sp.GetRequiredService<ISecretStore>().Find));
+        services.AddSingleton<IConnectionStore>(_ => new FileConnectionStore());
+        services.AddTransient<ConnectionsWindowViewModel>();
+        services.AddTransient<ConnectionsWindow>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<SetupWizardWindow>();
         services.AddSingleton<EditorTabsControl>();
@@ -165,6 +193,8 @@ public class App : Application
         // each time a dialog is shown).
         services.AddSingleton<Func<DependenciesWindow>>(sp => () => sp.GetRequiredService<DependenciesWindow>());
         services.AddSingleton<Func<PreferencesWindow>>(sp => () => sp.GetRequiredService<PreferencesWindow>());
+        services.AddSingleton<Func<SecretStoreWindow>>(sp => () => sp.GetRequiredService<SecretStoreWindow>());
+        services.AddSingleton<Func<ConnectionsWindow>>(sp => () => sp.GetRequiredService<ConnectionsWindow>());
 
         var provider = services.BuildServiceProvider();
 

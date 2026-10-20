@@ -489,4 +489,29 @@ public class RpadParserWriterTests
         Assert.NotNull(parsed);
         Assert.Equal(TargetSdk.Default, parsed!.FrontMatter.TargetSdk);
     }
+
+    // allowUnsafe: is opt-in and written only when on, so existing documents keep their bytes.
+    [Fact]
+    public void AllowUnsafe_Should_RoundTrip_AndStayAbsentWhenOff()
+    {
+        const string existing = "---\nversion: 1.0\nlanguage: csharp\ntargetSdk: latest\nkind: Program\n---\n\n```csharp run\nvoid Main() { }\n```\n";
+        var parsed = RpadParser.TryParse(existing)!;
+        Assert.False(parsed.FrontMatter.AllowUnsafe);
+        Assert.Equal(existing, RpadWriter.Write(parsed));
+
+        parsed.FrontMatter.AllowUnsafe = true;
+        var written = RpadWriter.Write(parsed);
+        Assert.Contains("\nallowUnsafe: true\n", written);
+        Assert.True(RpadParser.TryParse(written)!.FrontMatter.AllowUnsafe);
+        Assert.False(RpadParser.TryParse(written.Replace("allowUnsafe: true", "allowUnsafe: false"))!.FrontMatter.AllowUnsafe);
+    }
+
+    // Recovery snapshots, Save As and Duplicate all go through the document's copy of its metadata.
+    [Fact]
+    public void AllowUnsafe_Should_SurviveASnapshot()
+    {
+        var doc = new RpadDocument { FrontMatter = new RpadFrontMatter { AllowUnsafe = true }, RunCode = "1.Dump();\n" };
+
+        Assert.True(RpadDocument.FromSnapshot(doc.CaptureSnapshot()).FrontMatter.AllowUnsafe);
+    }
 }

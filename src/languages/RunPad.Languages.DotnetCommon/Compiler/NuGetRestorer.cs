@@ -238,6 +238,45 @@ public static class NuGetRestorer
         return null;
     }
 
+    // The folder of one package version in the global packages folder, downloaded first when it isn't
+    // there: build tools RunPad runs itself (protoc from Grpc.Tools), not references of a script.
+    public static async Task<string> GetPackageFolderAsync(string id, string version, string? nugetConfigFile,
+        CancellationToken ct)
+    {
+        // The settings are read from RunPad's own folder (and the user's NuGet settings), never from
+        // a folder other users can write to such as the temp folder: what this returns is executed.
+        var settings = LoadSettings(nugetConfigFile, RunPadNuGetConfigStore.DefaultDirectory);
+        var globalPackagesFolder = SettingsUtility.GetGlobalPackagesFolder(settings);
+        var identity = new PackageIdentity(id, NuGetVersion.Parse(version));
+        var folder = new VersionFolderPathResolver(globalPackagesFolder).GetInstallPath(identity.Id, identity.Version);
+        if (File.Exists(new VersionFolderPathResolver(globalPackagesFolder).GetHashPath(identity.Id, identity.Version)))
+            return folder;
+
+        using var cache = new SourceCacheContext();
+        Exception? last = null;
+        foreach (var source in new PackageSourceProvider(settings).LoadPackageSources().Where(s => s.IsEnabled))
+        {
+            try
+            {
+                var repository = Repository.Factory.GetCoreV3(source);
+                var finder = await repository.GetResourceAsync<FindPackageByIdResource>(ct);
+                if (finder is null) continue;
+                var downloader = await finder.GetPackageDownloaderAsync(identity, cache, NullLogger.Instance, ct);
+                if (downloader is null) continue;
+                using var result = await GlobalPackagesFolderUtility.AddPackageAsync(
+                    source.Source, identity, await CopyToMemoryAsync(downloader, ct), globalPackagesFolder,
+                    Guid.Empty, NuGet.Packaging.Signing.ClientPolicyContext.GetClientPolicy(settings, NullLogger.Instance),
+                    NullLogger.Instance, ct);
+                if (result.Status == DownloadResourceResultStatus.Available) return folder;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                last = ex; // Try the next source.
+            }
+        }
+        throw new IOException($"The NuGet package {id} {version} couldn't be downloaded" + (last is null ? "." : $": {last.Message}"), last);
+    }
+
     public static ISettings LoadSettings(string? nugetConfigFile, string root) =>
         nugetConfigFile is not null && File.Exists(nugetConfigFile)
             ? Settings.LoadSpecificSettings(Path.GetDirectoryName(nugetConfigFile)!, Path.GetFileName(nugetConfigFile))
@@ -401,11 +440,23 @@ public static class NuGetRestorer
     }
 
     // The current platform's RID and its portable fallbacks, most specific first (win-x64 -> win).
-    internal static string[] RuntimeIdentifierFallbacks()
+    // The runtime's own RID first, then the portable one packages ship assets for: a .NET built by a
+    // Linux distribution reports its own RID (ubuntu.24.04-x64), which no package has a folder for,
+    // so SQLite's runtimes/linux-x64/native/libe_sqlite3.so would otherwise never be placed.
+    internal static string[] RuntimeIdentifierFallbacks() =>
+        RuntimeIdentifierFallbacks(RuntimeInformation.RuntimeIdentifier, RuntimeInformation.ProcessArchitecture);
+
+    internal static string[] RuntimeIdentifierFallbacks(string rid, Architecture architecture)
     {
-        var rid = RuntimeInformation.RuntimeIdentifier;
-        var os = rid.Split('-')[0];
-        return OperatingSystem.IsWindows() ? [rid, os, "any"] : [rid, os, "unix", "any"];
+        var arch = architecture.ToString().ToLowerInvariant();
+        var os = OperatingSystem.IsWindows() ? "win"
+            : OperatingSystem.IsMacOS() ? "osx"
+            : rid.Contains("musl", StringComparison.Ordinal) || rid.StartsWith("alpine", StringComparison.Ordinal) ? "linux-musl"
+            : "linux";
+        string[] all = OperatingSystem.IsWindows()
+            ? [rid, $"{os}-{arch}", rid.Split('-')[0], os, "any"]
+            : [rid, $"{os}-{arch}", rid.Split('-')[0], os, os == "linux-musl" ? "linux" : "unix", "unix", "any"];
+        return [.. all.Distinct(StringComparer.Ordinal)];
     }
 
     private static ResultItem Message(string code, string text) => new(code, "", new LineSymbol(0, 0), text);

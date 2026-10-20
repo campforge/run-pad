@@ -4,7 +4,10 @@ using Avalonia.Styling;
 using Moq;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
+using RunPad.Contracts.IntelliSense;
+using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
+using RunPad.Languages.DotnetCommon;
 using RunPad.Services;
 using RunPad.Services.BuildCache;
 using RunPad.Services.Preferences;
@@ -29,6 +32,9 @@ public sealed class SessionDraftLifecycleTests : IDisposable
         public EditorTabsControl Tabs { get; }
         public MainWindow Host { get; }
         public IRecoveryStore Store { get; }
+        // What the language was asked to run, and what the editor was told to analyze.
+        public List<ExecutionRequest> Runs { get; } = [];
+        public List<ExecutionRequest> EditorContexts { get; } = [];
 
         public Session(string root, IRecoveryStore store, bool enabled = true)
         {
@@ -44,12 +50,26 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             var files = new Mock<IFileSystemService>();
             files.Setup(f => f.Folder).Returns(root);
             files.Setup(f => f.GetFilesTreeAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+            // Closing with unsaved tabs keeps them in the stash unless a test answers otherwise.
+            Windows.Setup(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>())).ReturnsAsync(ExitUnsavedChoice.KeepInStash);
             var theme = new Mock<IThemeService>();
             theme.Setup(t => t.CurrentTheme).Returns(new ActiveTheme(new InterfaceTheme("Test", ThemeVariant.Dark, true),
                 new EditorTheme("Test", TextMateSharp.Grammars.ThemeName.DarkPlus, true)));
             var registry = new Mock<ILanguageHostRegistry>();
+            var host = new Mock<ILanguageHost>();
+            host.Setup(h => h.RunAsync(It.IsAny<string>(), It.IsAny<OutputReceivedHandler>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RunResult.Exited(0));
+            host.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            registry.Setup(r => r.Create(It.IsAny<string>(), It.IsAny<ExecutionRequest>()))
+                .Callback<string, ExecutionRequest>((_, r) => Runs.Add(r)).Returns(host.Object);
+            var intelliSense = new Mock<IIntelliSenseService>();
+            intelliSense.Setup(i => i.UpdateExecutionContext(It.IsAny<ExecutionRequest>()))
+                .Callback<ExecutionRequest>(EditorContexts.Add);
+            var cache = new Mock<IBuildCacheService>();
+            cache.Setup(c => c.EnsureOutputDirectory(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(() => Directory.CreateDirectory(Path.Combine(root, "build")).FullName);
             Vm = new([], files.Object, Windows.Object, prefs.Object, new LanguageHostRegistry(), recovery: store);
-            Tabs = new(theme.Object, Windows.Object, registry.Object, prefs.Object, new Mock<IBuildCacheService>().Object);
+            Tabs = new(theme.Object, Windows.Object, registry.WithCSharpIntelliSense(() => intelliSense.Object), prefs.Object, cache.Object);
             Host = new(prefs.Object, Tabs, Vm);
             Host.Show();
         }
@@ -388,7 +408,7 @@ public sealed class SessionDraftLifecycleTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task TwoSessions_Should_KeepTheirOwnDrafts_AndRestoreOnlyAnUnlockedSession()
+    public async Task TwoSessions_Should_KeepTheirOwnDrafts_AndALaterStartShouldRestoreBoth()
     {
         using (var first = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
         {
@@ -410,10 +430,487 @@ public sealed class SessionDraftLifecycleTests : IDisposable
             }
             await first.Close();
         }
-        using var final = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
-        await final.Ready();
-        Assert.Equal("first instance", final.Control(final.Vm.Tabs.Single()).State.Editor.Text);
-        await final.Close();
+        // Neither window's draft is orphaned: the newer session is restored, the other one imported.
+        using (var final = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await final.Ready();
+            Assert.Equal(["first instance", "second instance"], final.Vm.Tabs.Select(t => final.Control(t).State.Editor.Text));
+            Assert.Contains("another RunPad window", final.Vm.RecoveryNotice);
+            AssertNoModalNotice(final);
+            await final.Close();
+        }
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal(["first instance", "second instance"], again.Vm.Tabs.Select(t => again.Control(t).State.Editor.Text));
+        Assert.Null(again.Vm.RecoveryNotice); // imported once, then simply part of this session
+        await again.Close();
+    }
+
+    private static void AssertNoModalNotice(Session session) =>
+        session.Windows.Verify(w => w.ShowErrorAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+
+    // A closed session of another window, written as that window's store would have left it.
+    private async Task<string> ClosedSessionAsync(DateTime written, params RecoveryTab[] tabs)
+    {
+        var before = Directory.Exists(RecoveryRoot) ? Directory.GetDirectories(RecoveryRoot) : [];
+        using (var store = new DiskRecoveryStore(RecoveryRoot))
+        {
+            // Own a fresh folder even when older closed sessions exist: hold those while creating it.
+            var held = before.Select(f => File.Open(Path.Combine(f, "owner.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)).ToList();
+            try { await store.CommitAsync(new RecoverySnapshot { Revision = 1, Tabs = tabs, ActiveTab = tabs.FirstOrDefault()?.Id }); }
+            finally { held.ForEach(h => h.Dispose()); }
+        }
+        var folder = Directory.GetDirectories(RecoveryRoot).Single(f => !before.Contains(f));
+        Directory.SetLastWriteTimeUtc(folder, written);
+        return folder;
+    }
+
+    private static RecoveryTab DirtyFileDraft(string path, string text, string args)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var document = RpadParser.Parse(RpadWriter.NewFile(text, Path.GetFileNameWithoutExtension(path), kind: RpadKind.Program)
+            .Replace("kind: Program\n", $"kind: Program\nargs:\n  - \"{args}\"\n")).Document!;
+        return new RecoveryTab
+        {
+            FilePath = path,
+            EditorText = text,
+            Document = document.CaptureSnapshot(),
+            IsDirty = true,
+            BaselineKnown = true,
+            DiskHash = ScriptFileState.Of(bytes).Hash,
+        };
+    }
+
+    [AvaloniaFact]
+    public async Task TwoWindowsDraftsOfTheSameFile_Should_BothBeRestored_WithoutWritingTheFile()
+    {
+        var path = Path.Combine(_root, "shared.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        var disk = File.ReadAllBytes(path);
+        var otherFolder = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), DirtyFileDraft(path, "other window's edit", "other-arg"));
+        await ClosedSessionAsync(DateTime.UtcNow, DirtyFileDraft(path, "this window's edit", "own-arg"));
+
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            var file = session.Vm.Tabs.Single(t => t.FilePath is not null);
+            Assert.Equal(path, file.FilePath);
+            Assert.Equal("this window's edit", session.Control(file).State.Editor.Text);
+            Assert.True(file.IsDirty);
+            var copy = session.Vm.Tabs.Single(t => t.FilePath is null);
+            Assert.Equal("shared (from another window)", copy.FileName);
+            Assert.True(copy.IsDirty);
+            var copyState = session.Control(copy).State;
+            Assert.Equal("other window's edit", copyState.Editor.Text);
+            Assert.Equal(["other-arg"], copyState.RpadDocument!.FrontMatter.Args);
+            Assert.Equal(RpadKind.Program, copyState.RpadDocument.FrontMatter.Kind);
+            Assert.Equal(["own-arg"], session.Control(file).State.RpadDocument!.FrontMatter.Args);
+            Assert.Contains("untitled copy", session.Vm.RecoveryNotice);
+            Assert.Equal(file, session.Vm.ActiveTab); // the restored session keeps its own active tab
+            AssertNoModalNotice(session);
+            await session.Close();
+        }
+        Assert.Equal(disk, File.ReadAllBytes(path));
+        Assert.True(File.Exists(Path.Combine(otherFolder, "imported.json")));
+
+        // The copy keeps its provenance in later checkpoints and is not imported again.
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal(2, again.Vm.Tabs.Count);
+        Assert.Equal("shared (from another window)", again.Vm.Tabs.Single(t => t.FilePath is null).FileName);
+        var captured = again.Control(again.Vm.Tabs.Single(t => t.FilePath is null)).CaptureRecovery();
+        Assert.Equal(path, captured.OriginalPath);
+        Assert.Equal(Path.GetFileName(otherFolder), captured.ImportedFrom);
+        Assert.Null(again.Vm.RecoveryNotice);
+        await again.Close();
+        Assert.Equal(disk, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task AnImportedDraftOfAFileNotOpenHere_Should_ReopenItWithTheBaselineItWasEditedAgainst()
+    {
+        var path = Path.Combine(_root, "elsewhere.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("original", "Elsewhere"));
+        var draft = DirtyFileDraft(path, "edited in the other window", "x");
+        File.WriteAllText(path, RpadWriter.NewFile("changed on disk later", "Elsewhere"));
+        var changed = File.ReadAllBytes(path);
+        await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), draft);
+        await ClosedSessionAsync(DateTime.UtcNow, new RecoveryTab { EditorText = "own untitled", IsDirty = true });
+
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var tab = session.Vm.Tabs.Single(t => t.FilePath == path);
+        Assert.Equal("edited in the other window", session.Control(tab).State.Editor.Text);
+        Assert.True(tab.IsDirty);
+        // A save compares with what the draft was edited against, so the later disk change is noticed.
+        Assert.Equal(draft.DiskHash, tab.DiskState!.Hash);
+        Assert.False(tab.RequiresBaselineConfirmation);
+        Assert.Equal("own untitled", session.Control(session.Vm.ActiveTab!).State.Editor.Text);
+        await session.Close();
+        Assert.Equal(changed, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task ADamagedOtherSession_Should_BeNamedInANonModalNotice_AndKeptUnchanged()
+    {
+        var damaged = await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), new RecoveryTab { EditorText = "lost?", IsDirty = true });
+        var pointer = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(damaged, "current.json")))!;
+        File.WriteAllText(Path.Combine(damaged, pointer["Current"]!.GetValue<string>()), "{ damaged");
+        var files = Directory.GetFiles(damaged).Where(f => !f.EndsWith("owner.lock")).ToDictionary(f => f, File.ReadAllBytes);
+        await ClosedSessionAsync(DateTime.UtcNow, new RecoveryTab { EditorText = "own draft", IsDirty = true });
+
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            Assert.Equal("own draft", session.Control(session.Vm.Tabs.Single()).State.Editor.Text);
+            Assert.Contains(damaged, session.Vm.RecoveryNotice);
+            Assert.True(session.Host.FindControl<Border>("RecoveryNoticeBar")!.IsVisible);
+            AssertNoModalNotice(session);
+            session.Vm.DismissRecoveryNotice();
+            Assert.False(session.Host.FindControl<Border>("RecoveryNoticeBar")!.IsVisible);
+            await session.Close();
+        }
+        Assert.All(files, f => Assert.Equal(f.Value, File.ReadAllBytes(f.Key)));
+    }
+
+    [AvaloniaFact]
+    public async Task UnreadableRecovery_Should_SayItNonModally()
+    {
+        var store = new Mock<IRecoveryStore>();
+        store.Setup(s => s.LoadAsync()).ThrowsAsync(new InvalidDataException("broken"));
+        using var session = new Session(_root, store.Object);
+        await session.Ready();
+        Assert.Contains("could not be read and have been kept unchanged", session.Vm.RecoveryNotice);
+        AssertNoModalNotice(session);
+        session.Windows.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>())).ReturnsAsync(UnsavedChangesResult.DontSave);
+        await session.Close();
+    }
+
+    private async Task<(Session Session, EditorTabItemViewModel Named, string Path)> DirtyNamedTabAsync(IRecoveryStore? store = null)
+    {
+        var path = Path.Combine(_root, "named.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("saved text", "Named"));
+        var session = new Session(_root, store ?? new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        session.Vm.OpenTab(path);
+        await session.Ready();
+        var named = session.Vm.Tabs.Single(t => t.FilePath == path);
+        session.Control(named).State.Editor.Text = "edited text";
+        Assert.True(named.IsDirty);
+        return (session, named, path);
+    }
+
+    private static void Answer(Session session, ExitUnsavedChoice choice) =>
+        session.Windows.Setup(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>())).ReturnsAsync(choice);
+
+    private static async Task CloseAndSettle(Session session)
+    {
+        session.Host.Close();
+        await TestWait.WhileAsync(() => !session.Host.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingWithNothingUnsaved_Should_NotAsk_AndStillKeepTheSession()
+    {
+        var path = Path.Combine(_root, "clean.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("clean", "Clean"));
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            session.Vm.OpenTab(path);
+            await session.Ready();
+            await session.Close();
+            session.Windows.Verify(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>()), Times.Never);
+        }
+        using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await next.Ready();
+        Assert.Equal(path, next.Vm.Tabs.Single().FilePath);
+        await next.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task CancelInTheExitDialog_Should_KeepTheAppOpen_WithEverythingUnsaved()
+    {
+        var store = new Mock<IRecoveryStore>();
+        store.Setup(r => r.LoadAsync()).ReturnsAsync((RecoverySnapshot?)null);
+        var (session, named, path) = await DirtyNamedTabAsync(store.Object);
+        using (session)
+        {
+            Answer(session, ExitUnsavedChoice.Cancel);
+            await CloseAndSettle(session);
+            Assert.True(session.Host.IsVisible);
+            Assert.True(named.IsDirty);
+            Assert.Equal("edited text", session.Control(named).State.Editor.Text);
+            Assert.Contains("saved text", File.ReadAllText(path));
+            store.Verify(r => r.CommitAsync(It.IsAny<RecoverySnapshot>()), Times.Never);
+            session.Windows.Verify(w => w.ShowExitUnsavedDialogAsync(It.Is<IReadOnlyList<string>>(n => n.SequenceEqual(new[] { "named" }))), Times.Once);
+            // Asked again on the next close.
+            Answer(session, ExitUnsavedChoice.KeepInStash);
+            await session.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task KeepInStash_Should_CloseWithoutWritingTheFile_AndRestoreTheDraft()
+    {
+        var (session, _, path) = await DirtyNamedTabAsync();
+        using (session) await session.Close();
+        Assert.Contains("saved text", File.ReadAllText(path));
+        using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await next.Ready();
+        var tab = next.Vm.Tabs.Single(t => t.FilePath == path);
+        Assert.Equal("edited text", next.Control(tab).State.Editor.Text);
+        Assert.True(tab.IsDirty);
+        await next.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task KeepInStash_WhenTheCheckpointFails_Should_KeepTheAppOpen()
+    {
+        var store = new Mock<IRecoveryStore>();
+        store.Setup(r => r.LoadAsync()).ReturnsAsync((RecoverySnapshot?)null);
+        store.Setup(r => r.CommitAsync(It.IsAny<RecoverySnapshot>())).ThrowsAsync(new IOException("disk full"));
+        var (session, named, _) = await DirtyNamedTabAsync(store.Object);
+        using (session)
+        {
+            await CloseAndSettle(session);
+            Assert.True(session.Host.IsVisible);
+            Assert.True(named.IsDirty);
+            session.Windows.Verify(w => w.ShowErrorAsync("Drafts Not Saved", It.IsAny<string>()), Times.Once);
+            store.Setup(r => r.CommitAsync(It.IsAny<RecoverySnapshot>())).Returns(Task.CompletedTask);
+            await session.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveAll_Should_WriteTheFiles_ThenClose_AndReopenThemClean()
+    {
+        var (session, _, path) = await DirtyNamedTabAsync();
+        using (session)
+        {
+            Answer(session, ExitUnsavedChoice.SaveAll);
+            await session.Close();
+        }
+        Assert.Contains("edited text", File.ReadAllText(path));
+        using var next = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await next.Ready();
+        var tab = next.Vm.Tabs.Single(t => t.FilePath == path);
+        Assert.False(tab.IsDirty);
+        Assert.Equal("edited text", next.Control(tab).State.Editor.Text.Trim());
+        await next.Close();
+    }
+
+    // Saves already made are kept; the untitled tab whose Save As was cancelled stays unsaved and open.
+    [AvaloniaFact]
+    public async Task SaveAll_WithACancelledSaveAs_Should_KeepTheAppOpen_AndTheEarlierSave()
+    {
+        var (session, named, path) = await DirtyNamedTabAsync();
+        using (session)
+        {
+            session.Vm.NewRpadFile();
+            await session.Ready();
+            var untitled = session.Vm.Tabs.Last();
+            session.Control(untitled).State.Editor.Text = "untitled draft";
+            session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((string?)null);
+            Answer(session, ExitUnsavedChoice.SaveAll);
+            await CloseAndSettle(session);
+            Assert.True(session.Host.IsVisible);
+            Assert.False(named.IsDirty);
+            Assert.Contains("edited text", File.ReadAllText(path));
+            Assert.True(untitled.IsDirty);
+            Assert.Equal("untitled draft", session.Control(untitled).State.Editor.Text);
+            Answer(session, ExitUnsavedChoice.KeepInStash);
+            await session.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task SaveAll_WithAFileChangedOnDisk_Should_AskAndOnCancel_KeepTheAppOpenAndTheFile()
+    {
+        var (session, named, path) = await DirtyNamedTabAsync();
+        using (session)
+        {
+            File.WriteAllText(path, RpadWriter.NewFile("changed elsewhere", "Named"));
+            var external = File.ReadAllBytes(path);
+            session.Windows.Setup(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>())).ReturnsAsync(SaveConflictChoice.Cancel);
+            Answer(session, ExitUnsavedChoice.SaveAll);
+            await CloseAndSettle(session);
+            Assert.True(session.Host.IsVisible);
+            Assert.True(named.IsDirty);
+            Assert.Equal(external, File.ReadAllBytes(path));
+            session.Windows.Verify(w => w.ShowSaveConflictDialogAsync(It.IsAny<string>()), Times.Once);
+            Answer(session, ExitUnsavedChoice.KeepInStash);
+            await session.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingAgain_WhileTheExitDialogIsOpen_Should_AskOnce()
+    {
+        var store = new Mock<IRecoveryStore>();
+        store.Setup(r => r.LoadAsync()).ReturnsAsync((RecoverySnapshot?)null);
+        var (session, _, _) = await DirtyNamedTabAsync(store.Object);
+        using (session)
+        {
+            var answer = new TaskCompletionSource<ExitUnsavedChoice>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.Windows.Setup(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>())).Returns(answer.Task);
+            session.Host.Close();
+            await TestWait.WhileAsync(() => answer.Task.IsCompleted is false
+                && session.Windows.Invocations.All(i => i.Method.Name != nameof(IWindowService.ShowExitUnsavedDialogAsync)));
+            session.Host.Close();
+            session.Host.Close();
+            session.Windows.Verify(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>()), Times.Once);
+            answer.SetResult(ExitUnsavedChoice.Cancel);
+            await TestWait.WhileAsync(() => !session.Host.IsEnabled);
+            Assert.True(session.Host.IsVisible);
+            store.Verify(r => r.CommitAsync(It.IsAny<RecoverySnapshot>()), Times.Never);
+            Answer(session, ExitUnsavedChoice.KeepInStash);
+            await session.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task WithRecoveryOff_Closing_Should_UseTheUsualPerTabQuestions()
+    {
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot), enabled: false);
+        await session.Ready();
+        session.Control(session.Vm.Tabs.Single()).State.Editor.Text = "untitled";
+        session.Windows.Setup(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>())).ReturnsAsync(UnsavedChangesResult.DontSave);
+        await session.Close();
+        session.Windows.Verify(w => w.ShowUnsavedChangesDialogAsync(It.IsAny<string>()), Times.Once);
+        session.Windows.Verify(w => w.ShowExitUnsavedDialogAsync(It.IsAny<IReadOnlyList<string>>()), Times.Never);
+    }
+
+    // ── Reference anchors of a detached copy ─────────────────────────────────────
+
+    private static readonly DotnetSdk Sdk = new(".NET", "net10.0", "10.0.0", ".NET 10.0");
+
+    // Two windows' drafts of one file whose references are relative to its folder: lib/example.dll
+    // and $(CurrentQueryPath)/lib/macro.dll, both real files there. The second becomes a copy.
+    private async Task<(string Script, string Library, string Macro)> SameFileDraftsWithReferencesAsync()
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "original")).FullName;
+        Directory.CreateDirectory(Path.Combine(folder, "lib"));
+        var library = Path.Combine(folder, "lib", "example.dll");
+        var macro = Path.Combine(folder, "lib", "macro.dll");
+        File.Copy(typeof(Assert).Assembly.Location, library);
+        File.Copy(typeof(Assert).Assembly.Location, macro);
+        var path = Path.Combine(folder, "shared.rpad");
+        File.WriteAllText(path, RpadWriter.NewFile("on disk", "Shared"));
+        RecoveryTab Draft(string text, string arg)
+        {
+            var draft = DirtyFileDraft(path, text, arg);
+            var document = RpadDocument.FromSnapshot(draft.Document!);
+            document.FrontMatter.References = ["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"];
+            document.FrontMatter.Packages["Humanizer"] = new Package("2.14.1");
+            return draft with { Document = document.CaptureSnapshot() };
+        }
+        await ClosedSessionAsync(DateTime.UtcNow.AddMinutes(-10), Draft("other window's edit", "other-arg"));
+        await ClosedSessionAsync(DateTime.UtcNow, Draft("this window's edit", "own-arg"));
+        return (path, library, macro);
+    }
+
+    private static EditorTabItemViewModel Copy(Session session) => session.Vm.Tabs.Single(t => t.FilePath is null);
+
+    // The references the build and the editor would use for the copy, as they resolve them.
+    private static async Task<IReadOnlyList<string>> BuildReferencesAsync(Session session)
+    {
+        var copy = Copy(session);
+        session.Vm.ActiveTab = copy;
+        session.Runs.Clear();
+        await session.Control(copy).RunAsync(false, Sdk);
+        var options = CompiledDotnetLanguageHostOptions.From(Assert.Single(session.Runs), "/runtime/RunPad.Runtime.dll");
+        Assert.Empty(options.ReferenceErrors);
+        Assert.Null(options.CurrentQueryPath); // still an untitled script at run time
+        return options.AssemblyReferences;
+    }
+
+    private static IReadOnlyList<string> EditorReferences(Session session) =>
+        DotnetPackageReferenceContext.For(session.EditorContexts.Last() with { Platform = Sdk })!.AssemblyReferences ?? [];
+
+    // The copy keeps resolving the original's relative and $(CurrentQueryPath) references for runs
+    // and the editor, though it is untitled — and still after another restart.
+    [AvaloniaFact]
+    public async Task ADetachedCopy_Should_ResolveReferencesFromTheOriginalsFolder_AlsoAfterRestart()
+    {
+        var (_, library, macro) = await SameFileDraftsWithReferencesAsync();
+        using (var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot)))
+        {
+            await session.Ready();
+            Assert.Equal([library, macro], await BuildReferencesAsync(session));
+            Assert.Equal([library, macro], EditorReferences(session));
+            await session.Close();
+        }
+        using var again = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await again.Ready();
+        Assert.Equal([library, macro], await BuildReferencesAsync(again));
+        Assert.Equal([library, macro], EditorReferences(again));
+        await again.Close();
+    }
+
+    // The first Save As to another folder writes references that reach the same files from there,
+    // keeps the rest of the metadata, and never touches the original file.
+    [AvaloniaFact]
+    public async Task ADetachedCopysFirstSaveAs_Should_RebaseItsReferences_FromTheOriginalsFolder()
+    {
+        var (script, library, macro) = await SameFileDraftsWithReferencesAsync();
+        var original = File.ReadAllBytes(script);
+        var target = Path.Combine(Directory.CreateDirectory(Path.Combine(_root, "elsewhere", "deeper")).FullName, "copy.rpad");
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(target);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Equal(target, copy.FilePath);
+        var saved = RpadParser.TryParse(File.ReadAllText(target))!;
+        Assert.Equal([library, macro], ReferencePathResolver.Resolve(saved.FrontMatter.References!, target).Assemblies);
+        Assert.StartsWith("$(CurrentQueryPath)/", saved.FrontMatter.References![1]);
+        Assert.Equal(["other-arg"], saved.FrontMatter.Args);
+        Assert.Equal("2.14.1", saved.FrontMatter.Packages["Humanizer"].Version);
+        Assert.Equal(RpadKind.Program, saved.FrontMatter.Kind);
+        Assert.Equal(original, File.ReadAllBytes(script));
+        await session.Close();
+    }
+
+    // A cancelled Save As changes nothing: the copy still resolves from the original's folder.
+    [AvaloniaFact]
+    public async Task ADetachedCopysCancelledSaveAs_Should_KeepItsReferenceAnchor()
+    {
+        var (_, library, macro) = await SameFileDraftsWithReferencesAsync();
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync((string?)null);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Null(copy.FilePath);
+        Assert.True(copy.IsDirty);
+        Assert.Equal(["lib/example.dll", "$(CurrentQueryPath)/lib/macro.dll"], session.Control(copy).State.RpadDocument!.FrontMatter.References);
+        Assert.Equal([library, macro], await BuildReferencesAsync(session));
+        await session.Close();
+    }
+
+    // Saving the copy over the file it was detached from would overwrite the other version unasked.
+    [AvaloniaFact]
+    public async Task ADetachedCopy_Should_NotBeSavedOverItsOriginal()
+    {
+        var (script, _, _) = await SameFileDraftsWithReferencesAsync();
+        var original = File.ReadAllBytes(script);
+        using var session = new Session(_root, new DiskRecoveryStore(RecoveryRoot));
+        await session.Ready();
+        var copy = Copy(session);
+        session.Windows.Setup(w => w.ShowSaveFileDialogAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(script);
+
+        await session.Vm.SaveTabAsAsync(copy, copy.WriteToFile!);
+
+        Assert.Null(copy.FilePath);
+        Assert.True(copy.IsDirty);
+        Assert.Equal(original, File.ReadAllBytes(script));
+        session.Windows.Verify(w => w.ShowErrorAsync("Save Failed", It.Is<string>(m => m.Contains("shared.rpad"))), Times.Once);
+        await session.Close();
     }
 
     public void Dispose() => Directory.Delete(_root, true);
