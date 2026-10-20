@@ -1,5 +1,6 @@
 using System.Text;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
 using Spectre.Console;
@@ -103,7 +104,7 @@ public static class CliRunner
         var outputDirectory = Directory.CreateTempSubdirectory("runpad-cli-").FullName;
         try
         {
-            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments);
+            var request = BuildRequest(document.FrontMatter, platform, outputDirectory, filePath, cli.ScriptArguments, services.ConnectionDrivers);
 
             RunResult result;
             await using var host = registry.Create(languageId, request);
@@ -230,9 +231,11 @@ public static class CliRunner
     // (ILanguageHost.RunAsync, not RunDebugAsync).
     internal static ExecutionRequest BuildRequest(
         RpadFrontMatter frontMatter, DotnetSdk platform, string outputDirectory,
-        string? currentQueryPath = null, IReadOnlyList<string>? arguments = null)
+        string? currentQueryPath = null, IReadOnlyList<string>? arguments = null, ConnectionDriverRegistry? connectionDrivers = null)
         => ExecutionRequest.For(frontMatter, currentQueryPath, arguments) with
         {
+            Connections = GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys,
+                connectionDrivers ?? new ConnectionDriverRegistry()),
             Platform = platform,
             OutputDirectory = outputDirectory,
             WorkingDirectory = outputDirectory,

@@ -15,6 +15,7 @@ using ReactiveUI;
 using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Contracts.Models;
 using RunPad.Format.RPad;
@@ -33,6 +34,7 @@ namespace RunPad.UserControls;
 public partial class EditorsTabItemControl : UserControl, IDisposable
 {
     private readonly ILanguageHostRegistry _registry;
+    private readonly ConnectionDriverRegistry _connectionDrivers;
     private readonly IPreferencesService _prefs;
     private readonly EditorTabItemViewModel _vm;
     private TabControl? _outputTabsControl;
@@ -101,8 +103,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         ILanguageHostRegistry registry,
         IPreferencesService prefs,
         IIntelliSenseService? intelliSense,
-        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null)
+        IBuildCacheService buildCache, ILogger<EditorsTabItemControl>? runLogger = null,
+        ConnectionDriverRegistry? connectionDrivers = null)
     {
+        _connectionDrivers = connectionDrivers ?? new ConnectionDriverRegistry();
         _themeService = themeService;
         _windowService = windowService;
         _registry = registry;
@@ -2109,6 +2113,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // The same request a run makes, so the editor reads the references and packages as the build does.
         intelliSense.UpdateExecutionContext(ExecutionRequest.For(State.RpadDocument?.FrontMatter, _vm.FilePath) with
         {
+            Connections = GeneratedConnectionsFor(State.RpadDocument?.FrontMatter),
             ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = _vm.SelectedSdk ?? _vm.AvailableSdks.FirstOrDefault(),
             OutputDirectory = State.OutputDirectory,
@@ -2358,6 +2363,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         // IntelliSense's are.
         return ExecutionRequest.For(rpad?.FrontMatter, _vm.FilePath) with
         {
+            Connections = GeneratedConnectionsFor(rpad?.FrontMatter),
             ReferenceBasePath = _vm.ReferenceAnchorPath,
             Platform = platform,
             OutputDirectory = State.OutputDirectory,
@@ -2368,6 +2374,11 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             BreakOnUncaughtExceptions = _vm.DebugPanel.BreakOnUncaughtExceptions,
         };
     }
+
+    // The client classes of the script's connections, for its build and for the editor alike.
+    private GeneratedConnections? GeneratedConnectionsFor(RpadFrontMatter? frontMatter) =>
+        frontMatter is null ? null
+            : GeneratedConnections.For(frontMatter.Connections, frontMatter.Language, frontMatter.Packages.Keys, _connectionDrivers);
 
     private sealed class ScriptBreakpoint(
         string fileName,

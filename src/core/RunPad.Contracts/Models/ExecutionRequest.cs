@@ -1,3 +1,4 @@
+using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts.Models;
@@ -29,6 +30,10 @@ public sealed record ExecutionRequest
 
     /// <summary>The script's <c>allowUnsafe:</c>: compile with unsafe code allowed, where the language has it.</summary>
     public bool AllowUnsafe { get; init; }
+
+    /// <summary>The code the script's <c>connections:</c> add (see <see cref="GeneratedConnections.For"/>);
+    /// null without connections. Made by the caller, which knows the connection drivers.</summary>
+    public GeneratedConnections? Connections { get; init; }
 
     /// <summary>The script's own file; null for one never saved.</summary>
     public string? CurrentQueryPath { get; init; }

@@ -174,6 +174,7 @@ public class MainWindowChromeTests
         "Tools",
         "Tools/Dependencies...",
         "Tools/Assembly Explorer...",
+        "Tools/Connections...",
         "Tools/Secret Store...",
         "Tools/---",
         "Tools/Preferences...",

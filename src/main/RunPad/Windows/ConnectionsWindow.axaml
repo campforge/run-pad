@@ -1,0 +1,194 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
+        x:Class="RunPad.Windows.ConnectionsWindow"
+        x:DataType="viewModels:ConnectionsWindowViewModel"
+        Title="Connections"
+        Icon="/Assets/icon.ico"
+        Width="820" Height="600"
+        MinWidth="640" MinHeight="460"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource RunPad.Status.ErrorBrush}"/>
+        </Style>
+        <Style Selector="StackPanel.side > Button, StackPanel.side > DropDownButton">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto,Auto" Margin="12">
+
+        <Grid Grid.Row="0" ColumnDefinitions="220,Auto,*">
+
+            <!-- The list: name and type of each connection. -->
+            <Grid Grid.Column="0" RowDefinitions="*,Auto">
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}"
+                        BorderThickness="1" CornerRadius="4">
+                    <ListBox x:Name="ConnectionList"
+                             ItemsSource="{Binding Connections}"
+                             SelectedItem="{Binding SelectedConnection}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             AutomationProperties.Name="Connections"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="viewModels:ConnectionItemViewModel">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding DriverName}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <StackPanel Grid.Row="1" Classes="side" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                    <DropDownButton x:Name="AddButton" Content="Add" Width="104"
+                                    IsEnabled="{Binding !HasLoadError}"
+                                    AutomationProperties.Name="Add a connection">
+                        <DropDownButton.Flyout>
+                            <MenuFlyout Placement="Bottom"/>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                    <Button x:Name="RemoveButton" Content="Remove" Width="104" Command="{Binding RemoveCommand}"/>
+                </StackPanel>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Width="12" Background="Transparent" ResizeDirection="Columns"/>
+
+            <!-- The selected connection: name, type and its driver's parameters. -->
+            <ScrollViewer Grid.Column="2" IsVisible="{Binding HasSelection}"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="10" DataContext="{Binding SelectedConnection}"
+                            x:DataType="viewModels:ConnectionItemViewModel">
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name:"/>
+                        <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1"
+                                 Text="{Binding Name}"
+                                 AutomationProperties.Name="Connection name"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Type:"/>
+                        <TextBlock x:Name="DriverText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                                   Text="{Binding DriverName}"/>
+                    </Grid>
+
+                    <ItemsControl x:Name="FieldList" ItemsSource="{Binding Fields}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="10"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="viewModels:ConnectionFieldViewModel">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Label}" FontSize="12"/>
+
+                                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsTextBox}">
+                                        <TextBox Grid.Column="0" Classes="field"
+                                                 Text="{Binding Text}"
+                                                 PlaceholderText="{Binding Example}"
+                                                 AutomationProperties.Name="{Binding Param.Label}"/>
+                                        <ComboBox Grid.Column="1" Margin="6,0,0,0" MinWidth="130"
+                                                  PlaceholderText="Insert secret"
+                                                  ItemsSource="{Binding SecretNames}"
+                                                  SelectedItem="{Binding SecretToInsert}"
+                                                  IsVisible="{Binding CanInsertSecret}"
+                                                  ToolTip.Tip="Insert ${secret:name}: the value comes from Tools → Secret Store when the script runs"/>
+                                    </Grid>
+
+                                    <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding BooleanValue}"
+                                              Content="{Binding Param.Label}"/>
+
+                                    <ComboBox IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding Choices}" SelectedItem="{Binding Text}"/>
+
+                                    <TextBox IsVisible="{Binding IsList}" AcceptsReturn="True" MinHeight="60"
+                                             TextWrapping="NoWrap" Text="{Binding Text}"
+                                             PlaceholderText="One per line"/>
+
+                                    <StackPanel IsVisible="{Binding IsMap}" Spacing="6">
+                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="6"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
+                                                    <Grid ColumnDefinitions="2*,3*,Auto,Auto" ColumnSpacing="6">
+                                                        <TextBox Grid.Column="0" Text="{Binding Name}" PlaceholderText="Name"/>
+                                                        <TextBox Grid.Column="1" Text="{Binding Value}" PlaceholderText="Value"/>
+                                                        <ComboBox Grid.Column="2" MinWidth="130"
+                                                                  PlaceholderText="Insert secret"
+                                                                  ItemsSource="{Binding SecretNames}"
+                                                                  SelectedItem="{Binding SecretToInsert}"/>
+                                                        <Button Grid.Column="3" Content="✕"
+                                                                ToolTip.Tip="Remove"
+                                                                Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Content="Add" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+
+                                    <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Classes="hint" Text="{Binding KeptParamsNote}" IsVisible="{Binding HasKeptParams}"/>
+                    <TextBlock x:Name="ProblemsText" Classes="error" Text="{Binding Problems}" IsVisible="{Binding HasProblems}"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button x:Name="TestButton" Content="Test Connection"
+                                Command="{Binding $parent[Window].((viewModels:ConnectionsWindowViewModel)DataContext).TestCommand}"/>
+                        <SelectableTextBlock x:Name="TestResultText" VerticalAlignment="Center" TextWrapping="Wrap"
+                                             Text="{Binding TestResult}"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Margin="0,10,0,0" Spacing="4">
+            <TextBlock Classes="error" Text="{Binding LoadError}" IsVisible="{Binding HasLoadError}"/>
+            <TextBlock Classes="error" Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+            <SelectableTextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource RunPad.Text.SecondaryBrush}">
+                <Run Text="Your connections, kept by RunPad outside your scripts. Write passwords and tokens as ${secret:name}: their values stay in Tools → Secret Store. List:"/>
+                <Run Text="{Binding StorePath}"/>
+            </SelectableTextBlock>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                <Button x:Name="OkButton" Content="OK" Width="80"
+                        IsEnabled="{Binding CanSave}"
+                        Click="Ok_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" Width="80"
+                        IsCancel="True"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
