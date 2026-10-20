@@ -243,8 +243,9 @@ public static class NuGetRestorer
     public static async Task<string> GetPackageFolderAsync(string id, string version, string? nugetConfigFile,
         CancellationToken ct)
     {
-        var root = Path.GetTempPath();
-        var settings = LoadSettings(nugetConfigFile, root);
+        // The settings are read from RunPad's own folder (and the user's NuGet settings), never from
+        // a folder other users can write to such as the temp folder: what this returns is executed.
+        var settings = LoadSettings(nugetConfigFile, RunPadNuGetConfigStore.DefaultDirectory);
         var globalPackagesFolder = SettingsUtility.GetGlobalPackagesFolder(settings);
         var identity = new PackageIdentity(id, NuGetVersion.Parse(version));
         var folder = new VersionFolderPathResolver(globalPackagesFolder).GetInstallPath(identity.Id, identity.Version);
