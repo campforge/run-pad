@@ -1,0 +1,385 @@
+using System.Collections.ObjectModel;
+using System.Reactive;
+using System.Reactive.Linq;
+using ReactiveUI;
+using RunPad.Contracts.Connections;
+using RunPad.Format.RPad;
+using RunPad.Services.Connections;
+using RunPad.Services.Secrets;
+using RunPad.Shared;
+
+namespace RunPad.Windows.Models;
+
+// One name and text of a map parameter, such as an HTTP header.
+public sealed class ConnectionMapRowViewModel : ReactiveObject
+{
+    internal event Action? Edited;
+
+    public IReadOnlyList<string> SecretNames { get; }
+
+    public string Name
+    {
+        get;
+        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+    } = "";
+
+    public string Value
+    {
+        get;
+        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+    } = "";
+
+    // Picking a secret appends its placeholder to the value; the picker then shows nothing again.
+    public string? SecretToInsert
+    {
+        get => null;
+        set
+        {
+            if (value is null) return;
+            Value += $"${{secret:{value}}}";
+            this.RaisePropertyChanged();
+        }
+    }
+
+    internal ConnectionMapRowViewModel(IReadOnlyList<string> secretNames) => SecretNames = secretNames;
+}
+
+// One parameter of the selected connection, edited the way its ConnectionParamType says.
+public sealed class ConnectionFieldViewModel : ReactiveObject
+{
+    internal event Action? Edited;
+
+    public ConnectionParam Param { get; }
+    public IReadOnlyList<string> SecretNames { get; }
+
+    public string Label => Param.Required ? Param.Label + " *" : Param.Label;
+    public string? Description => Param.Description;
+    public bool HasDescription => Param.Description is not null;
+    public string? Example => Param.Example ?? Param.Default;
+    public bool IsTextBox => Param.Type is ConnectionParamType.Text or ConnectionParamType.Number;
+    public bool CanInsertSecret => Param.Type is ConnectionParamType.Text && SecretNames.Count > 0;
+    public bool IsBoolean => Param.Type is ConnectionParamType.Boolean;
+    public bool IsChoice => Param.Type is ConnectionParamType.Choice;
+    public bool IsMap => Param.Type is ConnectionParamType.Map;
+    public bool IsList => Param.Type is ConnectionParamType.List;
+    public IReadOnlyList<string> Choices => Param.Choices ?? [];
+
+    // Text, Number and Choice; for List, one item per line.
+    public string Text
+    {
+        get;
+        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+    } = "";
+
+    public bool BooleanValue
+    {
+        get;
+        set { this.RaiseAndSetIfChanged(ref field, value); Edited?.Invoke(); }
+    }
+
+    public string? SecretToInsert
+    {
+        get => null;
+        set
+        {
+            if (value is null) return;
+            Text += $"${{secret:{value}}}";
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public ObservableCollection<ConnectionMapRowViewModel> Rows { get; } = [];
+
+    public ReactiveCommand<Unit, Unit> AddRowCommand { get; }
+    public ReactiveCommand<ConnectionMapRowViewModel, Unit> RemoveRowCommand { get; }
+
+    internal ConnectionFieldViewModel(ConnectionParam param, RpadValue? value, IReadOnlyList<string> secretNames)
+    {
+        Param = param;
+        SecretNames = secretNames;
+        AddRowCommand = ReactiveCommand.Create(() => AddRow("", ""));
+        RemoveRowCommand = ReactiveCommand.Create<ConnectionMapRowViewModel>(row =>
+        {
+            Rows.Remove(row);
+            Edited?.Invoke();
+        });
+        switch (param.Type)
+        {
+            case ConnectionParamType.Boolean:
+                BooleanValue = string.Equals(value?.Text ?? param.Default, "true", StringComparison.OrdinalIgnoreCase);
+                break;
+            case ConnectionParamType.Map:
+                foreach (var (name, text) in value?.Fields ?? []) AddRow(name, text.Text ?? "");
+                break;
+            case ConnectionParamType.List:
+                Text = string.Join("\n", (value?.Items ?? []).Select(i => i.Text ?? ""));
+                break;
+            default:
+                Text = value?.Text ?? "";
+                break;
+        }
+    }
+
+    private void AddRow(string name, string value)
+    {
+        var row = new ConnectionMapRowViewModel(SecretNames) { Name = name, Value = value };
+        row.Edited += () => Edited?.Invoke();
+        Rows.Add(row);
+        Edited?.Invoke();
+    }
+
+    // Null for nothing set (and for a switch left at its default), so the parameter isn't written.
+    internal RpadValue? ToValue() => Param.Type switch
+    {
+        ConnectionParamType.Boolean => BooleanValue == string.Equals(Param.Default, "true", StringComparison.OrdinalIgnoreCase)
+            ? null : RpadValue.Of(BooleanValue ? "true" : "false"),
+        ConnectionParamType.Map => Rows.Any(r => r.Name.Trim().Length > 0)
+            ? RpadValue.Map(Rows.Where(r => r.Name.Trim().Length > 0).Select(r => KeyValuePair.Create(r.Name.Trim(), RpadValue.Of(r.Value))))
+            : null,
+        ConnectionParamType.List => Text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList() is { Count: > 0 } items
+            ? RpadValue.List(items.Select(RpadValue.Of))
+            : null,
+        _ => Text.Trim().Length > 0 ? RpadValue.Of(Text.Trim()) : null,
+    };
+}
+
+// One connection of the list: its name, its driver and a field per parameter the driver defines.
+// Parameters the driver doesn't define (or all of them, for a driver this RunPad lacks) are kept
+// unchanged and written back.
+public sealed class ConnectionItemViewModel : ReactiveObject
+{
+    private readonly Dictionary<string, RpadValue> _otherParams;
+    private readonly Dictionary<string, RpadValue>? _extra;
+
+    internal event Action? Edited;
+
+    public IConnectionDriver? Driver { get; }
+    public string DriverId { get; }
+    public string DriverName => Driver?.DisplayName ?? $"{DriverId} (not available in this RunPad)";
+    public ObservableCollection<ConnectionFieldViewModel> Fields { get; } = [];
+
+    public string Name
+    {
+        get;
+        set { this.RaiseAndSetIfChanged(ref field, value ?? ""); Edited?.Invoke(); }
+    }
+
+    public string? KeptParamsNote => _otherParams.Count == 0 ? null
+        : $"Also kept as written: {string.Join(", ", _otherParams.Keys)}.";
+
+    public bool HasKeptParams => _otherParams.Count > 0;
+
+    // The driver's view of the parameters; shown, but doesn't stop saving an unfinished connection.
+    public string? Problems
+    {
+        get;
+        private set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(HasProblems)); }
+    }
+
+    public bool HasProblems => Problems is not null;
+
+    public string? TestResult
+    {
+        get;
+        internal set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    internal ConnectionItemViewModel(RpadConnection connection, IConnectionDriver? driver, IReadOnlyList<string> secretNames)
+    {
+        Name = connection.Name;
+        DriverId = connection.Driver;
+        Driver = driver;
+        _extra = connection.Extra;
+        var schema = driver?.Params ?? [];
+        _otherParams = connection.Params.Where(p => schema.All(s => s.Key != p.Key))
+            .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        foreach (var param in schema.Where(p => !p.Advanced).Concat(schema.Where(p => p.Advanced)))
+        {
+            var field = new ConnectionFieldViewModel(param, connection.Params.GetValueOrDefault(param.Key), secretNames);
+            field.Edited += OnChanged;
+            Fields.Add(field);
+        }
+        UpdateProblems();
+    }
+
+    private void OnChanged()
+    {
+        TestResult = null;
+        UpdateProblems();
+        Edited?.Invoke();
+    }
+
+    private void UpdateProblems()
+    {
+        var connection = ToConnection();
+        var placeholders = connection.Params.SelectMany(p => p.Value.Texts().Select(t => (p.Key, RpadPlaceholders.Parse(t).Error)))
+            .Where(p => p.Error is not null).Select(p => $"{p.Key}: {p.Error}");
+        var problems = placeholders.Concat(Driver?.Validate(connection) ?? []).ToList();
+        Problems = problems.Count == 0 ? null : string.Join("\n", problems);
+    }
+
+    // Driver parameters in the driver's order, then the ones it doesn't define.
+    internal RpadConnection ToConnection()
+    {
+        var parameters = new Dictionary<string, RpadValue>(StringComparer.Ordinal);
+        foreach (var param in Driver?.Params ?? [])
+            if (Fields.First(f => f.Param.Key == param.Key).ToValue() is { } value) parameters[param.Key] = value;
+        foreach (var (key, value) in _otherParams) parameters[key] = value;
+        return new RpadConnection { Name = Name.Trim(), Driver = DriverId, Params = parameters, Extra = _extra };
+    }
+}
+
+// Tools → Connections: the user's own database, HTTP and gRPC connections, edited in one window.
+// Edits stay in the window until OK writes the whole list; Cancel drops them. A list that can't be
+// read is reported and never overwritten from here.
+public sealed class ConnectionsWindowViewModel : ViewModelBase
+{
+    private readonly IConnectionStore _store;
+    private readonly ConnectionDriverRegistry _drivers;
+    private readonly IReadOnlyList<string> _secretNames;
+    private readonly ISecretStore _secrets;
+
+    public ObservableCollection<ConnectionItemViewModel> Connections { get; } = [];
+
+    public IReadOnlyList<IConnectionDriver> Drivers => _drivers.Drivers;
+
+    public ConnectionItemViewModel? SelectedConnection
+    {
+        get;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(HasSelection));
+        }
+    }
+
+    public bool HasSelection => SelectedConnection is not null;
+
+    public string? LoadError { get; }
+    public bool HasLoadError => LoadError is not null;
+
+    // Names that are missing, invalid or clash: these block OK.
+    public string? ValidationError
+    {
+        get;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(HasValidationError));
+            this.RaisePropertyChanged(nameof(CanSave));
+        }
+    }
+
+    public bool HasValidationError => ValidationError is not null;
+    public bool CanSave => LoadError is null && ValidationError is null;
+
+    public bool IsTesting
+    {
+        get;
+        private set => this.RaiseAndSetIfChanged(ref field, value);
+    }
+
+    public string StorePath => _store.FilePath;
+
+    public ReactiveCommand<IConnectionDriver, Unit> AddCommand { get; }
+    public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
+    public ReactiveCommand<Unit, Unit> TestCommand { get; }
+
+    public ConnectionsWindowViewModel(IConnectionStore store, ConnectionDriverRegistry drivers, ISecretStore secrets)
+    {
+        _store = store;
+        _drivers = drivers;
+        _secrets = secrets;
+        _secretNames = SecretNamesOf(secrets);
+        try
+        {
+            foreach (var connection in store.Load()) Add(connection);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            LoadError = $"{ex.Message} It is kept unchanged: {store.FilePath}";
+        }
+        SelectedConnection = Connections.FirstOrDefault();
+
+        AddCommand = ReactiveCommand.Create<IConnectionDriver>(AddNew, this.WhenAnyValue(x => x.HasLoadError, error => !error));
+        RemoveCommand = ReactiveCommand.Create(RemoveSelected, this.WhenAnyValue(x => x.HasSelection));
+        TestCommand = ReactiveCommand.CreateFromTask(TestSelectedAsync,
+            this.WhenAnyValue(x => x.SelectedConnection, x => x.IsTesting, (c, testing) => c?.Driver is not null && !testing));
+        Validate();
+    }
+
+    // Writes the list; false (nothing written) while a name is wrong or the list unreadable.
+    public bool Save()
+    {
+        Validate();
+        if (!CanSave) return false;
+        _store.Save([.. Connections.Select(c => c.ToConnection())]);
+        return true;
+    }
+
+    private static IReadOnlyList<string> SecretNamesOf(ISecretStore secrets)
+    {
+        try { return [.. secrets.Load().Select(s => s.Name).Order(StringComparer.OrdinalIgnoreCase)]; }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    private ConnectionItemViewModel Add(RpadConnection connection)
+    {
+        var item = new ConnectionItemViewModel(connection, _drivers.Find(connection.Driver), _secretNames);
+        item.Edited += Validate;
+        Connections.Add(item);
+        return item;
+    }
+
+    private void AddNew(IConnectionDriver driver)
+    {
+        var name = driver.Id;
+        for (var i = 2; Connections.Any(c => string.Equals(c.Name.Trim(), name, StringComparison.OrdinalIgnoreCase)); i++)
+            name = $"{driver.Id}{i}";
+        SelectedConnection = Add(new RpadConnection { Name = name, Driver = driver.Id });
+        Validate();
+    }
+
+    private void RemoveSelected()
+    {
+        if (SelectedConnection is not { } item) return;
+        var index = Connections.IndexOf(item);
+        item.Edited -= Validate;
+        Connections.RemoveAt(index);
+        SelectedConnection = Connections.Count == 0 ? null : Connections[Math.Min(index, Connections.Count - 1)];
+        Validate();
+    }
+
+    private async Task TestSelectedAsync()
+    {
+        if (SelectedConnection is not { Driver: { } driver } item) return;
+        IsTesting = true;
+        item.TestResult = "Testing…";
+        try
+        {
+            var secrets = SecretValues();
+            var resolved = ConnectionPlaceholderResolver.Resolve(item.ToConnection().Params,
+                name => secrets.GetValueOrDefault(name), Environment.GetEnvironmentVariable);
+            if (resolved.Errors.Count > 0)
+            {
+                item.TestResult = string.Join("\n", resolved.Errors);
+                return;
+            }
+            var result = await driver.TestAsync(resolved.Params, CancellationToken.None);
+            item.TestResult = (result.Succeeded ? "✓ " : "✗ ") + result.Message;
+        }
+        finally { IsTesting = false; }
+    }
+
+    private Dictionary<string, string> SecretValues()
+    {
+        try { return _secrets.Load().ToDictionary(s => s.Name, s => s.Value, StringComparer.OrdinalIgnoreCase); }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    private void Validate()
+    {
+        var errors = RpadConnection.Validate(Connections.Select(c => new RpadConnection { Name = c.Name.Trim(), Driver = c.DriverId }));
+        ValidationError = errors.Count == 0 ? null : errors[0];
+    }
+}
