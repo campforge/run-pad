@@ -58,7 +58,7 @@ public sealed class VbLanguageHost : CompiledDotnetLanguageHostBase
     // front-matter namespace before writing the .vb file that's actually compiled/debugged — a
     // real, kind-independent source of line drift, not accounted for by the kind-transform
     // component alone (see CSharpLanguageHost.CalcKindOffset's identical fix).
-    public override int CalcKindOffset() => Options.Usings.Count + (Options.Kind switch
+    public override int CalcKindOffset(string code) => Options.Usings.Count + (Options.Kind switch
     {
         RpadKind.Statements => 2, // "Module Program" + "Sub Main(args As String())"
         RpadKind.Expression => 1, // "("

@@ -40,6 +40,17 @@ public class CSharpIntelliSenseKindAwarenessTests
     }
 
     [Fact]
+    public async Task ImportedNamespaces_Should_NotConflictWithGlobalUsings()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Statements);
+        service.UpdateGlobalUsings(["System.Text"]);
+        const string code = "global using Text = System.Text;\nusing System.Globalization;\nConsole.WriteLine(new Text.StringBuilder());";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == RunPad.Contracts.IntelliSense.DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public async Task NotifyTextChanged_Should_NotFlagMainAsUnused_WhenKindIsProgram()
     {
         using var service = CreateService();
@@ -190,4 +201,128 @@ public class CSharpIntelliSenseKindAwarenessTests
             Assert.InRange(d.EndOffset, 0, RegexHelperProgramKindScript.Length);
         });
     }
+
+    // A classic program (usings, a namespace, a class with a static Main) is analyzed as written,
+    // like it is compiled: no wrapper errors, and a real error is underlined where the user typed it.
+    [Fact]
+    public async Task AClassicProgram_Should_BeAnalyzedAsWritten()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "using System;\nusing Out = System.Console;\n\nnamespace N\n{\n    class Program\n    {\n        static void Main()\n        {\n            int x = \"text\";\n            Out.WriteLine(x);\n        }\n    }\n}\n";
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+
+        var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(code.IndexOf("\"text\"", StringComparison.Ordinal), error.StartOffset);
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("__RunPad", StringComparison.Ordinal)
+            || d.Message.Contains("using clause", StringComparison.Ordinal));
+    }
+
+    // The editor uses the script's unsafe setting the way the build does: CS0227 only without it.
+    [Fact]
+    public async Task UnsafeCode_Should_BeFlagged_OnlyWithoutTheScriptsSetting()
+    {
+        const string code = "unsafe static void Main() { int x = 1; int* p = &x; Console.WriteLine(*p); }\n";
+        using (var off = CreateService())
+        {
+            off.UpdateKind(RpadKind.Program);
+            Assert.Contains(await WaitForDiagnosticsAsync(off, code), d => d.Message.Contains("unsafe", StringComparison.OrdinalIgnoreCase)
+                && d.Severity == DiagnosticSeverity.Error);
+        }
+        using var on = CreateService();
+        on.UpdateKind(RpadKind.Program);
+        on.UpdateExecutionContext(new RunPad.Contracts.Models.ExecutionRequest { AllowUnsafe = true });
+        Assert.DoesNotContain(await WaitForDiagnosticsAsync(on, code), d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    // The editor shows nothing wrong with an empty Statements script, as the build now runs it.
+    [Fact]
+    public async Task AnEmptyStatementsScript_Should_HaveNoErrorsInTheEditor()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Statements);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, "// only comments\nusing System.Text;\n");
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    // The editor classifies a Program with the same symbols as the build: a Main under DEBUG is the
+    // entry point, not an unused local function.
+    [Fact]
+    public async Task AMemberMainUnderDebug_Should_NotBeFlaggedAsUnused()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+
+        var diagnostics = await WaitForDiagnosticsAsync(service, "#if DEBUG\nvoid Main()\n{\n    Console.WriteLine(\"hi\");\n}\n#endif\n");
+
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("Main", StringComparison.Ordinal));
+    }
+    [Fact]
+    public async Task ExtensionClass_Should_ResolveCallsAndMapDefinitionToOriginalSource()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var definition = await service.GetDefinitionAsync(code, code.IndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(definition);
+        Assert.True(definition.IsInSource);
+        Assert.Equal(code.IndexOf("Twice(this", StringComparison.Ordinal), definition.Offset);
+        var lastDefinition = await service.GetDefinitionAsync(code, code.LastIndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(lastDefinition);
+        Assert.Equal(definition.Offset, lastDefinition.Offset);
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_MapDiagnosticsAndRenameAcrossClassBoundaries()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { MissingType x; Console.WriteLine(3.Twice()); }\n";
+        var diagnostics = await WaitForDiagnosticsAsync(service, code);
+        var error = Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(code.IndexOf("MissingType", StringComparison.Ordinal), error.StartOffset);
+        var rename = await service.GetRenameInfoAsync(code, code.IndexOf("Twice", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(rename);
+        Assert.Equal(3, rename.Spans.Count);
+        Assert.All(rename.Spans, span => Assert.Equal("Twice", code.Substring(span.Start, span.Length)));
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_MaterializeRefactoringWithoutSyntheticBraces()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions\n{\n    public static int Twice(this int n)\n    {\n        return n * 2;\n    }\n}\n";
+        var fixes = await service.GetRefactoringsAsync(code, code.IndexOf("return n", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        Assert.NotNull(fixes);
+        var fix = Assert.Single(fixes, f => f.Title.Contains("expression body", StringComparison.OrdinalIgnoreCase));
+        var result = await service.MaterializeFixAsync(code, fix.Key, TestContext.Current.CancellationToken);
+        Assert.NotNull(result);
+        Assert.Contains("=> n * 2", result.NewCode);
+        Assert.DoesNotContain("__RunPad", result.NewCode);
+        Assert.DoesNotContain("partial class", result.NewCode);
+        Assert.DoesNotContain(await WaitForDiagnosticsAsync(service, result.NewCode), d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task ExtensionProjection_Should_CompleteAndClassifySourceAfterLiftedTypes()
+    {
+        using var service = CreateService();
+        service.UpdateKind(RpadKind.Program);
+        const string code = "void Main() { Console.WriteLine(2.Twice()); }\nstatic class Extensions { public static int Twice(this int n) => n * 2; }\nvoid Helper() { Console.WriteLine(3.Twice()); }\n";
+        var position = code.IndexOf("3.Twice", StringComparison.Ordinal) + 2;
+        var completions = await service.GetCompletionsAsync(code, position, ct: TestContext.Current.CancellationToken);
+        Assert.NotNull(completions);
+        Assert.Contains(completions.Items, item => item.DisplayText == "Twice");
+        var symbols = await service.GetDocumentHighlightsAsync(code, position, TestContext.Current.CancellationToken);
+        Assert.NotNull(symbols);
+        Assert.Equal(3, symbols.Count);
+        Assert.All(symbols, span => Assert.Equal("Twice", code.Substring(span.Start, span.Length)));
+    }
+
 }

@@ -106,20 +106,75 @@
         <Setter Property="Foreground" Value="{DynamicResource RunPad.Accent.ForegroundBrush}"/>
     </Style>
 
+    <!-- Secondary form actions follow the palette instead of the platform's grey fill. -->
+    <Style Selector=":is(Button).secondary">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+    </Style>
+    <Style Selector=":is(Button).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+        <Setter Property="Opacity" Value="0.55"/>
+    </Style>
+
+    <!-- The dropdown presenter starts at x=0 inside the border; an opaque fill hides its left edge. -->
+    <Style Selector=":is(DropDownButton).secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.SecondaryBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:pointerover /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.Button.HoverBrush}"/>
+    </Style>
+    <Style Selector=":is(DropDownButton).secondary:pressed /template/ Border#RootBorder">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Toolbar.BackgroundBrush}"/>
+    </Style>
+
+    <!-- Form inputs share the secondary action border; keyboard focus still has its own ring. -->
+    <Style Selector=":is(TextBox).form-field, ComboBox.form-field">
+        <Setter Property="Background" Value="{DynamicResource RunPad.Editor.BackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource RunPad.Text.PrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    <Style Selector=":is(TextBox).form-field:not(:error) /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Border.BackgroundBrush}"/>
+    </Style>
+
     <!-- ── Default dialog button ──────────────────────────────────────────── -->
-    <!-- The button a dialog's Enter presses (IsDefault) is its primary action and looks like it:
-         theme accent with white text. Disabled keeps Fluent's own look. -->
-    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+    <!-- A primary form action can be accented without making Enter save a text field.
+         Default dialog actions share the style; disabled keeps Fluent's own look. -->
+    <Style Selector="Button[IsDefault=True]:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.BackgroundBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
     </Style>
-    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.HoverBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>
     </Style>
-    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button[IsDefault=True]:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.primary:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background"  Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource RunPad.Button.Primary.PressedBrush}"/>
         <Setter Property="Foreground"  Value="{DynamicResource RunPad.Button.Primary.ForegroundBrush}"/>

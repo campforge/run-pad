@@ -13,7 +13,7 @@ public static class DotnetPackageReferenceContext
     public static PackageReferenceContext? For(ExecutionRequest request)
     {
         if (request.Platform?.TargetFrameworkMoniker is not { } targetFramework) return null;
-        var references = ReferencePathResolver.Resolve(request.References, request.CurrentQueryPath);
+        var references = ReferencePathResolver.Resolve(request.References, request.ReferenceBasePath ?? request.CurrentQueryPath);
         return new PackageReferenceContext(targetFramework, request.OutputDirectory,
             RunPadNuGetConfigStore.ExistingDefaultConfigFile, request.RuntimePath, references.Assemblies);
     }

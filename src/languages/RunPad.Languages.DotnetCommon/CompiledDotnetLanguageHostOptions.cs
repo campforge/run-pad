@@ -46,6 +46,9 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
 
     public RpadKind Kind { get; init; }
 
+    /// <summary>Compile with unsafe code allowed (C# /unsafe); languages without unsafe code ignore it.</summary>
+    public bool AllowUnsafe { get; init; }
+
     // The .rpad file's own path, null for a
     // never-saved (untitled) tab, same as LINQPad's own Util.CurrentQueryPath for an unsaved query.
     // Threaded down to the compiled script's child process as an environment variable
@@ -62,6 +65,15 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
     /// </summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
 
+    /// <summary>The <c>Connections</c> class the script's connections add, compiled with the script; null without connections.</summary>
+    public string? ConnectionSource { get; init; }
+
+    /// <summary>Files the connections' schemas add (a gRPC server's messages and clients), compiled with the script.</summary>
+    public IReadOnlyList<RunPad.Contracts.Connections.GeneratedSourceFile> ConnectionFiles { get; init; } = [];
+
+    /// <summary>Why the script's connections can't be built; any of them fails the build.</summary>
+    public IReadOnlyList<string> ConnectionErrors { get; init; } = [];
+
     /// <summary>
     /// The options a run asks for: <paramref name="request"/>'s references resolved relative to the
     /// script's folder with macros expanded (as IntelliSense resolves them), RunPad's own NuGet.Config
@@ -74,7 +86,7 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
         var outputDirectory = request.OutputDirectory ?? throw new ArgumentException("A run needs an output directory.", nameof(request));
         // Project references aren't supported (scripts compile in-process, no MSBuild): they're still
         // collected so the compiler reports them as an error.
-        var references = ReferencePathResolver.Resolve(request.References, request.CurrentQueryPath);
+        var references = ReferencePathResolver.Resolve(request.References, request.ReferenceBasePath ?? request.CurrentQueryPath);
         return new CompiledDotnetLanguageHostOptions
         {
             Platform = platform,
@@ -89,7 +101,11 @@ public sealed class CompiledDotnetLanguageHostOptions : ILanguageHostOptions
             BreakOnAllExceptions = request.BreakOnAllExceptions,
             BreakOnUncaughtExceptions = request.BreakOnUncaughtExceptions,
             Kind = request.Kind,
+            AllowUnsafe = request.AllowUnsafe,
             Packages = request.Packages,
+            ConnectionSource = request.Connections is { Source.Length: > 0 } connections ? connections.Source : null,
+            ConnectionErrors = request.Connections?.Errors ?? [],
+            ConnectionFiles = request.Connections?.Files ?? [],
             Usings = request.Usings,
             AssemblyReferences = references.Assemblies,
             ProjectReferences = references.Projects,

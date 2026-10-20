@@ -4,7 +4,10 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using ReactiveUI;
 using RunPad.Contracts;
+using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
+using RunPad.Services.Connections;
+using RunPad.Services.Secrets;
 using RunPad.Shared;
 
 namespace RunPad.Windows.Models;
@@ -541,6 +544,26 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     public bool HasNamespaceError => NamespaceError is not null;
 
+    // ── Compilation ────────────────────────────────────────────────────────────
+
+    // C# only: Visual Basic has no unsafe code, so its scripts get no such option.
+    public bool HasUnsafeOption => _original?.Language == RpadLanguage.CSharp;
+
+    /// <summary>The Connections tab: the script's <c>connections:</c>.</summary>
+    public ScriptConnectionsViewModel Connections { get; }
+
+    public bool AllowUnsafe
+    {
+        get => _allowUnsafe;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _allowUnsafe, value);
+            UpdateHasChanges();
+        }
+    }
+
+    private bool _allowUnsafe;
+
     // ── Commands ───────────────────────────────────────────────────────────────
 
     public ReactiveCommand<Unit, Unit> ClearSearchCommand { get; }
@@ -560,14 +583,22 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
     // ── Constructor ────────────────────────────────────────────────────────────
 
     public DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
-        INuGetSourceStore sources)
-        : this(search, cache, sources, DefaultSearchDebounce)
+        INuGetSourceStore sources, IConnectionStore? connections = null, ISecretStore? secrets = null,
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
+        : this(search, cache, sources, DefaultSearchDebounce, connections, secrets, connectionDrivers, connectionSchemas)
     {
     }
 
     internal DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
-        INuGetSourceStore sources, TimeSpan searchDebounce)
+        INuGetSourceStore sources, TimeSpan searchDebounce, IConnectionStore? connections = null, ISecretStore? secrets = null,
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
     {
+        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas?.Cache);
+        Connections.UsePackages(
+            () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
+            (id, version) => AddPackage(id, version),
+            RemovePackage);
+        Connections.Edited += UpdateHasChanges;
         _search = search;
         _cache = cache;
         _sources = sources;
@@ -640,8 +671,12 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             : "";
         ReferenceError = null;
         NamespaceError = null;
+        _allowUnsafe = fm?.AllowUnsafe ?? false;
+        Connections.Load(fm);
 
         this.RaisePropertyChanged(nameof(HasFrontMatter));
+        this.RaisePropertyChanged(nameof(HasUnsafeOption));
+        this.RaisePropertyChanged(nameof(AllowUnsafe));
         this.RaisePropertyChanged(nameof(ShowNoReferencesHint));
         this.RaisePropertyChanged(nameof(NamespacesText));
         OnDraftPackagesChanged();
@@ -656,9 +691,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
             target.Add(new DependencyEntryViewModel(value, remove));
     }
 
-    // Copies the draft's packages/references/namespaces into the original front matter — the only
-    // place it is ever mutated. Everything else on it (version, language, kind, target SDK) is left
-    // alone. Applies at most once and only when something actually changed.
+    // Copies the draft's packages/references/namespaces (and, for C#, the unsafe setting) into the
+    // original front matter — the only place it is ever mutated. Everything else on it (version,
+    // language, kind, target SDK) is left alone. Applies at most once and only when something actually changed.
     public bool ApplyChanges()
     {
         // An invalid namespace line blocks applying (OK is disabled too) rather than being dropped.
@@ -677,6 +712,8 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
         fm.References = CopyBack(fm.References, References.Select(e => e.Value));
         fm.Namespaces = CopyBack(fm.Namespaces, ParseNamespaces(_namespacesText).Names);
+        if (HasUnsafeOption) fm.AllowUnsafe = _allowUnsafe;
+        fm.Connections = Connections.ToList();
         return true;
     }
 
@@ -701,7 +738,9 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
         return packagesChanged
                || !(fm.References ?? []).SequenceEqual(References.Select(r => r.Value), StringComparer.Ordinal)
-               || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal);
+               || !(fm.Namespaces ?? []).SequenceEqual(ParseNamespaces(_namespacesText).Names, StringComparer.Ordinal)
+               || (HasUnsafeOption && fm.AllowUnsafe != _allowUnsafe)
+               || Connections.HasChanges;
     }
 
     private void UpdateHasChanges() => HasChanges = ComputeHasChanges();
@@ -758,6 +797,7 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     private void OnDraftPackagesChanged()
     {
+        Connections.OnPackagesChanged();
         foreach (var item in OnlinePackages)
         {
             item.ScriptVersion = FindDraft(item.Id)?.Version;

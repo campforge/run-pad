@@ -32,6 +32,15 @@
     <!-- Markdown parser of the MarkView.Avalonia fork (src/controls/MarkView.Avalonia), at the
          version its 12.3.0 release was built with. -->
     <PackageVersion Include="Markdig" Version="1.4.0" />
+    <!-- gRPC connections: server reflection (RunPad.Connectors.Grpc) and the test server. -->
+    <PackageVersion Include="Grpc.Net.Client" Version="2.84.0" />
+    <PackageVersion Include="Grpc.Reflection" Version="2.84.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.36.2" />
+    <PackageVersion Include="Grpc.AspNetCore" Version="2.84.0" />
+    <PackageVersion Include="Grpc.AspNetCore.Server.Reflection" Version="2.84.0" />
+    <PackageVersion Include="Grpc.Tools" Version="2.84.0" />
+    <!-- SQLite connections: RunPad reads the schema (RunPad.Connectors.Sqlite); scripts get EF Core. -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <!-- Roslyn / Build (versions pinned to real preview/stable releases) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
@@ -55,6 +64,7 @@
          vulnerabilities (CVE-2026-84008, CVE-2026-70162); 8.0.2 is the fixed release of the same line.
          Referenced by RunPad.Languages.DotnetCommon, which brings in NuGet. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <!-- System -->
     <PackageVersion Include="System.Composition.AttributedModel" Version="10.0.12" />
     <PackageVersion Include="System.Composition.Hosting" Version="10.0.12" />

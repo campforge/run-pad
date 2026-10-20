@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
+using RunPad.Contracts.Connections;
 using RunPad.Contracts.IntelliSense;
 using RunPad.Format.RPad;
 using RunPad.Languages.CSharp.Compiler;
@@ -236,6 +237,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // Task.Run, so without this a completion request for the text at keystroke N could race a
     // still-in-flight background-analysis pass for keystroke N-2.
     private readonly object _syncLock = new();
+    private List<KeyValuePair<string, (DocumentId Id, string Text)>> _connectionFiles = [];
     private CancellationTokenSource? _diagnosticsCts;
 
     // Tracks NotifyTextChanged's own fire-and-forget Task.Run so Dispose can actually wait for it —
@@ -332,8 +334,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private void RebuildPreamble()
     {
         var sb = new StringBuilder();
-        foreach (var u in _basePreambleUsings) sb.Append("using ").Append(u).Append(";\n");
-        foreach (var u in _extraPreambleUsings) sb.Append("using ").Append(u).Append(";\n");
+        foreach (var u in _basePreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
+        foreach (var u in _extraPreambleUsings) sb.Append("global using ").Append(u).Append(";\n");
         sb.Append('\n');
         _preamble = sb.ToString();
         _preambleLength = _preamble.Length;
@@ -371,22 +373,64 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // call the compiler will actually emit, otherwise Roslyn correctly (from its own point of view)
     // flags the user's Main as an unused local function (CS8321). Deliberately NOT mirroring
     // Expression's transform here — it also trims/wraps the *end* of the code, which would desync the
-    // position math below (HeaderLength only accounts for a prefix, not a rewritten/shortened body).
+    // expression-source mapping. Program uses a shared insertion-only projection so moved types still map
+    // to their original editor offsets.
     // Code-dependent since ProgramPrefixFor picks the call-statement shape based on whether the user's
     // own Main is static and/or Task-returning — every call site already has
     // `code` in scope (it's what's being analyzed), so this just threads it through.
-    private string KindPrefix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramPrefixFor(code) : "";
+    // Parsed with this document's own options (the build's symbols for its target), as the build does.
+    private string KindPrefix(string code) => KindShapeFor(code).Prefix;
 
     // Closes the wrapper class KindPrefix opens for RpadKind.Program — mirrored for the
     // same reason as the prefix: without it, the live-analysis document would contain a permanently
     // unclosed class declaration, breaking parsing/binding for the rest of the synced text.
     // Code-dependent for the same reason as KindPrefix — ProgramSuffixFor's synthetic trampoline shape
     // depends on whether the user's own Main is static/Task-returning.
-    private string KindSuffix(string code) => _kind == RpadKind.Program ? RpadKindTransform.ProgramSuffixFor(code) : "";
+    private string KindSuffix(string code) => KindShapeFor(code).Suffix;
 
     // Total offset from the start of the live-analysis document text to the start of the user's own
     // code — usings preamble plus (for RpadKind.Program) the mirrored wrapper-class prefix above.
     private int HeaderLength(string code) => _preambleLength + KindPrefix(code).Length;
+
+    private ProgramBodyProjection ProjectionFor(string code) => KindShapeFor(code).Projection;
+
+    // The prefix, projection and suffix each parse the whole script, and the offset mapping below
+    // runs once per classified span, diagnostic or highlighted token: computed once per text, kind
+    // and parse options, not on every mapped offset.
+    private sealed record KindShape(string Code, CSharpParseOptions Options, RpadKind Kind,
+        string Prefix, ProgramBodyProjection Projection, string Suffix);
+
+    private KindShape? _kindShape;
+
+    private KindShape KindShapeFor(string code)
+    {
+        lock (_syncLock)
+        {
+            if (_kindShape is { } shape && shape.Code == code && shape.Options == _parseOptions && shape.Kind == _kind)
+                return shape;
+            return _kindShape = _kind == RpadKind.Program
+                ? new KindShape(code, _parseOptions, _kind,
+                    RpadKindTransform.ProgramPrefixFor(code, _parseOptions),
+                    ProgramBodyProjection.Create(code, _parseOptions),
+                    RpadKindTransform.ProgramSuffixFor(code, _parseOptions))
+                : new KindShape(code, _parseOptions, _kind, "", ProgramBodyProjection.Identity(code), "");
+        }
+    }
+
+    private int ToDocumentOffset(string code, int offset) => HeaderLength(code) + ProjectionFor(code).ToProjected(offset);
+
+    private int ToUserOffset(string code, int offset)
+    {
+        var result = ProjectionFor(code).ToOriginal(offset - HeaderLength(code));
+        return result < 0 || result > code.Length ? -1 : result;
+    }
+
+    private TextSpan? ToUserSpan(string code, TextSpan span)
+    {
+        var relativeStart = span.Start - HeaderLength(code);
+        return relativeStart < 0 ? null : ProjectionFor(code).ToOriginal(new TextSpan(relativeStart, span.Length));
+    }
+
 
     // With nothing after the user's own code, a query position sitting at the very end
     // of it (e.g. right after typing a fresh single-letter identifier at the end of the last line —
@@ -414,7 +458,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         {
             if (_lastCode != code)
             {
-                var newFullText = _preamble + KindPrefix(code) + code + KindSuffix(code) + TrailingPad;
+                var newFullText = _preamble + KindPrefix(code) + ProjectionFor(code).Text + KindSuffix(code) + TrailingPad;
 
                 // Hand Roslyn a
                 // minimal TextChange against the previous SourceText instead of always building a fresh
@@ -491,7 +535,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
 
             // Checked before the position guards below: "override" is a
             // reserved keyword that can only ever be a modifier, so if it's literally the word right
@@ -1116,7 +1160,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var node = root.FindNode(new TextSpan(Math.Max(0, pos - 1), 1), getInnermostNodeForTie: true);
@@ -1356,7 +1400,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var pos = position + HeaderLength(code);
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1416,7 +1460,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             // framework symbol (e.g. "WriteLine" in Console.WriteLine) has no source location to
             // rename AT; renaming its call sites in the script without renaming the framework
             // method itself would just turn correct code into a compile error.
-            if (!result.Symbol.Locations.Any(l => l.IsInSource)) return null;
+            if (!result.Symbol.Locations.Any(IsInScript)) return null;
 
             return new SimpleRenameInfo(result.Symbol.Name, result.Spans);
         }
@@ -1440,8 +1484,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var header = HeaderLength(code);
-            var pos = position + header;
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1450,9 +1493,9 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var symbol = ResolveTokenSymbol(model, token);
             if (symbol == null) return null;
 
-            if (symbol.Locations.FirstOrDefault(l => l.IsInSource) is { } sourceLocation)
+            if (symbol.Locations.FirstOrDefault(IsInScript) is { } sourceLocation)
             {
-                var offset = sourceLocation.SourceSpan.Start - header;
+                var offset = ToUserOffset(code, sourceLocation.SourceSpan.Start);
                 if (offset < 0) return null; // declared inside the prepended preamble, not user code
                 return new SimpleDefinitionResult(
                     IsInSource: true, Offset: offset,
@@ -1522,8 +1565,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var root = await document.GetSyntaxRootAsync(ct);
             if (root == null) return null;
 
-            var header = HeaderLength(code);
-            var pos = position + header;
+            var pos = ToDocumentOffset(code, position);
             if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
             var token = root.FindToken(pos);
@@ -1551,8 +1593,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var results = new List<IImplementationLocation>();
             foreach (var impl in implementations)
             {
-                if (impl.Locations.FirstOrDefault(l => l.IsInSource) is not { } location) continue;
-                var offset = location.SourceSpan.Start - header;
+                if (impl.Locations.FirstOrDefault(IsInScript) is not { } location) continue;
+                var offset = ToUserOffset(code, location.SourceSpan.Start);
                 if (offset < 0) continue; // inside the prepended usings preamble, not user code
                 results.Add(new SimpleImplementationLocation(offset, impl.ToDisplayString()));
             }
@@ -1585,7 +1627,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var root = await document.GetSyntaxRootAsync(ct);
         if (root == null) return null;
 
-        var pos = position + HeaderLength(code);
+        var pos = ToDocumentOffset(code, position);
         if (IsInsideComment(root, pos) || IsInsideStringOrCharLiteral(root, pos)) return null;
 
         var token = root.FindToken(pos);
@@ -1594,7 +1636,6 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var symbol = ResolveTokenSymbol(model, token);
         if (symbol == null) return null;
 
-        var header = HeaderLength(code);
         var spans = new List<IDocumentHighlightSpan>();
         foreach (var candidate in root.DescendantTokens())
         {
@@ -1608,7 +1649,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             if (candidateSymbol == null || !SymbolEqualityComparer.Default.Equals(candidateSymbol, symbol))
                 continue;
 
-            var userStart = candidate.SpanStart - header;
+            var userStart = ToUserOffset(code, candidate.SpanStart);
             if (userStart < 0) continue; // inside the prepended usings preamble, not user code
             spans.Add(new SimpleDocumentHighlightSpan(userStart, candidate.Span.Length));
         }
@@ -1620,8 +1661,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // declaration site (e.g. the identifier in "var x = ...") has no GetSymbolInfo result of its
     // own (that call is for usages/references), only GetDeclaredSymbol; a usage is the opposite.
     // Trying both, in this order, covers either kind of identifier token uniformly.
-    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token) =>
-        model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+    private static ISymbol? ResolveTokenSymbol(SemanticModel model, SyntaxToken token)
+    {
+        var symbol = model.GetSymbolInfo(token.Parent!).Symbol ?? model.GetDeclaredSymbol(token.Parent!);
+        // Calls bind to a reduced extension method (without its receiver parameter); its source
+        // declaration is the unreduced method. Both must identify the same rename/highlight symbol.
+        return symbol is IMethodSymbol { ReducedFrom: { } method } ? method.OriginalDefinition : symbol;
+    }
 
     // ── Format ─────────────────────────────────────────────────────────────────
 
@@ -1666,13 +1712,13 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
             var document = SyncDocument(code);
             var headerLength = HeaderLength(code);
-            var span = new TextSpan(position + headerLength, 0);
+            var span = new TextSpan(ToDocumentOffset(code, position), 0);
 
             // 1-based, same convention as CodeFixEntry.Line/RoslynCodeFixEngine's own diagnostic-fix
             // line lookup — LinePosition.Line itself is 0-based.
             var userLine = SourceText.From(code).Lines.GetLinePosition(position).Line + 1;
 
-            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, code, headerLength, userLine, ct);
+            return await _codeFixEngine.ComputeRefactoringsAsync(document, span, ProjectionFor(code).Text, headerLength, userLine, ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { _logger.LogWarning(ex, "GetRefactoringsAsync failed"); return null; }
@@ -1692,11 +1738,19 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         try
         {
             var headerLength = HeaderLength(code);
-            var materialized = await _codeFixEngine.MaterializeAsync(key, code, headerLength, ct);
+            var materialized = await _codeFixEngine.MaterializeAsync(key, ProjectionFor(code).Text, headerLength, ct);
             if (materialized is null) return null;
-            var newCode = _kind == RpadKind.Program && materialized.Value.NewCode != code
-                ? await ReindentOutsideTheWrapperAsync(materialized.Value.NewCode, materialized.Value.ChangedSpans, ct)
-                : materialized.Value.NewCode;
+            var projection = ProjectionFor(code);
+            if (projection.RestoreEdit(materialized.Value.NewCode, materialized.Value.ChangedSpans,
+                    KindPrefix(code), KindSuffix(code), _parseOptions) is not var (restored, changedSpans)) return null;
+            var newCode = restored;
+            if (_kind == RpadKind.Program && restored != code)
+            {
+                // A class compiled outside the hidden one was formatted at its own columns already.
+                var moved = projection.HasChanges ? ProgramBodyProjection.Create(restored, _parseOptions).Moved : [];
+                newCode = await ReindentOutsideTheWrapperAsync(restored,
+                    [.. changedSpans.Where(span => !moved.Any(m => m.Contains(span)))], ct);
+            }
             return new SimpleMaterializedFix(newCode, materialized.Value.UsingsToAdd);
         }
         catch (OperationCanceledException) { throw; }
@@ -1810,7 +1864,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 .Where(d => d.Id is "CS0246" or "CS0103")
                 .ToList();
 
-            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, code, headerLength, ct);
+            var usings = await _codeFixEngine.ResolveAllMissingUsingsAsync(document, diagnostics, ProjectionFor(code).Text, headerLength, ct);
             return new SimpleMaterializedFix(code, usings);
         }
         catch (OperationCanceledException) { throw; }
@@ -1867,7 +1921,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     private async Task ComputeSemanticTokensAsync(string code, Document document, CancellationToken ct)
     {
         var headerLength = HeaderLength(code);
-        var textLen = headerLength + code.Length;
+        var textLen = headerLength + ProjectionFor(code).Text.Length;
         var spans = await Classifier.GetClassifiedSpansAsync(
             document, new TextSpan(0, textLen), ct);
 
@@ -1877,10 +1931,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             var kind = ClassifySpan(span.ClassificationType);
             if (kind == SemanticTokenKind.None) continue;
 
-            var start = span.TextSpan.Start - headerLength;
-            if (start < 0) continue;
-            var end = Math.Min(span.TextSpan.End - headerLength, code.Length);
-            if (start >= end) continue;
+            var mapped = ToUserSpan(code, span.TextSpan);
+            if (mapped is null || mapped.Value.IsEmpty) continue;
+            var start = mapped.Value.Start;
+            var end = mapped.Value.End;
 
             result.Add(new SimpleSemanticToken(start, end - start, kind));
         }
@@ -1933,12 +1987,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         // Roslyn's own CSharpInlineTypeHintsService (IsValidType) only excludes null and a type
         // literally named "var" (e.g. a user-defined `class var` — legal, if unusual, C#); it doesn't
         // special-case error types beyond that, and neither does this.
-        static void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
+        void AddHint(List<IInlayHint> hints, ITypeSymbol? type, int identifierPos, int typeSyntaxPos,
             int headerLength, string code, SemanticModel model)
         {
             if (type is null || type.Name == "var") return;
 
-            var offset = identifierPos - headerLength;
+            var offset = ToUserOffset(code, identifierPos);
             if (offset < 0 || offset > code.Length) return;
 
             var display = type.ToMinimalDisplayString(model, typeSyntaxPos, _inlayHintTypeFormat);
@@ -1977,6 +2031,15 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         var forCodeFixes = new List<Diagnostic>();
         foreach (var d in model.GetDiagnostics(cancellationToken: ct).Concat(analyzerDiagnostics))
         {
+            // The analysis workspace is a library to allow incomplete/class-only edits, while
+            // scripts are compiled as executables. Its library-only top-level error is artificial.
+            if (d.Id == "CS8805") continue;
+
+            // The analyzers see the whole compilation, the generated Connections documents included;
+            // offsets there mean nothing in the script, so neither the squiggles nor the code fixes
+            // (which map every offset onto the user's text) may take them.
+            if (!IsInScript(d.Location)) continue;
+
             // Unlike compiler diagnostics (never actually Hidden in practice), most of the analyzer
             // diagnostics above fire at Hidden severity BY DESIGN — no squiggle, only a CodeFixProvider
             // keyed to that same diagnostic ID becoming available (RoslynAnalyzerEngine's own doc
@@ -1984,18 +2047,17 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             forCodeFixes.Add(d);
             if (d.Severity == RoslynSeverity.Hidden) continue;
 
-            if (!d.Location.IsInSource) continue;
-
             var span = d.Location.SourceSpan;
-            var start = span.Start - headerLength;
-            if (start < 0) continue;
+            var mappedStart = ToUserSpan(code, span);
+            if (mappedStart is null) continue;
+            var start = mappedStart.Value.Start;
 
             // Clamp to code.Length before the start>=end skip below, same pattern as
             // ComputeSemanticTokensAsync/ComputeInlayHintsAsync's own bounds checks — needed since
             // RpadKind.Program's mirrored KindSuffix (the wrapper class's closing brace)
             // now follows the user's own code in the synced document, so a diagnostic anchored there
             // (or straddling into it) needs to not leak an out-of-range span to the editor.
-            var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+            var end = Math.Min(Math.Max(mappedStart.Value.End, start + 1), code.Length);
             if (start >= end) continue;
 
             var severity = d.Severity switch
@@ -2016,8 +2078,10 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
             foreach (var (d, span) in await GeneratorDiagnosticsAsync(document, compilation, model.SyntaxTree, ct))
             {
                 if (d.Severity is RoslynSeverity.Hidden or RoslynSeverity.Info) continue;
-                var start = span.Start - headerLength;
-                var end = Math.Min(Math.Max(span.End - headerLength, start + 1), code.Length);
+                var mapped = ToUserSpan(code, span);
+                if (mapped is null) continue;
+                var start = mapped.Value.Start;
+                var end = Math.Min(Math.Max(mapped.Value.End, start + 1), code.Length);
                 if (start < 0 || start >= end || !seen.Add((d.Id, start, end))) continue;
                 visible.Add(new SimpleDiagnostic(start, end, d.GetMessage(RoslynMessageCulture.Culture),
                     d.Severity == RoslynSeverity.Error ? ContractSeverity.Error : ContractSeverity.Warning));
@@ -2026,7 +2090,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
         DiagnosticsChanged?.Invoke(code, visible);
 
-        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, code, headerLength, ct);
+        var fixes = await _codeFixEngine.ComputeFixesAsync(document, forCodeFixes, ProjectionFor(code).Text, headerLength, ct);
         CodeFixesChanged?.Invoke(code, fixes);
     }
 
@@ -2091,11 +2155,61 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     // yet, the runtime IntelliSense itself runs on.
     public void UpdateExecutionContext(ExecutionRequest request)
     {
+        UpdateAllowUnsafe(request.AllowUnsafe);
+        UpdateConnections(request.Connections is { Source.Length: > 0 } connections
+            ? [new GeneratedSourceFile("Connections.g.cs", connections.Source), .. connections.Files]
+            : []);
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
         if (DotnetPackageReferenceContext.For(request) is { } context)
             UpdatePackageReferences(packages, context);
         else
             UpdatePackageReferences(packages);
+    }
+
+    // A source location in the script's own document, not in the generated Connections document,
+    // whose offsets mean nothing in the editor.
+    private bool IsInScript(Location location) =>
+        location.IsInSource && location.SourceTree is { } tree && _workspace.CurrentSolution.GetDocumentId(tree) == _documentId;
+
+    private const string GeneratedHeader = "// <auto-generated/>\n";
+
+    // The script's Connections class and the files its connections' schemas add, as the build
+    // generates them, in documents of their own next to the script's: Connections.Billing and its
+    // client complete and bind as soon as a connection is added, before any run.
+    private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files)
+    {
+        lock (_syncLock)
+        {
+            if (files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)))) return;
+            var solution = _workspace.CurrentSolution;
+            foreach (var id in _connectionFiles.Select(f => f.Value.Id)) solution = solution.RemoveDocument(id);
+            var added = new List<KeyValuePair<string, (DocumentId Id, string Text)>>();
+            foreach (var file in files)
+            {
+                var id = DocumentId.CreateNewId(_documentId.ProjectId, file.Name);
+                // Marked as generated, as the build's own copies are (by file name or protoc's header):
+                // analyzers then leave it alone, and its nullable context is the build's.
+                solution = solution.AddDocument(id, file.Name, SourceText.From(GeneratedHeader + file.Text, Encoding.UTF8));
+                added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
+            }
+            if (!_workspace.TryApplyChanges(solution)) return;
+            _connectionFiles = added;
+            _lastCode = ""; // force re-sync on next analysis pass
+        }
+    }
+
+    // The same /unsafe setting the build uses, so the editor neither flags allowed unsafe code (CS0227)
+    // nor hides that a script without the setting won't compile.
+    private void UpdateAllowUnsafe(bool allowUnsafe)
+    {
+        lock (_syncLock)
+        {
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var options = (CSharpCompilationOptions)project.CompilationOptions!;
+            if (options.AllowUnsafe == allowUnsafe) return;
+            if (_workspace.TryApplyChanges(project.WithCompilationOptions(options.WithAllowUnsafe(allowUnsafe)).Solution))
+                _lastCode = ""; // force re-sync on next analysis pass
+        }
     }
 
     // Without a build context: the runtime IntelliSense itself runs on, the user's NuGet settings.

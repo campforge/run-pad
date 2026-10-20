@@ -36,6 +36,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Namespaces = ["System.Text"],
         References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"],
         Args = ["from", "file"],
+        AllowUnsafe = true,
     };
 
     private ExecutionRequest Request(IReadOnlyList<string>? arguments = null) =>
@@ -51,6 +52,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Equal(["System.Text"], request.Usings);
         Assert.Equal(["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll", "Some.Project.csproj"], request.References);
         Assert.Equal(["from", "file"], request.Arguments);
+        Assert.True(request.AllowUnsafe);
         Assert.Equal(_script, request.CurrentQueryPath);
         // Arguments given apart (the command line) replace args:, an empty list included.
         Assert.Equal(["cli"], ExecutionRequest.For(FrontMatter(), _script, ["cli"]).Arguments);
@@ -67,6 +69,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Empty(request.Usings);
         Assert.Empty(request.References);
         Assert.Empty(request.Arguments);
+        Assert.False(request.AllowUnsafe);
         Assert.Null(request.CurrentQueryPath);
         Assert.True(request.BreakOnUncaughtExceptions);
         Assert.False(request.BreakOnAllExceptions);
@@ -97,6 +100,7 @@ public sealed class ExecutionRequestTests : IDisposable
         Assert.Equal("13.0.3", options.Packages["Newtonsoft.Json"]);
         Assert.Equal(["System.Text"], options.Usings);
         Assert.Equal(["from", "file"], options.Arguments);
+        Assert.True(options.AllowUnsafe);
         Assert.Equal(_script, options.CurrentQueryPath);
         Assert.True(options.BreakOnAllExceptions);
         Assert.True(options.BreakOnUncaughtExceptions);
@@ -194,5 +198,28 @@ public sealed class ExecutionRequestTests : IDisposable
         public IReadOnlyDictionary<string, string> Snippets { get; } = new Dictionary<string, string>();
         public EditorLanguageProfile EditorProfile { get; } = new();
         public ILanguageHost Create(ILanguageHostOptions? options = null) => throw new NotSupportedException();
+    }
+
+    // An untitled copy of a script resolves its references (and $(CurrentQueryPath) in them) from the
+    // copied script's folder, for the build and the editor alike, while it still runs as untitled.
+    [Fact]
+    public void AReferenceBasePath_Should_AnchorTheReferences_WithoutBecomingTheQueryPath()
+    {
+        var frontMatter = new RpadFrontMatter { References = ["lib/Greeter.dll", "$(CurrentQueryPath)/lib/Greeter.dll"] };
+        var request = ExecutionRequest.For(frontMatter, null) with
+        {
+            Platform = Sdk,
+            OutputDirectory = Path.Combine(_root, "out"),
+            ReferenceBasePath = _script,
+        };
+
+        var options = CompiledDotnetLanguageHostOptions.From(request, "/runtime/RunPad.Runtime.dll");
+        Assert.Equal([_library, _library], options.AssemblyReferences);
+        Assert.Empty(options.ReferenceErrors);
+        Assert.Null(options.CurrentQueryPath);
+        Assert.Equal([_library, _library], DotnetPackageReferenceContext.For(request)!.AssemblyReferences);
+
+        // Without it an untitled script's relative references have no folder, as before.
+        Assert.NotEmpty(CompiledDotnetLanguageHostOptions.From(request with { ReferenceBasePath = null }, "/runtime/RunPad.Runtime.dll").ReferenceErrors);
     }
 }

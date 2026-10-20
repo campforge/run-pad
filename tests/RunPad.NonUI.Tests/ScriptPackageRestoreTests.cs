@@ -6,6 +6,7 @@ using RunPad.Format.RPad;
 using RunPad.Languages.CSharp;
 using RunPad.Languages.CSharp.Compiler;
 using RunPad.Languages.DotnetCommon;
+using RunPad.Languages.DotnetCommon.Compiler;
 using RunPad.Languages.DotnetCommon.Sdk;
 using Xunit;
 
@@ -157,6 +158,34 @@ public sealed class ScriptPackageRestoreTests : IAsyncDisposable
         Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
         Assert.True(File.Exists(Path.Combine(options.OutputDirectory, "bin", "feed-native.bin")));
         Assert.False(File.Exists(Path.Combine(options.OutputDirectory, "bin", "other.bin")));
+    }
+
+    // Packages ship native assets for portable RIDs (linux-x64), while a .NET built by a Linux
+    // distribution reports its own (ubuntu.24.04-x64): the portable folder is used too.
+    [Fact]
+    public async Task NativeAssets_OfThePortableRid_Should_BeCopied()
+    {
+        var os = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "osx" : "linux";
+        var portable = $"{os}-{RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant()}";
+        Pack("Feed.Portable", "1.0.0", "public static class P { }", [], files: [($"runtimes/{portable}/native/portable.bin", "native")]);
+        var options = Options(new Dictionary<string, string> { ["Feed.Portable"] = "1.0.0" });
+        using var compiler = new CSharpScriptCompiler(options, NullLogger.Instance);
+
+        var result = await compiler.Compilation("Console.WriteLine(1);", TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
+        Assert.True(File.Exists(Path.Combine(options.OutputDirectory, "bin", "portable.bin")));
+    }
+
+    [Fact]
+    public void ADistributionsRid_Should_FallBackToThePortableOne()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.Equal(["ubuntu.24.04-x64", "linux-x64", "ubuntu.24.04", "linux", "unix", "any"],
+            NuGetRestorer.RuntimeIdentifierFallbacks("ubuntu.24.04-x64", Architecture.X64));
+        Assert.Equal(["alpine.3.20-arm64", "linux-musl-arm64", "alpine.3.20", "linux-musl", "linux", "unix", "any"],
+            NuGetRestorer.RuntimeIdentifierFallbacks("alpine.3.20-arm64", Architecture.Arm64));
+        Assert.Equal(["linux-x64", "linux", "unix", "any"], NuGetRestorer.RuntimeIdentifierFallbacks("linux-x64", Architecture.X64));
     }
 
     [Theory]

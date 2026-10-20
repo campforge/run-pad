@@ -84,6 +84,32 @@ public sealed class CodeActionWrapperIndentationTests
         Assert.Equal("void Main()\n{\n    if (DateTime.Now.Year > 2000)\n    {\n        Console.WriteLine(1);\n    }\n}\n", result);
     }
 
+    // With an extension class the script is split around the classes compiled outside the hidden
+    // class: code inside it is still analysed one level deeper, code in a moved class is not.
+    [Fact]
+    public async Task AddBraces_InAProgramWithAnExtensionClass_Should_IndentRelativeToTheVisibleCode()
+    {
+        const string extensions = "static class Extensions\n{\n    public static int Twice(this int n) => n * 2;\n}\n";
+        const string code = "void Main()\n{\n    if (DateTime.Now.Year > 2000) Console.WriteLine(1.Twice());\n}\n" + extensions;
+        using var service = CreateService(RpadKind.Program);
+
+        var result = await ApplyAsync(service, code, "Add braces");
+
+        Assert.Equal("void Main()\n{\n    if (DateTime.Now.Year > 2000)\n    {\n        Console.WriteLine(1.Twice());\n    }\n}\n" + extensions, result);
+    }
+
+    [Fact]
+    public async Task AddBraces_InsideAMovedExtensionClass_Should_KeepItsOwnIndentation()
+    {
+        const string main = "void Main()\n{\n    Console.WriteLine(1.Twice());\n}\n";
+        const string code = main + "static class Extensions\n{\n    public static int Twice(this int n)\n    {\n        if (n > 0) return n * 2;\n        return 0;\n    }\n}\n";
+        using var service = CreateService(RpadKind.Program);
+
+        var result = await ApplyAsync(service, code, "Add braces", from: main.Length);
+
+        Assert.Equal(main + "static class Extensions\n{\n    public static int Twice(this int n)\n    {\n        if (n > 0)\n        {\n            return n * 2;\n        }\n\n        return 0;\n    }\n}\n", result);
+    }
+
     [Fact]
     public async Task AddAccessibilityModifiers_InTheProgramKind_Should_KeepTheMemberAtItsColumn()
     {

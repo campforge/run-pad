@@ -3,6 +3,102 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [0.9.0] — 2026-10-20
+
+Connections and secrets: keep your HTTP APIs, gRPC servers and SQLite databases in one place,
+give a script a typed client for each, and keep passwords and tokens out of scripts.
+
+### Added
+
+- Tools → Secret Store keeps passwords, tokens and keys out of scripts: save them by name and read
+  them with `Util.GetSecret("name")`. The store belongs to you on this computer, encrypted for
+  your account on Windows and readable only by you on macOS and Linux; values stay hidden until
+  you choose Show. A missing secret fails with a message naming it and the store, and a store
+  changed in another window is never overwritten.
+
+- Connections: Tools → Connections keeps your own HTTP APIs, gRPC servers and SQLite databases in
+  one window, with a form for each kind and a Test Connection button. Passwords and tokens are
+  written as `${secret:name}` (from the Secret Store) and other values as `${env:NAME}`, so the
+  connection itself holds no secret.
+
+- Dependencies → Connections adds your connections to a C# script, which keeps its own copy under
+  `connections:` in its front matter and gets a client for each in its code, with completion as
+  soon as the change is saved; Import to Your Connections keeps a script's connection, for
+  example one from a shared script. The libraries a connection needs are added to the script's
+  packages, like any other package. The command-line runner builds connections too.
+  - An HTTP connection is an `HttpClient` with its base address, headers and timeout set:
+    `Connections.Billing.GetStringAsync("invoices")`.
+  - A gRPC connection has a client for each of the server's services, such as
+    `Connections.Inventory.Stock.GetItemAsync(…)`, with the messages' classes. RunPad reads the
+    services through gRPC server reflection and writes the classes with `protoc` from the
+    Grpc.Tools package; Test Connection reads them again after the server changes.
+  - A SQLite connection names a database file, relative to the script's folder or a full path,
+    and is an Entity Framework Core context with a set for each table and view, such as
+    `Connections.Shop.Customers.Where(c => c.City == "Oslo")`, saved with `SaveChanges()`. Views
+    and tables without a usable primary key are read only, and the whole file can be opened read
+    only.
+
+  Secrets stay out of scripts and their files: a script reads them when it runs, and RunPad reads
+  them only to test a connection or to read a gRPC server's services. A connection that can't be
+  read fails the build with the reason, which the Connections tab shows too.
+
+- C# scripts can allow unsafe code (pointers, `sizeof` of your own structs) with "Allow unsafe
+  code" on the Dependencies window's Compilation tab, saved as `allowUnsafe: true`. It is off
+  unless a script turns it on, also for imported LINQPad queries. It is a compiler setting, not a
+  sandbox.
+
+- Execute Selection also runs selected statements in Program scripts, such as lines inside
+  `Main`, on their own. A selection that uses a method or variable declared outside it explains
+  the compile error instead of running the whole program.
+
+### Changed
+
+- With draft recovery on, closing RunPad with unsaved tabs asks once: Save All (the usual Save and
+  Save As, including the question about files changed on disk), Keep in Stash (close without
+  writing the files; the changes reopen next time) or Cancel. A cancelled or failed save, or a
+  stash that could not be written, keeps RunPad open.
+
+- Starting RunPad restores unsaved drafts without a message box, including drafts of another
+  RunPad window that was closed meanwhile. A draft of a file that is already open comes back as an
+  untitled copy naming the file, so neither version is overwritten: it keeps finding the file's
+  relative references and can't be saved over that file. Draft data that cannot be read is kept
+  unchanged and named in a dismissible notice; sessions with only saved files no longer cause a
+  warning on every start.
+
+- Saving a script keeps front matter keys this version of RunPad doesn't know, such as settings
+  from a newer RunPad, instead of dropping them.
+
+- A Program script written as a classic C# program (a class with a `static Main`, with using
+  directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
+  are unchanged. A missing or ambiguous entry point is reported by the compiler.
+
+- Settings windows have Save and Cancel buttons that follow the selected theme, and the exit
+  dialog lists unsaved tabs on separate lines.
+
+### Fixed
+
+- Packages with native libraries (such as SQLite's) work in scripts on Linux with a .NET built by
+  the distribution (for example Ubuntu's `dotnet` packages), which reports its own runtime
+  identifier: the libraries for the portable one (`linux-x64`) are now placed next to the script.
+
+- C# Program scripts can declare extension methods and custom awaiters alongside Main, as in
+  LINQPad: static classes are compiled outside the generated class, other types stay nested in it,
+  so a type an extension uses (such as its receiver) must be internal or public. The editor keeps
+  navigation, diagnostics and code actions aligned with the original script.
+
+- Program scripts choose and invoke their entry point using the selected framework's conditional
+  compilation symbols, including `DEBUG` and `TRACE`.
+
+- A C# Statements script with nothing to run (only comments, using directives or preprocessor
+  lines, like many LINQPad readme queries) runs and finishes without output instead of failing
+  with CS5001. Syntax errors and scripts with only declarations still fail as before.
+
+- Per-script C# imports work with global using directives in the source, in both compilation
+  and editor diagnostics.
+
+- Importing C# LINQPad queries keeps LINQPad's standard namespace imports alongside the query's
+  own, so names such as StringBuilder and XDocument resolve without editing code.
+
 ## [0.8.0] — 2026-10-19
 
 ### Added
@@ -462,3 +558,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.7.0]: https://github.com/campforge/run-pad/releases/tag/v0.7.0
 
 [0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0
+
+[0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0

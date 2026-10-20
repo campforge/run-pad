@@ -92,6 +92,10 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
     protected abstract GeneratorDriver CreateGeneratorDriver(ImmutableArray<ISourceGenerator> generators, ParseOptions parseOptions);
 
+    /// <summary>The script's own compiler settings (such as unsafe code), part of what decides whether
+    /// an earlier binary can be reused.</summary>
+    protected virtual string CompilationSettings => "";
+
     // ── Pipeline ─────────────────────────────────────────────────────────────
 
     // CPU-bound and blocking IO (parse, bind, emit, restore): off the caller's (often the UI) thread.
@@ -116,6 +120,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         if (Options.ReferenceErrors.Count > 0)
             return new ProcessCompilerResult(_dllPath, false, [.. Options.ReferenceErrors.Select(e => Message("", e))], ReferenceWarnings());
+        if (Options.ConnectionErrors.Count > 0)
+            return new ProcessCompilerResult(_dllPath, false, [.. Options.ConnectionErrors.Select(e => Message("", e))], ReferenceWarnings());
 
         var tfm = Options.Platform.TargetFrameworkMoniker;
         if (!TargetFramework.TryParse(tfm, out var major, out var minor))
@@ -149,7 +155,13 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var generatedPath = DebugSourcePath.Canonicalize(
             Path.Combine(_objDir, Options.OutputName + ".Generated" + SourceFileExtension));
 
-        var key = Fingerprint(code, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
+        // The connections' code is part of the generated file, so it decides about reuse like the script's own.
+        var generatedSource = GeneratedSource(target) + (Options.ConnectionSource is { } connections ? "\n" + connections : "");
+        var connectionFiles = Options.ConnectionFiles.Select(f => (Path: DebugSourcePath.Canonicalize(
+            Path.Combine(_objDir, "Connections", f.Name)), f.Text)).ToList();
+        var keyCode = Options.ConnectionSource is null ? code
+            : code + "\n\0" + generatedSource + string.Concat(connectionFiles.Select(f => "\n\0" + f.Path + "\n" + f.Text));
+        var key = Fingerprint(keyCode, pack, [sourcePath, generatedPath], userReferences, packageReferences, runtimeFiles, generatorPaths);
         var keyPath = Path.Combine(_objDir, Options.OutputName + ".roslyn.key");
         if (IsUpToDate(keyPath, key))
             return new ProcessCompilerResult(_dllPath, true, [], [.. ReferenceWarnings(), .. packages.Warnings]);
@@ -160,12 +172,13 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var scriptText = SourceText.From(code, Encoding.UTF8, SourceHashAlgorithm.Sha256);
         var scriptTree = Parse(scriptText, sourcePath, target, ct);
-        var generatedTree = Parse(SourceText.From(GeneratedSource(target), Encoding.UTF8, SourceHashAlgorithm.Sha256),
+        var generatedTree = Parse(SourceText.From(generatedSource, Encoding.UTF8, SourceHashAlgorithm.Sha256),
             generatedPath, target, ct);
 
         var references = frameworkReferences.Concat([Options.RuntimeLibPath]).Concat(userReferences).Concat(packageReferences)
             .Select(GetReference);
-        var compilation = CreateCompilation(Options.OutputName, [scriptTree, generatedTree], references, target);
+        var connectionTrees = connectionFiles.Select(f => Parse(SourceText.From(f.Text, Encoding.UTF8, SourceHashAlgorithm.Sha256), f.Path, target, ct));
+        var compilation = CreateCompilation(Options.OutputName, [scriptTree, generatedTree, .. connectionTrees], references, target);
 
         var diagnostics = new List<RoslynDiagnostic>();
         var generators = generatorPaths.SelectMany(p => GetGenerators(p)).ToImmutableArray();
@@ -361,7 +374,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
         var builder = new StringBuilder()
             .Append(CompilerRevision).Append('\n')
             .Append(Options.Platform.TargetFrameworkMoniker).Append('\n')
-            .Append(pack.ReferenceDirectory).Append('\n');
+            .Append(pack.ReferenceDirectory).Append('\n')
+            .Append(CompilationSettings).Append('\n');
         // Recorded in the PDB: a symlink in OutputDirectory's path retargeted means a different binary.
         foreach (var path in documentPaths)
             builder.Append(path).Append('\n');

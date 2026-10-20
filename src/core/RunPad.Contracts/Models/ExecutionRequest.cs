@@ -1,3 +1,4 @@
+using RunPad.Contracts.Connections;
 using RunPad.Format.RPad;
 
 namespace RunPad.Contracts.Models;
@@ -27,8 +28,23 @@ public sealed record ExecutionRequest
     /// <summary>The script's <c>args</c>.</summary>
     public IReadOnlyList<string> Arguments { get; init; } = [];
 
+    /// <summary>The script's <c>allowUnsafe:</c>: compile with unsafe code allowed, where the language has it.</summary>
+    public bool AllowUnsafe { get; init; }
+
+    /// <summary>The code the script's <c>connections:</c> add (see <see cref="GeneratedConnections.For"/>);
+    /// null without connections. Made by the caller, which knows the connection drivers.</summary>
+    public GeneratedConnections? Connections { get; init; }
+
     /// <summary>The script's own file; null for one never saved.</summary>
     public string? CurrentQueryPath { get; init; }
+
+    /// <summary>
+    /// The file the <c>references:</c> are relative to, when that isn't <see cref="CurrentQueryPath"/>:
+    /// an untitled copy of a file keeps resolving them (and <c>$(CurrentQueryPath)</c> in them) from
+    /// that file's folder. Only references use it; the script still runs as untitled. Null means
+    /// <see cref="CurrentQueryPath"/>.
+    /// </summary>
+    public string? ReferenceBasePath { get; init; }
 
     /// <summary>Where the script is built (its build-cache folder); null where it has none yet.</summary>
     public string? OutputDirectory { get; init; }
@@ -46,8 +62,8 @@ public sealed record ExecutionRequest
     public bool BreakOnUncaughtExceptions { get; init; } = true;
 
     /// <summary>
-    /// The request a script's front matter makes: its kind, packages, usings, references and
-    /// arguments (unless <paramref name="arguments"/> replaces them), for a script at
+    /// The request a script's front matter makes: its kind, packages, usings, references, unsafe
+    /// setting and arguments (unless <paramref name="arguments"/> replaces them), for a script at
     /// <paramref name="currentQueryPath"/>. A script without front matter (untitled, never saved)
     /// gets the defaults a new document has.
     /// </summary>
@@ -58,6 +74,7 @@ public sealed record ExecutionRequest
         Usings = frontMatter?.Namespaces ?? [],
         References = frontMatter?.References ?? [],
         Arguments = arguments ?? frontMatter?.Args ?? [],
+        AllowUnsafe = frontMatter?.AllowUnsafe ?? false,
         CurrentQueryPath = currentQueryPath,
     };
 }

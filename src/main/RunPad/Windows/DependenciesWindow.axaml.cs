@@ -34,6 +34,8 @@ public partial class DependenciesWindow : Window
 
     public void SetFrontMatter(RpadFrontMatter? fm) => ViewModel?.SetFrontMatter(fm);
 
+    public void SetScriptPath(string? path) => ViewModel?.Connections.SetScriptPath(path);
+
     // Save is only enabled while there is something to apply (CanApply).
     private void Ok_Click(object? sender, RoutedEventArgs e)
     {

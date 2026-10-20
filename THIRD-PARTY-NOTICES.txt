@@ -111,6 +111,26 @@ DynamicData 8.4.1 — MIT
   Copyright (c) Roland Pheasant 2011-2024
   http://dynamic-data.org/
 
+Google.Protobuf 3.35.1 — BSD-3-Clause
+  Copyright 2015, Google Inc.
+  https://github.com/protocolbuffers/protobuf
+
+Grpc.Core.Api 2.84.0 — Apache-2.0
+  Copyright 2019 The gRPC Authors
+  https://github.com/grpc/grpc-dotnet
+
+Grpc.Net.Client 2.84.0 — Apache-2.0
+  Copyright 2019 The gRPC Authors
+  https://github.com/grpc/grpc-dotnet
+
+Grpc.Net.Common 2.84.0 — Apache-2.0
+  Copyright 2019 The gRPC Authors
+  https://github.com/grpc/grpc-dotnet
+
+Grpc.Reflection 2.84.0 — Apache-2.0
+  Copyright 2019 The gRPC Authors
+  https://github.com/grpc/grpc-dotnet
+
 HarfBuzzSharp 8.3.1.3 — MIT
   © Microsoft Corporation. All rights reserved.
   https://go.microsoft.com/fwlink/?linkid=868515
@@ -138,6 +158,10 @@ Humanizer.Core 2.14.1 — MIT
 ICSharpCode.Decompiler 11.1.0.9782 — MIT
   Copyright 2011-2026 AlphaSierraPapa
   https://github.com/icsharpcode/ILSpy/
+
+Markdig 1.4.0 — BSD-2-Clause
+  Alexandre Mutel
+  https://xoofx.github.io/markdig
 
 MicroCom.Runtime 0.11.6 — MIT
   Copyright 2021 © Nikita Tsukanov
@@ -181,6 +205,14 @@ Microsoft.CodeAnalysis.VisualBasic 5.9.0 — MIT
 Microsoft.CodeAnalysis.Workspaces.Common 5.9.0 — MIT
   © Microsoft Corporation. All rights reserved.
   https://github.com/dotnet/roslyn
+
+Microsoft.Data.Sqlite 10.0.13 — MIT
+  © Microsoft Corporation. All rights reserved.
+  https://docs.microsoft.com/dotnet/standard/data/sqlite/
+
+Microsoft.Data.Sqlite.Core 10.0.13 — MIT
+  © Microsoft Corporation. All rights reserved.
+  https://docs.microsoft.com/dotnet/standard/data/sqlite/
 
 Microsoft.DiaSymReader 2.0.0 — MIT
   © Microsoft Corporation. All rights reserved.
@@ -317,6 +349,18 @@ SkiaSharp.NativeAssets.Win32 3.119.4 — MIT
 Splat 15.1.1 — MIT
   Copyright (c) .NET Foundation and Contributors
   https://github.com/reactiveui/splat/
+
+SQLitePCLRaw.bundle_e_sqlite3 2.1.13 — Apache-2.0
+  Copyright 2014-2024 SourceGear, LLC
+
+SQLitePCLRaw.core 2.1.13 — Apache-2.0
+  Copyright 2014-2024 SourceGear, LLC
+
+SQLitePCLRaw.lib.e_sqlite3 2.1.13 — Apache-2.0
+  Copyright 2014-2024 SourceGear, LLC
+
+SQLitePCLRaw.provider.e_sqlite3 2.1.13 — Apache-2.0
+  Copyright 2014-2024 SourceGear, LLC
 
 System.ComponentModel.Annotations 5.0.0 — MIT
   © Microsoft Corporation. All rights reserved.
@@ -3691,7 +3735,7 @@ Copyright (c) 2013-2014 Omar Khudeira (http://omar.io)
 END OF Humanizer NOTICES AND INFORMATION
 
 ====================================================================================================
-From: Microsoft.Extensions.Configuration, Microsoft.Extensions.Configuration.Abstractions, Microsoft.Extensions.Configuration.Binder, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.DependencyInjection.Abstractions, Microsoft.Extensions.Logging, Microsoft.Extensions.Logging.Abstractions, Microsoft.Extensions.Logging.Configuration, Microsoft.Extensions.Logging.Console, Microsoft.Extensions.Options, Microsoft.Extensions.Options.ConfigurationExtensions, Microsoft.Extensions.Primitives, System.Composition, System.Composition.AttributedModel, System.Composition.Convention, System.Composition.Hosting, System.Composition.Runtime, System.Composition.TypedParts, System.Configuration.ConfigurationManager, System.Diagnostics.EventLog, System.Security.Cryptography.ProtectedData, .NET runtime 10.0.12
+From: Microsoft.Extensions.Configuration, Microsoft.Extensions.Configuration.Abstractions, Microsoft.Extensions.Configuration.Binder, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.DependencyInjection.Abstractions, Microsoft.Extensions.Logging, Microsoft.Extensions.Logging.Abstractions, Microsoft.Extensions.Logging.Configuration, Microsoft.Extensions.Logging.Console, Microsoft.Extensions.Options, Microsoft.Extensions.Options.ConfigurationExtensions, Microsoft.Extensions.Primitives, System.Composition, System.Composition.AttributedModel, System.Composition.Convention, System.Composition.Hosting, System.Composition.Runtime, System.Composition.TypedParts, System.Configuration.ConfigurationManager, System.Diagnostics.EventLog, System.Security.Cryptography.ProtectedData
 ====================================================================================================
 
 .NET Runtime uses third-party libraries or other resources that may be

@@ -1,9 +1,11 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace RunPad.Format.RPad;
 
-public static class RpadWriter
+public static partial class RpadWriter
 {
     /// ToDo: figure out the stream handling — specifically, be able to grab the code stream directly, ignoring the headers
     /// <summary>Serializes the document back to .rpad file content.</summary>
@@ -49,7 +51,8 @@ public static class RpadWriter
         // byte-for-byte on Linux/macOS came out with CRLF front matter on Windows, needlessly
         // diverging from Write()'s own literal "\n" fences around it.
         var sb = new StringBuilder();
-        sb.Append("version: ").Append(fm.Version).Append('\n');
+        // Connections came with format 1.1; a reader that knows only 1.0 can tell from the version.
+        sb.Append("version: ").Append(fm.Connections.Count > 0 && fm.Version == "1.0" ? "1.1" : fm.Version).Append('\n');
         sb.Append("language: ").Append(fm.Language.ToString().ToLowerInvariant()).Append('\n');
         sb.Append("targetSdk: ").Append(fm.TargetSdk).Append('\n');
         sb.Append("kind: ").Append(fm.Kind);
@@ -85,8 +88,68 @@ public static class RpadWriter
                 sb.Append('\n').Append("  - ").Append(YamlEscape(a));
         }
 
+        // Written only when on, so existing documents stay byte-for-byte unchanged.
+        if (fm.AllowUnsafe) sb.Append('\n').Append("allowUnsafe: true");
+
+        if (fm.Connections.Count > 0)
+        {
+            sb.Append('\n').Append("connections:");
+            foreach (var connection in fm.Connections)
+            {
+                sb.Append('\n').Append("  - name: ").Append(Scalar(connection.Name));
+                sb.Append('\n').Append("    driver: ").Append(Scalar(connection.Driver));
+                if (connection.Params.Count > 0)
+                {
+                    sb.Append('\n').Append("    params:");
+                    foreach (var (key, value) in connection.Params) WriteEntry(sb, key, value, 6);
+                }
+                foreach (var (key, value) in connection.Extra ?? []) WriteEntry(sb, key, value, 4);
+            }
+        }
+
+        // Keys only a newer RunPad knows, as they were read.
+        foreach (var entry in fm.UnknownEntries)
+            sb.Append('\n').Append(entry.Replace("\r\n", "\n"));
+
         return sb.ToString();
     }
+
+    // A map entry in block style. A list of text is a block list; anything else in a list is
+    // written as a JSON flow collection, which YAML reads the same way.
+    private static void WriteEntry(StringBuilder sb, string key, RpadValue value, int indent)
+    {
+        sb.Append('\n').Append(' ', indent).Append(Scalar(key)).Append(':');
+        if (value.Text is { } text)
+            sb.Append(' ').Append(Scalar(text));
+        else if (value.Items is { } items)
+        {
+            if (items.Count == 0) sb.Append(" []");
+            foreach (var item in items)
+                sb.Append('\n').Append(' ', indent + 2).Append("- ").Append(item.Text is { } t ? Scalar(t) : Flow(item));
+        }
+        else if (value.Fields is { Count: > 0 } fields)
+            foreach (var (k, v) in fields) WriteEntry(sb, k, v, indent + 2);
+        else
+            sb.Append(" {}");
+    }
+
+    private static string Flow(RpadValue value) =>
+        value.Text is { } text ? Quoted(text)
+        : value.Items is { } items ? "[" + string.Join(", ", items.Select(Flow)) + "]"
+        : "{" + string.Join(", ", (value.Fields ?? []).Select(f => Quoted(f.Key) + ": " + Flow(f.Value))) + "}";
+
+    // Connection text plain where YAML reads it back unchanged as text (names, drivers, numbers,
+    // simple words), double-quoted otherwise: connection strings, URLs, placeholders, empty text.
+    private static string Scalar(string value) =>
+        PlainScalar().IsMatch(value) && value is not ("null" or "Null" or "NULL") ? value : Quoted(value);
+
+    [GeneratedRegex("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")]
+    private static partial Regex PlainScalar();
+
+    // Readable non-ASCII text, still a valid YAML double-quoted scalar.
+    private static readonly JsonSerializerOptions QuotedOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    private static string Quoted(string value) => JsonSerializer.Serialize(value, QuotedOptions);
 
     // Quoting every string avoids YAML's plain-scalar indicators and implicit null values.
     // JSON double-quoted strings are also YAML scalars and preserve line breaks/control characters,
