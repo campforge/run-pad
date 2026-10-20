@@ -584,16 +584,16 @@ public class DependenciesWindowViewModel : ViewModelBase, IDisposable
 
     public DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
         INuGetSourceStore sources, IConnectionStore? connections = null, ISecretStore? secrets = null,
-        ConnectionDriverRegistry? connectionDrivers = null)
-        : this(search, cache, sources, DefaultSearchDebounce, connections, secrets, connectionDrivers)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
+        : this(search, cache, sources, DefaultSearchDebounce, connections, secrets, connectionDrivers, connectionSchemas)
     {
     }
 
     internal DependenciesWindowViewModel(IPackageSearchService search, ILocalPackageCacheService cache,
         INuGetSourceStore sources, TimeSpan searchDebounce, IConnectionStore? connections = null, ISecretStore? secrets = null,
-        ConnectionDriverRegistry? connectionDrivers = null)
+        ConnectionDriverRegistry? connectionDrivers = null, ConnectionSchemas? connectionSchemas = null)
     {
-        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers);
+        Connections = new ScriptConnectionsViewModel(connections, secrets, connectionDrivers, connectionSchemas?.Cache);
         Connections.UsePackages(
             () => new HashSet<string>(_draftPackages.Select(p => p.Id), StringComparer.OrdinalIgnoreCase),
             (id, version) => AddPackage(id, version));

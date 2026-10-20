@@ -71,7 +71,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="viewModels:ConnectionFieldViewModel">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding Label}" FontSize="12"/>
+                                    <TextBlock Text="{Binding Label}" FontSize="12" IsVisible="{Binding !IsBoolean}"/>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" IsVisible="{Binding IsTextBox}">
                                         <TextBox Classes="field" Text="{Binding Text}" PlaceholderText="{Binding Example}" AutomationProperties.Name="{Binding Param.Label}"/>
                                         <ComboBox Grid.Column="1" Width="36" MinWidth="0" Padding="4" PlaceholderText="⋯"
@@ -89,20 +89,20 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="viewModels:ConnectionMapRowViewModel">
                                                     <Grid ColumnDefinitions="*,36" RowDefinitions="Auto,Auto" RowSpacing="4" ColumnSpacing="6">
-                                                        <TextBox Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding Name, StringFormat='Header name: {0}'}"/>
+                                                        <TextBox Text="{Binding Name}" PlaceholderText="Name" AutomationProperties.Name="{Binding NameFieldLabel}"/>
                                                         <Button Grid.Column="1" Content="✕" ToolTip.Tip="Remove header"
-                                                                AutomationProperties.Name="{Binding Name, StringFormat='Remove header {0}'}"
+                                                                AutomationProperties.Name="{Binding RemoveRowLabel}"
                                                                 Command="{Binding $parent[ItemsControl].((viewModels:ConnectionFieldViewModel)DataContext).RemoveRowCommand}" CommandParameter="{Binding}"/>
                                                         <TextBox Grid.Row="1" Text="{Binding Value}" PlaceholderText="Value"
-                                                                 AutomationProperties.Name="{Binding Name, StringFormat='Value for header {0}'}"/>
+                                                                 AutomationProperties.Name="{Binding ValueFieldLabel}"/>
                                                         <ComboBox Grid.Row="1" Grid.Column="1" Width="36" MinWidth="0" Padding="4" PlaceholderText="⋯"
                                                                   ItemsSource="{Binding SecretNames}" SelectedItem="{Binding SecretToInsert}" IsVisible="{Binding HasSecrets}"
-                                                                  AutomationProperties.Name="{Binding Name, StringFormat='Insert secret into header {0}'}" ToolTip.Tip="Insert secret"/>
+                                                                  AutomationProperties.Name="{Binding InsertSecretLabel}" ToolTip.Tip="Insert secret"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Content="Add header" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
+                                        <Button Content="{Binding AddRowLabel}" Command="{Binding AddRowCommand}" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                     <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"/>
                                 </StackPanel>
