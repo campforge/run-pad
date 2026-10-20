@@ -7,6 +7,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- gRPC schema-generated messages and clients compile into a separate cached assembly, reused when
+  script text changes. After the first build, IntelliSense uses the same assembly instead of
+  reprocessing the generated source documents; target and dependency changes invalidate it.
+
+
 - Repeated connection-schema reads reuse unchanged generated contracts in memory and detect
   replacements on disk, avoiding repeated JSON parsing during editor refreshes.
 - The script's IL viewer virtualizes visible lines and builds its document off the UI thread,

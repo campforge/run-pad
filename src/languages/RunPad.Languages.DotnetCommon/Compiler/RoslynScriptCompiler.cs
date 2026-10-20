@@ -157,6 +157,29 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         // The connections' code is part of the generated file, so it decides about reuse like the script's own.
         var generatedSource = GeneratedSource(target) + (Options.ConnectionSource is { } connections ? "\n" + connections : "");
+        var separateContract = Options.ConnectionFiles.Count > 0 && !ConnectionContractAssemblyCache.RequiresSourceCompilation(code);
+        if (separateContract)
+        {
+            var contractReferences = frameworkReferences.Concat(packageReferences).ToArray();
+            try
+            {
+                var contract = ConnectionContractAssemblyCache.GetOrCreate(_objDir, Options.ConnectionFiles,
+                    contractReferences, tfm + ";" + CompilationSettings,
+                    name => CreateCompilation(name,
+                        Options.ConnectionFiles.Select(f => Parse(SourceText.From(f.Text, Encoding.UTF8), f.Name, target, ct)).ToList(),
+                        contractReferences.Select(GetReference), target), ct);
+                packageReferences.Add(contract);
+                runtimeFiles.Add(new RuntimeFile(contract, Path.GetFileName(contract)));
+            }
+            catch (ConnectionContractCompilationException ex)
+            {
+                return new ProcessCompilerResult(_dllPath, false, ToResultItems(ex.Diagnostics, RoslynSeverity.Error, outputDir), ReferenceWarnings());
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Failed(Message("", $"Couldn't cache the connection contract: {ex.Message}"));
+            }
+        }
         var connectionFiles = Options.ConnectionFiles.Select(f => (Path: DebugSourcePath.Canonicalize(
             Path.Combine(_objDir, "Connections", f.Name)), f.Text)).ToList();
         var keyCode = Options.ConnectionSource is null ? code
@@ -177,7 +200,8 @@ public abstract class RoslynScriptCompiler : IDotnetProcessCompiler
 
         var references = frameworkReferences.Concat([Options.RuntimeLibPath]).Concat(userReferences).Concat(packageReferences)
             .Select(GetReference);
-        var connectionTrees = connectionFiles.Select(f => Parse(SourceText.From(f.Text, Encoding.UTF8, SourceHashAlgorithm.Sha256), f.Path, target, ct));
+        var connectionTrees = separateContract ? [] : connectionFiles
+            .Select(f => Parse(SourceText.From(f.Text, Encoding.UTF8, SourceHashAlgorithm.Sha256), f.Path, target, ct)).ToArray();
         var compilation = CreateCompilation(Options.OutputName, [scriptTree, generatedTree, .. connectionTrees], references, target);
 
         var diagnostics = new List<RoslynDiagnostic>();
