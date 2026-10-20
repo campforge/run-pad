@@ -170,7 +170,7 @@ public class WindowDesignRegressionTests
         try
         {
             Dispatcher.UIThread.RunJobs();
-            foreach (var button in window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible && b.Classes.Contains("secondary")))
+            foreach (var button in window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible && b.Classes.Contains("secondary")).ToArray())
             {
                 var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().Single(c => c.Name == "PART_ContentPresenter");
                 object? Resource(string role)
@@ -179,16 +179,48 @@ public class WindowDesignRegressionTests
                     return value;
                 }
                 Assert.Same(Resource("RunPad.Text.PrimaryBrush"), presenter.Foreground);
-                Assert.Same(Resource("RunPad.Editor.BackgroundBrush"), presenter.Background);
+                var root = button is DropDownButton
+                    ? button.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "RootBorder") : null;
+                object? Background() => root is null ? presenter.Background : root.Background;
+                if (root is not null)
+                    Assert.Equal(global::Avalonia.Media.Colors.Transparent, Assert.IsAssignableFrom<global::Avalonia.Media.ISolidColorBrush>(presenter.Background).Color);
+                Assert.Same(Resource("RunPad.Editor.BackgroundBrush"), Background());
                 ((IPseudoClasses)button.Classes).Add(":pointerover");
                 Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), presenter.Background);
+                Assert.Same(Resource("RunPad.Toolbar.Button.HoverBrush"), Background());
                 ((IPseudoClasses)button.Classes).Add(":pressed");
                 Dispatcher.UIThread.RunJobs();
-                Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), presenter.Background);
+                Assert.Same(Resource("RunPad.Toolbar.BackgroundBrush"), Background());
                 button.IsEnabled = false;
                 Dispatcher.UIThread.RunJobs();
                 Assert.Same(Resource("RunPad.Text.SecondaryBrush"), presenter.Foreground);
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [MemberData(nameof(AllThemes))]
+    public void FormInputs_Should_ShareTheButtonBorder_WithoutLosingFocusFeedback(string themeName)
+    {
+        var (window, _) = Connections();
+        var theme = new RunPadTheme();
+        window.Styles.Add(theme);
+        window.RequestedThemeVariant = (ThemeVariant)typeof(RunPadThemeVariants).GetField(themeName)!.GetValue(null)!;
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var button = window.FindControl<Button>("CancelButton")!;
+            foreach (var box in window.GetVisualDescendants().OfType<TextBox>().Where(t => t.IsEffectivelyVisible).ToArray())
+            {
+                var border = box.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
+                Assert.Same(button.BorderBrush, border.BorderBrush);
+                ((IPseudoClasses)box.Classes).Add(":pointerover");
+                box.Focus();
+                Dispatcher.UIThread.RunJobs();
+                Assert.Same(button.BorderBrush, border.BorderBrush);
+                Assert.NotNull(box.FocusAdorner);
             }
         }
         finally { window.Close(); }

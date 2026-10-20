@@ -7,6 +7,9 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
+- Connection form inputs use the same subtle themed borders as buttons, and dropdown action
+  backgrounds no longer cover the left edge of their rounded border.
+
 - Connection and Secret Store buttons follow the selected theme; inserting a secret uses a labelled
   menu of names instead of an empty compact dropdown.
 
