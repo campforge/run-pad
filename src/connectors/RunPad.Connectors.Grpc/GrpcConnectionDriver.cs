@@ -145,11 +145,13 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
             sb.Append("        var metadata = new global::Grpc.Core.Metadata();\n");
             foreach (var (name, value) in metadata)
                 sb.Append("        metadata.Add(").Append(ConnectionCodeContext.Literal(name)).Append(", ").Append(context.Text(value.Text ?? "")).Append(");\n");
+            // A new Metadata per call: adding to the caller's own would grow it on every call it is reused for.
             sb.Append("        CallInvoker = global::Grpc.Core.Interceptors.ChannelExtensions.Intercept(Channel, headers =>\n")
                 .Append("        {\n")
-                .Append("            headers ??= new global::Grpc.Core.Metadata();\n")
-                .Append("            foreach (var entry in metadata) headers.Add(entry);\n")
-                .Append("            return headers;\n")
+                .Append("            var all = new global::Grpc.Core.Metadata();\n")
+                .Append("            if (headers is not null) foreach (var entry in headers) all.Add(entry);\n")
+                .Append("            foreach (var entry in metadata) all.Add(entry);\n")
+                .Append("            return all;\n")
                 .Append("        });\n");
         }
         sb.Append("    }\n\n")
@@ -185,6 +187,20 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
             throw new GrpcConnectionException("The address is not an http:// or https:// address.");
         var skip = resolvedParams.TryGetValue(SkipCertificateCheck, out var s) && bool.TryParse(s.Text, out var flag) && flag;
+        // Before the channel: the parameters reach here unchecked, and Metadata refuses an invalid name.
+        var headers = new Metadata();
+        foreach (var (name, value) in resolvedParams.TryGetValue(Metadata, out var m) ? m.Fields ?? [] : [])
+        {
+            try
+            {
+                if (value.Text is { } text) headers.Add(name, text);
+            }
+            catch (ArgumentException)
+            {
+                throw new GrpcConnectionException($"'{name}' can't be a metadata name: use letters, digits, '-', '_' and '.', and no '-bin' ending.");
+            }
+        }
+
         HttpMessageHandler handler;
         if (_handler is not null) handler = _handler();
         else
@@ -193,10 +209,6 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
             if (skip) sockets.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             handler = sockets;
         }
-        var headers = new Metadata();
-        foreach (var (name, value) in resolvedParams.TryGetValue(Metadata, out var m) ? m.Fields ?? [] : [])
-            if (value.Text is { } text) headers.Add(name, text);
-
         using var channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions { HttpHandler = handler, DisposeHttpClient = true });
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(MaxWait);
@@ -233,7 +245,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     // protoc writes the messages and clients of every file the server described, except the
     // well-known types, which Google.Protobuf has already.
-    private static async Task<IReadOnlyList<GeneratedSourceFile>> ProtocAsync(string toolsPackage, IReadOnlyList<FileDescriptorProto> files,
+    internal static async Task<IReadOnlyList<GeneratedSourceFile>> ProtocAsync(string toolsPackage, IReadOnlyList<FileDescriptorProto> files,
         CancellationToken cancellationToken)
     {
         var (protoc, plugin) = ToolPaths(toolsPackage);
@@ -260,7 +272,10 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
             start.ArgumentList.Add("--plugin=protoc-gen-grpc=" + plugin);
             start.ArgumentList.Add("--csharp_out=" + output);
             start.ArgumentList.Add("--grpc_out=" + output);
-            start.ArgumentList.Add("--grpc_opt=no_server");
+            // A folder per namespace: files of the same name in different packages (v1/service.proto
+            // and v2/service.proto) would otherwise both be written as Service.cs.
+            start.ArgumentList.Add("--csharp_opt=base_namespace=");
+            start.ArgumentList.Add("--grpc_opt=no_server,base_namespace=");
             foreach (var file in files.Where(f => !IsWellKnown(f.Name)))
                 start.ArgumentList.Add(GrpcReflection.IsSafeProtoPath(file.Name) ? file.Name
                     : throw new GrpcConnectionException($"The server described a file with a name RunPad doesn't accept: '{file.Name}'."));
@@ -307,10 +322,12 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         var plugin = Path.Combine(folder, "grpc_csharp_plugin" + exe);
         if (!File.Exists(protoc) || !File.Exists(plugin))
             throw new GrpcConnectionException($"Grpc.Tools has no protoc for this computer ({os}_{arch}).");
-        // NuGet doesn't keep the executable bit of a package's files.
+        // NuGet doesn't keep the executable bit of a package's files. Only set it when missing: the
+        // package folder may be read-only once it is.
         if (!OperatingSystem.IsWindows())
             foreach (var tool in new[] { protoc, plugin })
-                File.SetUnixFileMode(tool, File.GetUnixFileMode(tool) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+                if ((File.GetUnixFileMode(tool) & UnixFileMode.UserExecute) == 0)
+                    File.SetUnixFileMode(tool, File.GetUnixFileMode(tool) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
         return (protoc, plugin);
     }
 
