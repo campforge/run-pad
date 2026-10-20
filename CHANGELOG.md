@@ -24,6 +24,9 @@ Notable changes in each RunPad release. Downloads are on the
   writing the files; the changes reopen next time) or Cancel. A cancelled or failed save, or a
   stash that could not be written, keeps RunPad open.
 
+- Saving a script keeps front matter keys this version of RunPad doesn't know, such as settings
+  from a newer RunPad, instead of dropping them.
+
 - A Program script written as a classic C# program (a class with a `static Main`, with using
   directives and namespaces) runs as written, as in LINQPad; scripts with a LINQPad-style `Main`
   are unchanged. A missing or ambiguous entry point is reported by the compiler.

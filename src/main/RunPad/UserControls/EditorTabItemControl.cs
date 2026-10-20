@@ -2157,6 +2157,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             fm.Namespaces,
             fm.Args,
             fm.AllowUnsafe,
+            fm.Connections,
+            fm.UnknownEntries,
         });
     }
 
