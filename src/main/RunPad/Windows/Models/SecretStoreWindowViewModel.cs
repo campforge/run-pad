@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reactive;
+using System.Security.Cryptography;
 using ReactiveUI;
 using RunPad.Services.Secrets;
 using RunPad.Shared;
@@ -71,6 +72,20 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
     // Why the store couldn't be read; while set, nothing can be saved.
     public string? LoadError { get; }
 
+    public string? SaveError
+    {
+        get;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref field, value);
+            this.RaisePropertyChanged(nameof(StoreError));
+            this.RaisePropertyChanged(nameof(HasStoreError));
+        }
+    }
+
+    public string? StoreError => LoadError ?? SaveError;
+    public bool HasStoreError => StoreError is not null;
+
     public bool HasLoadError => LoadError is not null;
 
     public string? ValidationError
@@ -114,10 +129,21 @@ public sealed class SecretStoreWindowViewModel : ViewModelBase
     // Writes the store; false (nothing written) while a secret is invalid or the store unreadable.
     public bool Save()
     {
+        SaveError = null;
         Validate();
         if (!CanSave) return false;
-        _store.Save([.. Secrets.Select(s => s.ToSecret())]);
-        return true;
+        try
+        {
+            _store.Save([.. Secrets.Select(s => s.ToSecret())]);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            // Exception text can contain data from a serializer or encryption provider. Keep secrets
+            // out of UI errors while retaining the user's edits and allowing a retry.
+            SaveError = "Could not save the secret store. Check access and available disk space, then try again. Your edits are still here.";
+            return false;
+        }
     }
 
     private void Add(SecretItemViewModel item)
