@@ -24,6 +24,16 @@ public static class LinqConverter
         ["VBExpression"] = (RpadLanguage.Vb, RpadKind.Expression),
     };
 
+    // LINQPad omits its standard imports from query headers. Persist this compatibility profile
+    // only in converted C# documents, so ordinary scripts retain their own import defaults.
+    private static readonly string[] CSharpDefaultNamespaces =
+    [
+        "System", "System.Collections", "System.Collections.Generic", "System.Data",
+        "System.Diagnostics", "System.IO", "System.Linq", "System.Linq.Expressions",
+        "System.Reflection", "System.Text", "System.Text.RegularExpressions", "System.Threading",
+        "System.Transactions", "System.Xml", "System.Xml.Linq", "System.Xml.XPath",
+    ];
+
     /// <summary>
     /// Converts <paramref name="linqContent"/> (the full text of a <c>.linq</c> file) to an
     /// <see cref="RpadDocument"/>, ready for <see cref="RpadWriter.Write"/>. Throws
@@ -63,10 +73,12 @@ public static class LinqConverter
             packages[id] = version is null ? Package.Default : new Package(version);
         }
 
-        var namespaces = query.Elements("Namespace")
+        var explicitNamespaces = query.Elements("Namespace")
             .Select(e => e.Value.Trim())
-            .Where(ns => ns.Length > 0)
-            .ToList();
+            .Where(ns => ns.Length > 0);
+        var namespaces = mapped.Language == RpadLanguage.CSharp
+            ? CSharpDefaultNamespaces.Concat(explicitNamespaces).Distinct(StringComparer.Ordinal).ToList()
+            : explicitNamespaces.ToList();
 
         var references = query.Elements("Reference")
             .Select(e => (e.Attribute("Relative")?.Value ?? e.Value).Trim())
