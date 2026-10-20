@@ -64,7 +64,10 @@ internal static class SqliteModel
     // the names EF Core reads as dates, Booleans, GUIDs and decimals checked first.
     public static (string Type, bool IsValueType) ClrType(string declared)
     {
-        var type = declared.ToUpperInvariant();
+        var type = declared.Trim().ToUpperInvariant();
+        // No declared type (an expression column of a view, CREATE TABLE … AS SELECT, a full-text
+        // table) holds whatever the expression gives; SQLite's own BLOB affinity would read it as bytes.
+        if (type.Length == 0) return ("string", false);
         if (type.Contains("BOOL", StringComparison.Ordinal)) return ("bool", true);
         if (type.Contains("DATETIME", StringComparison.Ordinal) || type.Contains("TIMESTAMP", StringComparison.Ordinal))
             return ("global::System.DateTime", true);
@@ -77,7 +80,7 @@ internal static class SqliteModel
         if (type.Contains("CHAR", StringComparison.Ordinal) || type.Contains("CLOB", StringComparison.Ordinal)
             || type.Contains("TEXT", StringComparison.Ordinal))
             return ("string", false);
-        if (type.Length == 0 || type.Contains("BLOB", StringComparison.Ordinal)) return ("byte[]", false);
+        if (type.Contains("BLOB", StringComparison.Ordinal)) return ("byte[]", false);
         if (type.Contains("REAL", StringComparison.Ordinal) || type.Contains("FLOA", StringComparison.Ordinal)
             || type.Contains("DOUB", StringComparison.Ordinal))
             return ("double", true);
