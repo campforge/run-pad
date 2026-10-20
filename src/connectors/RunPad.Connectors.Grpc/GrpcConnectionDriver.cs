@@ -123,6 +123,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         var parameters = connection.Params;
         var address = parameters[Address].Text!;
         var clients = context.Schema is { } schema ? JsonSerializer.Deserialize<List<GrpcServiceClient>>(schema.Data) ?? [] : [];
+        clients = GrpcClientParser.WithProperties(clients, context.ClassName);
         var metadata = parameters.TryGetValue(Metadata, out var m) ? m.Fields ?? [] : [];
         var skip = parameters.TryGetValue(SkipCertificateCheck, out var s) && bool.TryParse(s.Text, out var flag) && flag;
 

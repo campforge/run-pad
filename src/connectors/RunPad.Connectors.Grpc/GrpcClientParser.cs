@@ -39,10 +39,11 @@ internal static partial class GrpcClientParser
 
     // A property per service, named after it (Stock for inventory.v1.Stock); services of the same
     // name in different packages are told apart by their package (InventoryV1Stock).
-    public static List<GrpcServiceClient> WithProperties(IReadOnlyList<GrpcServiceClient> clients)
+    public static List<GrpcServiceClient> WithProperties(IReadOnlyList<GrpcServiceClient> clients, string? className = null)
     {
         var shortNames = clients.GroupBy(c => Pascal(c.Service.Split('.')[^1])).ToDictionary(g => g.Key, g => g.Count());
         var taken = new HashSet<string>(["Channel", "CallInvoker"], StringComparer.Ordinal);
+        if (className is not null) taken.Add(className);
         var result = new List<GrpcServiceClient>();
         foreach (var client in clients)
         {
