@@ -43,4 +43,17 @@ public sealed class RpadFrontMatter
     /// permissions. Languages without unsafe code ignore it.
     /// </summary>
     public bool AllowUnsafe { get; set; }
+
+    /// <summary>
+    /// <c>connections:</c> the databases, HTTP and gRPC endpoints the script uses, in the file's
+    /// order. A file with any is written as format version 1.1.
+    /// </summary>
+    public List<RpadConnection> Connections { get; set; } = [];
+
+    /// <summary>
+    /// Top-level keys this version of RunPad doesn't know, each as its YAML text, written back after
+    /// the known ones so a newer RunPad's settings survive a save here.
+    /// </summary>
+    [YamlDotNet.Serialization.YamlIgnore]
+    public List<string> UnknownEntries { get; set; } = [];
 }
