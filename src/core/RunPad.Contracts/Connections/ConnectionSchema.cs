@@ -44,6 +44,9 @@ public interface IConnectionSchemaDriver : IConnectionDriver
     /// path does: such a connection's schema is kept for each folder it is used from.
     /// </summary>
     bool UsesScriptDirectory(RpadConnection connection) => false;
+
+    /// <summary>Change when cached descriptions need to be read again after a driver update.</summary>
+    string SchemaVersion => "";
 }
 
 /// <summary>Which schemas <see cref="ConnectionSchemaCache.EnsureAsync"/> reads.</summary>
@@ -82,8 +85,10 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         var folderPart = drivers?.Find(connection.Driver) is IConnectionSchemaDriver driver && driver.UsesScriptDirectory(connection)
             ? "\n" + (scriptDirectory is null ? "" : Path.GetFullPath(scriptDirectory))
             : "";
+        var versionPart = drivers?.Find(connection.Driver) is IConnectionSchemaDriver { SchemaVersion.Length: > 0 } versioned
+            ? "\nversion:" + versioned.SchemaVersion : "";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            connection.Driver.ToLowerInvariant() + "\n" + JsonSerializer.Serialize(connection.Params) + folderPart))).ToLowerInvariant()[..32];
+            connection.Driver.ToLowerInvariant() + "\n" + JsonSerializer.Serialize(connection.Params) + folderPart + versionPart))).ToLowerInvariant()[..32];
     }
 
     /// <summary>The cached schema, or null when there is none (or it can't be read).</summary>

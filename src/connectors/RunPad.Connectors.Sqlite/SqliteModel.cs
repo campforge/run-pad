@@ -49,9 +49,11 @@ internal static class SqliteModel
             {
                 var (type, isValueType) = ClrType(column.Type);
                 columns.Add(new SqliteProperty(column, Unique(Pascal(column.Name, "Column"), members, "Value"), type, isValueType,
-                    Nullable: !column.NotNull && column.PrimaryKey == 0));
+                    Nullable: !column.NotNull));
             }
-            var key = table.IsView ? [] : columns.Where(c => c.Column.PrimaryKey > 0).OrderBy(c => c.Column.PrimaryKey)
+            // EF keys cannot contain NULL; ordinary SQLite primary keys may allow it.
+            var key = table.IsView || columns.Any(c => c.Column.PrimaryKey > 0 && c.Nullable)
+                ? [] : columns.Where(c => c.Column.PrimaryKey > 0).OrderBy(c => c.Column.PrimaryKey)
                 .Select(c => c.PropertyName).ToList();
             entities.Add(new SqliteEntity(table, setName, className, columns, key));
         }
