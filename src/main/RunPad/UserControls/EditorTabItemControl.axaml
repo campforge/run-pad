@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:edit="using:AvaloniaEdit"
              xmlns:cte="using:RunPad.Avalonia.CodeTextEditor"
              xmlns:build="using:RunPad.Contracts.Models"
              xmlns:vm="clr-namespace:RunPad.UserControls.Models"
@@ -257,21 +258,14 @@
                 <ContentControl Content="{Binding DebugPanel}" ContentTemplate="{StaticResource DebugPanelTemplate}"/>
             </TabItem>
 
-            <!-- LINQPad-style "IL" tab — raw IL disassembly of the last successful
-                 compile, refreshed via ILanguageHost.Compiled. Plain read-only TextBox rather than a
-                 full CodeTextEditor: no IntelliSense/breakpoints/folding are meaningful here, this is
-                 just monospace text with its own scrollbars. -->
+            <!-- Virtualized lines keep large disassemblies from laying out as one TextBox. -->
             <TabItem Header="IL">
-                <TextBox x:Name="IlOutput"
-                         IsReadOnly="True"
-                         AcceptsReturn="True"
-                         AcceptsTab="True"
-                         TextWrapping="NoWrap"
-                         BorderThickness="0"
-                         FontFamily="{x:Static cte:MonospaceFont.Default}"
-                         FontSize="12"
-                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                <edit:TextEditor x:Name="IlOutput"
+                                 IsReadOnly="True" WordWrap="False" ShowLineNumbers="True"
+                                 Background="{DynamicResource RunPad.Output.BackgroundBrush}"
+                                 Foreground="{DynamicResource RunPad.Text.PrimaryBrush}"
+                                 FontFamily="{x:Static cte:MonospaceFont.Default}" FontSize="12"
+                                 HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
             </TabItem>
 
         </TabControl>

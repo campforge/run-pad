@@ -140,6 +140,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         UpdateZoomButton();
 
         _intelliSense = intelliSense;
+        _intelliSense?.UpdateIndentation(prefs.Editor.UseTabs, prefs.Editor.IndentationSize);
         _runPadAnalyzers = prefs.Experimental?.RunPadAnalyzers == true;
         intelliSense?.UpdateRunPadAnalyzers(_runPadAnalyzers);
         SetupEditor(editor, intelliSense);
@@ -709,6 +710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
+        _breakpointPopup?.Close();
         _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
@@ -791,37 +793,78 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private global::Avalonia.Controls.Primitives.Popup? _breakpointPopup;
+    internal global::Avalonia.Controls.Primitives.Popup? BreakpointPopup => _breakpointPopup;
+
+    private void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner is null) return;
-
-        var dialog = new Windows.ConditionDialog(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true);
-        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
-        if (result is null) return; // cancelled
-
-        var condition = string.IsNullOrWhiteSpace(result.Value.Condition) ? null : result.Value.Condition;
-        var hitCondition = string.IsNullOrWhiteSpace(result.Value.HitCondition) ? null : result.Value.HitCondition;
-        var enabled = result.Value.Enabled;
-
-        if (bp is not null)
-        {
-            bp.Condition = condition;
-            bp.HitCondition = hitCondition;
-            bp.IsEnabled = enabled;
-            State.Editor.InvalidateBreakpoints();
-        }
-        else if (condition is not null || hitCondition is not null || !enabled)
-        {
-            State.Editor.AddBreakpoint(line);
-            var newBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
-            if (newBp is not null)
+        _breakpointPopup?.Close();
+        var editor = State.Editor;
+        var offset = editor.Document.GetLineByNumber(line).Offset;
+        var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
+            (expression, ct) =>
             {
-                newBp.Condition = condition;
-                newBp.HitCondition = hitCondition;
-                newBp.IsEnabled = enabled;
-                State.Editor.InvalidateBreakpoints();
-            }
+                var code = editor.Text;
+                return Task.Run(() => _intelliSense?.AnalyzeBreakpointConditionAsync(code, offset, expression, ct)
+                    ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
+            });
+        var view = editor.TextArea.TextView;
+        var position = view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1), VisualYPosition.LineBottom)
+            - view.ScrollOffset;
+        var anchor = view.TranslatePoint(position, editor) ?? new Point(0, 0);
+        var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().FirstOrDefault();
+        var markerX = margin?.TranslatePoint(new Point(margin.Bounds.Width / 2, 0), editor)?.X ?? 28;
+        var popup = new global::Avalonia.Controls.Primitives.Popup
+        {
+            PlacementTarget = editor,
+            Placement = global::Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft,
+            PlacementRect = new Rect(new Point(markerX - 28, anchor.Y), new Size(1, 1)),
+            IsLightDismissEnabled = true,
+            Child = panel,
+        };
+        panel.Finished += result =>
+        {
+            if (result is { } value && !_disposed)
+                ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
+            popup.Close();
+        };
+        popup.Closed += (_, _) =>
+        {
+            panel.Dispose();
+            popup.Child = null;
+            if (ReferenceEquals(_breakpointPopup, popup)) _breakpointPopup = null;
+        };
+        // A detached Popup does not inherit the owner's theme/resources or control templates.
+        var popupOwner = (Panel)Content!;
+        popupOwner.Children.Add(popup);
+        popup.Closed += (_, _) => popupOwner.Children.Remove(popup);
+        _breakpointPopup = popup;
+        popup.Open();
+    }
+
+    internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)
+    {
+        condition = string.IsNullOrWhiteSpace(condition) ? null : condition.Trim();
+        hitCondition = string.IsNullOrWhiteSpace(hitCondition) ? null : hitCondition.Trim();
+        var bp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
+        if (bp is null)
+        {
+            // Set all options before publishing the new breakpoint to the running host.
+            State.Editor.BreakpointAdded -= OnGutterBreakpointAdded;
+            try { State.Editor.AddBreakpoint(line); }
+            finally { State.Editor.BreakpointAdded += OnGutterBreakpointAdded; }
+            bp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == line);
+        }
+        if (bp is null) return;
+        bp.Condition = condition;
+        bp.HitCondition = hitCondition;
+        bp.IsEnabled = enabled;
+        State.Editor.InvalidateBreakpoints();
+        if (State.RunningHost is { } host && host.Supports(LanguageHostCapabilities.Breakpoints)
+            && State.SourceFilePath is { } path)
+        {
+            host.RemoveBreakpoint(new ScriptBreakpoint(path, line, null));
+            if (enabled) host.AddBreakpoint(new ScriptBreakpoint(path, line, condition, hitCondition));
         }
     }
 
@@ -1243,9 +1286,16 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
             il = $"// Failed to disassemble '{binaryPath}': {ex.Message}";
         }
 
+        // Build the line index off-thread too; the UI only adopts the finished document.
+        var document = new AvaloniaEdit.Document.TextDocument(il);
+        document.SetOwnerThread(null);
         Dispatcher.Post(() =>
         {
-            if (!_disposed && generation == _runGeneration) IlOutput.Text = il;
+            if (!_disposed && generation == _runGeneration)
+            {
+                document.SetOwnerThread(Thread.CurrentThread);
+                IlOutput.Document = document;
+            }
         });
     }
 
@@ -1327,7 +1377,8 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         if (State.RunningHost is not { } host || !host.Supports(LanguageHostCapabilities.Breakpoints)) return;
         if (State.SourceFilePath is not { } path) return;
         var editorBp = State.Editor.Breakpoints.FirstOrDefault(b => b.Line == e.Line);
-        host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
+        if (editorBp?.IsEnabled != false)
+            host.AddBreakpoint(new ScriptBreakpoint(path, e.Line, editorBp?.Condition, editorBp?.HitCondition));
     }
 
     private void OnGutterBreakpointRemoved(object? sender, BreakpointEventArgs e)
@@ -1399,6 +1450,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         => Dispatcher.Post(() =>
         {
             ApplyEditorSettings(State.Editor, _prefs.Editor, _viewScale.CodeZoom);
+            _intelliSense?.UpdateIndentation(_prefs.Editor.UseTabs, _prefs.Editor.IndentationSize);
             _prefs.Keyboard.ApplyTo(State.Editor);
             ApplyPreviewCodeFont();
             if ((_prefs.Experimental?.RunPadAnalyzers == true) != _runPadAnalyzers)
@@ -1520,6 +1572,10 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         editor.FontSize = CodeFontSize(s, codeZoom);
         editor.FontFamily = MonospaceFont.Resolve(s.FontFamily);
         editor.WordWrap = s.WordWrap;
+        editor.Options.ConvertTabsToSpaces = !s.UseTabs;
+        editor.Options.IndentationSize = s.IndentationSize;
+        if (editor.TextArea.IndentationStrategy is AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy strategy)
+            strategy.IndentationString = editor.Options.IndentationString;
         editor.Options.ShowTabs = s.ShowTabs;
         editor.Options.ShowSpaces = s.ShowSpaces;
         editor.Options.ShowEndOfLine = s.ShowEndOfLine;

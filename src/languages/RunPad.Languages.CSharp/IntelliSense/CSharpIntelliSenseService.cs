@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -456,6 +457,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         lock (_syncLock)
         {
+            var sourceRequired = ConnectionContractAssemblyCache.RequiresSourceCompilation(code);
+            if (sourceRequired != _contractSourcesNeeded)
+            {
+                _contractSourcesNeeded = sourceRequired;
+                ApplyConnectionRepresentation();
+            }
             if (_lastCode != code)
             {
                 var newFullText = _preamble + KindPrefix(code) + ProjectionFor(code).Text + KindSuffix(code) + TrailingPad;
@@ -1671,6 +1678,78 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // ── Format ─────────────────────────────────────────────────────────────────
 
+    public async Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,
+        string expression, CancellationToken cancellationToken = default)
+    {
+        var document = SyncDocument(code);
+        var model = await document.GetSemanticModelAsync(cancellationToken);
+        if (model is null) return null;
+        var pos = ToDocumentOffset(code, Math.Clamp(position, 0, code.Length));
+        var parsed = SyntaxFactory.ParseExpression(expression);
+        string? error = null;
+        if (!string.IsNullOrWhiteSpace(expression))
+        {
+            var syntaxError = parsed.GetDiagnostics().FirstOrDefault(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+            if (syntaxError is not null) error = syntaxError.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+            else
+            {
+                var root = await document.GetSyntaxRootAsync(cancellationToken);
+                var statement = root?.FindToken(pos).Parent?.AncestorsAndSelf().OfType<StatementSyntax>().FirstOrDefault();
+                if (statement is null) error = "Choose a line inside executable code.";
+                else
+                {
+                    // Bind in a forked document, never execute the expression or modify the editor workspace.
+                    var mark = new SyntaxAnnotation();
+                    var condition = parsed.WithAdditionalAnnotations(mark);
+                    var probe = SyntaxFactory.IfStatement(condition, SyntaxFactory.Block());
+                    var fork = document.WithSyntaxRoot(root!.ReplaceNode(statement, SyntaxFactory.Block(probe, statement)));
+                    var forkRoot = await fork.GetSyntaxRootAsync(cancellationToken);
+                    var forkModel = await fork.GetSemanticModelAsync(cancellationToken);
+                    var bound = forkRoot!.GetAnnotatedNodes(mark).Single();
+                    error = forkModel!.GetDiagnostics(cancellationToken: cancellationToken)
+                        .FirstOrDefault(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error
+                            && d.Location.SourceSpan.IntersectsWith(bound.Span))
+                        ?.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+                    if (error is null && forkModel.GetTypeInfo(bound, cancellationToken).ConvertedType?.SpecialType != SpecialType.System_Boolean)
+                        error = "The condition must be a Boolean expression.";
+                }
+            }
+        }
+        var end = expression.Length;
+        var start = end;
+        while (start > 0 && (char.IsLetterOrDigit(expression[start - 1]) || expression[start - 1] == '_')) start--;
+        var prefix = expression[start..];
+        IEnumerable<ISymbol> symbols = model.LookupSymbols(pos);
+        if (start > 0 && expression[start - 1] == '.')
+        {
+            var receiver = SyntaxFactory.ParseExpression(expression[..(start - 1)]);
+            var type = model.GetSpeculativeTypeInfo(pos, receiver, SpeculativeBindingOption.BindAsExpression).Type;
+            symbols = type is null ? [] : model.LookupSymbols(pos, container: type);
+        }
+        var suggestions = symbols.Where(s => s.CanBeReferencedByName && !s.IsImplicitlyDeclared)
+            .Select(s => s.Name).Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.OrdinalIgnoreCase).Take(40).ToArray();
+        return new(error, suggestions);
+    }
+
+    private bool _useTabs;
+    private int _indentationSize = 4;
+
+    private OptionSet FormattingOptionsSnapshot() => _workspace.CurrentSolution.Options
+        .WithChangedOption(FormattingOptions.UseTabs, LanguageNames.CSharp, _useTabs)
+        .WithChangedOption(FormattingOptions.TabSize, LanguageNames.CSharp, _indentationSize)
+        .WithChangedOption(FormattingOptions.IndentationSize, LanguageNames.CSharp, _indentationSize);
+
+    public void UpdateIndentation(bool useTabs, int indentationSize)
+    {
+        lock (_syncLock)
+        {
+            // Applying solution options writes shared Roslyn services; keep each editor's policy local.
+            _useTabs = useTabs;
+            _indentationSize = Math.Clamp(indentationSize, 1, 16);
+        }
+    }
+
     // Formats in a throwaway workspace/project containing only the user's code (no preamble) so
     // Roslyn's Formatter output maps back to the editor text directly, with no preamble/code
     // boundary whitespace to reconcile.
@@ -1679,7 +1758,12 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
         try
         {
             CSharpParseOptions parseOptions;
-            lock (_syncLock) parseOptions = _parseOptions;
+            OptionSet formattingOptions;
+            lock (_syncLock)
+            {
+                parseOptions = _parseOptions;
+                formattingOptions = FormattingOptionsSnapshot();
+            }
             using var formatWorkspace = new AdhocWorkspace(RunPadRoslynHost.HostServices);
             var projectId = ProjectId.CreateNewId("Format");
             formatWorkspace.AddProject(ProjectInfo.Create(
@@ -1691,7 +1775,7 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
                 parseOptions: parseOptions));
 
             var document = formatWorkspace.AddDocument(projectId, "Script.cs", SourceText.From(code, Encoding.UTF8));
-            var formatted = await Formatter.FormatAsync(document, cancellationToken: ct);
+            var formatted = await Formatter.FormatAsync(document, formattingOptions, cancellationToken: ct);
             var text = await formatted.GetTextAsync(ct);
             return text.ToString();
         }
@@ -1772,7 +1856,8 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
     {
         if (changedSpans.Count == 0) return newCode;
 
-        var options = _workspace.CurrentSolution.Options;
+        OptionSet options;
+        lock (_syncLock) options = FormattingOptionsSnapshot();
         var useTabs = options.GetOption(FormattingOptions.UseTabs, LanguageNames.CSharp);
         var unit = useTabs ? "\t" : new string(' ', options.GetOption(FormattingOptions.IndentationSize, LanguageNames.CSharp));
         CSharpParseOptions parseOptions;
@@ -2153,17 +2238,47 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     // The build's own reading of the request (see DotnetPackageReferenceContext). Without an SDK
     // yet, the runtime IntelliSense itself runs on.
+    private string? _connectionContractReference;
+    private GeneratedConnections? _requestedConnections;
+    private string? _requestedContractAssembly;
+    private bool _contractSourcesNeeded;
+
+    private void ApplyConnectionRepresentation()
+    {
+        var contract = _contractSourcesNeeded ? null : _requestedContractAssembly;
+        UpdateConnections(_requestedConnections is { Source.Length: > 0 } connections
+            ? [new GeneratedSourceFile("Connections.g.cs", connections.Source), .. contract is null ? connections.Files : []]
+            : [], contract);
+    }
+
     public void UpdateExecutionContext(ExecutionRequest request)
     {
         UpdateAllowUnsafe(request.AllowUnsafe);
-        UpdateConnections(request.Connections is { Source.Length: > 0 } connections
-            ? [new GeneratedSourceFile("Connections.g.cs", connections.Source), .. connections.Files]
-            : []);
         var packages = request.Packages.ToDictionary(p => p.Key, p => new Package(p.Value));
-        if (DotnetPackageReferenceContext.For(request) is { } context)
-            UpdatePackageReferences(packages, context);
-        else
-            UpdatePackageReferences(packages);
+        var context = DotnetPackageReferenceContext.For(request);
+        if (context is not null) UpdatePackageReferences(packages, context);
+        else UpdatePackageReferences(packages);
+
+        string? contract = null;
+        if (request.Connections is { Files.Count: > 0 } generated && context?.OutputDirectory is { } output)
+        {
+            var (framework, packagePaths) = RoslynScriptCompiler.ResolveConflicts(_frameworkPaths, _nugetPaths);
+            try
+            {
+                contract = ConnectionContractAssemblyCache.Find(RoslynScriptCompiler.ObjDirectory(output), generated.Files,
+                    framework.Concat(packagePaths), context.TargetFramework + ";" + (request.AllowUnsafe ? "unsafe" : ""));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogDebug(ex, "No cached connection contract available");
+            }
+        }
+        lock (_syncLock)
+        {
+            _requestedConnections = request.Connections;
+            _requestedContractAssembly = contract;
+            ApplyConnectionRepresentation();
+        }
     }
 
     // A source location in the script's own document, not in the generated Connections document,
@@ -2173,28 +2288,41 @@ public sealed class CSharpIntelliSenseService : IIntelliSenseService
 
     private const string GeneratedHeader = "// <auto-generated/>\n";
 
-    // The script's Connections class and the files its connections' schemas add, as the build
-    // generates them, in documents of their own next to the script's: Connections.Billing and its
-    // client complete and bind as soon as a connection is added, before any run.
-    private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files)
+    // The small Connections wrapper stays source. Schema types use the build's cached assembly
+    // when available; before the first build (or for partial extensions) they remain source documents.
+    private void UpdateConnections(IReadOnlyList<GeneratedSourceFile> files, string? contract)
     {
         lock (_syncLock)
         {
-            if (files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)))) return;
-            var solution = _workspace.CurrentSolution;
-            foreach (var id in _connectionFiles.Select(f => f.Value.Id)) solution = solution.RemoveDocument(id);
-            var added = new List<KeyValuePair<string, (DocumentId Id, string Text)>>();
-            foreach (var file in files)
+            var project = _workspace.CurrentSolution.GetProject(_documentId.ProjectId)!;
+            var filesChanged = !files.Select(f => (f.Name, f.Text)).SequenceEqual(_connectionFiles.Select(f => (f.Key, f.Value.Text)));
+            var referencesChanged = contract != _connectionContractReference
+                || contract is not null && !project.MetadataReferences.Any(r => r.Display == contract);
+            if (!filesChanged && !referencesChanged) return;
+            var solution = project.Solution;
+            if (referencesChanged)
             {
-                var id = DocumentId.CreateNewId(_documentId.ProjectId, file.Name);
-                // Marked as generated, as the build's own copies are (by file name or protoc's header):
-                // analyzers then leave it alone, and its nullable context is the build's.
-                solution = solution.AddDocument(id, file.Name, SourceText.From(GeneratedHeader + file.Text, Encoding.UTF8));
-                added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
+                var references = project.MetadataReferences.Where(r => r.Display != _connectionContractReference).ToList();
+                if (contract is not null) references.Add(CreateReference(contract));
+                solution = project.WithMetadataReferences(references).Solution;
             }
+            var added = _connectionFiles;
+            if (filesChanged)
+            {
+                foreach (var id in _connectionFiles.Select(f => f.Value.Id)) solution = solution.RemoveDocument(id);
+                added = [];
+                foreach (var file in files)
+                {
+                    var id = DocumentId.CreateNewId(_documentId.ProjectId, file.Name);
+                    solution = solution.AddDocument(id, file.Name, SourceText.From(GeneratedHeader + file.Text, Encoding.UTF8));
+                    added.Add(KeyValuePair.Create(file.Name, (id, file.Text)));
+                }
+            }
+            // A single solution change: analysis must never see both source and metadata definitions.
             if (!_workspace.TryApplyChanges(solution)) return;
             _connectionFiles = added;
-            _lastCode = ""; // force re-sync on next analysis pass
+            _connectionContractReference = contract;
+            _lastCode = "";
         }
     }
 

@@ -55,6 +55,14 @@ public interface IIntelliSenseService : IDisposable
         int position,
         CancellationToken cancellationToken = default);
 
+    // Checks a debugger condition without executing it; names are scoped to the breakpoint position.
+    Task<BreakpointConditionAnalysis?> AnalyzeBreakpointConditionAsync(string code, int position,
+        string expression, CancellationToken cancellationToken = default)
+        => Task.FromResult<BreakpointConditionAnalysis?>(null);
+
+    // Shared indentation policy for formatting and generated edits; unsupported languages may ignore it.
+    void UpdateIndentation(bool useTabs, int indentationSize) { }
+
     // Reformats whitespace/indentation using the language's default formatting rules (Roslyn's
     // Formatter for C#). Returns null on failure or if code is already formatted; the caller keeps
     // the original text in that case.

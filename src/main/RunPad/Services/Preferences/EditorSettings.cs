@@ -8,6 +8,13 @@ public sealed class EditorSettings
 {
     public bool ShowLineNumbers { get; set; } = true;
     public bool ShowFolding { get; set; } = true;
+    public bool UseTabs { get; set; }
+    public int IndentationSize
+    {
+        get;
+        set => field = Math.Clamp(value, 1, 16);
+    } = 4;
+
     public bool ShowTabs { get; set; }
     public bool ShowSpaces { get; set; }
     public bool ShowEndOfLine { get; set; }
