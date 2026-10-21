@@ -3,34 +3,28 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
-## [Unreleased]
+## [0.9.1] — 2026-10-21
+
+Bug fixes for breakpoints, indentation and large gRPC contracts.
 
 ### Fixed
 
-- Breakpoint conditions now open in an anchored popover with C# validation and scoped name/member
-  suggestions. Invalid conditions cannot be applied; Escape or clicking outside cancels edits.
-- Indentation preferences remain isolated between editors instead of changing shared formatter state.
-
-- Control-click in the macOS breakpoint gutter opens the condition editor instead of toggling
+- Breakpoint conditions now open in a small popover next to the breakpoint, with C# validation
+  and suggestions for names and members in scope. An invalid condition cannot be applied; Escape
+  or clicking outside cancels the edit.
+- Changes to a breakpoint's condition or enabled state now reach a running debug session.
+- Control-click in the breakpoint margin on macOS opens the condition editor instead of toggling
   the breakpoint.
-
 - Editor preferences now control tabs versus spaces and indentation width consistently for typing,
-  automatic indentation and C# formatting.
-
-- Conditional breakpoint edits and enabled state now reach an active debug session. The compact
-  editor keeps the condition on one line.
-
+  automatic indentation and C# formatting, and one editor's settings no longer change another's.
 - Cached runs restore missing or changed runtime dependency files before starting the script.
-
-- gRPC schema-generated messages and clients compile into a separate cached assembly, reused when
-  script text changes. After the first build, IntelliSense uses the same assembly instead of
-  reprocessing the generated source documents; target and dependency changes invalidate it.
-
-
-- Repeated connection-schema reads reuse unchanged generated contracts in memory and detect
-  replacements on disk, avoiding repeated JSON parsing during editor refreshes.
-- The script's IL viewer virtualizes visible lines and builds its document off the UI thread,
-  keeping large disassemblies from being laid out as a single text field.
+- Scripts with large gRPC connections stay responsive: the generated messages and clients compile
+  once into a cached assembly that is reused when only the script changes, and IntelliSense uses
+  it after the first build. Changing the target or dependencies rebuilds it.
+- Connection schemas that have not changed are no longer re-read on every editor refresh, and a
+  replaced schema file is picked up.
+- The script's IL viewer stays responsive on large disassemblies: it shows only the visible lines
+  and builds its text in the background.
 
 ## [0.9.0] — 2026-10-20
 
@@ -589,3 +583,5 @@ better choice. RunPad began as DotPad two days after the last commit to the fork
 [0.8.0]: https://github.com/campforge/run-pad/releases/tag/v0.8.0
 
 [0.9.0]: https://github.com/campforge/run-pad/releases/tag/v0.9.0
+
+[0.9.1]: https://github.com/campforge/run-pad/releases/tag/v0.9.1
