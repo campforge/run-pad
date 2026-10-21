@@ -5,6 +5,10 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- A startup screen appears while RunPad checks for the .NET SDK and debugger before opening the workspace.
+
 ### Fixed
 
 - Conditional breakpoints open in a dedicated dialog.
