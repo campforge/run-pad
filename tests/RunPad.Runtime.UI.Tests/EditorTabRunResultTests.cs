@@ -70,55 +70,8 @@ public class EditorTabRunResultTests
         return ctrl;
     }
 
-    [AvaloniaTheory]
-    [InlineData(12, false)]
-    [InlineData(24, false)]
-    [InlineData(18, true)]
-    public void BreakpointPopoverTip_Should_TargetTheRenderedMarkerCenter(double fontSize, bool scroll)
-    {
-        var ctrl = CreateControl(RunResult.Exited(0));
-        var window = (Window)TopLevel.GetTopLevel(ctrl)!;
-        window.Width = 1100;
-        window.Height = 800;
-        try
-        {
-            var editor = ctrl.State.Editor;
-            editor.Text = string.Join("\n", Enumerable.Range(1, 100).Select(i => $"Console.WriteLine({i});"));
-            editor.FontSize = fontSize;
-            window.UpdateLayout();
-            var line = scroll ? 45 : 2;
-            if (scroll) editor.ScrollToLine(line);
-            Dispatcher.UIThread.RunJobs();
-            window.UpdateLayout();
-            var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().Single();
-            var marker = margin.GetMarkerCenter(line);
-            Assert.NotNull(marker);
-            var visualLine = editor.TextArea.TextView.GetVisualLine(line)!;
-            var row = GutterMetrics.FirstRow(editor.TextArea.TextView, visualLine);
-            Assert.Equal(row.Top + row.Height / 2, marker.Value.Y, 5);
-            var center = margin.TranslatePoint(marker.Value, editor)!.Value;
-            editor.RaiseBreakpointRightClicked(line, null);
-            Dispatcher.UIThread.RunJobs();
-            window.UpdateLayout();
-            Dispatcher.UIThread.RunJobs();
-            var rect = ctrl.BreakpointPopup!.PlacementRect!.Value;
-            var panel = (BreakpointConditionEditor)ctrl.BreakpointPopup.Child!;
-            var arrow = panel.FindControl<global::Avalonia.Controls.Shapes.Path>("PointerArrow")!;
-            var shape = arrow.Data!.Bounds;
-            var tip = arrow.TranslatePoint(new global::Avalonia.Point(shape.Center.X, shape.Top), panel)!.Value;
-            Assert.Equal(center.X, rect.Left + BreakpointConditionEditor.PointerTip.X, 5);
-            Assert.Equal(center.Y, rect.Bottom + tip.Y, 5);
-            var actualScreenTip = panel.PointToScreen(tip);
-            var expectedScreenCenter = margin.PointToScreen(marker.Value);
-            Assert.InRange(Math.Abs(actualScreenTip.X - expectedScreenCenter.X), 0, 1);
-            Assert.True(Math.Abs(actualScreenTip.Y - expectedScreenCenter.Y) <= 1,
-                $"tip={actualScreenTip}, marker={expectedScreenCenter}, anchor={rect}, panel={panel.Bounds}");
-        }
-        finally { ctrl.Dispose(); window.Close(); }
-    }
-
     [AvaloniaFact]
-    public void BreakpointPopover_Should_InheritTemplatesAndTrackTheOwnersPalette()
+    public void BreakpointDialog_Should_InheritTemplatesAndTrackTheOwnersPalette()
     {
         var theme = new RunPadTheme();
         global::Avalonia.Application.Current!.Styles.Add(theme);
@@ -128,8 +81,9 @@ public class EditorTabRunResultTests
         {
             window.RequestedThemeVariant = RunPadThemeVariants.RiderDark;
             ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
-            var popup = ctrl.BreakpointPopup!;
-            var panel = Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            Assert.True(dialog.IsVisible);
+            var panel = dialog.ConditionEditor;
             foreach (var variant in new[] { RunPadThemeVariants.RiderDark, RunPadThemeVariants.RiderLight,
                 RunPadThemeVariants.RunPadMidnight, RunPadThemeVariants.RunPadWarmLight,
                 RunPadThemeVariants.VsCodeDark, RunPadThemeVariants.VsCodeLight,
@@ -158,18 +112,18 @@ public class EditorTabRunResultTests
     }
 
     [AvaloniaFact]
-    public void BreakpointEditor_Should_OpenAtTheEditor_AndCloseWithItsTab()
+    public void BreakpointEditor_Should_OpenInAnOwnedDialog_AndCloseWithItsTab()
     {
         var ctrl = CreateControl(RunResult.Exited(0));
         try
         {
             ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
-            var popup = Assert.IsType<global::Avalonia.Controls.Primitives.Popup>(ctrl.BreakpointPopup);
-            Assert.True(popup.IsOpen);
-            Assert.Same(ctrl.State.Editor, popup.PlacementTarget);
-            Assert.IsType<BreakpointConditionEditor>(popup.Child);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            Assert.True(dialog.IsVisible);
+            Assert.Same(TopLevel.GetTopLevel(ctrl), dialog.Owner);
+            Assert.IsType<BreakpointConditionEditor>(dialog.ConditionEditor);
             ctrl.Dispose();
-            Assert.False(popup.IsOpen);
+            Assert.False(dialog.IsVisible);
             Assert.Empty(ctrl.State.Editor.Breakpoints);
         }
         finally { ((Window)TopLevel.GetTopLevel(ctrl)!).Close(); }

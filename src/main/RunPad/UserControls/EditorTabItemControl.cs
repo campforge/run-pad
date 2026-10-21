@@ -3,7 +3,6 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -711,7 +710,7 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         Cancel();
         // The run owns its CTS until its asynchronous cleanup has finished.
         if (!_runInProgress) State.RunCts?.Dispose();
-        _breakpointPopup?.Close();
+        _breakpointDialog?.Close();
         _intelliSense?.Dispose(); // owned by this tab — see EditorTabsControl.OnTabsCollectionChanged
         GC.SuppressFinalize(this);
     }
@@ -794,12 +793,12 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         }
     }
 
-    private global::Avalonia.Controls.Primitives.Popup? _breakpointPopup;
-    internal global::Avalonia.Controls.Primitives.Popup? BreakpointPopup => _breakpointPopup;
+    private Windows.BreakpointConditionDialog? _breakpointDialog;
+    internal Windows.BreakpointConditionDialog? BreakpointDialog => _breakpointDialog;
 
-    private void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
-        _breakpointPopup?.Close();
+        _breakpointDialog?.Close();
         var editor = State.Editor;
         var offset = editor.Document.GetLineByNumber(line).Offset;
         var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
@@ -809,64 +808,21 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                 return Task.Run(() => _intelliSense?.AnalyzeBreakpointConditionAsync(code, offset, expression, ct)
                     ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
             });
-        var view = editor.TextArea.TextView;
-        var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().FirstOrDefault();
-        var marker = margin?.GetMarkerCenter(line);
-        var anchor = marker is { } center ? margin!.TranslatePoint(center, editor) : null;
-        anchor ??= view.TranslatePoint(view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1),
-            VisualYPosition.LineMiddle) - view.ScrollOffset, editor) ?? new Point(28, 0);
-        var tip = BreakpointConditionEditor.PointerTip;
-        var popup = new global::Avalonia.Controls.Primitives.Popup
-        {
-            PlacementTarget = editor,
-            Placement = global::Avalonia.Controls.PlacementMode.AnchorAndGravity,
-            PlacementAnchor = PopupAnchor.BottomLeft,
-            PlacementGravity = PopupGravity.BottomRight,
-            PlacementConstraintAdjustment = PopupPositionerConstraintAdjustment.SlideX,
-            // Bottom placement adds the anchor rectangle's height; compensate so the tip
-            // lands on the marker's center rather than the text row's bottom edge.
-            PlacementRect = new Rect(new Point(anchor.Value.X - tip.X, anchor.Value.Y - tip.Y - 1), new Size(1, 1)),
-            IsLightDismissEnabled = true,
-            Child = panel,
-        };
-        panel.Finished += result =>
-        {
-            if (result is { } value && !_disposed)
-                ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
-            popup.Close();
-        };
-        popup.Closed += (_, _) =>
+        if (TopLevel.GetTopLevel(this) is not Window owner)
         {
             panel.Dispose();
-            popup.Child = null;
-            if (ReferenceEquals(_breakpointPopup, popup)) _breakpointPopup = null;
-        };
-        // A detached Popup does not inherit the owner's theme/resources or control templates.
-        var popupOwner = (Panel)Content!;
-        popupOwner.Children.Add(popup);
-        popup.Closed += (_, _) => popupOwner.Children.Remove(popup);
-        panel.Measure(new Size(panel.Width, double.PositiveInfinity));
-        var markerScreen = editor.PointToScreen(anchor.Value);
-        if (TopLevel.GetTopLevel(editor) is Window owner && owner.Screens.ScreenFromWindow(owner) is { } screen
-            && markerScreen.Y + panel.DesiredSize.Height * screen.Scaling > screen.WorkingArea.Bottom
-            && markerScreen.Y - panel.DesiredSize.Height * screen.Scaling >= screen.WorkingArea.Y)
-        {
-            panel.SetOpensAbove(true);
-            popup.PlacementAnchor = PopupAnchor.TopLeft;
-            popup.PlacementGravity = PopupGravity.TopRight;
-            popup.PlacementRect = new Rect(new Point(anchor.Value.X - tip.X, anchor.Value.Y + 1), new Size(1, 1));
+            return;
         }
-        _breakpointPopup = popup;
-        popup.Open();
-        // The popup host may slide against screen edges; move the notch inside it accordingly.
-        Dispatcher.Post(() =>
+
+        var dialog = new Windows.BreakpointConditionDialog(panel, owner);
+        _breakpointDialog = dialog;
+        dialog.Closed += (_, _) =>
         {
-            if (!popup.IsOpen) return;
-            var target = editor.PointToScreen(anchor.Value);
-            var actualTip = panel.PointToScreen(new Point(tip.X, panel.OpensAbove ? panel.Bounds.Height - 1 : tip.Y));
-            popup.VerticalOffset += (target.Y - actualTip.Y) / (TopLevel.GetTopLevel(panel)?.RenderScaling ?? 1);
-            panel.AlignPointerTo(target);
-        }, DispatcherPriority.Loaded);
+            if (ReferenceEquals(_breakpointDialog, dialog)) _breakpointDialog = null;
+        };
+        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
+        if (result is { } value && !_disposed)
+            ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
     }
 
     internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)
