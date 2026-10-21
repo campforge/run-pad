@@ -28,4 +28,10 @@ public partial class ConnectionsWindow : Window
     }
 
     private void Cancel_Click(object? sender, RoutedEventArgs e) => Close(false);
+
+    private void ResourceTree_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ViewModel is not { } viewModel || sender is not TreeView tree) return;
+        viewModel.SelectedResource = tree.SelectedItem as ConnectionResourceViewModel;
+    }
 }

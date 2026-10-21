@@ -291,6 +291,27 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         Assert.DoesNotContain("headers.Add(", generated.Source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EditorGeneration_Should_UseOnlyLoadedSchemas()
+    {
+        var connection = Inventory();
+        var schemas = Schemas();
+        var schema = new ConnectionSchema("cached", [], "[]");
+        Directory.CreateDirectory(schemas.Cache.Folder);
+        File.WriteAllText(Path.Combine(schemas.Cache.Folder, schemas.Cache.KeyOf(connection) + ".json"),
+            System.Text.Json.JsonSerializer.Serialize(schema));
+
+        var beforeBackgroundLoad = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache, readSchemaFromDisk: false)!;
+        Assert.Null(schemas.Cache.TryGetLoaded(connection));
+        Assert.Contains(beforeBackgroundLoad.Errors, error => error.Contains("hasn't been read yet", StringComparison.Ordinal));
+
+        Assert.Equal("cached", schemas.Cache.Get(connection)!.Summary);
+        var afterBackgroundLoad = GeneratedConnections.For([connection], RpadLanguage.CSharp,
+            new GrpcConnectionDriver().Packages.Keys, schemas.Drivers, schemas.Cache, readSchemaFromDisk: false)!;
+        Assert.Empty(afterBackgroundLoad.Errors);
+    }
+
     // Files of the same name in different packages (x/v1/service.proto, x/v2/service.proto) are
     // written to folders of their own instead of over each other. Grpc.Tools comes from NuGet.
     [Fact]

@@ -4,7 +4,7 @@
         xmlns:viewModels="clr-namespace:RunPad.Windows.Models"
         x:Class="RunPad.Windows.ConnectionsWindow" x:DataType="viewModels:ConnectionsWindowViewModel"
         Title="Connections" Icon="/Assets/icon.ico"
-        Width="820" Height="660" MinWidth="640" MinHeight="460"
+        Width="1180" Height="760" MinWidth="1020" MinHeight="560"
         CanResize="True" WindowStartupLocation="CenterOwner"
         Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
@@ -21,7 +21,7 @@
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="*,Auto,Auto,Auto" Margin="16" RowSpacing="8">
-        <Grid ColumnDefinitions="190,8,*">
+        <Grid ColumnDefinitions="190,8,*,8,300">
             <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="8">
                 <Border BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}" BorderThickness="1" CornerRadius="4">
                     <Panel>
@@ -55,7 +55,7 @@
                 </Grid>
             </Grid>
             <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns"/>
-            <StackPanel Grid.Column="2" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" Spacing="8" Margin="16">
+            <StackPanel Grid.Column="2" Grid.ColumnSpan="3" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" Spacing="8" Margin="16">
                 <TextBlock Text="Add your first connection" FontWeight="SemiBold" TextWrapping="Wrap"/>
                 <TextBlock Classes="hint" Text="Use Add to choose a connection type, then enter its settings. Secrets can stay in Secret Store."/>
             </StackPanel>
@@ -119,6 +119,43 @@
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
+            <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns"/>
+            <Border Grid.Column="4" IsVisible="{Binding HasSelection}"
+                    BorderBrush="{DynamicResource RunPad.Separator.BackgroundBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,120" RowSpacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBlock Text="Browse resources" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="secondary" Content="Load / refresh" ToolTip.Tip="Load or refresh this connection's resources"
+                                AutomationProperties.Name="Load or refresh connection resources"
+                                Command="{Binding BrowseCommand}" IsEnabled="{Binding CanBrowse}"/>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint" Text="{Binding BrowserStatus}" TextWrapping="Wrap"/>
+                    <TreeView Grid.Row="2" x:Name="ResourceTree" ItemsSource="{Binding Resources}"
+                              SelectionChanged="ResourceTree_SelectionChanged" AutomationProperties.Name="Connection resources">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="viewModels:ConnectionResourceViewModel" ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                    <TextBlock Text="{Binding Kind}" Classes="hint"/>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                    <TextBlock Grid.Row="3" Text="Details" FontWeight="SemiBold"/>
+                    <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding ResourceDetails}" AutomationProperties.Name="Selected resource details">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="viewModels:ConnectionResourceDetail">
+                                <StackPanel Spacing="2" Margin="2,4">
+                                    <TextBlock Text="{Binding Name}" Classes="hint"/>
+                                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
         <StackPanel Grid.Row="1" Spacing="4">
             <TextBlock Classes="error" x:Name="StoreError" Text="{Binding StoreError}" IsVisible="{Binding HasStoreError}"/>

@@ -18,6 +18,59 @@ namespace RunPad.Runtime.UI.Tests;
 
 public class ConnectionsWindowTests
 {
+    private sealed class SchemaDriver : IConnectionSchemaDriver
+    {
+        public string Id => "sqlite";
+        public string DisplayName => "SQLite";
+        public ConnectionCategory Category => ConnectionCategory.Database;
+        public IReadOnlyList<ConnectionParam> Params => [];
+        public IReadOnlyDictionary<string, string> Packages => new Dictionary<string, string>();
+        public IReadOnlyList<string> Validate(RpadConnection connection) => [];
+        public Task<ConnectionTestResult> TestAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConnectionTestResult(true, "Connected."));
+        public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context) => new("");
+        public Task<ConnectionSchema> FetchSchemaAsync(IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools,
+            CancellationToken cancellationToken) => Task.FromResult(new ConnectionSchema("1 table", [], "[]"));
+    }
+
+    [AvaloniaFact]
+    public void RightPane_Should_ShowCachedDatabaseResourcesAndTheirDetails()
+    {
+        var connection = new RpadConnection { Name = "warehouse", Driver = "sqlite" };
+        var store = new Mock<IConnectionStore>();
+        store.Setup(s => s.LoadSnapshot()).Returns(new ConnectionStoreSnapshot([connection], null));
+        store.Setup(s => s.FilePath).Returns("/data/connections.json");
+        var secrets = new Mock<ISecretStore>();
+        secrets.Setup(s => s.LoadSnapshot()).Returns(new SecretStoreSnapshot([], null));
+        var drivers = new ConnectionDriverRegistry();
+        drivers.Register(new SchemaDriver());
+        var schemaRoot = Directory.CreateTempSubdirectory("runpad-connection-browser");
+        try
+        {
+            var schemas = new ConnectionSchemas(drivers, schemaRoot.FullName,
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => Task.FromResult("") }, _ => null);
+            schemas.Cache.Put(connection, new ConnectionSchema("1 table", [],
+                "[{\"Name\":\"Orders\",\"IsView\":false,\"Columns\":[{\"Name\":\"OrderId\",\"Type\":\"INTEGER\",\"NotNull\":true,\"PrimaryKey\":1}]}]"));
+            var vm = new ConnectionsWindowViewModel(store.Object, drivers, secrets.Object, schemas);
+            var owner = new Window();
+            owner.Show();
+            var window = new ConnectionsWindow(vm);
+            window.ShowDialog<bool>(owner);
+            Dispatcher.UIThread.RunJobs();
+
+            var tree = window.FindControl<TreeView>("ResourceTree")!;
+            Assert.Single(vm.Resources);
+            Assert.Equal("Orders", vm.Resources[0].Name);
+            Assert.Equal("OrderId", Assert.Single(vm.Resources[0].Children).Name);
+            Assert.Equal("Database table", vm.ResourceDetails[2].Value);
+            Assert.Equal("INTEGER · not null · primary key", vm.Resources[0].Children[0].Details);
+            Assert.NotNull(tree);
+            window.Close();
+            owner.Close();
+        }
+        finally { schemaRoot.Delete(true); }
+    }
+
     [AvaloniaFact]
     public async Task TheForm_Should_FollowTheDriver_AndOkShouldSaveTheEdits()
     {
