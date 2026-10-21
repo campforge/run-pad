@@ -3,13 +3,14 @@
         x:Class="RunPad.Windows.BreakpointConditionDialog"
         Icon="/Assets/icon.ico"
         Title="Line breakpoint"
-        Width="480" Height="280"
-        MinWidth="480" MaxWidth="480"
-        MinHeight="220" MaxHeight="420"
+        MinWidth="480" MaxWidth="520"
+        MinHeight="0" MaxHeight="420"
         CanResize="False"
-        SizeToContent="Height"
+        SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
         Foreground="{DynamicResource RunPad.Text.PrimaryBrush}">
     <Window.Resources>
         <ResourceDictionary>
@@ -18,7 +19,11 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    <Grid Margin="16">
+    <Border Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+            BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16">
         <ContentControl x:Name="EditorHost"/>
-    </Grid>
+    </Border>
 </Window>
