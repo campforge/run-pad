@@ -40,7 +40,7 @@ public class DialogReadabilityTests
     }
 
     [AvaloniaFact]
-    public void BreakpointPopover_Should_WrapErrors_AndKeepButtonsInsideAtItsDesignedWidth()
+    public void BreakpointConditionEditor_Should_WrapErrors_AndKeepButtonsInsideAtItsDesignedWidth()
     {
         using var panel = new RunPad.UserControls.BreakpointConditionEditor();
         var window = Show(new Window { Width = 420, Height = 420, Content = panel });

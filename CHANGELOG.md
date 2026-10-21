@@ -7,8 +7,7 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Fixed
 
-- The breakpoint popover pointer aligns with the marker center at different editor font sizes
-  and scroll positions.
+- Conditional breakpoints open in a dedicated dialog.
 
 ## [0.9.1] — 2026-10-21
 
