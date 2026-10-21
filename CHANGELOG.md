@@ -7,6 +7,7 @@ Notable changes in each RunPad release. Downloads are on the
 
 ### Added
 
+- A startup screen appears while RunPad checks for the .NET SDK and debugger before opening the workspace.
 - C# and Visual Basic scripts define the `RUNPAD` preprocessor symbol, so source can conditionally
   include RunPad-specific code.
 

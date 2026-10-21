@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
@@ -31,6 +32,7 @@ using MainWindow = RunPad.Windows.MainWindow;
 using PreferencesWindow = RunPad.Windows.PreferencesWindow;
 using SecretStoreWindow = RunPad.Windows.SecretStoreWindow;
 using SetupWizardWindow = RunPad.Windows.SetupWizardWindow;
+using SplashWindow = RunPad.Windows.SplashWindow;
 
 namespace RunPad;
 
@@ -62,9 +64,10 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        _serviceProvider = ConfigureServices();
+        var serviceProvider = ConfigureServices();
+        _serviceProvider = serviceProvider;
 
-        ILogger logger = _serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<App>();
+        ILogger logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<App>();
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception (IsTerminating: {IsTerminating})", e.IsTerminating);
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -84,45 +87,84 @@ public class App : Application
             // matches the still-default variant), so the window fell back to a plain black/white
             // background instead of the intended panel color. Resolving it here — before either
             // branch below shows a window — guarantees the theme is always applied first.
-            _serviceProvider.GetRequiredService<IThemeService>();
+            serviceProvider.GetRequiredService<IThemeService>();
 
             // Before any window exists, so each one is first laid out at the interface scale.
-            var viewScale = ViewScale.For(_serviceProvider.GetRequiredService<IPreferencesService>());
+            var viewScale = ViewScale.For(serviceProvider.GetRequiredService<IPreferencesService>());
             InterfaceScaling.Attach(viewScale);
 
-            var prerequisites = _serviceProvider.GetRequiredService<IPrerequisiteService>();
-            if (prerequisites.Check().IsComplete)
-            {
-                desktop.MainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-            }
-            else
-            {
-                // First-run setup wizard (live report 2026-07-25) — shown instead of
-                // MainWindow when the .NET SDK or netcoredbg debugger is missing/unconfigured, so a
-                // fresh install gets an actionable "install this for me" instead of Run/Debug just
-                // silently failing. Reassigning desktop.MainWindow to the real MainWindow BEFORE
-                // closing the wizard (rather than after) keeps ShutdownMode.OnMainWindowClose from
-                // tearing the whole app down when the wizard window itself closes.
-                var wizard = _serviceProvider.GetRequiredService<SetupWizardWindow>();
-                wizard.Continued += () =>
-                {
-                    var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-                    desktop.MainWindow = mainWindow;
-                    mainWindow.Show();
-                    wizard.Close();
-                };
-                desktop.MainWindow = wizard;
-            }
+            var splash = new SplashWindow();
+            desktop.MainWindow = splash;
 
-            ApplicationExit.Attach(() => desktop.MainWindow, _serviceProvider.GetRequiredService<IPreferencesService>(), desktop);
+            ApplicationExit.Attach(() => desktop.MainWindow, serviceProvider.GetRequiredService<IPreferencesService>(), desktop);
             desktop.Exit += (_, _) =>
             {
                 viewScale.Flush();
-                _serviceProvider.Dispose();
+                serviceProvider.Dispose();
             };
+
+            base.OnFrameworkInitializationCompleted();
+
+            // Let Avalonia open and render the splash before checking installed tools or creating
+            // the editor window. The prerequisite check can start a dotnet process on first launch.
+            Dispatcher.UIThread.Post(() => _ = StartDesktopAsync(desktop, splash, serviceProvider, logger), DispatcherPriority.Background);
+            return;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task StartDesktopAsync(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        SplashWindow splash,
+        ServiceProvider serviceProvider,
+        ILogger logger)
+    {
+        try
+        {
+            splash.SetStartupStatus("Checking .NET SDK and debugger…");
+            var prerequisiteStatus = await Task.Run(() => serviceProvider.GetRequiredService<IPrerequisiteService>().Check());
+
+            if (prerequisiteStatus.IsComplete)
+            {
+                ShowStartupWindow(serviceProvider.GetRequiredService<MainWindow>(), desktop, splash);
+                return;
+            }
+
+            // First-run setup wizard is shown instead of MainWindow when the .NET SDK or
+            // netcoredbg debugger is missing/unconfigured. Reassign MainWindow before closing the
+            // splash so ShutdownMode.OnMainWindowClose does not exit the app between windows.
+            var wizard = serviceProvider.GetRequiredService<SetupWizardWindow>();
+            wizard.Continued += () =>
+            {
+                var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+                desktop.MainWindow = mainWindow;
+                CloseSplashAfterOpened(mainWindow, splash);
+                mainWindow.Show();
+                wizard.Close();
+            };
+            ShowStartupWindow(wizard, desktop, splash);
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "RunPad startup failed");
+            splash.ShowStartupError();
+        }
+    }
+
+    private static void ShowStartupWindow(Window window, IClassicDesktopStyleApplicationLifetime desktop, SplashWindow splash)
+    {
+        CloseSplashAfterOpened(window, splash);
+        desktop.MainWindow = window;
+        window.Show();
+    }
+
+    private static void CloseSplashAfterOpened(Window window, SplashWindow splash) =>
+        window.Opened += (_, _) => Dispatcher.UIThread.Post(() => CloseSplash(splash), DispatcherPriority.Background);
+
+    private static void CloseSplash(SplashWindow splash)
+    {
+        if (splash.IsVisible) splash.Close();
     }
 
     private ServiceProvider ConfigureServices()
