@@ -107,64 +107,73 @@ public class App : Application
 
             // Let Avalonia open and render the splash before checking installed tools or creating
             // the editor window. The prerequisite check can start a dotnet process on first launch.
-            Dispatcher.UIThread.Post(() => _ = StartDesktopAsync(desktop, splash, serviceProvider, logger), DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() => _ = StartDesktopAsync(desktop, splash,
+                () =>
+                {
+                    var prerequisites = serviceProvider.GetRequiredService<IPrerequisiteService>();
+                    return Task.Run(() => prerequisites.Check().IsComplete);
+                },
+                complete => CreateStartupWindow(complete, desktop, serviceProvider, logger), logger), DispatcherPriority.Background);
             return;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task StartDesktopAsync(
+    internal static async Task StartDesktopAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         SplashWindow splash,
-        ServiceProvider serviceProvider,
+        Func<Task<bool>> checkPrerequisites,
+        Func<bool, Window> createWindow,
         ILogger logger)
     {
+        if (splash.HasClosed) return;
         try
         {
             splash.SetStartupStatus("Checking .NET SDK and debugger…");
-            var prerequisiteStatus = await Task.Run(() => serviceProvider.GetRequiredService<IPrerequisiteService>().Check());
-
-            if (prerequisiteStatus.IsComplete)
-            {
-                ShowStartupWindow(serviceProvider.GetRequiredService<MainWindow>(), desktop, splash);
-                return;
-            }
-
-            // First-run setup wizard is shown instead of MainWindow when the .NET SDK or
-            // netcoredbg debugger is missing/unconfigured. Reassign MainWindow before closing the
-            // splash so ShutdownMode.OnMainWindowClose does not exit the app between windows.
-            var wizard = serviceProvider.GetRequiredService<SetupWizardWindow>();
-            wizard.Continued += () =>
-            {
-                var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
-                desktop.MainWindow = mainWindow;
-                CloseSplashAfterOpened(mainWindow, splash);
-                mainWindow.Show();
-                wizard.Close();
-            };
-            ShowStartupWindow(wizard, desktop, splash);
+            var complete = await checkPrerequisites();
+            if (splash.HasClosed) return;
+            ShowStartupWindow(createWindow(complete), desktop);
         }
         catch (Exception ex)
         {
+            if (splash.HasClosed) return;
+            desktop.MainWindow = splash;
             logger.LogCritical(ex, "RunPad startup failed");
             splash.ShowStartupError();
         }
     }
 
-    private static void ShowStartupWindow(Window window, IClassicDesktopStyleApplicationLifetime desktop, SplashWindow splash)
+    private static Window CreateStartupWindow(bool complete,
+        IClassicDesktopStyleApplicationLifetime desktop, ServiceProvider services, ILogger logger)
     {
-        CloseSplashAfterOpened(window, splash);
-        desktop.MainWindow = window;
-        window.Show();
+        if (complete) return services.GetRequiredService<MainWindow>();
+
+        var wizard = services.GetRequiredService<SetupWizardWindow>();
+        wizard.Continued += () =>
+        {
+            try { ShowStartupWindow(services.GetRequiredService<MainWindow>(), desktop); }
+            catch (Exception ex) { logger.LogError(ex, "Opening the workspace after setup failed"); }
+        };
+        return wizard;
     }
 
-    private static void CloseSplashAfterOpened(Window window, SplashWindow splash) =>
-        window.Opened += (_, _) => Dispatcher.UIThread.Post(() => CloseSplash(splash), DispatcherPriority.Background);
-
-    private static void CloseSplash(SplashWindow splash)
+    internal static void ShowStartupWindow(Window window, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        if (splash.IsVisible) splash.Close();
+        var previous = desktop.MainWindow;
+        desktop.MainWindow = window;
+        try { window.Show(); }
+        catch
+        {
+            desktop.MainWindow = previous;
+            if (window.IsVisible) window.Close();
+            throw;
+        }
+        // Give the destination a frame before closing the previous startup window.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (window.IsVisible && ReferenceEquals(desktop.MainWindow, window)) previous?.Close();
+        }, DispatcherPriority.Background);
     }
 
     private ServiceProvider ConfigureServices()

@@ -20,7 +20,7 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+    <Border x:Name="DialogSurface" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
             BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
             BorderThickness="1"
             CornerRadius="12"
@@ -45,7 +45,7 @@
 
             <StackPanel x:Name="StartupError" Grid.Row="2" Grid.RowSpan="2" Spacing="12"
                         IsVisible="False">
-                <TextBlock Text="RunPad couldn't finish starting. Check the application log for details."
+                <TextBlock x:Name="StartupErrorText"
                            TextWrapping="Wrap"/>
                 <Button Content="Close" HorizontalAlignment="Right" MinWidth="88"
                         x:Name="CloseStartupErrorButton" Click="CloseButton_Click" IsDefault="True"/>

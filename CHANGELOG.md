@@ -11,9 +11,15 @@ Notable changes in each RunPad release. Downloads are on the
 - C# and Visual Basic scripts define the `RUNPAD` preprocessor symbol, so source can conditionally
   include RunPad-specific code.
 
+### Changed
+
+- Breakpoint conditions are edited in a dialog centered on the window; Escape cancels the edit.
+- Go to Line uses a compact dialog with rounded corners and a themed border.
+
 ### Fixed
 
-- Conditional breakpoints open in a dedicated dialog.
+- Startup failures keep a working Close button, and quitting during SDK checks does not resume startup.
+- Borderless dialogs use an opaque themed background when window transparency is unavailable.
 
 ## [0.9.1] — 2026-10-21
 

@@ -94,7 +94,7 @@ public class EditorTabRunResultTests
                 Assert.Equal(variant, panel.ActualThemeVariant);
                 theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var expected);
                 Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expected).Color,
-                    Assert.IsAssignableFrom<ISolidColorBrush>(dialog.Background).Color);
+                    Assert.IsAssignableFrom<ISolidColorBrush>(dialog.FindControl<Border>("DialogSurface")!.Background).Color);
                 Assert.NotNull(panel.FindControl<StackPanel>("ContentLayout"));
                 var input = panel.FindControl<TextBox>("ConditionBox")!;
                 Assert.NotEmpty(input.GetVisualDescendants());
@@ -109,6 +109,31 @@ public class EditorTabRunResultTests
             }
         }
         finally { ctrl.Dispose(); window.Close(); global::Avalonia.Application.Current!.Styles.Remove(theme); }
+    }
+
+    [AvaloniaFact]
+    public async Task BreakpointApplyFailure_ShouldBeLogged_WithoutEscapingTheUIBoundary()
+    {
+        var logger = new Mock<ILogger<EditorsTabItemControl>>();
+        var ctrl = CreateControl(RunResult.Exited(0), logger: logger.Object);
+        var host = new Mock<ILanguageHost>();
+        host.Setup(h => h.Supports(LanguageHostCapabilities.Breakpoints)).Returns(true);
+        host.Setup(h => h.RemoveBreakpoint(It.IsAny<RunPad.Contracts.IBreakpoint>()))
+            .Throws(new InvalidOperationException("breakpoint update failed"));
+        ctrl.State.RunningHost = host.Object;
+        ctrl.State.SourceFilePath = "RunPadQuery.cs";
+        try
+        {
+            ctrl.State.Editor.RaiseBreakpointRightClicked(1, null);
+            var dialog = Assert.IsType<global::RunPad.Windows.BreakpointConditionDialog>(ctrl.BreakpointDialog);
+            dialog.Close(((string?)null, (string?)null, true));
+            await TestWait.WhileAsync(() => !logger.Invocations.Any(i => i.Method.Name == nameof(ILogger.Log)));
+            Assert.Single(logger.Invocations, i => i.Method.Name == nameof(ILogger.Log)
+                && Equals(i.Arguments[0], LogLevel.Error));
+            Assert.Contains("breakpoint update failed", ctrl.State.Output.Content);
+            Assert.Null(ctrl.BreakpointDialog);
+        }
+        finally { ctrl.Dispose(); ((Window)TopLevel.GetTopLevel(ctrl)!).Close(); }
     }
 
     [AvaloniaFact]

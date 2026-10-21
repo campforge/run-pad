@@ -10,15 +10,26 @@ internal sealed partial class SplashWindow : Window
     public SplashWindow()
     {
         InitializeComponent();
+        BorderlessWindowChrome.Attach(this, DialogSurface);
         Opacity = 0;
         Opened += RevealAfterDelay;
-        Closed += (_, _) => _revealCancellation.Cancel();
+        Closed += (_, _) =>
+        {
+            HasClosed = true;
+            _revealCancellation.Cancel();
+        };
     }
+
+    internal bool HasClosed { get; private set; }
 
     internal void SetStartupStatus(string status) => StatusText.Text = status;
 
     internal void ShowStartupError()
     {
+        Opacity = 1;
+        SizeToContent = SizeToContent.Height;
+        StartupErrorText.Text = $"RunPad couldn't finish starting. Logs: {Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RunPad", "logs")}";
         StatusText.IsVisible = false;
         StartupProgress.IsVisible = false;
         StartupError.IsVisible = true;
