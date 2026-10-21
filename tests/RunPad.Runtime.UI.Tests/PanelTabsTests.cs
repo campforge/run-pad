@@ -76,6 +76,52 @@ public class PanelTabsTests
         return ((ISolidColorBrush)v!).Color;
     }
 
+    [AvaloniaFact]
+    public async Task CompiledIl_Should_TransferTheWorkerDocumentToTheUiThread()
+    {
+        var tabs = OutputTabs(out var host);
+        try
+        {
+            tabs.SelectedIndex = 2;
+            var tab = Assert.IsType<EditorsTabItemControl>(host.Content);
+            var update = typeof(EditorsTabItemControl).GetMethod("UpdateIlOutput",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            await Task.Run(() => update.Invoke(tab, [typeof(RpadDocument).Assembly.Location, 0]), TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+            var editor = host.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+            Assert.Contains(".class", editor.Text, StringComparison.Ordinal);
+            Assert.Contains("RpadDocument", editor.Text, StringComparison.Ordinal);
+            Assert.True(editor.Document.LineCount > 1);
+            var current = editor.Document;
+            await Task.Run(() => update.Invoke(tab, [typeof(RpadDocument).Assembly.Location, -1]), TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(current, editor.Document);
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void LargeIlOutput_Should_UseVirtualizedVisibleLines_AndRemainReadOnly()
+    {
+        var tabs = OutputTabs(out var host);
+        try
+        {
+            tabs.SelectedIndex = 2;
+            Dispatcher.UIThread.RunJobs();
+            var editor = host.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().Single(e => e.Name == "IlOutput");
+            editor.Text = string.Concat(Enumerable.Repeat("IL_0000: nop\n", 100_000));
+            host.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(editor.IsReadOnly);
+            Assert.False(editor.WordWrap);
+            Assert.Equal(100_001, editor.Document.LineCount);
+            Assert.InRange(editor.TextArea.TextView.VisualLines.Count, 1, 200);
+            editor.Select(0, 7);
+            Assert.Equal("IL_0000", editor.SelectedText);
+        }
+        finally { host.Close(); }
+    }
+
     [AvaloniaTheory]
     [InlineData("VsCodeDark")]
     [InlineData("VsCodeLight")]

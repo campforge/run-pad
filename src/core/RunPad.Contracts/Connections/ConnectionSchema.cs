@@ -76,6 +76,10 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     // The reads under way, by key: the editor, a run and the Connections window often ask for the
     // same schema at once, and each read may be a server round trip plus a code generator.
     private readonly Dictionary<string, Task<bool>> _fetches = new(StringComparer.Ordinal);
+    // Generated contracts can be large. Keep a bounded hot set, invalidated by file metadata,
+    // instead of reparsing the same JSON during every editor/context refresh.
+    private readonly Dictionary<string, CachedDescription> _descriptions = new(StringComparer.Ordinal);
+    private sealed record CachedDescription(long Written, long Created, long Length, ConnectionSchema Schema);
     private readonly object _lock = new();
 
     public static string DefaultFolder => Path.Combine(
@@ -97,8 +101,29 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
     /// <summary>The cached schema, or null when there is none (or it can't be read).</summary>
     public ConnectionSchema? Get(RpadConnection connection, string? scriptDirectory = null)
     {
-        var path = Path.Combine(Folder, KeyOf(connection, scriptDirectory) + ".json");
-        try { return File.Exists(path) ? JsonSerializer.Deserialize<ConnectionSchema>(File.ReadAllText(path)) : null; }
+        var key = KeyOf(connection, scriptDirectory);
+        var path = Path.Combine(Folder, key + ".json");
+        try
+        {
+            lock (_lock)
+            {
+                var info = new FileInfo(path);
+                if (!info.Exists)
+                {
+                    _descriptions.Remove(key);
+                    return null;
+                }
+                if (_descriptions.TryGetValue(key, out var cached)
+                    && cached.Written == info.LastWriteTimeUtc.Ticks && cached.Created == info.CreationTimeUtc.Ticks
+                    && cached.Length == info.Length)
+                    return cached.Schema;
+                var schema = JsonSerializer.Deserialize<ConnectionSchema>(File.ReadAllText(path));
+                if (schema is null) return null;
+                if (_descriptions.Count >= 16) _descriptions.Remove(_descriptions.Keys.First());
+                _descriptions[key] = new CachedDescription(info.LastWriteTimeUtc.Ticks, info.CreationTimeUtc.Ticks, info.Length, schema);
+                return schema;
+            }
+        }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
     }
 
@@ -135,7 +160,13 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
             try { File.Delete(temp); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
-        lock (_lock) _errors.Remove(key);
+        lock (_lock)
+        {
+            _errors.Remove(key);
+            _descriptions.Remove(key);
+        }
+        // Fetches publish on a worker thread: warm the description there before the UI is notified.
+        _ = Get(connection, scriptDirectory);
     }
 
     /// <summary>

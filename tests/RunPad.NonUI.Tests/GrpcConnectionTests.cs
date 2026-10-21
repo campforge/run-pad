@@ -356,6 +356,70 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
 
             Assert.True(result.Succeeded, string.Join('\n', errors));
             Assert.Equal("A1 42 Bearer t0k 1", output.Last());
+            var contract = Assert.Single(Directory.GetFiles(Path.Combine(outputDir, "obj", "connection-contracts"), "*.dll"));
+            var contractTime = File.GetLastWriteTimeUtc(contract);
+            Assert.True(File.Exists(Path.Combine(outputDir, "bin", Path.GetFileName(contract))));
+            const string editedScript = script + "\n// A script edit must not rebuild the contract.";
+            var second = await host.RunAsync(editedScript,
+                (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data), TestContext.Current.CancellationToken);
+            Assert.True(second.Succeeded, string.Join('\n', errors));
+            Assert.Equal(contractTime, File.GetLastWriteTimeUtc(contract));
+            var binary = Path.Combine(outputDir, "bin", "RunPadQuery.dll");
+            var binaryTime = File.GetLastWriteTimeUtc(binary);
+            var runtimeContract = Path.Combine(outputDir, "bin", Path.GetFileName(contract));
+            File.Delete(runtimeContract);
+            var hotRun = await host.RunAsync(editedScript,
+                (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data), TestContext.Current.CancellationToken);
+            Assert.True(hotRun.Succeeded, string.Join('\n', errors));
+            Assert.True(File.Exists(runtimeContract));
+            Assert.Equal(binaryTime, File.GetLastWriteTimeUtc(binary));
+            using var cachedEditor = new CSharpIntelliSenseService(
+                referenceService.GetDefault().Append(referenceService.GetExtensionReference()), NullLogger<CSharpIntelliSenseService>.Instance);
+            cachedEditor.UpdateExecutionContext(new ExecutionRequest
+            {
+                Platform = options.Platform,
+                OutputDirectory = outputDir,
+                Packages = packages,
+                Connections = generated,
+            });
+            const string cachedCode = "Connections.Inventory.Stock.";
+            var cachedMembers = await cachedEditor.GetCompletionsAsync(cachedCode, cachedCode.Length, ct: TestContext.Current.CancellationToken);
+            Assert.Contains(cachedMembers!.Items, i => i.DisplayText == "GetItemAsync");
+            const string messageType = "var request = new Inventory.V1.ItemRequest();";
+            var definition = await cachedEditor.GetDefinitionAsync(messageType, messageType.IndexOf("ItemRequest", StringComparison.Ordinal) + 2,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(definition);
+            Assert.Equal(contract, definition.AssemblyPath);
+            var decompiled = CSharpDecompilerService.Decompile(definition);
+            Assert.Contains("class ItemRequest", decompiled.Text, StringComparison.Ordinal);
+            Assert.Contains("Sku", decompiled.Text, StringComparison.Ordinal);
+            const string partialScript = """
+                var request = new Inventory.V1.ItemRequest { Sku = "extended" };
+                Console.WriteLine(request.CustomValue);
+                namespace Inventory.V1
+                {
+                    public partial class ItemRequest { public string CustomValue => Sku; }
+                }
+                """;
+            var partialResult = await host.RunAsync(partialScript,
+                (data, kind) => (kind == OutputKind.StandardError ? errors : output).Enqueue(data), TestContext.Current.CancellationToken);
+            Assert.True(partialResult.Succeeded, string.Join('\n', errors));
+            Assert.Equal("extended", output.Last());
+            var partialPosition = partialScript.IndexOf("CustomValue", StringComparison.Ordinal) + 2;
+            var partialDefinition = await cachedEditor.GetDefinitionAsync(partialScript, partialPosition, TestContext.Current.CancellationToken);
+            Assert.True(partialDefinition?.IsInSource);
+            // Returning to a normal script switches back to metadata, without duplicate definitions.
+            Assert.Equal(contract, (await cachedEditor.GetDefinitionAsync(messageType,
+                messageType.IndexOf("ItemRequest", StringComparison.Ordinal) + 2, TestContext.Current.CancellationToken))!.AssemblyPath);
+            cachedEditor.UpdateExecutionContext(new ExecutionRequest
+            {
+                Platform = options.Platform,
+                OutputDirectory = outputDir,
+                Packages = packages,
+            });
+            Assert.Null(await cachedEditor.GetDefinitionAsync(messageType, messageType.IndexOf("ItemRequest", StringComparison.Ordinal) + 2,
+                TestContext.Current.CancellationToken));
+
         }
         finally
         {

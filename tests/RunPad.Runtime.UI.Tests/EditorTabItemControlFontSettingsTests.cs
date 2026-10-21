@@ -12,6 +12,22 @@ namespace RunPad.Runtime.UI.Tests;
 // setting to change it, because RunPad never asked for a specific font in the first place.
 public class EditorTabItemControlFontSettingsTests
 {
+    [AvaloniaTheory]
+    [InlineData(false, 2, "  ")]
+    [InlineData(true, 4, "\t")]
+    public void IndentationSettings_Should_ControlInsertedTabText(bool tabs, int size, string expected)
+    {
+        var editor = new CodeTextEditor();
+        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { UseTabs = tabs, IndentationSize = size });
+        Assert.Equal(!tabs, editor.Options.ConvertTabsToSpaces);
+        Assert.Equal(size, editor.Options.IndentationSize);
+        Assert.Equal(expected, editor.Options.IndentationString);
+        editor.TextArea.IndentationStrategy = new AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy(editor.Options);
+        EditorsTabItemControl.ApplyEditorSettings(editor, new EditorSettings { UseTabs = !tabs, IndentationSize = 3 });
+        var strategy = Assert.IsType<AvaloniaEdit.Indentation.CSharp.CSharpIndentationStrategy>(editor.TextArea.IndentationStrategy);
+        Assert.Equal(tabs ? "   " : "\t", strategy.IndentationString);
+    }
+
     // The setting keeps the generic name ("the platform's default code font"), not this machine's
     // font name, so a settings file moved to another system still gets that system's font.
     [Fact]
