@@ -71,7 +71,7 @@ public class EditorTabRunResultTests
     }
 
     [AvaloniaFact]
-    public void BreakpointDialog_Should_InheritTemplatesAndTrackTheOwnersPalette()
+    public void BreakpointConditionDialog_Should_InheritTemplatesAndTrackTheOwnersPalette()
     {
         var theme = new RunPadTheme();
         global::Avalonia.Application.Current!.Styles.Add(theme);
@@ -93,9 +93,9 @@ public class EditorTabRunResultTests
                 Dispatcher.UIThread.RunJobs();
                 Assert.Equal(variant, panel.ActualThemeVariant);
                 theme.TryGetResource("RunPad.Panel.BackgroundBrush", variant, out var expected);
-                var surface = panel.FindControl<Border>("PopoverSurface")!;
                 Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(expected).Color,
-                    Assert.IsAssignableFrom<ISolidColorBrush>(surface.Background).Color);
+                    Assert.IsAssignableFrom<ISolidColorBrush>(dialog.Background).Color);
+                Assert.NotNull(panel.FindControl<StackPanel>("ContentLayout"));
                 var input = panel.FindControl<TextBox>("ConditionBox")!;
                 Assert.NotEmpty(input.GetVisualDescendants());
                 theme.TryGetResource("RunPad.Editor.BackgroundBrush", variant, out var expectedInput);
