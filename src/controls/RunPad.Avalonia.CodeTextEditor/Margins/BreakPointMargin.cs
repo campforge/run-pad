@@ -163,6 +163,14 @@ public class BreakPointMargin : AbstractMargin, IDisposable
             bp?.VerificationState == BreakpointVerificationState.Unverified ? bp.VerificationMessage : null);
     }
 
+    /// <summary>The rendered marker center in gutter coordinates, including vertical scrolling.</summary>
+    public Point? GetMarkerCenter(int line)
+    {
+        if (TextView?.GetVisualLine(line) is not { } visualLine) return null;
+        var (top, height) = GutterMetrics.FirstRow(TextView, visualLine);
+        return new Point(Bounds.Width / 2, top + height / 2);
+    }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         if (_editor is null || _manager is null) return;
