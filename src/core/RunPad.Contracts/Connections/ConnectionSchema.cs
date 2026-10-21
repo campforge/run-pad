@@ -105,26 +105,50 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         var path = Path.Combine(Folder, key + ".json");
         try
         {
+            var info = new FileInfo(path);
+            if (!info.Exists)
+            {
+                lock (_lock) _descriptions.Remove(key);
+                return null;
+            }
+            var written = info.LastWriteTimeUtc.Ticks;
+            var created = info.CreationTimeUtc.Ticks;
+            var length = info.Length;
+            lock (_lock)
+                if (_descriptions.TryGetValue(key, out var cached)
+                    && cached.Written == written && cached.Created == created && cached.Length == length)
+                    return cached.Schema;
+
+            // File access and JSON parsing happen outside the cache lock. The editor can keep using
+            // an already loaded schema while another caller refreshes a cold or changed entry.
+            var schema = JsonSerializer.Deserialize<ConnectionSchema>(File.ReadAllText(path));
+            if (schema is null)
+            {
+                lock (_lock) _descriptions.Remove(key);
+                return null;
+            }
             lock (_lock)
             {
-                var info = new FileInfo(path);
-                if (!info.Exists)
-                {
-                    _descriptions.Remove(key);
-                    return null;
-                }
                 if (_descriptions.TryGetValue(key, out var cached)
-                    && cached.Written == info.LastWriteTimeUtc.Ticks && cached.Created == info.CreationTimeUtc.Ticks
-                    && cached.Length == info.Length)
+                    && cached.Written == written && cached.Created == created && cached.Length == length)
                     return cached.Schema;
-                var schema = JsonSerializer.Deserialize<ConnectionSchema>(File.ReadAllText(path));
-                if (schema is null) return null;
                 if (_descriptions.Count >= 16) _descriptions.Remove(_descriptions.Keys.First());
-                _descriptions[key] = new CachedDescription(info.LastWriteTimeUtc.Ticks, info.CreationTimeUtc.Ticks, info.Length, schema);
-                return schema;
+                _descriptions[key] = new CachedDescription(written, created, length, schema);
             }
+            return schema;
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return null; }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            lock (_lock) _descriptions.Remove(key);
+            return null;
+        }
+    }
+
+    /// <summary>Returns a schema already loaded in this process, without checking or reading disk.</summary>
+    public ConnectionSchema? TryGetLoaded(RpadConnection connection, string? scriptDirectory = null)
+    {
+        var key = KeyOf(connection, scriptDirectory);
+        lock (_lock) return _descriptions.TryGetValue(key, out var cached) ? cached.Schema : null;
     }
 
     /// <summary>Why the schema couldn't be read the last time this RunPad tried, or null.</summary>
@@ -210,11 +234,13 @@ public sealed class ConnectionSchemaCache(string folder, ConnectionDriverRegistr
         IReadOnlyDictionary<string, RpadValue> resolvedParams, ConnectionTools tools, string? scriptDirectory,
         ConnectionSchemaRefresh refresh)
     {
+        var cached = refresh != ConnectionSchemaRefresh.All ? Get(connection, scriptDirectory) : null;
         Task<bool> fetch;
         lock (_lock)
         {
             if (_fetches.TryGetValue(key, out var running)) return running;
-            if (refresh != ConnectionSchemaRefresh.All && Get(connection, scriptDirectory) is not null) return Task.FromResult(false);
+            if (refresh != ConnectionSchemaRefresh.All && (cached is not null || _descriptions.ContainsKey(key)))
+                return Task.FromResult(false);
             if (refresh == ConnectionSchemaRefresh.Missing && _errors.ContainsKey(key)) return Task.FromResult(false);
             fetch = Task.Run(async () =>
             {

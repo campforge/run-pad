@@ -80,6 +80,21 @@ public sealed class ConnectionSchemaCacheTests : IDisposable
     }
 
     [Fact]
+    public void TryGetLoaded_Should_NotReadPersistedSchemaUntilGetIsCalled()
+    {
+        var (schemas, _) = Create();
+        var cache = schemas.Cache;
+        var schema = new ConnectionSchema("persisted", [], "");
+        Directory.CreateDirectory(cache.Folder);
+        File.WriteAllText(Path.Combine(cache.Folder, cache.KeyOf(Connection) + ".json"),
+            System.Text.Json.JsonSerializer.Serialize(schema));
+
+        Assert.Null(cache.TryGetLoaded(Connection));
+        Assert.Equal(schema.Summary, cache.Get(Connection)!.Summary);
+        Assert.Equal("persisted", cache.TryGetLoaded(Connection)!.Summary);
+    }
+
+    [Fact]
     public async Task ConcurrentCallers_Should_ShareOneRead()
     {
         var (schemas, driver) = Create();
