@@ -798,31 +798,42 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
 
     private async void OnBreakpointRightClicked(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
     {
+        try { await EditBreakpointOptionsAsync(line, bp); }
+        catch (Exception ex)
+        {
+            _runLogger.LogError(ex, "Editing breakpoint options failed");
+            if (!_disposed) AppendError(ex);
+        }
+    }
+
+    private async Task EditBreakpointOptionsAsync(int line, RunPad.Avalonia.CodeTextEditor.IBreakpoint? bp)
+    {
+        if (_disposed) return;
         _breakpointDialog?.Close();
         var editor = State.Editor;
         var offset = editor.Document.GetLineByNumber(line).Offset;
-        var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
+        using var panel = new BreakpointConditionEditor(bp?.Condition, bp?.HitCondition, bp?.IsEnabled ?? true,
             (expression, ct) =>
             {
                 var code = editor.Text;
                 return Task.Run(() => _intelliSense?.AnalyzeBreakpointConditionAsync(code, offset, expression, ct)
                     ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
             });
-        if (TopLevel.GetTopLevel(this) is not Window owner)
-        {
-            panel.Dispose();
-            return;
-        }
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
 
         var dialog = new Windows.BreakpointConditionDialog(panel, owner);
         _breakpointDialog = dialog;
-        dialog.Closed += (_, _) =>
+        try
+        {
+            var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
+            if (result is { } value && !_disposed)
+                ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
+        }
+        finally
         {
             if (ReferenceEquals(_breakpointDialog, dialog)) _breakpointDialog = null;
-        };
-        var result = await dialog.ShowDialog<(string? Condition, string? HitCondition, bool Enabled)?>(owner);
-        if (result is { } value && !_disposed)
-            ApplyBreakpointOptions(line, value.Condition, value.HitCondition, value.Enabled);
+            dialog.Close();
+        }
     }
 
     internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)

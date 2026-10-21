@@ -4,7 +4,7 @@ using RunPad.UserControls;
 
 namespace RunPad.Windows;
 
-public partial class BreakpointConditionDialog : Window
+internal sealed partial class BreakpointConditionDialog : Window
 {
     private readonly BreakpointConditionEditor _editor;
     private readonly Window _owner;
@@ -12,6 +12,7 @@ public partial class BreakpointConditionDialog : Window
     public BreakpointConditionDialog(BreakpointConditionEditor editor, Window owner)
     {
         InitializeComponent();
+        BorderlessWindowChrome.Attach(this, DialogSurface);
         _editor = editor;
         _owner = owner;
         RequestedThemeVariant = owner.ActualThemeVariant;
@@ -33,7 +34,7 @@ public partial class BreakpointConditionDialog : Window
 
     private void OnOwnerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property.Name == "ActualThemeVariant")
+        if (e.Property == ThemeVariantScope.ActualThemeVariantProperty)
             RequestedThemeVariant = _owner.ActualThemeVariant;
     }
 }

@@ -20,7 +20,7 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
+    <Border x:Name="DialogSurface" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
             BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}"
             BorderThickness="1"
             CornerRadius="8"
