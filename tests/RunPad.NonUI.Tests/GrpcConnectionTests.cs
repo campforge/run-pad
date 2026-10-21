@@ -57,39 +57,6 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         public override Task<ItemRequest> Ping(ItemRequest request, ServerCallContext context) => Task.FromResult(request);
     }
 
-    private sealed class EmptyV1ReflectionService : Grpc.Reflection.V1.ServerReflection.ServerReflectionBase
-    {
-        public override Task ServerReflectionInfo(IAsyncStreamReader<Grpc.Reflection.V1.ServerReflectionRequest> requestStream,
-            IServerStreamWriter<Grpc.Reflection.V1.ServerReflectionResponse> responseStream, ServerCallContext context) => Task.CompletedTask;
-    }
-
-    private sealed class V1AlphaReflectionService : Grpc.Reflection.V1Alpha.ServerReflection.ServerReflectionBase
-    {
-        public override async Task ServerReflectionInfo(IAsyncStreamReader<Grpc.Reflection.V1Alpha.ServerReflectionRequest> requestStream,
-            IServerStreamWriter<Grpc.Reflection.V1Alpha.ServerReflectionResponse> responseStream, ServerCallContext context)
-        {
-            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
-            {
-                if (request.MessageRequestCase == Grpc.Reflection.V1Alpha.ServerReflectionRequest.MessageRequestOneofCase.ListServices)
-                {
-                    var response = new Grpc.Reflection.V1Alpha.ServerReflectionResponse
-                    {
-                        OriginalRequest = request,
-                        ListServicesResponse = new Grpc.Reflection.V1Alpha.ListServiceResponse(),
-                    };
-                    response.ListServicesResponse.Service.Add(new Grpc.Reflection.V1Alpha.ServiceResponse { Name = request.Host });
-                    await responseStream.WriteAsync(response);
-                }
-            }
-        }
-    }
-
-    private sealed class EmptyV1AlphaReflectionService : Grpc.Reflection.V1Alpha.ServerReflection.ServerReflectionBase
-    {
-        public override Task ServerReflectionInfo(IAsyncStreamReader<Grpc.Reflection.V1Alpha.ServerReflectionRequest> requestStream,
-            IServerStreamWriter<Grpc.Reflection.V1Alpha.ServerReflectionResponse> responseStream, ServerCallContext context) => Task.CompletedTask;
-    }
-
     private static async Task<(WebApplication, string)> StartAsync(bool reflection)
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -155,35 +122,17 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
             Driver = "grpc",
             Params = new(StringComparer.Ordinal)
             {
-                ["address"] = RpadValue.Of("ftp://localhost:5001"),
+                ["address"] = RpadValue.Of("localhost:5001"),
                 ["metadata"] = RpadValue.Map([new("token-bin", RpadValue.Of("x"))]),
                 ["skipCertificateCheck"] = RpadValue.Of("yes"),
             },
         };
         Assert.Equal(
         [
-            "The address 'ftp://localhost:5001' must be a host, host:port, http:// URL or https:// URL.",
+            "The address 'localhost:5001' is not an http:// or https:// address.",
             "'token-bin' can't be a metadata name: use letters, digits, '-', '_' and '.', and no '-bin' ending.",
             "Skip the certificate check must be true or false, not 'yes'.",
         ], driver.Validate(bad));
-    }
-
-    [Fact]
-    public void HostAndPort_Should_DefaultToTlsAndGenerateAnHttpsChannel()
-    {
-        const string address = "grpc.postman-echo.com:443";
-        var driver = new GrpcConnectionDriver();
-        var connection = Inventory(address, metadata: null);
-        Assert.Empty(driver.Validate(connection));
-
-        var schemas = Schemas();
-        schemas.Cache.Put(connection, new ConnectionSchema("", [], "[]"));
-        var generated = GeneratedConnections.For([connection], RpadLanguage.CSharp, driver.Packages.Keys,
-            schemas.Drivers, schemas.Cache)!;
-
-        Assert.Empty(generated.Errors);
-        Assert.Contains("ForAddress(\"https://grpc.postman-echo.com:443\"", generated.Source, StringComparison.Ordinal);
-        Assert.DoesNotContain("metadata.Add(", generated.Source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -201,62 +150,6 @@ public sealed class GrpcConnectionTests : IAsyncLifetime
         var closed = await driver.TestAsync(Resolved(Inventory("http://127.0.0.1:1")), TestContext.Current.CancellationToken);
         Assert.False(closed.Succeeded);
         Assert.StartsWith("Could not reach the server:", closed.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Test_Should_FallBackToV1Alpha_WhenV1EndsWithoutAResponse()
-    {
-        var builder = WebApplication.CreateSlimBuilder();
-        builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0, l => l.Protocols = HttpProtocols.Http2));
-        builder.Services.AddGrpc();
-        var server = builder.Build();
-        server.MapGrpcService<EmptyV1ReflectionService>();
-        server.MapGrpcService<V1AlphaReflectionService>();
-        await server.StartAsync(TestContext.Current.CancellationToken);
-
-        try
-        {
-            var address = server.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First()
-                .Replace("[::1]", "127.0.0.1", StringComparison.Ordinal);
-            var result = await new GrpcConnectionDriver().TestAsync(Resolved(Inventory(address, metadata: null)),
-                TestContext.Current.CancellationToken);
-
-            Assert.True(result.Succeeded, result.Message);
-            Assert.Equal($"1 service: {new Uri(address).Authority}.", result.Message);
-        }
-        finally
-        {
-            await server.DisposeAsync();
-        }
-    }
-
-    [Fact]
-    public async Task Test_Should_Explain_WhenBothReflectionProtocolsCloseWithoutAResponse()
-    {
-        var builder = WebApplication.CreateSlimBuilder();
-        builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Loopback, 0, l => l.Protocols = HttpProtocols.Http2));
-        builder.Services.AddGrpc();
-        var server = builder.Build();
-        server.MapGrpcService<EmptyV1ReflectionService>();
-        server.MapGrpcService<EmptyV1AlphaReflectionService>();
-        await server.StartAsync(TestContext.Current.CancellationToken);
-
-        try
-        {
-            var address = server.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First()
-                .Replace("[::1]", "127.0.0.1", StringComparison.Ordinal);
-            var result = await new GrpcConnectionDriver().TestAsync(Resolved(Inventory(address, metadata: null)),
-                TestContext.Current.CancellationToken);
-
-            Assert.False(result.Succeeded);
-            Assert.Equal("The server closed gRPC reflection without a response to either the v1 or v1alpha request.", result.Message);
-        }
-        finally
-        {
-            await server.DisposeAsync();
-        }
     }
 
     // The Test button gets the parameters unchecked: a name Metadata refuses is a message, not a crash.
