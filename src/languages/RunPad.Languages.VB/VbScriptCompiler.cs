@@ -75,6 +75,7 @@ public sealed class VbScriptCompiler(CompiledDotnetLanguageHostOptions options, 
             new("CONFIG", "Debug"),
             new("DEBUG", -1),
             new("TRACE", -1),
+            new("RUNPAD", -1),
             new("PLATFORM", "AnyCPU"),
             new("_MyType", "Empty"),
         };

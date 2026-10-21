@@ -5,6 +5,11 @@ Notable changes in each RunPad release. Downloads are on the
 
 ## [Unreleased]
 
+### Added
+
+- C# and Visual Basic scripts define the `RUNPAD` preprocessor symbol, so source can conditionally
+  include RunPad-specific code.
+
 ### Fixed
 
 - Conditional breakpoints open in a dedicated dialog.
