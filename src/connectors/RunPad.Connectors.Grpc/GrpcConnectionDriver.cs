@@ -52,8 +52,8 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     public IReadOnlyList<ConnectionParam> Params { get; } =
     [
-        new(Address, "Address", Required: true, Example: "https://localhost:5001",
-            Description: "The server's http:// or https:// address. It must offer gRPC server reflection."),
+        new(Address, "Address (host[:port] or URL)", Required: true, Example: "grpc.postman-echo.com:443",
+            Description: "A host or host:port uses TLS (https://) by default. Use an explicit http:// or https:// URL to choose the transport; the server must offer gRPC reflection."),
         new(Metadata, "Metadata", ConnectionParamType.Map,
             Description: "Sent with every call, for example authorization: Bearer ${secret:api-token}."),
         new(SkipCertificateCheck, "Skip the certificate check", ConnectionParamType.Boolean, Default: "false", Advanced: true,
@@ -66,8 +66,11 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         var parameters = connection.Params;
         if (!parameters.TryGetValue(Address, out var address) || string.IsNullOrWhiteSpace(address.Text))
             errors.Add("The address is missing.");
-        else if (!HasPlaceholder(address.Text) && !IsHttpAddress(address.Text))
-            errors.Add($"The address '{address.Text}' is not an http:// or https:// address.");
+        else if ((!HasPlaceholder(address.Text) && !TryNormalizeAddress(address.Text, out _))
+                 || (address.Text.Contains("://", StringComparison.Ordinal)
+                     && !address.Text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                     && !address.Text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+            errors.Add($"The address '{address.Text}' must be a host, host:port, http:// URL or https:// URL.");
 
         if (parameters.TryGetValue(Metadata, out var metadata) && metadata.Text is not { Length: 0 })
         {
@@ -122,7 +125,7 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     public ConnectionClientCode CreateClient(RpadConnection connection, ConnectionCodeContext context)
     {
         var parameters = connection.Params;
-        var address = parameters[Address].Text!;
+        var address = NormalizeAddressForClient(parameters[Address].Text!);
         var clients = context.Schema is { } schema ? JsonSerializer.Deserialize<List<GrpcServiceClient>>(schema.Data) ?? [] : [];
         clients = GrpcClientParser.WithProperties(clients, context.ClassName);
         var metadata = parameters.TryGetValue(Metadata, out var m) ? m.Fields ?? [] : [];
@@ -184,8 +187,9 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
     private async Task<T> WithServerAsync<T>(IReadOnlyDictionary<string, RpadValue> resolvedParams,
         Func<GrpcReflection, CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
-        if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } address || !IsHttpAddress(address))
-            throw new GrpcConnectionException("The address is not an http:// or https:// address.");
+        if (!resolvedParams.TryGetValue(Address, out var addressValue) || addressValue.Text is not { } address
+            || !TryNormalizeAddress(address, out address))
+            throw new GrpcConnectionException("The address must be a host, host:port, http:// URL or https:// URL.");
         var skip = resolvedParams.TryGetValue(SkipCertificateCheck, out var s) && bool.TryParse(s.Text, out var flag) && flag;
         // Before the channel: the parameters reach here unchecked, and Metadata refuses an invalid name.
         var headers = new Metadata();
@@ -214,7 +218,8 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
         timeout.CancelAfter(MaxWait);
         try
         {
-            return await action(new GrpcReflection(channel.CreateCallInvoker(), headers), timeout.Token).ConfigureAwait(false);
+            return await action(new GrpcReflection(channel.CreateCallInvoker(), headers, new Uri(address).Authority), timeout.Token)
+                .ConfigureAwait(false);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
         {
@@ -335,8 +340,30 @@ public sealed class GrpcConnectionDriver : IConnectionSchemaDriver
 
     private static bool HasPlaceholder(string text) => RpadPlaceholders.Parse(text).Parts.Any(p => p.Kind != RpadPlaceholders.Kind.Text);
 
-    private static bool IsHttpAddress(string text) =>
-        Uri.TryCreate(text, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    private static bool TryNormalizeAddress(string text, out string normalized)
+    {
+        text = text.Trim();
+        if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            normalized = text;
+        else if (text.Contains("://", StringComparison.Ordinal))
+        {
+            normalized = "";
+            return false;
+        }
+        else
+            normalized = "https://" + text;
+
+        return Uri.TryCreate(normalized, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            && !string.IsNullOrWhiteSpace(uri.Host);
+    }
+
+    private static string NormalizeAddressForClient(string text) =>
+        text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+        || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            ? text.Trim()
+            : "https://" + text.Trim();
 
     // ASCII metadata as gRPC allows it; '-bin' entries carry bytes, which a text can't give.
     private static bool IsMetadataKey(string key) =>
@@ -354,7 +381,7 @@ internal sealed class GrpcConnectionException(string message) : Exception(messag
 internal sealed record GrpcServiceClient(string Service, string ClientType, string Property);
 
 /// <summary>Server reflection, in the v1 protocol or the older v1alpha one the server may offer instead.</summary>
-internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata headers)
+internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata headers, string host)
 {
     private static readonly Method<ServerReflectionRequest, ServerReflectionResponse> V1 = new(
         MethodType.DuplexStreaming, "grpc.reflection.v1.ServerReflection", "ServerReflectionInfo",
@@ -423,20 +450,32 @@ internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata heade
 
     private async Task<ServerReflectionResponse?> AskAsync(ServerReflectionRequest request, CancellationToken ct, bool allowNotFound)
     {
+        request.Host = host;
         if (_method is null)
         {
             try
             {
                 var first = await CallAsync(V1, request, ct).ConfigureAwait(false);
-                _method = V1;
-                return Check(first);
+                if (first is not null)
+                {
+                    _method = V1;
+                    return Check(first);
+                }
             }
             catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
             {
-                _method = V1Alpha;
+                // Older servers can reject the v1 method explicitly.
             }
+
+            // Some servers complete an unsupported v1 reflection stream without returning a
+            // response instead of reporting UNIMPLEMENTED. Retry with the older protocol.
+            _method = V1Alpha;
+            var fallback = await CallAsync(_method, request, ct).ConfigureAwait(false);
+            return Check(fallback ?? throw new GrpcConnectionException(
+                "The server closed gRPC reflection without a response to either the v1 or v1alpha request."));
         }
-        return Check(await CallAsync(_method, request, ct).ConfigureAwait(false));
+        var response = await CallAsync(_method, request, ct).ConfigureAwait(false);
+        return Check(response ?? throw NoReflectionAnswer(_method));
 
         ServerReflectionResponse? Check(ServerReflectionResponse response)
         {
@@ -448,14 +487,15 @@ internal sealed partial class GrpcReflection(CallInvoker invoker, Metadata heade
     }
 
     // One request per call keeps it simple; the server's answers are small.
-    private async Task<ServerReflectionResponse> CallAsync(Method<ServerReflectionRequest, ServerReflectionResponse> method,
+    private static GrpcConnectionException NoReflectionAnswer(Method<ServerReflectionRequest, ServerReflectionResponse> method) =>
+        new($"The server closed its gRPC reflection {method.FullName} stream without a response.");
+
+    private async Task<ServerReflectionResponse?> CallAsync(Method<ServerReflectionRequest, ServerReflectionResponse> method,
         ServerReflectionRequest request, CancellationToken ct)
     {
         using var call = invoker.AsyncDuplexStreamingCall(method, null, new CallOptions(headers, cancellationToken: ct));
         await call.RequestStream.WriteAsync(request, ct).ConfigureAwait(false);
         await call.RequestStream.CompleteAsync().ConfigureAwait(false);
-        if (!await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
-            throw new GrpcConnectionException("The server's reflection service sent no answer.");
-        return call.ResponseStream.Current;
+        return await call.ResponseStream.MoveNext(ct).ConfigureAwait(false) ? call.ResponseStream.Current : null;
     }
 }
