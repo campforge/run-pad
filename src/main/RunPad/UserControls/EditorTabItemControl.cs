@@ -3,6 +3,7 @@ using System.Text;
 using System.Web;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -809,16 +810,22 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
                     ?? Task.FromResult<BreakpointConditionAnalysis?>(null), ct);
             });
         var view = editor.TextArea.TextView;
-        var position = view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1), VisualYPosition.LineBottom)
-            - view.ScrollOffset;
-        var anchor = view.TranslatePoint(position, editor) ?? new Point(0, 0);
         var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().FirstOrDefault();
-        var markerX = margin?.TranslatePoint(new Point(margin.Bounds.Width / 2, 0), editor)?.X ?? 28;
+        var marker = margin?.GetMarkerCenter(line);
+        var anchor = marker is { } center ? margin!.TranslatePoint(center, editor) : null;
+        anchor ??= view.TranslatePoint(view.GetVisualPosition(new AvaloniaEdit.TextViewPosition(line, 1),
+            VisualYPosition.LineMiddle) - view.ScrollOffset, editor) ?? new Point(28, 0);
+        var tip = BreakpointConditionEditor.PointerTip;
         var popup = new global::Avalonia.Controls.Primitives.Popup
         {
             PlacementTarget = editor,
-            Placement = global::Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft,
-            PlacementRect = new Rect(new Point(markerX - 28, anchor.Y), new Size(1, 1)),
+            Placement = global::Avalonia.Controls.PlacementMode.AnchorAndGravity,
+            PlacementAnchor = PopupAnchor.BottomLeft,
+            PlacementGravity = PopupGravity.BottomRight,
+            PlacementConstraintAdjustment = PopupPositionerConstraintAdjustment.SlideX,
+            // Bottom placement adds the anchor rectangle's height; compensate so the tip
+            // lands on the marker's center rather than the text row's bottom edge.
+            PlacementRect = new Rect(new Point(anchor.Value.X - tip.X, anchor.Value.Y - tip.Y - 1), new Size(1, 1)),
             IsLightDismissEnabled = true,
             Child = panel,
         };
@@ -838,8 +845,28 @@ public partial class EditorsTabItemControl : UserControl, IDisposable
         var popupOwner = (Panel)Content!;
         popupOwner.Children.Add(popup);
         popup.Closed += (_, _) => popupOwner.Children.Remove(popup);
+        panel.Measure(new Size(panel.Width, double.PositiveInfinity));
+        var markerScreen = editor.PointToScreen(anchor.Value);
+        if (TopLevel.GetTopLevel(editor) is Window owner && owner.Screens.ScreenFromWindow(owner) is { } screen
+            && markerScreen.Y + panel.DesiredSize.Height * screen.Scaling > screen.WorkingArea.Bottom
+            && markerScreen.Y - panel.DesiredSize.Height * screen.Scaling >= screen.WorkingArea.Y)
+        {
+            panel.SetOpensAbove(true);
+            popup.PlacementAnchor = PopupAnchor.TopLeft;
+            popup.PlacementGravity = PopupGravity.TopRight;
+            popup.PlacementRect = new Rect(new Point(anchor.Value.X - tip.X, anchor.Value.Y + 1), new Size(1, 1));
+        }
         _breakpointPopup = popup;
         popup.Open();
+        // The popup host may slide against screen edges; move the notch inside it accordingly.
+        Dispatcher.Post(() =>
+        {
+            if (!popup.IsOpen) return;
+            var target = editor.PointToScreen(anchor.Value);
+            var actualTip = panel.PointToScreen(new Point(tip.X, panel.OpensAbove ? panel.Bounds.Height - 1 : tip.Y));
+            popup.VerticalOffset += (target.Y - actualTip.Y) / (TopLevel.GetTopLevel(panel)?.RenderScaling ?? 1);
+            panel.AlignPointerTo(target);
+        }, DispatcherPriority.Loaded);
     }
 
     internal void ApplyBreakpointOptions(int line, string? condition, string? hitCondition, bool enabled)

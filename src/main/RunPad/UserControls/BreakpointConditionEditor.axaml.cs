@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using RunPad.Contracts.IntelliSense;
@@ -6,6 +7,8 @@ namespace RunPad.UserControls;
 
 public partial class BreakpointConditionEditor : UserControl, IDisposable
 {
+    internal static readonly global::Avalonia.Point PointerTip = new(28, 1);
+
     private readonly Func<string, CancellationToken, Task<BreakpointConditionAnalysis?>> _analyze;
     private CancellationTokenSource? _pending;
     private bool _disposed;
@@ -33,6 +36,24 @@ public partial class BreakpointConditionEditor : UserControl, IDisposable
             ConditionBox.SelectAll();
             _ = ValidateAsync();
         };
+    }
+
+    internal bool OpensAbove { get; private set; }
+
+    internal void SetOpensAbove(bool above)
+    {
+        OpensAbove = above;
+        PopoverLayout.RowDefinitions = new RowDefinitions(above ? "Auto,10" : "10,Auto");
+        Grid.SetRow(PopoverSurface, above ? 0 : 1);
+        PointerArrow.VerticalAlignment = above ? global::Avalonia.Layout.VerticalAlignment.Bottom : global::Avalonia.Layout.VerticalAlignment.Top;
+        PointerArrow.Margin = above ? new Thickness(0, 0, 0, 1) : default;
+        PointerArrow.Data = global::Avalonia.Media.Geometry.Parse(above ? "M 18,0 L 28,10 L 38,0" : "M 18,11 L 28,1 L 38,11");
+    }
+
+    internal void AlignPointerTo(global::Avalonia.PixelPoint marker)
+    {
+        var local = this.PointToClient(marker);
+        PointerArrow.RenderTransform = new global::Avalonia.Media.TranslateTransform(local.X - PointerTip.X, 0);
     }
 
     private async Task ValidateAsync()

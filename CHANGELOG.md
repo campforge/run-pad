@@ -3,6 +3,13 @@
 Notable changes in each RunPad release. Downloads are on the
 [releases page](https://github.com/campforge/run-pad/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- The breakpoint popover pointer aligns with the marker center at different editor font sizes
+  and scroll positions.
+
 ## [0.9.1] — 2026-10-21
 
 Bug fixes for breakpoints, indentation and large gRPC contracts.

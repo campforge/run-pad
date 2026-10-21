@@ -13,7 +13,7 @@
             <Setter Property="Padding" Value="5,2"/>
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="10,Auto">
+    <Grid x:Name="PopoverLayout" RowDefinitions="10,Auto">
         <Border x:Name="PopoverSurface" Grid.Row="1" Background="{DynamicResource RunPad.Panel.BackgroundBrush}"
                 BorderBrush="{DynamicResource RunPad.Border.BackgroundBrush}" BorderThickness="1"
                 CornerRadius="6" Padding="16,14">
@@ -37,7 +37,7 @@
 
             </StackPanel>
         </Border>
-        <Path Data="M 18,11 L 28,1 L 38,11" Fill="{DynamicResource RunPad.Panel.BackgroundBrush}"
+        <Path x:Name="PointerArrow" Data="M 18,11 L 28,1 L 38,11" Fill="{DynamicResource RunPad.Panel.BackgroundBrush}"
               Stroke="{DynamicResource RunPad.Border.BackgroundBrush}" StrokeThickness="1"
               VerticalAlignment="Top" HorizontalAlignment="Left" Grid.RowSpan="2"/>
     </Grid>

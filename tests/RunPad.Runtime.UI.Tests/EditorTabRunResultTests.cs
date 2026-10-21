@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -6,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RunPad.Avalonia.CodeTextEditor;
 using RunPad.Avalonia.Themes;
 using RunPad.Contracts;
 using RunPad.Contracts.Models;
@@ -66,6 +68,53 @@ public class EditorTabRunResultTests
             intelliSense: null, new Mock<IBuildCacheService>().Object, logger);
         new Window { Content = ctrl }.Show();
         return ctrl;
+    }
+
+    [AvaloniaTheory]
+    [InlineData(12, false)]
+    [InlineData(24, false)]
+    [InlineData(18, true)]
+    public void BreakpointPopoverTip_Should_TargetTheRenderedMarkerCenter(double fontSize, bool scroll)
+    {
+        var ctrl = CreateControl(RunResult.Exited(0));
+        var window = (Window)TopLevel.GetTopLevel(ctrl)!;
+        window.Width = 1100;
+        window.Height = 800;
+        try
+        {
+            var editor = ctrl.State.Editor;
+            editor.Text = string.Join("\n", Enumerable.Range(1, 100).Select(i => $"Console.WriteLine({i});"));
+            editor.FontSize = fontSize;
+            window.UpdateLayout();
+            var line = scroll ? 45 : 2;
+            if (scroll) editor.ScrollToLine(line);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var margin = editor.TextArea.LeftMargins.OfType<BreakPointMargin>().Single();
+            var marker = margin.GetMarkerCenter(line);
+            Assert.NotNull(marker);
+            var visualLine = editor.TextArea.TextView.GetVisualLine(line)!;
+            var row = GutterMetrics.FirstRow(editor.TextArea.TextView, visualLine);
+            Assert.Equal(row.Top + row.Height / 2, marker.Value.Y, 5);
+            var center = margin.TranslatePoint(marker.Value, editor)!.Value;
+            editor.RaiseBreakpointRightClicked(line, null);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var rect = ctrl.BreakpointPopup!.PlacementRect!.Value;
+            var panel = (BreakpointConditionEditor)ctrl.BreakpointPopup.Child!;
+            var arrow = panel.FindControl<global::Avalonia.Controls.Shapes.Path>("PointerArrow")!;
+            var shape = arrow.Data!.Bounds;
+            var tip = arrow.TranslatePoint(new global::Avalonia.Point(shape.Center.X, shape.Top), panel)!.Value;
+            Assert.Equal(center.X, rect.Left + BreakpointConditionEditor.PointerTip.X, 5);
+            Assert.Equal(center.Y, rect.Bottom + tip.Y, 5);
+            var actualScreenTip = panel.PointToScreen(tip);
+            var expectedScreenCenter = margin.PointToScreen(marker.Value);
+            Assert.InRange(Math.Abs(actualScreenTip.X - expectedScreenCenter.X), 0, 1);
+            Assert.True(Math.Abs(actualScreenTip.Y - expectedScreenCenter.Y) <= 1,
+                $"tip={actualScreenTip}, marker={expectedScreenCenter}, anchor={rect}, panel={panel.Bounds}");
+        }
+        finally { ctrl.Dispose(); window.Close(); }
     }
 
     [AvaloniaFact]
